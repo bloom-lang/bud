@@ -1,0 +1,8 @@
+To install:
+	% gem build bud.gemspec
+	% sudo gem install bud-0.0.1.gem
+
+A "one-shot" shortest paths example:
+  % ruby examples/paths.rb
+
+To run a "ping-pong" example, see instructions in examples/pingpong.rb

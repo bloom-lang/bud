@@ -1,0 +1,6 @@
+require 'rubygems'
+require 'bud'
+require 'test/unit'
+require 'tc_collections'
+require 'tc_joins'
+require 'tc_vars'
