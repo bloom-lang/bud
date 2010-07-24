@@ -10,12 +10,13 @@ class ShortestPaths < Bud
     table :link, ['from', 'to', 'cost']
     table :path, ['from', 'to', 'next', 'cost']
     table :shortest, ['from', 'to'], ['next', 'cost']
+    table :minavgs, ['from', 'to'], ['mincost', 'avgcost']
   end
   
   def declaration
     strata[0] = rules {
       link << ['a', 'b', 1]
-      link << ['a', 'b', 3]
+      link << ['a', 'b', 4]
       link << ['b', 'c', 1]
       link << ['c', 'd', 1]
       link << ['d', 'e', 1]
@@ -29,12 +30,8 @@ class ShortestPaths < Bud
     }
 
     strata[1] = rules {
-      path.reduce(shortest) do |memo,p| 
-        if memo[[p.from,p.to]].nil? or (memo[[p.from,p.to]].cost > p.cost) then 
-          memo[[p.from,p.to]] = [p.next, p.cost]
-        end
-        memo
-      end
+      shortest <= path.argmin([path.from, path.to], path.cost)
+      minavgs <= path.group([path.from, path.to], min(path.cost), avg(path.cost))
     }
   end
 end
@@ -42,6 +39,8 @@ end
 program = ShortestPaths.new('localhost', ARGV[0])
 
 program.tick
+program.minavgs.each {|t| puts t.inspect}
+puts '-----'
 program.shortest.each {|t| puts t.inspect}
 # 
 # program.tick

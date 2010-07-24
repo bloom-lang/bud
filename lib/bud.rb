@@ -170,6 +170,7 @@ class Bud
     regvar(name, @tmpvars)
   end
 
+  ####### Joins
   def join(rels, *preds)
     # decompose each pred into a binary pred
     newpreds = []
@@ -195,7 +196,14 @@ class Bud
     preds.uniq!
     join(rels, *preds)
   end
-
+  
+  ######## Agg symbols
+  def min(x) [:min ,x] end
+  def max(x) [:max ,x] end
+  def count(x) [:count ,x] end
+  def avg(x) [:avg ,x] end
+  def stddev(x) [:stddev ,x] end    
+    
   ######## ids and timers
   def gen_id
     Time.new.to_i.to_s << rand.to_s
@@ -249,7 +257,7 @@ class Bud
       m = Module.new do
         s.each_with_index do |c, i|
           define_method c.to_sym do
-            [@name, i]
+            [@name, i, c]
           end
         end
       end
@@ -338,11 +346,102 @@ class Bud
       tup += @storage[key] unless @storage[key] == true
       return tuple_accessors(tup)
     end
-
+    
     def method_missing(sym, *args, &block)
       @storage.send sym, *args, &block
     end
+    
+    ######## aggs
+    
+    ######## Todo: generalize to any exemplary agg
+    def argagg(gbkeys, col, agg)
+      keynames = gbkeys.map {|k| k[2]}
+      colnum = col[1]
+      colname = col[2]
+      retval = BudScratch.new('temp', keynames, @schema - keynames)
+      tups = self.inject({}) do |memo,p| 
+        pkeys = keynames.map{|n| p.send(n.to_sym)}
+        if memo[pkeys].nil? or (agg == :min and memo[pkeys][colnum] > p[colnum]) or (agg == :max and memo[pkeys][colnum] < p[colnum]) then 
+          memo[pkeys] = p
+        end
+        memo
+      end
+      retval.merge(tups.values)
+    end
 
+    def argmin(gbkeys, col)
+      argagg(gbkeys, col, :min)
+    end
+    def argmax(gbkeys, col)
+      argagg(gbkeys, col, :max)
+    end
+
+    def group(keys, *aggpairs)      
+      keynames = keys.map {|k| k[2]}
+      retval = BudScratch.new('temp', keynames, @schema - keynames)
+      tups = self.inject({}) do |memo,p| 
+        pkeys = keynames.map{|n| p.send(n.to_sym)}
+        memo[pkeys] = [] if memo[pkeys].nil?
+        aggpairs.each_with_index do |ap, i|
+          if memo[pkeys][i].nil? then
+            memo[pkeys][i] = agg_init(ap, p)
+          else
+            memo[pkeys][i] = agg_iter(ap, memo[pkeys][i], p)
+          end
+        end
+        memo
+      end
+
+      result = tups.inject([]) do |memo,t| 
+        finals = []
+        aggpairs.each_with_index do |ap, i|
+          finals << agg_final(ap, t[1][i])
+        end
+        memo << t[0] + finals
+      end
+      retval.merge(result)
+    end
+    
+    def agg_init(aggpair, tup)
+      aggname = aggpair[0]
+      col = aggpair[1]
+      colval = tup[col[1]]
+
+      case aggname
+         when :min then colval
+         when :max then colval
+         when :sum then colval
+         when :count then 1
+         when :avg then [colval, 1]
+         else raise BudError, "agg #{aggname} not implemented"
+      end
+    end
+    
+    def agg_iter(aggpair, state, tup)
+      aggname = aggpair[0]
+      col = aggpair[1]
+      colval = tup[col[1]]
+      
+      case aggname
+         when :min then state > colval ? colval : state
+         when :max then state < colval ? colval : state
+         when :sum then state + colval
+         when :count then state + 1
+         when :avg then [state[0] + colval, state[1] + 1]
+         else raise BudError, "agg #{aggname} not implemented"
+      end
+    end
+    
+    def agg_final(aggpair, state)
+      aggname = aggpair[0]
+      
+      case aggname
+         when :min, :max, :sum, :count then state
+         when :avg then (state[0]*1.0)/state[1]
+         else raise BudError, "agg #{aggname} not implemented"
+      end
+    end
+    
     alias reduce inject
   end
 
