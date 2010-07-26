@@ -41,14 +41,14 @@ class Bud
   end
 
   class Count < Agg
-    def init
+    def init(x=nil)
       1
     end
-    def trans(state)
+    def trans(state, x=nil)
       state + 1
     end
   end  
-  def count
+  def count(x=nil)
     [Count.new]
   end  
 

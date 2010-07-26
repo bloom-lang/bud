@@ -33,7 +33,7 @@ class ShortestPaths < Bud
   end
 end
 
-class TestJoins < Test::Unit::TestCase
+class TestAggs < Test::Unit::TestCase
   def test_paths
     program = ShortestPaths.new('localhost', 12345)
     assert_nothing_raised( RuntimeError) { program.tick }
@@ -47,5 +47,13 @@ class TestJoins < Test::Unit::TestCase
     shorts = program.shortest.map {|s| [s.from, s.to, s.cost]}
     costs = program.minmaxsumcntavg.map {|c| [c.from, c.to, c.mincost]}
     assert_equal(0, (shorts - costs).length)
+  end
+  
+  def test_non_exemplary
+    program = ShortestPaths.new('localhost', 12345)
+    assert_nothing_raised( RuntimeError) { program.tick }
+    assert_raise(Bud::BudError) {p = program.path.argagg(:count, [program.path.from, program.path.to], nil)}
+    assert_raise(Bud::BudError) {p = program.path.argagg(:sum, [program.path.from, program.path.to], program.path.cost)}
+    assert_raise(Bud::BudError) {p = program.path.argagg(:avg, [program.path.from, program.path.to], program.path.cost)}
   end
 end

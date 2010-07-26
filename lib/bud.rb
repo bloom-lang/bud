@@ -366,11 +366,11 @@ class Bud
     ######## aggs
 
     def argagg(aggname, gbkeys, col)
+      agg = bud_instance.send(aggname, nil)[0]
+      raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::Exemplary
       keynames = gbkeys.map {|k| k[2]}
       colnum = col[1]
       retval = BudScratch.new('temp', keynames, @schema - keynames, bud_instance)
-      agg = bud_instance.send(aggname, nil)[0]
-      raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::Exemplary
       tups = self.inject({}) do |memo,p| 
         pkeys = keynames.map{|n| p.send(n.to_sym)}
         if memo[pkeys].nil? then
@@ -396,11 +396,9 @@ class Bud
           colnum = ap[1].nil? ? nil : ap[1][1]
           colval = colnum.nil? ? nil : p[colnum]
           if memo[pkeys][i].nil? then
-            memo[pkeys][i] = agg.send(:init, colval) if agg.method(:init).arity == 1
-            memo[pkeys][i] = agg.send(:init) if agg.method(:init).arity == 0
+            memo[pkeys][i] = agg.send(:init, colval)
           else
-            memo[pkeys][i] = agg.send(:trans, memo[pkeys][i], colval) if agg.method(:trans).arity == 2
-            memo[pkeys][i] = agg.send(:trans, memo[pkeys][i]) if agg.method(:trans).arity == 1
+            memo[pkeys][i] = agg.send(:trans, memo[pkeys][i], colval)
           end
         end
         memo
