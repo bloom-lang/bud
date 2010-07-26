@@ -44,5 +44,8 @@ class TestJoins < Test::Unit::TestCase
     program.shortest.each do |t|
       assert_equal(t[1][0] - t[0][0], t[3])
     end
+    shorts = program.shortest.map {|s| [s.from, s.to, s.cost]}
+    costs = program.minmaxsumcntavg.map {|c| [c.from, c.to, c.mincost]}
+    assert_equal(0, (shorts - costs).length)
   end
 end
