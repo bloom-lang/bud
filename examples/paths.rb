@@ -5,7 +5,10 @@ require 'rubygems'
 require 'bud'
 
 class ShortestPaths < Bud
-
+  def initialize(ip, port)
+    super(ip,port)
+  end
+  
   def state
     table :link, ['from', 'to', 'cost']
     table :path, ['from', 'to', 'next', 'cost']
@@ -30,7 +33,7 @@ class ShortestPaths < Bud
     }
 
     strata[1] = rules {
-      shortest <= path.argmin([path.from, path.to], path.cost)
+      shortest <= path.argagg(:min, [path.from, path.to], path.cost)
       minavgs <= path.group([path.from, path.to], min(path.cost), avg(path.cost))
     }
   end
@@ -42,7 +45,7 @@ program.tick
 program.minavgs.each {|t| puts t.inspect}
 puts '-----'
 program.shortest.each {|t| puts t.inspect}
-# 
-# program.tick
-# program.link << ['e','f',1]
-# program.tick
+
+program.tick
+program.link << ['e','f',1]
+program.tick

@@ -4,6 +4,23 @@ require 'eventmachine'
 require 'socket'
 require 'superators'
 
+class Object
+  # http://whytheluckystiff.net/articles/seeingMetaclassesClearly.html
+  # The hidden singleton lurks behind everyone
+  def metaclass; class << self; self; end; end
+  def meta_eval &blk; metaclass.instance_eval &blk; end
+
+  # Adds methods to a metaclass
+  def meta_def name, &blk
+    meta_eval { define_method name, &blk }
+  end
+
+  # Defines an instance method within a class
+  def class_def name, &blk
+    class_eval { define_method name, &blk }
+  end
+end
+
 class Bud
   attr_reader :strata, :budtime
   attr_accessor :connections
@@ -105,10 +122,10 @@ class Bud
       @tables[name].tick
     else # define table
       @tables[name] = case persist
-        when :table then BudTable.new(name, keys, cols)
-        when :channel then BudChannel.new(name, keys, cols)
-        when :periodic then BudPeriodic.new(name, keys, cols)
-        when :scratch then BudScratch.new(name, keys, cols)
+        when :table then BudTable.new(name, keys, cols, self)
+        when :channel then BudChannel.new(name, keys, cols, self)
+        when :periodic then BudPeriodic.new(name, keys, cols, self)
+        when :scratch then BudScratch.new(name, keys, cols, self)
         else raise BudError, "unknown persistence model"
       end
       self.class.send :define_method, name do 
@@ -198,12 +215,19 @@ class Bud
   end
   
   ######## Agg symbols
-  def min(x) [:min ,x] end
-  def max(x) [:max ,x] end
-  def count(x) [:count ,x] end
-  def avg(x) [:avg ,x] end
-  def stddev(x) [:stddev ,x] end    
-    
+  def min(x)
+    [BudMin.new, x]
+  end
+  def max(x)
+    [BudMax.new, x]
+  end
+  def count(x) 
+    [BudCount.new, x]
+  end
+  def avg(x) 
+    [BudAvg.new, x]
+  end
+      
   ######## ids and timers
   def gen_id
     Time.new.to_i.to_s << rand.to_s
@@ -221,20 +245,21 @@ class Bud
     include Enumerable
 
     attr_accessor :schema, :keys, :cols
-    attr_reader :name
+    attr_reader :name, :bud_instance
 
-    def initialize(name, keys, cols)
+    def initialize(name, keys, cols, b_class)
       @name = name
       @schema = keys+cols
       @keys = keys
       @storage = {}
       @pending = {}
+      @bud_instance = b_class
       raise BudError, "schema contains duplicate names" if schema.uniq.length < schema.length
       schema_accessors
     end
 
     def clone
-      retval = BudTable.new(keys, schema - keys)
+      retval = BudCollection.new(keys, schema - keys, bud_instance)
       retval.storage = @storage.clone
       retval.pending = @pending.clone
       return retval
@@ -354,39 +379,61 @@ class Bud
     ######## aggs
     
     ######## Todo: generalize to any exemplary agg
-    def argagg(gbkeys, col, agg)
+    # def argagg(gbkeys, col, agg)
+    #   keynames = gbkeys.map {|k| k[2]}
+    #   colnum = col[1]
+    #   colname = col[2]
+    #   retval = BudScratch.new('temp', keynames, @schema - keynames)
+    #   tups = self.inject({}) do |memo,p| 
+    #     pkeys = keynames.map{|n| p.send(n.to_sym)}
+    #     if memo[pkeys].nil? or (agg == :min and memo[pkeys][colnum] > p[colnum]) or (agg == :max and memo[pkeys][colnum] < p[colnum]) then 
+    #       memo[pkeys] = p
+    #     end
+    #     memo
+    #   end
+    #   retval.merge(tups.values)
+    # end
+    # 
+    # def argmin(gbkeys, col)
+    #   argagg(gbkeys, col, :min)
+    # end
+    # def argmax(gbkeys, col)
+    #   argagg(gbkeys, col, :max)
+    # end
+
+    def argagg(aggname, gbkeys, col)
       keynames = gbkeys.map {|k| k[2]}
       colnum = col[1]
-      colname = col[2]
-      retval = BudScratch.new('temp', keynames, @schema - keynames)
+      retval = BudScratch.new('temp', keynames, @schema - keynames, bud_instance)
+      agg = bud_instance.send(aggname, nil)[0]
+      raise BudError, "#{aggname} not declared exemplary" unless agg.class <= BudExemplary
       tups = self.inject({}) do |memo,p| 
         pkeys = keynames.map{|n| p.send(n.to_sym)}
-        if memo[pkeys].nil? or (agg == :min and memo[pkeys][colnum] > p[colnum]) or (agg == :max and memo[pkeys][colnum] < p[colnum]) then 
-          memo[pkeys] = p
+        if memo[pkeys].nil? then
+          memo[pkeys] = [agg.send(:init, p[colnum]), p]
+        else
+          newval = agg.send(:trans, memo[pkeys][0], p[colnum])
+          memo[pkeys] = [newval, p] unless memo[pkeys][0] == newval
         end
         memo
       end
-      retval.merge(tups.values)
+            
+      retval.merge(tups.map{|t| agg.send(:final, t[1][1])})      
     end
 
-    def argmin(gbkeys, col)
-      argagg(gbkeys, col, :min)
-    end
-    def argmax(gbkeys, col)
-      argagg(gbkeys, col, :max)
-    end
-
-    def group(keys, *aggpairs)      
+    def group(keys, *aggpairs)    
       keynames = keys.map {|k| k[2]}
-      retval = BudScratch.new('temp', keynames, @schema - keynames)
+      retval = BudScratch.new('temp', keynames, @schema - keynames, bud_instance)
       tups = self.inject({}) do |memo,p| 
         pkeys = keynames.map{|n| p.send(n.to_sym)}
         memo[pkeys] = [] if memo[pkeys].nil?
         aggpairs.each_with_index do |ap, i|
+          agg = ap[0]
+          colnum = ap[1][1]
           if memo[pkeys][i].nil? then
-            memo[pkeys][i] = agg_init(ap, p)
+            memo[pkeys][i] = agg.send(:init, p[colnum])
           else
-            memo[pkeys][i] = agg_iter(ap, memo[pkeys][i], p)
+            memo[pkeys][i] = agg.send(:trans, memo[pkeys][i], p[colnum])
           end
         end
         memo
@@ -395,53 +442,13 @@ class Bud
       result = tups.inject([]) do |memo,t| 
         finals = []
         aggpairs.each_with_index do |ap, i|
-          finals << agg_final(ap, t[1][i])
+          finals << ap[0].send(:final, t[1][i])
         end
         memo << t[0] + finals
       end
       retval.merge(result)
     end
-    
-    def agg_init(aggpair, tup)
-      aggname = aggpair[0]
-      col = aggpair[1]
-      colval = tup[col[1]]
-
-      case aggname
-         when :min then colval
-         when :max then colval
-         when :sum then colval
-         when :count then 1
-         when :avg then [colval, 1]
-         else raise BudError, "agg #{aggname} not implemented"
-      end
-    end
-    
-    def agg_iter(aggpair, state, tup)
-      aggname = aggpair[0]
-      col = aggpair[1]
-      colval = tup[col[1]]
-      
-      case aggname
-         when :min then state > colval ? colval : state
-         when :max then state < colval ? colval : state
-         when :sum then state + colval
-         when :count then state + 1
-         when :avg then [state[0] + colval, state[1] + 1]
-         else raise BudError, "agg #{aggname} not implemented"
-      end
-    end
-    
-    def agg_final(aggpair, state)
-      aggname = aggpair[0]
-      
-      case aggname
-         when :min, :max, :sum, :count then state
-         when :avg then (state[0]*1.0)/state[1]
-         else raise BudError, "agg #{aggname} not implemented"
-      end
-    end
-    
+        
     alias reduce inject
   end
 
@@ -482,8 +489,8 @@ class Bud
   end
 
   class BudTable < BudCollection
-    def initialize(name, keys, cols)
-      super(name, keys,cols)
+    def initialize(name, keys, cols, bud_instance)
+      super(name, keys, cols, bud_instance)
       @to_delete = {}
     end
 
@@ -630,6 +637,60 @@ class Bud
   class KeyConstraintError < BudError
   end
 
+
+######## aggs
+  class BudAgg
+    def init (val)
+       val
+    end
+
+    def final(state)
+       state
+    end
+  end
+
+  class BudExemplary < BudAgg
+  end
+
+  class BudMin < BudExemplary
+    def trans(state, val)
+      state < val ? state : val
+    end
+  end
+
+  class BudMax < BudExemplary
+    def trans(state, val)
+      state > val ? state : val
+    end
+  end
+
+  class BudSum < BudAgg
+    def trans(state, val)
+      state + val
+    end
+  end
+
+  class BudCount < BudAgg
+    def init(val)
+      1
+    end
+    def trans(state, val)
+      state + 1
+    end
+  end
+
+  class BudAvg < BudAgg
+    def init(val)
+      [val, 1]
+    end
+    def trans(state, val)
+      retval = [state[0] + val]
+      retval << (state[1] + 1)
+    end
+    def final(state)
+      state[0]*1.0 / state[1]
+    end
+  end
 
   ######## the EventMachine server for handling network and timers
   class Server < EM::Connection
