@@ -1,9 +1,3 @@
-# simple shortest paths
-# note use of program.tick at bottom to run a single timestemp 
-# and inspect "shortest" relation
-require 'rubygems'
-require 'bud'
-
 class ShortestPaths < Bud
   def initialize(ip, port)
     super(ip,port)
@@ -13,7 +7,7 @@ class ShortestPaths < Bud
     table :link, ['from', 'to', 'cost']
     table :path, ['from', 'to', 'next', 'cost']
     table :shortest, ['from', 'to'], ['next', 'cost']
-    table :mincnt, ['from', 'to'], ['mincost', 'cnt']
+    table :minmaxsumcntavg, ['from', 'to'], ['mincost', 'maxcost', 'sumcost', 'cnt', 'avgcost']
   end
   
   def declaration
@@ -34,18 +28,21 @@ class ShortestPaths < Bud
 
     strata[1] = rules {
       shortest <= path.argagg(:min, [path.from, path.to], path.cost)
-      mincnt <= path.group([path.from, path.to], min(path.cost), count)
+      minmaxsumcntavg <= path.group([path.from, path.to], min(path.cost), min(path.cost), sum(path.cost), count, avg(path.cost))
     }
   end
 end
 
-program = ShortestPaths.new('localhost', ARGV[0])
-
-program.tick
-program.mincnt.each {|t| puts t.inspect}
-puts '-----'
-program.shortest.each {|t| puts t.inspect}
-
-program.tick
-program.link << ['e','f',1]
-program.tick
+class TestJoins < Test::Unit::TestCase
+  def test_paths
+    program = ShortestPaths.new('localhost', 12345)
+    assert_nothing_raised( RuntimeError) { program.tick }
+    program.minmaxsumcntavg.each do |t|
+      assert(t[2] <= t[3])
+      assert_equal(t[4]*1.0 / t[5], t[6])
+    end
+    program.shortest.each do |t|
+      assert_equal(t[1][0] - t[0][0], t[3])
+    end
+  end
+end

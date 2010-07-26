@@ -3,6 +3,7 @@ require 'msgpack'
 require 'eventmachine'
 require 'socket'
 require 'superators'
+require 'bud/aggs'
 
 class Object
   # http://whytheluckystiff.net/articles/seeingMetaclassesClearly.html
@@ -214,20 +215,6 @@ class Bud
     join(rels, *preds)
   end
   
-  ######## Agg symbols
-  def min(x)
-    [BudMin.new, x]
-  end
-  def max(x)
-    [BudMax.new, x]
-  end
-  def count(x) 
-    [BudCount.new, x]
-  end
-  def avg(x) 
-    [BudAvg.new, x]
-  end
-      
   ######## ids and timers
   def gen_id
     Time.new.to_i.to_s << rand.to_s
@@ -377,36 +364,13 @@ class Bud
     end
     
     ######## aggs
-    
-    ######## Todo: generalize to any exemplary agg
-    # def argagg(gbkeys, col, agg)
-    #   keynames = gbkeys.map {|k| k[2]}
-    #   colnum = col[1]
-    #   colname = col[2]
-    #   retval = BudScratch.new('temp', keynames, @schema - keynames)
-    #   tups = self.inject({}) do |memo,p| 
-    #     pkeys = keynames.map{|n| p.send(n.to_sym)}
-    #     if memo[pkeys].nil? or (agg == :min and memo[pkeys][colnum] > p[colnum]) or (agg == :max and memo[pkeys][colnum] < p[colnum]) then 
-    #       memo[pkeys] = p
-    #     end
-    #     memo
-    #   end
-    #   retval.merge(tups.values)
-    # end
-    # 
-    # def argmin(gbkeys, col)
-    #   argagg(gbkeys, col, :min)
-    # end
-    # def argmax(gbkeys, col)
-    #   argagg(gbkeys, col, :max)
-    # end
 
     def argagg(aggname, gbkeys, col)
       keynames = gbkeys.map {|k| k[2]}
       colnum = col[1]
       retval = BudScratch.new('temp', keynames, @schema - keynames, bud_instance)
       agg = bud_instance.send(aggname, nil)[0]
-      raise BudError, "#{aggname} not declared exemplary" unless agg.class <= BudExemplary
+      raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::Exemplary
       tups = self.inject({}) do |memo,p| 
         pkeys = keynames.map{|n| p.send(n.to_sym)}
         if memo[pkeys].nil? then
@@ -429,11 +393,14 @@ class Bud
         memo[pkeys] = [] if memo[pkeys].nil?
         aggpairs.each_with_index do |ap, i|
           agg = ap[0]
-          colnum = ap[1][1]
+          colnum = ap[1].nil? ? nil : ap[1][1]
+          colval = colnum.nil? ? nil : p[colnum]
           if memo[pkeys][i].nil? then
-            memo[pkeys][i] = agg.send(:init, p[colnum])
+            memo[pkeys][i] = agg.send(:init, colval) if agg.method(:init).arity == 1
+            memo[pkeys][i] = agg.send(:init) if agg.method(:init).arity == 0
           else
-            memo[pkeys][i] = agg.send(:trans, memo[pkeys][i], p[colnum])
+            memo[pkeys][i] = agg.send(:trans, memo[pkeys][i], colval) if agg.method(:trans).arity == 2
+            memo[pkeys][i] = agg.send(:trans, memo[pkeys][i]) if agg.method(:trans).arity == 1
           end
         end
         memo
@@ -635,61 +602,6 @@ class Bud
   end
 
   class KeyConstraintError < BudError
-  end
-
-
-######## aggs
-  class BudAgg
-    def init (val)
-       val
-    end
-
-    def final(state)
-       state
-    end
-  end
-
-  class BudExemplary < BudAgg
-  end
-
-  class BudMin < BudExemplary
-    def trans(state, val)
-      state < val ? state : val
-    end
-  end
-
-  class BudMax < BudExemplary
-    def trans(state, val)
-      state > val ? state : val
-    end
-  end
-
-  class BudSum < BudAgg
-    def trans(state, val)
-      state + val
-    end
-  end
-
-  class BudCount < BudAgg
-    def init(val)
-      1
-    end
-    def trans(state, val)
-      state + 1
-    end
-  end
-
-  class BudAvg < BudAgg
-    def init(val)
-      [val, 1]
-    end
-    def trans(state, val)
-      retval = [state[0] + val]
-      retval << (state[1] + 1)
-    end
-    def final(state)
-      state[0]*1.0 / state[1]
-    end
   end
 
   ######## the EventMachine server for handling network and timers
