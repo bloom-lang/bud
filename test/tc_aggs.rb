@@ -33,6 +33,39 @@ class ShortestPaths < Bud
   end
 end
 
+class PriorityQ < Bud
+  def initialize(ip, port)
+    super(ip,port)
+  end
+  
+  def state
+    table :q, ['item'], ['priority']
+    scratch :out, ['item'], ['priority']
+    scratch :minny, ['priority']
+    scratch :out2, ['item'], ['priority']
+  end
+  
+  def declaration
+    strata[0] = rules {
+      q << ['c', 2] if budtime == 1
+      q << ['d', 3] if budtime == 1
+      q << ['a', 1] if budtime == 1
+      q << ['b', 2] if budtime == 1
+    }
+    
+    strata[1] = rules {
+      out <= q.argagg(:min, [], q.priority)
+      minny <= q.group(nil, min(q.priority))
+      q <- out.map{|t| t}
+    }
+    
+    strata[2] = rules {
+      out2 <= natjoin([q,minny]).map{|q, m| q+m}
+    }
+
+  end
+end
+
 class TestAggs < Test::Unit::TestCase
   def test_paths
     program = ShortestPaths.new('localhost', 12345)
@@ -46,7 +79,7 @@ class TestAggs < Test::Unit::TestCase
     end
     shorts = program.shortest.map {|s| [s.from, s.to, s.cost]}
     costs = program.minmaxsumcntavg.map {|c| [c.from, c.to, c.mincost]}
-    assert_equal(0, (shorts - costs).length)
+    assert_equal([], shorts - costs)
   end
   
   def test_non_exemplary
@@ -55,5 +88,13 @@ class TestAggs < Test::Unit::TestCase
     assert_raise(Bud::BudError) {p = program.path.argagg(:count, [program.path.from, program.path.to], nil)}
     assert_raise(Bud::BudError) {p = program.path.argagg(:sum, [program.path.from, program.path.to], program.path.cost)}
     assert_raise(Bud::BudError) {p = program.path.argagg(:avg, [program.path.from, program.path.to], program.path.cost)}
+  end
+  
+  def test_argaggs
+    program = PriorityQ.new('localhost', 12345)
+    assert_nothing_raised (RuntimeError) { program.tick }
+    argouts = program.out.map{|t| t}
+    basicouts = program.out2.map{|t| t}
+    assert_equal([], argouts - basicouts)
   end
 end

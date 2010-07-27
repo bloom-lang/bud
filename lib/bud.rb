@@ -193,7 +193,7 @@ class Bud
       rels.each do |s|
         matches = r.schema & s.schema
         matches.each do |c| 
-          preds << [self.send(r.name).send(c), self.send(s.name).send(c)] unless r == s
+          preds << [self.send(r.name).send(c), self.send(s.name).send(c)] unless r.name.to_s >= s.name.to_s
         end
       end
     end

@@ -1,6 +1,3 @@
-# simple shortest paths
-# note use of program.tick at bottom to run a single timestemp 
-# and inspect "shortest" relation
 require 'rubygems'
 require 'bud'
 
@@ -26,12 +23,12 @@ class PriorityQ < Bud
     
     strata[1] = rules {
       out <= q.argagg(:min, [], q.priority)
-      minny <= q.group([], min(q.priority))
+      minny <= q.group(nil, min(q.priority))
       q <- out.map{|t| t}
     }
     
     strata[2] = rules {
-      out2 <= natjoin([q,minny]).map{|t| t}
+      out2 <= natjoin([q,minny]).map{|q, m| q+m}
     }
 
   end
@@ -40,8 +37,8 @@ end
 program = PriorityQ.new('localhost', ARGV[0])
 
 (1..4).each do
-  puts 'tick'
+  puts '---tick---'
   program.tick
-  program.out.each {|o| puts o.inspect}
-  program.out2.each {|o| puts o.inspect}
+  program.out.each {|o| puts "argmin: #{o.inspect}"}
+  program.out2.each {|o| puts "joinmin: #{o.inspect}"}
 end

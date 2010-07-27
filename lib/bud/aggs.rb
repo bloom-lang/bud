@@ -13,7 +13,20 @@ class Bud
   class Exemplary < Agg
   end
 
-  class Min < Exemplary
+  # ArgExemplary aggs are used by argagg. Canonical examples are min/min (argmin/max)
+  # They must have a trivial final method and be monotonic, i.e. once a value v
+  # is discarded in favor of another, v can never be the final result
+  
+  class ArgExemplary < Agg
+    def tie(state, val)
+      (state == val )
+    end   
+    def final(state)
+      state
+    end
+  end
+  
+  class Min < ArgExemplary
     def trans(state, val)
       state < val ? state : val
     end
@@ -22,13 +35,25 @@ class Bud
     [Min.new, x]
   end
 
-  class Max < Exemplary
+  class Max < ArgExemplary
     def trans(state, val)
       state > val ? state : val
     end
   end
   def max(x)
     [Max.new, x]
+  end
+  
+  class Choose < ArgExemplary
+    def trans(state, val)
+      state.nil? ? val : state
+    end
+    def tie(state, val)
+      false
+    end
+  end
+  def choose(x)
+    [Choose.new, x]
   end
 
   class Sum < Agg

@@ -86,7 +86,7 @@ class Bud
       vals = (schema - keys).map{|v| o[schema.index(v)]}
       vals = true if vals.empty?
       if not store[keycols].nil? then
-        raise KeyConstraintError, "Key conflict inserting [#{keycols}][#{vals}]" unless store[keycols].nil? or vals == store[keycols]
+        raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{vals.inspect}]" unless store[keycols].nil? or vals == store[keycols]
       end
       store[keycols] = vals unless store[keycols]
       return o
@@ -139,26 +139,39 @@ class Bud
 
     def argagg(aggname, gbkeys, col)
       agg = bud_instance.send(aggname, nil)[0]
-      raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::Exemplary
+      raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
       keynames = gbkeys.map {|k| k[2]}
       colnum = col[1]
-      retval = BudScratch.new('temp', keynames, @schema - keynames, bud_instance)
+      retval = BudScratch.new('temp', @schema, [], bud_instance)
       tups = self.inject({}) do |memo,p| 
         pkeys = keynames.map{|n| p.send(n.to_sym)}
         if memo[pkeys].nil? then
-          memo[pkeys] = [agg.send(:init, p[colnum]), p]
+          memo[pkeys] = {:agg=>agg.send(:init, p[colnum]), :tups => [p]}
         else
-          newval = agg.send(:trans, memo[pkeys][0], p[colnum])
-          memo[pkeys] = [newval, p] unless memo[pkeys][0] == newval
+          newval = agg.send(:trans, memo[pkeys][:agg], p[colnum])
+          if memo[pkeys][:agg] == newval
+            if agg.send(:tie, memo[pkeys][:agg], p[colnum])
+              memo[pkeys][:tups] << p 
+            end
+          else
+            memo[pkeys] = {:agg=>newval, :tups=>[p]}
+          end
         end
         memo
       end
-          
-      retval.merge(tups.map{|t| agg.send(:final, t[1][1])})      
+      
+      finals = []
+      outs = tups.each_value do |t|
+        ties = t[:tups].map do |tie|
+          finals << tie
+        end
+      end
+      retval.merge(finals)      
     end
 
     def group(keys, *aggpairs)    
-      keynames = keys.map {|k| k[2]} unless keys.nil?
+      keys = [] if keys.nil?
+      keynames = keys.map {|k| k[2]}
       retval = BudScratch.new('temp', keynames, @schema - keynames, bud_instance)
       tups = self.inject({}) do |memo,p| 
         pkeys = keynames.map{|n| p.send(n.to_sym)}

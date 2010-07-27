@@ -1,3 +1,14 @@
+This is Bud, a.k.a. "Bloom Under Development".  It is an initial cut at providing a Bloom-like language, using Ruby as a basis.
+
+This 0.0 version is not supported.  
+
+Main deficiencies at this point are:
+- No Ruby constraints:  Although the important Bud language features are available, the full power of Ruby is also available, including mutable state.  This allows programmers to get outside the Bud framework and lose cleanliness.
+- Manual stratification: The Bud Programmer must separate strata by hand; there is no support for program analysis or Bud metaprogramming;.
+- Inefficient evaluation: Programs are run using naive evaluation strategies, no query optimization has been implemented, and little effort has been spent in tuning.
+- No test harness.  Currently just Ruby's builtin test harness.  Need something better suited to Bud.
+- No support for disk-backed collections
+
 To install:
 	% gem build bud.gemspec
 	% sudo gem install bud-0.0.1.gem

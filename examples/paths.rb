@@ -1,6 +1,6 @@
 # simple shortest paths
 # note use of program.tick at bottom to run a single timestemp 
-# and inspect "shortest" relation
+# and inspect relations
 require 'rubygems'
 require 'bud'
 
