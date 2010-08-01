@@ -104,6 +104,7 @@ class Bud
     end
 
     def merge(o)
+      raise BloomError, "Attempt to put Non-Array type into BloomCollection" unless o.class <= Array
       delta = o.map {|i| self.insert(i)}
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty? then 
         self.schema = o.schema 
@@ -402,7 +403,7 @@ class Bud
       @filename = filename
       @storage = {}
       File.open(@filename).each_with_index { |line, i|
-          @storage[[i]] = [line]
+          @storage[[i]] = [line.strip]
       }      
     end
 
