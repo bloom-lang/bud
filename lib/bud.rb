@@ -91,7 +91,7 @@ class Bud
 
 
   ######## methods for registering collection types
-  def table(name, keys=[], cols=[], persist = :table)
+  def check_table(name, keys=[], cols=[])
     # rule out tablenames that used reserved words
     reserved = defined?(name)
     if reserved == "method" and not @tables[name] then
@@ -99,7 +99,7 @@ class Bud
       raise BudError, "symbol :#{name} reserved, cannot be used as table name"
     end
 
-    # check for previously-defined tables
+    # tick previously-defined tables and tick
     if @tables[name] then
       # check for consistent redefinition, and "tick" the table
       if @tables[name].keys != keys or @tables[name].cols != cols then
@@ -107,33 +107,39 @@ class Bud
         table :#{name} already defined as #{@tables[name].keys.inspect} #{@tables[name].cols.inspect}"
       end
       @tables[name].tick
-    else # define table
-      @tables[name] = case persist
-        when :table then BudTable.new(name, keys, cols, self)
-        when :channel then BudChannel.new(name, keys, cols, self)
-        when :periodic then BudPeriodic.new(name, keys, cols, self)
-        when :scratch then BudScratch.new(name, keys, cols, self)
-        else raise BudError, "unknown persistence model"
-      end
+      return @tables[name]
+    else 
       self.class.send :define_method, name do 
         @tables[name]
       end 
+      return nil
     end
-    return @tables[name]
+  end
+  
+  def table(name, keys=[], cols=[])
+    check_table(name, keys, cols)
+    @tables[name] ||= BudTable.new(name, keys, cols, self)
   end
 
   def scratch(name, keys=[], cols=[])
-    table(name, keys, cols, :scratch)
+    check_table(name, keys, cols)
+    @tables[name] ||= BudScratch.new(name, keys, cols, self)
   end
 
   def channel(name, locspec, keys=[], cols=[])
-    t = table(name, keys, cols, :channel)
-    t.locspec = locspec
+    check_table(name, keys, cols)
     @channels[name] = locspec
+    @tables[name] ||= BudChannel.new(name, keys, cols, locspec, self)
+  end
+  
+  def file_reader(name, filename, delimiter='\n')
+    check_table(name, ['lineno'], ['text'])
+    @tables[name] ||= BudFileReader.new(name, filename, delimiter, self)
   end
 
   def periodic(name, duration)
-    table(name, ['ident'], ['time'], :periodic)
+    t = check_table(name, ['ident'], ['time'])
+    @tables[name] = BudPeriodic.new(name, ['ident'], ['time'], self)
     unless @periodics.has_key? [name]
       retval = [name, gen_id, duration]
       @periodics << retval

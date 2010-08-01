@@ -17,12 +17,12 @@ class Bud
       schema_accessors
     end
 
-    def clone
-      retval = BudCollection.new(keys, schema - keys, bud_instance)
-      retval.storage = @storage.clone
-      retval.pending = @pending.clone
-      return retval
-    end   
+    # def clone
+    #   retval = BudCollection.new(keys, schema - keys, bud_instance)
+    #   retval.storage = @storage.clone
+    #   retval.pending = @pending.clone
+    #   return retval
+    # end   
 
     def cols
       schema - keys
@@ -31,6 +31,7 @@ class Bud
     def tick
       @storage = @pending
       @pending = {}
+      self
     end
 
     # define methods to turn 'table.col' into a [table,col] pair
@@ -208,11 +209,24 @@ class Bud
   class BudChannel < BudCollection
     attr_accessor :locspec
 
+    def initialize(name, keys, cols, locspec, b_class)
+      super(name, keys, cols, b_class)
+      @locspec = locspec
+    end
+    
     def split_locspec(l)
       lsplit = l.split(':')
       lsplit[1] = lsplit[1].to_i
       return lsplit
     end
+    
+    # def clone
+    #   retval = BudChannel.new(keys, schema - keys, bud_instance)
+    #   retval.storage = @storage.clone
+    #   retval.pending = @pending.clone
+    #   retval.locspec = locspec
+    #   return retval
+    # end   
 
     def establish_connection(l)
       $connections[l] = EventMachine::connect l[0], l[1], Server
@@ -244,16 +258,17 @@ class Bud
       @to_delete = {}
     end
 
-    def clone
-      retval = super
-      retval.to_delete = @to_delete.clone
-    end
+    # def clone
+    #   retval = super
+    #   retval.to_delete = @to_delete.clone
+    # end
 
     def tick
       @to_delete.each_key {|t| @storage.delete t}
       @storage.merge! @pending
       @to_delete = {}
       @pending = {}
+      self
     end
 
     superator "<-" do |o|
@@ -378,6 +393,21 @@ class Bud
           yield([r] + s) if test_locals(r, s, @localpreds.first)
         end
       end
+    end
+  end
+  
+  class BudFileReader < BudScratch
+    def initialize(name, filename, delimiter, b_class)
+      super(name, ['lineno'], ['text'], b_class)
+      @filename = filename
+      @storage = {}
+      File.open(@filename).each_with_index { |line, i|
+          @storage[[i]] = [line]
+      }      
+    end
+
+    def tick
+      self
     end
   end
 end

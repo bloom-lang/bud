@@ -52,6 +52,26 @@ class DupColBud < Bud
   end
 end
 
+class Grep < Bud
+  attr_reader :pattern
+  
+  def initialize(ip, port, pattern)
+    super(ip,port)
+    @pattern = pattern
+  end
+  
+  def state
+    file_reader :text, '../examples/chap1/ulysses.txt'
+    table :matches, ['lineno', 'text']
+  end
+  
+  def declaration
+    strata[0] = rules {
+      matches <= text.map{|t| t if t.text =~ pattern}
+    }
+  end
+end
+
 class TestCollections < Test::Unit::TestCase
  
   def test_simple_deduction
@@ -96,4 +116,11 @@ class TestCollections < Test::Unit::TestCase
     assert_raise( Bud::KeyConstraintError ) { program.tick }
   end
   
+  def test_grep
+    program = Grep.new('localhost', ARGV[0], /[Bb]loom/)
+    assert_nothing_raised( RuntimeError ) { program.tick }
+    lines = program.matches.map{|t| t}
+    assert_equal(1, lines.length)
+    assert_equal(44, lines[0][0])
+  end
 end
