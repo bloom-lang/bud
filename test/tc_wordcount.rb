@@ -11,7 +11,7 @@ class WordCount < Bud
   end
   
   def state
-    file_reader :text, 'ulysses.txt'
+    file_reader :text, '../examples/chap1/ulysses.txt'
     table :words, ['lineno', 'wordno', 'word']
     table :wc, ['word'], ['cnt']
     table :wc2, ['word'], ['cnt']
@@ -36,8 +36,11 @@ class WordCount < Bud
   end
 end
 
-program = WordCount.new('localhost', ARGV[0], /[Bb]loom/)
-
-program.tick
-program.compare.each {|t| puts "mismatch: #{t.cnt} != #{t.cnt2}: #{t.inspect}" if t.cnt != t.cnt2}
-program.wc.sort{|x,y| x[1] <=> y[1] }.each {|t| puts t.inspect }
+class TestWC < Test::Unit::TestCase
+  def test_wc
+    program = WordCount.new('localhost', ARGV[0], /[Bb]loom/)
+    assert_nothing_raised { program.tick }
+    assert_equal([], program.compare.map {|t| t if t.cnt != t.cnt2}.compact)
+    assert_equal(23, program.wc[["yes"]].cnt)
+  end
+end

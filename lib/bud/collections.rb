@@ -320,7 +320,7 @@ class Bud
     end
 
     def each(&block)
-      if @localpreds.nil? then        
+      if @localpreds.empty? then        
         nestloop_join(&block)
       else
         hash_join(&block)
@@ -390,7 +390,7 @@ class Bud
         next if ht[r[probe_offset]].nil?
         ht[r[probe_offset]].each do |s|
           retval = [r] + s
-          yield([r] + s) if test_locals(r, s, @localpreds.first)
+          yield(retval) if test_locals(r, s, @localpreds.first)
         end
       end
     end
