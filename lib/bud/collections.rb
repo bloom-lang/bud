@@ -87,7 +87,7 @@ class Bud
       vals = (schema - keys).map{|v| o[schema.index(v)]}
       vals = true if vals.empty?
       if not store[keycols].nil? then
-        raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{vals.inspect}]" unless store[keycols].nil? or vals == store[keycols]
+        raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{vals.inspect}] into #{name}" unless store[keycols].nil? or vals == store[keycols]
       end
       store[keycols] = vals unless store[keycols]
       return o
@@ -104,7 +104,7 @@ class Bud
     end
 
     def merge(o)
-      raise BloomError, "Attempt to put Non-Array type into BloomCollection" unless o.class <= Array
+      raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
       delta = o.map {|i| self.insert(i)}
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty? then 
         self.schema = o.schema 
@@ -199,6 +199,14 @@ class Bud
         memo << t[0] + finals
       end
       retval.merge(result)
+    end
+    
+    def dump
+      @storage.sort.each do |t| 
+        puts t.inspect unless cols.empty?
+        puts t[0].inspect if cols.empty?
+      end
+      true
     end
       
     alias reduce inject
@@ -321,7 +329,7 @@ class Bud
     end
 
     def each(&block)
-      if @localpreds.empty? then        
+      if @localpreds.nil? or @localpreds.empty? then        
         nestloop_join(&block)
       else
         hash_join(&block)
@@ -345,6 +353,7 @@ class Bud
     end
 
     def nestloop_join(&block)
+      raise BloomError, "invalid argument to join" if @rels.nil? or @rels[0].nil? or @rels[1].nil?
       @rels[0].each do |r|
         @rels[1].each do |s|
           s = [s] if origrels.length == 2

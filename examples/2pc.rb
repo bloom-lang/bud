@@ -1,5 +1,5 @@
 # two-phase commit.
-# incomplete
+# this code is broken and incomplete; ignore it for now.
 
 require 'rubygems'
 require 'bud'
