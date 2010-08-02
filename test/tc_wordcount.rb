@@ -11,7 +11,7 @@ class WordCount < Bud
   end
   
   def state
-    file_reader :text, '../examples/chap1/ulysses.txt'
+    file_reader :text, '../examples/chap2/ulysses.txt'
     table :words, ['lineno', 'wordno', 'word']
     table :wc, ['word'], ['cnt']
     table :wc2, ['word'], ['cnt']
