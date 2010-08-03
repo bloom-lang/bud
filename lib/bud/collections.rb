@@ -238,7 +238,7 @@ class Bud
     # end   
 
     def establish_connection(l)
-      $connections[l] = EventMachine::connect l[0], l[1], Server
+      @connections[l] = EventMachine::connect l[0], l[1], Server
       # rescue
       #   puts "connection #{l} failed"
     end
@@ -250,8 +250,8 @@ class Bud
         locspec = split_locspec(t[@locspec])
         # remote channel tuples are sent and removed
         if locspec != [ip, port] then
-          establish_connection(locspec) if $connections[locspec].nil?
-          $connections[locspec].send_data [@name, t].to_msgpack
+          establish_connection(locspec) if @connections[locspec].nil?
+          @connections[locspec].send_data [@name, t].to_msgpack
           @pending.delete t
         end
       end
