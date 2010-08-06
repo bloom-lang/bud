@@ -12,9 +12,9 @@ class Bud
     end
 
     def post_init
-      @port, @ip = Socket.unpack_sockaddr_in(get_peername)
+      @port, @ip = Socket.unpack_sockaddr_in(get_sockname)
       puts "-- server inbound connection from #{@ip}:#{@port}"
-      bud.connections = {} if bud.connections.nil?
+      bud.connections ||= {}
       bud.connections[[@ip, @port]] = self
     rescue Exception
       print "An error occurred post_init on BudServer: ",$!, "\n"
@@ -31,7 +31,7 @@ class Bud
     end
 
     def message_received(obj)
-      puts "got " + obj.inspect
+#      puts "got " + obj.inspect
       if (obj.class <= Array and obj.length == 2 and not bud.tables[obj[0].to_sym].nil? and obj[1].class <= Array) then
         bud.inbound << obj
         bud.tick

@@ -23,9 +23,9 @@ class Bud
     @connections = {}
     @inbound = []
 
-    @periodics = table :periodics, ['name'], ['ident', 'duration']
-    @vars = table :vars, ['name'], ['value']
-    @tmpvars = scratch :tmpvars, ['name'], ['value']
+    @periodics = table :periodics_tbl, ['name'], ['ident', 'duration']
+    @vars = table :vars_tbl, ['name'], ['value']
+    @tmpvars = scratch :tmpvars_tbl, ['name'], ['value']
   end  
 
 
@@ -93,8 +93,8 @@ class Bud
   ######## methods for registering collection types
   def check_table(name, keys=[], cols=[])
     # rule out tablenames that used reserved words
-    reserved = defined?(name)
-    if reserved == "method" and not @tables[name] then
+    reserved = eval "defined?(#{name})"
+    unless (reserved.nil? or (reserved == "method" and @tables[name]))
       # first time registering table, check for method name reserved
       raise BudError, "symbol :#{name} reserved, cannot be used as table name"
     end
