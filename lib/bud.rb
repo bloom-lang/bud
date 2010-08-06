@@ -126,10 +126,10 @@ class Bud
     @tables[name] ||= BudScratch.new(name, keys, cols, self)
   end
 
-  def channel(name, locspec, keys=[], cols=[])
+  def channel(name, the_locspec, keys=[], cols=[])
     check_table(name, keys, cols)
-    @channels[name] = locspec
-    @tables[name] ||= BudChannel.new(name, keys, cols, locspec, self)
+    @channels[name] = the_locspec
+    @tables[name] ||= BudChannel.new(name, keys, cols, the_locspec, self)
   end
   
   def file_reader(name, filename, delimiter='\n')
@@ -139,7 +139,7 @@ class Bud
 
   def periodic(name, duration)
     t = check_table(name, ['ident'], ['time'])
-    @tables[name] = BudPeriodic.new(name, ['ident'], ['time'], self)
+    @tables[name] ||= BudPeriodic.new(name, ['ident'], ['time'], self)
     unless @periodics.has_key? [name]
       retval = [name, gen_id, duration]
       @periodics << retval

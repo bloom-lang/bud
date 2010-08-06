@@ -218,9 +218,9 @@ class Bud
   class BudChannel < BudCollection
     attr_accessor :locspec
 
-    def initialize(name, keys, cols, locspec, b_class)
+    def initialize(name, keys, cols, locspec_arg, b_class)
       super(name, keys, cols, b_class)
-      @locspec = locspec
+      @locspec = locspec_arg
     end
     
     def split_locspec(l)
@@ -238,7 +238,7 @@ class Bud
     # end   
 
     def establish_connection(l)
-      @connections[l] = EventMachine::connect l[0], l[1], Server
+      $connections[l] = EventMachine::connect l[0], l[1], Server
       # rescue
       #   puts "connection #{l} failed"
     end
@@ -247,11 +247,11 @@ class Bud
       ip = Bud::instance_variable_get('@ip')
       port = Bud::instance_variable_get('@port')
       each_pending do |t|
-        locspec = split_locspec(t[@locspec])
+        the_locspec = split_locspec(t[@locspec])
         # remote channel tuples are sent and removed
-        if locspec != [ip, port] then
-          establish_connection(locspec) if @connections[locspec].nil?
-          @connections[locspec].send_data [@name, t].to_msgpack
+        if the_locspec != [ip, port] then
+          establish_connection(the_locspec) if $connections[the_locspec].nil?
+          $connections[the_locspec].send_data [@name, t].to_msgpack
           @pending.delete t
         end
       end
