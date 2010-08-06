@@ -9,7 +9,7 @@ require 'bud/errors'
 require 'bud/events'
 
 class Bud
-  attr_reader :strata, :budtime
+  attr_reader :strata, :budtime, :inbound
   attr_accessor :connections
   attr_reader :tables # for debugging; remove me later
 
@@ -20,8 +20,8 @@ class Bud
     @budtime = 0
     @ip = ip
     @port = port.to_i
-    $connections = {} if $connections.nil?
-    $inbound = [] if $inbound.nil?
+    @connections = {}
+    @inbound = []
 
     @periodics = table :periodics, ['name'], ['ident', 'duration']
     @vars = table :vars, ['name'], ['value']
@@ -61,10 +61,10 @@ class Bud
 
   # handle any inbound tuples off the wire and then clear
   def receive_inbound
-    $inbound.each do |msg|
+    @inbound.each do |msg|
       tables[msg[0].to_sym] << msg[1]
     end
-    $inbound = []
+    @inbound = []
   end
 
   def stratum_fixpoint(strat)
@@ -126,10 +126,10 @@ class Bud
     @tables[name] ||= BudScratch.new(name, keys, cols, self)
   end
 
-  def channel(name, the_locspec, keys=[], cols=[])
+  def channel(name, locspec, keys=[], cols=[])
     check_table(name, keys, cols)
-    @channels[name] = the_locspec
-    @tables[name] ||= BudChannel.new(name, keys, cols, the_locspec, self)
+    @channels[name] = locspec
+    @tables[name] ||= BudChannel.new(name, keys, cols, locspec, self)
   end
   
   def file_reader(name, filename, delimiter='\n')
