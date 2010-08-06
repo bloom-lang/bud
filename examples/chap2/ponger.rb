@@ -26,6 +26,7 @@ class Ponger < Bud
   def declaration
     strata[0] = rules {
       # whenever we get a ping, send a pong
+      pingpongs.each {|p| puts "Got #{p.inspect}"}
       pingpongs <+ pingpongs.map {|p| [@otherloc, @myloc, 'pong!', Time.new.to_s, budtime]}      
     }
   end
