@@ -3,8 +3,9 @@ class Bud
   class Server < EM::Connection
     attr_accessor :bud
 
-    def initialize(*args)
+    def initialize(thebud)
       @pac = MessagePack::Unpacker.new
+      @bud = thebud
       super
     rescue Exception
       print "An error occurred initializing BudServer: ",$!, "\n"

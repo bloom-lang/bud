@@ -240,7 +240,7 @@ class Bud
 
     def establish_connection(l)
       @connections ||= {}
-      @connections[l] = EventMachine::connect l[0], l[1], Server
+      @connections[l] = EventMachine::connect l[0], l[1], Server, @bud_instance
       # rescue
       #   puts "connection #{l} failed"
     end

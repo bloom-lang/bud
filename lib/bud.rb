@@ -11,7 +11,7 @@ require 'bud/events'
 class Bud
   attr_reader :strata, :budtime, :inbound
   attr_accessor :connections
-  attr_reader :tables # for debugging; remove me later
+  attr_reader :tables # for  ging; remove me later
 
   def initialize(ip, port)
     @tables = {}
@@ -33,8 +33,8 @@ class Bud
   def run
     begin 
       EventMachine::run {
-        EventMachine::start_server(@ip, @port, Server) { |con|
-          con.bud = self # pass this Bud object into the connection
+        EventMachine::start_server(@ip, @port, Server, self) { |con|
+#          con.bud = self # pass this Bud object into the connection
         }
         puts "running bud server on #{@ip}, #{@port}"
         tick
