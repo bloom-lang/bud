@@ -3,10 +3,15 @@ require 'msgpack'
 require 'eventmachine'
 require 'socket'
 require 'superators'
+require 'parse_tree'
+require 'parse_tree_extensions'
 require 'bud/aggs'
 require 'bud/collections'
 require 'bud/errors'
 require 'bud/events'
+require 'bud/parse_bud'
+require 'bud/strat'
+require 'bud/forward_parse'
 
 class Bud
   attr_reader :strata, :budtime, :inbound
@@ -26,8 +31,63 @@ class Bud
     @periodics = table :periodics_tbl, ['name'], ['ident', 'duration']
     @vars = table :vars_tbl, ['name'], ['value']
     @tmpvars = scratch :tmpvars_tbl, ['name'], ['value']
-  end  
+    @depends = table :depends, ['head', 'op', 'body', 'neg']
 
+    # meta stuff.  parse the AST of the current (sub)class,
+    # get dependency info, and determine stratification order.
+    if self.class != Stratification
+      # N.B. -- parse_tree will not be supported in ruby 1.9.
+      # however, we can still pass the "string" code of bud modules
+      # to ruby_parse (but not the "live" class)
+      # uncomment for stratification rewrites
+      ##safe_rewrite
+    end
+  end
+
+  def safe_rewrite
+    begin
+      defn = meta_rewrite 
+      # uncomment to see the rewrite -- it has already been installed if it succeeded.
+      # puts defn
+    rescue 
+      print "Running original code: couldn't rewrite stratified ruby (#{$!})\n"
+    end 
+  end
+
+  def meta_rewrite
+    # N.B. -- parse_tree will not be supported in ruby 1.9.
+    # however, we can still pass the "string" code of bud modules
+    # to ruby_parse (but not the "live" class)
+
+    copy1 = ParseTree.translate(self.class);
+    r2r = MyR2R.new
+    ruby = r2r.process(copy1)
+ 
+    # because r2r appears to stomp on its input
+    copy2 = ParseTree.translate(self.class)
+    bm = BudMirror.new
+    result = bm.process(copy2)
+
+    strat = Stratification.new("localhost", 12345)
+    bm.each_depends { |d| strat.depends << d } 
+    strat.tick
+    strat.stratum.each do |d|
+      r2r.tabstuff.add_strat(d[0], d[1])
+    end
+
+    defn = ''      
+    (0..r2r.tabstuff.strata.length-1).each do |s|
+      defn = defn + ('strata[' + s.to_s + '] = rules {')
+      r2r.tabstuff.strata_each(s) do |t|
+        defn = defn + t + "\n"
+      end
+      defn = defn + "}\n"
+    end
+    self.class.send(:remove_method, "declaration")
+    l = lambda { eval(defn) }
+    self.class.send(:define_method, "declaration",  l)
+    return defn
+  end  
 
   ######## methods for controlling execution
   def run
