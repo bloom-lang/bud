@@ -46,4 +46,5 @@ class PingPong < Bud
 end
 
 program = PingPong.new('127.0.0.1', ARGV[0])
+program.tick
 program.run

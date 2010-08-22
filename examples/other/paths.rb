@@ -41,6 +41,8 @@ end
 
 program = ShortestPaths.new('localhost', ARGV[0])
 
+p2=ShortestPaths.new('localhost', ARGV[0].to_i + 1)
+
 program.tick
 program.mincnt.each {|t| puts t.inspect}
 puts '-----'
