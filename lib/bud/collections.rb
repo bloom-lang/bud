@@ -1,4 +1,4 @@
-class Bud
+ class Bud
   ######## the collection types
   class BudCollection
     include Enumerable
@@ -215,6 +215,25 @@ class Bud
   class BudScratch < BudCollection
   end
 
+  class BudSerializer < BudCollection
+    def initialize(name, keys, cols, b_class)
+      @dq = {}
+      super
+    end
+    def tick
+      @dq.each_key {|k| @storage.delete k}
+    end
+
+    def each
+      @storage.keys.sort.each do |k|
+        tup = (@storage[k] == true) ? k : (k + @storage[k])
+        yield tuple_accessors(tup)
+        @dq[k] = true
+        return
+      end
+    end
+  end
+  
   class BudChannel < BudCollection
     attr_accessor :locspec
 
@@ -287,6 +306,17 @@ class Bud
       o.map {|i| self.do_insert(i, @to_delete)}
     end
   end
+
+
+  class BudTransient < BudTable
+    def tick
+      @storage = @pending
+      @pending = {}
+      #self
+    end
+    
+  end
+
 
   class BudJoin < BudCollection
     attr_accessor :rels, :origrels

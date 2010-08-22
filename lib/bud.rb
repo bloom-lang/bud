@@ -90,13 +90,19 @@ class Bud
   end  
 
   ######## methods for controlling execution
+  def run_bg
+    @t = Thread.new() do ||
+      run
+    end
+    # not clean
+    sleep 1
+  end
   def run
     begin 
       EventMachine::run {
         EventMachine::start_server(@ip, @port, Server, self) { |con|
 #          con.bud = self # pass this Bud object into the connection
         }
-        puts "running bud server on #{@ip}, #{@port}"
         tick
       }
     end
@@ -116,7 +122,7 @@ class Bud
 
     @strata.each { |strat| stratum_fixpoint(strat) }
     @channels.each { |c| @tables[c[0]].flush }
-    reset_periodics
+    reset_periodics 
   end
 
   # handle any inbound tuples off the wire and then clear
@@ -186,6 +192,16 @@ class Bud
     @tables[name] ||= BudScratch.new(name, keys, cols, self)
   end
 
+  def serializer(name, keys=[], cols=[])
+    check_table(name, keys, cols)
+    @tables[name] ||= BudSerializer.new(name, keys, cols, self)
+  end
+
+  def transient(name, keys=[], cols=[])
+    check_table(name, keys, cols)
+    @tables[name] ||= BudTransient.new(name, keys, cols, self)
+  end
+
   def channel(name, locspec, keys=[], cols=[])
     check_table(name, keys, cols)
     @channels[name] = locspec
@@ -203,7 +219,7 @@ class Bud
     unless @periodics.has_key? [name]
       retval = [name, gen_id, duration]
       @periodics << retval
-      set_timer(name, retval[1], duration)
+      set_timer(name, retval[1], duration) 
     else
       retval = @periodics.find([name]).first
     end
@@ -276,6 +292,12 @@ class Bud
     EventMachine::Timer.new(secs) do
       @tables[name] <+ [[id, Time.new.to_s]]
       tick
+    end
+  end
+
+  def tickle
+    EventMachine::connect(@ip, @port) do |c|
+      c.send_data(" ")
     end
   end
 
