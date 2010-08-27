@@ -26,7 +26,7 @@ class SimpleBroadcast < Bud
       members <= member.map { |m| [@myloc, m.otherloc] } 
       j = join [message, members]
       broadcast <+ j.map { |m, g| [g.otherloc, g.myloc, m.message] } 
-      deliver <+ broadcast.map{ |b| [b.msg, b.otherloc] } 
+      deliver <+ broadcast.map{ |b| [b.msg, b.myloc] } 
     }
   end
 end
