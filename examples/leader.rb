@@ -36,10 +36,10 @@ class LeaderElection < Vote
       # maybe I am the initiator...
       current_state << ['election', @myloc, @id] if current_state.empty?
       will_vote <= join([deliver, current_state]).map do |d, c|
-        nonce = d.message[0]
+        #nonce = d.message[0]
         ldr = d.message[1]       
         nvid = d.message[2]
-        print "got to reply to #{d.otherloc}\n"
+        #print "got to reply to #{d.otherloc}\n"
         if c.status == "election" && nvid > c.vid
           [d.otherloc, d.message, ldr, nvid]
         else
@@ -68,7 +68,7 @@ class LeaderElection < Vote
         end
       end
 
-      latest_ballot <= will_ballot.group(nil, max(time)) 
+      #latest_ballot <= will_ballot.group(nil, max(time)) 
       ballot <+ will_ballot.map{|w| print "ballot up #{w.inspect}\n"; [[w.nonce, @myloc, w.vid]] }
 
       found_leader <+ join([current_state, mcnt, vcnt]).map do |c, m, v|
@@ -85,6 +85,7 @@ class LeaderElection < Vote
           print "setting to leader\n"
           ['leader', @myloc, f.vid]
         else
+          print "setting to follower\n" 
           ['follower', f.leader, f.vid]
         end
       end

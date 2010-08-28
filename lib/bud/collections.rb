@@ -307,17 +307,6 @@
     end
   end
 
-
-  class BudTransient < BudTable
-    def tick
-      @storage = @pending
-      @pending = {}
-      #self
-    end
-    
-  end
-
-
   class BudJoin < BudCollection
     attr_accessor :rels, :origrels
 

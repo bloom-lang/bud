@@ -197,11 +197,6 @@ class Bud
     @tables[name] ||= BudSerializer.new(name, keys, cols, self)
   end
 
-  def transient(name, keys=[], cols=[])
-    check_table(name, keys, cols)
-    @tables[name] ||= BudTransient.new(name, keys, cols, self)
-  end
-
   def channel(name, locspec, keys=[], cols=[])
     check_table(name, keys, cols)
     @channels[name] = locspec

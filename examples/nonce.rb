@@ -11,7 +11,8 @@ class Nonce < Bud
     strata[0] = rules {
       if nonce.empty?
         r = rand(100000)
-        nonce << [[r]]
+        nonce << [r]
+        #nonce << [[r]]
       end
     }
   end
