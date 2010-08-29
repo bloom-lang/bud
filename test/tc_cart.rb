@@ -47,5 +47,20 @@ class TestCart < Test::Unit::TestCase
         assert_error("incorrect item #{a.item} in cart")
       end
     end
+
+    # the checkout message is redelivered!
+    program.checkout <+ [['localhost:12345', 'localhost:12345',1234]]
+    advance(program)
+    
+
+    pcnt = 0
+    program.status.each do |a|
+      pcnt = a.cnt if a.item == "papers"
+    end
+  
+    # undesirable but consistent that a 2nd checkout message should produce a revised manifest.
+    assert_equal(1, pcnt)
+    
+    
   end
 end
