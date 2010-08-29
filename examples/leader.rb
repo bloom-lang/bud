@@ -14,7 +14,7 @@ class LeaderElection < Vote
   end
   def state
     super
-    table :current_state, ['status', 'leader', 'vid']
+    table :current_state, [], ['status', 'leader', 'vid']
     scratch :will_ballot, ['nonce', 'vid', 'time']
     table :ballot_history, ['nonce', 'vid', 'time']
     scratch :latest_ballot, ['time']
@@ -47,7 +47,8 @@ class LeaderElection < Vote
         end
       end
     
-      vote <+ will_vote.map{|w| [w.master, @myloc, w.message, [w.leader, w.vid]]}
+      #vote <+ will_vote.map{|w| [w.master, @myloc, w.message, [w.leader, w.vid]]}
+      vote <+ will_vote.map{|w| [w.message, [w.leader, w.vid]]}
       current_state <+ will_vote.map{|w| ['election', w.leader, w.vid]}
       current_state <- join([will_vote, current_state]).map{|w, c| c}
     }

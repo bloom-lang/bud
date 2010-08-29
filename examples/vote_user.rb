@@ -10,8 +10,8 @@ class VoteUser < Vote
   def declaration 
     super
     strata[2] = rules {
-      j = join [deliver, master]
-      vote <+ j.map{|d, m| print "#{@myloc} vote for #{d.message}.   send to #{m.master}\n"; [m.master, @myloc, d.message, 'Y'] }
+      #j = join [deliver, master]
+      vote <+ deliver.map{|d| print "#{@myloc} vote for #{d.message}.\n"; [d.message, 'Y'] }
 
       j2 = join [mcnt, vcnt]
       status <+ j2.map do |m, c|
@@ -31,14 +31,16 @@ end
 
 v = VoteUser.new("127.0.0.1", ARGV[0])
 v.tick
-v.master << ['127.0.0.1:10001']
+#v.master << ['127.0.0.1:10001']
 
 if ARGV[0] == '10001'
   v.run_bg
   sleep 1
   print "M\n"
   v.member << ['127.0.0.1:10001']
-  v.member << ['127.0.0.1:10002']
+
+  #v.run
+#  v.member << ['127.0.0.1:10002']
 #  v.member << ['127.0.0.1:10003']
   
   v.ballot <+ [['foobar']]
