@@ -80,16 +80,23 @@
         end
       end
     end
-
+  
     def do_insert(o, store)
       return if o.nil? or o.length == 0
       keycols = keys.map{|k| o[schema.index(k)]}
       vals = (schema - keys).map{|v| o[schema.index(v)]}
       vals = true if vals.empty?
       if not store[keycols].nil? then
-        raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{vals.inspect}] into #{name}" unless store[keycols].nil? or vals == store[keycols]
+        case @conflict
+          when "first" then
+            return if store[keycols] 
+          when "last" then
+            # fall through
+          else
+            raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{vals.inspect}] into #{name}" unless store[keycols].nil? or vals == store[keycols]
+        end
       end
-      store[keycols] = vals unless store[keycols]
+      store[keycols] = vals #unless store[keycols]
       return o
     end
 
@@ -283,8 +290,9 @@
   end
 
   class BudTable < BudCollection
-    def initialize(name, keys, cols, bud_instance)
+    def initialize(name, keys, cols, bud_instance, conflict)
       super(name, keys, cols, bud_instance)
+      @conflict = conflict
       @to_delete = {}
     end
 

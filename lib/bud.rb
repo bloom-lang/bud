@@ -182,9 +182,9 @@ class Bud
     end
   end
   
-  def table(name, keys=[], cols=[])
+  def table(name, keys=[], cols=[], conf=nil)
     check_table(name, keys, cols)
-    @tables[name] ||= BudTable.new(name, keys, cols, self)
+    @tables[name] ||= BudTable.new(name, keys, cols, self, conf)
   end
 
   def scratch(name, keys=[], cols=[])
