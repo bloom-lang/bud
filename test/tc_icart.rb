@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud'
 require 'test/unit'
-require 'examples/cart'
+require 'examples/icart'
 
 class TestCart < Test::Unit::TestCase
   def advance(p)
@@ -10,7 +10,7 @@ class TestCart < Test::Unit::TestCase
   end
   
   def test_cart
-    program = BasicCartServer.new('localhost', 12345)
+    program = IdempotentCartServer.new('localhost', 12345)
 
     program.tick
 
@@ -28,7 +28,7 @@ class TestCart < Test::Unit::TestCase
     program.action <+ [['localhost:12345', 'localhost:12345',1234, 'beer', 'A', 129]]
     program.action <+ [['localhost:12345', 'localhost:12345',1234, 'beer', 'D', 130]]
 
-    program.checkout <+ [['localhost:12345', 'localhost:12345',1234]]
+    program.protected_checkout <+ [['localhost:12345', 'localhost:12345',1234]]
 
     advance(program)
 
@@ -38,8 +38,8 @@ class TestCart < Test::Unit::TestCase
     advance(program)
     advance(program)
 
-    assert_equal(2, program.status.length)
-    program.status.each do |a|
+    assert_equal(2, program.my_status.length)
+    program.my_status.each do |a|
       if a.item == "beer"
         assert_equal(3, a.cnt)
       elsif a.item == "diapers"
@@ -50,18 +50,16 @@ class TestCart < Test::Unit::TestCase
     end
 
     # the checkout message is redelivered!
-    program.checkout <+ [['localhost:12345', 'localhost:12345',1234]]
+    program.protected_checkout <+ [['localhost:12345', 'localhost:12345',1234]]
     advance(program)
     
-
+    # now, the latecomer is ignored
+    assert_equal(2, program.my_status.length)
     pcnt = 0
-    program.status.each do |a|
+    program.my_status.each do |a|
       pcnt = a.cnt if a.item == "papers"
     end
-  
-    # undesirable but consistent that a 2nd checkout message should produce a revised manifest.
-    assert_equal(3, program.status.length)
-    assert_equal(1, pcnt)
+    assert_equal(0,  pcnt)
     
     
   end

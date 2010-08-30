@@ -6,7 +6,7 @@ class BasicCartServer < Bud
   def state
     table :cart_action, ['session', 'item', 'action', 'reqid']
     table :action_cnt, ['session', 'item', 'action'] , ['cnt']
-    table :status, ['session', 'item', 'cnt']
+    table :status, ['session', 'item'], ['cnt']
 	
     scratch :ac, ['session', 'item', 'action', 'reqid']
 
