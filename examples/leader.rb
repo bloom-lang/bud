@@ -14,7 +14,7 @@ class LeaderElection < Vote
   end
   def state
     super
-    table :current_state, [], ['status', 'leader', 'vid']
+    table :current_state, [], ['status', 'leader', 'vid'], "last"
     scratch :will_ballot, ['nonce', 'vid', 'time']
     table :ballot_history, ['nonce', 'vid', 'time']
     scratch :latest_ballot, ['time']
