@@ -11,4 +11,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'msgpack'
   s.add_dependency 'eventmachine'
   s.add_dependency 'superators'
+  s.add_dependency 'ParseTree'
+  s.add_dependency 'sexp_path'
+  s.add_dependency 'ruby2ruby'
 end

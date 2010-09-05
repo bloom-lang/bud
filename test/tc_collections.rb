@@ -24,13 +24,13 @@ end
 
 class DupKeyBud < Bud
   def state
-    scratch :s, ['k'], ['name']
+    scratch :tab, ['k'], ['name']
   end
   
   def declaration
     strata[0] = rules {
-      s <= [[2000, 'bush']]
-      s <= [[2000, 'gore']]
+      tab <= [[2000, 'bush']]
+      tab <= [[2000, 'gore']]
     }
   end
 end

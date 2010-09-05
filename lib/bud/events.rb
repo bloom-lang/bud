@@ -12,8 +12,14 @@ class Bud
     end
 
     def post_init
-      @port, @ip = Socket.unpack_sockaddr_in(get_sockname)
-      puts "-- server inbound connection from #{@ip}:#{@port}"
+      pname = get_peername
+      if pname then 
+        @port, @ip = Socket.unpack_sockaddr_in(pname) 
+        puts "-- server inbound connection from #{@ip}:#{@port}"
+      else
+        @port, @ip = Socket.unpack_sockaddr_in(get_sockname)
+        puts "-- server connection to #{@ip}:#{@port}"
+      end
       bud.connections ||= {}
       bud.connections[[@ip, @port]] = self
     rescue Exception

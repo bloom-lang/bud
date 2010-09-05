@@ -51,8 +51,11 @@ class Counter
     finalval
   end
 end
+
 source = ARGV[0].split(':')
-program = SimpleReducer.new(source[0], source[1], Counter.new)
+ip = source[0]
+port = source[1].to_i
+program = SimpleReducer.new(ip, port, Counter.new)
 r = Thread.new {program.run}
-sleep 10
+sleep 40
 program.final.each {|t| puts "[#{t.key}, #{t.value}]"}

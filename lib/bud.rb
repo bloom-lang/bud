@@ -44,6 +44,11 @@ class Bud
     end
   end
 
+  # helper to define instance methods
+  def singleton_class
+    class << self; self; end
+  end
+
   def safe_rewrite
     begin
       defn = meta_rewrite 
@@ -62,7 +67,7 @@ class Bud
     copy1 = ParseTree.translate(self.class);
     r2r = MyR2R.new
     ruby = r2r.process(copy1)
- 
+
     # because r2r appears to stomp on its input
     copy2 = ParseTree.translate(self.class)
     bm = BudMirror.new
@@ -83,9 +88,12 @@ class Bud
       end
       defn = defn + "}\n"
     end
-    self.class.send(:remove_method, "declaration")
+    self.singleton_class.send(:remove_method, "declaration")
+    def self.declaration
+      eval(defn)
+    end
     l = lambda { eval(defn) }
-    self.class.send(:define_method, "declaration",  l)
+    self.singleton_class.send(:define_method, "declaration",  l)
     return defn
   end  
 
@@ -101,7 +109,7 @@ class Bud
     begin 
       EventMachine::run {
         EventMachine::start_server(@ip, @port, Server, self) { |con|
-#          con.bud = self # pass this Bud object into the connection
+          #          con.bud = self # pass this Bud object into the connection
         }
         tick
       }
@@ -136,8 +144,7 @@ class Bud
   def stratum_fixpoint(strat)
     cnts = Hash.new
     @tables.each_key do |k| 
-      #      define_method(k.to_sym) { @tables[k] }
-      eval "#{k.to_s} = @tables[#{k}]"
+      self.singleton_class.send(:define_method, k.to_sym) { @tables[k] }
     end
     begin
       cnts = {}
@@ -175,13 +182,13 @@ class Bud
       @tables[name].tick
       return @tables[name]
     else 
-      self.class.send :define_method, name do 
+      self.singleton_class.send(:define_method, name) do 
         @tables[name]
       end 
       return nil
     end
   end
-  
+
   def table(name, keys=[], cols=[], conf=nil)
     check_table(name, keys, cols)
     @tables[name] ||= BudTable.new(name, keys, cols, self, conf)
@@ -202,7 +209,7 @@ class Bud
     @channels[name] = locspec
     @tables[name] ||= BudChannel.new(name, keys, cols, locspec, self)
   end
-  
+
   def file_reader(name, filename, delimiter='\n')
     check_table(name, ['lineno'], ['text'])
     @tables[name] ||= BudFileReader.new(name, filename, delimiter, self)
@@ -221,7 +228,7 @@ class Bud
     return retval
   end
 
-  ## methods to define vars and tmpvars.  This code still quite tentative
+  # methods to define vars and tmpvars.  This code still quite tentative
   def regvar(name, collection)
     # rule out varnames that used reserved words
     reserved = defined?(name)
@@ -229,7 +236,7 @@ class Bud
       # first time registering var, check for method name reserved
       raise BudError, "symbol :#{name} reserved, cannot be used as variable name"
     end
-    self.class.send :define_method, name do 
+    self.singleton_class.send :define_method, name do 
       collection[name]
     end
     setter = (name.to_s + '=').to_sym
@@ -242,11 +249,11 @@ class Bud
       # collection <+ [name,val]
     end
   end
-  
+
   def var(name)
     regvar(name, @vars)
   end
-  
+
   def tmpvar(name)
     regvar(name, @tmpvars)
   end
@@ -262,7 +269,7 @@ class Bud
     end
     BudJoin.new(rels, newpreds)
   end
-  
+
   def natjoin(rels)
     # for all pairs of relations, add predicates on matching column names
     preds = []
@@ -277,7 +284,7 @@ class Bud
     preds.uniq!
     join(rels, *preds)
   end
-  
+
   ######## ids and timers
   def gen_id
     Time.new.to_i.to_s << rand.to_s

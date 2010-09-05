@@ -1,19 +1,21 @@
 # simple mapreduce
-# run "ruby simple_map.rb localhost:127.0.0.1"
+# run "ruby simple_map.rb 127.0.0.1:12345 ulysses_short_1.txt"
+# run "ruby simple_map.rb 127.0.0.1:12346 ulysses_short_2.txt"
 require 'rubygems'
 require 'bud'
 require 'zlib'
 
 class SimpleMapper < Bud
 
-  def initialize(ip, port, mapper)
+  def initialize(ip, port, file, mapper)
     super ip, port
     @mapper = mapper
+    @file = file
   end
   
   def state
     file_reader :nodelist, 'mr_reducelist.txt'
-    file_reader :input, 'ulysses_short.txt'
+    file_reader :input, @file
     scratch     :map_out, ['key', 'uniq', 'value']
     table       :kvs, ['key', 'uniq'], ['value', 'hashed']
     table       :kvs_addrs, ['key', 'uniq'], ['value', 'addr']
@@ -67,7 +69,11 @@ class Splitter < Bud
   end
 end
 
-splitter = Splitter.new('127.0.0.1', 12347)
-program = SimpleMapper.new('127.0.0.1', 12345, splitter)
+source = ARGV[0].split(':')
+ip = source[0]
+port = source[1].to_i
+file = ARGV[1]
+splitter = Splitter.new(ip, port+10)
+program = SimpleMapper.new(ip, port, file, splitter)
 r = Thread.new {program.run}
-sleep 10
+sleep 40
