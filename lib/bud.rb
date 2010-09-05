@@ -194,6 +194,14 @@ class Bud
     @tables[name] ||= BudTable.new(name, keys, cols, self, conf)
   end
 
+  def blackboard(name, keys=[], cols=[])
+    table(name, keys, cols, "last")
+  end
+
+  def permanent(name, keys=[], cols=[])
+    table(name, keys, cols, "first")
+  end
+
   def scratch(name, keys=[], cols=[])
     check_table(name, keys, cols)
     @tables[name] ||= BudScratch.new(name, keys, cols, self)

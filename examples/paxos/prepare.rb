@@ -1,10 +1,20 @@
 require 'rubygems'
 require 'bud'
 
+class PermissiveVoter < Vote
+  def declaration
+    strata[2] = rules {
+      vcnt <= join([ballot, mcnt]).map do |b, m|
+        [ballot.ballot, 
+      end
+    }
+  end
+end
+
 
 require 'examples/vote'
 
-class PaxosPrepare < Vote
+class PaxosPrepare < PermissiveVoter
   def state
     super
     table :local_aru, [], ['host', 'aru']
@@ -78,15 +88,14 @@ p.member << ['127.0.0.1', 10001]
 p.leader_change <+ [['127.0.0.1:10001', '127.0.0.1:10001', 5]]
 
 
-p.run_bg
+p.tick
 
-p.tickle
 sleep 1
 
-p.tickle
+p.tick
 sleep 1
 
-p.tickle
+p.tick
 sleep 1
 
 

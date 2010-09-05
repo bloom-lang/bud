@@ -9,10 +9,10 @@ class IdempotentCartServer < BasicCartServer
 
   def state
     super
-    table :my_status, ['session', 'item'], ['cnt'], 'first'
+    permanent :my_status, ['session', 'item'], ['cnt']
 
     scratch :protected_checkout, ['server', 'client', 'session']
-    table :checkout_log, ['server', 'client', 'session'], ['time'], 'first' 
+    permanent :checkout_log, ['server', 'client', 'session'], ['time']
     scratch :checkout_event, ['server', 'client', 'session', 'time']
   end
   

@@ -9,19 +9,19 @@ require 'examples/cart'
 class TestBud < Bud
   def state
     # a "normal", overwriteable variable
-    table :myvar, [], ['data'], "last"
+    blackboard :myvar, [], ['data']
     # a committed choice variable
-    table :log, [], ['data'], "first"
+    permanent :log, [], ['data']
     # otherwise, the constraint is protected by an exception
     table :regular, [], ['data']
 
     # an overwritable "struct"
-    table :struct_o, [], ['left', 'right', 'middle'], "last"
+    blackboard :struct_o, [], ['left', 'right', 'middle']
 
     # a table of variables
-    table :kv_o, ['key'], ['value'], "last"
+    blackboard :kv_o, ['key'], ['value']
     # its counterpart of "finals"
-    table :kv_c, ['key'], ['value'], "first"
+    permanent :kv_c, ['key'], ['value']
 
     table :inp, ['data']
   end

@@ -44,10 +44,10 @@ class FifoBroadcast < ReliableBroadcast
       
       # enqueue the messages via reliable broadcast
       j = join [serial, seq]
-      rmessage <+ j.map {|f, s| print "#{budtime}: adding #{f.message}, #{s.id} to rmessage\n"; [[f.message, s.id]] }
+      rmessage <+ j.map {|f, s| [[f.message, s.id]] }
 
       seq <- j.map {|f, s| [s.id]}
-      seq <+ j.map {|f, s| print "bump seq: #{s.id}\n"; [s.id + 1]}
+      seq <+ j.map {|f, s| [s.id + 1]}
 
 
       servseq <= rdeliver.map do |r| 
@@ -68,8 +68,8 @@ class FifoBroadcast < ReliableBroadcast
 
 
       servseq <- fs.map {|f| [f.server, f.id]}
-      servseq <+ fs.map {|f| print "bump servseq to #{f.id} + 1\n"; [f.server, f.id + 1]}
-      fdeliver <+ fs.map{|f| print "(#{budtime}) fdeliver #{f}\n"; [f.id, f.server, f.message]}
+      servseq <+ fs.map {|f| [f.server, f.id + 1]}
+      fdeliver <+ fs.map{|f| [f.id, f.server, f.message]}
 
     }
   end

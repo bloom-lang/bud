@@ -14,13 +14,13 @@ class LeaderElection < Vote
   end
   def state
     super
-    table :current_state, [], ['status', 'leader', 'vid'], "last"
+    blackboard :current_state, [], ['status', 'leader', 'vid']
     scratch :will_ballot, ['nonce', 'vid', 'time']
-    table :ballot_history, ['nonce', 'vid', 'time']
+    ##table :ballot_history, ['nonce', 'vid', 'time']
     scratch :latest_ballot, ['time']
 
     periodic :timer, 1
-    table :seen_ballots, ['peer', 'candidate', 'nonce']
+    ##table :seen_ballots, ['peer', 'candidate', 'nonce']
     scratch :will_vote, ['master', 'message', 'leader', 'vid']
     scratch :found_leader, ['ballot', 'leader', 'vid']
   end

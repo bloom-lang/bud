@@ -14,7 +14,7 @@ class VoteUser < Vote
   def declaration 
     super
     strata[2] = rules {
-      vote <+ deliver.map{|d| print "#{@myloc} vote for #{d.message}.\n"; [d.message, 'Y'] }
+      vote <+ deliver.map{|d| [d.message, 'Y'] }
       j2 = join [mcnt, vcnt]
       status <+ j2.map do |m, c|
         if m.cnt == c.cnt and c.vote == "Y"

@@ -7,7 +7,7 @@ class ImperativeCartServer < Bud
     channel :action, 0, ['server', 'client', 'session', 'update']
     channel :checkout, 0, ['server', 'client', 'session']
 
-    table :status, ['server', 'client', 'session'], ['state'], 'last'
+    blackboard :status, ['server', 'client', 'session'], ['state']
     serializer :queue, ['time', 'server', 'client', 'session', 'update']
   end
   
