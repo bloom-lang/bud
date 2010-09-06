@@ -5,9 +5,6 @@ class ParentBud < Bud
     table :tbl, ['k'], ['v']
   end
   
-  def declaration
-  end
-  
   declare
   def bundle
     tbl << [2, 'a']

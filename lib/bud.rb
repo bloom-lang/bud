@@ -48,11 +48,19 @@ class Bud
       #safe_rewrite
     end
   end
+  
+  ########### give empty defaults for these
+  def state
+  end  
+  def declaration
+  end
 
-  # helper to define instance methods
   def singleton_class
     class << self; self; end
   end
+
+  ########### metaprogramming support for ruby and for rule rewriting
+  # helper to define instance methods
 
   def safe_rewrite
     begin
