@@ -6,25 +6,18 @@ class ParentBud < Bud
   end
   
   def declaration
-    strata[0] = rules {
-      tbl << [1,'a']
-    } 
   end
   
   declare
   def bundle
-    strata[1] = rules {
-      tbl << [2, 'a']
-    }
+    tbl << [2, 'a']
   end
 end
 
 class ChildBud < ParentBud
   declare
   def bundle
-    strata[1] = rules {
-      tbl << [2, 'b']
-    }
+    tbl << [2, 'b']
   end
 end
 

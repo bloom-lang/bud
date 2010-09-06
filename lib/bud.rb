@@ -31,8 +31,7 @@ class Bud
     @port = port.to_i
     @connections = {}
     @inbound = []
-    @declarations = [:declaration]
-    @declarations += self.class.annotations.map{|a| a[0] if a[1].keys.include? :declare}.compact
+    @declarations = self.class.annotations.map{|a| a[0] if a[1].keys.include? :declare}.compact
 
     @periodics = table :periodics_tbl, ['name'], ['ident', 'duration']
     @vars = table :vars_tbl, ['name'], ['value']
@@ -137,8 +136,10 @@ class Bud
 
     # load the rules as a closure (will contain persistent tuples and new inbounds)
     # declaration to be provided by user program
+    declaration
+    
     @declarations.each do |d| 
-      self.send(d)
+      strata << self.method(d).to_proc
     end
 
     @strata.each { |strat| stratum_fixpoint(strat) }
@@ -325,18 +326,5 @@ class Bud
   end
 
   alias rules lambda
-  
-  def ruledef(name, &blk)
-    prologue = lambda {@declarations << name}
-    @declarations << name unless @declarations.include? name
-#     epilogue = lambda {puts "end"}
-    wrapper = lambda do |*args| 
-      raise ArgumentError, "wrong number of arguments #{args.length} for #{blk.arity}" if args.length != blk.arity
-      prologue.call
-      blk.call(args)
-      # epilogue.call
-    end
-    self.singleton_class.send(:define_method, name, wrapper)
-  end  
 end
 
