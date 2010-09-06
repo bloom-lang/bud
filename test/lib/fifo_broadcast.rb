@@ -10,7 +10,7 @@
 require 'rubygems'
 require 'bud'
 
-require 'examples/reliable_broadcast'
+require 'lib/reliable_broadcast'
 
 class FifoBroadcast < ReliableBroadcast
   attr_reader :myloc

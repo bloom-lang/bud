@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud'
 
-require 'examples/simple_broadcast'
+require 'lib/simple_broadcast'
 
 class Vote < SimpleBroadcast
   def state

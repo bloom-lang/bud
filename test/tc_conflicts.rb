@@ -3,7 +3,7 @@
 require 'rubygems'
 require 'bud'
 require 'test/unit'
-require 'examples/cart'
+require 'lib/cart'
 
 
 class TestBud < Bud

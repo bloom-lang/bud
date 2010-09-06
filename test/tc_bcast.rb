@@ -2,7 +2,7 @@ require 'rubygems'
 require 'bud'
 require 'test/unit'
 
-require 'examples/fifo_broadcast'
+require 'lib/fifo_broadcast'
 
 
 class TestBcast < Test::Unit::TestCase

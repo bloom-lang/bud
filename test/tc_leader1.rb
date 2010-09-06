@@ -2,7 +2,8 @@ require 'rubygems'
 require 'bud'
 require 'test/unit'
 
-require 'examples/leader'
+require 'lib/leader'
+
 class TestLE < Test::Unit::TestCase
   def soft_tick(v)
     assert_nothing_raised(RuntimeError) {v.tickle}

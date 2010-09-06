@@ -1,3 +1,8 @@
+require 'rubygems'
+require 'bud'
+require 'test/unit'
+
+
 class ShortestPaths < Bud
   def initialize(ip, port)
     super(ip,port)

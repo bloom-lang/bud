@@ -53,6 +53,7 @@ class TabStuff
     @strata[s].sort{|a, b| order_of(op_of(a)) <=> order_of(op_of(b))}.each do |tab|
       if @state[tab] && @state[tab].class == Array
         @state[tab].each do |rec|
+          print "YIELDING #{rec[1].inspect}\n"
           yield rec[1]
         end
       end
@@ -65,7 +66,7 @@ class MyR2R < SaneR2R
 
   def initialize
     @strat = false
-    @ops = Hash['<=', 1, '<-', 1, '<+', 1, '<<', 1]
+    @ops = Hash['<=', 1, '<-', 1, '<+', 1, '<<', 1, '<', 1]
     @expops = Hash['+', 1, '-', 1, '*', 1, '/', 1, '==', 1]
     @aggs = Hash['max', 1, 'min', 1, 'sum', 1, 'avg', 1]
     @grpfuncs = Hash['group', 1, 'argagg', 1]
@@ -77,11 +78,13 @@ class MyR2R < SaneR2R
   def process_block(exp)
     if @strat 
       # deal with the clauses one by one.
+      print "BLOCK: #{exp.inspect}\n"
       until exp.empty?
         term = exp.shift
         fst = term.first.to_s
         if fst == "call" or fst == "dasgn_curr"
           # we are just side-effecting here
+          print "just side-effect on #{term}\n"
           process term
         else
           raise "Invalid top-level clause: \"#{fst}\" in \"#{(process term).to_s}\""
@@ -116,9 +119,27 @@ class MyR2R < SaneR2R
   def process_call(exp)
     if @strat
       if @ops[exp[1].to_s]
+        print "\tHIT op #{exp[1].to_s}\n"
         lhs = (process exp.shift).to_s
         op = exp.shift
-        rhs = trim_brackets(process exp.shift)
+        if op.to_s == "<"
+          r = exp.shift
+          print "FUNNY OP FOR : #{r.inspect}\n"
+          print "length is #{r.length}\n"
+          cooked = trim_brackets(process r)
+          print "cooked is *#{cooked}*\n"
+          #(str, sup) = cooked.split(".")
+          if cooked =~ /(.+?)\.([+-])\@\s*\z/
+            print "\tMATCH!\n"
+            #op = op + $2
+          end
+          #rhs = $1
+          rhs = cooked
+        else
+          r = exp.shift
+          print "GOOD OP FOR : #{r.inspect}\n"
+          rhs = trim_brackets(process r)
+        end
         @tabstuff.add(lhs, op, lhs + ' ' + op.to_s + ' ' + rhs)
         ret =  ""
       elsif @expops[exp[1].to_s] 

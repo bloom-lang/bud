@@ -1,8 +1,8 @@
 require 'rubygems'
 require 'bud'
 
-require 'examples/vote'
-require 'examples/nonce'
+require 'lib/vote'
+require 'lib/nonce'
 
 class LeaderElection < Vote
 

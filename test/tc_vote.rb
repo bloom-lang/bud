@@ -2,8 +2,8 @@ require 'rubygems'
 require 'bud'
 require 'test/unit'
 
-require 'examples/simple_broadcast'
-require 'examples/vote'
+require 'lib/simple_broadcast'
+require 'lib/vote'
 
 
 

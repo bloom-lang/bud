@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud'
 require 'test/unit'
-require 'examples/icart'
+require 'lib/icart'
 
 class TestCart < Test::Unit::TestCase
   def advance(p)

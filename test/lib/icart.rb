@@ -3,7 +3,7 @@ require 'bud'
 
 # make the checkout message idempotent
 
-require 'examples/cart'
+require 'lib/cart'
 
 class IdempotentCartServer < BasicCartServer
 

@@ -40,7 +40,7 @@ class Bud
       # however, we can still pass the "string" code of bud modules
       # to ruby_parse (but not the "live" class)
       # uncomment for stratification rewrites
-      ##safe_rewrite
+      #safe_rewrite
     end
   end
 
@@ -65,8 +65,10 @@ class Bud
     # to ruby_parse (but not the "live" class)
 
     copy1 = ParseTree.translate(self.class);
+    #print "COPY is #{copy1}\n"
     r2r = MyR2R.new
     ruby = r2r.process(copy1)
+
 
     # because r2r appears to stomp on its input
     copy2 = ParseTree.translate(self.class)
@@ -88,7 +90,11 @@ class Bud
       end
       defn = defn + "}\n"
     end
-    self.singleton_class.send(:remove_method, "declaration")
+    
+    # PAA
+    #self.singleton_class.send(:remove_method, "declaration")
+
+    print "REWRITTEN ruby: #{defn}\n"
     def self.declaration
       eval(defn)
     end
