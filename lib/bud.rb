@@ -5,6 +5,7 @@ require 'socket'
 require 'superators'
 require 'parse_tree'
 require 'parse_tree_extensions'
+require 'anise'
 require 'bud/aggs'
 require 'bud/collections'
 require 'bud/errors'
@@ -17,6 +18,9 @@ class Bud
   attr_reader :strata, :budtime, :inbound
   attr_accessor :connections
   attr_reader :tables # for  ging; remove me later
+  
+  include Anise
+  annotator :declare
 
   def initialize(ip, port)
     @tables = {}
@@ -27,6 +31,8 @@ class Bud
     @port = port.to_i
     @connections = {}
     @inbound = []
+    @declarations = [:declaration]
+    @declarations += self.class.annotations.map{|a| a[0] if a[1].keys.include? :declare}.compact
 
     @periodics = table :periodics_tbl, ['name'], ['ident', 'duration']
     @vars = table :vars_tbl, ['name'], ['value']
@@ -90,7 +96,6 @@ class Bud
       end
       defn = defn + "}\n"
     end
-    
     # PAA
     #self.singleton_class.send(:remove_method, "declaration")
 
@@ -132,7 +137,9 @@ class Bud
 
     # load the rules as a closure (will contain persistent tuples and new inbounds)
     # declaration to be provided by user program
-    declaration
+    @declarations.each do |d| 
+      self.send(d)
+    end
 
     @strata.each { |strat| stratum_fixpoint(strat) }
     @channels.each { |c| @tables[c[0]].flush }
@@ -318,5 +325,18 @@ class Bud
   end
 
   alias rules lambda
+  
+  def ruledef(name, &blk)
+    prologue = lambda {@declarations << name}
+    @declarations << name unless @declarations.include? name
+#     epilogue = lambda {puts "end"}
+    wrapper = lambda do |*args| 
+      raise ArgumentError, "wrong number of arguments #{args.length} for #{blk.arity}" if args.length != blk.arity
+      prologue.call
+      blk.call(args)
+      # epilogue.call
+    end
+    self.singleton_class.send(:define_method, name, wrapper)
+  end  
 end
 

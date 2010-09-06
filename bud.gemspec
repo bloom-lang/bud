@@ -14,4 +14,5 @@ Gem::Specification.new do |s|
   s.add_dependency 'ParseTree'
   s.add_dependency 'sexp_path'
   s.add_dependency 'ruby2ruby'
+  s.add_dependency 'anise'
 end
