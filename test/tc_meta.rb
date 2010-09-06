@@ -16,21 +16,19 @@ class ShortestPaths < Bud
     table :minmaxsumcntavg, ['from', 'to'], ['mincost', 'maxcost', 'sumcost', 'cnt', 'avgcost']
   end
   
-  def declaration
-    strata[0] = rules {
+  declare 
+  def program
+    path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
 
-      path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
+    j = join [link, path], [path.from, link.to]
+    path <= j.map do |l,p|
+      [l.from, p.to, p.from, l.cost+p.cost] # if l.to == p.from
+    end
 
-      j = join [link, path], [path.from, link.to]
-      path <= j.map do |l,p|
-        [l.from, p.to, p.from, l.cost+p.cost] # if l.to == p.from
-      end
+    shortest <= path.argagg(:min, [path.from, path.to], path.cost)
+    minmaxsumcntavg <= path.group([path.from, path.to], min(path.cost), min(path.cost), sum(path.cost), count, avg(path.cost))
 
-      shortest <= path.argagg(:min, [path.from, path.to], path.cost)
-      minmaxsumcntavg <= path.group([path.from, path.to], min(path.cost), min(path.cost), sum(path.cost), count, avg(path.cost))
-
-      minz <= shortest.group(nil, min(shortest.cost))
-    }
+    minz <= shortest.group(nil, min(shortest.cost))
   end
 end
 

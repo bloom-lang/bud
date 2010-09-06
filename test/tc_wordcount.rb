@@ -18,21 +18,20 @@ class WordCount < Bud
     table :compare, ['word'], ['cnt', 'cnt2']
   end
   
-  def declaration
-    strata[0] = rules {
-      text.each do |t|
-        t.text.split.each_with_index {|w,i| words << [t.lineno, i, w]}
-      end
-    }
-    strata[1] = rules {
-      wc <= words.group([words.word], count)
-      wc2 <= words.reduce({}) do |memo, t|
-        memo[t.word] ||= 0
-        memo[t.word] += 1
-        memo
-      end
-      compare <= join([wc,wc2], [wc.word, wc2.word]).map { |w, w2| [w.word, w.cnt, w2.cnt] }
-    }
+  declare 
+  def program
+    text.each do |t|
+      t.text.split.each_with_index {|w,i| words << [t.lineno, i, w]}
+    end
+
+    # stratum 1
+    wc <= words.group([words.word], count)
+    wc2 <= words.reduce({}) do |memo, t|
+      memo[t.word] ||= 0
+      memo[t.word] += 1
+      memo
+    end
+    compare <= join([wc,wc2], [wc.word, wc2.word]).map { |w, w2| [w.word, w.cnt, w2.cnt] }
   end
 end
 

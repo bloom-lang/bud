@@ -7,11 +7,10 @@ class VarBud < Bud
     table :tbl, ['k1', 'k2'], ['v1', 'v2']
   end
   
-  def declaration
-    strata[0] = rules {
-      self.x = 4
-      self.y = 5
-    } 
+  declare
+  def program
+    self.x = 4
+    self.y = 5
   end
 end
 
@@ -23,11 +22,10 @@ class VarBudDup < Bud
     table :tbl, ['k1', 'k2'], ['v1', 'v2']
   end
   
-  def declaration
-    strata[0] = rules {
-      self.x = 4
-      self.x = 5
-    } 
+  declare
+  def program
+    self.x = 4
+    self.x = 5
   end
 end
 

@@ -5,20 +5,19 @@ class BabyBud < Bud
     table :tbl, ['k1', 'k2'], ['v1', 'v2']
   end
   
-  def declaration
-    strata[0] = rules {
-      if budtime == 1 then
-        scrtch <= [['a', 'b', 1, 2]]
-        scrtch <= [['a', 'c', 3, 4]]
-        scrtch2 <= [['a', 'b']]
-        tbl <= [['a', 'b', 1, 2]]
-        tbl <= [['z', 'y', 9, 8]]
+  declare
+  def program
+    if budtime == 1 then
+      scrtch <= [['a', 'b', 1, 2]]
+      scrtch <= [['a', 'c', 3, 4]]
+      scrtch2 <= [['a', 'b']]
+      tbl <= [['a', 'b', 1, 2]]
+      tbl <= [['z', 'y', 9, 8]]
 
-        scrtch <+ [['c', 'd', 5, 6]]
-        tbl <+ [['c', 'd', 5, 6]]
-        tbl <- [['a', 'b', 1, 2]]
-      end
-    } 
+      scrtch <+ [['c', 'd', 5, 6]]
+      tbl <+ [['c', 'd', 5, 6]]
+      tbl <- [['a', 'b', 1, 2]]
+    end
   end
 end
 
@@ -27,11 +26,10 @@ class DupKeyBud < Bud
     scratch :tab, ['k'], ['name']
   end
   
-  def declaration
-    strata[0] = rules {
-      tab <= [[2000, 'bush']]
-      tab <= [[2000, 'gore']]
-    }
+  declare
+  def program
+    tab <= [[2000, 'bush']]
+    tab <= [[2000, 'gore']]
   end
 end
 
@@ -40,15 +38,11 @@ class DupTableBud < Bud
     scratch :s, ['k']
     scratch :s, ['l']
   end
-  def declaration
-  end
 end
 
 class DupColBud < Bud
   def state
     scratch :s ['a', 'a']
-  end
-  def declaration
   end
 end
 
@@ -65,10 +59,9 @@ class Grep < Bud
     table :matches, ['lineno', 'text']
   end
   
-  def declaration
-    strata[0] = rules {
-      matches <= text.map{|t| t if t.text =~ pattern}
-    }
+  declare
+  def program
+    matches <= text.map{|t| t if t.text =~ pattern}
   end
 end
 

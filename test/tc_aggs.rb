@@ -10,26 +10,24 @@ class ShortestPaths < Bud
     table :minmaxsumcntavg, ['from', 'to'], ['mincost', 'maxcost', 'sumcost', 'cnt', 'avgcost']
   end
   
-  def declaration
-    strata[0] = rules {
-      link << ['a', 'b', 1]
-      link << ['a', 'b', 4]
-      link << ['b', 'c', 1]
-      link << ['c', 'd', 1]
-      link << ['d', 'e', 1]
+  declare
+  def program
+    link << ['a', 'b', 1]
+    link << ['a', 'b', 4]
+    link << ['b', 'c', 1]
+    link << ['c', 'd', 1]
+    link << ['d', 'e', 1]
 
-      path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
+    path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
 
-      j = join [link, path], [path.from, link.to]
-      path <= j.map do |l,p|
-        [l.from, p.to, p.from, l.cost+p.cost] # if l.to == p.from
-      end
-    }
+    j = join [link, path], [path.from, link.to]
+    path <= j.map do |l,p|
+      [l.from, p.to, p.from, l.cost+p.cost] # if l.to == p.from
+    end
 
-    strata[1] = rules {
-      shortest <= path.argagg(:min, [path.from, path.to], path.cost)
-      minmaxsumcntavg <= path.group([path.from, path.to], min(path.cost), min(path.cost), sum(path.cost), count, avg(path.cost))
-    }
+    # second stratum
+    shortest <= path.argagg(:min, [path.from, path.to], path.cost)
+    minmaxsumcntavg <= path.group([path.from, path.to], min(path.cost), min(path.cost), sum(path.cost), count, avg(path.cost))
   end
 end
 
@@ -45,24 +43,20 @@ class PriorityQ < Bud
     scratch :out2, ['item'], ['priority']
   end
   
-  def declaration
-    strata[0] = rules {
-      q << ['c', 2] if budtime == 1
-      q << ['d', 3] if budtime == 1
-      q << ['a', 1] if budtime == 1
-      q << ['b', 2] if budtime == 1
-    }
-    
-    strata[1] = rules {
-      out <= q.argagg(:min, [], q.priority)
-      minny <= q.group(nil, min(q.priority))
-      q <- out.map{|t| t}
-    }
-    
-    strata[2] = rules {
-      out2 <= natjoin([q,minny]).map{|q, m| q+m}
-    }
+  declare
+  def program
+    q << ['c', 2] if budtime == 1
+    q << ['d', 3] if budtime == 1
+    q << ['a', 1] if budtime == 1
+    q << ['b', 2] if budtime == 1
 
+    # second stratum
+    out <= q.argagg(:min, [], q.priority)
+    minny <= q.group(nil, min(q.priority))
+    q <- out.map{|t| t}
+
+    # third stratum
+    out2 <= natjoin([q,minny]).map{|q, m| q+m}
   end
 end
 
