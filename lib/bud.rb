@@ -31,7 +31,11 @@ class Bud
     @port = port.to_i
     @connections = {}
     @inbound = []
-    @declarations = self.class.annotations.map{|a| a[0] if a[1].keys.include? :declare}.compact
+    @declarations = []
+    self.class.ancestors.each do |anc|
+      @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact if anc.methods.include? 'annotation'
+    end
+    @declarations.uniq!
 
     @periodics = table :periodics_tbl, ['name'], ['ident', 'duration']
     @vars = table :vars_tbl, ['name'], ['value']
