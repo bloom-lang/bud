@@ -5,6 +5,7 @@
 # handlers (e.g. call, defn) for special case output.
 
 require 'parse_tree'
+require 'ruby2ruby'
 require 'parse_tree_extensions'
 
 class SaneR2R < Ruby2Ruby

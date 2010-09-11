@@ -2,15 +2,13 @@ require 'rubygems'
 require 'bud'
 
 class Stratification < Bud
-  def initialize(ip, port)
-    super(ip,port)
-  end
-  
   def state
+    table :depends, ['head', 'arg', 'body', 'neg']
     table :depends_tc, ['head', 'body', 'neg']
     table :cycle, ['predicate'], ['neg']
     table :stratum_base, ['predicate', 'stratum']
     table :stratum, ['predicate'], ['stratum']
+    table :top_strat, ['stratum']
   end
   
   def declaration
@@ -38,7 +36,8 @@ class Stratification < Bud
       stratum_base <= depends.map {|d1| [d1.body, 0] unless depends.map{|d2| [d2.head]}.include? d1.body} 
       j = join [depends, stratum_base], [depends.body, stratum_base.predicate] 
       stratum_base <= j.map do |d,s| 
-        if d.neg 
+        if d.neg == 1
+          #print "#{d.head} <- #{d.body} neg so +\n"
           [d.head, s.stratum + 1]
         else
           [d.head, s.stratum] # unless stratum.map{|s2| [s2.predicate]}.include? d.head 
@@ -48,6 +47,7 @@ class Stratification < Bud
     }
     strata[2] = rules {
       stratum <= stratum_base.group([stratum_base.predicate], max(stratum_base.stratum))
+      top_strat <= stratum_base.group(nil, max(stratum_base.stratum)) 
     }
   end
 end

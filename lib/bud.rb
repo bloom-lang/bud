@@ -10,9 +10,11 @@ require 'bud/aggs'
 require 'bud/collections'
 require 'bud/errors'
 require 'bud/events'
-require 'bud/parse_bud'
+#require 'bud/parse_bud'
 require 'bud/strat'
-require 'bud/forward_parse'
+#require 'bud/forward_parse'
+require 'bud/bud_meta'
+require 'bud/viz'
 
 class Bud
   attr_reader :strata, :budtime, :inbound
@@ -40,16 +42,12 @@ class Bud
     @periodics = table :periodics_tbl, ['name'], ['ident', 'duration']
     @vars = table :vars_tbl, ['name'], ['value']
     @tmpvars = scratch :tmpvars_tbl, ['name'], ['value']
-    @depends = table :depends, ['head', 'op', 'body', 'neg']
+    ###@depends = table :depends, ['head', 'op', 'body', 'neg']
 
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
     if self.class != Stratification
-      # N.B. -- parse_tree will not be supported in ruby 1.9.
-      # however, we can still pass the "string" code of bud modules
-      # to ruby_parse (but not the "live" class)
-      # uncomment for stratification rewrites
-      #safe_rewrite
+      ##safe_rewrite
     end
   end
   
@@ -66,13 +64,15 @@ class Bud
   ########### metaprogramming support for ruby and for rule rewriting
   # helper to define instance methods
 
+    
+
   def safe_rewrite
     begin
-      defn = meta_rewrite 
+      defn = meta_rewrite
       # uncomment to see the rewrite -- it has already been installed if it succeeded.
       # puts defn
     rescue 
-      print "Running original code: couldn't rewrite stratified ruby (#{$!})\n"
+      print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
     end 
   end
 
@@ -80,44 +80,96 @@ class Bud
     # N.B. -- parse_tree will not be supported in ruby 1.9.
     # however, we can still pass the "string" code of bud modules
     # to ruby_parse (but not the "live" class)
+    
+    depends = shred_rules
+    strat = stratify(depends) 
 
-    copy1 = ParseTree.translate(self.class);
-    #print "COPY is #{copy1}\n"
-    r2r = MyR2R.new
-    ruby = r2r.process(copy1)
-
-
-    # because r2r appears to stomp on its input
-    copy2 = ParseTree.translate(self.class)
-    bm = BudMirror.new
-    result = bm.process(copy2)
-
-    strat = Stratification.new("localhost", 12345)
-    bm.each_depends { |d| strat.depends << d } 
+    smap = {}
     strat.tick
-    strat.stratum.each do |d|
-      r2r.tabstuff.add_strat(d[0], d[1])
-    end
+    strat.stratum.each do |s|
+      smap[s[0]] = s[1]
+    end 
 
-    defn = ''      
-    (0..r2r.tabstuff.strata.length-1).each do |s|
-      defn = defn + ('strata[' + s.to_s + '] = rules {')
-      r2r.tabstuff.strata_each(s) do |t|
-        defn = defn + t + "\n"
+    # just appending to the monolith for now...
+    # create a structure that is Array (strata) of Array (rules belonging in this strata)
+    @rewritten_strata = []
+    depends.sort{|a, b| oporder(a[1]) <=> oporder(b[1])}.each do |d|
+      belongs_in = smap[d[0]]
+      if @rewritten_strata[belongs_in].nil?
+        @rewritten_strata[belongs_in] = Array.new
       end
-      defn = defn + "}\n"
+      @rewritten_strata[belongs_in] << d[3] + "\n"
     end
-    # PAA
-    #self.singleton_class.send(:remove_method, "declaration")
 
-    print "REWRITTEN ruby: #{defn}\n"
-    def self.declaration
-      eval(defn)
+    @rewritten_strata.each_with_index do |r, i|
+      print "R[#{i}] is #{r}\n"
     end
-    l = lambda { eval(defn) }
-    self.singleton_class.send(:define_method, "declaration",  l)
-    return defn
-  end  
+  
+    visualize(strat, "#{self.class}_gvoutput")
+  end
+
+  def visualize(strat, name)
+    #self.tick
+    gv = Viz.new(strat.top_strat, strat.stratum, @tables)
+    gv.process(strat.depends)
+    gv.finish(name)
+  end
+
+  def stratify(depends)
+    strat = Stratification.new("localhost", 12345)
+    strat.tick
+    depends.each do |d|
+      subparser = Extractor.new
+      pt = ParseTree.translate(d[3])
+      subparser.process(pt)
+      subparser.each do |k, v|
+        strat.depends << [d[0], d[1], k, v]
+      end
+    end
+    strat.tick
+    return strat
+  end
+
+  def shred_rules
+    # to completely characterize the rules of a bud class we must extract
+    # from all parent classes
+
+    # after making this pass, we no longer care about the names of methods.
+    # we are shredding down to the granularity of rule heads.
+    depends = []
+    done = {}
+    curr_class = self.class
+    until curr_class.nil?
+      #print "class is #{curr_class}\n"
+      @declarations.each do |d|
+        unless done[d]
+          pt = ParseTree.translate(curr_class, d)
+          unless pt[0].nil?
+            #print "PT: #{curr_class} :: #{d} :: #{pt.inspect}\n"
+            r = Rewriter.new
+            r.process(pt)
+            r.each {|r| depends << r}
+            done[d] = true
+          end
+        end
+      end
+      curr_class = curr_class.superclass
+    end
+    return depends
+  end
+
+  def oporder(op) 
+    case op
+      when '='
+        return 0
+      when '<<' 
+        return 1
+      when '<=' 
+        return 2
+      when '<' 
+        return 3
+    end
+  end
 
   ######## methods for controlling execution
   def run_bg
