@@ -2,7 +2,8 @@ require 'rubygems'
 require 'bud'
 require 'test/unit'
 
-require 'lib/fifo_broadcast'
+#require 'lib/fifo_broadcast'
+require 'lib/rb2'
 
 
 class TestBcast < Test::Unit::TestCase
@@ -31,16 +32,17 @@ class TestBcast < Test::Unit::TestCase
     p.member << ['127.0.0.1:10001']
     p.member << ['127.0.0.1:10002']
     p.member << ['127.0.0.1:10003']
-    p.rmessage <+ [["foo"]] 
+    p.message <+ [["foo"]] 
 
     assert_nothing_raised(RuntimeError) {p.run_bg}
     assert_nothing_raised(RuntimeError) {p.tickle}
     sleep 1
-    p.rdeliver.each do |d| 
+    p.deliver.each do |d| 
       assert_equal("foo", d.message)
     end
   end
-  def test_fifo
+
+  def ntest_fifo
     p = FifoBroadcast.new('127.0.0.1', 10002)
     p.tick
     p.member << ['127.0.0.1:10001']

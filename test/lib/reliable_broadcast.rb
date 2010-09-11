@@ -13,16 +13,17 @@ class ReliableBroadcast < SimpleBroadcast
 
   def state
     # ideally this would 'just happen' as part of inheritance...
-    super
+    #super
     scratch :rmessage, ['message']
     scratch :rdeliver, ['message', 'sender']
     scratch :to_deliver, ['message', 'sender']
     table :delivered, ['message']
-  end
+   end
 
   def declaration
     super
-    
+  declare
+  def message
     # jacked up: pick a stratum that won't clobber those instantiated by our superclass
     strata[1] = rules {
       # enqueue the messages via simple broadcast
