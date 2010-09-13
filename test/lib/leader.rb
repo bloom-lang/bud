@@ -30,9 +30,8 @@ class LeaderElection < Vote
     super
   end
 
-  def declaration 
-    super
-    strata[2] = rules {
+  declare
+  def le_main
       # maybe I am the initiator...
       current_state << ['election', @myloc, @id] if current_state.empty?
       will_vote <= join([deliver, current_state]).map do |d, c|
@@ -51,9 +50,9 @@ class LeaderElection < Vote
       vote <+ will_vote.map{|w| [w.message, [w.leader, w.vid]]}
       current_state <+ will_vote.map{|w| ['election', w.leader, w.vid]}
       current_state <- join([will_vote, current_state]).map{|w, c| c}
-    }
-
-    strata[3] = rules {
+  end
+  declare
+  def le_two 
       j = join [current_state, @nonce.nonce, timer]
       @nonce.nonce <- j.map do |s, n, t| 
         if s.status == 'election'
@@ -93,7 +92,6 @@ class LeaderElection < Vote
 
       current_state <- j3.map{|f, c| c}
       status <= found_leader.map{|f| [f.ballot, f.leader] }
-    }
   end
 end
 

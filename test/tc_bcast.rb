@@ -2,13 +2,13 @@ require 'rubygems'
 require 'bud'
 require 'test/unit'
 
-#require 'lib/fifo_broadcast'
-require 'lib/rb2'
+require 'lib/fifo_broadcast'
+#require 'lib/rb2'
 
 
 class TestBcast < Test::Unit::TestCase
 
-  def test_simple
+  def ntest_simple
     program = SimpleBroadcast.new('127.0.0.1', 10001)
     # note that I must tick once so that "member" is available
     program.tick

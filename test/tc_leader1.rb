@@ -13,6 +13,8 @@ class TestLE < Test::Unit::TestCase
   def test_le
     v = LeaderElection.new("127.0.0.1", 10001, 1)
 
+    v.tick
+
     assert_nothing_raised(RuntimeError) {v.run_bg}
     v.member << ['127.0.0.1:10001', 1]
   
