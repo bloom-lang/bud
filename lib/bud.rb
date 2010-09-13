@@ -200,10 +200,10 @@ class Bud
 
     # load the rules as a closure (will contain persistent tuples and new inbounds)
     # declaration to be provided by user program
+    @strata = []
     declaration
-    
     @declarations.each do |d| 
-      strata << self.method(d).to_proc
+      @strata << self.method(d).to_proc
     end
 
     @strata.each { |strat| stratum_fixpoint(strat) }

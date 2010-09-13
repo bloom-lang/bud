@@ -42,8 +42,8 @@ class Bud
         bud.inbound << obj
         bud.tick
       else
-        puts " ... BAD!"
-        bud.tick
+        raise BudError, " ... bad inbound message of class #{obj.class}: #{obj.inspect}!"
+        # bud.tick
       end
     end
 
