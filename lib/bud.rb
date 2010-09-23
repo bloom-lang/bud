@@ -10,23 +10,23 @@ require 'bud/aggs'
 require 'bud/collections'
 require 'bud/errors'
 require 'bud/events'
-#require 'bud/parse_bud'
 require 'bud/strat'
-#require 'bud/forward_parse'
 require 'bud/bud_meta'
 require 'bud/viz'
 
 class Bud
   attr_reader :strata, :budtime, :inbound
   attr_accessor :connections
-  attr_reader :tables # for  ging; remove me later
+  attr_reader :tables, :ip, :port # for  ging; remove me later
   
   include Anise
   annotator :declare
 
   def initialize(ip, port)
     @tables = {}
+    @table_meta = []
     @strata = []
+    @rewritten_strata = []
     @channels = {}
     @budtime = 0
     @ip = ip
@@ -42,17 +42,17 @@ class Bud
     @periodics = table :periodics_tbl, ['name'], ['ident', 'duration']
     @vars = table :vars_tbl, ['name'], ['value']
     @tmpvars = scratch :tmpvars_tbl, ['name'], ['value']
-    ###@depends = table :depends, ['head', 'op', 'body', 'neg']
 
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
     if self.class != Stratification
-      ##safe_rewrite
+      #safe_rewrite
     end
   end
   
   ########### give empty defaults for these
   def state
+    #channel :tickler, 0, ['server']
   end  
   def declaration
   end
@@ -71,8 +71,8 @@ class Bud
       defn = meta_rewrite
       # uncomment to see the rewrite -- it has already been installed if it succeeded.
       # puts defn
-    rescue 
-      print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
+    #rescue 
+    #  print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
     end 
   end
 
@@ -80,37 +80,53 @@ class Bud
     # N.B. -- parse_tree will not be supported in ruby 1.9.
     # however, we can still pass the "string" code of bud modules
     # to ruby_parse (but not the "live" class)
-    
+
     depends = shred_rules
+
+    self.tick
     strat = stratify(depends) 
 
     smap = {}
     strat.tick
+    strat.tick
+    strat.tick
     strat.stratum.each do |s|
+      #print "ST: STRAT OUT: #{s.inspect}\n"
       smap[s[0]] = s[1]
     end 
+
+    #strat.tick
+    #strat.tick
+    strat.guarded.each do |g|
+      #print "GUARDED #{g.inspect}\n"
+    end
 
     # just appending to the monolith for now...
     # create a structure that is Array (strata) of Array (rules belonging in this strata)
     @rewritten_strata = []
     depends.sort{|a, b| oporder(a[1]) <=> oporder(b[1])}.each do |d|
       belongs_in = smap[d[0]]
+      belongs_in = 0 if belongs_in.nil?
       if @rewritten_strata[belongs_in].nil?
-        @rewritten_strata[belongs_in] = Array.new
+        @rewritten_strata[belongs_in] = ""
       end
-      @rewritten_strata[belongs_in] << d[3] + "\n"
+      #@rewritten_strata[belongs_in] << d[3] 
+      @rewritten_strata[belongs_in] = @rewritten_strata[belongs_in] + "\n"+ d[3] 
     end
 
     @rewritten_strata.each_with_index do |r, i|
-      print "R[#{i}] is #{r}\n"
+      #print "R[#{i}] is #{r}\n"
     end
-  
+ 
     visualize(strat, "#{self.class}_gvoutput")
   end
 
   def visualize(strat, name)
-    #self.tick
-    gv = Viz.new(strat.top_strat, strat.stratum, @tables)
+    self.tick
+    @tables.each do |t|
+      @table_meta << [t[0], t[1].class]
+    end      
+    gv = Viz.new(strat.top_strat, strat.stratum, @table_meta)
     gv.process(strat.depends)
     gv.finish(name)
   end
@@ -118,16 +134,63 @@ class Bud
   def stratify(depends)
     strat = Stratification.new("localhost", 12345)
     strat.tick
+
+    @tables.each do |t|
+      strat.tab_info << [t[0].to_s, t[1].class, t[1].schema.length]
+    #  @table_meta << [t[0], t[1].class]
+    end      
+   
+    heads = bodies = {}
+    depends.each do |d|
+      op = d[2][0].to_s
+      if op == "call" or op == "lasgn"
+        bodies[d[0]] = true
+      end
+    end
+
     depends.each do |d|
       subparser = Extractor.new
+      if bodies[d[0]]
+        if !strat.tab_info.include? d[0]
+          #strat.tab_info << [d[0], "temp alias", -1]
+          @table_meta << [d[0], "temp alias"]
+        end
+      end
       pt = ParseTree.translate(d[3])
+      if d[1] == '<'
+        if d[3] =~ /-@/
+          realop = "<-"
+        else
+          realop = "<+"
+        end
+      else
+        realop = d[1]
+      end
+  
       subparser.process(pt)
       subparser.each do |k, v|
-        strat.depends << [d[0], d[1], k, v]
+        strat.depends << [d[0], realop, k, v]
+      end 
+      
+      subparser.cols.each do |c|
+        strat.col_alias << [d[0], c[0], c[1], c[2]]
+      end   
+      subparser.each_alias do |a|
+        strat.tab_alias << [d[0], a[0], a[1]]
       end
     end
     strat.tick
+
+    
     return strat
+  end
+
+  def table_inf
+    tabinf = {}
+    @tables.each do |ti|
+      tabinf[ti[0].to_s] = ti[1].class
+    end
+    return tabinf
   end
 
   def shred_rules
@@ -140,12 +203,10 @@ class Bud
     done = {}
     curr_class = self.class
     until curr_class.nil?
-      #print "class is #{curr_class}\n"
       @declarations.each do |d|
         unless done[d]
           pt = ParseTree.translate(curr_class, d)
           unless pt[0].nil?
-            #print "PT: #{curr_class} :: #{d} :: #{pt.inspect}\n"
             r = Rewriter.new
             r.process(pt)
             r.each {|r| depends << r}
@@ -166,8 +227,8 @@ class Bud
         return 1
       when '<=' 
         return 2
-      when '<' 
-        return 3
+    else
+      return 3
     end
   end
 
@@ -202,9 +263,16 @@ class Bud
     # declaration to be provided by user program
     @strata = []
     declaration
+    strata = []
+    # the old way...
     @declarations.each do |d| 
       @strata << self.method(d).to_proc
     end
+    @rewritten_strata.each do |r|
+      block = r
+      #print "bLOCK: #{block}\n"
+      #@strata <<  lambda { block }
+    end 
 
     @strata.each { |strat| stratum_fixpoint(strat) }
     @channels.each { |c| @tables[c[0]].flush }
@@ -221,9 +289,6 @@ class Bud
 
   def stratum_fixpoint(strat)
     cnts = Hash.new
-    @tables.each_key do |k| 
-      self.singleton_class.send(:define_method, k.to_sym) { @tables[k] }
-    end
     begin
       cnts = {}
       @tables.each_key{|k| cnts[k] = @tables[k].length}

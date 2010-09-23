@@ -4,21 +4,45 @@ require 'bud/sane_r2r'
 require 'parse_tree'
 
 class Extractor < SaneR2R
-  attr_reader :tabs
+  attr_reader :tabs, :cols, :aliases
 
   def initialize
     @tabs = {}
     @currtab = nil
     @nm = {"group", 1, "argagg", 1, "include?", 1}
     @nmcontext = 0
+    @aliases={}
+    @cols = []
+    newtab(nil)
+    super
+  end
+
+  def newtab(t)
+    @currtab = t
+    @offset = 0
+    @aliases[t] = []
+  end
+
+  def process_dasgn_curr(exp)
+    @aliases[@currtab] << exp[0].to_s
     super
   end
 
   def process_call(exp)
     op = exp[1].to_s
     if exp.length == 3 or exp.length == 4
-      foo = exp.shift
-      foo = exp.shift
+      exp.shift
+      exp.shift
+    elsif exp.length == 2
+      l = exp[0][0] 
+      if l.to_s == 'dvar'
+        aliass = exp[0][1].to_s
+        col = exp[1].to_s
+        @cols << [aliass, col, @offset]
+        @offset = @offset + 1
+      elsif l.to_s == 'vcall'
+        tab = exp[0][1]
+      end
     end
     if @nm[op]
       @nmcontext = @nmcontext + 1
@@ -32,7 +56,7 @@ class Extractor < SaneR2R
 
   def process_vcall(exp)
     t = exp[0].to_s
-    @currtab = t
+    newtab(t)
     @tabs[t] = @nmcontext
     super
   end
@@ -40,6 +64,22 @@ class Extractor < SaneR2R
   def each
     @tabs.each_pair do |k,v|
       yield [k, v]
+    end
+  end
+  def each_alias
+    @aliases.each_pair do |k, v|
+      unless v.empty? 
+        v.each do |i|
+          yield [k, i]
+        end
+      end
+    end
+  end
+  def each_join
+    @aliases.each_pair do |k, v|
+      if v.empty? 
+        yield k
+      end
     end
   end
 end
@@ -76,11 +116,16 @@ class Rewriter < SaneR2R
   end
 
   def process_array(exp)
-    if (@suppress > 0) or (exp.length < 2)
+    if (@suppress > 0) #or (exp.length < 2)
       return "#{process_arglist(exp)}"
     else
       return "[#{process_arglist(exp)}]"
     end
+  end
+  
+  def process_fcall(exp)
+    print "process FCALL: #{exp.inspect}\n"
+    super
   end
   
   def process_masgn(exp)
@@ -103,6 +148,7 @@ class Rewriter < SaneR2R
       @rules[lhs] = []
     end
     copy = whole.clone
+    
     @rules[lhs] << [op, copy, process(whole)]
   end
 
@@ -112,8 +158,8 @@ class Rewriter < SaneR2R
     until exp.empty?
       clause = exp.shift
       len = clause.length
-      l = clause[1]
-      lhs = (l.class == Symbol) ? l.to_s : process(l.clone)
+      l = Marshal.load(Marshal.dump(clause[1]))
+      lhs = (l.class == Symbol) ? l.to_s : l.nil? ? "" : process(l.clone)
       if len == 3
         # 'assignment'
         shove(lhs, "=", clause)
@@ -121,8 +167,10 @@ class Rewriter < SaneR2R
         # 'rule'
         op = clause[2].to_s
         shove(lhs, op, clause)
+      elsif lhs == ""
+        print "DO nothing\n"
       else
-        raise "Invalid top-level clause length #{len}"
+        raise "Invalid top-level clause length #{len}: '#{clause.inspect}'"
       end
       
     end
