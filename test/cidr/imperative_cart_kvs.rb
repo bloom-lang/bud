@@ -17,7 +17,7 @@ class ImperativeCartServer < BudKVS
   declare
     def accumulate
       kvstore <= iaction.map do |a| 
-        print "Around #{a.inspect}\n"
+        #print "Around #{a.inspect}\n"
         unless bigtable.map{|b| b.key}.include? a.session
           if a.action == "A"
             print "add on empty #{a.server}, #{a.session}, #{a.item}\n"
@@ -38,12 +38,12 @@ class ImperativeCartServer < BudKVS
       
       kvstore <= joldstate.map do |b, a| 
         if a.action == "A"
-          print "add #{a.inspect}, #{b.inspect}\n"
+          #print "add #{a.inspect}, #{b.inspect}\n"
           [a.server, a.session, b.value.push(a.item)]
         elsif a.action == "D"
-          print "delete #{a.inspect}, #{b.inspect}\n"
+          #print "delete #{a.inspect}, #{b.inspect}\n"
           b.value.delete_at(b.value.index(a.item))
-          print "now I have #{b.value}\n"
+          #print "now I have #{b.value}\n"
           [a.server, a.session, b.value]
         end
       end
