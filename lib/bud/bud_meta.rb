@@ -170,6 +170,7 @@ class Rewriter < SaneR2R
       elsif lhs == ""
         print "DO nothing\n"
       else
+        print "coming out of #{exp.inspect}\n"
         raise "Invalid top-level clause length #{len}: '#{clause.inspect}'"
       end
       

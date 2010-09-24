@@ -56,7 +56,8 @@ class BasicCartServer < Bud
   declare 
     def finish
       response <= join([status, checkout_guard], [status.session, checkout_guard.session]).map do |s, c| 
-        [c.client, c.server, s.session, s.item. s.cnt]
+        print "RESPONSE: #{s.inspect}\n"
+        #[c.client, c.server, s.session, s.item, s.cnt]
       end
     end
   declare
@@ -67,9 +68,9 @@ class BasicCartServer < Bud
         end
       end
 
-      #checkout <+ join([checkout_guard, member]).map do |c, m|
-      #  [m.player, c.client, c.session]
-      #end
+      checkout <+ join([checkout_guard, member]).map do |c, m|
+        [m.player, c.client, c.session]
+      end
     end
 
   declare

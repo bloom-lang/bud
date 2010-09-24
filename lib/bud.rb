@@ -46,7 +46,7 @@ class Bud
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
     if self.class != Stratification
-      #safe_rewrite
+      safe_rewrite
     end
   end
   
