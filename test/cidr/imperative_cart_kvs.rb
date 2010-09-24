@@ -16,31 +16,37 @@ class ImperativeCartServer < BudKVS
  
   declare
     def accumulate
-      #kvfetch <= iaction.map{|a| [a.server, a.session]}
-      # I know my store is local, so I don't bother with fetch...
-      joldstate = join [bigtable, iaction], [bigtable.key, iaction.session]
-      
-      kvstore <+ joldstate.map do |b, a| 
-        if a.action == "A"
-          [a.server, a.session, b.value.push(a.update)]
-        elsif a.action == "D"
-          b.value.delete(a.item)
-          [a.server, a.session, b.value]
-        end
-
-      end
-
-      kvstore <+ iaction.map do |a| 
-        unless bigtable.map{|b| b.key}.contains? a.session
+      kvstore <= iaction.map do |a| 
+        print "Around #{a.inspect}\n"
+        unless bigtable.map{|b| b.key}.include? a.session
           if a.action == "A"
-            [a.server, a.session, [a.update]]
+            print "add on empty #{a.server}, #{a.session}, #{a.item}\n"
+            [a.server, a.session, [a.item]]
           elsif a.action == "D"
-            # um, problem with the naive implementation
+            # um, problem with the naive implementation?
             print "Ah crap\n"
           end
         end
       end
+    end
 
+  declare 
+    def artifact
+      #kvfetch <= iaction.map{|a| [a.server, a.session]}
+      # I know my store is local, so I don't bother with fetch...
+      joldstate = join [bigtable, iaction], [bigtable.key, iaction.session]
+      
+      kvstore <= joldstate.map do |b, a| 
+        if a.action == "A"
+          print "add #{a.inspect}, #{b.inspect}\n"
+          [a.server, a.session, b.value.push(a.item)]
+        elsif a.action == "D"
+          print "delete #{a.inspect}, #{b.inspect}\n"
+          b.value.delete_at(b.value.index(a.item))
+          print "now I have #{b.value}\n"
+          [a.server, a.session, b.value]
+        end
+      end
     end
 
  

@@ -17,7 +17,7 @@ class BudKVS < Bud
 
   declare
     def kstore
-      bigtable <+ kvstore.map{|s| print "okay!\n"; [s.key, s.value]}
+      bigtable <+ kvstore.map{|s| print "okay! #{s.inspect}\n"; [s.key, s.value]}
       jst = join [bigtable, kvstore], [bigtable.key, kvstore.key]
       bigtable <- jst.map{|b, s| print "delete stuff\n"; b}
     end
@@ -32,7 +32,6 @@ class BudKVS < Bud
     def resp
       jft = join [kvfetch, bigtable], [kvfetch.key, bigtable.key]
       response <+ jft.map{|f, b| print "send resp! #{b.inspect}\n"; [f.client, f.server, b.key, b.value]}
-
       resp_saved <= response.map{|r| print "OMG resp!\n"; r}
     end
 
