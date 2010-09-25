@@ -60,9 +60,9 @@ class ImperativeCartServer < Bud
 
   declare 
     def replicate
-      sj = join [iaction, member]
-      rep_istatus <+ sj.map{|s, m| [m.player, s.server, s.session, s.update] }
-      istatus <= rep_istatus.map{|s| s}
+      #sj = join [iaction, member]
+      #rep_istatus <+ sj.map{|s, m| [m.player, s.server, s.session, s.update] }
+      #istatus <= rep_istatus.map{|s| s}
     end
   
 end

@@ -1,9 +1,22 @@
 require 'rubygems'
 require 'bud'
 
-require 'cidr/kvs.rb'
+require 'cidr/async_kvs'
+require 'cidr/queue'
 
-class ImperativeCartServer < BudKVS
+class ImperativeCartServer < AsyncKVS
+
+  def initialize(ip, port)
+    @q = BaseQueue.new(ip, port.to_i+1)
+    @q.tick
+    super(ip, port)
+  end
+
+  def tick
+    # hx
+    @q.tick
+    super
+  end
 
   def state
     super
@@ -12,16 +25,21 @@ class ImperativeCartServer < BudKVS
 
     scratch :client_action, ['server', 'client', 'session', 'item', 'action', 'reqid']
     table :iresponse, ['server', 'client', 'session', 'state']
+
+    scratch :iaction_deq, ['server', 'client', 'session', 'item', 'action', 'reqid']
   end
  
   declare
     def accumulate
-      kvstore <= iaction.map do |a| 
-        #print "Around #{a.inspect}\n"
+      @q.q <= iaction.map{|a| print "(#{@budtime}) enqueue #{a.inspect}\n"; [a.reqid, a]}
+      iaction_deq <= @q.head.map{|h| print "DEQ(#{@budtime})!: #{h.inspect} (PL #{h.payload})\n"; h.payload}
+
+      kvstore <= iaction_deq.map do |a| 
+        print "Around(#{@budtime}) #{a.inspect}\n"
         unless bigtable.map{|b| b.key}.include? a.session
           if a.action == "A"
             print "add on empty #{a.server}, #{a.session}, #{a.item}\n"
-            [a.server, a.session, [a.item]]
+            [a.server, 'localhost:10000', a.session, [a.item]]
           elsif a.action == "D"
             # um, problem with the naive implementation?
             print "Ah crap\n"
@@ -34,19 +52,22 @@ class ImperativeCartServer < BudKVS
     def artifact
       #kvfetch <= iaction.map{|a| [a.server, a.session]}
       # I know my store is local, so I don't bother with fetch...
-      joldstate = join [bigtable, iaction], [bigtable.key, iaction.session]
+      joldstate = join [bigtable, iaction_deq], [bigtable.key, iaction_deq.session]
       
       kvstore <= joldstate.map do |b, a| 
         if a.action == "A"
-          #print "add #{a.inspect}, #{b.inspect}\n"
-          [a.server, a.session, b.value.push(a.item)]
+          print "add #{a.inspect}, #{b.inspect}\n"
+          [a.server, 'localhost:10000', a.session, b.value.push(a.item)]
         elsif a.action == "D"
-          #print "delete #{a.inspect}, #{b.inspect}\n"
-          b.value.delete_at(b.value.index(a.item))
+          print "delete #{a.inspect}, #{b.inspect}\n"
+          copy = b.value.clone
+          copy.delete_at(copy.index(a.item))
           #print "now I have #{b.value}\n"
-          [a.server, a.session, b.value]
+          [a.server, 'localhost:10000', a.session, copy]
         end
       end
+      
+      ##@q.consumed <=       
     end
 
  
@@ -61,6 +82,8 @@ class ImperativeCartServer < BudKVS
   declare 
     def client
       iaction <+ client_action.map{|a| a}
+      
+      
     end
 
   declare

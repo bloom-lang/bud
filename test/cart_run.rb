@@ -83,7 +83,7 @@ end
     c.send_channel("checkout", ['localhost:12345', 'localhost:12345',1234])
 
 
-    (0..10).each do |i|
+    (0..3).each do |i|
       print "ADV #{i}\n"
       c.advance
       c.advancer("localhost", 12346)
