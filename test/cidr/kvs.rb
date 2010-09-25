@@ -1,10 +1,14 @@
 require 'rubygems'
 require 'bud'
 
+require 'cidr/reliable_delivery'
+
 class BudKVS < Bud
 
   def initialize(ip, port)
     @myid = "#{ip}:#{port}"
+    #@delivery = BestEffortDelivery.new(ip, port+2)
+    #@delivery.tick
     super
   end
   
@@ -13,7 +17,7 @@ class BudKVS < Bud
     table :bigtable, ['key'], ['value']
     table :resp_saved, ['client', 'server', 'key', 'value']
     table :member, ['peer']
-    table :acked, ['client', 'server', 'key']
+    #table :acked, ['client', 'server', 'key']
 
     channel :kvstore_snd, 0, ['server', 'client', 'key'], ['value']
     channel :ack, 0, ['client', 'server', 'key']
@@ -27,6 +31,8 @@ class BudKVS < Bud
 
   declare
     def kstore
+      # recall the lesson from BFS: build in the interposition point early.
+      #readback = join [bigtable, kvstore, @delivery.pipe_out], [bigtable.key, kvstore.key], [bigtable.key, @delivery.pipe_out.id]
       bigtable <+ kvstore.map{|s| print "FOO: #{s.inspect}\n"; [s.key, s.value] if s.server == "#{@ip}:#{@port}"}
       jst = join [bigtable, kvstore], [bigtable.key, kvstore.key]
       bigtable <- jst.map{|b, s| b if s.server == "#{@ip}:#{@port}"}
@@ -34,12 +40,14 @@ class BudKVS < Bud
 
   declare 
     def kclean
-      jde = join [kvdelete, bigtable], [kvdelete.key, bigtable.key]
-      bigtable <- jde.map{|d, b| b}
+      #jde = join [kvdelete, bigtable], [kvdelete.key, bigtable.key]
+      #bigtable <- jde.map{|d, b| b}
     end
 
   declare
     def resp
+      #jresp = join [@delivery.pipe_out, 
+      #resp_saved <+ 
       #jft = join [kvfetch, bigtable], [kvfetch.key, bigtable.key]
       #response <+ jft.map{|f, b| [f.client, f.server, b.key, b.value]}
       #resp_saved <= response.map{|r| r}
@@ -47,24 +55,11 @@ class BudKVS < Bud
 
   declare
     def replicate
-      jrep1 = join [kvstore, member]
-      #kvstore <+ jrep1.map{|s, m| [m.peer, s.key.to_s, Marshal.dump(s.value)] unless m.peer == "#{@ip}:#{@port}"}
-      #kvstore <+ jrep1.map{|s, m| [m.peer, s.key.to_s, s.value.clone] unless m.peer == "#{@ip}:#{@port}"}
-      kvstore_snd <+ jrep1.map do |s, m| 
-          unless m.peer == "#{@ip}:#{@port}" or s.client == m.peer
-            [m.peer, "#{@ip}:#{@port}", s.key.to_s, s.value]
-          end
-      end
+      #jrep = join [kvstore, member]
+      #@delivery.pipe <= jrep.map do |s, m|
+      #  [m.peer, @addy, s.key, s]
+      #end
 
-      kvstore <= kvstore_snd.map do |s| 
-        print "GOT STRSND #{s.inspect}\n"
-        if s.server == @myid
-          s
-        end
-      end
-
-      jrep2 = join [kvstore, member]
-      #kvdelete <+ jrep2.map{|d, m| [m.peer, s.key]}
     end
 
 
