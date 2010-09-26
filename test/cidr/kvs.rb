@@ -2,8 +2,8 @@ require 'rubygems'
 require 'bud'
 require 'cidr/reliable_delivery'
 
-#class BudKVS < BestEffortDelivery
-class BudKVS < ReliableDelivery
+class BudKVS < BestEffortDelivery
+#class BudKVS < ReliableDelivery
   def state
     super
     table :bigtable, ['key'], ['value']
@@ -55,7 +55,7 @@ class BudKVS < ReliableDelivery
   
       kvstore <+ pipe_chan.map do |p|
         if @addy == p.peer and p.peer != p.self
-          [p.peer, p.self, p.payload[0], p.id, p.payload[1]] 
+          [p.peer, p.self, p.payload.index(0), p.id, p.payload.index(1)] 
         end
       end
 

@@ -41,8 +41,8 @@ class BasicCartServer < Bud
 
   declare 
     def acks
-      ack <+ action.map {|a| [a.client, a.server, a.reqid] }
-      acked <= ack.map{|a| a}
+      #ack <+ action.map {|a| [a.client, a.server, a.reqid] }
+      #acked <= ack.map{|a| a}
     end
 
   declare
@@ -63,9 +63,9 @@ class BasicCartServer < Bud
   declare
     def replicate
       action <+ join([action, member]).map do |a, m|
-        unless acked.map{|ac| [ac.peer, ac.reqid]}.include? [m.player, a.reqid]
+        #unless acked.map{|ac| [ac.peer, ac.reqid]}.include? [m.player, a.reqid]
           [m.player, a.server, a.session, a.item, a.action, a.reqid]
-        end
+        #end
       end
 
       checkout <+ join([checkout_guard, member]).map do |c, m|
