@@ -26,7 +26,7 @@ class BudKVS < ReliableDelivery
       end
 
       jst = join [bigtable, stor_saved, pipe_out], [bigtable.key, stor_saved.key], [stor_saved.reqid, pipe_out.id]
-      bigtable <- jst.map do |b, s, p| b }
+      bigtable <- jst.map { |b, s, p| b }
     end
 
   declare 
