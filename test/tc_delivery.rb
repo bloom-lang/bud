@@ -1,37 +1,58 @@
 require 'rubygems'
 require 'bud'
-require 'cidr/reliable_delivery'
+require 'cidr/quorum_delivery'
 require 'test_lib'
 
 
 class TestDelivery < TestLib
-  def test_delivery
-    t_delivery("BestEffortDelivery")
-  end
 
-  def test_reliable_delivery
-    t_delivery("ReliableDelivery")
-    f_delivery("ReliableDelivery")
-  end
+  def q_delivery(type)
+    rd = spinup(type, 12345)
+    rd2 = spinup(type, 12346)
+    rd3 = spinup(type, 12347)
 
+   assert_nothing_raised(RuntimeError){rd2.run_bg}
+   assert_nothing_raised(RuntimeError){rd3.run_bg}
+
+   rd.pipe <+ [['localhost:12346', 'localhost:12345', 1, 'foobar']]
+   assert_nothing_raised(RuntimeError){rd.run_bg}
+
+   soft_tick(rd)
+   soft_tick(rd2)
+   soft_tick(rd3)
+
+
+
+
+   return rd
+    
+
+  end
+  
   def t_delivery(type)
     rd = spinup(type, 12345)
     rd2 = spinup(type, 12346)
     assert_nothing_raised(RuntimeError){rd2.run_bg}
     rd.pipe <+ [['localhost:12346', 'localhost:12345', 1, 'foobar']]
     assert_nothing_raised(RuntimeError){rd.run_bg}
-    sleep 1 
+    soft_tick(rd)
     # received at destination
+    assert_equal(1, rd2.pipe_chan.length)
     rd2.pipe_chan.each do |pc|
       assert_equal(1, pc[2])
     end
+
     # ack'd at sender
-    rd.pipe_out.each do |p|
-      print "pipe_out data, etc: #{p.inspect}\n"
-      assert_equal(1, p[2])
-    end
-    spinout(rd)
-    spinout(rd2)
+    #soft_tick(rd2)
+    #assert_equal(1, rd.pipe_out.length)
+    #rd.pipe_out.each do |p|
+    #assert_equal(1, rd.ack.length)
+    #rd.ack.each do |p|
+    #  assert_equal(1, p[2])
+    #end
+    #spinout(rd)
+    #spinout(rd2)
+    return rd
   end
 
   def f_delivery(type)
@@ -46,8 +67,14 @@ class TestDelivery < TestLib
   
 
   def spinup(type, port)
-    d = eval "#{type}.new('localhost', 12345)" 
+    d = eval "#{type}.new('localhost', #{port})" 
     d.tick
+
+    if d.class == QuorumDelivery
+      d.qdmember << ['localhost:12345']
+      d.qdmember << ['localhost:12346']
+      d.qdmember << ['localhost:12347']
+    end
     return d
   end
 

@@ -25,20 +25,11 @@ class TestLib < Test::Unit::TestCase
   end
 
 
-
-  #def send_channel(c, chan, payload)
-  #  EventMachine::connect(c.ip, c.port) do |c|
-  #    pl = ([chan, payload]).to_msgpack
-  #    c.send_data(pl)
-  #  end
-  #end
-
-  
-
   def add_members(b)
     b.member << ['localhost:12345']
     b.member << ['localhost:12346']
-#    b.member << ['localhost:12347']
+    b.member << ['localhost:12347']
+
   end
   
 

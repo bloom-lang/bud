@@ -31,18 +31,24 @@ class ImperativeCartServer < AsyncKVS
  
   declare
     def accumulate
-      @q.q <= iaction.map{|a| print "(#{@budtime}) enqueue #{a.inspect}\n"; [a.reqid, a]}
-      iaction_deq <= @q.head.map{|h| print "DEQ(#{@budtime})!: #{h.inspect} (PL #{h.payload})\n"; h.payload}
+      #@q.q <= iaction.map do |a| 
+      #  #print "(#{@budtime}) enqueue #{a.inspect}\n"
+      #  [a.reqid, a]
+      #end
+      #iaction_deq <= @q.head.map do |h| 
+      #  #print "DEQ(#{@budtime})!: #{h.inspect} (PL #{h.payload})\n"; 
+      #  h.payload
+      #end
 
-      kvstore <= iaction_deq.map do |a| 
-        print "Around(#{@budtime}) #{a.inspect}\n"
+      #kvstore <= iaction_deq.map do |a| 
+      kvstore <= iaction.map do |a| 
         unless bigtable.map{|b| b.key}.include? a.session
           if a.action == "A"
-            print "add on empty #{a.server}, #{a.session}, #{a.item}\n"
-            [a.server, 'localhost:10000', a.session, [a.item]]
+            [a.server, 'localhost:10000', a.session, Array.new.push(a.item)]
           elsif a.action == "D"
             # um, problem with the naive implementation?
-            print "Ah crap\n"
+            #print "Ah crap\n"
+            [a.server, 'localhost:10000', a.session, Array.new]
           end
         end
       end
@@ -52,18 +58,21 @@ class ImperativeCartServer < AsyncKVS
     def artifact
       #kvfetch <= iaction.map{|a| [a.server, a.session]}
       # I know my store is local, so I don't bother with fetch...
-      joldstate = join [bigtable, iaction_deq], [bigtable.key, iaction_deq.session]
+      #joldstate = join [bigtable, iaction_deq], [bigtable.key, iaction_deq.session]
+      joldstate = join [bigtable, iaction], [bigtable.key, iaction.session]
       
       kvstore <= joldstate.map do |b, a| 
+
         if a.action == "A"
-          print "add #{a.inspect}, #{b.inspect}\n"
+          #print "add #{a.inspect}, #{b.inspect}\n"
           [a.server, 'localhost:10000', a.session, b.value.push(a.item)]
         elsif a.action == "D"
-          print "delete #{a.inspect}, #{b.inspect}\n"
-          copy = b.value.clone
-          copy.delete_at(copy.index(a.item))
+          #print "delete #{a.inspect}, #{b.inspect}\n"
+          #copy = b.value.clone;
+          #copy.delete_at(copy.index(a.item));
           #print "now I have #{b.value}\n"
-          [a.server, 'localhost:10000', a.session, copy]
+          ### FIX MEE! just to avoid breaking the analysis
+          [a.server, 'localhost:10000', a.session, b.value.clone]
         end
       end
       
@@ -82,8 +91,6 @@ class ImperativeCartServer < AsyncKVS
   declare 
     def client
       iaction <+ client_action.map{|a| a}
-      
-      
     end
 
   declare

@@ -9,17 +9,16 @@ class BestEffortDelivery < Bud
   end
 
   def state
-    table :pipe, ['peer', 'self', 'id'], ['payload']
-    table :pipe_out, ['peer', 'self', 'id'], ['payload']
-    channel :pipe_chan, 0, ['peer', 'self', 'id'], ['payload']
+    table :pipe, ['dst', 'src', 'id'], ['payload']
+    table :pipe_out, ['dst', 'src', 'id'], ['payload']
+    channel :pipe_chan, 0, ['dst', 'src', 'id'], ['payload']
     channel :tickler, 0, ['self']
   end
   
   declare
     def snd
-      pipe_chan <+ pipe.map do |p| 
+      pipe_chan <+ pipe.map do |p|
         unless pipe_out.map{|m| m.id}.include? p.id
-          #print "OK, got pipe #{p.inspect}\n"; 
           p 
         end
       end
@@ -33,7 +32,9 @@ class BestEffortDelivery < Bud
   declare 
     def done
       # vacuous ackuous.  override me!
-      pipe_out <+ pipe.map{|p| p}
+      pipe_out <+ pipe.map do |p| 
+        p
+      end
     end
 end
 
