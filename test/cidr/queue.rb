@@ -25,13 +25,12 @@ class BaseQueue < Bud
       #head <= j.map{|q, m| q unless presented.map{|p| p.id}.include? q.id}
       head <= j.map do |q, m| 
         unless presented.map{|p| p.id}.include? q.id
-          #print "HEAD(#{@budtime}): #{q.inspect}\n"
           #presented.each{|p| print "\tPRES: #{p.inspect}\n"}
           q
         end
       end
 
-      presented <+ head.map{|h| print "HEAD pres\n"; [h.id]}
+      presented <+ head.map{|h| [h.id]}
 
       j2 = join [q, consumed], [q.id, consumed.id]
       q <- j2.map{|q, c| q}

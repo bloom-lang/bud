@@ -20,7 +20,6 @@ class ReliableDelivery < BestEffortDelivery
     def rcv
       ack <+ pipe_chan.map do |p| 
         if p.peer == @addy
-          print "delivered!  acking from #{@port}\n"
           [p.self, p.peer, p.id] 
         end
       end
@@ -28,9 +27,10 @@ class ReliableDelivery < BestEffortDelivery
 
   declare 
     def done
-      ack.map{|a| print "got ack!! at #{@port}\n"}
       j = join [ack, pipe], [ack.id, pipe.id]
-      pipe_out <= j.map{|a, p| p}
+      pipe_out <= j.map do |a, p| 
+        p
+      end
     end
 end
 

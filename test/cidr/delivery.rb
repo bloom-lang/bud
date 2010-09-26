@@ -17,7 +17,12 @@ class BestEffortDelivery < Bud
   
   declare
     def snd
-      pipe_chan <+ pipe.map{|p| p unless pipe_out.map{|m| m.id}.include? p.id}
+      pipe_chan <+ pipe.map do |p| 
+        unless pipe_out.map{|m| m.id}.include? p.id
+          #print "OK, got pipe #{p.inspect}\n"; 
+          p 
+        end
+      end
     end
 
   declare

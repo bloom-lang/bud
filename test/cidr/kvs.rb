@@ -1,41 +1,32 @@
 require 'rubygems'
 require 'bud'
-
 require 'cidr/reliable_delivery'
 
-class BudKVS < Bud
-
-  def initialize(ip, port)
-    @myid = "#{ip}:#{port}"
-    #@delivery = BestEffortDelivery.new(ip, port+2)
-    #@delivery.tick
-    super
-  end
-  
-
+#class BudKVS < BestEffortDelivery
+class BudKVS < ReliableDelivery
   def state
+    super
     table :bigtable, ['key'], ['value']
-    table :resp_saved, ['client', 'server', 'key', 'value']
+    table :stor_saved, ['client', 'server', 'key', 'reqid', 'value']
     table :member, ['peer']
-    #table :acked, ['client', 'server', 'key']
 
-    channel :kvstore_snd, 0, ['server', 'client', 'key'], ['value']
-    channel :ack, 0, ['client', 'server', 'key']
+    channel :kvstore_snd, 0, ['server', 'client', 'key', 'reqid'], ['value']
 
-    scratch :kvstore, ['server', 'client', 'key'], ['value']
-    scratch :kvdelete, ['server', 'client', 'key']
-    #channel :kvfetch, 0, ['server', 'client', 'key']
-    #channel :response, 0, ['client', 'server', 'key', 'value']
-    channel :tickler, 0, ['server']
+    scratch :kvstore, ['server', 'client', 'key', 'reqid'], ['value']
+    scratch :kvdelete, ['server', 'client', 'key', 'reqid']
   end
 
   declare
     def kstore
-      # recall the lesson from BFS: build in the interposition point early.
-      #readback = join [bigtable, kvstore, @delivery.pipe_out], [bigtable.key, kvstore.key], [bigtable.key, @delivery.pipe_out.id]
-      bigtable <+ kvstore.map{|s| print "FOO: #{s.inspect}\n"; [s.key, s.value] if s.server == "#{@ip}:#{@port}"}
-      jst = join [bigtable, kvstore], [bigtable.key, kvstore.key]
-      bigtable <- jst.map{|b, s| b if s.server == "#{@ip}:#{@port}"}
+      readback = join [stor_saved, pipe_out], [stor_saved.reqid, pipe_out.id]
+      stor_saved <- readback.map{|s, p| s}
+      stor_saved <+ kvstore.map{|k| k}
+      bigtable <+ readback.map do |s, p| 
+        [s.key, s.value] 
+      end
+
+      jst = join [bigtable, stor_saved, pipe_out], [bigtable.key, stor_saved.key], [stor_saved.reqid, pipe_out.id]
+      bigtable <- jst.map do |b, s, p| b }
     end
 
   declare 
@@ -55,12 +46,25 @@ class BudKVS < Bud
 
   declare
     def replicate
-      #jrep = join [kvstore, member]
-      #@delivery.pipe <= jrep.map do |s, m|
-      #  [m.peer, @addy, s.key, s]
-      #end
+      jrep = join [kvstore, member]
+      pipe <+ jrep.map do |s, m|
+        if m.peer != @addy and m.peer != s.client
+          [m.peer, @addy, s.reqid, [s.key, s.value]]
+        end
+      end
+  
+      kvstore <+ pipe_chan.map do |p|
+        if @addy == p.peer and p.peer != p.self
+          [p.peer, p.self, p.payload[0], p.id, p.payload[1]] 
+        end
+      end
 
+      # bootstrap slaves: they are not required to replicate data to the source.
+      pipe_out <= jrep.map do |s, m|
+        if s.client == m.peer
+          [m.peer, @addy, s.reqid, [s.key, s.value]]
+        end
+      end
     end
-
 
 end

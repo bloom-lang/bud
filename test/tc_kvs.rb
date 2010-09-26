@@ -1,52 +1,59 @@
 require 'rubygems'
 require 'bud'
 require 'test/unit'
+require 'test_lib'
 
 require 'cidr/kvs'
 
-class TestKVS < Test::Unit::TestCase
-  def advancer(ip, port)
-    sleep 1
-    send_channel(ip, port, "tickler", ["#{ip}:#{port}"])
-  end
-
-  def send_channel(ip, port, chan, payload)
-    EventMachine::connect(ip, port) do |c|
-      pl = ([chan, payload]).to_msgpack
-      c.send_data(pl)
-    end
-  end
-
-  def soft_tick(v)
-    assert_nothing_raised(RuntimeError) {advancer("127.0.0.1", 10001)}
-    sleep 1
-  end
-
-  def test_le
-    
-    v = BudKVS.new("127.0.0.1", 10001)
+class TestKVS < TestLib
+  def setupkvs(port)
+    v = BudKVS.new("localhost", port)
     v.tick
+    add_members(v)
+    return v
+  end
 
+
+  def test_wl2
+    v = setupkvs(12345)
+    if v.is_a?  ReliableDelivery
+      assert_nothing_raised(RuntimeError) {v.run_bg}
+      sleep 1
+      workload1(v)
+      assert_equal(0, v.bigtable.length)
+    end
+    
+  end
+
+  def test_wl1
+    v = setupkvs(12345)
+    v2 = setupkvs(12346)
     assert_nothing_raised(RuntimeError) {v.run_bg}
+    assert_nothing_raised(RuntimeError) {v2.run_bg}
     sleep 1
 
-    send_channel("127.0.0.1", 10001, "kvstore", ["127.0.0.1:10001", "127.0.0.1:10002", "foo", "bar"])
-    send_channel("127.0.0.1", 10001, "kvstore", ["127.0.0.1:10001", "127.0.0.1:10002", "foo", "baz"])
-    send_channel("127.0.0.1", 10001, "kvstore", ["127.0.0.1:10001", "127.0.0.1:10002", "foo", "bam"])
-    send_channel("127.0.0.1", 10001, "kvstore", ["127.0.0.1:10001", "127.0.0.1:10002", "foo", "bak"])
-  
-    (0..2).each do |i|
-      soft_tick(v)
-    end 
-
-    
-    #send_channel("127.0.0.1", 10001, "kvfetch", ["127.0.0.1:10001", "127.0.0.1:10002", "foo"])
-    #(0..2).each do |i|
-    #  soft_tick(v)
-    #end 
-
+    workload1(v)
     assert_equal(1, v.bigtable.length)
     assert_equal("bak", v.bigtable.first[1])
+
+    print "uym\n"
+
+    (0..3).each do |i|
+      soft_tick(v2)
+    end
+    assert_equal(1, v2.bigtable.length)
+  end
+
+
+  def workload1(v)
+    send_channel("localhost", 12345, "kvstore", ["localhost:12345", "localhost:54321", "foo", 1, "bar"])
+    send_channel("localhost", 12345, "kvstore", ["localhost:12345", "localhost:54321", "foo", 2, "baz"])
+    send_channel("localhost", 12345, "kvstore", ["localhost:12345", "localhost:54321", "foo", 3, "bam"])
+    send_channel("localhost", 12345, "kvstore", ["localhost:12345", "localhost:54321", "foo", 4, "bak"])
+  
+    (0..3).each do |i|
+      soft_tick(v)
+    end 
   end
   
 end
