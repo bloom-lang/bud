@@ -19,7 +19,6 @@ class ReliableDelivery < BestEffortDelivery
   declare
     def rcv
       ack <+ pipe_chan.map do |p| 
-        #print "#{@addy}:#{@budtime} recv pipe_chan (for #{p.dst}).  consider acking\n"
         if p.dst == @addy
           [p.src, p.dst, p.id] 
         end
