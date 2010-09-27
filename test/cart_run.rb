@@ -115,4 +115,12 @@ end
      print "RESPO: #{r.inspect}\n"
    end
 
+   cnt = 0
+   while cnt < 8
+    cnt = c.bud.pipe_out.length 
+    print "cnt #{cnt}\n"
+    sleep 2
+
+  end
+
    #c.bud.status.each {|s| print "STATUS: #{s.inspect}\n" }
