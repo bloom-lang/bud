@@ -18,7 +18,7 @@ class BudKVS < ReliableDelivery
       readback = join [stor_saved, pipe_out], [stor_saved.reqid, pipe_out.id]
       stor_saved <- readback.map{ |s, p| s }
       stor_saved <+ kvstore.map{|k| print "put on kvs: #{k.inspect}\n"; k}
-      bigtable <+ readback.map { |s, p| print "s: #{s.inspect}... #{p.inspect}\n"; [s.key, s.value] }
+      bigtable <+ readback.map { |s, p| print "->BT: #{s.key} == #{s.value}\n"; [s.key, s.value] }
 
       jst = join [bigtable, stor_saved, pipe_out], [bigtable.key, stor_saved.key], [stor_saved.reqid, pipe_out.id]
       bigtable <- jst.map { |b, s, p| b }

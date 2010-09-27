@@ -29,7 +29,7 @@ class ImperativeCartServer < BudKVS
 
     table :checkout_guard, ['server', 'client', 'session', 'reqid']
     # to know when to check out
-    #table :action_log, ['server', 'client', 'session', 'item', 'action', 'reqid']
+    table :action_log, ['server', 'client', 'session', 'item', 'action', 'reqid']
     #table :max_act, ['server', 'client', 'session', 'maxreq']
   end
  
@@ -43,13 +43,18 @@ class ImperativeCartServer < BudKVS
         h.payload
       end
 
-      @q.consumed <= iaction_deq.map do |a|
-        unless bigtable.map{|b| b.key}.include? a.session
-          print "Consume1\n"
-          [a.reqid]
-        end
-      end
 
+
+     # @q.consumed <= iaction_deq.map do |a|
+     #   unless bigtable.map{|b| b.key}.include? a.session
+     #     print "Consume1\n"
+     #     [a.reqid]
+     #   end
+     # end
+      # arguably a violation of encapsulation
+      @q.consumed <= pipe_out.map{|p| [p.id]}
+
+      action_log <= iaction.map{|a| a}
       checkout_guard <= checkout.map{|c| c}
 
       kvstore <= iaction_deq.map do |a| 
@@ -88,10 +93,10 @@ class ImperativeCartServer < BudKVS
       end
 
       # I'd rather tuck this in the 'queueing' block, but don't want to reevaluate the join
-      @q.consumed <= joldstate.map do |b, a|
-        print "CONSUME #{a.inspect}\n"
-        [a.reqid] 
-      end
+      #@q.consumed <= joldstate.map do |b, a|
+      #  print "CONSUME #{a.inspect}\n"
+      #  [a.reqid] 
+      #end
     end
 
  
