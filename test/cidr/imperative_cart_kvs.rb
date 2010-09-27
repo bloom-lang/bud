@@ -49,13 +49,8 @@ class ImperativeCartServer < BudKVS
         end
       end
 
-      #action_log <= iaction.map{|a| a}
-      #max_act <= action_log.group([action_log.server, action_log.client, action_log.session], max(action_log.reqid))
-      #checkout_guard <= checkout.map{|c| c}
-    end
-  declare 
-    def accumulate
       kvstore <= iaction_deq.map do |a| 
+        print "IAD!\n"
         unless bigtable.map{|b| b.key}.include? a.session
           if a.action == "A"
 	          print "ADD ON #{a.session}, #{a.item}\n"
