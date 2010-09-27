@@ -46,7 +46,7 @@ class Bud
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
     if self.class != Stratification
-      safe_rewrite
+      #safe_rewrite
     end
   end
   
@@ -126,7 +126,7 @@ class Bud
     @tables.each do |t|
       @table_meta << [t[0], t[1].class]
     end      
-    gv = Viz.new(strat.top_strat, strat.stratum, @table_meta)
+    gv = Viz.new(strat.top_strat, strat.stratum, @table_meta, strat.cycle)
     gv.process(strat.depends)
     gv.finish(name)
   end
@@ -156,6 +156,7 @@ class Bud
           @table_meta << [d[0], "temp alias"]
         end
       end
+      #print "TRANSLATE: #{d[3]}\n"
       pt = ParseTree.translate(d[3])
       if d[1] == '<'
         if d[3] =~ /-@/
@@ -179,8 +180,8 @@ class Bud
         strat.tab_alias << [d[0], a[0], a[1]]
       end
     end
-    strat.tick
 
+    strat.tick
     
     return strat
   end
@@ -255,6 +256,8 @@ class Bud
     @budtime += 1
     # reset any schema stuff that isn't already there
     # state to be defined by the user program
+
+    print "#{self.class}.tick: budtime #{@budtime}\n"
     state
 
     receive_inbound

@@ -3,10 +3,13 @@ require 'bud'
 
 class Stratification < Bud
   def state
+    #table :depends, ['head', 'op', 'body', 'neg']
     table :depends, ['head', 'op', 'body', 'neg']
-    table :depends_tc, ['head', 'body', 'neg', 'temporal']
+
+    # adding a 'via' attribute for further analysis
+    table :depends_tc, ['head', 'body', 'via', 'neg', 'temporal']
     #table :cycle, ['predicate'], ['neg']
-    table :cycle, ['predicate', 'neg', 'temporal']
+    table :cycle, ['predicate', 'via', 'neg', 'temporal']
     table :stratum_base, ['predicate', 'stratum']
     #table :stratum, ['predicate'], ['stratum']
     table :stratum, ['predicate', 'stratum']
@@ -24,9 +27,9 @@ class Stratification < Bud
     strata[0] = rules {
       depends_tc <= depends.map do |d| 
         if d.op.to_s =~ /<[+-]/ then
-          [d.head, d.body, d.neg, true] 
+          [d.head, d.body, d.body, d.neg, true] 
         else
-          [d.head, d.body, d.neg, false] 
+          [d.head, d.body, d.body, d.neg, false] 
         end
       end
       dj = join [depends, depends_tc], [depends.body, depends_tc.head]
@@ -37,23 +40,26 @@ class Stratification < Bud
           temporal = true
         end
         if b.neg || r.neg
-          [b.head, r.body, true, temporal]
+          [b.head, r.body, b.body, true, temporal]
         else
-          [b.head, r.body, false, temporal]
+          [b.head, r.body, b.body, false, temporal]
         end
       end
 
       cycle <= depends_tc.map do |d|
         if d.head == d.body
-          [d.head, d.neg, d.temporal]
+          [d.head, d.via, d.neg, d.temporal]
         end
       end
-
-     
-      #max_col_alias <= col_alias.group([col_alias.head, col_alias.als, col_alias.name], max(col_alias.ord))
   
       # loj
-      tab_info <= depends.map{|d| [d.head, 'none', -1] unless tab_info.map{|t| t.tab}.include? d.head}
+      #tab_info <= depends.map{|d| [d.head, 'none', -1] unless tab_info.map{|t| t.tab}.include? d.head}
+      tab_info <= depends.map do |d| 
+        unless tab_info.map{|t| t.tab}.include? d.head
+          [d.head, 'none', -1] 
+        else
+        end
+      end
 
 
       stratum_base <= depends.map{|d| [d.body, 0]}
@@ -79,7 +85,10 @@ class Stratification < Bud
     strata[2] = rules {
       j = join [depends, stratum_base, tab_info], [depends.body, stratum_base.predicate], [depends.head, tab_info.tab]
       stratum_base <= j.map do |d, s, t| 
+        #print "FARQ #{d.inspect}, #{s.inspect}, #{t.inspect}\n"
         if ((d.neg == 1 or d.op.to_s == "<-") or (d.op.to_s == '<+' and t.type == Bud::BudChannel and !guarded.map{|g| g.channel}.include? d.head)) and !(cycle.map{|c| c.predicate if c.temporal}.include? d.body and cycle.map{|c| c.predicate if c.temporal}.include? d.head)
+         # print "\tBUMP #{d.head} due to FARQ #{d.inspect}, #{s.inspect}, #{t.inspect}\n"
+          
           [d.head, s.stratum + 1]
         else 
           [d.head, s.stratum]
