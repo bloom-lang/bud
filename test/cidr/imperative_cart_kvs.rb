@@ -24,7 +24,7 @@ class ImperativeCartServer < AsyncKVS
     channel :checkout, 0, ['server', 'client', 'session']
 
     scratch :client_action, ['server', 'client', 'session', 'item', 'action', 'reqid']
-    table :iresponse, ['server', 'client', 'session', 'state']
+    channel :response, 0, ['client', 'server', 'session', 'state']
 
     scratch :iaction_deq, ['server', 'client', 'session', 'item', 'action', 'reqid']
   end
@@ -82,10 +82,10 @@ class ImperativeCartServer < AsyncKVS
  
   declare
     def finish
-      #iresponse <= join([istatus, checkout], [istatus.session, checkout.session]).map do |s, c|
-      #  print "try response\n"
-        #[c.client, c.server, s.session, s.state]
-      #end
+      response <+ join([bigtable, checkout], [bigtable.key, checkout.session]).map do |s, c|
+        #print "try response\n"
+        [c.client, c.server, s.key, s.value]
+      end
     end
 
   declare 

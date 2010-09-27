@@ -29,15 +29,18 @@ class BasicCartServer < Bud
       cart_action <= action.map { |c| [c.session, c.item, c.action, c.reqid] }
 
       # do I have to split the join-agg into 2 strata?
-      j = join [ cart_action, checkout ], [cart_action.session, checkout.session]
-      ac <= j.map do | a, c | 
-        [a.session, a.item, a.action, a.reqid] #if a.session = c.session
-      end
+      #j = join [ cart_action, checkout ], [cart_action.session, checkout.session]
+      #ac <= j.map do | a, c | 
+      #  [a.session, a.item, a.action, a.reqid] #if a.session = c.session
+      #end
 
       #checkout <= checkout.map{|c| c}
 
-      action_cnt <= ac.group([ac.session, ac.item, ac.action], count(ac.reqid))
-      action_cnt <= ac.map{|a| [a.session, a.item, 'D', 0] unless ac.map{|c| [c.session, c.item] if c.action == "D"}.include? [a.session, a.item]}
+      #action_cnt <= ac.group([ac.session, ac.item, ac.action], count(ac.reqid))
+      #action_cnt <= ac.map{|a| [a.session, a.item, 'D', 0] unless ac.map{|c| [c.session, c.item] if c.action == "D"}.include? [a.session, a.item]}
+
+      action_cnt <= cart_action.group([cart_action.session, cart_action.item, cart_action.action], count(cart_action.reqid))
+      action_cnt <= cart_action.map{|a| [a.session, a.item, 'D', 0] unless cart_action.map{|c| [c.session, c.item] if c.action == "D"}.include? [a.session, a.item]}
     end
 
   declare 
@@ -48,7 +51,6 @@ class BasicCartServer < Bud
 
   declare
     def consider
-      # rewrite the following with equijoin preds?? -- JMH  
       status <= join([action_cnt, action_cnt, checkout]).map do |a1, a2, c| 
         if a1.session == a2.session and a1.item == a2.item and a1.session == c.session and a1.action == "A" and a2.action == "D"
           [a1.session, a1.item, a1.cnt - a2.cnt] if (a1.cnt - a2.cnt) > 0
@@ -57,7 +59,6 @@ class BasicCartServer < Bud
     end
   declare 
     def finish
-      # what does the response channel actually contain? -- JMH
       response <= join([status, checkout], [status.session, checkout.session]).map do |s, c| 
         print "RESPONSE: #{s.inspect}\n"
         #[c.client, c.server, s.session, s.item, s.cnt]

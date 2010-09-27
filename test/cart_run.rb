@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'bud'
 require 'cidr/cart'
+require 'cidr/lazy_cart'
 
 ##require 'lib/imperative_cart'
 require 'cidr/imperative_cart_kvs'

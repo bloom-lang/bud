@@ -14,7 +14,7 @@ class TestKVS < TestLib
   end
 
 
-  def test_wl2
+  def ntest_wl2
     v = setupkvs(12345)
     if v.is_a?  ReliableDelivery
       assert_nothing_raised(RuntimeError) {v.run_bg}
@@ -46,6 +46,7 @@ class TestKVS < TestLib
 
 
   def workload1(v)
+    print "v is #{v.inspect}\n"
     send_channel("localhost", 12345, "kvstore", ["localhost:12345", "localhost:54321", "foo", 1, "bar"])
     send_channel("localhost", 12345, "kvstore", ["localhost:12345", "localhost:54321", "foo", 2, "baz"])
     send_channel("localhost", 12345, "kvstore", ["localhost:12345", "localhost:54321", "foo", 3, "bam"])
