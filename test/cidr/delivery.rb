@@ -22,7 +22,7 @@ class BestEffortDelivery < Bud
       pipe_chan <+ tix.map do |p, t|
       #pipe_chan <+ pipe.map do |p|
         unless pipe_out.map{|m| m.id}.include? p.id
-	#print "SEND #{p.inspect}\n"
+	print "SEND #{p.inspect}\n"
           p 
         end
       end

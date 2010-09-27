@@ -34,7 +34,7 @@ class BaseQueue < Bud
       presented <+ head.map{|h| [h.id]}
 
       j2 = join [q, consumed], [q.id, consumed.id]
-      q <- j2.map{|q, c| q}
+      q <- j2.map{|q, c| print "adjust q\n"; q}
     end
   
 end

@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'bud'
-require 'cidr/cart'
+#require 'cidr/cart'
 require 'cidr/lazy_cart'
 
 ##require 'lib/imperative_cart'
@@ -8,7 +8,7 @@ require 'cidr/imperative_cart_kvs'
 
   @@me = 'ip-10-203-91-184.ec2.internal'
   @@myport = 12345
-  @@meadd = "#{@@me}:#{@myport}"
+  @@meadd = "#{@@me}:#{@@myport}"
   @@peer1 = 'ip-10-202-70-4.ec2.internal'
   @@peer1port = 12346
   @@peer1add = "#{@@peer1}:#{@@peer1port}"
@@ -16,14 +16,6 @@ require 'cidr/imperative_cart_kvs'
 
 
 class CartStuff
-  #@@me = 'ip-10-203-91-184.ec2.internal'
-  #@@myport = 12345
-  #@@meadd = "#{@@me}:#{@myport}"
-  #@@peer1 = 'ip-10-202-70-4.ec2.internal'
-  ##@@peer1port = 12346
-  #@@peer1add = "#{@@peer1}:#{@@peer1port}"
-
-
   attr_reader :bud
   def initialize(ip, port)
     if ARGV[1] == "imp"
@@ -31,8 +23,9 @@ class CartStuff
     else
       @bud = BasicCartServer.new(ip, port)
     end
-    @bud.tick
-    add_members
+	print "OK init\n"
+    #@bud.tick
+    #add_members
   end
 
   def run
@@ -42,6 +35,9 @@ class CartStuff
     else
       @bud.run
     end
+
+    #N.B. the 2nd branch above blocks: this is only executed on the 'master'
+    add_members
   end
 
   def advancer(ip, port)
@@ -82,16 +78,14 @@ end
 c.run
 sleep 2
 
-if ARGV[2] == "imp"
+if ARGV[1] == "imp"
   chan = "iaction"
 else
   chan = "action"
 end
 
-
-
+ print "CHAN is #{chan}\n"
     c.send_channel(chan, [@@meadd, @@meadd, 1234, 'meat', 'A', 123])
-
     c.send_channel(chan, [@@meadd, @@meadd, 1234, 'beer', 'A', 124])
     c.send_channel(chan, [@@meadd, @@meadd, 1234, 'diapers', 'A', 125])
     c.send_channel(chan, [@@meadd, @@meadd, 1234, 'meat', 'D', 126])
@@ -102,13 +96,23 @@ end
     c.send_channel(chan, [@@meadd, @@meadd, 1234, 'beer', 'D', 130])
 
 
-    c.send_channel("checkout", [@@meadd, @@meadd,1234])
 
 
-    #(0..3).each do |i|
-    #  print "ADV #{i}\n"
-    #  c.advance
+
+
+   (0..10).each do |i|
+      print "ADV #{i}\n"
+      c.advance
       #c.advancer("localhost", 12346)
-    #end
+    end
+
+
+    c.send_channel("checkout", [@@meadd, @@meadd,1234, 131])
+
+    c.advance
+
+   c.bud.response.each do |r|
+     print "RESPO: #{r.inspect}\n"
+   end
 
    #c.bud.status.each {|s| print "STATUS: #{s.inspect}\n" }

@@ -8,8 +8,8 @@ require 'cidr/kvs'
 class TestKVS < TestLib
   def setupkvs(port)
     v = BudKVS.new("localhost", port)
-    v.tick
-    add_members(v)
+    #v.tick
+    #add_members(v)
     return v
   end
 
@@ -31,6 +31,8 @@ class TestKVS < TestLib
     assert_nothing_raised(RuntimeError) {v.run_bg}
     assert_nothing_raised(RuntimeError) {v2.run_bg}
     sleep 1
+
+    add_members(v)
 
     workload1(v)
     assert_equal(1, v.bigtable.length)

@@ -34,9 +34,11 @@ class TestDelivery < TestLib
     rd = spinup(type, 12345)
     rd2 = spinup(type, 12346)
     assert_nothing_raised(RuntimeError){rd2.run_bg}
-    rd.pipe <+ [['localhost:12346', 'localhost:12345', 1, 'foobar']]
     assert_nothing_raised(RuntimeError){rd.run_bg}
-    soft_tick(rd)
+    rd.pipe <+ [['localhost:12346', 'localhost:12345', 1, 'foobar']]
+    #soft_tick(rd)
+    #soft_tick(rd2)
+
     # received at destination
     assert_equal(1, rd2.pipe_chan.length)
     rd2.pipe_chan.each do |pc|
@@ -66,10 +68,11 @@ class TestDelivery < TestLib
    end 
       
   def spinup(type, port)
-    spinup_dist(type, "localhost", port)
-    tick
+    d= spinup_dist(type, "localhost", port)
+    #tick
 
     if d.class == QuorumDelivery
+      tick
       d.qdmember << ['localhost:12345']
       d.qdmember << ['localhost:12346']
       d.qdmember << ['localhost:12347']
