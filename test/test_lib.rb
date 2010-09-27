@@ -26,8 +26,8 @@ class TestLib < Test::Unit::TestCase
 
 
   def add_members(b)
-    b.member << ['localhost:12345']
-    b.member << ['localhost:12346']
+    b.member << ['ip-10-203-91-184.ec2.internal:12345']
+    b.member << ['ip-10-202-70-4.ec2.internal:12346']
     b.member << ['localhost:12347']
 
   end

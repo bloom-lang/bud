@@ -1,10 +1,10 @@
 require 'rubygems'
 require 'bud'
 
-require 'cidr/async_kvs'
+require 'cidr/kvs'
 require 'cidr/queue'
 
-class ImperativeCartServer < AsyncKVS
+class ImperativeCartServer < BudKVS
 
   def initialize(ip, port)
     @q = BaseQueue.new(ip, port.to_i+1)

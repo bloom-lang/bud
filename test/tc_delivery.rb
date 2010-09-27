@@ -65,17 +65,21 @@ class TestDelivery < TestLib
     assert_equal(0, rd.pipe_out.length)
    end 
       
-  
-
   def spinup(type, port)
-    d = eval "#{type}.new('localhost', #{port})" 
-    d.tick
+    spinup_dist(type, "localhost", port)
+    tick
 
     if d.class == QuorumDelivery
       d.qdmember << ['localhost:12345']
       d.qdmember << ['localhost:12346']
       d.qdmember << ['localhost:12347']
     end
+    return d
+  end
+
+  def spinup_dist(type, host, port)
+    
+    d = eval "#{type}.new(\"#{host}\", #{port})" 
     return d
   end
 

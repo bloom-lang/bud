@@ -13,17 +13,16 @@ class BestEffortDelivery < Bud
     table :pipe_out, ['dst', 'src', 'id'], ['payload']
     channel :pipe_chan, 0, ['dst', 'src', 'id'], ['payload']
     channel :tickler, 0, ['self']
-    
-    periodic :timer, 2
+    periodic :timer, 1
   end
   
   declare
     def snd
       tix = join [pipe, timer]
-      #pipe_chan <+ pipe.map do |p|
       pipe_chan <+ tix.map do |p, t|
+      #pipe_chan <+ pipe.map do |p|
         unless pipe_out.map{|m| m.id}.include? p.id
-          #print "send #{p.inspect}\n"
+	#print "SEND #{p.inspect}\n"
           p 
         end
       end
