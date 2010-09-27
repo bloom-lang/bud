@@ -48,6 +48,7 @@ class BasicCartServer < Bud
 
   declare
     def consider
+      # rewrite the following with equijoin preds?? -- JMH  
       status <= join([action_cnt, action_cnt, checkout]).map do |a1, a2, c| 
         if a1.session == a2.session and a1.item == a2.item and a1.session == c.session and a1.action == "A" and a2.action == "D"
           [a1.session, a1.item, a1.cnt - a2.cnt] if (a1.cnt - a2.cnt) > 0
@@ -56,6 +57,7 @@ class BasicCartServer < Bud
     end
   declare 
     def finish
+      # what does the response channel actually contain? -- JMH
       response <= join([status, checkout], [status.session, checkout.session]).map do |s, c| 
         print "RESPONSE: #{s.inspect}\n"
         #[c.client, c.server, s.session, s.item, s.cnt]

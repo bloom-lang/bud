@@ -21,6 +21,7 @@ class BaseQueue < Bud
 
   declare 
     def qlogic2
+      # Why not use argagg here?  -- JMH
       j = join [q, min_id], [q.id, min_id.id]
       #head <= j.map{|q, m| q unless presented.map{|p| p.id}.include? q.id}
       head <= j.map do |q, m| 
