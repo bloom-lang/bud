@@ -257,7 +257,7 @@ class Bud
     # reset any schema stuff that isn't already there
     # state to be defined by the user program
 
-    print "#{self.class}.tick: budtime #{@budtime}\n"
+    #print "#{self.class}.tick: budtime #{@budtime}\n"
     state
 
     receive_inbound
