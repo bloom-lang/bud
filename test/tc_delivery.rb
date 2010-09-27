@@ -30,6 +30,7 @@ class TestDelivery < TestLib
   end
   
   def t_delivery(type)
+    print "type is #{type}\n"
     rd = spinup(type, 12345)
     rd2 = spinup(type, 12346)
     assert_nothing_raised(RuntimeError){rd2.run_bg}
