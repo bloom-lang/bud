@@ -27,6 +27,7 @@ class ImperativeCartServer < BudKVS
     scratch :client_action, ['server', 'client', 'session', 'item', 'action', 'reqid']
     scratch :iaction_deq, ['server', 'client', 'session', 'item', 'action', 'reqid']
 
+    table :checkout_guard, ['server', 'client', 'session', 'reqid']
     # to know when to check out
     #table :action_log, ['server', 'client', 'session', 'item', 'action', 'reqid']
     #table :max_act, ['server', 'client', 'session', 'maxreq']
@@ -48,6 +49,8 @@ class ImperativeCartServer < BudKVS
           [a.reqid]
         end
       end
+
+      checkout_guard <= checkout.map{|c| c}
 
       kvstore <= iaction_deq.map do |a| 
         print "IAD!\n"
@@ -95,7 +98,7 @@ class ImperativeCartServer < BudKVS
   declare
     def finish
       ##response <+ join([bigtable, checkout_guard, max_act], [bigtable.key, checkout_guard.session], [checkout_guard.session, max_act.session]).map do |s, c, m|
-      response <+ join([bigtable, checkout], [bigtable.key, checkout.session]).map do |s, c|
+      response <+ join([bigtable, checkout_guard], [bigtable.key, checkout_guard.session]).map do |s, c|
         print "RESPONSE #{s.inspect}, #{c.inspect}\n"
         #[c.client, c.server, s.key, s.value]
       end

@@ -2,8 +2,8 @@ require 'rubygems'
 require 'bud'
 require 'cidr/reliable_delivery'
 
-class BudKVS < BestEffortDelivery
-#class BudKVS < ReliableDelivery
+#class BudKVS < BestEffortDelivery
+class BudKVS < ReliableDelivery
   def state
     super
     table :bigtable, ['key'], ['value']
