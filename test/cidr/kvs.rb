@@ -35,6 +35,7 @@ class BudKVS < ReliableDelivery
   
       kvstore <+ pipe_chan.map do |p|
         if @addy == p.dst and p.dst != p.src
+          print "in off wire: #{p.inspect}\n"
           [p.dst, p.src, p.payload.index(0), p.id, p.payload.index(1)] 
         end
       end
