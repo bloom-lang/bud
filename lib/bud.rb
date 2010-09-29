@@ -413,7 +413,7 @@ class Bud
   end
 
   ####### Joins
-  def join(rels, *preds)
+  def decomp_preds(*preds)
     # decompose each pred into a binary pred
     newpreds = []
     preds.each do |p|
@@ -421,7 +421,11 @@ class Bud
         newpreds << [p[i], p[i+1]] unless p[i+1].nil?
       end
     end
-    BudJoin.new(rels, newpreds)
+    newpreds
+  end
+  
+  def join(rels, *preds)
+    BudJoin.new(rels, decomp_preds(*preds))
   end
 
   def natjoin(rels)
@@ -438,7 +442,11 @@ class Bud
     preds.uniq!
     join(rels, *preds)
   end
-
+  
+  def leftjoin(rels, *preds)
+    BudLeftJoin.new(rels, decomp_preds(*preds))
+  end
+  
   ######## ids and timers
   def gen_id
     Time.new.to_i.to_s << rand.to_s

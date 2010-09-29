@@ -10,19 +10,19 @@
       @name = name
       @schema = keys+cols
       @keys = keys
-      @storage = {}
-      @pending = {}
+      init_storage
+      init_pending
       @bud_instance = b_class
       raise BudError, "schema contains duplicate names" if schema.uniq.length < schema.length
       schema_accessors
     end
 
-    # def clone
-    #   retval = BudCollection.new(keys, schema - keys, bud_instance)
-    #   retval.storage = @storage.clone
-    #   retval.pending = @pending.clone
-    #   return retval
-    # end   
+    def clone_empty
+       retval = self.class.new(name, keys, schema - keys, bud_instance)
+       retval.storage = []
+       retval.pending = []
+       return retval
+    end   
 
     def cols
       schema - keys
@@ -62,9 +62,15 @@
       t.extend m
       #      return t
     end
+    
+    def null_tuple
+      return tuple_accessors(@schema.map{|c| nil})
+    end
 
     def each
       @storage.each_key do |k|
+        raise(BudError, "nil storage key") if k.nil?
+        raise(BudError, "nil storage entry for #{k.inspect}") if @storage[k].nil?
         tup = (@storage[k] == true) ? k : (k + @storage[k])
         yield tuple_accessors(tup)
       end
@@ -81,6 +87,14 @@
       end
     end
   
+    def init_storage
+      @storage = {}
+    end
+    
+    def init_pending
+      @pending = {}
+    end
+    
     def do_insert(o, store)
       return if o.nil? or o.length == 0
       keycols = keys.map{|k| o[schema.index(k)]}
@@ -101,12 +115,14 @@
     end
 
     def insert(o)
+      # puts "insert: #{o.inspect} into #{name}"
       do_insert(o,@storage)
     end
 
     alias << insert
 
     def pending_insert(o)
+      # puts "pending_insert: #{o.inspect} into #{name}"
       do_insert(o, @pending)
     end
 
@@ -242,7 +258,7 @@
   end
   
   class BudChannel < BudCollection
-    attr_accessor :locspec
+    attr_accessor :locspec, :connections
 
     def initialize(name, keys, cols, locspec_arg, b_class)
       super(name, keys, cols, b_class)
@@ -256,13 +272,12 @@
       return lsplit
     end
     
-    # def clone
-    #   retval = BudChannel.new(keys, schema - keys, bud_instance)
-    #   retval.storage = @storage.clone
-    #   retval.pending = @pending.clone
-    #   retval.locspec = locspec
-    #   return retval
-    # end   
+    def clone_empty
+      retval = super
+      retval.locspec = locspec
+      retval.connections = @connections.clone
+      return retval
+    end   
 
     def establish_connection(l)
       @connections ||= {}
@@ -293,13 +308,16 @@
     def initialize(name, keys, cols, bud_instance, conflict)
       super(name, keys, cols, bud_instance)
       @conflict = conflict
-      @to_delete = {}
+      init_to_delete
     end
 
-    # def clone
-    #   retval = super
-    #   retval.to_delete = @to_delete.clone
-    # end
+    def clone_empty
+      retval = self.class.new(name, keys, schema - keys, bud_instance, @conflict)
+      retval.init_storage
+      retval.init_pending
+      retval.init_to_delete
+      return retval
+    end
 
     def tick
       @to_delete.each_key {|t| @storage.delete t}
@@ -307,6 +325,10 @@
       @to_delete = {}
       @pending = {}
       self
+    end
+    
+    def init_to_delete
+      @to_delete = {}
     end
 
     superator "<-" do |o|
@@ -433,6 +455,32 @@
         end
       end
     end
+  end
+  
+  class BudLeftJoin < BudJoin
+    def initialize(rellist, preds=nil)
+      raise(BudError, "Left Join only defined for two relations") unless rellist.length == 2
+      super(rellist, preds)
+      @origpreds = preds
+    end
+    
+    def each(&block)
+      super(&block)
+      # previous line finds all the matches.
+      # now its time to ``preserve'' the outer tuples with no matches.
+      # this is totally inefficient: we should fold the identification of non-matches
+      # into the join algorithms.  Another day.
+      # our trick: for each tuple of the outer, generate a singleton relation 
+      # and join with inner.  If result is empty, preserve tuple.
+      @rels[0].each do |r|
+        t = @origrels[0].clone_empty
+        t.insert(r)
+        j = BudJoin.new([t,@origrels[1]], @origpreds)
+        next if j.any?
+        nulltup = @origrels[1].null_tuple
+        yield [r, nulltup]
+      end
+    end    
   end
   
   class BudFileReader < BudScratch
