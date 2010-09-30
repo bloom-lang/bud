@@ -27,9 +27,9 @@ class ReliableDelivery < BestEffortDelivery
 
   declare 
     def done
-      j = join [ack, pipe], [ack.id, pipe.id]
-      pipe_out <= j.map do |a, p| 
-	      print "DONE #{p.inspect}\n"
+      #j = join [ack, pipe], [ack.id, pipe.id]
+      pipe_out <= join([ack, pipe], [ack.id, pipe.id]).map do |a, p| 
+        print "nontrivial ack\n"
         p
       end
     end

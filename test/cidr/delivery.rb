@@ -9,7 +9,8 @@ class BestEffortDelivery < Bud
   end
 
   def state
-    table :pipe, ['dst', 'src', 'id'], ['payload']
+    #table :pipe, ['dst', 'src', 'id'], ['payload']
+    table :pipe, ['dst', 'src', 'id', 'payload']
     table :pipe_out, ['dst', 'src', 'id'], ['payload']
     channel :pipe_chan, 0, ['dst', 'src', 'id'], ['payload']
     channel :tickler, 0, ['self']
@@ -18,11 +19,9 @@ class BestEffortDelivery < Bud
   
   declare
     def snd
-      tix = join [pipe, timer]
-      pipe_chan <+ tix.map do |p, t|
-      #pipe_chan <+ pipe.map do |p|
+      pipe_chan <+ join([pipe, timer]).map do |p, t|
         unless pipe_out.map{|m| m.id}.include? p.id
-	print "SEND #{p.inspect}\n"
+          #print "SEND to #{p.dst}?\n"
           p 
         end
       end
@@ -30,13 +29,15 @@ class BestEffortDelivery < Bud
 
   declare
     def rcv
+      #pipe_chan.each {|p| print "chan(#{@port}, #{@budtime}): #{p.inspect}\n" }
       # do something.
     end
 
   declare 
     def done
       # vacuous ackuous.  override me!
-      pipe_out <+ pipe.map do |p| 
+      pipe_out <+ join([pipe, timer]).map do |p, t| 
+        #print "vac ack #{p.inspect}\n"
         p
       end
     end

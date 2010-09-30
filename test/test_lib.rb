@@ -15,7 +15,7 @@ class TestLib < Test::Unit::TestCase
   def send_channel(ip, port, chan, payload)
     EventMachine::connect(ip, port) do |c|
       pl = ([chan, payload]).to_msgpack
-      c.send_data(pl)
+      assert_nothing_raised(RuntimeError) { c.send_data(pl) }
     end
   end
 
@@ -23,17 +23,6 @@ class TestLib < Test::Unit::TestCase
     assert_nothing_raised(RuntimeError) {advancer(v.ip, v.port)}
     sleep 1
   end
-
-
-  def add_members(b)
-    #b.member << ['ip-10-203-91-184.ec2.internal:12345']
-    #b.member << ['ip-10-203-91-184.ec2.internal:12345']
-    b.member << ['localhost:12345']
-    b.member << ['localhost:12346']
-    b.member << ['localhost:12347']
-
-  end
-  
 
   def test_empty
 

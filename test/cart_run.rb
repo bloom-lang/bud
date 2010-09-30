@@ -4,9 +4,10 @@ require 'bud'
 require 'cidr/lazy_cart'
 
 ##require 'lib/imperative_cart'
-require 'cidr/imperative_cart_kvs'
+require 'cidr/analysis_digests/pedagogical_imperative_cart'
 
-  @@me = 'ip-10-203-91-184.ec2.internal'
+##  @@me = 'ip-10-203-91-184.ec2.internal'
+  @@me = 'localhost'
   @@myport = 12345
   @@meadd = "#{@@me}:#{@@myport}"
   @@peer1 = 'ip-10-202-70-4.ec2.internal'

@@ -2,8 +2,8 @@ require 'rubygems'
 require 'bud'
 require 'cidr/reliable_delivery'
 
-#class BudKVS < BestEffortDelivery
-class BudKVS < ReliableDelivery
+class BudKVS < BestEffortDelivery
+#class BudKVS < ReliableDelivery
   def state
     super
     table :bigtable, ['key'], ['value']
@@ -17,8 +17,14 @@ class BudKVS < ReliableDelivery
     def kstore
       readback = join [stor_saved, pipe_out], [stor_saved.reqid, pipe_out.id]
       stor_saved <- readback.map{ |s, p| s }
-      stor_saved <+ kvstore.map{|k| print "put on kvs: #{k.inspect}\n"; k}
-      bigtable <+ readback.map { |s, p| print "->BT: #{s.key} == #{s.value}\n"; [s.key, s.value] }
+      stor_saved <+ kvstore.map do |k| 
+        #print "put on(#{@port}:#{@budtime}) kvs: #{k.inspect}\n"
+        k
+      end
+      bigtable <+ readback.map do |s, p| 
+        #print "->BT(#{@port}:#{@budtime}): #{s.key} == #{s.value}\n"
+        [s.key, s.value] 
+      end
 
       jst = join [bigtable, stor_saved, pipe_out], [bigtable.key, stor_saved.key], [stor_saved.reqid, pipe_out.id]
       bigtable <- jst.map { |b, s, p| b }
@@ -27,23 +33,28 @@ class BudKVS < ReliableDelivery
   declare
     def replicate
       jrep = join [kvstore, member]
-      pipe <+ jrep.map do |s, m|
-        if m.peer != @addy and m.peer != s.client
+      pipe <= jrep.map do |s, m|
+        #if m.peer != @addy and m.peer != s.client
+        if m.peer != s.client
+          #print "place on (#{m.peer}) pipe: #{s.inspect}\n"
           [m.peer, @addy, s.reqid, [s.key, s.value]]
         end
       end
   
-      kvstore <+ pipe_chan.map do |p|
-        print "raw off wire: #{p.inspect}\n"
+      kvstore <= pipe_chan.map do |p|
         if @addy == p.dst and p.dst != p.src
-          print "in off wire: #{p.inspect}\n"
+          # FIXME!
           #[p.dst, p.src, p.payload.index(0), p.id, p.payload.index(1)] 
           [p.dst, p.src, p.payload[0], p.id, p.payload[1]] 
         end
       end
 
       # bootstrap slaves: they are not required to replicate data to the source.
-      pipe_out <= jrep.map { |s, m| [m.peer, @addy, s.reqid, [s.key, s.value]] if s.client == m.peer }
+      pipe_out <= jrep.map do |s, m| 
+        if s.client == m.peer 
+          [m.peer, @addy, s.reqid, [s.key, s.value]] 
+        end
+      end
     end
 
 end

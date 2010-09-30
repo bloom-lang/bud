@@ -4,20 +4,31 @@ require 'cidr/quorum_delivery'
 require 'tc_delivery'
 
 
-class TestReliableDelivery < TestDelivery 
-  def test_reliable_delivery
-    # reliable does basic
-    master = t_delivery("ReliableDelivery")
+class TestBEDelivery < TestDelivery 
+  def test_besteffort_delivery1
+    rd = spinup("ReliableDelivery", 12345)
+    sendtup = ['localhost:12346', 'localhost:12345', 1, 'foobar']
+    rd.pipe <+ [ sendtup ]
+    soft_tick(rd)
+    soft_tick(rd)
 
-
-    print "OK\n"
-    assert_equal(1, master.pipe_out.length)
-    master.pipe_out.each do |p|
-      assert_equal(1, p[2])
-    end
-
-    #f_delivery("ReliableDelivery")
-
+    # transmission not 'complete'
+    assert_equal(0, rd.pipe_out.length)
   end
+
+
+  def test_besteffort_delivery2
+    rd = spinup("ReliableDelivery", 12346)
+    rd2 = spinup("ReliableDelivery", 12347)
+    sendtup = ['localhost:12347', 'localhost:12346', 1, 'foobar']
+    rd.pipe <+ [ sendtup ]
+    soft_tick(rd)
+    soft_tick(rd)
+    sleep 1
+
+    # transmission 'complete'
+    assert_equal(1, rd.pipe_out.length)
+  end
+
 
 end

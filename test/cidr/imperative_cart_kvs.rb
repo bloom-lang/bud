@@ -39,7 +39,7 @@ class ImperativeCartServer < BudKVS
         [a.reqid, a]
       end
       iaction_deq <= @q.head.map do |h| 
-        print "DEQ(#{@budtime})!: (PL #{h.payload})\n"; 
+        #print "DEQ(#{@budtime})!: (PL #{h.payload})\n"; 
         h.payload
       end
 
@@ -58,15 +58,15 @@ class ImperativeCartServer < BudKVS
       checkout_guard <= checkout.map{|c| c}
 
       kvstore <= iaction_deq.map do |a| 
-        print "IAD!\n"
+        #print "IAD!\n"
         unless bigtable.map{|b| b.key}.include? a.session
           if a.action == "A"
-	          print "ADD ON #{a.session}, #{a.item}\n"
+	          #print "ADD ON #{a.session}, #{a.item}\n"
             [a.server, 'localhost:10000', a.session, a.reqid, Array.new.push(a.item)]
           elsif a.action == "D"
             # um, problem with the naive implementation?
             #print "Ah crap\n"
-		        print "ADD on empty #{a.session}, [] \n"
+		        #print "ADD on empty #{a.session}, [] \n"
             [a.server, 'localhost:10000', a.session, a.reqid, Array.new]
           end
         end
@@ -77,18 +77,18 @@ class ImperativeCartServer < BudKVS
      
       #print  "IAD len #{iaction_deq.length}, btlen
       kvstore <= joldstate.map do |b, a| 
-        print "UGGU\n"
+        #print "UGGU\n"
         if a.action == "A"
-          print "add #{a.inspect}, #{b.inspect}\n"
+          #print "add #{a.inspect}, #{b.inspect}\n"
           [a.server, a.client, a.session, a.reqid, b.value.push(a.item)]
         elsif a.action == "D"
       #    print "delete #{a.inspect}, #{b.inspect}\n"
-          copy = b.value.clone;
-          copy.delete_at(copy.index(a.item));
+      #    copy = b.value.clone;
+      #    copy.delete_at(copy.index(a.item));
       #    #print "now I have #{b.value}\n"
       #    ### FIX MEE! just to avoid breaking the analysis
-      #    [a.server, 'localhost:10000', a.session, a.reqid, b.value.clone]
-          [a.server, a.client, a.session, a.reqid, copy]
+          [a.server, 'localhost:10000', a.session, a.reqid, b.value.clone]
+      #    [a.server, a.client, a.session, a.reqid, copy]
         end
       end
 
@@ -104,7 +104,7 @@ class ImperativeCartServer < BudKVS
     def finish
       ##response <+ join([bigtable, checkout_guard, max_act], [bigtable.key, checkout_guard.session], [checkout_guard.session, max_act.session]).map do |s, c, m|
       response <+ join([bigtable, checkout_guard], [bigtable.key, checkout_guard.session]).map do |s, c|
-        print "RESPONSE #{s.inspect}, #{c.inspect}\n"
+        #print "RESPONSE #{s.inspect}, #{c.inspect}\n"
         #[c.client, c.server, s.key, s.value]
       end
     end
