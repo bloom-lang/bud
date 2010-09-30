@@ -8,14 +8,8 @@ class ReliableDelivery < BestEffortDelivery
   def state
     super
     channel :ack, 0, ['src', 'dst', 'id']
-    #table :mem, ['id']
   end
   
-  declare
-    def more_snd
-      #mem <+ pipe.map{|p| [p.id]}
-    end
-
   declare
     def rcv
       ack <+ pipe_chan.map do |p| 
@@ -27,9 +21,7 @@ class ReliableDelivery < BestEffortDelivery
 
   declare 
     def done
-      #j = join [ack, pipe], [ack.id, pipe.id]
       pipe_out <= join([ack, pipe], [ack.id, pipe.id]).map do |a, p| 
-        print "nontrivial ack\n"
         p
       end
     end

@@ -6,8 +6,8 @@ require 'tc_delivery'
 
 class TestBEDelivery < TestDelivery 
   def test_besteffort_delivery1
-    rd = spinup("ReliableDelivery", 12345)
-    sendtup = ['localhost:12346', 'localhost:12345', 1, 'foobar']
+    rd = spinup("ReliableDelivery", 12222)
+    sendtup = ['localhost:12223', 'localhost:12222', 1, 'foobar']
     rd.pipe <+ [ sendtup ]
     soft_tick(rd)
     soft_tick(rd)
@@ -18,9 +18,9 @@ class TestBEDelivery < TestDelivery
 
 
   def test_besteffort_delivery2
-    rd = spinup("ReliableDelivery", 12346)
-    rd2 = spinup("ReliableDelivery", 12347)
-    sendtup = ['localhost:12347', 'localhost:12346', 1, 'foobar']
+    rd = spinup("ReliableDelivery", 13333)
+    rd2 = spinup("ReliableDelivery", 13334)
+    sendtup = ['localhost:13334', 'localhost:13333', 1, 'foobar']
     rd.pipe <+ [ sendtup ]
     soft_tick(rd)
     soft_tick(rd)
