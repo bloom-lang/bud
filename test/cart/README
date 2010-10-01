@@ -14,7 +14,7 @@ the key-value store will throw a key conflict exception.  To avoid this behavior
 a user that wishes to perform a series of puts may need to 'meter' the input, 
 using a queue.  queue.rb provides this functionality.  
 
-imperative_cart.rb is the complete code for the 'destructive' code presented in the
+imperative_cart.rb is the complete code for the 'destructive' cart presented in the
 CIDR submission.  It extends kvs.rb.
 
 Finally, lazy_cart.rb is the complete code the 'disorderly' cart.  As described in the
