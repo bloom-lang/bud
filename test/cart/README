@@ -1,4 +1,4 @@
-The Bloom code related to the CIDR submission and demo is in the ./lib subdirection.
+The Bloom code related to the CIDR submission and demo is in the ./lib subdirectory.
 
 delivery.rb, reliable_delivery.rd and quorum_delivery.rb are modules providing
 transport services with increasing guarantees.  Any module that communicates

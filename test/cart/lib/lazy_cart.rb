@@ -50,7 +50,7 @@ class BasicCartServer < Bud
   declare
     def consider
       status <= join([action_cnt, action_cnt, checkout_msg]).map do |a1, a2, c| 
-        if a1.session == a2.session and a1.item == a2.item and a1.session == c.session and a1.action == "A" and a2.action == "D"
+        if a1.session == a2.session and a1.item == a2.item and a1.session == c.session and a1.action == "A" and a2.action == "D" 
           [c.client, c.server, a1.session, a1.item, a1.cnt - a2.cnt] if (a1.cnt - a2.cnt) > 0
         end
       end

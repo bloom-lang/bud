@@ -43,7 +43,6 @@ class BudKVS < BestEffortDelivery
         if @addy == p.dst and p.dst != p.src
           # FIXME!
           #[p.dst, p.src, p.payload.index(0), p.id, p.payload.index(1)] 
-          #print "RCV! #{@port}:#{@budtime}\n"
           [p.dst, p.src, p.payload[0], p.id, p.payload[1]] 
         end
       end
