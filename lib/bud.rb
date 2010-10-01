@@ -278,7 +278,7 @@ class Bud
       #@strata << self.method(d).to_proc
     end
     @rewritten_strata.each_with_index do |r, i|
-      block = lambda { r } 
+      block = lambda { eval(r) } 
       print "bLOCK[#{i}]: #{block}\n"
       
       @strata << block 
