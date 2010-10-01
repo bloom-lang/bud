@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud'
 
-require 'cidr/delivery'
+require 'lib/delivery'
 
 class ReliableDelivery < BestEffortDelivery
 

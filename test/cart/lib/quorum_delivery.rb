@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud'
 
-require 'cidr/reliable_delivery'
+require 'lib/reliable_delivery'
 
 class QuorumDelivery < ReliableDelivery
 
