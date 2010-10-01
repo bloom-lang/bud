@@ -10,9 +10,9 @@ class Viz
     @tiers = []
 
     # array: strata
-    (0..strata.first[0]+1).each do |s|
-      @tiers[s] = @graph.subgraph("cluster" + s.to_s(), {:color => "black", :style => "dotted, rounded"})
-    end
+    #(0..strata.first[0]+1).each do |s|
+    #  @tiers[s] = @graph.subgraph("cluster" + s.to_s(), {:color => "black", :style => "dotted, rounded"})
+    #end
 
     # map: table -> stratum
     @t2s = {}
@@ -114,7 +114,7 @@ class Viz
         print "NAMEs are #{head} <- #{body}\n"
         addonce(head, (head != d[0]))
         addonce(body, (body != d[2]))
-        addedge(body, head, d[1], d[3])
+        addedge(body, head, d[1], d[3], (head != d[0]))
       else
         print "HUH? unknown #{head} or #{body}\n"
       end
@@ -122,12 +122,13 @@ class Viz
   end
 
   def addonce(node, negcluster)
-    print "ADDING\n"
+    print "ADDING  (ti #{@tabinf[node]})}\n"
     
 
     if !@nodes[node]
       print "ST is #{safe_t2s(node)} (with tiers #{@tiers.length})\n"
-      @nodes[node] = @tiers[safe_t2s(node)].add_node(node)
+      #@nodes[node] = @tiers[safe_t2s(node)].add_node(node)
+      @nodes[node] = @graph.add_node(node)
     end
     if negcluster
       # cleaning 
@@ -145,16 +146,21 @@ class Viz
       @nodes[node].label = res
       @nodes[node].color = "red"
       @nodes[node].shape = "octagon"
+    #elsif @tabinf[node] and (@tabinf[node] == Bud::BudChannel or @tabinf[node] == Bud::BudScratch)
+    elsif @tabinf[node] and (@tabinf[node] == Bud::BudTable)
+      @nodes[node].shape = "rect"
     end
   end
 
-  def addedge(body, head, op, nm)
+  def addedge(body, head, op, nm, negcluster)
     ekey = body + head
     if !@edges[ekey] 
       print "ADD edge #{ekey}\n"
       @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head])
       @labels[ekey] = {}
     end
+
+    
 
     if op == '<+'
       head.split(", ").each do |h|
@@ -170,13 +176,18 @@ class Viz
       end
     elsif op == "<-"
       #@labels[ekey] = @labels[ekey] + 'NEG(del)'
-      @labels[ekey]['del ¬'] = true
+      @labels[ekey]['¬'] = true
     end
     if nm == 1
       # hm, nonmono
       #@labels[ekey] = @labels[ekey] + 'NEG'
       @labels[ekey]['¬'] = true
     end
+  
+    if (safe_t2s(head) != safe_t2s(body)) or negcluster
+      @edges[ekey].arrowhead = 'invodot'
+    end
+
   end
 
   def finish(name)

@@ -46,7 +46,7 @@ class Bud
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
     if self.class != Stratification
-      #safe_rewrite
+      safe_rewrite
     end
   end
   
@@ -70,7 +70,7 @@ class Bud
     begin
       defn = meta_rewrite
       # uncomment to see the rewrite -- it has already been installed if it succeeded.
-      # puts defn
+       #puts defn
     #rescue 
     #  print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
     end 
@@ -83,8 +83,10 @@ class Bud
 
     depends = shred_rules
 
-    self.tick
+    ####self.tick
     strat = stratify(depends) 
+
+    print "done strat\n"
 
     smap = {}
     strat.tick
@@ -115,10 +117,10 @@ class Bud
     end
 
     @rewritten_strata.each_with_index do |r, i|
-      #print "R[#{i}] is #{r}\n"
+      print "R[#{i}] is #{r}\n"
     end
  
-    visualize(strat, "#{self.class}_gvoutput")
+    #visualize(strat, "#{self.class}_gvoutput")
   end
 
   def visualize(strat, name)
@@ -132,6 +134,7 @@ class Bud
   end
 
   def stratify(depends)
+    print "start strat\n"
     strat = Stratification.new("localhost", 12345)
     strat.tick
 
@@ -156,7 +159,7 @@ class Bud
           @table_meta << [d[0], "temp alias"]
         end
       end
-      #print "TRANSLATE: #{d[3]}\n"
+      print "TRANSLATE: #{d[3]}\n"
       pt = ParseTree.translate(d[3])
       if d[1] == '<'
         if d[3] =~ /-@/
@@ -167,6 +170,7 @@ class Bud
       else
         realop = d[1]
       end
+
   
       subparser.process(pt)
       subparser.each do |k, v|
@@ -180,7 +184,8 @@ class Bud
         strat.tab_alias << [d[0], a[0], a[1]]
       end
     end
-
+    
+    print "about to tick this ho\n"
     strat.tick
     
     return strat
@@ -268,13 +273,15 @@ class Bud
     declaration
     strata = []
     # the old way...
-    @declarations.each do |d| 
-      @strata << self.method(d).to_proc
+    @declarations.each do |d|
+      print "originally we have #{self.method(d).to_proc}\n" 
+      #@strata << self.method(d).to_proc
     end
-    @rewritten_strata.each do |r|
-      block = r
-      #print "bLOCK: #{block}\n"
-      #@strata <<  lambda { block }
+    @rewritten_strata.each_with_index do |r, i|
+      block = lambda { r } 
+      print "bLOCK[#{i}]: #{block}\n"
+      
+      @strata << block 
     end 
 
     @strata.each { |strat| stratum_fixpoint(strat) }

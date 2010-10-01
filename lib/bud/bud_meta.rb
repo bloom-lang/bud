@@ -98,6 +98,28 @@ class Rewriter < SaneR2R
     super
   end
 
+  #def process(exp)
+  #  print "PROCESS(): #{exp.inspect}\n"
+  #  super
+  #end
+
+  def process_call(exp)
+    if exp.length == 2
+      print "\tCASE 2\n"
+      super
+    elsif exp.length == 3
+      print "\tCASE 3\n"
+      @suppress = @suppress + 1
+      ret = super
+      #@suppress = @suppress - 1 
+      return ret
+    else
+      #print "\tCASE other\n"
+      super
+    end
+  
+  end
+
   def each_tab(key)
     @rules[key].each do |r|
       yield r.unshift(key)
@@ -117,6 +139,7 @@ class Rewriter < SaneR2R
 
   def process_array(exp)
     if (@suppress > 0) #or (exp.length < 2)
+      @suppress = @suppress - 1 if @suppress > 0
       return "#{process_arglist(exp)}"
     else
       return "[#{process_arglist(exp)}]"
