@@ -1,10 +1,9 @@
 require 'rubygems'
 require 'bud'
-require 'test_lib'
-#require 'lib/cart'
+require 'test/test_lib'
 
-require 'cidr/lazy_cart'
-require 'cidr/imperative_cart_kvs'
+require 'lib/lazy_cart'
+require 'lib/imperative_cart_kvs'
 
 class TestCart < TestLib
   def ntest_disorderly_cart

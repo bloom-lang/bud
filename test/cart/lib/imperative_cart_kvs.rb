@@ -1,8 +1,8 @@
 require 'rubygems'
 require 'bud'
 
-require 'cidr/kvs'
-require 'cidr/queue'
+require 'lib/kvs'
+require 'lib/queue'
 
 class ImperativeCartServer < BudKVS
 
