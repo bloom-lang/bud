@@ -1,0 +1,24 @@
+The Bloom code related to the CIDR submission and demo is in the ./lib subdirection.
+
+delivery.rb, reliable_delivery.rd and quorum_delivery.rb are modules providing
+transport services with increasing guarantees.  Any module that communicates
+may subclass these modules or one of their descendents.
+
+kvs.rb is a very simple replicated key-value store.  It extends one of the delivery
+modules.  By inserting in the kvput() relation, code using kvs.rb (subclasses or
+instantiators) can store opaque values associated with keys, replacing the value
+associated with the key if one already exists.  
+
+Note that if multiple rows are inserted into kvput() with the same key value,
+the key-value store will throw a key conflict exception.  To avoid this behavior,
+a user that wishes to perform a series of puts may need to 'meter' the input, 
+using a queue.  queue.rb provides this functionality.  
+
+imperative_cart.rb is the complete code for the 'destructive' code presented in the
+CIDR submission.  It extends kvs.rb.
+
+Finally, lazy_cart.rb is the complete code the 'disorderly' cart.  As described in the
+paper, this shopping cart does not have a layered design like the destructive cart:
+instead it 'rolls its own' replication and storage.
+
+
