@@ -20,7 +20,7 @@ class ReliableDelivery < BestEffortDelivery
     end
 
   declare 
-    def done
+    def done  
       pipe_out <= join([ack, pipe], [ack.id, pipe.id]).map do |a, p| 
         p
       end

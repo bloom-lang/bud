@@ -15,6 +15,7 @@ class BasicCartServer < Bud
 
     # this was the guard
     table :checkout_guard, ['server', 'client', 'session', 'reqid']
+    table :memory, ['client', 'server', 'session', 'item', 'cnt']
 
     scratch :client_action, ['server', 'client', 'session', 'item', 'action', 'reqid']
     channel :client_checkout, 0, ['server', 'client', 'session', 'reqid']
@@ -33,11 +34,11 @@ class BasicCartServer < Bud
       cart_action <= action_msg.map { |c| [c.session, c.item, c.action, c.reqid] }
 
       # PAA - CRASH without the +?  find out why.
-      #action_cnt <+ cart_action.group([cart_action.session, cart_action.item, cart_action.action], count(cart_action.reqid))
-      #action_cnt <+ cart_action.map{|a| [a.session, a.item, 'D', 0] unless cart_action.map{|c| [c.session, c.item] if c.action == "D"}.include? [a.session, a.item]}
+      action_cnt <+ cart_action.group([cart_action.session, cart_action.item, cart_action.action], count(cart_action.reqid))
+      action_cnt <+ cart_action.map{|a| [a.session, a.item, 'D', 0] unless cart_action.map{|c| [c.session, c.item] if c.action == "D"}.include? [a.session, a.item]}
 
-      action_cnt <= cart_action.group([cart_action.session, cart_action.item, cart_action.action], count(cart_action.reqid))
-      action_cnt <= cart_action.map{|a| [a.session, a.item, 'D', 0] unless cart_action.map{|c| [c.session, c.item] if c.action == "D"}.include? [a.session, a.item]}
+      #action_cnt <= cart_action.group([cart_action.session, cart_action.item, cart_action.action], count(cart_action.reqid))
+      #action_cnt <= cart_action.map{|a| [a.session, a.item, 'D', 0] unless cart_action.map{|c| [c.session, c.item] if c.action == "D"}.include? [a.session, a.item]}
     end
 
   declare 
@@ -48,17 +49,13 @@ class BasicCartServer < Bud
 
   declare
     def consider
-      #print "AClen #{action_cnt.length}, COlen #{checkout.length}\n"
       status <= join([action_cnt, action_cnt, checkout_msg]).map do |a1, a2, c| 
         if a1.session == a2.session and a1.item == a2.item and a1.session == c.session and a1.action == "A" and a2.action == "D"
-	  #print "OK status\n"
           [c.client, c.server, a1.session, a1.item, a1.cnt - a2.cnt] if (a1.cnt - a2.cnt) > 0
         end
       end
       response_msg <+ status.map do|s| 
-        #print "RESPONSE: #{s.inspect}\n"
 	      s
-
       end
 
     end
@@ -70,17 +67,14 @@ class BasicCartServer < Bud
           [m.player, a.server, a.session, a.item, a.action, a.reqid]
         end
       end
-
-      #checkout <+ join([checkout, member]).map do |c, m|
-      #  [m.player, c.client, c.session]
-      #end
     end
 
   declare
     def client
       action_msg <+ client_action.map{|a| a}
-#      checkout_msg <+ client_checkout.map{|a| a}
+      checkout_msg <+ client_checkout.map{|a| a}
+
+      memory <= response_msg.map{|r| r}
     end
-  # um
 end
 
