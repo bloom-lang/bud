@@ -14,7 +14,7 @@ class TestKVS < TestLib
     end
   end
 
-  def test_wl2
+  def ntest_wl2
     v = BudKVS.new("localhost", 12347)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     sleep 1
@@ -40,9 +40,6 @@ class TestKVS < TestLib
 
     workload1(v)
 
-    v.bigtable.each do |b|
-      print "V: #{b.inspect}\n"
-    end
     assert_equal(1, v.bigtable.length)
     assert_equal("bak", v.bigtable.first[1])
 
@@ -61,10 +58,9 @@ class TestKVS < TestLib
     send_channel(v.ip, v.port, "kvstore", ["#{v.ip}:#{v.port}", "localhost:54321", "foo", 3, "bam"])
     soft_tick(v)
     send_channel(v.ip, v.port, "kvstore", ["#{v.ip}:#{v.port}", "localhost:54321", "foo", 4, "bak"])
-  
-    (0..2).each do |i|
-      soft_tick(v)
-    end 
+    soft_tick(v)
+    soft_tick(v)
+    soft_tick(v)
   end
   
 end

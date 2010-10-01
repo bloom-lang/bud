@@ -12,6 +12,9 @@ class TestBEDelivery < TestDelivery
     soft_tick(rd)
     soft_tick(rd)
 
+    assert_equal(1, rd.pipe.length)
+    assert_equal(sendtup, rd.pipe.first)
+
     # transmission 'complete'
     assert_equal(1, rd.pipe_out.length)
     assert_equal(sendtup, rd.pipe_out.first)

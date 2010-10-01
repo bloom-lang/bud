@@ -1,16 +1,16 @@
 require 'rubygems'
 require 'bud'
-require 'cidr/quorum_delivery'
+#require 'cidr/quorum_delivery'
 require 'test_lib'
 
 
 class TestDelivery < TestLib
 
-  def add_members(b, *hosts)
-    hosts.each do |h|
-      assert_nothing_raised(RuntimeError) { b.member << [h] }
-    end
-  end
+  #def add_members(b, *hosts)
+  #  hosts.each do |h|
+  #    assert_nothing_raised(RuntimeError) { b.member << [h] }
+  #  end
+  #end
 
   def spinup(type, port)
     d = spinup_dist(type, "localhost", port)

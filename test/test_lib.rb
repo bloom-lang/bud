@@ -3,6 +3,13 @@ require 'bud'
 require 'test/unit'
 
 class TestLib < Test::Unit::TestCase
+
+  def add_members(b, *hosts)
+    hosts.each do |h|
+      assert_nothing_raised(RuntimeError) { b.member << [h] }
+    end
+  end
+
   def advance(p)
     advancer(p.ip, p.port)
   end
