@@ -11,6 +11,7 @@ require 'bud/collections'
 require 'bud/errors'
 require 'bud/events'
 require 'bud/strat'
+require 'bud/static_analysis'
 require 'bud/bud_meta'
 require 'bud/viz'
 
@@ -45,7 +46,7 @@ class Bud
 
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
-    if self.class != Stratification
+    unless self.class <= Stratification
       safe_rewrite
     end
   end
@@ -71,8 +72,8 @@ class Bud
       defn = meta_rewrite
       # uncomment to see the rewrite -- it has already been installed if it succeeded.
        #puts defn
-    #rescue 
-    #  print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
+    rescue 
+      print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
     end 
   end
 
@@ -82,11 +83,7 @@ class Bud
     # to ruby_parse (but not the "live" class)
 
     depends = shred_rules
-
-    ####self.tick
     strat = stratify(depends) 
-
-    print "done strat\n"
 
     smap = {}
     strat.tick
@@ -97,14 +94,6 @@ class Bud
       smap[s[0]] = s[1]
     end 
 
-    #strat.tick
-    #strat.tick
-    strat.guarded.each do |g|
-      #print "GUARDED #{g.inspect}\n"
-    end
-
-    # just appending to the monolith for now...
-    # create a structure that is Array (strata) of Array (rules belonging in this strata)
     @rewritten_strata = []
     depends.sort{|a, b| oporder(a[1]) <=> oporder(b[1])}.each do |d|
       belongs_in = smap[d[0]]
@@ -112,13 +101,12 @@ class Bud
       if @rewritten_strata[belongs_in].nil?
         @rewritten_strata[belongs_in] = ""
       end
-      #@rewritten_strata[belongs_in] << d[3] 
       @rewritten_strata[belongs_in] = @rewritten_strata[belongs_in] + "\n"+ d[3] 
     end
 
-    @rewritten_strata.each_with_index do |r, i|
-      print "R[#{i}] is #{r}\n"
-    end
+    #@rewritten_strata.each_with_index do |r, i|
+    #  print "R[#{i}] is #{r}\n"
+    #end
  
     #visualize(strat, "#{self.class}_gvoutput")
   end
@@ -136,6 +124,7 @@ class Bud
   def stratify(depends)
     print "start strat\n"
     strat = Stratification.new("localhost", 12345)
+    #strat = StaticAnalysis.new("localhost", 12345)
     strat.tick
 
     @tables.each do |t|
@@ -170,8 +159,6 @@ class Bud
       else
         realop = d[1]
       end
-
-  
       subparser.process(pt)
       subparser.each do |k, v|
         strat.depends << [d[0], realop, k, v]
@@ -184,10 +171,7 @@ class Bud
         strat.tab_alias << [d[0], a[0], a[1]]
       end
     end
-    
-    print "about to tick this ho\n"
     strat.tick
-    
     return strat
   end
 
@@ -271,16 +255,13 @@ class Bud
     # declaration to be provided by user program
     @strata = []
     declaration
-    strata = []
     # the old way...
     @declarations.each do |d|
-      print "originally we have #{self.method(d).to_proc}\n" 
       #@strata << self.method(d).to_proc
     end
     @rewritten_strata.each_with_index do |r, i|
-      block = lambda { eval(r) } 
-      print "bLOCK[#{i}]: #{block}\n"
-      
+      str = r.nil? ? "" : r
+      block = lambda { eval(str) } 
       @strata << block 
     end 
 

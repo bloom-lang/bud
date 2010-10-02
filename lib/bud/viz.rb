@@ -185,7 +185,7 @@ class Viz
     end
   
     if (safe_t2s(head) != safe_t2s(body)) or negcluster
-      @edges[ekey].arrowhead = 'invodot'
+      @edges[ekey].arrowhead = 'veeodot'
     end
 
   end

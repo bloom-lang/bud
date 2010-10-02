@@ -98,28 +98,6 @@ class Rewriter < SaneR2R
     super
   end
 
-  #def process(exp)
-  #  print "PROCESS(): #{exp.inspect}\n"
-  #  super
-  #end
-
-  def process_call(exp)
-    if exp.length == 2
-      print "\tCASE 2\n"
-      super
-    elsif exp.length == 3
-      print "\tCASE 3\n"
-      @suppress = @suppress + 1
-      ret = super
-      #@suppress = @suppress - 1 
-      return ret
-    else
-      #print "\tCASE other\n"
-      super
-    end
-  
-  end
-
   def each_tab(key)
     @rules[key].each do |r|
       yield r.unshift(key)
@@ -138,26 +116,15 @@ class Rewriter < SaneR2R
   end
 
   def process_array(exp)
-    if (@suppress > 0) #or (exp.length < 2)
-      @suppress = @suppress - 1 if @suppress > 0
+    cxt = self.context[1].to_s
+    # suppress those dang angle brackets
+    if cxt == "arglist" or cxt == "masgn" 
       return "#{process_arglist(exp)}"
     else
       return "[#{process_arglist(exp)}]"
     end
   end
-  
-  def process_fcall(exp)
-    print "process FCALL: #{exp.inspect}\n"
-    super
-  end
-  
-  def process_masgn(exp)
-    @suppress = @suppress + 1
-    ret = super
-    @suppress = @suppress - 1
-    return ret
-  end
-
+    
   def process_defn(exp)
     fst = exp[0]
     if fst.to_s != 'state' and fst.to_s != 'initialize'
@@ -171,7 +138,6 @@ class Rewriter < SaneR2R
       @rules[lhs] = []
     end
     copy = whole.clone
-    
     @rules[lhs] << [op, copy, process(whole)]
   end
 
@@ -199,9 +165,7 @@ class Rewriter < SaneR2R
       
     end
     super exp
-    
   end
-
 end
 
 
