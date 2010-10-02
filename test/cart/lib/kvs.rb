@@ -7,16 +7,22 @@ class BudKVS < BestEffortDelivery
   def state
     super
     table :bigtable, ['key'], ['value']
-    #table :stor_saved, ['client', 'server', 'key', 'reqid', 'value']
     table :stor_saved, ['server','client', 'key', 'reqid', 'value']
     table :member, ['peer']
     scratch :kvstore, ['server', 'client', 'key', 'reqid'], ['value']
     scratch :kvstore_indirected, ['server', 'client', 'key', 'reqid'], ['value']
   end
 
+  declare
+    def interpose
+      kvstore_indirected <= kvstore.map do |k| 
+        print "INDIRECT: #{k.inspect}" or k
+      end
+    end
+
   declare 
     def mutate
-      stor_saved <= kvstore.map { |k| k }
+      stor_saved <= kvstore_indirected.map { |k| k }
       readback = join [stor_saved, pipe_out], [stor_saved.reqid, pipe_out.id]
       stor_saved <- readback.map{ |s, p| s }
       bigtable <+ readback.map do |s, p| 
@@ -31,7 +37,7 @@ class BudKVS < BestEffortDelivery
 
   declare
     def replicate
-      jrep = join [kvstore, member]
+      jrep = join [kvstore_indirected, member]
       pipe <= jrep.map do |s, m|
         if m.peer != s.client
           #print "place on (#{m.peer}) pipe: #{s.inspect}\n"
