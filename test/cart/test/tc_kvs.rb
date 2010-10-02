@@ -15,7 +15,7 @@ class TestKVS < TestLib
     end
   end
 
-  def ntest_wl2
+  def test_wl2
     v = BudKVS.new("localhost", 12347)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     sleep 1
@@ -28,7 +28,7 @@ class TestKVS < TestLib
     
   end
 
-  def ntest_wl3
+  def test_wl3
     v = MeteredKVS.new("localhost", 12350)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:12350")
@@ -39,7 +39,7 @@ class TestKVS < TestLib
   end
 
 
-  def test_wl4
+  def ntest_wl4
     v = MeteredKVS.new("localhost", 12351)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:12351")
@@ -54,7 +54,7 @@ class TestKVS < TestLib
   end
 
 
-  def ntest_wl1
+  def test_wl1
     v = BudKVS.new("localhost", 12345)
     v2 = BudKVS.new("localhost", 12346)
     assert_nothing_raised(RuntimeError) {v.run_bg}
