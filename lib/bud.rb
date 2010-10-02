@@ -122,7 +122,6 @@ class Bud
   end
 
   def stratify(depends)
-    print "start strat\n"
     strat = Stratification.new("localhost", 12345)
     #strat = StaticAnalysis.new("localhost", 12345)
     strat.tick
@@ -148,7 +147,7 @@ class Bud
           @table_meta << [d[0], "temp alias"]
         end
       end
-      print "TRANSLATE: #{d[3]}\n"
+      #print "TRANSLATE: #{d[3]}\n"
       pt = ParseTree.translate(d[3])
       if d[1] == '<'
         if d[3] =~ /-@/
