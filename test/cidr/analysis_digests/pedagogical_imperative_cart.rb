@@ -2,7 +2,7 @@ require 'rubygems'
 require 'bud'
 
 require 'cidr/analysis_digests/pedagogical_kvs'
-require 'cidr/queue'
+require 'cidr/analysis_digests/queue'
 
 class ImperativeCartServer < BudKVS
 

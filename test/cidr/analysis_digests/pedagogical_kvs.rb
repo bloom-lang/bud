@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'bud'
-require 'cidr/reliable_delivery'
+require 'cidr/analysis_digests/reliable_delivery'
 
 #class BudKVS < BestEffortDelivery
 class BudKVS < ReliableDelivery

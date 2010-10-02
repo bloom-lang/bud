@@ -16,6 +16,7 @@ class BaseQueue < Bud
   declare
     def qlogic
       min_id <= q.group(nil, min(q.id))
+      #(q < join([q, consumed], [q.id , consumed.id ]).map  { |q , c  | q }.-@ )
     end
 
   declare 
@@ -29,6 +30,13 @@ class BaseQueue < Bud
 
       presented <+ head.map{|h| [h.id]}
       q <- join([q, consumed], [q.id, consumed.id]).map{|q, c| q}
+
+    #(min_id <= q.group(nil, min(q.id )))
+    #(head <= join([q, min_id], [q.id , min_id.id ]).map  do |q , m  |
+    #    q unless presented.map  { |p | p.id }.include?(q.id )
+    #end)
+    #(presented < head.map  { |h | [h.id ] }.+@ )
+
     end
   
 end
