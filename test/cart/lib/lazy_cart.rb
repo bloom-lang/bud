@@ -54,7 +54,8 @@ class BasicCartServer < Bud
           [c.client, c.server, a1.session, a1.item, a1.cnt - a2.cnt] if (a1.cnt - a2.cnt) > 0
         end
       end
-      response_msg <+ status.map do|s| 
+
+      response_msg <+ status.map do |s| 
 	      s
       end
 

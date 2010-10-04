@@ -6,14 +6,14 @@ require 'lib/lazy_cart'
 require 'lib/imperative_cart_kvs'
 
 class TestCart < TestLib
-  def test_disorderly_cart
+  def ntest_disorderly_cart
     program = BasicCartServer.new('localhost', 12345)
     program.run_bg
     sleep 1
     run_cart(program)
   end
 
-  def ntest_destructive_cart
+  def test_destructive_cart
     program = ImperativeCartServer.new('localhost', 12345)
     program.run_bg
     run_cart(program)
@@ -34,7 +34,7 @@ class TestCart < TestLib
     send_channel(program.ip, program.port, "action_msg", ['localhost:12345', 'localhost:12345', 1234, 'beer', 'D', 130])
 
 
-    ##send_channel(program.ip, program.port, "checkout_msg", ['localhost:12345', 'localhost:12345',1234, 131])
+    send_channel(program.ip, program.port, "checkout_msg", ['localhost:12345', 'localhost:12345',1234, 131])
 
     advance(program)
     advance(program)
@@ -65,12 +65,16 @@ class TestCart < TestLib
     advance(program)
     advance(program)
     advance(program)
+    advance(program)
     
 
     pcnt = 0
     program.memory.each do |a|
+      print "MEMO: #{a.inspect}\n"
       pcnt = a.cnt if a.item == "papers"
     end
+
+    print "pcnt is #{pcnt}\n"
   
     # undesirable but consistent that a 2nd checkout message should produce a revised manifest.
     assert_equal(3, program.memory.length)

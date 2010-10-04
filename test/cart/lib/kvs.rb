@@ -11,44 +11,44 @@ class BudKVS < BestEffortDelivery
     table :member, ['peer']
     scratch :kvstore, ['server', 'client', 'key', 'reqid'], ['value']
     scratch :kvstore_indirected, ['server', 'client', 'key', 'reqid'], ['value']
+    scratch :pipe_indirected, ['server', 'client', 'id'], ['payload']
   end
 
   declare
     def interpose
-      kvstore_indirected <= kvstore.map do |k| 
-        print "INDIRECT: #{k.inspect}" or k
-      end
+      pipe_indirected <= pipe_out.map {|p| p}
     end
 
   declare 
     def mutate
-      stor_saved <= kvstore_indirected.map { |k| k }
-      readback = join [stor_saved, pipe_out], [stor_saved.reqid, pipe_out.id]
-      stor_saved <- readback.map{ |s, p| s }
+      
+      
+      stor_saved <= kvstore.map { |k| print @budtime.to_s + " indrSTOR" + k.inspect + "\n" or k }
+      readback = join [stor_saved, pipe_indirected], [stor_saved.reqid, pipe_indirected.id]
+      stor_saved <- readback.map{ |s, p| print @budtime.to_s + " remove " + s.inspect + "\n" or s }
       bigtable <+ readback.map do |s, p| 
-        #print "->BT(#{@port}:#{@budtime}): #{s.key} == #{s.value}\n"
-        [s.key, s.value] 
+        (print "->BT(" + @port.to_s + ":" + @budtime.to_s + "): " + s.key.to_s + " == " + s.value.to_s + "\n") or [s.key, s.value] 
+        #(print "->BT(" + s.key.to_s + " == " + s.value.to_s + "\n") or [s.key, s.value] 
       end
 
-      jst = join [bigtable, stor_saved, pipe_out], [bigtable.key, stor_saved.key], [stor_saved.reqid, pipe_out.id]
+      jst = join [bigtable, stor_saved, pipe_indirected], [bigtable.key, stor_saved.key], [stor_saved.reqid, pipe_indirected.id]
       bigtable <- jst.map { |b, s, p| b }
     end
 
 
   declare
     def replicate
-      jrep = join [kvstore_indirected, member]
+      jrep = join [kvstore, member]
       pipe <= jrep.map do |s, m|
         if m.peer != s.client
-          #print "place on (#{m.peer}) pipe: #{s.inspect}\n"
-          [m.peer, @addy, s.reqid, [s.key, s.value]]
+          print "place on (" + @addy + " to " + m.peer + ") pipe: " + s.inspect + "\n" or [m.peer, @addy, s.reqid, [s.key, s.value]]
         end
       end
   
       kvstore <= pipe_chan.map do |p|
         if @addy == p.dst and p.dst != p.src
           # FIXME!
-          [p.dst, p.src, p.payload.index(0), p.id, p.payload.index(1)] 
+          [p.dst, p.src, p.payload.fetch(0), p.id, p.payload.fetch(1)] 
           #[p.dst, p.src, p.payload[0], p.id, p.payload[1]] 
         end
       end
@@ -56,7 +56,7 @@ class BudKVS < BestEffortDelivery
       # bootstrap slaves: they are not required to replicate data to the source.
       pipe_out <= jrep.map do |s, m| 
         if s.client == m.peer 
-          [m.peer, @addy, s.reqid, [s.key, s.value]] 
+          print "bootstrapping " + s.reqid.to_s + "\n" or [m.peer, @addy, s.reqid, [s.key, s.value]] 
         end
       end
     end

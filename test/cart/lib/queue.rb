@@ -29,7 +29,7 @@ class BaseQueue < Bud
       end
 
       presented <+ head.map{|h| [h.id]}
-      q <- join([q, consumed], [q.id, consumed.id]).map{|q, c| q}
+      q <- join([q, consumed], [q.id, consumed.id]).map{|q, c| print "delete " + q.inspect + "\n" or q}
 
     end
   

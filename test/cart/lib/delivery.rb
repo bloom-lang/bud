@@ -9,7 +9,8 @@ class BestEffortDelivery < Bud
   end
 
   def state
-    table :pipe, ['dst', 'src', 'id', 'payload']
+    table :pipe, ['dst', 'src', 'id'], ['payload']
+    #table :pipe_out, ['dst', 'src', 'id'], ['payload']
     table :pipe_out, ['dst', 'src', 'id'], ['payload']
     channel :pipe_chan, 0, ['dst', 'src', 'id'], ['payload']
     channel :tickler, 0, ['self']
@@ -28,7 +29,7 @@ class BestEffortDelivery < Bud
   declare 
     def done
       # vacuous ackuous.  override me!
-      pipe_out <+ join([pipe, timer]).map do |p, t| 
+      pipe_out <= join([pipe, timer]).map do |p, t| 
         p
       end
     end
