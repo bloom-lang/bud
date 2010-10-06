@@ -31,7 +31,7 @@ class Extractor < SaneR2R
   def process_call(exp)
     op = exp[1].to_s
     if exp.length == 3 or exp.length == 4
-      exp.shift
+      t = process exp.shift
       exp.shift
     elsif exp.length == 2
       l = exp[0][0] 
@@ -44,7 +44,10 @@ class Extractor < SaneR2R
         tab = exp[0][1]
       end
     end
-    if @nm[op]
+    if op == "include?"
+      @tabs[t] = 1
+      ret = super
+    elsif @nm[op]
       @nmcontext = @nmcontext + 1
       ret = super exp
       @nmcontext = @nmcontext - 1
@@ -57,6 +60,9 @@ class Extractor < SaneR2R
   def process_vcall(exp)
     t = exp[0].to_s
     newtab(t)
+    if @nmcontext
+      print "CONTEXT WAS #{self.context[1].to_s} at NM (whole #{self.context.join(",")}\n"
+    end
     @tabs[t] = @nmcontext
     super
   end
@@ -157,7 +163,7 @@ class Rewriter < SaneR2R
         op = clause[2].to_s
         shove(lhs, op, clause)
       elsif lhs == ""
-        print "DO nothing\n"
+        #print "DO nothing\n"
       else
         print "coming out of #{exp.inspect}\n"
         raise "Invalid top-level clause length #{len}: '#{clause.inspect}'"

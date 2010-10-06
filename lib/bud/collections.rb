@@ -70,7 +70,7 @@
     def each
       @storage.each_key do |k|
         raise(BudError, "nil storage key") if k.nil?
-        raise(BudError, "nil storage entry for #{k.inspect}") if @storage[k].nil?
+        raise(BudError, "nil storage entry(#{@name}) for #{k.inspect}") if @storage[k].nil?
         tup = (@storage[k] == true) ? k : (k + @storage[k])
         yield tuple_accessors(tup)
       end
