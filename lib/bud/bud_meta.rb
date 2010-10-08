@@ -61,7 +61,6 @@ class Extractor < SaneR2R
     t = exp[0].to_s
     newtab(t)
     if @nmcontext
-      print "CONTEXT WAS #{self.context[1].to_s} at NM (whole #{self.context.join(",")}\n"
     end
     @tabs[t] = @nmcontext
     super

@@ -72,8 +72,8 @@ class Bud
       defn = meta_rewrite
       # uncomment to see the rewrite -- it has already been installed if it succeeded.
        #puts defn
-    rescue 
-      print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
+    #rescue 
+    #  print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
     end 
   end
 
@@ -83,7 +83,11 @@ class Bud
     # to ruby_parse (but not the "live" class)
 
     depends = shred_rules
+
+    print "start strat for #{self.class}\n"
     strat = stratify(depends) 
+    print "end strat\n"
+
 
     smap = {}
     strat.tick
@@ -104,9 +108,9 @@ class Bud
       @rewritten_strata[belongs_in] = @rewritten_strata[belongs_in] + "\n"+ d[3] 
     end
 
-    #@rewritten_strata.each_with_index do |r, i|
-    #  print "R[#{i}] is #{r}\n"
-    #end
+    @rewritten_strata.each_with_index do |r, i|
+      print "R[#{i}] is #{r}\n"
+    end
  
     #visualize(strat, "#{self.class}_gvoutput")
   end
@@ -148,7 +152,12 @@ class Bud
         end
       end
       #print "TRANSLATE: #{d[3]}\n"
-      pt = ParseTree.translate(d[3])
+      begin
+        pt = ParseTree.translate(d[3])
+      rescue 
+        print "Failed to translate #{d[3]}.\n"
+        #raise RuntimeError($!)  
+      end
       if d[1] == '<'
         if d[3] =~ /-@/
           realop = "<-"
@@ -224,7 +233,13 @@ class Bud
   ######## methods for controlling execution
   def run_bg
     @t = Thread.new() do ||
-      run
+      # PAA, towards better error messages
+      begin
+        run
+      rescue
+        print "background thread failed with #{$!}\n"
+        exit
+      end
     end
     # not clean
     sleep 1
@@ -259,6 +274,7 @@ class Bud
       #@strata << self.method(d).to_proc
     end
     @rewritten_strata.each_with_index do |r, i|
+      # FIX: move to compilation
       str = r.nil? ? "" : r
       block = lambda { eval(str) } 
       @strata << block 

@@ -10,6 +10,8 @@ class ShortestPaths < Bud
   
   def state
     table :link, ['from', 'to', 'cost']
+    table :link2, ['from', 'to', 'cost']
+    table :empty, ['id']
     table :path, ['from', 'to', 'next', 'cost']
     table :shortest, ['from', 'to'], ['next', 'cost']
     table :minz,['cost']
@@ -18,9 +20,11 @@ class ShortestPaths < Bud
   
   declare 
   def program
-    path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
+    link2 <= link.map{|l| l unless empty.include? l.id } 
+    #link2 <= link.group([link.from, link.to], count(link.cost))
+    path <= link2.map{|e| [e.from, e.to, e.to, e.cost]}
 
-    j = join [link, path], [path.from, link.to]
+    j = join [link2, path], [path.from, link2.to]
     path <= j.map do |l,p|
       [l.from, p.to, p.from, l.cost+p.cost] # if l.to == p.from
     end

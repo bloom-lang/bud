@@ -27,11 +27,12 @@ class MeteredKVS < BudKVS
 
   def interpose
     @q.q <= pipe_out.map do |k| 
-      print @budtime.to_s + " enqueue " + k.inspect + "\n" or [k.id, k] 
+      #print @budtime.to_s + " enqueue " + k.inspect + "\n" or 
+      [k.id, k] 
     end
 
     print "Q siz is " + @q.q.length.to_s + "\n"
-    pipe_indirected <+ @q.head.map do |h| 
+    pipe_indirected <= @q.head.map do |h| 
       print @budtime.to_s + " Indirecting: "+ h.payload.inspect + "\n" or h.payload 
     end
     @q.consumed <+ @q.head.map{|h| [h.id] } 

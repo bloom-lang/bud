@@ -100,6 +100,7 @@ class Stratification < Bud
 
       stratum_base <= join([depends, stratum_base], [depends.body, stratum_base.predicate]).map do |d, s|
         if (d.neg == 1 or d.op.to_s == "<-") and !(cycle.map{|c| c.predicate if c.temporal}.include? d.body and cycle.map{|c| c.predicate if c.temporal}.include? d.head)
+          print "BUMP #{d.head} from #{s.stratum}\n"
           [d.head, s.stratum + 1]
         else    
           [d.head, s.stratum]

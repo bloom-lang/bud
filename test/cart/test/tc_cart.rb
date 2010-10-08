@@ -47,7 +47,17 @@ class TestCart < TestLib
     advance(program)    
     advance(program)    
     advance(program)    
+    advance(program)    
+    advance(program)    
+    advance(program)    
+    advance(program)    
+    advance(program)    
 
+    program.bigtable.each do |b|
+      print "PBT: #{b.inspect}\n"
+    end
+    print "BTlen = #{program.bigtable.length}\n"
+  
     assert_equal(2, program.memory.length)
     program.memory.each do |a|
       print "item: #{a.inspect}\n"

@@ -7,14 +7,14 @@ require 'lib/queue'
 class ImperativeCartServer < MeteredKVS
 
   def initialize(ip, port)
-    @q = BaseQueue.new(ip, port.to_i+1)
-    @q.tick
+    #@q = BaseQueue.new(ip, port.to_i+1)
+    #@q.tick
     super(ip, port)
   end
 
   def tick
     # hx
-    @q.tick
+    #@q.tick
     super
   end
 
@@ -43,11 +43,10 @@ class ImperativeCartServer < MeteredKVS
       #  h.payload
       #end
 
-
       # arguably a violation of encapsulation
       #@q.consumed <= pipe_out.map{|p| print "consuming " + p.id.to_s + "\n" or [p.id]}
 
-      action_log <= action_msg.map{|a| a}
+      #action_log <= action_msg.map{|a| a}
       checkout_msg_guard <= checkout_msg.map{|c| c}
 
       #kvstore <= action_msg_deq.map do |a| 
@@ -56,8 +55,7 @@ class ImperativeCartServer < MeteredKVS
         unless bigtable.map{|b| b.key}.include? a.session
           if a.action == "A"
 	          #print "ADD ON #{a.session}, #{a.item}\n"
-            #print "ADD ON " + a.session + ", " + a.item + "\n" or 
-            [a.server, 'localhost:10000', a.session, a.reqid, Array.new.push(a.item)]
+            print "ADD ON " + a.session.to_s + ", " + a.item.to_s + "\n" or [a.server, 'localhost:10000', a.session, a.reqid, Array.new.push(a.item)]
           elsif a.action == "D"
             # um, problem with the naive implementation?
             print "DEL\n"
@@ -70,13 +68,11 @@ class ImperativeCartServer < MeteredKVS
       joldstate = join [bigtable, action_msg], [bigtable.key, action_msg.session]
       kvstore <= joldstate.map do |b, a| 
         if a.action == "A"
-      #    #print "add(#{@port}:#{@budtime})  #{a.inspect}, #{b.inspect}\n"
-      #    print "YO: " + a.inspect + ", " + b.inspect + "\n" or [a.server, a.client, a.session, a.reqid, b.value.push(a.item)]
-      #    print "YO: " + a.inspect + ", " + b.inspect + "\n" or [a.server, a.client, a.session, a.reqid, (b.value.push(a.item))]
-          print "APPEND ("  + @budtime.to_s + ") : " + a.inspect + ", " + b.inspect + "\n" or [a.server, a.client, a.session, a.reqid, (b.value.push(a.item))]
-      #  elsif a.action == "D"
+          print "APPEND ("  + @budtime.to_s + ") : " + a.inspect + ", " + b.inspect + "\n" or [a.server, a.client, a.session, a.reqid, (b.value.clone.push(a.item))]
+
+        elsif a.action == "D"
       #    #print "delete #{a.inspect}, #{b.inspect}\n"
-      ##    [a.server, a.client, a.session, a.reqid, copy]
+          [a.server, a.client, a.session, a.reqid, b.value.reject{|i| i == a.item}]
         end
       end
     end

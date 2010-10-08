@@ -29,7 +29,7 @@ class BestEffortDelivery < Bud
   declare 
     def done
       # vacuous ackuous.  override me!
-      pipe_out <= join([pipe, timer]).map do |p, t| 
+      pipe_out <+ join([pipe, timer]).map do |p, t| 
         p
       end
     end

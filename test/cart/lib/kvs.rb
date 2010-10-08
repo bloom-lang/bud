@@ -7,7 +7,7 @@ class BudKVS < BestEffortDelivery
   def state
     super
     table :bigtable, ['key'], ['value']
-    table :stor_saved, ['server','client', 'key', 'reqid', 'value']
+    table :stor_saved, ['server','client', 'key', 'reqid'], ['value']
     table :member, ['peer']
     scratch :kvstore, ['server', 'client', 'key', 'reqid'], ['value']
     scratch :kvstore_indirected, ['server', 'client', 'key', 'reqid'], ['value']
@@ -46,9 +46,9 @@ class BudKVS < BestEffortDelivery
       end
   
       kvstore <= pipe_chan.map do |p|
-        if @addy == p.dst and p.dst != p.src
+        if @addy == p.dst #and p.dst != p.src
           # FIXME!
-          [p.dst, p.src, p.payload.fetch(0), p.id, p.payload.fetch(1)] 
+          print @port.to_s + " chan in : " + p.inspect + "\n" or [p.dst, p.src, p.payload.fetch(0), p.id, p.payload.fetch(1)] 
           #[p.dst, p.src, p.payload[0], p.id, p.payload[1]] 
         end
       end

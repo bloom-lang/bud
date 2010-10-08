@@ -5,9 +5,9 @@ require 'bud'
 
 class BaseQueue < Bud
   def state
-    table :q, ['id', 'payload']
+    table :q, ['id'], ['payload']
     table :min_id, ['id']
-    scratch :head, ['id', 'payload']
+    scratch :head, ['id'], ['payload']
 
     table :presented, ['id']
     table :consumed, ['id']

@@ -29,7 +29,7 @@ class TestKVS < TestLib
     
   end
 
-  def test_wl3
+  def ntest_wl3
     # the metered kvs succeeds on the naive workload
     v = MeteredKVS.new("localhost", 12350)
     assert_nothing_raised(RuntimeError) {v.run_bg}
@@ -41,7 +41,7 @@ class TestKVS < TestLib
   end
 
 
-  def test_wl4
+  def ntest_wl4
     # the metered kvs also succeeds on a disorderly workload
     v = MeteredKVS.new("localhost", 12351)
     assert_nothing_raised(RuntimeError) {v.run_bg}
@@ -53,13 +53,15 @@ class TestKVS < TestLib
     soft_tick(v)
     soft_tick(v)
     soft_tick(v)
+    soft_tick(v)
+    soft_tick(v)
 
     assert_equal(1, v.bigtable.length)
     assert_equal("bak", v.bigtable.first[1])
   end
 
 
-  def test_wl5
+  def ntest_wl5
     # the unmetered kvs fails on a disorderly workload
     v = BudKVS.new("localhost", 12352)
     assert_nothing_raised(RuntimeError) {v.run_bg}
@@ -87,8 +89,7 @@ class TestKVS < TestLib
     assert_equal(1, v.bigtable.length)
     assert_equal("bak", v.bigtable.first[1])
 
-    # what happened?
-    ##assert_equal(1, v2.bigtable.length)
+    assert_equal(1, v2.bigtable.length)
   end
 
   def test_simple
