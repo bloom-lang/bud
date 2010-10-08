@@ -1,3 +1,7 @@
+require 'rubygems'
+require 'bud'
+require 'test/unit'
+
 class BabyBud < Bud
   def state
     scratch :scrtch, ['k1', 'k2'], ['v1', 'v2']

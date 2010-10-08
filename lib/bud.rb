@@ -47,7 +47,7 @@ class Bud
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
     unless self.class <= Stratification
-      #safe_rewrite
+      safe_rewrite
     end
   end
   
@@ -69,50 +69,13 @@ class Bud
 
   def safe_rewrite
     begin
-      defn = meta_rewrite
-      # uncomment to see the rewrite -- it has already been installed if it succeeded.
-       #puts defn
+      @rewritten_strata = meta_rewrite
     rescue 
       print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
     end 
   end
 
-  def meta_rewrite
-    # N.B. -- parse_tree will not be supported in ruby 1.9.
-    # however, we can still pass the "string" code of bud modules
-    # to ruby_parse (but not the "live" class)
-
-    depends = shred_rules
-
-    strat = stratify(depends) 
-
-    smap = {}
-    strat.tick
-    strat.tick
-    strat.tick
-    strat.stratum.each do |s|
-      #print "ST: STRAT OUT: #{s.inspect}\n"
-      smap[s[0]] = s[1]
-    end 
-
-    @rewritten_strata = []
-    depends.sort{|a, b| oporder(a[1]) <=> oporder(b[1])}.each do |d|
-      belongs_in = smap[d[0]]
-      belongs_in = 0 if belongs_in.nil?
-      if @rewritten_strata[belongs_in].nil?
-        @rewritten_strata[belongs_in] = ""
-      end
-      @rewritten_strata[belongs_in] = @rewritten_strata[belongs_in] + "\n"+ d[3] 
-    end
-
-    @rewritten_strata.each_with_index do |r, i|
-      #print "R[#{i}] is #{r}\n"
-    end
- 
-    #visualize(strat, "#{self.class}_gvoutput")
-  end
-
-  def visualize(strat, name)
+  def visualize2(strat, name)
     self.tick
     @tables.each do |t|
       @table_meta << [t[0], t[1].class]
@@ -122,7 +85,7 @@ class Bud
     gv.finish(name)
   end
 
-  def stratify(depends)
+  def stratify2(depends)
     strat = Stratification.new("localhost", 12345)
     #strat = StaticAnalysis.new("localhost", 12345)
     strat.tick
@@ -180,15 +143,7 @@ class Bud
     return strat
   end
 
-  def table_inf
-    tabinf = {}
-    @tables.each do |ti|
-      tabinf[ti[0].to_s] = ti[1].class
-    end
-    return tabinf
-  end
-
-  def shred_rules
+  def shred_rules2
     # to completely characterize the rules of a bud class we must extract
     # from all parent classes
 
@@ -214,7 +169,7 @@ class Bud
     return depends
   end
 
-  def oporder(op) 
+  def oporder2(op) 
     case op
       when '='
         return 0

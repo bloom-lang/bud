@@ -3,6 +3,161 @@ require 'rubygems'
 require 'bud/sane_r2r'
 require 'parse_tree'
 
+class Bud
+
+
+  def meta_rewrite
+    # N.B. -- parse_tree will not be supported in ruby 1.9.
+    # however, we can still pass the "string" code of bud modules
+    # to ruby_parse (but not the "live" class)
+
+    depends = shred_rules
+
+    strat = stratify(depends)
+
+    smap = {}
+    strat.tick
+    strat.tick
+    strat.tick
+    strat.stratum.each do |s|
+      #print "ST: STRAT OUT: #{s.inspect}\n"
+      smap[s[0]] = s[1]
+    end
+
+    @rewritten_strata = []
+    depends.sort{|a, b| oporder(a[1]) <=> oporder(b[1])}.each do |d|
+      belongs_in = smap[d[0]]
+      belongs_in = 0 if belongs_in.nil?
+      if @rewritten_strata[belongs_in].nil?
+        @rewritten_strata[belongs_in] = ""
+      end
+      @rewritten_strata[belongs_in] = @rewritten_strata[belongs_in] + "\n"+ d[3]
+    end
+
+    fout = File.new(self.class.to_s + "_rewritten.txt", "w")     
+    @rewritten_strata.each_with_index do |r, i|
+      fout.print "R[#{i}] :\n #{r}\n"
+    end
+    fout.close
+
+    #visualize(strat, "#{self.class}_gvoutput")
+    return @rewritten_strata
+  end
+
+  def shred_rules
+    # to completely characterize the rules of a bud class we must extract
+    # from all parent classes
+
+    # after making this pass, we no longer care about the names of methods.
+    # we are shredding down to the granularity of rule heads.
+    depends = []
+    done = {}
+    curr_class = self.class
+    until curr_class.nil?
+      @declarations.each do |d|
+        unless done[d]
+          pt = ParseTree.translate(curr_class, d)
+          unless pt[0].nil?
+            r = Rewriter.new
+            r.process(pt)
+            r.each {|r| depends << r}
+            done[d] = true
+          end
+        end
+      end
+      curr_class = curr_class.superclass
+    end
+    return depends
+  end
+
+
+
+  def stratify(depends)
+    strat = Stratification.new("localhost", 12345)
+    #strat = StaticAnalysis.new("localhost", 12345)
+    strat.tick
+
+    @tables.each do |t|
+      strat.tab_info << [t[0].to_s, t[1].class, t[1].schema.length]
+    #  @table_meta << [t[0], t[1].class]
+    end
+
+    heads = bodies = {}
+    depends.each do |d|
+      op = d[2][0].to_s
+      if op == "call" or op == "lasgn"
+        bodies[d[0]] = true
+      end
+    end
+
+    depends.each do |d|
+      subparser = Extractor.new
+      if bodies[d[0]]
+        if !strat.tab_info.include? d[0]
+          #strat.tab_info << [d[0], "temp alias", -1]
+          @table_meta << [d[0], "temp alias"]
+        end
+      end
+      #print "TRANSLATE: #{d[3]}\n"
+      begin
+        pt = ParseTree.translate(d[3])
+      rescue
+        print "Failed to translate #{d[3]}.\n"
+        #raise RuntimeError($!)
+      end
+      if d[1] == '<'
+        if d[3] =~ /-@/
+          realop = "<-"
+        else
+          realop = "<+"
+        end
+      else
+        realop = d[1]
+      end
+      subparser.process(pt)
+      subparser.each do |k, v|
+        strat.depends << [d[0], realop, k, v]
+      end
+
+      subparser.cols.each do |c|
+        strat.col_alias << [d[0], c[0], c[1], c[2]]
+      end
+      subparser.each_alias do |a|
+        strat.tab_alias << [d[0], a[0], a[1]]
+      end
+    end
+    strat.tick
+    return strat
+  end
+
+  def oporder(op)
+    case op
+      when '='
+        return 0
+      when '<<'
+        return 1
+      when '<='
+        return 2
+    else
+      return 3
+    end
+  end
+
+  
+  def visualize(strat, name)
+    self.tick
+    @tables.each do |t|
+      @table_meta << [t[0], t[1].class]
+    end
+    gv = Viz.new(strat.top_strat, strat.stratum, @table_meta, strat.cycle)
+    gv.process(strat.depends)
+    gv.finish(name)
+  end
+
+
+
+# ----indent.  fix.
+
 class Extractor < SaneR2R
   attr_reader :tabs, :cols, :aliases
 
@@ -45,7 +200,8 @@ class Extractor < SaneR2R
       end
     end
     if op == "include?"
-      @tabs[t] = 1
+      # PAA: temporarily disabled to debug leak
+      #@tabs[t] = 1
       ret = super
     elsif @nm[op]
       @nmcontext = @nmcontext + 1
@@ -160,11 +316,14 @@ class Rewriter < SaneR2R
       elsif len == 4
         # 'rule'
         op = clause[2].to_s
-        shove(lhs, op, clause)
+        if op[0,1].to_s != '<'
+          raise "Invalid op (#{op[0,1].to_s}) in top-level block #{clause.inspect}\n"
+        else
+          shove(lhs, op, clause)
+        end
       elsif lhs == ""
-        #print "DO nothing\n"
+        #print "DO nothing; lhs is empty\n"
       else
-        print "coming out of #{exp.inspect}\n"
         raise "Invalid top-level clause length #{len}: '#{clause.inspect}'"
       end
       
@@ -174,4 +333,4 @@ class Rewriter < SaneR2R
 end
 
 
-
+end
