@@ -16,18 +16,16 @@ class Clean < Bud
     table :cleaned, ['lineno', 'text']
   end
   
-  def declaration
-    strata[0] = rules {
-      matches <= join([text, carlin]).map{|t,c| [t.lineno, t.text, c.text] if t.text.include? c.text}
-    }
-    strata[1] = rules {
-      cleaned <= text.map do |t|
-        t unless matches.map{|m| [m.lineno]}.include? t.lineno
-      end
-      cleaned <= matches.map do |m|
-        [m.lineno, m.text.gsub(Regexp.new(m.word), '^%$*@')]
-      end
-    }
+  declare
+  def example
+    matches <= join([text, carlin]).map{|t,c| [t.lineno, t.text, c.text] if t.text.include? c.text}
+
+    cleaned <= text.map do |t|
+      t unless matches.map{|m| [m.lineno]}.include? t.lineno
+    end
+    cleaned <= matches.map do |m|
+      [m.lineno, m.text.gsub(Regexp.new(m.word), '^%$*@')]
+    end
   end
 end
 

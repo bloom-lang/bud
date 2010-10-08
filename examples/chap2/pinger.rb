@@ -25,12 +25,11 @@ class Pinger < Bud
     periodic :timer, ARGV[2]
   end
 
-  def declaration
-    strata[0] = rules {
-      # whenever we get a timer, send out a tuple
-      pingpongs <+ timer.map {|t| [@otherloc, @myloc, 'ping!', t.time, budtime]}      
-      pingpongs.each {|p| puts "Got #{p.inspect}"}
-    }
+  declare
+  def logic
+    # whenever we get a timer, send out a tuple
+    pingpongs <+ timer.map {|t| [@otherloc, @myloc, 'ping!', t.time, budtime]}      
+    pingpongs.each {|p| puts "Got #{p.inspect}"}
   end
 end
 

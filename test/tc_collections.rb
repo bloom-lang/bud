@@ -65,6 +65,19 @@ class Grep < Bud
   end
 end
 
+class Union < Bud
+  def state
+    table :link, ['from', 'to', 'cost']
+    table :delta_link, ['from', 'to', 'cost']
+    table :union, ['from', 'to', 'cost']
+  end
+  
+  declare
+  def prog
+    union <= (delta_link <= link).map{|e| [e.from, e.to, e.cost]}
+  end
+end
+
 class TestCollections < Test::Unit::TestCase
  
   def test_simple_deduction
@@ -115,5 +128,15 @@ class TestCollections < Test::Unit::TestCase
     lines = program.matches.map{|t| t}
     assert_equal(1, lines.length)
     assert_equal(44, lines[0][0])
+  end
+  
+  def test_union
+    s = Union.new('localhost', 12345)
+    s.state
+    s.link << ['a', 'b', 1]
+    s.delta_link << ['a', 'b', 4]
+    s.tick
+    assert_equal(2, s.union.length)
+    assert_equal("[[\"a\", \"b\", 4], [\"a\", \"b\", 1]]", s.union.map{|t| t}.inspect)
   end
 end

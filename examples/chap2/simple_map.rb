@@ -24,15 +24,10 @@ class SimpleMapper < Bud
     scratch     :nodecnt, ['cnt']
   end
 
-  def declaration
-    strata[0] = rules {
+  declare
+  def rules
       nodecnt <= nodelist.group([], count)
-    }
-    
-    strata[1] = rules {
-#      @mapper.in_table <= input.map{ |t| t }
-#      @mapper.tick
-#      map_out <= @mapper.out_table.map{ |t| t }
+
       input.each { |i| @mapper.do_map(map_out, i) }
         
       kvs <= join([map_out, nodecnt]).map do |mo,cnt|
@@ -42,11 +37,8 @@ class SimpleMapper < Bud
       kvs_addrs <= join([kvs, nodelist], [kvs.hashed, nodelist.lineno]).map do |k, n|
         [k.key, k.uniq, k.value, n.text]
       end
-    }
     
-    strata[2] = rules {
       reducers <+ kvs_addrs.map{ |t| [t.addr, t.key, t.uniq] }
-    }
   end
 end
 
@@ -56,12 +48,11 @@ class Splitter < Bud
     table :out_table, ['word', 'uniq'], ['cnt']
   end
   
-  def declaration
-    strata[1] = rules {
-      in_table.each do |t|
-        t.text.split.each_with_index{ |w,i| out_table << [w, t.lineno.to_s+':'+i.to_s, 1] }
-      end
-    }
+  declare
+  def rules
+    in_table.each do |t|
+      t.text.split.each_with_index{ |w,i| out_table << [w, t.lineno.to_s+':'+i.to_s, 1] }
+    end
   end
 
   def do_map(tbl, t)

@@ -19,22 +19,17 @@ class SimpleReducer < Bud
     scratch     :final, ['key'], ['value']
   end
 
-  def declaration
-    strata[0] = rules {
-      in_channel <= reducers.map {|t| t}
-    }
-    
-    strata[1] = rules {
-      near_final <= in_channel.reduce({}) do |memo, t|
-        memo[t.key] ||= @reducer.init(t)
-        memo[t.key] = @reducer.iter(memo[t.key], t)
-        memo
-      end
-    }
+  declare
+  def rules
+    in_channel <= reducers.map {|t| t}
 
-    strata[2] = rules {
-      final <= near_final.map {|t| [t.key, @reducer.final(t.value)]}
-    }
+    near_final <= in_channel.reduce({}) do |memo, t|
+      memo[t.key] ||= @reducer.init(t)
+      memo[t.key] = @reducer.iter(memo[t.key], t)
+      memo
+    end
+
+    final <= near_final.map {|t| [t.key, @reducer.final(t.value)]}
   end
 end
 

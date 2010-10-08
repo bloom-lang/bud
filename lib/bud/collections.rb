@@ -107,7 +107,7 @@
           when "last" then
             # fall through
           else
-            raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{vals.inspect}] into #{name}" unless store[keycols].nil? or vals == store[keycols]
+            raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{vals.inspect}] into #{name}: existing tuple [#{keycols.inspect}][#{store[keycols].inspect}]" unless store[keycols].nil? or vals == store[keycols]
         end
       end
       store[keycols] = vals #unless store[keycols]
@@ -132,7 +132,7 @@
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty? then 
         self.schema = o.schema 
       end
-      return delta
+      return self
     end
 
     alias <= merge
