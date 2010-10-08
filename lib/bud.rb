@@ -47,7 +47,7 @@ class Bud
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
     unless self.class <= Stratification
-      safe_rewrite
+      #safe_rewrite
     end
   end
   
@@ -72,8 +72,8 @@ class Bud
       defn = meta_rewrite
       # uncomment to see the rewrite -- it has already been installed if it succeeded.
        #puts defn
-    #rescue 
-    #  print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
+    rescue 
+      print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
     end 
   end
 
@@ -84,10 +84,7 @@ class Bud
 
     depends = shred_rules
 
-    print "start strat for #{self.class}\n"
     strat = stratify(depends) 
-    print "end strat\n"
-
 
     smap = {}
     strat.tick
@@ -109,7 +106,7 @@ class Bud
     end
 
     @rewritten_strata.each_with_index do |r, i|
-      print "R[#{i}] is #{r}\n"
+      #print "R[#{i}] is #{r}\n"
     end
  
     #visualize(strat, "#{self.class}_gvoutput")
