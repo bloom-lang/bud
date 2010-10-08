@@ -266,17 +266,19 @@ class Bud
     # declaration to be provided by user program
     @strata = []
     declaration
-    # the old way...
-    @declarations.each do |d|
-      #@strata << self.method(d).to_proc
-    end
-    @rewritten_strata.each_with_index do |r, i|
-      # FIX: move to compilation
-      str = r.nil? ? "" : r
-      block = lambda { eval(str) } 
-      @strata << block 
+    if @rewritten_strata.length > 0 
+      @rewritten_strata.each_with_index do |r, i|
+        # FIX: move to compilation
+        str = r.nil? ? "" : r
+        block = lambda { eval(str) } 
+        @strata << block 
+      end
+    else
+      # the old way...
+      @declarations.each do |d|
+        @strata << self.method(d).to_proc
+      end
     end 
-
     @strata.each { |strat| stratum_fixpoint(strat) }
     @channels.each { |c| @tables[c[0]].flush }
     reset_periodics 
