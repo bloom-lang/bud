@@ -1,3 +1,7 @@
+require 'rubygems'
+require 'bud'
+require 'test/unit'
+
 class ShortestPaths < Bud
   def initialize(ip, port)
     super(ip,port)
@@ -27,7 +31,7 @@ class ShortestPaths < Bud
 
     # second stratum
     shortest <= path.argagg(:min, [path.from, path.to], path.cost)
-    minmaxsumcntavg <= path.group([path.from, path.to], min(path.cost), min(path.cost), sum(path.cost), count, avg(path.cost))
+    minmaxsumcntavg <= path.group([path.from, path.to], min(path.cost), max(path.cost), sum(path.cost), count, avg(path.cost))
   end
 end
 
@@ -64,6 +68,7 @@ class TestAggs < Test::Unit::TestCase
   def test_paths
     program = ShortestPaths.new('localhost', 12345)
     assert_nothing_raised( RuntimeError) { program.tick }
+
     program.minmaxsumcntavg.each do |t|
       assert(t[2] <= t[3])
       assert_equal(t[4]*1.0 / t[5], t[6])

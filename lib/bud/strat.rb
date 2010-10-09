@@ -64,7 +64,7 @@ class Stratification < Bud
       end
     }
 
-    strata[3] = rules {
+    strata[2] = rules {
       stratum <= stratum_base.group([stratum_base.predicate], max(stratum_base.stratum))
       top_strat <= stratum_base.group(nil, max(stratum_base.stratum)) 
     }

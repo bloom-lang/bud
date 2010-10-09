@@ -157,9 +157,9 @@ class Bud
         unless done[d]
           pt = ParseTree.translate(curr_class, d)
           unless pt[0].nil?
-            r = Rewriter.new
-            r.process(pt)
-            r.each {|r| depends << r}
+            rewriter = Rewriter.new
+            rewriter.process(pt)
+            rewriter.each {|re| depends << re}
             done[d] = true
           end
         end
@@ -228,7 +228,7 @@ class Bud
         block = lambda { eval(str) } 
         @strata << block 
       end
-    else
+    elsif @declarations.length > 0
       # the old way...
       @declarations.each do |d|
         @strata << self.method(d).to_proc
