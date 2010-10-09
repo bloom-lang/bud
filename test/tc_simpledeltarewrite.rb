@@ -117,9 +117,6 @@ class TestDelta < Test::Unit::TestCase
     # I am "seminaive"
     iters = 0
     while (program.d_link.length > 0 or program.d_path.length > 0) do  
-      print "I: #{iters} L: #{program.d_link.length}, P: #{program.d_path.length}\n"
-
-      #program.d_path.each{|l| print "pATH: #{l.inspect}\n" }
       assert_nothing_raised( RuntimeError) { program.tick }
       iters = iters + 1
     end
