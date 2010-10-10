@@ -10,6 +10,13 @@ require 'parse_tree_extensions'
 
 class SaneR2R < Ruby2Ruby
 
+  def process_zarray(exp)
+    # band-aid: ruby2ruby doesn't know what a zarray is,
+    # and neither do I.  for now returning its contents as a string
+    # works for all existing examples...
+    return '[' + exp.to_s + ']'
+  end
+
   def process_defn(exp)
     type = exp[1].first
     if type.to_s == "bmethod" 
