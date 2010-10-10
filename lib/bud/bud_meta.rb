@@ -58,9 +58,9 @@ class Bud
         unless done[d]
           pt = ParseTree.translate(curr_class, d)
           unless pt[0].nil?
-            r = Rewriter.new
-            r.process(pt)
-            r.each {|r| depends << r}
+            rewriter = Rewriter.new
+            rewriter.process(pt)
+            rewriter.each {|re| depends << re}
             done[d] = true
           end
         end

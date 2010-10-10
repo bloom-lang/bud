@@ -115,9 +115,9 @@ class Bud
     @strata = []
     declaration
     if @rewritten_strata.length > 0 
-      @rewritten_strata.each_with_index do |r, i|
+      @rewritten_strata.each_with_index do |rs, i|
         # FIX: move to compilation
-        str = r.nil? ? "" : r
+        str = rs.nil? ? "" : rs
         block = lambda { eval(str) } 
         @strata << block 
       end
