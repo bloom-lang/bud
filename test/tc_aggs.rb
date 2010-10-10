@@ -73,7 +73,8 @@ class TestAggs < Test::Unit::TestCase
     assert_nothing_raised( RuntimeError) { program.tick }
 
     program.minmaxsumcntavg.each do |t|
-      print "REC: #{t.inspect}\n"
+      # why would t[4] be nil?
+      assert(t[4])
       assert(t[2] <= t[3])
       assert_equal(t[4]*1.0 / t[5], t[6])
     end
