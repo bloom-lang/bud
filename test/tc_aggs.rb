@@ -47,12 +47,15 @@ class PriorityQ < Bud
     scratch :out2, ['item'], ['priority']
   end
   
+  def once
+    q << ['c', 2] #if budtime == 1
+    q << ['d', 3] #if budtime == 1
+    q << ['a', 1] #if budtime == 1
+    q << ['b', 2] #if budtime == 1
+  end
+
   declare
   def program
-    q << ['c', 2] if budtime == 1
-    q << ['d', 3] if budtime == 1
-    q << ['a', 1] if budtime == 1
-    q << ['b', 2] if budtime == 1
 
     # second stratum
     out <= q.argagg(:min, [], q.priority)
@@ -70,6 +73,7 @@ class TestAggs < Test::Unit::TestCase
     assert_nothing_raised( RuntimeError) { program.tick }
 
     program.minmaxsumcntavg.each do |t|
+      print "REC: #{t.inspect}\n"
       assert(t[2] <= t[3])
       assert_equal(t[4]*1.0 / t[5], t[6])
     end
@@ -92,6 +96,7 @@ class TestAggs < Test::Unit::TestCase
   def test_argaggs
     program = PriorityQ.new('localhost', 12345)
     assert_nothing_raised (RuntimeError) { program.tick }
+    program.once
     argouts = program.out.map{|t| t}
     basicouts = program.out2.map{|t| t}
     assert_equal([], argouts - basicouts)

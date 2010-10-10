@@ -9,19 +9,16 @@ class BabyBud < Bud
     table :tbl, ['k1', 'k2'], ['v1', 'v2']
   end
   
-  declare
-  def program
-    if budtime == 1 then
+  def once
       scrtch <= [['a', 'b', 1, 2]]
       scrtch <= [['a', 'c', 3, 4]]
       scrtch2 <= [['a', 'b']]
       tbl <= [['a', 'b', 1, 2]]
       tbl <= [['z', 'y', 9, 8]]
 
-      scrtch <+ [['c', 'd', 5, 6]]
+      scrtch <+ [['c', 'd', 5, 6]] 
       tbl <+ [['c', 'd', 5, 6]]
-      tbl <- [['a', 'b', 1, 2]]
-    end
+      tbl <- [['a', 'b', 1, 2]] 
   end
 end
 
@@ -87,6 +84,7 @@ class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new('localhost', 12345)
     assert_nothing_raised( RuntimeError) { program.tick }
+    program.once
     assert_equal(2, program.scrtch.length )
     assert_equal(1, program.scrtch2.length )
     assert_equal(2, program.tbl.length )
@@ -95,6 +93,7 @@ class TestCollections < Test::Unit::TestCase
   def test_tuple_accessors
     program = BabyBud.new('localhost', 12345)
     assert_nothing_raised( RuntimeError) { program.tick }
+    program.once
     # assert_equal('a', program.scrtch.first.k1)
     # assert_equal('b', program.scrtch.first.k2)
     assert_equal(1, program.scrtch[['a','b']].v1)
@@ -105,6 +104,7 @@ class TestCollections < Test::Unit::TestCase
     program = BabyBud.new('localhost', 12345)
     # tick twice to get to 2nd timestep
     assert_nothing_raised( RuntimeError) { program.tick }
+    program.once
     assert_nothing_raised( RuntimeError) { program.tick }
     assert_equal(1, program.scrtch.length )
     assert_equal(0, program.scrtch2.length )
