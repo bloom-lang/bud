@@ -197,7 +197,13 @@
     def group(keys, *aggpairs)    
       keys = [] if keys.nil?
       keynames = keys.map {|k| k[2]}
-      retval = BudScratch.new('temp', keynames, @schema - keynames, bud_instance)
+      aggcolsdups = aggpairs.map{|ap| ap[0].class.name.split("::").last}
+      aggcols = []
+      aggcolsdups.each_with_index do |n,i|
+        aggcols << ((aggcolsdups.select{|ca| ca==n}.length > 1) ? "#{n.downcase}_#{i}" : n)
+      end
+      retval = BudScratch.new('temp', keynames, aggcols, bud_instance)
+#      retval = BudScratch.new('temp', keynames, @schema - keynames, bud_instance)
       tups = self.inject({}) do |memo,p| 
         pkeys = keynames.map{|n| p.send(n.to_sym)}
         memo[pkeys] = [] if memo[pkeys].nil?
