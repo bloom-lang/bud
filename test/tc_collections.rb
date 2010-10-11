@@ -43,7 +43,7 @@ end
 
 class DupColBud < Bud
   def state
-    scratch :s ['a', 'a']
+    scratch :silly, ['a', 'a']
   end
 end
 

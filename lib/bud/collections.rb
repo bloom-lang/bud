@@ -13,7 +13,7 @@
       init_storage
       init_pending
       @bud_instance = b_class
-      raise BudError, "schema contains duplicate names" if schema.uniq.length < schema.length
+      raise BudError, "schema for #{name} contains duplicate names" if schema.uniq.length < schema.length
       schema_accessors
     end
 
