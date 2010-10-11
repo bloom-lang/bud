@@ -67,13 +67,30 @@ class PriorityQ < Bud
   end
 end
 
+class DupAggs < Bud
+  def state
+    table :tab, ['i']
+#    scratch :out, ['s1', 's2']
+  end
+  
+  def once
+    tab << [1]
+    tab << [2]
+  end
+  
+  declare
+  def prog
+    out = tab.group(nil,sum(tab.i), sum(tab.i))
+    p out.inspect
+  end
+end
+
 class TestAggs < Test::Unit::TestCase
   def test_paths
     program = ShortestPaths.new('localhost', 12345)
     assert_nothing_raised( RuntimeError) { program.tick }
 
     program.minmaxsumcntavg.each do |t|
-      # why would t[4] be nil?
       assert(t[4])
       assert(t[2] <= t[3])
       assert_equal(t[4]*1.0 / t[5], t[6])
@@ -84,6 +101,9 @@ class TestAggs < Test::Unit::TestCase
     shorts = program.shortest.map {|s| [s.from, s.to, s.cost]}
     costs = program.minmaxsumcntavg.map {|c| [c.from, c.to, c.mincost]}
     assert_equal([], shorts - costs)
+  end
+  
+  def test_dup_aggs
   end
   
   def test_non_exemplary

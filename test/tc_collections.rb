@@ -117,7 +117,7 @@ class TestCollections < Test::Unit::TestCase
   end
   
   def test_dup_columns
-    program = DupTableBud.new('localhost', 12345)
+    program = DupColBud.new('localhost', 12345)
     assert_raise( Bud::BudError ) { program.tick }
   end
 
