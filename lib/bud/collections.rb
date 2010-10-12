@@ -193,6 +193,14 @@
       end
       retval.merge(finals)      
     end
+    
+    def argmin(gbkeys, col)
+      argagg(:min, gbkeys, col)
+    end
+    
+    def argmax(gbkeys, col)
+      argagg(:max, gbkeys, col)
+    end
 
     def group(keys, *aggpairs)    
       keys = [] if keys.nil?

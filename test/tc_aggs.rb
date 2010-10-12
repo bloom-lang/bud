@@ -30,7 +30,7 @@ class ShortestPaths < Bud
     end
 
     # second stratum
-    shortest <= path.argagg(:min, [path.from, path.to], path.cost)
+    shortest <= path.argmin([path.from, path.to], path.cost)
     minmaxsumcntavg <= path.group([path.from, path.to], min(path.cost), max(path.cost), sum(path.cost), count, avg(path.cost))
   end
 end
