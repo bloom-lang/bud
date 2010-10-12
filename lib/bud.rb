@@ -49,6 +49,8 @@ class Bud
     unless self.class <= Stratification
       safe_rewrite
     end
+    
+    state
   end
   
   ########### give empty defaults for these

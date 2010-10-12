@@ -112,13 +112,11 @@ class TestCollections < Test::Unit::TestCase
   end
   
   def test_dup_tables
-    program = DupTableBud.new('localhost', 12345)
-    assert_raise( Bud::BudError ) { program.tick }
+    assert_raise( Bud::BudError ) {program = DupTableBud.new('localhost', 12345)}
   end
   
   def test_dup_columns
-    program = DupColBud.new('localhost', 12345)
-    assert_raise( Bud::BudError ) { program.tick }
+    assert_raise( Bud::BudError ) {program = DupColBud.new('localhost', 12345)}
   end
 
   def test_dup_keys
