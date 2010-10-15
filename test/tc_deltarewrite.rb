@@ -16,7 +16,6 @@ class Paths < Bud
   
   declare
   def program
-    # this is the program a user might write.
     path <= link.map{|e| (@cnt = @cnt + 1) and [e.from, e.to] }
 
     j = join [link, path], [path.from, link.to]
@@ -38,17 +37,17 @@ class SP2 < Paths
     super
     scratch :d_link, ['from', 'to']
     scratch :d_path, ['from', 'to']
+
+    table :n_link, ['from', 'to']
+    table :n_path, ['from', 'to']
   end
 
   declare
   def program
-    # this is the delta-rewritten program.  it is a shame that we need
-    # to duplicate both the join assignment statement and the rule that
-    # uses the join.
     d_path <+ d_link.map{|e| (@cnt = @cnt + 1) and [e.from, e.to]}
 
-    j = join [d_link, path], [path.from, d_link.to]
-    j2 = join [link, d_path], [d_path.from, link.to]
+    j = join [d_link, n_path], [n_path.from, d_link.to]
+    j2 = join [n_link, d_path], [d_path.from, n_link.to]
 
     d_path <+ j.map do |l,p|
       (@pcnt = @pcnt + 1) and [l.from, p.to] 
@@ -61,8 +60,19 @@ class SP2 < Paths
 
   declare
   def next_strat
-    path <+ d_path.map{|p| (@m1cnt = @m1cnt + 1) and p}
-    link <+ d_link.map{|l| (@m2cnt = @m2cnt + 1) and l}
+    n_path <+ d_path.map{|p| (@m1cnt = @m1cnt + 1) and p}
+    n_link <+ d_link.map{|l| (@m2cnt = @m2cnt + 1) and l}
+  end
+
+  declare 
+  def alfinal
+    link <+ n_link.map{|n| n if d_link.empty? and d_path.empty?}
+    path <+ n_path.map{|n| n if d_link.empty? and d_path.empty?}
+
+    # need to clean up the intermediates
+    n_link <+ n_link.map{|n| n if d_link.empty? and d_path.empty?}
+    n_path <+ n_path.map{|n| n if d_link.empty? and d_path.empty?}
+
   end
 end
 
@@ -122,13 +132,8 @@ class TestDelta < Test::Unit::TestCase
     while (program.d_link.length > 0 or program.d_path.length > 0) do  
       assert_nothing_raised( RuntimeError) { program.tick }
       iters = iters + 1
-      # however, intermediate results are visible at each step of iteration:
-      case iters
-        when 1 then assert_equal(program.path.length, 4)
-        when 2 then assert_equal(program.path.length, 7)
-        when 3 then assert_equal(program.path.length, 9)
-        when 4 then assert_equal(program.path.length, 10)
-      end
+      # intermediate results are not visible.
+      assert_equal(0, program.path.length)
     end
 
     # 4 iterations were required to process a graph w/ diameter 4
@@ -136,11 +141,12 @@ class TestDelta < Test::Unit::TestCase
    
     # m1cnt: # of times a d_link tuple was 'stored' in link
     # m2cnt: # of times a d_path tuple was 'stored' in path
-    # 40 times? huh? 
     assert_equal(10, program.m1cnt)
     assert_equal(4, program.m2cnt)
-    # and in fact these counts are final:
+    # and in fact these counts are final (though we need one more tick to finalize 
+    # the visible predicates):
     assert_nothing_raised( RuntimeError) { program.tick }
+
     assert_equal(10, program.m1cnt)
     assert_equal(4, program.m2cnt)
 
