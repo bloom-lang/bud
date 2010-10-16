@@ -7,6 +7,7 @@ require 'tc_vars'
 require 'tc_aggs'
 require 'tc_wordcount'
 require 'tc_inheritance'
+require 'tc_meta'
 
 # require 'tc_bcast'
 # require 'tc_cart'
