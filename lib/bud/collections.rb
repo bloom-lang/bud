@@ -142,7 +142,7 @@
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty? then 
         self.schema = o.schema 
       end
-      return delta
+      return @pending
     end
 
     superator "<+" do |o|
@@ -239,6 +239,7 @@
     end
     
     def dump
+      puts '(empty)' if (@storage.length == 0)
       @storage.sort.each do |t| 
         puts t.inspect unless cols.empty?
         puts t[0].inspect if cols.empty?

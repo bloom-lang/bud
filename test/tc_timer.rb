@@ -10,7 +10,7 @@ class TemporalBudTest < Bud
 
   declare 
   def logic
-    log <= tik.map{|t| t} 
+    log <= tik 
   end
 end
 
@@ -19,7 +19,8 @@ class TestTimer < Test::Unit::TestCase
   def test_timer
     t = TemporalBudTest.new("localhost", 17890)
     assert_nothing_raised(RuntimeError) { t.run_bg }
-    sleep 10
-    assert_operator(9, :<, t.log.length)
+    sleep 5
+    assert_operator(3, :<, t.log.length)
+    assert_operator(7, :>, t.log.length)
   end
 end

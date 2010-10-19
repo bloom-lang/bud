@@ -89,7 +89,7 @@ class Bud
       end
     end
     # not clean
-    sleep 1
+    sleep 0.1
   end
   def run
     begin 
@@ -97,6 +97,10 @@ class Bud
         EventMachine::start_server(@ip, @port, Server, self) { |con|
           #          con.bud = self # pass this Bud object into the connection
         }
+        # initialize periodics
+        @periodics.each do |p|
+          set_timer(p.name, p.ident, p.duration)
+        end
         tick
       }
     end
@@ -132,6 +136,7 @@ class Bud
     @strata.each { |strat| stratum_fixpoint(strat) }
     @channels.each { |c| @tables[c[0]].flush }
     reset_periodics 
+    return @budtime
   end
 
   # handle any inbound tuples off the wire and then clear
@@ -227,7 +232,6 @@ class Bud
     unless @periodics.has_key? [name]
       retval = [name, gen_id, duration]
       @periodics << retval
-      set_timer(name, retval[1], duration) 
     else
       retval = @periodics.find([name]).first
     end
