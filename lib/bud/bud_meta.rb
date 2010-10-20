@@ -29,6 +29,7 @@ class Bud
       if @rewritten_strata[belongs_in].nil?
         @rewritten_strata[belongs_in] = ""
       end
+  
       unless done[d[0]]
         @rewritten_strata[belongs_in] = @rewritten_strata[belongs_in] + "\n"+ d[5] 
       end
@@ -86,15 +87,17 @@ class Bud
     subd = {}
     done = {}
     curr_class = self.class
+    seed = 0
     until curr_class.nil?
       @declarations.each do |d|
         unless done[d]
           pt = ParseTree.translate(curr_class, d)
           unless pt[0].nil?
-            rewriter = Rewriter.new
+            rewriter = Rewriter.new(seed)
             rewriter.process(pt)
             rewriter.each {|re| depends << re}
             done[d] = true
+            seed = rewriter.rule_indx
           end
         end
       end

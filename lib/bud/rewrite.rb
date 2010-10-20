@@ -11,19 +11,20 @@ class Rewriter < SaneR2R
   # relation and to decompose the user-supplied code by rule so 
   # that we can rewrite in in stratum order.
 
-  attr_reader :tabs, :cols, :aliases
+  attr_reader :tabs, :cols, :aliases, :rule_indx
 
-  def initialize
+  def initialize(seed)
     @rules = []
     @aliases={}
-    @suppress = @rule_indx = 0; 
+    @suppress = 0; 
+    @rule_indx = seed + 1
     @tabs = {}
     @currtab = nil
     @nm = {"group", 1, "argagg", 1, "include?", 1}
     @nmcontext = 0
     @cols = []
     newtab(nil)
-    super
+    super()
   end
 
   # helper routines
