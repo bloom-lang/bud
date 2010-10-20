@@ -13,7 +13,7 @@ class Rewriter < SaneR2R
 
   attr_reader :tabs, :cols, :aliases, :rule_indx
 
-  def initialize(seed)
+  def initialize(seed, prov)
     @rules = []
     @aliases={}
     @suppress = 0; 
@@ -23,14 +23,15 @@ class Rewriter < SaneR2R
     @nm = {"group", 1, "argagg", 1, "include?", 1}
     @nmcontext = 0
     @cols = []
+    @provenance = prov
     newtab(nil)
     super()
   end
 
   # helper routines
-
   def newtab(t)
-    @currtab = t
+    return if t == "print"
+    @currtab = t 
     @offset = 0
     @aliases[t] = []
   end
@@ -75,6 +76,7 @@ class Rewriter < SaneR2R
     return  (l.class == Symbol) ? l.to_s : l.nil? ? "" : process(l.clone)
   end
 
+  #######################
   # iterators
 
   def each_deltas
@@ -108,9 +110,25 @@ class Rewriter < SaneR2R
 
   def process_array(exp)
     cxt = self.context[1].to_s
-    # suppress those dang angle brackets
-    if cxt == "arglist" or cxt == "masgn" 
+    #print "CXT #{cxt} grouoing #{@grouping} exp #{exp.inspect}\n"
+    # suppress those dang angle brackets...
+    if cxt == "masgn" 
       return "#{process_arglist(exp)}"
+    elsif cxt == "arglist"
+      if @grouping and @provenance
+        return "#{process_arglist(exp)}, prov_agg(#{@currtab}.prov)"
+      else
+        return "#{process_arglist(exp)}"
+      end
+    elsif cxt == 'fcall' or cxt == 'array'
+      return "[#{process_arglist(exp)}]"
+    elsif @provenance
+      print "PROV! PROV!\n"
+      provstr = @aliases[@currtab].map do |a| 
+        "#{a}.prov.nil? ? \"#{a}(\" + #{a}.join(',') + ')' : #{a}.prov"
+      end
+      print "provstr is #{provstr}\n"
+      return "[#{process_arglist(exp)},  prov_cat(#{@rule_indx}, #{provstr.join(',')})]"
     else
       return "[#{process_arglist(exp)}]"
     end
@@ -125,8 +143,8 @@ class Rewriter < SaneR2R
   end
 
   def process_block(exp)
-    # PAA clean next
     # shift off the 'args'
+    #print "BLOCK: #{exp.inspect}\n"
     exp.shift
     until exp.empty?
       clause = exp.shift
@@ -151,13 +169,14 @@ class Rewriter < SaneR2R
   end
 
   def process_dasgn_curr(exp)
-    @aliases[@currtab] << exp[0].to_s
+    @aliases[@currtab] << exp[0].to_s unless exp[0].to_s.nil?
     super
   end
 
   def process_call(exp)
     op = exp[1].to_s
     if exp.length == 2
+      #print "CALL HAS 2: #{exp.inspect}\n"
       l = exp[0][0] 
       if l.to_s == 'dvar'
         aliass = exp[0][1].to_s
@@ -172,12 +191,17 @@ class Rewriter < SaneR2R
       @tabs[tab] = 1
       ret = super
     elsif @nm[op]
+      if op == "group"
+        #print "GRoUPING(#{exp.length}): #{exp.inspect}. need to add a provenance argument\n"
+        @grouping = true
+      end
       @nmcontext = @nmcontext + 1
       ret = super exp
       @nmcontext = @nmcontext - 1
     else
       ret = super
     end
+    @grouping = false
     return ret
   end
 
@@ -197,6 +221,13 @@ class Rewriter < SaneR2R
       end
     end
     return "TABLE(#{exp.shift.to_s})"
+  end
+
+  def process_fcall(exp)
+    # to keep our alias table clean
+    t = exp[0].to_s
+    newtab(t)
+    super
   end
 
   def each_alias

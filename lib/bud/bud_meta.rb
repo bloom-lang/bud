@@ -5,6 +5,39 @@ require 'bud/rewrite'
 require 'parse_tree'
 
 class Bud
+  # provenance helper procedures 
+  def prov_cat(rule, *args)
+    return "r#{rule}[#{@budtime}](" + args.join(", ") + ")"
+    d = Derivation.new(rule, @budtime)
+    args.each do |sg|
+      #print "APPEND #{sg.inspect}\n"
+      d.append(sg)
+    end
+    return d
+  end
+
+  def whence_p(data, lvl)
+    #print "PROV IS #{prov}\n"
+    # string stuff for now...
+    if data =~ /^(\w+)\[(\d*)\](\(.+)/
+      #print "MATCH! #{$1} #{$2} (rem #{$3})\n"
+      if $1 == "agg"
+        $3.split(";").each do |spl|
+          print "AGG contrib: (#{spl.class}) : #{spl.inspect}\n"
+          whence_p(spl, lvl + 1)
+        end
+      else
+        print "rule #{$1}, time #{$2}, rest #{$3}\n"
+      end
+    else 
+      print "no match\n"
+    end
+  end
+
+  def whence(datum)
+    prov = datum[datum.length - 1]
+    whence_p(prov, 0)
+  end
 
   def meta_rewrite
     # N.B. -- parse_tree will not be supported in ruby 1.9.
@@ -36,7 +69,7 @@ class Bud
       done[d[0]] = true
     end
 
-    @rewritten_strata << write_postamble
+    ###@rewritten_strata << write_postamble
     ###create_delta_tables
     #visualize(strat, "#{self.class}_gvoutput")
     dump_rewrite
@@ -48,7 +81,7 @@ class Bud
     @tables.each do |t|
       nm = t[1].name
       if nm.class == Symbol
-   ####     postamble = postamble + "#{nm.to_s} <+ #{nm.to_s}_delta.map{|i| i }\n"
+        postamble = postamble + "#{nm.to_s} <+ #{nm.to_s}_delta.map{|i| i }\n"
       end
     end
     return postamble
@@ -62,19 +95,39 @@ class Bud
     fout.close
   end
 
+  def tables_each
+    @tables.each do |t|
+      #print "TABE: #{t.inspect}\n"
+      if t[1].name.class == Symbol
+        yield t[1]
+      end
+    end
+  end
+
   def create_delta_tables
     statements = []
-    @tables.each do |t|
-      tm = t[1].name
-      if tm.class == Symbol
-        dname = tm.to_s + "_delta"
-        str = "scratch :" + dname + ", [" + t[1].schema.map{|i| "\"#{i}\""}.join(",") + "]"
-        statements << str
-      end
+    tables_each do |t|
+      tm = t.name
+      dname = tm.to_s + "_delta"
+      str = "scratch :" + dname + ", [" + t.schema.map{|i| "\"#{i}\""}.join(",") + "]"
+      statements << str
     end
     statements.each do |st|
       eval ( st )
     end
+  end
+
+  def provenance_extend
+    #print "EXTEND!\n"
+    tables_each do |t|
+      #print "pUSH ontto #{t.name.to_s} schema #{t.schema.class} (#{t.schema.join(",")})\n"
+      t.schema.push("prov")
+      # con cari~no
+      t.keys.push("prov")
+      t.schema_accessors
+      #print "now it's #{t.schema.join(",")}\n"
+    end
+    #print "DONE EXtending\n"
   end
 
   def shred_rules
@@ -93,7 +146,7 @@ class Bud
         unless done[d]
           pt = ParseTree.translate(curr_class, d)
           unless pt[0].nil?
-            rewriter = Rewriter.new(seed)
+            rewriter = Rewriter.new(seed, @provenance)
             rewriter.process(pt)
             rewriter.each {|re| depends << re}
             done[d] = true

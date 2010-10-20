@@ -41,7 +41,7 @@ class TestMeta < Test::Unit::TestCase
     program = ShortestPaths.new('localhost', 12345)
     assert_equal(0, program.strata.length)
     assert_nothing_raised( RuntimeError) { program.tick }
-    assert_equal(5, program.strata.length)
+    assert_equal(4, program.strata.length)
   end
   
 end

@@ -1,4 +1,4 @@
-require 'enumerator'
+ 'enumerator'
 require 'msgpack'
 require 'eventmachine'
 require 'socket'
@@ -23,7 +23,7 @@ class Bud
   include Anise
   annotator :declare
 
-  def initialize(ip, port)
+  def initialize(ip, port, options = nil)
     @tables = {}
     @table_meta = []
     @strata = []
@@ -35,6 +35,9 @@ class Bud
     @connections = {}
     @inbound = []
     @declarations = []
+    unless options.nil?
+      @provenance = options['provenance']
+    end
     self.class.ancestors.each do |anc|
       @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact if anc.methods.include? 'annotation'
     end
@@ -44,13 +47,15 @@ class Bud
     @vars = table :vars_tbl, ['name'], ['value']
     @tmpvars = scratch :tmpvars_tbl, ['name'], ['value']
 
+    state
+
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
     unless self.class <= Stratification
       safe_rewrite
+      provenance_extend if @provenance
     end
-    
-    state
+   
   end
   
   ########### give empty defaults for these
@@ -110,10 +115,8 @@ class Bud
     @budtime += 1
     # reset any schema stuff that isn't already there
     # state to be defined by the user program
-
-    #print "#{self.class}.tick: budtime #{@budtime}\n"
-    state
-
+    # rethink this.
+    state unless @provenance
     receive_inbound
 
     # load the rules as a closure (will contain persistent tuples and new inbounds)
