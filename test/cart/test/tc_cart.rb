@@ -57,6 +57,7 @@ class TestCart < TestLib
       print "PBT: #{b.inspect}\n"
     end
     print "BTlen = #{program.bigtable.length}\n"
+
   
     assert_equal(2, program.memory.length)
     program.memory.each do |a|

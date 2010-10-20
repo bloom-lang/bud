@@ -29,7 +29,7 @@ class TestKVS < TestLib
     
   end
 
-  def ntest_wl3
+  def test_wl3
     # the metered kvs succeeds on the naive workload
     v = MeteredKVS.new("localhost", 12350)
     assert_nothing_raised(RuntimeError) {v.run_bg}
@@ -41,7 +41,7 @@ class TestKVS < TestLib
   end
 
 
-  def ntest_wl4
+  def test_wl4
     # the metered kvs also succeeds on a disorderly workload
     v = MeteredKVS.new("localhost", 12351)
     assert_nothing_raised(RuntimeError) {v.run_bg}
@@ -61,7 +61,7 @@ class TestKVS < TestLib
   end
 
 
-  def ntest_wl5
+  def test_wl5
     # the unmetered kvs fails on a disorderly workload
     v = BudKVS.new("localhost", 12352)
     assert_nothing_raised(RuntimeError) {v.run_bg}

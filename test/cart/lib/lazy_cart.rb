@@ -6,11 +6,7 @@ class BasicCartServer < Bud
     table :cart_action, ['session', 'item', 'action', 'reqid']
     table :action_cnt, ['session', 'item', 'action'] , ['cnt']
     scratch :status, ['server', 'client', 'session', 'item'], ['cnt']
-
     table :member, ['player']
-
-
-
     table :acked, ['server', 'peer', 'reqid']
 
     # this was the guard
@@ -37,15 +33,15 @@ class BasicCartServer < Bud
       action_cnt <+ cart_action.group([cart_action.session, cart_action.item, cart_action.action], count(cart_action.reqid))
       action_cnt <+ cart_action.map{|a| [a.session, a.item, 'D', 0] unless cart_action.map{|c| [c.session, c.item] if c.action == "D"}.include? [a.session, a.item]}
 
-      #action_cnt <= cart_action.group([cart_action.session, cart_action.item, cart_action.action], count(cart_action.reqid))
-      #action_cnt <= cart_action.map{|a| [a.session, a.item, 'D', 0] unless cart_action.map{|c| [c.session, c.item] if c.action == "D"}.include? [a.session, a.item]}
+      ##action_cnt <= cart_action.group([cart_action.session, cart_action.item, cart_action.action], count(cart_action.reqid))
+      ##action_cnt <= cart_action.map{|a| [a.session, a.item, 'D', 0] unless cart_action.map{|c| [c.session, c.item] if c.action == "D"}.include? [a.session, a.item]}
     end
 
-  declare 
-    def acks
-      #ack <+ action.map {|a| [a.client, a.server, a.reqid] }
-      #acked <= ack.map{|a| a}
-    end
+  #declare 
+  #  def acks
+  #    #ack <+ action.map {|a| [a.client, a.server, a.reqid] }
+  #    #acked <= ack.map{|a| a}
+  #  end
 
   declare
     def consider
@@ -55,26 +51,26 @@ class BasicCartServer < Bud
         end
       end
 
-      response_msg <+ status.map do |s| 
-	      s
-      end
+      #response_msg <+ status.map do |s| 
+	    #  s
+      #end
 
     end
 
-  declare
-    def replicate
-      action_msg <+ join([action_msg, member]).map do |a, m|
-        unless acked.map{|ac| [ac.peer, ac.reqid]}.include? [m.player, a.reqid]
-          [m.player, a.server, a.session, a.item, a.action, a.reqid]
-        end
-      end
-    end
+  #declare
+  #  def replicate
+  #    #action_msg <+ join([action_msg, member]).map do |a, m|
+  #   #  unless acked.map{|ac| [ac.peer, ac.reqid]}.include? [m.player, a.reqid]
+  ##    #    [m.player, a.server, a.session, a.item, a.action, a.reqid]
+  #    #  end
+  #    #end
+  #  end
 
   declare
     def client
       action_msg <+ client_action.map{|a| a}
       checkout_msg <+ client_checkout.map{|a| a}
-
+  
       memory <= response_msg.map{|r| r}
     end
 end

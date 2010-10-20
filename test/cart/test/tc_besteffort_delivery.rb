@@ -10,10 +10,11 @@ class TestBEDelivery < TestDelivery
     sendtup = ['localhost:11116', 'localhost:11115', 1, 'foobar']
     rd.pipe <+ [ sendtup ]
     soft_tick(rd)
-    soft_tick(rd)
 
     assert_equal(1, rd.pipe.length)
     assert_equal(sendtup, rd.pipe.first)
+
+    soft_tick(rd)
 
     # transmission 'complete'
     assert_equal(1, rd.pipe_out.length)
