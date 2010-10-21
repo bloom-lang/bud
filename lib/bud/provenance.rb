@@ -19,6 +19,7 @@ class Bud
     end
     def final(state)
       "agg[#{@budtime}](" + state.join(";") + ")"
+
     end
   end
 
@@ -26,16 +27,10 @@ class Bud
     [ProvConcatenate.new, x]
   end
 
-
   # the scalar UDF for this particular provenance implementation
   def prov_cat(rule, *args)
     return "r#{rule}[#{@budtime}](" + args.join(": ") + ")"
-    args.each do |sg|
-      d.append(sg)
-    end
-    return d
   end
-
 
   # pretty printing stuff
   def tabs(cnt)
@@ -76,8 +71,9 @@ class Bud
   end
 
   def whence(datum)
-    print "WHENCE(#{datum.inspect}) ?\n\n"
-    prov = datum[datum.length - 1]
+    copy = datum.clone
+    prov = copy.pop
+    print "WHENCE(#{copy.inspect}) ?\n\n"
     whence_p(prov, 0)
   end
 
