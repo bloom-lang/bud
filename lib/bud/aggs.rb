@@ -93,20 +93,4 @@ class Bud
     [Avg.new, x]
   end
 
-  class Concatenate < Agg
-    def init(val)
-      [val]
-    end
-    def trans(state, val)
-      retval = state
-      retval << val
-    end
-    def final(state)
-      "agg[#{@budtime}](" + state.join(";") + ")"
-    end
-  end 
-  def prov_agg(x)
-    [Concatenate.new, x]
-  end   
-
 end

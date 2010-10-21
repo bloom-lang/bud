@@ -2,42 +2,10 @@ require 'rubygems'
 
 require 'bud/sane_r2r'
 require 'bud/rewrite'
+require 'bud/provenance'
 require 'parse_tree'
 
 class Bud
-  # provenance helper procedures 
-  def prov_cat(rule, *args)
-    return "r#{rule}[#{@budtime}](" + args.join(", ") + ")"
-    d = Derivation.new(rule, @budtime)
-    args.each do |sg|
-      #print "APPEND #{sg.inspect}\n"
-      d.append(sg)
-    end
-    return d
-  end
-
-  def whence_p(data, lvl)
-    #print "PROV IS #{prov}\n"
-    # string stuff for now...
-    if data =~ /^(\w+)\[(\d*)\](\(.+)/
-      #print "MATCH! #{$1} #{$2} (rem #{$3})\n"
-      if $1 == "agg"
-        $3.split(";").each do |spl|
-          print "AGG contrib: (#{spl.class}) : #{spl.inspect}\n"
-          whence_p(spl, lvl + 1)
-        end
-      else
-        print "rule #{$1}, time #{$2}, rest #{$3}\n"
-      end
-    else 
-      print "no match\n"
-    end
-  end
-
-  def whence(datum)
-    prov = datum[datum.length - 1]
-    whence_p(prov, 0)
-  end
 
   def meta_rewrite
     # N.B. -- parse_tree will not be supported in ruby 1.9.
