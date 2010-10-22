@@ -7,13 +7,15 @@ require 'parse_tree'
 
 class Bud
 
+  attr_reader :shredded_rules
+
   def meta_rewrite
     # N.B. -- parse_tree will not be supported in ruby 1.9.
     # however, we can still pass the "string" code of bud modules
     # to ruby_parse (but not the "live" class)
 
-    rules = shred_rules
-    strat = stratify(rules)
+    @shredded_rules = shred_rules
+    strat = stratify(@shredded_rules)
 
     smap = {}
     strat.stratum.each do |s|
@@ -24,7 +26,7 @@ class Bud
     # temporary suppression of delta rule duplication
     done = {}
     @rewritten_strata = []
-    rules.sort{|a, b| oporder(a[2]) <=> oporder(b[2])}.each do |d|
+    @shredded_rules.sort{|a, b| oporder(a[2]) <=> oporder(b[2])}.each do |d|
       belongs_in = smap[d[1]]
       belongs_in = 0 if belongs_in.nil?
       if @rewritten_strata[belongs_in].nil?

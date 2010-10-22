@@ -19,7 +19,7 @@ class Bud
     end
     def final(state)
       "agg[#{@budtime}](" + state.join(";") + ")"
-
+      ["agg", state]
     end
   end
 
@@ -27,9 +27,26 @@ class Bud
     [ProvConcatenate.new, x]
   end
 
+  def each_p(arr)
+    # there is presumably a pretty, ruby-idiomatic way to do this.  but...
+    arr.each_with_index do |o, i|
+      yield [o, arr[i+1]] if (i % 2) == 0
+    end
+  end
+
+
   # the scalar UDF for this particular provenance implementation
   def prov_cat(rule, *args)
-    return "r#{rule}[#{@budtime}](" + args.join(": ") + ")"
+    stms = []
+    each_p(args) do |name, tuple|
+      print "name=#{name}, tuple = #{tuple.inspect}\n"
+      if tuple.prov.nil?
+        stms << [name, tuple]
+      else
+        stms << tuple.prov
+      end  
+    end
+    return ["r#{rule}", stms]
   end
 
   # pretty printing stuff
@@ -41,36 +58,37 @@ class Bud
     return str
   end 
 
-  def eat_outer_parens(str)
-    ret =  str.sub(/^\s*\(/, "").sub(/\)\s*\z/, "")
-    #print "from str #{str} I got ret #{ret}\n"
-    return ret
-  end
-
   def whence_p(data, lvl)
     # string stuff for now...
-    if data =~ /^\s*([a-zA-Z0-9]+)\[(\d*)\](\(.+)/
-      rule = $1; tm = $2; rem = $3
-      if rule == "agg"
-        rem.split(";").each do |spl|
-          print tabs(lvl) + "AGG contrib: (#{spl.class}) : #{spl.inspect}\n"
-          rest = eat_outer_parens(spl)
-          whence_p(rest, lvl + 1)
-        end
-      else
-        items = rem.split(":")
-        first = items.shift
-        rest = eat_outer_parens(items.join(":"))
-        print tabs(lvl) + "rule #{rule} at time #{tm} applied rest #{first} \n"
-        #print "call whence on remainder *#{rest}*\n"
-        whence_p(rest, lvl + 1)
+    #print "DATA: #{data.inspect}\n"
+    #print "OP: #{data[0]}\n"
+    op = data[0]
+    if op == "agg"
+      print tabs(lvl) + "AGGREGATE (\n"
+      data[1].each_with_index do |datum, i|
+        whence_p(datum, lvl + 1)
       end
-    else 
-      #print "no match(#{lvl}) #{data}\n"
-    end 
+      print tabs(lvl) + ") - AGGREGATE\n"
+    elsif op =~ /^r(\d+)\z/
+      rid = $1
+      if @shredded_rules[rid.to_i] and !@printedrules[rid.to_i]
+        print tabs(lvl) + "RULE #{rid}: { #{@shredded_rules[rid.to_i][5]} }\n"
+        @printedrules[rid.to_i] = true
+      else
+        print tabs(lvl) + "RULE #{rid} :\n"
+      end
+      data[1].each do |datum|
+        whence_p(datum, lvl + 1)
+      end
+      print tabs(lvl) + " - RULE #{rid}\n"
+    else
+      # must be a ground atom: relation name and contents:
+      print tabs(lvl) + "#{data[0]}(#{data[1].join(",")})\n"
+    end
   end
 
   def whence(datum)
+    @printedrules = {}
     copy = datum.clone
     prov = copy.pop
     print "WHENCE(#{copy.inspect}) ?\n\n"

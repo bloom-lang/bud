@@ -26,10 +26,11 @@ class Stratification < Bud
   def declaration
     strata[0] = rules {
       depends_tc <= depends.map do |d| 
+        dneg = d.neg == 1
         if d.op.to_s =~ /<[+-]/ then
-          [d.head, d.body, d.body, d.neg, true] 
+          [d.head, d.body, d.body, dneg, true] 
         else
-          [d.head, d.body, d.body, d.neg, false] 
+          [d.head, d.body, d.body, dneg, false] 
         end
       end
       dj = join [depends, depends_tc], [depends.body, depends_tc.head]
@@ -39,7 +40,7 @@ class Stratification < Bud
         if (b.op.to_s =~ /<[+-]/) or r.temporal
           temporal = true
         end
-        if b.neg || r.neg
+        if b.neg == 1 || r.neg
           [b.head, r.body, b.body, true, temporal]
         else
           [b.head, r.body, b.body, false, temporal]
@@ -48,7 +49,11 @@ class Stratification < Bud
 
       cycle <= depends_tc.map do |d|
         if d.head == d.body
-          [d.head, d.via, d.neg, d.temporal]
+          if d.neg and !d.temporal
+            raise RuntimeError.new("unstratifiable program: #{d.inspect}")
+          else
+            [d.head, d.via, d.neg, d.temporal]
+          end
         end
       end
       stratum_base <= depends.map{|d| [d.body, 0]}

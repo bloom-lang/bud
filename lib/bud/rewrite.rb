@@ -123,12 +123,8 @@ class Rewriter < SaneR2R
     elsif cxt == 'fcall' or cxt == 'array'
       return "[#{process_arglist(exp)}]"
     elsif @provenance
-      print "PROV! PROV!\n"
-      provstr = @aliases[@currtab].map do |a| 
-        "#{a}.prov.nil? ? \"#{a}(\" + #{a}.join(',') + ')' : #{a}.prov"
-      end
-      print "provstr is #{provstr}\n"
-      return "[#{process_arglist(exp)},  prov_cat(#{@rule_indx}, #{provstr.join(',')})]"
+      quotedlist = @aliases[@currtab].map{|a| "\"#{a}\", #{a}"}.join(",")
+      return "[#{process_arglist(exp)},  prov_cat(#{@rule_indx}, #{quotedlist})]"
     else
       return "[#{process_arglist(exp)}]"
     end
