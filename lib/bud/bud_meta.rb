@@ -41,8 +41,8 @@ class Bud
 
     ###@rewritten_strata << write_postamble
     ###create_delta_tables
-    #visualize(strat, "#{self.class}_gvoutput")
-    dump_rewrite
+    visualize(strat, "#{self.class}_gvoutput") if @options['visualize']
+    dump_rewrite if @options['dump']
     return @rewritten_strata
   end
 
@@ -116,7 +116,7 @@ class Bud
         unless done[d]
           pt = ParseTree.translate(curr_class, d)
           unless pt[0].nil?
-            rewriter = Rewriter.new(seed, @provenance)
+            rewriter = Rewriter.new(seed, @options['provenance'])
             rewriter.process(pt)
             rewriter.each {|re| depends << re}
             done[d] = true
@@ -173,7 +173,7 @@ class Bud
 
   
   def visualize(strat, name)
-    self.tick
+    #self.tick
     @tables.each do |t|
       @table_meta << [t[0], t[1].class]
     end

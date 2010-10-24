@@ -35,9 +35,7 @@ class Bud
     @connections = {}
     @inbound = []
     @declarations = []
-    unless options.nil?
-      @provenance = options['provenance']
-    end
+    @options = options.nil? ? {} : options
     self.class.ancestors.each do |anc|
       @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact if anc.methods.include? 'annotation'
     end
@@ -53,7 +51,7 @@ class Bud
     # get dependency info, and determine stratification order.
     unless self.class <= Stratification
       safe_rewrite
-      provenance_extend if @provenance
+      provenance_extend if @options['provenance']
     end
    
   end
@@ -116,7 +114,7 @@ class Bud
     # reset any schema stuff that isn't already there
     # state to be defined by the user program
     # rethink this.
-    state unless @provenance
+    state unless @options['provenance']
     receive_inbound
 
     # load the rules as a closure (will contain persistent tuples and new inbounds)

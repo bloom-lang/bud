@@ -10,6 +10,7 @@ class Viz
     @tiers = []
 
     # array: strata
+    # disabled for now.
     #(0..strata.first[0]+1).each do |s|
     #  @tiers[s] = @graph.subgraph("cluster" + s.to_s(), {:color => "black", :style => "dotted, rounded"})
     #end
@@ -23,7 +24,7 @@ class Viz
 
     @tabinf = {}
     tableinfo.each do |ti|
-      #print "pop on #{ti[0].to_s}\n"
+      print "pop on #{ti[0].to_s}\n"
      # @tabinf[ti[0].to_s] = ti[1].class
       @tabinf[ti[0].to_s] = ti[1]
     end
@@ -47,7 +48,6 @@ class Viz
     if @t2s[tab]
       @t2s[tab]
     else  
-      print "ST: safety\n"
       words = tab.split(",")
       maxs = 0
       words.each do |w|
@@ -61,7 +61,6 @@ class Viz
   end
 
   def name_bag(predicate, bag)
-    print "PREDICATE: #{predicate}\n"
     if bag[predicate]
       return bag
     else
@@ -100,31 +99,23 @@ class Viz
     # its name is "CYC" + concat(sort(predicate names))
 
     depends.each do |d|
-      head = d[0]
-      body = d[2]
-      if @tabinf[head] and @tabinf[body]
-        if d.nil? 
-          print "bizarre, d is nil.\n"
-          next
-        end
-
-        print "find the name of #{head}\n"
-        head = name_of(head)
-        body = name_of(body)
-        print "NAMEs are #{head} <- #{body}\n"
-        addonce(head, (head != d[0]))
-        addonce(body, (body != d[2]))
-        addedge(body, head, d[1], d[3], (head != d[0]))
-      else
-        print "HUH? unknown #{head} or #{body}\n"
+      head = d[1]
+      body = d[3]
+      if d.nil? 
+        print "bizarre, d is nil.\n"
+        next
       end
+
+      head = name_of(head)
+      body = name_of(body)
+      addonce(head, (head != d[1]))
+      addonce(body, (body != d[3]))
+      addedge(body, head, d[1], d[3], (head != d[1]))
     end
+    print "done processing\n"
   end
 
   def addonce(node, negcluster)
-    print "ADDING  (ti #{@tabinf[node]})}\n"
-    
-
     if !@nodes[node]
       print "ST is #{safe_t2s(node)} (with tiers #{@tiers.length})\n"
       #@nodes[node] = @tiers[safe_t2s(node)].add_node(node)
@@ -155,7 +146,7 @@ class Viz
   def addedge(body, head, op, nm, negcluster)
     ekey = body + head
     if !@edges[ekey] 
-      print "ADD edge #{ekey}\n"
+      #print "ADD edge #{ekey}\n"
       @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head])
       @labels[ekey] = {}
     end
@@ -167,7 +158,7 @@ class Viz
         if @tabinf[h] == Bud::BudChannel
           # this is 'async'
           # but is it guarded?
-          print "ASYNC #{head} (#{ekey})!!\n"
+          #print "ASYNC #{head} (#{ekey})!!\n"
           @edges[ekey].style = 'dashed'
         else
           # inductive
