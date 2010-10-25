@@ -7,7 +7,10 @@ Gem::Specification.new do |s|
   s.summary = %q{Provides a prototype Bloom-like sublanguage in Ruby.}
   s.homepage = %q{http://bud.cs.berkeley.edu/}
   s.description = %q{This gem provides a prototype Bloom-like declarative distributed sublanguage for Ruby.}
-  s.files = [ "README", "Changelog", "LICENSE", "lib/bud.rb", "lib/bud/aggs.rb", "lib/bud/collections.rb", "lib/bud/errors.rb", "lib/bud/events.rb", "lib/bud/strat.rb", "lib/bud/sane_r2r.rb", "lib/bud/bud_meta.rb", "lib/bud/viz.rb", "lib/bud/static_analysis.rb", "lib/bud/rewrite.rb" ]
+
+  s.files = ["README", "Changelog", "LICENSE", "lib/bud.rb"]
+  s.files += Dir.entries("lib/bud").select{|f| f.include? ".rb"}.map{|f| "lib/bud/" + f}
+
   s.add_dependency 'msgpack'
   s.add_dependency 'eventmachine'
   s.add_dependency 'superators'
