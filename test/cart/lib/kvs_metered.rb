@@ -9,10 +9,10 @@ require 'lib/kvs'
 # timestep.
 
 class MeteredKVS < BudKVS
-  def initialize(ip, port)
-    @q = BaseQueue.new(ip, port + 1)
+  def initialize(ip, port, opts = nil)
+    @q = BaseQueue.new(ip, port + 1, opts)
     @q.tick
-    super(ip, port)
+    super(ip, port, opts)
   end
 
   def tick
@@ -31,7 +31,7 @@ class MeteredKVS < BudKVS
       [k.id, k] 
     end
 
-    print "Q siz is " + @q.q.length.to_s + "\n"
+    #print "Q siz is " + @q.q.length.to_s + "\n"
     pipe_indirected <= @q.head.map do |h| 
       print @budtime.to_s + " Indirecting: "+ h.payload.inspect + "\n" or h.payload 
     end

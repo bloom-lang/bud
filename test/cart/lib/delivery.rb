@@ -3,9 +3,9 @@ require 'bud'
 
 class BestEffortDelivery < Bud
 
-  def initialize(host, port)
+  def initialize(host, port, opts = nil)
     @addy = "#{host}:#{port}"
-    super(host, port)
+    super(host, port, opts)
   end
 
   def state

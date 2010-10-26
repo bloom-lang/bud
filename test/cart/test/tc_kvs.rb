@@ -15,9 +15,16 @@ class TestKVS < TestLib
     end
   end
 
+  def test_metered_testandset
+    v = MeteredKVS.new("localhost", 23456)
+    assert_nothing_raised(RuntimeError) {v.run_bg}
+    add_members(v, "localhost:23456")
+    workload3(v)
+  end
+
   def test_wl2
     # reliable delivery fails if the recipient is down
-    v = BudKVS.new("localhost", 12347)
+    v = BudKVS.new("localhost", 12347, {'visualize' => true})
     assert_nothing_raised(RuntimeError) {v.run_bg}
     sleep 1
     add_members(v, "localhost:12347", "localhost:12348")
@@ -29,7 +36,7 @@ class TestKVS < TestLib
     
   end
 
-  def test_wl3
+  def ntest_wl3
     # the metered kvs succeeds on the naive workload
     v = MeteredKVS.new("localhost", 12350)
     assert_nothing_raised(RuntimeError) {v.run_bg}
@@ -41,7 +48,7 @@ class TestKVS < TestLib
   end
 
 
-  def test_wl4
+  def ntest_wl4
     # the metered kvs also succeeds on a disorderly workload
     v = MeteredKVS.new("localhost", 12351)
     assert_nothing_raised(RuntimeError) {v.run_bg}
@@ -61,7 +68,7 @@ class TestKVS < TestLib
   end
 
 
-  def test_wl5
+  def ntest_wl5
     # the unmetered kvs fails on a disorderly workload
     v = BudKVS.new("localhost", 12352)
     assert_nothing_raised(RuntimeError) {v.run_bg}
@@ -74,7 +81,7 @@ class TestKVS < TestLib
   end
 
 
-  def test_wl1
+  def ntest_wl1
     # in a distributed workload, the right thing happens
     v = BudKVS.new("localhost", 12345)
     v2 = BudKVS.new("localhost", 12346)
@@ -92,7 +99,7 @@ class TestKVS < TestLib
     assert_equal(1, v2.bigtable.length)
   end
 
-  def test_simple
+  def ntest_simple
     v = BudKVS.new("localhost", 12360)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:12360")
@@ -119,6 +126,7 @@ class TestKVS < TestLib
     soft_tick(v)
     soft_tick(v)
     soft_tick(v)
+    soft_tick(v)
   end
 
 
@@ -130,6 +138,50 @@ class TestKVS < TestLib
     #soft_tick(v)
     #soft_tick(v)
     #soft_tick(v)
+  end
+
+  def workload3(v)
+    send_channel(v.ip, v.port, "kvstore", ["#{v.ip}:#{v.port}", "localhost:54321", "foo", 1, ["bar"]])
+  
+    print "STORE\n"
+    soft_tick(v)
+    print "TICKED one\n"
+    soft_tick(v)
+    print "AHEM\n"
+    assert_equal(1, v.bigtable.length)
+    assert_equal("foo", v.bigtable.first[0])
+    curr = v.bigtable.first[1]
+
+    print "OK!\n"
+    #print "curr is #{curr.inspect}\n"
+    
+    send_channel(v.ip, v.port, "kvstore", ["#{v.ip}:#{v.port}", "localhost:54321", "foo", 2, Array.new(curr).push("baz")])
+    soft_tick(v)
+    soft_tick(v)
+
+    assert_equal("foo", v.bigtable.first[0])
+    curr = v.bigtable.first[1]
+    assert_equal(['bar','baz'], curr)
+   
+    print "curr is #{curr.join(',')}\n" 
+    send_channel(v.ip, v.port, "kvstore", ["#{v.ip}:#{v.port}", "localhost:54321", "foo", 2, Array.new(curr).push("qux")])
+    #send_channel(v.ip, v.port, "kvstore", ["#{v.ip}:#{v.port}", "localhost:54321", "foo", 2, curr.push("qux")])
+    #curr = v.bigtable.first[1]
+    ##send_channel(v.ip, v.port, "kvstore", ["#{v.ip}:#{v.port}", "localhost:54321", "foo", 3, Array.new(curr).push("boom")])
+    #curr = v.bigtable.first[1]
+    ##send_channel(v.ip, v.port, "kvstore", ["#{v.ip}:#{v.port}", "localhost:54321", "foo", 4, Array.new(curr).push("bif")])
+
+    print "curr is #{curr.join(',')}\n" 
+    
+
+    curr = v.bigtable.first[1]
+    print "CURR is now #{curr.inspect}\n"
+    soft_tick(v)
+    print "CURR is now #{curr.inspect}\n"
+    soft_tick(v)
+    print "CURR is now #{curr.inspect}\n"
+    
+
   end
   
   

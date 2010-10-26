@@ -58,7 +58,6 @@ class ImperativeCartServer < MeteredKVS
             print "ADD ON " + a.session.to_s + ", " + a.item.to_s + "\n" or [a.server, 'localhost:10000', a.session, a.reqid, Array.new.push(a.item)]
           elsif a.action == "D"
             # um, problem with the naive implementation?
-            print "DEL\n"
             #[a.server, 'localhost:10000', a.session, a.reqid, Array.new]
           end
         end
