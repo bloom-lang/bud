@@ -6,7 +6,7 @@ require 'lib/lazy_cart'
 require 'lib/imperative_cart_kvs'
 
 class TestCart < TestLib
-  def ntest_disorderly_cart
+  def test_disorderly_cart
     program = BasicCartServer.new('localhost', 12345)
     program.run_bg
     sleep 1
@@ -47,7 +47,7 @@ class TestCart < TestLib
     
   end
 
-  def test_destructive_cart
+  def ntest_destructive_cart
     program = ImperativeCartServer.new('localhost', 12346)
     program.run_bg
     run_cart(program)
