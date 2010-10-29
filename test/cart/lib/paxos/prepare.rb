@@ -1,20 +1,9 @@
 require 'rubygems'
 require 'bud'
 
-class PermissiveVoter < Vote
-  def declaration
-    strata[2] = rules {
-      vcnt <= join([ballot, mcnt]).map do |b, m|
-        [ballot.ballot, 
-      end
-    }
-  end
-end
+require 'lib/voting'
 
-
-require 'examples/vote'
-
-class PaxosPrepare < PermissiveVoter
+class PaxosPrepare < Voting
   def state
     super
     table :local_aru, [], ['host', 'aru']
@@ -25,79 +14,65 @@ class PaxosPrepare < PermissiveVoter
     table :last_installed, [], ['view']
     table :accept, ['view', 'seq', 'update']
 
-    scratch :datalist, ['message', 'view', 'aru_requested', 'seq', 'update', 'type']
-    scratch :datalist_length, ['aru', 'len']
+    #scratch :datalist, ['message', 'view', 'aru_requested', 'seq', 'update', 'type']
+    table :datalist, ['message', 'view', 'aru_requested', 'seq', 'update', 'type']
+    ##scratch :datalist_length, ['aru', 'len']
+    table :datalist_length, ['aru', 'len']
 
   end
 
-  def declaration
-    super
-    strata[2] = rules {
-      local_aru << [@myloc, 0] if global_history.empty?
-      last_installed << [0] if global_history.empty?
+  declare 
+  def prep1
+    #local_aru << [@myloc, 0] if global_history.empty?
+    #last_installed << [0] if global_history.empty?
 
-      prepare <= join([leader_change, local_aru]).map do |c, a|
-        print "um\n"
-        if c.leader == c.host
-          print "prepare!\n"
-          [c.view, a.aru]
-        end
+    prepare <= join([leader_change, local_aru]).map do |c, a|
+      #print "um\n"
+      if c.leader == c.host
+        print "prepare!\n" or [c.view, a.aru]
       end
+    end
 
-      ballot <+ prepare.map{|p| print "put in ballot : #{p.inspect}\n"; [p]}
+    begin_vote <+ prepare.map{|p| print "put in ballot : " + p.inspect + "\n" or [p.view, p]}
 
-      deliver.each {|d| print "Deliver: #{d.inspect}\n"}
+    #deliver.each {|d| print "Deliver: #{d.inspect}\n"}
 
-      datalist <= join([deliver, last_installed]).map do |d, l|
-        print "datalist loop\n"
-        view = d.message[0] 
-        aru = d.message[1]
-        [d.message, view, aru, -1, "none", "bottom"] if view = l.view
+    datalist <= join([ballot, last_installed]).map do |d, l|
+      if d.content.fetch(1) == l.view
+        print "AROO\n" or [d.content, d.content.fetch(0), d.content.fetch(1), -1, "none", "bottom"]
+      else 
+        print "ACHOO " + d.inspect + ":: " + l.inspect + " vs. " +d.content.fetch(0).to_s + "\n"
       end
+    end
 
-      datalist <= join([datalist, global_history]).map do |d, g|
-        if g.seqno > d.aru_requested and d.type == "bottom"
-          [d.message, d.view, d.aru_requested, g.seqno, g.update, "ordered"]
-        end 
+    datalist <= join([datalist, global_history]).map do |d, g|
+      if g.seqno > d.aru_requested and d.type == "bottom"
+        print "oh yeah\n" or [d.content, d.view, d.aru_requested, g.seqno, g.update, "ordered"]
+      else
+        print "oh dear.  !" + g.seqno.to_s + " > " + d.aru_requested.to_s + "\n"
+      end 
+    end
+
+    datalist <= join([datalist, accept]).map do |d, a|
+      if a.seq >= d.aru and d.type == "bottom"
+        [d.message, d.view, d.aru_requested, a.seq, a.update, "proposed"]
+      else
+        print "oh dear. !" + a.seq.to_s + " >= " + d.aru.to_s + "\n"
       end
+    end
 
-      datalist <= join([datalist, accept]).map do |d, a|
-        if a.seq >= d.aru and d.type == "bottom"
-          [d.message, d.view, d.aru_requested, a.seq, a.update, "proposed"]
-        end
-      end
+    datalist_length <= datalist.group([datalist.aru_requested], count())
+  end
 
-      datalist_length <= datalist.group([datalist.aru_requested], count())
-
-    }
-    strata[3] = rules {
-      vote <+ join([datalist, datalist_length]).map do |d, l|
-        print "SEDNING vote!\n"
-        [d.message, [d.view, d.aru_requested, d.seq, d.update, d.type, l.len]]
-      end
-    }
-    
+  declare
+  def caster
+    dj = join([datalist, datalist_length])
+    cast_vote <+ dj.map do |d, l|
+      #print "SEDNING vote!\n"
+      print "SEND " +d.view.to_s + ": " + d.inspect + "\n" or [d.view, [d.view, d.aru_requested, d.seq, d.update, d.type, l.len]]
+    end
+  
+    datalist <- dj.map{|d, l| d}
   end 
 end
-
-
-p = PaxosPrepare.new('127.0.0.1', 10001)
-p.tick
-p.member << ['127.0.0.1', 10001]
-
-p.leader_change <+ [['127.0.0.1:10001', '127.0.0.1:10001', 5]]
-
-
-p.tick
-
-sleep 1
-
-p.tick
-sleep 1
-
-p.tick
-sleep 1
-
-
-sleep 4
 
