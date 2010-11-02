@@ -91,9 +91,16 @@ class Bud
         exit
       end
     end
+    # for now
+    @t.abort_on_exception = true
     # not clean
     sleep 0.1
   end
+
+  def stop_bg
+    @t.stop
+  end
+
   def run
     begin 
       EventMachine::run {
