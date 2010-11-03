@@ -223,12 +223,21 @@ class Bud
     @tables[name] ||= BudSerializer.new(name, keys, cols, self)
   end
 
-  def channel(name, locspec, keys=[], cols=[])
+  def remove_at(cols)
+    i = cols.find_index{ |k| k[0].chr == '@'}
+    cols[i] = cols[i].delete('@') unless i.nil?
+    return i, cols
+  end
+  
+  def channel(name, keys=[], cols=[])
+    locspec, keys = remove_at(keys)
+    locspec, cols = remove_at(cols) if keys.nil?
+    raise BudError, "channel declaration for #{name} missing an address spec" if locspec.nil?
     check_table(name, keys, cols)
     @channels[name] = locspec
     @tables[name] ||= BudChannel.new(name, keys, cols, locspec, self)
   end
-
+  
   def file_reader(name, filename, delimiter='\n')
     check_table(name, ['lineno'], ['text'])
     @tables[name] ||= BudFileReader.new(name, filename, delimiter, self)

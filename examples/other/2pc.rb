@@ -15,7 +15,7 @@ class TwoPC < Bud
     scratch :yes_cnt,  ['coord', 'xid'], ['cnt']
     table   :vote,     ['coord', 'xid', 'peer'], ['vote']
     table   :xact,     ['node', 'xid'], ['state']
-    channel :results,  ['node', 'xid'], ['state']
+    channel :results,  ['@node', 'xid'], ['state']
   end
   
   def declaration

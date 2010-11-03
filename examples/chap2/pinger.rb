@@ -8,27 +8,24 @@ require 'rubygems'
 require 'bud'
 
 class Pinger < Bud
-  attr_reader :myloc
-  attr_reader :otherloc
+  attr_reader :me
+  attr_reader :other
 
   def initialize(ip, port)
     super ip, port
-    dest = ARGV[1].split(':')
-    @otherip = dest[0]
-    @otherport = dest[1]
-    @myloc = ARGV[0]
-    @otherloc = ARGV[1]
+    @me = ARGV[0]
+    @other = ARGV[1]
   end
 
   def state
-    channel :pingpongs, 0, ['otherloc', 'myloc', 'msg', 'wall', 'bud']
+    channel :pingpongs, ['@otherloc', 'myloc', 'msg', 'wall', 'bud']
     periodic :timer, ARGV[2]
   end
 
   declare
   def logic
     # whenever we get a timer, send out a tuple
-    pingpongs <~ timer.map {|t| [@otherloc, @myloc, 'ping!', t.time, budtime]}      
+    pingpongs <~ timer.map {|t| [@other, @me, 'ping!', t.time, budtime]}      
     pingpongs.each {|p| puts "Got #{p.inspect}"}
   end
 end

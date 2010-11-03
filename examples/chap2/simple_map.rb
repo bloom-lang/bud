@@ -19,7 +19,7 @@ class SimpleMapper < Bud
     scratch     :map_out, ['key', 'uniq', 'value']
     table       :kvs, ['key', 'uniq'], ['value', 'hashed']
     table       :kvs_addrs, ['key', 'uniq'], ['value', 'addr']
-    channel     :reducers, 0, ['addr', 'key', 'value']
+    channel     :reducers, ['@addr', 'key', 'value']
     scratch     :all, ['key', 'value']
     scratch     :nodecnt, ['cnt']
   end

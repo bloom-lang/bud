@@ -7,27 +7,24 @@ require 'rubygems'
 require 'bud'
 
 class Ponger < Bud
-  attr_reader :myloc
-  attr_reader :otherloc
+  attr_reader :me
+  attr_reader :other
 
   def initialize(ip, port)
     super ip, port
-    dest = ARGV[1].split(':')
-    @otherip = dest[0]
-    @otherport = dest[1]
-    @myloc = ARGV[0]
-    @otherloc = ARGV[1]
+    @me = ARGV[0]
+    @other = ARGV[1]
   end
 
   def state
-    channel :pingpongs, 0, ['otherloc', 'myloc', 'msg', 'wall', 'bud']
+    channel :pingpongs, ['@otherloc', 'me', 'msg', 'wall', 'bud']
   end
 
   declare
   def logic
     # whenever we get a ping, send a pong
     pingpongs.each {|p| puts "Got #{p.inspect}"}
-    pingpongs <~ pingpongs.map {|p| [@otherloc, @myloc, 'pong!', Time.new.to_s, budtime]}      
+    pingpongs <~ pingpongs.map {|p| [@other, @me, 'pong!', Time.new.to_s, budtime]}      
   end
 end
 

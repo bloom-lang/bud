@@ -13,7 +13,7 @@ class SimpleReducer < Bud
   end
   
   def state
-    channel     :reducers, 0, ['addr', 'key', 'value']
+    channel     :reducers, ['@addr', 'key', 'value']
     table       :in_channel, ['addr', 'key', 'value']
     scratch     :near_final, ['key'], ['value']
     scratch     :final, ['key'], ['value']

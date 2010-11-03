@@ -20,7 +20,7 @@ class PingPong < Bud
   end
 
   def state
-    channel :pingpongs, 0, ['otherloc', 'myloc', 'msg', 'wall', 'bud']
+    channel :pingpongs, ['@otherloc', 'myloc', 'msg', 'wall', 'bud']
     table   :pingbuf, ['otherloc', 'myloc', 'msg', 'wall', 'bud']
     periodic :timer, ARGV[1]
   end
