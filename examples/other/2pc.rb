@@ -51,7 +51,7 @@ class TwoPC < Bud
       # all peers know transaction state
       l = join(peers, xacts)
       l.map do |p, x|
-        results <+ [p.peer, x.xid, x.state]
+        results <~ [p.peer, x.xid, x.state]
       end
     }    
   end

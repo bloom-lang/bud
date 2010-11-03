@@ -12,7 +12,7 @@ class ReliableDelivery < BestEffortDelivery
   
   declare
     def rcv
-      ack <+ pipe_chan.map do |p| 
+      ack <~ pipe_chan.map do |p| 
         if p.dst == @addy
           [p.src, p.dst, p.id] 
         end

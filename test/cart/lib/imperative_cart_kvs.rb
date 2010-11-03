@@ -78,8 +78,8 @@ class ImperativeCartServer < MeteredKVS
 
   #declare
   #  def finish
-      ##response <+ join([bigtable, checkout_msg_guard, max_act], [bigtable.key, checkout_msg_guard.session], [checkout_msg_guard.session, max_act.session]).map do |s, c, m|
-      #response <+ join([bigtable, checkout_msg_guard], [bigtable.key, checkout_msg_guard.session]).map do |s, c|
+      ##response <~ join([bigtable, checkout_msg_guard, max_act], [bigtable.key, checkout_msg_guard.session], [checkout_msg_guard.session, max_act.session]).map do |s, c, m|
+      #response <~ join([bigtable, checkout_msg_guard], [bigtable.key, checkout_msg_guard.session]).map do |s, c|
       #  #print "RESPONSE #{s.inspect}, #{c.inspect}\n"
       #  [c.client, c.server, s.key, s.value]
       #end
@@ -87,7 +87,7 @@ class ImperativeCartServer < MeteredKVS
 
   #declare 
     #def client
-    #  action_msg <+ client_action.map{|a| a}
+    #  action_msg <~ client_action.map{|a| a}
     #end
 end
 

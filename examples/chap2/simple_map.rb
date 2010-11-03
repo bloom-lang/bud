@@ -38,7 +38,7 @@ class SimpleMapper < Bud
         [k.key, k.uniq, k.value, n.text]
       end
     
-      reducers <+ kvs_addrs.map{ |t| [t.addr, t.key, t.uniq] }
+      reducers <~ kvs_addrs.map{ |t| [t.addr, t.key, t.uniq] }
   end
 end
 

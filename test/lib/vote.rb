@@ -29,7 +29,7 @@ class Vote < SimpleBroadcast
       deliver_ledger <= deliver.map{|d| [d.otherloc, d.message]}
       #deliver_ledger <= deliver.map{|d| [d.myloc, d.message]}
 
-      vote_snd <+ join([vote, deliver_ledger]).map do |v, l|
+      vote_snd <~ join([vote, deliver_ledger]).map do |v, l|
         #print "POSSIBLE VOTE (#{v.ballot} vs #{l.ballot} from #{@myloc}) with #{v.vote} to #{l.otherloc}\n"
         [l.otherloc, @myloc, l.ballot, v.vote] if v.ballot == l.ballot
       end

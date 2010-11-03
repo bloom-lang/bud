@@ -24,7 +24,7 @@ class SimpleBroadcast < Bud
   declare
   def p_message
     j = join [message, members]
-    broadcast <+ j.map { |m, g| [g.otherloc, g.myloc, m.message] } 
+    broadcast <~ j.map { |m, g| [g.otherloc, g.myloc, m.message] } 
   end
 
   declare

@@ -32,7 +32,7 @@ class VotingMaster < VoteInterface
   declare
   def initiation
     # multicast ballots when stimulated by begin_vote
-    ballot <+ join([begin_vote, member]).map {|b, m| [m.peer, @addy, b.id, b.content] }
+    ballot <~ join([begin_vote, member]).map {|b, m| [m.peer, @addy, b.id, b.content] }
     vote_status <+ begin_vote.map{|b| [b.id, b.content, 'in flight'] }
     member_cnt <= member.group(nil, count)
   end
@@ -72,7 +72,7 @@ class VotingAgent < VoteInterface
     peer_ballot_cache <= ballot.map{|b| [b.id, b.content, b.master] }
     # if there is a standing ballot, send a vote if stimulated by cast_vote
     # the voters insert into cast_vote after considering peer_ballot_cache.
-    vote <+ join([cast_vote, peer_ballot_cache], [cast_vote.id, peer_ballot_cache.id]).map do |v, c| 
+    vote <~ join([cast_vote, peer_ballot_cache], [cast_vote.id, peer_ballot_cache.id]).map do |v, c| 
       [c.master, @addy, v.id, v.response] 
     end
   end

@@ -28,7 +28,7 @@ class Pinger < Bud
   declare
   def logic
     # whenever we get a timer, send out a tuple
-    pingpongs <+ timer.map {|t| [@otherloc, @myloc, 'ping!', t.time, budtime]}      
+    pingpongs <~ timer.map {|t| [@otherloc, @myloc, 'ping!', t.time, budtime]}      
     pingpongs.each {|p| puts "Got #{p.inspect}"}
   end
 end

@@ -314,6 +314,14 @@
         end
       end
     end
+    
+    superator "<~" do |o|
+      pending_merge o
+    end
+
+    superator "<+" do |o|
+      raise BudError, "Illegal use of <+ with async collection on left"
+    end    
   end
 
   class BudPeriodic < BudCollection

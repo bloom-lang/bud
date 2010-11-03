@@ -19,7 +19,7 @@ class BestEffortDelivery < Bud
   
   declare
     def snd
-      pipe_chan <+ join([pipe, timer]).map do |p, t|
+      pipe_chan <~ join([pipe, timer]).map do |p, t|
         unless pipe_out.map{|m| m.id}.include? p.id
           p 
         end

@@ -39,7 +39,7 @@ class BasicCartServer < Bud
 
   #declare 
   #  def acks
-  #    #ack <+ action.map {|a| [a.client, a.server, a.reqid] }
+  #    #ack <~ action.map {|a| [a.client, a.server, a.reqid] }
   #    #acked <= ack.map{|a| a}
   #  end
 
@@ -54,7 +54,7 @@ class BasicCartServer < Bud
         end
       end
 
-      response_msg <+ status.map do |s| 
+      response_msg <~ status.map do |s| 
 	      s
       end
 
@@ -71,8 +71,8 @@ class BasicCartServer < Bud
 
   declare
     def client
-      action_msg <+ client_action.map{|a| a}
-      checkout_msg <+ client_checkout.map{|a| a}
+      action_msg <~ client_action.map{|a| a}
+      checkout_msg <~ client_checkout.map{|a| a}
   
       memory <= response_msg.map{|r| r}
     end

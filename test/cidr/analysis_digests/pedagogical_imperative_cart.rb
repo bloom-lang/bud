@@ -55,7 +55,7 @@ class ImperativeCartServer < BudKVS
  
   declare 
     def finish
-      response_msg <+ join([bigtable, checkout_msg]).map do |s, c|
+      response_msg <~ join([bigtable, checkout_msg]).map do |s, c|
         if s.key = c.session
           [c.client, c.server, s.key, s.value]
         end
@@ -64,7 +64,7 @@ class ImperativeCartServer < BudKVS
 
   declare 
     def client
-      action_msg <+ client_action.map{|a| a}
+      action_msg <~ client_action.map{|a| a}
     end
 
 
