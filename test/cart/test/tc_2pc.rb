@@ -5,7 +5,8 @@ require 'test/test_lib'
 
 class TestVoting < TestLib
   def test_singlenode
-    t = TwoPCMaster.new('localhost', 12345, nil)
+    t = TwoPCMaster.new('localhost', 12345, {'visualize' => true})
+    #t = Monotonic2PCMaster.new('localhost', 12345, {'dump' => true, 'visualize' => true})
     t2 = TwoPCAgent.new('localhost', 12346, nil)
     t3 = TwoPCAgent.new('localhost', 12347, nil)
     t.run_bg
@@ -26,14 +27,12 @@ class TestVoting < TestLib
     advance(t2)
     advance(t)
     assert_equal(1, t.master_vote_cache.length)
-
     t3.cast_vote <+ [[ 1, "Y" ]]
     advance(t3)
     advance(t)
-
     advance(t)
     advance(t)
-    assert_equal(1, t.xact.length)
+    assert_equal(2, t.xact.length)
     assert_equal("commit", t.xact.first[2])
   end
 end

@@ -15,7 +15,7 @@ class TestKVS < TestLib
     end
   end
 
-  def test_metered_testandset
+  def ntest_metered_testandset
     v = MeteredKVS.new("localhost", 23456)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:23456")
@@ -24,7 +24,7 @@ class TestKVS < TestLib
 
   def test_wl2
     # reliable delivery fails if the recipient is down
-    v = BudKVS.new("localhost", 12347, {'visualize' => true})
+    v = BudKVS.new("localhost", 12347, nil) # {'visualize' => true})
     assert_nothing_raised(RuntimeError) {v.run_bg}
     sleep 1
     add_members(v, "localhost:12347", "localhost:12348")
@@ -36,7 +36,7 @@ class TestKVS < TestLib
     
   end
 
-  def ntest_wl3
+  def test_wl3
     # the metered kvs succeeds on the naive workload
     v = MeteredKVS.new("localhost", 12350)
     assert_nothing_raised(RuntimeError) {v.run_bg}
@@ -48,7 +48,7 @@ class TestKVS < TestLib
   end
 
 
-  def ntest_wl4
+  def test_wl4
     # the metered kvs also succeeds on a disorderly workload
     v = MeteredKVS.new("localhost", 12351)
     assert_nothing_raised(RuntimeError) {v.run_bg}
@@ -68,7 +68,7 @@ class TestKVS < TestLib
   end
 
 
-  def ntest_wl5
+  def test_wl5
     # the unmetered kvs fails on a disorderly workload
     v = BudKVS.new("localhost", 12352)
     assert_nothing_raised(RuntimeError) {v.run_bg}
@@ -81,7 +81,7 @@ class TestKVS < TestLib
   end
 
 
-  def ntest_wl1
+  def test_wl1
     # in a distributed workload, the right thing happens
     v = BudKVS.new("localhost", 12345)
     v2 = BudKVS.new("localhost", 12346)
@@ -99,7 +99,7 @@ class TestKVS < TestLib
     assert_equal(1, v2.bigtable.length)
   end
 
-  def ntest_simple
+  def test_simple
     v = BudKVS.new("localhost", 12360)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:12360")
