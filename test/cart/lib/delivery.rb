@@ -12,8 +12,8 @@ class BestEffortDelivery < Bud
     table :pipe, ['dst', 'src', 'id'], ['payload']
     #table :pipe_out, ['dst', 'src', 'id'], ['payload']
     table :pipe_out, ['dst', 'src', 'id'], ['payload']
-    channel :pipe_chan, 0, ['dst', 'src', 'id'], ['payload']
-    channel :tickler, 0, ['self']
+    channel :pipe_chan, ['@dst', 'src', 'id'], ['payload']
+    channel :tickler, ['@self']
     periodic :timer, 1
   end
   

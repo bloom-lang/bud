@@ -4,8 +4,8 @@ require 'bud'
 class ImperativeCartServer < Bud
 
   def state
-    channel :action, 0, ['server', 'client', 'session', 'update']
-    channel :checkout, 0, ['server', 'client', 'session']
+    channel :action, ['@server', 'client', 'session', 'update']
+    channel :checkout, ['@server', 'client', 'session']
 
     blackboard :status, ['server', 'client', 'session'], ['state']
     serializer :queue, ['time', 'server', 'client', 'session', 'update']

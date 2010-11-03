@@ -9,7 +9,7 @@ class Vote < SimpleBroadcast
     super # brings in (member, message, deliver)
     scratch :ballot, ['ballot']
     scratch :vote, ['ballot', 'vote']
-    channel :vote_snd, 0, ['otherloc', 'myloc', 'ballot', 'vote']  
+    channel :vote_snd, ['@otherloc', 'myloc', 'ballot', 'vote']  
     table :vote_ledger, ['otherloc', 'myloc', 'ballot', 'vote'] 
     table :deliver_ledger, ['otherloc', 'ballot'] 
     scratch :mcnt, ['master'], ['cnt']

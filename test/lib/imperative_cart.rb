@@ -7,10 +7,10 @@ class ImperativeCartServer < Bud
 
   def state
     #super
-    channel :iaction, 0, ['server', 'client', 'session', 'update']
-    channel :checkout, 0, ['server', 'client', 'session']
-    channel :rep_istatus, 0, ['server', 'client', 'session'], ['state']
-    channel :tickler, 0, ['server']
+    channel :iaction, ['@server', 'client', 'session', 'update']
+    channel :checkout, ['@server', 'client', 'session']
+    channel :rep_istatus, ['@server', 'client', 'session'], ['state']
+    channel :tickler, ['@server']
 
     #blackboard :status, ['server', 'client', 'session'], ['state']
 

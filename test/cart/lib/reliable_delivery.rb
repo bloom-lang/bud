@@ -7,7 +7,7 @@ class ReliableDelivery < BestEffortDelivery
 
   def state
     super
-    channel :ack, 0, ['src', 'dst', 'id']
+    channel :ack, ['@src', 'dst', 'id']
   end
   
   declare

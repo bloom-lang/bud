@@ -20,9 +20,9 @@ class ImperativeCartServer < BudKVS
 
   def state
     super
-    channel :action_msg, 0, ['server', 'client', 'session', 'item', 'action', 'reqid']
-    channel :checkout_msg, 0, ['server', 'client', 'session', 'reqid']
-    channel :response_msg, 0, ['client', 'server', 'session', 'state']
+    channel :action_msg, ['@server', 'client', 'session', 'item', 'action', 'reqid']
+    channel :checkout_msg, ['@server', 'client', 'session', 'reqid']
+    channel :response_msg, ['@client', 'server', 'session', 'state']
     scratch :client_action, ['server', 'client', 'session', 'item', 'action', 'reqid']
   end
  

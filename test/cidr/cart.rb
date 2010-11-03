@@ -16,11 +16,11 @@ class BasicCartServer < Bud
     scratch :client_action, ['server', 'client', 'session', 'item', 'action', 'reqid']
     scratch :ac, ['session', 'item', 'action', 'reqid']
 
-    #channel :ack, 0, ['server', 'peer', 'reqid']
-    channel :action, 0, ['server', 'client', 'session', 'item', 'action', 'reqid']
-    channel :checkout, 0, ['server', 'client', 'session']
-    channel :response, 0, ['client', 'server', 'session', 'item', 'cnt']
-    channel :tickler, 0, ['server']
+    #channel :ack, ['@server', 'peer', 'reqid']
+    channel :action, ['@server', 'client', 'session', 'item', 'action', 'reqid']
+    channel :checkout, ['@server', 'client', 'session']
+    channel :response, ['@client', 'server', 'session', 'item', 'cnt']
+    channel :tickler, ['@server']
   end
  
   declare

@@ -20,9 +20,9 @@ class ImperativeCartServer < MeteredKVS
 
   def state
     super
-    channel :action_msg, 0, ['server', 'client', 'session', 'item', 'action', 'reqid']
-    channel :checkout_msg, 0, ['server', 'client', 'session', 'reqid']
-    channel :response, 0, ['client', 'server', 'session', 'state']
+    channel :action_msg, ['@server', 'client', 'session', 'item', 'action', 'reqid']
+    channel :checkout_msg, ['@server', 'client', 'session', 'reqid']
+    channel :response, ['@client', 'server', 'session', 'state']
 
     scratch :client_action, ['server', 'client', 'session', 'item', 'action', 'reqid']
     scratch :action_msg_deq, ['server', 'client', 'session', 'item', 'action', 'reqid']

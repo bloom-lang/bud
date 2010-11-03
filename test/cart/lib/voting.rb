@@ -9,9 +9,9 @@ class VoteInterface < Bud
 
   # if we aren't spmd, we need to define both ends of the channel.
   def state
-    channel :ballot, 0, ['peer', 'master', 'id'], ['content']
-    channel :vote, 0, ['master', 'peer', 'id'], ['response']
-    channel :tickler, 0, ['master']
+    channel :ballot, ['@peer', 'master', 'id'], ['content']
+    channel :vote, ['@master', 'peer', 'id'], ['response']
+    channel :tickler, ['@master']
   end
 end
 

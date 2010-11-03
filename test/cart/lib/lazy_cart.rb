@@ -14,14 +14,14 @@ class BasicCartServer < Bud
     table :memory, ['client', 'server', 'session', 'item', 'cnt']
 
     scratch :client_action, ['server', 'client', 'session', 'item', 'action', 'reqid']
-    channel :client_checkout, 0, ['server', 'client', 'session', 'reqid']
+    channel :client_checkout, ['@server', 'client', 'session', 'reqid']
     scratch :ac, ['session', 'item', 'action', 'reqid']
 
-    channel :ack, 0, ['server', 'peer', 'reqid']
-    channel :action_msg, 0, ['server', 'client', 'session', 'item', 'action', 'reqid']
-    channel :checkout_msg, 0, ['server', 'client', 'session', 'reqid']
-    channel :response_msg, 0, ['client', 'server', 'session', 'item', 'cnt']
-    channel :tickler, 0, ['server']
+    channel :ack, ['@server', 'peer', 'reqid']
+    channel :action_msg, ['@server', 'client', 'session', 'item', 'action', 'reqid']
+    channel :checkout_msg, ['@server', 'client', 'session', 'reqid']
+    channel :response_msg, ['@client', 'server', 'session', 'item', 'cnt']
+    channel :tickler, ['@server']
   end
  
   declare

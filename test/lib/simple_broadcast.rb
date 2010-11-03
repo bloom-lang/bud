@@ -16,7 +16,7 @@ class SimpleBroadcast < Bud
     # we expect message to be of a tuple type, for abstraction
     scratch :message, ['message']
 
-    channel :broadcast, 0, ['otherloc', 'myloc', 'msg']
+    channel :broadcast, ['@otherloc', 'myloc', 'msg']
     scratch :deliver, ['message', 'otherloc']
   end
 
