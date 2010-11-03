@@ -7,9 +7,6 @@ require 'rubygems'
 require 'bud'
 
 class Ponger < Bud
-  attr_reader :me
-  attr_reader :other
-
   def initialize(ip, port)
     super ip, port
     @me = ARGV[0]
