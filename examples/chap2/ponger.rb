@@ -14,15 +14,15 @@ class Ponger < Bud
   end
 
   def state
-    channel :pingpongs, ['@otherloc', 'me', 'msg', 'wall', 'bud']
-    terminal :out
+    channel :flow, ['@otherloc', 'me', 'msg', 'wall', 'budtick']
+    terminal :out, ['text']
   end
 
   declare
   def logic
     # whenever we get a ping, send a pong
-    out <= pingpongs
-    pingpongs <~ pingpongs.map {|p| [@other, @me, 'pong!', Time.new.to_s, budtime]}      
+    out <= flow
+    flow <~ flow.map {|p| [@other, @me, p.msg+": pong!", Time.new.to_s, budtime]}      
   end
 end
 

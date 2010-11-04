@@ -168,7 +168,7 @@ class Bud
     @periodics.each do |p| 
       if @tables[p.name].length > 0 then
         set_timer(p.name, p.ident, p.duration) 
-        @tables[p.name] = scratch p.name, ['ident'], ['time']
+        @tables[p.name] = scratch p.name, @tables[p.name].keys, @tables[p.name].cols
       end
     end
   end
@@ -243,9 +243,12 @@ class Bud
     @tables[name] ||= BudFileReader.new(name, filename, delimiter, self)
   end
 
-  def periodic(name, duration)
-    t = check_table(name, ['ident'], ['time'])
-    @tables[name] ||= BudPeriodic.new(name, ['ident'], ['time'], self)
+  def periodic(name, keys=['ident'], cols=['time'], duration=1)
+    if cols.length != 1 or keys.length != 1 then
+      raise BudError("periodic collection #{name} must have one key column, and one other column") 
+    end
+    t = check_table(name, keys, cols)
+    @tables[name] ||= BudPeriodic.new(name, keys, cols, self)
     unless @periodics.has_key? [name]
       retval = [name, gen_id, duration]
       @periodics << retval

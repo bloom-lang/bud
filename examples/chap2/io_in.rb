@@ -15,7 +15,7 @@ class IoIn < Bud
   end
 
   def state
-    channel :pingpongs, ['@otherloc', 'myloc', 'msg', 'wall', 'bud']
+    channel :flow, ['@otherloc', 'myloc', 'msg', 'wall', 'budtick']
     terminal :interm, ['text']
     terminal :outterm
   end
@@ -23,11 +23,12 @@ class IoIn < Bud
   declare
   def logic
     # whenever we get a line, send out a tuple
-    pingpongs <~ interm.map {|t| [@other, @me, t.text, 0, budtime]}      
-    outterm <= pingpongs
+    flow <~ interm.map {|t| [@other, @me, t.text, 0, budtime]}      
+    outterm <= flow
   end
 end
 
+raise "usage: io_in my_ip:port remote_ip:port" if ARGV.length != 2
 source = ARGV[0].split(':')
 program = IoIn.new(source[0], source[1])
 program.run

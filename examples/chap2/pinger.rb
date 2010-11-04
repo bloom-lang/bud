@@ -13,21 +13,23 @@ class Pinger < Bud
     @me = ARGV[0]
     @other = ARGV[1]
   end
-
+  
   def state
-    channel :pingpongs, ['@otherloc', 'myloc', 'msg', 'wall', 'bud']
-    periodic :timer, ARGV[2]
+    channel :flow, ['@otherloc', 'me', 'msg', 'wall', 'budtick']
+    periodic :timer, ['id'], ['time'], ARGV[2]
     terminal :out, ['text']
   end
 
   declare
   def logic
     # whenever we get a timer, send out a tuple
-    pingpongs <~ timer.map {|t| [@other, @me, 'ping!', t.time, budtime]}      
-    out <= pingpongs
+    flow <~ timer.map {|t| [@other, @me, 'ping!', t.time, budtime]}      
+    out <= flow
   end
 end
 
 source = ARGV[0].split(':')
 program = Pinger.new(source[0], source[1])
 program.run
+
+
