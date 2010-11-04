@@ -305,7 +305,11 @@
       ip = Bud::instance_variable_get('@ip')
       port = Bud::instance_variable_get('@port')
       each_pending do |t|
-        the_locspec = split_locspec(t[@locspec])
+        begin
+          the_locspec = split_locspec(t[@locspec])
+        rescue
+          puts "bad locspec #{@locspec} for #{@name}"
+        end
         # remote channel tuples are sent and removed
         if the_locspec != [ip, port] then
           establish_connection(the_locspec) if @connections[the_locspec].nil?
