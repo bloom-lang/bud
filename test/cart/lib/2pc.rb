@@ -11,7 +11,25 @@ class TwoPCAgent < VotingAgent
 end
 
 
-class TwoPCMaster < VotingMaster
+class TwoPCVotingMaster < VotingMaster
+  # override the default summary s.t. a single N vote
+  # makes the vote_status = ABORT
+  def summary
+    victor <= join([vote_status, member_cnt, vote_cnt], [vote_status.id, vote_cnt.id]).map do |s, m, v|
+      if v.response == "N"
+        [v.id, s.content, "N"]
+      elsif v.cnt > m.cnt / 2
+        [v.id, s.content, v.response]
+      end
+    end
+
+    vote_status <+ victor.map{|v| v }
+    vote_status <- victor.map{|v| [v.id, v.content, 'in flight'] }
+  end
+end
+
+
+class TwoPCMaster < TwoPCVotingMaster
   # 2pc is a specialization of voting:
   # * ballots describe transactions
   # * voting is Y/N.  A single N vote should cause abort.
