@@ -16,15 +16,16 @@ class IoIn < Bud
 
   def state
     channel :flow, ['@otherloc', 'myloc', 'msg', 'wall', 'budtick']
-    terminal :interm, ['text']
-    terminal :outterm
+    terminal :entry1, ['text']
+    terminal :entry2, ['next']
   end
 
   declare
   def logic
     # whenever we get a line, send out a tuple
-    flow <~ interm.map {|t| [@other, @me, t.text, 0, budtime]}      
-    outterm <= flow
+    j = join [entry1, entry2]
+    flow <~ j.map {|t1, t2| [@other, @me, t1.text + " " + t2.next, 0, budtime]}      
+    entry1 <= flow
   end
 end
 

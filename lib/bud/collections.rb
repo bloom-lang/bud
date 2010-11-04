@@ -334,6 +334,8 @@
     end
     
     def each
+      str = name.to_s + " > "
+      STDOUT.print(str)
       str = STDIN.gets
       str = str.chomp if str
       yield tuple_accessors([str])

@@ -1,4 +1,3 @@
- 'enumerator'
 require 'msgpack'
 require 'eventmachine'
 require 'socket'
