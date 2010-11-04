@@ -1,12 +1,7 @@
 require 'rubygems'
 require 'bud'
 
-class VoteInterface < Bud
-  def initialize(i, p, o = nil)
-    super(i, p, o)
-    @addy = "#{ip}:#{port}"
-  end
-
+module VoteInterface
   # if we aren't spmd, we need to define both ends of the channel.
   def state
     channel :ballot, ['@peer', 'master', 'id'], ['content']
@@ -15,7 +10,14 @@ class VoteInterface < Bud
   end
 end
 
-class VotingMaster < VoteInterface
+class VotingMaster < Bud
+  include VoteInterface
+  
+  def initialize(i, p, o = nil)
+    super(i, p, o)
+    @addy = "#{ip}:#{port}"
+  end
+
   def state
     super
     # local interfaces    
@@ -60,7 +62,14 @@ class VotingMaster < VoteInterface
 end
 
 
-class VotingAgent < VoteInterface
+class VotingAgent < Bud
+  include VoteInterface
+  
+  def initialize(i, p, o = nil)
+    super(i, p, o)
+    @addy = "#{ip}:#{port}"
+  end
+  
   def state
     super
     table :peer_ballot_cache, ['id', 'content', 'master']
