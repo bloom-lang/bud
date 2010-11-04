@@ -31,6 +31,7 @@ class Bud
     @budtime = 0
     @ip = ip
     @port = port.to_i
+    @ip_port = "#{@ip}:#{@port}"
     @connections = {}
     @inbound = []
     @declarations = []

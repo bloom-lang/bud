@@ -2,8 +2,9 @@ require 'rubygems'
 require 'bud'
 
 module VoteInterface
-  # if we aren't spmd, we need to define both ends of the channel.
-  def state
+  include BudState
+  # channels used by both ends of the voting protocol
+  def self.extended(base)
     channel :ballot, ['@peer', 'master', 'id'], ['content']
     channel :vote, ['@master', 'peer', 'id'], ['response']
     channel :tickler, ['@master']
@@ -13,13 +14,8 @@ end
 class VotingMaster < Bud
   include VoteInterface
   
-  def initialize(i, p, o = nil)
-    super(i, p, o)
-    @addy = "#{ip}:#{port}"
-  end
-
   def state
-    super
+    extend VoteInterface
     # local interfaces    
     scratch :begin_vote, ['id', 'content']
     scratch :victor, ['id', 'content', 'response']
@@ -34,7 +30,7 @@ class VotingMaster < Bud
   declare
   def initiation
     # multicast ballots when stimulated by begin_vote
-    ballot <~ join([begin_vote, member]).map {|b, m| [m.peer, @addy, b.id, b.content] }
+    ballot <~ join([begin_vote, member]).map {|b, m| [m.peer, @ip_port, b.id, b.content] }
     vote_status <+ begin_vote.map{|b| [b.id, b.content, 'in flight'] }
     member_cnt <= member.group(nil, count)
   end
@@ -63,26 +59,25 @@ end
 
 
 class VotingAgent < Bud
-  include VoteInterface
-  
-  def initialize(i, p, o = nil)
-    super(i, p, o)
-    @addy = "#{ip}:#{port}"
-  end
-  
   def state
-    super
-    table :peer_ballot_cache, ['id', 'content', 'master']
+    extend VoteInterface
+    table :waiting_ballots, ['id', 'content', 'master']
     scratch :cast_vote, ['id', 'response']
+  end
+
+  # default for decide: always cast vote 'yes'.  expect subclasses to override.
+  declare 
+  def decide
+    cast_vote <= waiting_ballots.map{ |b| [b.id, 'yes'] }
   end
   
   declare 
   def casting
-    peer_ballot_cache <= ballot.map{|b| [b.id, b.content, b.master] }
-    # if there is a standing ballot, send a vote if stimulated by cast_vote
-    # the voters insert into cast_vote after considering peer_ballot_cache.
-    vote <~ join([cast_vote, peer_ballot_cache], [cast_vote.id, peer_ballot_cache.id]).map do |v, c| 
-      [c.master, @addy, v.id, v.response] 
+    # cache incoming ballots for subsequent decisions (may be delayed)
+    waiting_ballots <= ballot.map{|b| [b.id, b.content, b.master] }
+    # whenever we cast a vote on a waiting ballot, send the vote
+    vote <~ join([cast_vote, waiting_ballots], [cast_vote.id, waiting_ballots.id]).map do |v, c| 
+      [c.master, @ip_port, v.id, v.response] 
     end
   end
 end
