@@ -3,22 +3,14 @@ require 'bud'
 
 require 'lib/voting'
 
-class PaxosPrepare < Voting
+class PaxosPrepare < MajorityVotingMaster
   def state
     super
     table :local_aru, [], ['host', 'aru']
-    table :global_history, ['host', 'seqno'], ['requestor', 'update']
     scratch :leader_change, ['host'], ['leader', 'view']
   
     scratch :prepare, ['view', 'aru']
-    table :last_installed, [], ['view']
-    table :accept, ['view', 'seq', 'update']
-
-    #scratch :datalist, ['message', 'view', 'aru_requested', 'seq', 'update', 'type']
-    table :datalist, ['message', 'view', 'aru_requested', 'seq', 'update', 'type']
-    ##scratch :datalist_length, ['aru', 'len']
-    table :datalist_length, ['aru', 'len']
-
+    table :quorum, ['view', 'aru']
   end
 
   declare 
@@ -34,9 +26,30 @@ class PaxosPrepare < Voting
     end
 
     begin_vote <+ prepare.map{|p| print "put in ballot : " + p.inspect + "\n" or [p.view, p]}
+  end
 
-    #deliver.each {|d| print "Deliver: #{d.inspect}\n"}
+  declare 
+  def establish_quorum
+    quorum <= vote_status.map do |v|
+      if v.response.class == Array 
+        [ v.response.fetch(1), v.response.fetch(2) ] if v.response.fetch(4) == 'bottom'
+      end
+    end
+  end
+end
 
+class PaxosPrepareAgent < VotingAgent
+  def state
+    super
+    table :datalist, ['message', 'view', 'aru_requested', 'seq', 'update', 'type']
+    table :datalist_length, ['aru', 'len']
+    table :global_history, ['host', 'seqno'], ['requestor', 'update']
+    table :last_installed, [], ['view']
+    table :accept, ['view', 'seq', 'update']
+  end 
+
+  declare
+  def build_reply
     datalist <= join([ballot, last_installed]).map do |d, l|
       if d.content.fetch(1) == l.view
         print "AROO\n" or [d.content, d.content.fetch(0), d.content.fetch(1), -1, "none", "bottom"]

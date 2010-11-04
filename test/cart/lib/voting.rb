@@ -94,3 +94,17 @@ class VotingAgent < Bud
     end
   end
 end
+
+
+class MajorityVotingMaster < VotingMaster
+  def summary
+    victor <= join([vote_status, member_cnt, vote_cnt], [vote_status.id, vote_cnt.id]).map do |s, m, v|
+      if v.cnt > m.cnt / 2
+        [v.id, s.content, v.response]
+      end
+    end 
+    vote_status <+ victor.map{|v| v }
+    vote_status <- victor.map{|v| [v.id, v.content, 'in flight'] }
+  end
+
+end

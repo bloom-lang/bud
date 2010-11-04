@@ -51,6 +51,7 @@ class LeaderElection < Vote
       current_state <+ will_vote.map{|w| ['election', w.leader, w.vid]}
       current_state <- join([will_vote, current_state]).map{|w, c| c}
   end
+
   declare
   def le_two 
       j = join [current_state, @nonce.nonce, timer]

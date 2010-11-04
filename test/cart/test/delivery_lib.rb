@@ -12,7 +12,7 @@ class TestDelivery < TestLib
 
   def spinup_dist(type, host, port)
     d = nil
-    assert_nothing_raised(RuntimeError) { d = eval "#{type}.new(\"#{host}\", #{port})" } 
+    assert_nothing_raised(RuntimeError) { d = eval "#{type}.new(\"#{host}\", #{port}, {'visualize' => true})" } 
     assert_nothing_raised(RuntimeError) { d.run_bg }     
     return d
   end

@@ -4,10 +4,6 @@ require 'test/unit'
 
 
 class ShortestPaths < Bud
-  def initialize(ip, port)
-    super(ip,port)
-  end
-  
   def state
     table :link, ['from', 'to', 'cost']
     table :link2, ['from', 'to', 'cost']
@@ -17,7 +13,7 @@ class ShortestPaths < Bud
     table :minz,['cost']
     table :minmaxsumcntavg, ['from', 'to'], ['mincost', 'maxcost', 'sumcost', 'cnt', 'avgcost']
   end
-  
+
   declare 
   def program
     link2 <= link.map{|l| l unless empty.include? l.id } 

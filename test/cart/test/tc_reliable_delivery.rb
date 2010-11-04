@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud'
 require 'lib/quorum_delivery'
-require 'test/tc_delivery'
+require 'test/delivery_lib'
 
 
 class TestBEDelivery < TestDelivery 
