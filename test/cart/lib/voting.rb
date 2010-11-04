@@ -2,7 +2,6 @@ require 'rubygems'
 require 'bud'
 
 module VoteInterface
-  include BudState
   # channels used by both ends of the voting protocol
   def self.extended(base)
     channel :ballot, ['@peer', 'master', 'id'], ['content']
@@ -12,49 +11,63 @@ module VoteInterface
 end
 
 class VotingMaster < Bud
-  include VoteInterface
-  
   def state
     extend VoteInterface
     # local interfaces    
     scratch :begin_vote, ['id', 'content']
     scratch :victor, ['id', 'content', 'response']
 
-    table :vote_status, ['id', 'content', 'response']
+    table :vote_status, 
+          ['id', 'content', 'response']
     table :member, ['peer']
-    table :master_vote_cache, ['id', 'response', 'peer']
-    table :member_cnt, ['cnt']
-    table :vote_cnt, ['id', 'response', 'cnt']
+    table :votes_rcvd, ['id', 'response', 'peer']
+    scratch :member_cnt, ['cnt']
+    scratch :vote_cnt, ['id', 'response', 'cnt']
   end
 
   declare
   def initiation
-    # multicast ballots when stimulated by begin_vote
-    ballot <~ join([begin_vote, member]).map {|b, m| [m.peer, @ip_port, b.id, b.content] }
-    vote_status <+ begin_vote.map{|b| [b.id, b.content, 'in flight'] }
+    # when stimulated by begin_vote, send ballots 
+    # to members, set status to 'in flight'
+    j = join([begin_vote, member])
+    ballot <~ j.map do |b,m| 
+      [m.peer, @ip_port, b.id, b.content] 
+    end
+    vote_status <+ begin_vote.map do |b| 
+      [b.id, b.content, 'in flight'] 
+    end
     member_cnt <= member.group(nil, count)
   end
 
   declare
   def counting
-    master_vote_cache <= vote.map{|v| [v.id, v.response, v.peer] }
-    vote_cnt <= master_vote_cache.group([master_vote_cache.id, master_vote_cache.response], count(master_vote_cache.peer))
+    # accumulate votes into votes_rcvd table, 
+    # calculate current counts
+    votes_rcvd <= vote.map do |v| 
+      [v.id, v.response, v.peer] 
+    end
+    vote_cnt <= votes_rcvd.group(
+      [votes_rcvd.id, votes_rcvd.response], 
+      count(votes_rcvd.peer))
   end
 
   declare
   def summary
-    # a subclass will likely override this particular summary of votes.
-    # here, we enforce a unanimous vote and choose the "response", among
-    # possibly many, that has as many votes as there are members.
-    victor <= join([vote_status, member_cnt, vote_cnt], [vote_status.id, vote_cnt.id]).map do |s, m, v|
+    # this stub changes vote_status only on a 
+    # complete and unanimous vote.
+    # a subclass will likely override this
+    j = join([vote_status, member_cnt, vote_cnt], 
+             [vote_status.id, vote_cnt.id])
+    victor <= j.map do |s,m,v|
       if m.cnt == v.cnt
         [v.id, s.content, v.response]
       end
-    end 
+    end
     vote_status <+ victor.map{|v| v }
-    vote_status <- victor.map{|v| [v.id, v.content, 'in flight'] }
+    vote_status <- victor.map do |v| 
+      [v.id, v.content, 'in flight'] 
+    end
   end
-
 end
 
 
