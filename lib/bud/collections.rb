@@ -323,6 +323,23 @@
       raise BudError, "Illegal use of <+ with async collection on left"
     end    
   end
+  
+  class BudTerminal < BudCollection
+    def insert(o)
+      STDOUT.puts o.inspect
+    end
+    
+    def pending_insert(o)
+      puts o.inspect
+    end
+    
+    def each
+      str = STDIN.gets
+      str = str.chomp if str
+      yield tuple_accessors([str])
+    end
+    
+  end
 
   class BudPeriodic < BudCollection
   end
@@ -505,8 +522,17 @@
       end
     end    
   end
+
+  class BudReadOnly < BudScratch    
+    superator "<+" do |o|
+      raise BudError, "Illegal use of <+ with read-only collection on left"
+    end
+    def merge
+      raise BudError, "Illegale use of <= with read-only collection on left"
+    end
+  end
   
-  class BudFileReader < BudScratch
+  class BudFileReader < BudReadOnly
     def initialize(name, filename, delimiter, b_class)
       super(name, ['lineno'], ['text'], b_class)
       @filename = filename
@@ -519,5 +545,6 @@
     def tick
       self
     end
+    
   end
 end

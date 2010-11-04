@@ -15,12 +15,13 @@ class Ponger < Bud
 
   def state
     channel :pingpongs, ['@otherloc', 'me', 'msg', 'wall', 'bud']
+    terminal :out
   end
 
   declare
   def logic
     # whenever we get a ping, send a pong
-    pingpongs.each {|p| puts "Got #{p.inspect}"}
+    out <= pingpongs
     pingpongs <~ pingpongs.map {|p| [@other, @me, 'pong!', Time.new.to_s, budtime]}      
   end
 end

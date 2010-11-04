@@ -2,12 +2,12 @@
 # This demo uses separate scripts for pinger and ponger.
 # To run:
 #  fire up a ponger with 'ruby ponger.rb 127.0.0.1:12346 127.0.0.1:12345'
-#  fire up a pinger with 'ruby pinger.rb 127.0.0.1:12345 127.0.0.1:12346 2'
+#  fire up an io_in with 'ruby io_in.rb 127.0.0.1:12345 127.0.0.1:12346'
 #  you should see packets received on either side
 require 'rubygems'
 require 'bud'
 
-class Pinger < Bud
+class IoIn < Bud
   def initialize(ip, port)
     super ip, port
     @me = ARGV[0]
@@ -16,18 +16,18 @@ class Pinger < Bud
 
   def state
     channel :pingpongs, ['@otherloc', 'myloc', 'msg', 'wall', 'bud']
-    periodic :timer, ARGV[2]
-    terminal :out, ['text']
+    terminal :interm, ['text']
+    terminal :outterm
   end
 
   declare
   def logic
-    # whenever we get a timer, send out a tuple
-    pingpongs <~ timer.map {|t| [@other, @me, 'ping!', t.time, budtime]}      
-    out <= pingpongs
+    # whenever we get a line, send out a tuple
+    pingpongs <~ interm.map {|t| [@other, @me, t.text, 0, budtime]}      
+    outterm <= pingpongs
   end
 end
 
 source = ARGV[0].split(':')
-program = Pinger.new(source[0], source[1])
+program = IoIn.new(source[0], source[1])
 program.run

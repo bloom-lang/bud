@@ -23,13 +23,14 @@ class PingPong < Bud
     channel :pingpongs, ['@otherloc', 'myloc', 'msg', 'wall', 'bud']
     table   :pingbuf, ['otherloc', 'myloc', 'msg', 'wall', 'bud']
     periodic :timer, ARGV[1]
+    terminal :term
   end
 
   def declaration
     strata[0] = rules {
       # if 3rd arg is true, at time tick 1 set up pingbuf with one tuple
       if ARGV[2] and budtime == 1 then
-        puts "injecting into pingbuf"
+        term <= ["injecting into pingbuf"]
         pingbuf << [@otherloc, @myloc, 'pong!', Time.new.to_s, budtime] 
         # puts "#{pingbuf.length} tuples in pingbuf"
         # puts "#{timer.length} tuples in timer"

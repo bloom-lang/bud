@@ -255,6 +255,12 @@ class Bud
     return retval
   end
 
+  def terminal(name, cols=['line'])
+    raise BudError("terminal collection #{name} can have only one column") if cols.length != 1
+    t = check_table(name, [], cols)
+    @tables[name] ||= BudTerminal.new(name, [], cols, self)
+  end
+
   # methods to define vars and tmpvars.  This code still quite tentative
   def regvar(name, collection)
     # rule out varnames that used reserved words
