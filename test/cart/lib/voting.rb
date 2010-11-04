@@ -4,9 +4,9 @@ require 'bud'
 module VoteInterface
   # channels used by both ends of the voting protocol
   def self.extended(base)
-    channel :ballot, ['@peer', 'master', 'id'], ['content']
-    channel :vote, ['@master', 'peer', 'id'], ['response']
-    channel :tickler, ['@master']
+    base.channel :ballot, ['@peer', 'master', 'id'], ['content']
+    base.channel :vote, ['@master', 'peer', 'id'], ['response']
+    base.channel :tickler, ['@master']
   end
 end
 

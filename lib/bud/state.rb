@@ -25,25 +25,25 @@ module BudState
     end
   end
 
-  def table(name, keys=[], cols=[], conf=nil)
+  def table(name, keys, cols=[], conf=nil)
     check_table(name, keys, cols)
     @tables[name] ||= Bud::BudTable.new(name, keys, cols, self, conf)
   end
 
-  def blackboard(name, keys=[], cols=[])
+  def blackboard(name, keys, cols=[])
     table(name, keys, cols, "last")
   end
 
-  def permanent(name, keys=[], cols=[])
+  def permanent(name, keys, cols=[])
     table(name, keys, cols, "first")
   end
 
-  def scratch(name, keys=[], cols=[])
+  def scratch(name, keys, cols=[])
     check_table(name, keys, cols)
     @tables[name] ||= Bud::BudScratch.new(name, keys, cols, self)
   end
 
-  def serializer(name, keys=[], cols=[])
+  def serializer(name, keys, cols=[])
     check_table(name, keys, cols)
     @tables[name] ||= Bud::BudSerializer.new(name, keys, cols, self)
   end
@@ -54,7 +54,7 @@ module BudState
     return i, cols
   end
 
-  def channel(name, keys=[], cols=[])
+  def channel(name, keys, cols=[])
     locspec, keys = remove_at(keys)
     locspec, cols = remove_at(cols) if keys.nil?
     raise Bud::BudError, "channel declaration for #{name} missing an address spec" if locspec.nil?
@@ -68,7 +68,7 @@ module BudState
     @tables[name] ||= Bud::BudFileReader.new(name, filename, delimiter, self)
   end
 
-  def periodic(name, keys=['ident'], cols=['time'], duration=1)
+  def periodic(name, duration=1, keys=['ident'], cols=['time'])
     if cols.length != 1 or keys.length != 1 then
       raise Bud::BudError("periodic collection #{name} must have one key column, and one other column") 
     end
@@ -83,7 +83,7 @@ module BudState
     return retval
   end
 
-  def terminal(name, cols=['line'])
+  def terminal(name, keys=nil, cols=['line'])
     raise Bud::BudError("terminal collection #{name} can have only one column") if cols.length != 1
     t = check_table(name, [], cols)
     @tables[name] ||= Bud::BudTerminal.new(name, [], cols, self)
