@@ -35,8 +35,12 @@ class ChatClient < Bud
   def nice_time
     t = Time.new
     return t.strftime("%I:%M.%S")
-  end    
-
+  end   
+  
+  def left_right_align(x, y) 
+    return x + " "*[66 - x.length,2].max + y
+  end
+  
   declare
   def chatter
     # send mcast requests to master
@@ -44,11 +48,7 @@ class ChatClient < Bud
     mcast <~ j.map { |t,s| [@master, @ip_port, @me, nice_time, t.line] if s.value == 'live' }
     # pretty-print mcast msgs from master on terminal
     term <= mcast.map do |m|
-      [m.username \
-        + ": " \
-        + (mssg = (m.msg.nil? ? '' : m.msg)) \
-        + " "*[66 - mssg.length - m.username.length,2].max \
-        + "("+m.time+")"]
+      [left_right_align(m.username + ": " + (m.msg || ''), "(" + m.time + ")")]
     end
   end
 end
