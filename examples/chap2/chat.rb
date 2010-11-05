@@ -22,30 +22,21 @@ class ChatClient < Bud
 
   declare
   def connect
-    # if we haven't contacted master, do so now and set status to pending
+    # if we haven't contacted master, do so now
     ctrl <~ [[@master, @ip_port, 'join:'+@me]] unless status.map{|s| s.master}.include? @master
-    status <= [[@master, 'pending']] unless status.map{|s| s.master}.include? @master
 
     # add "live" status on ack
-    status <= ctrl.map do |c| 
-      [@master, 'live'] if @master == c.from and c.cmd == 'ack'
-    end
+    status <= ctrl.map {|c| [@master, 'live'] if @master == c.from and c.cmd == 'ack'}
   end
   
-  def nice_time
-    t = Time.new
-    return t.strftime("%I:%M.%S")
-  end   
+  def nice_time; return Time.new.strftime("%I:%M.%S"); end   
   
-  def left_right_align(x, y) 
-    return x + " "*[66 - x.length,2].max + y
-  end
+  def left_right_align(x, y); return x + " "*[66 - x.length,2].max + y;  end
   
   declare
   def chatter
-    # send mcast requests to master
-    j = join([term, status])
-    mcast <~ j.map { |t,s| [@master, @ip_port, @me, nice_time, t.line] if s.value == 'live' }
+    # send mcast requests to master if status is non-empty
+    mcast <~ join([term, status]).map { |t,s| [@master, @ip_port, @me, nice_time, t.line] }
     # pretty-print mcast msgs from master on terminal
     term <= mcast.map do |m|
       [left_right_align(m.username + ": " + (m.msg || ''), "(" + m.time + ")")]
