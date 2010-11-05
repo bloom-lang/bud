@@ -10,28 +10,32 @@ require 'chat_protocol'
 class ChatClient < Bud
   include ChatProtocol
   def initialize(ip, port, me, master)
-    super ip, port
     @me = me
     @master = master
+    super ip, port
   end
   
   def state
     chat_protocol_state
     table :status, ['master', 'value']
-  end
-
-  declare
-  def connect
-    # if we haven't contacted master, do so now
-    ctrl <~ [[@master, @ip_port, @me]] unless status.map{|s| s.master}.include? @master
-
-    # add "live" status on ack
-    status <= ctrl.map {|c| [@master, 'live'] if @master == c.from and c.cmd == 'ack'}
+    scratch :connect, ['master', 'myip', 'mynick']
   end
   
+  def bootstrap
+    connect <+ [[@master, @ip_port, @me]]
+  end
+
   def nice_time; return Time.new.strftime("%I:%M.%S"); end   
   
   def left_right_align(x, y); return x + " "*[66 - x.length,2].max + y;  end
+  
+  declare
+  def connected
+    # send connection request if it exists
+    ctrl <~ connect
+    # add "live" status on ack
+    status <= ctrl.map {|c| [@master, 'live'] if @master == c.from and c.cmd == 'ack'}
+  end
   
   declare
   def chatter

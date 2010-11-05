@@ -48,6 +48,7 @@ class Bud
     @tmpvars = scratch :tmpvars_tbl, ['name'], ['value']
 
     state
+    bootstrap
 
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
@@ -64,15 +65,14 @@ class Bud
   end  
   def declaration
   end
-
-  def singleton_class
-    class << self; self; end
+  def bootstrap
   end
 
   ########### metaprogramming support for ruby and for rule rewriting
   # helper to define instance methods
-
-    
+  def singleton_class
+    class << self; self; end
+  end
 
   def safe_rewrite
     begin
