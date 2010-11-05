@@ -4,7 +4,6 @@
 # run "ruby chat.rb 127.0.0.1:12347 bob 127.0.0.1:12345"
 require 'rubygems'
 require 'bud'
-require 'zlib'
 require 'chat_protocol'
 
 class ChatMaster < Bud
@@ -13,6 +12,7 @@ class ChatMaster < Bud
     chat_protocol_state
     table :nodelist, ['addr'], ['username']    
   end
+  
   declare
   def accept
     nodelist <= ctrl.map {|c| [c.from, c.cmd.split(":")[1]] }

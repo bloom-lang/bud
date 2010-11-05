@@ -2,9 +2,9 @@
 # run "ruby chat_master.rb 127.0.0.1:12345"
 # run "ruby chat.rb 127.0.0.1:12346 alice 127.0.0.1:12345"
 # run "ruby chat.rb 127.0.0.1:12347 bob 127.0.0.1:12345"
+# run "ruby chat.rb 127.0.0.1:12348 harvey 127.0.0.1:12345"
 require 'rubygems'
 require 'bud'
-require 'zlib'
 require 'chat_protocol'
 
 class ChatClient < Bud
@@ -42,12 +42,13 @@ class ChatClient < Bud
     # send mcast requests to master
     j = join([term, status])
     mcast <~ j.map { |t,s| [@master, @ip_port, @me, nice_time, t.line] if s.value == 'live' }
-    # print mcast msgs from master
+    # pretty-print mcast msgs from master on terminal
     term <= mcast.map do |m|
-      str = m.username + ": "
-      str += m.msg unless m.msg.nil?
-      str += "  ("+m.time+")"
-      [str]
+      [m.username \
+        + ": " \
+        + (mssg = (m.msg.nil? ? '' : m.msg)) \
+        + " "*[66 - mssg.length - m.username.length,2].max \
+        + "("+m.time+")"]
     end
   end
 end
