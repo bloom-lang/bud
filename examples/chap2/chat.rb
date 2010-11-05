@@ -16,9 +16,7 @@ class ChatClient < Bud
   end
   
   def state
-    channel :mcast, ['@to', 'from', 'username', 'time'], ['msg']
-    channel :ctrl, ['@to', 'from', 'cmd']
-    terminal :term
+    chat_protocol_state
     table :status, ['master', 'value']
   end
 
@@ -27,27 +25,29 @@ class ChatClient < Bud
     # if we haven't contacted master, do so now and set status to pending
     ctrl <~ [[@master, @ip_port, 'join:'+@me]] unless status.map{|s| s.master}.include? @master
     status <= [[@master, 'pending']] unless status.map{|s| s.master}.include? @master
-    # change status to live on ack
+
+    # add "live" status on ack
     status <= ctrl.map do |c| 
       [@master, 'live'] if @master == c.from and c.cmd == 'ack'
     end
-    # term <= status.map{|s| [s.inspect]}
   end
   
   def nice_time
     t = Time.new
-    return t.hour.to_s + ":" + t.min.to_s + "." + t.sec.to_s
+    return t.strftime("%I:%M.%S")
   end    
 
   declare
   def chatter
     # send mcast requests to master
-#    term <= join([term,master,me]).map { |t, m, me| [m.addr, @ip_port, me.username, nice_time, t.line] }
-    mcast <~ term.map { |t| [@master, @ip_port, @me, nice_time, t.line] }
+    j = join([term, status])
+    mcast <~ j.map { |t,s| [@master, @ip_port, @me, nice_time, t.line] if s.value == 'live' }
     # print mcast msgs from master
     term <= mcast.map do |m|
-#      puts "mcast rcvd"
-      ["("+m.time+") " + m.username + ": " + m.msg]
+      str = m.username + ": "
+      str += m.msg unless m.msg.nil?
+      str += "  ("+m.time+")"
+      [str]
     end
   end
 end

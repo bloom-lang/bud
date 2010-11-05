@@ -15,10 +15,10 @@ class Bud
       pname = get_peername
       if pname then 
         @port, @ip = Socket.unpack_sockaddr_in(pname) 
-        puts "-- server inbound connection from #{@ip}:#{@port}"
+ #       puts "-- server inbound connection from #{@ip}:#{@port}"
       else
         @port, @ip = Socket.unpack_sockaddr_in(get_sockname)
-        puts "-- server connection to #{@ip}:#{@port}"
+ #       puts "-- server connection to #{@ip}:#{@port}"
       end
       bud.connections ||= {}
       bud.connections[[@ip, @port]] = self
@@ -48,7 +48,7 @@ class Bud
     end
 
     def unbind
-      puts "-- connection ended from #{@ip}:#{@port}"
+#      puts "-- connection ended from #{@ip}:#{@port}"
       bud.connections.delete [@ip,@port]
     end
   end

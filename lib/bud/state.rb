@@ -83,10 +83,15 @@ module BudState
     return retval
   end
 
-  def terminal(name, keys=[], cols=['line'])
-    raise Bud::BudError("terminal collection #{name} can have only one column") if cols.length != 1
-    t = check_table(name, [], cols)
-    @tables[name] ||= Bud::BudTerminal.new(name, [], cols, self)
+  def terminal(name, keys=['line'])
+    if defined?(@terminal) && @terminal != name then
+      raise Bud::BudError, "can't register terminal #{name} in addition to #{@terminal}" 
+    else
+      @terminal = name
+    end
+    raise Bud::BudError("terminal collection #{name} can have only one column") if keys.length != 1
+    t = check_table(name, keys, [])
+    @tables[name] ||= Bud::BudTerminal.new(name, keys, [], self)
   end
 
   # methods to define vars and tmpvars.  This code still quite tentative

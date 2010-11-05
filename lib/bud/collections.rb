@@ -335,20 +335,43 @@
   end
   
   class BudTerminal < BudCollection
-    def insert(o)
-      STDOUT.puts o.inspect
+    def initialize(name, keys, cols, b_class, prompt=false)
+      super(name, keys, cols, b_class)
+      
+      ip = b_class.instance_variable_get('@ip')
+      port = b_class.instance_variable_get('@port')
+      @connection = nil
+      
+      @reader = Thread.new() do ||
+        begin
+          while true
+            str = name.to_s + " > "
+            STDOUT.print(str) if prompt
+            s = STDIN.gets
+            s = s.chomp if s
+            tup = tuple_accessors([s])
+            @connection ||= EventMachine::connect ip, port, Server, @bud_instance 
+            @connection.send_data [name, tup].to_msgpack
+          
+            # @mutex.synchronize do
+            #   do_insert(tup, @storage)
+            # end
+          end
+        rescue
+          print "terminal reader thread failed with #{$!}\n"
+          exit
+        end
+      end
     end
     
-    # def pending_insert(o)
-    #   puts o.inspect
+    # def each
+    #   @mutex.synchronize do
+    #     super
+    #   end
     # end
     
-    def each
-      str = name.to_s + " > "
-      STDOUT.print(str)
-      str = STDIN.gets
-      str = str.chomp if str
-      yield tuple_accessors([str])
+    def insert(o)
+      STDOUT.puts o[0] unless o == [] or o.nil?
     end
     
   end

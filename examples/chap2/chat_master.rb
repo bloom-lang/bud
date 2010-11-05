@@ -10,27 +10,19 @@ require 'chat_protocol'
 class ChatMaster < Bud
   include ChatProtocol
   def state
-    channel :mcast, ['@to', 'from', 'username', 'time'], ['msg']
-    channel :ctrl, ['@to', 'from', 'cmd']
-    terminal :term
+    chat_protocol_state
     table :nodelist, ['addr'], ['username']    
   end
   declare
   def accept
-#    term <= ctrl.map { |c| [c.inspect] }
     nodelist <= ctrl.map {|c| [c.from, c.cmd.split(":")[1]] }
-#    term <= nodelist.map {|n| [n.inspect]}
     ctrl <~ ctrl.map { |c| [c.from, @ip_port, 'ack']}
   end
   
   declare
   def multicast
     mcast <~ join([mcast, nodelist]).map do |m,n| 
-#      puts "joining mcast with nodelist"
       [n.addr, @ip_port, m.username, m.time, m.msg]  unless n.addr == m.from
-    end
-    term <= join([mcast, nodelist]).map do |m,n| 
-      [n.addr, @ip_port, m.username, m.time, m.msg] unless n.addr == m.from
     end
   end
 end
