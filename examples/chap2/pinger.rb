@@ -24,7 +24,7 @@ class Pinger < Bud
   def logic
     # whenever we get a timer, send out a tuple
     flow <~ timer.map {|t| [@other, @me, 'ping!', t.time, budtime]}      
-    out <= flow
+    out <= flow.map {|f| [f.inspect]}
   end
 end
 

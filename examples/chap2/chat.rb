@@ -23,7 +23,7 @@ class ChatClient < Bud
   declare
   def connect
     # if we haven't contacted master, do so now
-    ctrl <~ [[@master, @ip_port, 'join:'+@me]] unless status.map{|s| s.master}.include? @master
+    ctrl <~ [[@master, @ip_port, @me]] unless status.map{|s| s.master}.include? @master
 
     # add "live" status on ack
     status <= ctrl.map {|c| [@master, 'live'] if @master == c.from and c.cmd == 'ack'}
@@ -39,7 +39,7 @@ class ChatClient < Bud
     mcast <~ join([term, status]).map { |t,s| [@master, @ip_port, @me, nice_time, t.line] }
     # pretty-print mcast msgs from master on terminal
     term <= mcast.map do |m|
-      [left_right_align(m.username + ": " + (m.msg || ''), "(" + m.time + ")")]
+      [left_right_align(m.nick + ": " + (m.msg || ''), "(" + m.time + ")")]
     end
   end
 end
