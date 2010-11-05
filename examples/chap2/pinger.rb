@@ -16,7 +16,7 @@ class Pinger < Bud
   
   def state
     channel :flow, ['@otherloc', 'me', 'msg', 'wall', 'budtick']
-    periodic :timer, ['id'], ['time'], ARGV[2]
+    periodic :timer, ARGV[2], ['id'], ['time']
     terminal :out, ['text']
   end
 

@@ -8,30 +8,30 @@ require 'zlib'
 require 'chat_protocol'
 
 class ChatClient < Bud
+  include ChatProtocol
+  def initialize(ip, port, me, master)
+    super ip, port
+    @me = me
+    @master = master
+  end
+  
   def state
-    self.extend ChatProtocol
-    table :me, ['addr', 'username']
-    table :master, ['addr']
+    channel :mcast, ['@to', 'from', 'username', 'time'], ['msg']
+    channel :ctrl, ['@to', 'from', 'cmd']
+    terminal :term
     table :status, ['master', 'value']
   end
 
   declare
   def connect
-    me <= [[@ip_port, ARGV[1]]]
-    master <= [[ARGV[2]]]
-    ctrl <~ join([master,me]).map do |m,me|
-      if not status.map{|s| s.master}.include? m.addr
-        puts "connecting to #{m.addr}" unless 
-        [m.addr, @ip_port, 'join:'+me.username]
-      end
-      nil
-    end
+    # if we haven't contacted master, do so now and set status to pending
+    ctrl <~ [[@master, @ip_port, 'join:'+@me]] unless status.map{|s| s.master}.include? @master
+    status <= [[@master, 'pending']] unless status.map{|s| s.master}.include? @master
     # change status to live on ack
-    status <= join([ctrl,master]).map do |c,m| 
-      puts "connected" if m.addr == c.from and c.cmd == 'ack' 
-      [m.addr, 'live'] if m.addr == c.from and c.cmd == 'ack'
+    status <= ctrl.map do |c| 
+      [@master, 'live'] if @master == c.from and c.cmd == 'ack'
     end
-    term <= status.map{|s| [s.inspect]}
+    # term <= status.map{|s| [s.inspect]}
   end
   
   def nice_time
@@ -42,9 +42,13 @@ class ChatClient < Bud
   declare
   def chatter
     # send mcast requests to master
-    mcast <~ join([term,master,me]) { |t, m, me| [m.addr, @ip_port, me.username, nice_time, t.line] }
+#    term <= join([term,master,me]).map { |t, m, me| [m.addr, @ip_port, me.username, nice_time, t.line] }
+    mcast <~ term.map { |t| [@master, @ip_port, @me, nice_time, t.line] }
     # print mcast msgs from master
-    term <= mcast.map {|m| ["("+m.time+") " + m.username + ": " + m.msg]}
+    term <= mcast.map do |m|
+#      puts "mcast rcvd"
+      ["("+m.time+") " + m.username + ": " + m.msg]
+    end
   end
 end
 
@@ -52,5 +56,5 @@ end
 source = ARGV[0].split(':')
 ip = source[0]
 port = source[1].to_i
-program = ChatClient.new(ip, port)
+program = ChatClient.new(ip, port, ARGV[1], ARGV[2])
 program.run

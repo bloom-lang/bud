@@ -300,10 +300,16 @@
       # rescue
       #   puts "connection #{l} failed"
     end
+    
+    def tick
+      @storage = {}
+      # never turn pending outbounds into real tuples
+      @pending = {}
+    end
 
     def flush
-      ip = Bud::instance_variable_get('@ip')
-      port = Bud::instance_variable_get('@port')
+      ip = @bud_instance.instance_variable_get('@ip')
+      port = @bud_instance.instance_variable_get('@port')
       each_pending do |t|
         begin
           the_locspec = split_locspec(t[@locspec])
@@ -333,9 +339,9 @@
       STDOUT.puts o.inspect
     end
     
-    def pending_insert(o)
-      puts o.inspect
-    end
+    # def pending_insert(o)
+    #   puts o.inspect
+    # end
     
     def each
       str = name.to_s + " > "

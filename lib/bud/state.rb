@@ -83,7 +83,7 @@ module BudState
     return retval
   end
 
-  def terminal(name, keys=nil, cols=['line'])
+  def terminal(name, keys=[], cols=['line'])
     raise Bud::BudError("terminal collection #{name} can have only one column") if cols.length != 1
     t = check_table(name, [], cols)
     @tables[name] ||= Bud::BudTerminal.new(name, [], cols, self)
