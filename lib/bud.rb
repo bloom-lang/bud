@@ -119,7 +119,6 @@ class Bud
   end
 
   def tick
-    @budtime += 1
     # reset any schema stuff that isn't already there
     # state to be defined by the user program
     # rethink this.
@@ -146,6 +145,7 @@ class Bud
     @strata.each { |strat| stratum_fixpoint(strat) }
     @channels.each { |c| @tables[c[0]].flush }
     reset_periodics 
+    @budtime += 1
     return @budtime
   end
 

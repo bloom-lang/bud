@@ -47,11 +47,11 @@ class PriorityQ < Bud
     scratch :out2, ['item'], ['priority']
   end
   
-  def once
-    q << ['c', 2] #if budtime == 1
-    q << ['d', 3] #if budtime == 1
-    q << ['a', 1] #if budtime == 1
-    q << ['b', 2] #if budtime == 1
+  def bootstrap
+    q << ['c', 2]
+    q << ['d', 3]
+    q << ['a', 1]
+    q << ['b', 2]
   end
 
   declare
@@ -63,7 +63,7 @@ class PriorityQ < Bud
     q <- out.map{|t| t}
 
     # third stratum
-    out2 <= natjoin([q,minny]).map{|q, m| q+m}
+    out2 <= join([q,minny],[q.priority,minny.priority]).map{|q, m| q}
   end
 end
 
@@ -73,7 +73,7 @@ class DupAggs < Bud
 #    scratch :out, ['s1', 's2']
   end
   
-  def once
+  def bootstrap
     tab << [1]
     tab << [2]
   end
@@ -117,7 +117,6 @@ class TestAggs < Test::Unit::TestCase
   def test_argaggs
     program = PriorityQ.new('localhost', 12345)
     assert_nothing_raised (RuntimeError) { program.tick }
-    program.once
     argouts = program.out.map{|t| t}
     basicouts = program.out2.map{|t| t}
     assert_equal([], argouts - basicouts)

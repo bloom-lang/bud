@@ -18,13 +18,14 @@ class WordCount < Bud
     table :compare, ['word'], ['cnt', 'cnt2']
   end
   
+  def bootstrap
+    text.each do |t|
+      t.text.split.each_with_index {|w,i| words << [t.lineno, i, w]}
+    end
+  end
+  
   def declaration
     strata[0] = rules {
-      text.each do |t|
-        t.text.split.each_with_index {|w,i| words << [t.lineno, i, w]}
-      end
-    }
-    strata[1] = rules {
       wc <= words.group([words.word], count)
       wc2 <= words.reduce({}) do |memo, t|
         memo[t.word] ||= 0

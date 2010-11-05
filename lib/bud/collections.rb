@@ -302,9 +302,13 @@
     end
     
     def tick
-      @storage = {}
-      # never turn pending outbounds into real tuples
-      @pending = {}
+      # tuples inserted during bootstrap (@budtime==0) need to get sent in the next tick
+      # so only clear @pending if @budtime > 0
+      if @bud_instance.budtime > 0 then
+        @storage = {}
+        # never turn pending outbounds into real tuples
+        @pending = {}
+      end
     end
 
     def flush

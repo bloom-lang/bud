@@ -13,21 +13,21 @@ class PriorityQ < Bud
     scratch :out2, ['item'], ['priority']
   end
   
+  def bootstrap
+    q << ['c', 2]
+    q << ['d', 3]
+    q << ['a', 1]
+    q << ['b', 2]
+  end
+  
   def declaration
     strata[0] = rules {
-      q << ['c', 2] if budtime == 1
-      q << ['d', 3] if budtime == 1
-      q << ['a', 1] if budtime == 1
-      q << ['b', 2] if budtime == 1
-    }
-    
-    strata[1] = rules {
       out <= q.argagg(:min, [], q.priority)
       minny <= q.group(nil, min(q.priority))
       q <- out.map{|t| t}
     }
     
-    strata[2] = rules {
+    strata[1] = rules {
       out2 <= natjoin([q,minny]).map{|q, m| q+m}
     }
 

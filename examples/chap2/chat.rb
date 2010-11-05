@@ -18,11 +18,11 @@ class ChatClient < Bud
   def state
     chat_protocol_state
     table :status, ['master', 'value']
-    scratch :connect, ['master', 'myip', 'mynick']
   end
   
   def bootstrap
-    connect <+ [[@master, @ip_port, @me]]
+    # send connection request to master
+    ctrl <~ [[@master, @ip_port, @me]]
   end
 
   def nice_time; return Time.new.strftime("%I:%M.%S"); end   
@@ -30,15 +30,10 @@ class ChatClient < Bud
   def left_right_align(x, y); return x + " "*[66 - x.length,2].max + y;  end
   
   declare
-  def connected
-    # send connection request if it exists
-    ctrl <~ connect
-    # add "live" status on ack
-    status <= ctrl.map {|c| [@master, 'live'] if @master == c.from and c.cmd == 'ack'}
-  end
-  
-  declare
   def chatter
+    # add "live" status on ack
+     status <= ctrl.map {|c| [@master, 'live'] if @master == c.from and c.cmd == 'ack'}
+ 
     # send mcast requests to master if status is non-empty
     mcast <~ join([term, status]).map { |t,s| [@master, @ip_port, @me, nice_time, t.line] }
     # pretty-print mcast msgs from master on terminal
