@@ -9,6 +9,10 @@ class Viz
     @graph.edge[:fontname] = "Times-Roman"
     @tiers = []
 
+    #strata.each {|s| print "STR: #{s.inspect}\n" } 
+    #mapping.each {|s| print "MAPP: #{s.inspect}\n" } 
+    #tableinfo.each {|s| print "TI: #{s.inspect}\n" } 
+
     # array: strata
     # disabled for now.
     #(0..strata.first[0]+1).each do |s|
@@ -24,7 +28,7 @@ class Viz
 
     @tabinf = {}
     tableinfo.each do |ti|
-      print "pop on #{ti[0].to_s}\n"
+      #print "pop on #{ti[0].to_s}\n"
      # @tabinf[ti[0].to_s] = ti[1].class
       @tabinf[ti[0].to_s] = ti[1]
     end
@@ -52,7 +56,7 @@ class Viz
       maxs = 0
       words.each do |w|
         if @t2s[w] and @t2s[w] > maxs
-          print "INC MAX: #{w} to #{@t2s[w]}\n"
+          #print "INC MAX: #{w} to #{@t2s[w]}\n"
           maxs = @t2s[w]
         end
       end
@@ -99,6 +103,7 @@ class Viz
     # its name is "CYC" + concat(sort(predicate names))
 
     depends.each do |d|
+      #print "DEP: #{d.inspect}\n"
       head = d[1]
       body = d[3]
       if d.nil? 
@@ -112,12 +117,12 @@ class Viz
       addonce(body, (body != d[3]))
       addedge(body, head, d[1], d[3], (head != d[1]))
     end
-    print "done processing\n"
+    #print "done processing\n"
   end
 
   def addonce(node, negcluster)
     if !@nodes[node]
-      print "ST is #{safe_t2s(node)} (with tiers #{@tiers.length})\n"
+      #print "ST is #{safe_t2s(node)} (with tiers #{@tiers.length})\n"
       #@nodes[node] = @tiers[safe_t2s(node)].add_node(node)
       @nodes[node] = @graph.add_node(node)
     end
@@ -125,7 +130,7 @@ class Viz
       # cleaning 
       res = node
       node.split(", ").each_with_index do |p, i|
-        print "ITEM #{p} at #{i}\n"
+        #print "ITEM #{p} at #{i}\n"
         if i == 0
           res = p
         elsif i % 4 == 0
@@ -144,6 +149,8 @@ class Viz
   end
 
   def addedge(body, head, op, nm, negcluster)
+    #print "EKey IS #{body.to_s} + #{head.to_s}\n"
+    return if body.nil? or head.nil?
     ekey = body + head
     if !@edges[ekey] 
       #print "ADD edge #{ekey}\n"
@@ -185,6 +192,8 @@ class Viz
     @labels.each_key do |k|
       @edges[k].label = @labels[k].keys.join(" ")
     end
+
+    
     @graph.output(:pdf => "#{name}.pdf")
   end
 

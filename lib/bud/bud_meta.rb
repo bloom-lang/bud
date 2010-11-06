@@ -141,6 +141,7 @@ class Bud
     end
 
     depends.each do |d|
+      #print "INSIDE DEP: #{d.inspect}\n"
       if d[2] == '<'
         if d[5] =~ /-@/
           realop = "<-"

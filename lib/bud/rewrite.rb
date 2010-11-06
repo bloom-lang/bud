@@ -170,6 +170,7 @@ class Rewriter < SaneR2R
   end
 
   def process_call(exp)
+    #print "CALL: #{exp.inspect}\n"
     op = exp[1].to_s
     if exp.length == 2
       #print "CALL HAS 2: #{exp.inspect}\n"
@@ -210,11 +211,15 @@ class Rewriter < SaneR2R
 
   def process_vcall(exp)
     t = exp[0].to_s
-    if self.context[1].to_s == "call" or (self.context[1].to_s == "array" and self.context[3].to_s == "lasgn")
+    if self.context[1].to_s == "call" or (self.context[1].to_s == "array")# and self.context[3].to_s == "lasgn")
       unless self.context[2].to_s == "block"
         newtab(t)
         @tabs[t] = @nmcontext
       end
+    else 
+      #newtab(t)
+      #@tabs[t] = @nmcontext
+      #print "in vcall, omitting nmcontext for #{exp.inspect}\n"
     end
     return "TABLE(#{exp.shift.to_s})"
   end
