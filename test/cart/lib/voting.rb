@@ -31,6 +31,7 @@ class VotingMaster < Bud
     # to members, set status to 'in flight'
     j = join([begin_vote, member])
     ballot <~ j.map do |b,m| 
+      #print "UM OK\n" or [m.peer, @ip_port, b.id, b.content] 
       [m.peer, @ip_port, b.id, b.content] 
     end
     vote_status <+ begin_vote.map do |b| 
@@ -44,7 +45,7 @@ class VotingMaster < Bud
     # accumulate votes into votes_rcvd table, 
     # calculate current counts
     votes_rcvd <= vote.map do |v| 
-      [v.id, v.response, v.peer] 
+      print "GOT VOTE: " + v.inspect + "\n" or [v.id, v.response, v.peer] 
     end
     vote_cnt <= votes_rcvd.group(
       [votes_rcvd.id, votes_rcvd.response], 
@@ -56,9 +57,10 @@ class VotingMaster < Bud
     # this stub changes vote_status only on a 
     # complete and unanimous vote.
     # a subclass will likely override this
-    j = join([vote_status, member_cnt, vote_cnt], 
+    # paa -- fix potentially global scope of join aliases somehow...
+    sj = join([vote_status, member_cnt, vote_cnt], 
              [vote_status.id, vote_cnt.id])
-    victor <= j.map do |s,m,v|
+    victor <= sj.map do |s,m,v|
       if m.cnt == v.cnt
         [v.id, s.content, v.response]
       end
@@ -81,13 +83,13 @@ class VotingAgent < Bud
   # default for decide: always cast vote 'yes'.  expect subclasses to override.
   declare 
   def decide
-    cast_vote <= waiting_ballots.map{ |b| [b.id, 'yes'] }
+    cast_vote <= waiting_ballots.map{ |b| print "EMPTY cast\n" or [b.id, 'yes'] }
   end
   
   declare 
   def casting
     # cache incoming ballots for subsequent decisions (may be delayed)
-    waiting_ballots <= ballot.map{|b| [b.id, b.content, b.master] }
+    waiting_ballots <= ballot.map{|b| print "PUT\n" or [b.id, b.content, b.master] }
     # whenever we cast a vote on a waiting ballot, send the vote
     vote <~ join([cast_vote, waiting_ballots], [cast_vote.id, waiting_ballots.id]).map do |v, c| 
       [c.master, @ip_port, v.id, v.response] 

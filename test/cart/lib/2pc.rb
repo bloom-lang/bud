@@ -6,6 +6,12 @@ class TwoPCAgent < VotingAgent
   # * voting is Y/N.  A single N vote should cause abort.
   def state
     super
+    scratch :can_commit, ['xact', 'decision']
+  end
+
+  declare
+  def decide
+    cast_vote <= join([waiting_ballots, can_commit], [waiting_ballots.id, can_commit.xact]).map{|w, c| [w.id, c.decision] }
   end
 
 end
@@ -42,7 +48,7 @@ class TwoPCMaster < TwoPCVotingMaster
   declare 
   def boots
     xact <= request_commit.map{|r| [r.xid, r.data, 'prepare'] }
-    begin_vote <= request_commit.map{|r| [r.xid, r.data] }
+    begin_vote <= request_commit.map{|r| print "begin that vote\n" or [r.xid, r.data] }
   end
 
   declare
@@ -57,7 +63,7 @@ class TwoPCMaster < TwoPCVotingMaster
     end
 
     xact <+ decide.map do |x, s|
-      [x.xid, x.data, "commit"] if s.response == "Y"
+      print "COMMITTING\n" or [x.xid, x.data, "commit"] if s.response == "Y"
     end
   end
   

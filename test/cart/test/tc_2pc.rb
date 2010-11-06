@@ -7,7 +7,7 @@ class TestVoting < TestLib
   def test_singlenode
     t = TwoPCMaster.new('localhost', 12345, {'visualize' => true})
     #t = Monotonic2PCMaster.new('localhost', 12345, {'dump' => true, 'visualize' => true})
-    t2 = TwoPCAgent.new('localhost', 12346, nil)
+    t2 = TwoPCAgent.new('localhost', 12346, {'visualize' => true})
     t3 = TwoPCAgent.new('localhost', 12347, nil)
     t.run_bg
     t2.run_bg

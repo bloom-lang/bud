@@ -19,7 +19,9 @@ class BestEffortDelivery < Bud
   
   declare
     def snd
-      pipe_chan <~ join([pipe, timer]).map do |p, t|
+      #pipe_chan <~ join([pipe, timer]).map do |p, t|
+      jj = join([pipe, timer])
+      pipe_chan <~ jj.map do |p, t|
         unless pipe_out.map{|m| m.id}.include? p.id
           p 
         end
@@ -29,7 +31,9 @@ class BestEffortDelivery < Bud
   declare 
     def done
       # vacuous ackuous.  override me!
-      pipe_out <+ join([pipe, timer]).map do |p, t| 
+      #pipe_out <+ join([pipe, timer]).map do |p, t| 
+      jjj = join([pipe, timer])
+      pipe_out <+ jjj.map do |p, t| 
         p
       end
     end
