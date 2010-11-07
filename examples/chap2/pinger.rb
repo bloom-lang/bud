@@ -6,8 +6,11 @@
 #  you should see packets received on either side
 require 'rubygems'
 require 'bud'
+require 'ping_protocol'
 
 class Pinger < Bud
+  include PingProtocol
+
   def initialize(me, other, period)
     @me = me
     @other = other
@@ -17,9 +20,8 @@ class Pinger < Bud
   end
   
   def state
-    channel :flow, ['@otherloc', 'me', 'msg', 'wall', 'budtick']
+    ping_protocol_state
     periodic :timer, @period, ['id'], ['time']
-    terminal :out, ['text']
   end
 
   declare
