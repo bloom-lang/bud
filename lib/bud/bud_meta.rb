@@ -102,33 +102,29 @@ class Bud
 
   def shred_rules
     # to completely characterize the rules of a bud class we must extract
-    # from all parent classes
+    # from all parent classes/modules
 
     # after making this pass, we no longer care about the names of methods.
     # we are shredding down to the granularity of rule heads.
-    depends = []
-    subd = {}
-    done = {}
-    curr_class = self.class
+    rules = []
     seed = 0
-    until curr_class.nil?
-      @declarations.each do |d|
+    done = {}
+    @declarations.each do |d|
+      self.class.ancestors.each do |anc|
         unless done[d]
-          pt = ParseTree.translate(curr_class, d)
+          pt = ParseTree.translate(anc, d)
           unless pt[0].nil?
             rewriter = Rewriter.new(seed, @options['provenance'])
             rewriter.process(pt)
-            rewriter.each {|re| depends << re}
+            rewriter.each {|re| rules << re}
             done[d] = true
             seed = rewriter.rule_indx
           end
         end
       end
-      curr_class = curr_class.superclass
     end
-    return depends
+    return rules
   end
-
 
   def stratify(depends)
   
