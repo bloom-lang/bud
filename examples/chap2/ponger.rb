@@ -7,10 +7,11 @@ require 'rubygems'
 require 'bud'
 
 class Ponger < Bud
-  def initialize(ip, port)
+  def initialize(me, other)
+    @me = me
+    @other = other
+    ip, port = me.split(':')
     super ip, port
-    @me = ARGV[0]
-    @other = ARGV[1]
   end
 
   def state
@@ -21,11 +22,10 @@ class Ponger < Bud
   declare
   def logic
     # whenever we get a ping, send a pong
+    flow <~ flow.map {|p| [@other, @me, p.msg+": pong!", Time.new.to_s, budtime]}
     out <= flow.map {|f| [f.inspect]}
-    flow <~ flow.map {|p| [@other, @me, p.msg+": pong!", Time.new.to_s, budtime]}      
   end
 end
 
-source = ARGV[0].split(':')
-program = Ponger.new(source[0], source[1])
+program = Ponger.new(ARGV[0], ARGV[1])
 program.run

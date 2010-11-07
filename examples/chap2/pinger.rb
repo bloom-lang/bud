@@ -8,28 +8,27 @@ require 'rubygems'
 require 'bud'
 
 class Pinger < Bud
-  def initialize(ip, port)
+  def initialize(me, other, period)
+    @me = me
+    @other = other
+    @period = period
+    ip, port = me.split(':')
     super ip, port
-    @me = ARGV[0]
-    @other = ARGV[1]
   end
   
   def state
     channel :flow, ['@otherloc', 'me', 'msg', 'wall', 'budtick']
-    periodic :timer, ARGV[2], ['id'], ['time']
+    periodic :timer, @period, ['id'], ['time']
     terminal :out, ['text']
   end
 
   declare
   def logic
-    # whenever we get a timer, send out a tuple
+    # whenever we get a timer event, send out a tuple
     flow <~ timer.map {|t| [@other, @me, 'ping!', t.time, budtime]}      
     out <= flow.map {|f| [f.inspect]}
   end
 end
 
-source = ARGV[0].split(':')
-program = Pinger.new(source[0], source[1])
+program = Pinger.new(ARGV[0], ARGV[1], ARGV[2])
 program.run
-
-
