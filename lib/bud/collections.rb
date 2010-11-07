@@ -275,7 +275,7 @@
   class BudChannel < BudCollection
     attr_accessor :locspec, :connections
 
-    def initialize(name, keys, cols, locspec_arg, b_class)
+    def initialize(name, keys, cols, b_class, locspec_arg)
       super(name, keys, cols, b_class)
       @locspec = locspec_arg
       @connections = {}
@@ -315,17 +315,18 @@
       ip = @bud_instance.instance_variable_get('@ip')
       port = @bud_instance.instance_variable_get('@port')
       each_pending do |t|
-        begin
-          the_locspec = split_locspec(t[@locspec])
-        rescue
-          puts "bad locspec #{@locspec} for #{@name}"
+        if @locspec.nil?
+          the_locspec = [ip, port.to_i]
+        else
+          begin
+            the_locspec = split_locspec(t[@locspec])
+          rescue
+            puts "bad locspec #{@locspec} for #{@name}"
+          end
         end
-        # remote channel tuples are sent and removed
-        if the_locspec != [ip, port] then
-          establish_connection(the_locspec) if @connections[the_locspec].nil?
-          @connections[the_locspec].send_data [@name, t].to_msgpack
-          @pending.delete t
-        end
+        establish_connection(the_locspec) if @connections[the_locspec].nil?
+        @connections[the_locspec].send_data [@name, t].to_msgpack
+        @pending.delete t
       end
     end
     
@@ -337,7 +338,7 @@
       raise BudError, "Illegal use of <+ with async collection on left"
     end    
   end
-  
+    
   class BudTerminal < BudCollection
     def initialize(name, keys, cols, b_class, prompt=false)
       super(name, keys, cols, b_class)

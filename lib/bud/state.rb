@@ -57,10 +57,9 @@ module BudState
   def channel(name, keys, cols=[])
     locspec, keys = remove_at(keys)
     locspec, cols = remove_at(cols) if keys.nil?
-    raise Bud::BudError, "channel declaration for #{name} missing an address spec" if locspec.nil?
     check_table(name, keys, cols)
     @channels[name] = locspec
-    @tables[name] ||= Bud::BudChannel.new(name, keys, cols, locspec, self)
+    @tables[name] ||= Bud::BudChannel.new(name, keys, cols, self, locspec)
   end
 
   def file_reader(name, filename, delimiter='\n')

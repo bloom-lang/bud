@@ -79,6 +79,27 @@ class Union < Bud
   end
 end
 
+class TickleCount < Bud
+  def state
+    channel :loopback, ['cnt']
+    channel :mcast, ['@addr', 'cnt']
+    table   :result, ['nums']
+    table   :mresult, ['nums']
+  end
+  
+  def bootstrap
+    loopback <~ [[0]]
+  end
+  
+  declare
+  def count_to_5
+    loopback <~ loopback.map{|l| [l.cnt + 1] if l.cnt < 6 }
+    result <= loopback.map{|l| [l.cnt] if l.cnt == 5}
+    mcast <~ loopback.map{|l| [@ip_port, l.cnt] if l.cnt < 6}
+    mresult <= mcast.map{|m| [m.cnt] if m.cnt == 5}
+  end
+end
+
 class TestCollections < Test::Unit::TestCase
  
   def test_simple_deduction
@@ -140,5 +161,13 @@ class TestCollections < Test::Unit::TestCase
     s.tick
     assert_equal(2, s.union.length)
     assert_equal("[[\"a\", \"b\", 4], [\"a\", \"b\", 1]]", s.union.map{|t| t}.inspect)
+  end
+  
+  def test_tickle_count
+    c = Counter.new('localhost', 12345)
+    c.run_bg
+    sleep 1
+    assert_equal("[[5]]", c.result.map{|t| t}.inspect)
+    assert_equal("[[5]]", c.mresult.map{|t| t}.inspect)
   end
 end
