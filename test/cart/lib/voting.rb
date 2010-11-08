@@ -3,6 +3,7 @@ require 'bud'
 
 module VoteInterface
   # channels used by both ends of the voting protocol
+  # paa: TODO: figure out the right way to mix in state
   def self.extended(base)
     base.channel :ballot, ['@peer', 'master', 'id'], ['content']
     base.channel :vote, ['@master', 'peer', 'id'], ['response']
@@ -10,8 +11,12 @@ module VoteInterface
   end
 end
 
-class VotingMaster < Bud
-  def state
+module VotingMaster
+  # boilerplate
+  include Anise
+  annotator :declare
+
+  def state_vm
     extend VoteInterface
     # local interfaces    
     scratch :begin_vote, ['id', 'content']
@@ -31,7 +36,6 @@ class VotingMaster < Bud
     # to members, set status to 'in flight'
     j = join([begin_vote, member])
     ballot <~ j.map do |b,m| 
-      #print "UM OK\n" or [m.peer, @ip_port, b.id, b.content] 
       [m.peer, @ip_port, b.id, b.content] 
     end
     vote_status <+ begin_vote.map do |b| 
@@ -73,8 +77,10 @@ class VotingMaster < Bud
 end
 
 
-class VotingAgent < Bud
-  def state
+module VotingAgent
+  include Anise
+  annotator :declare
+  def state_va
     extend VoteInterface
     table :waiting_ballots, ['id', 'content', 'master']
     scratch :cast_vote, ['id', 'response']
@@ -98,7 +104,12 @@ class VotingAgent < Bud
 end
 
 
-class MajorityVotingMaster < VotingMaster
+module MajorityVotingMaster 
+  # boilerplate
+  include Anise
+  annotator :declare
+  include VotingMaster
+  declare
   def summary
     victor <= join([vote_status, member_cnt, vote_cnt], [vote_status.id, vote_cnt.id]).map do |s, m, v|
       if v.cnt > m.cnt / 2

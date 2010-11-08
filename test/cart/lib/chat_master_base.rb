@@ -7,20 +7,17 @@ require 'bud'
 require 'lib/chat_protocol'
 require 'lib/2pc'
 
-class ChatMaster < TwoPCMaster
+class ChatMaster < Bud
   include ChatProtocol
 
   def state
-    super
     chat_protocol_state
     table :nodelist, ['addr'], ['nick']    
-    scratch :empty_echo, ['xid']
   end
   
   declare
   def accept
     nodelist <= ctrl.map {|c| [c.from, c.cmd] }
-    member <= ctrl.map {|c| [c.from] }
     ctrl <~ ctrl.map { |c| [c.from, @ip_port, 'ack']}
   end
   
@@ -30,24 +27,31 @@ class ChatMaster < TwoPCMaster
       [n.addr, @ip_port, m.nick, m.time, m.msg]  unless n.addr == m.from
     end
   end
+end
 
-  declare
+class GracefulStopChatMaster < ChatMaster
+  def initialize(i, p, o)
+    super(i, p, o)
+    @twopc = TwoPCMaster.new(i, p + 100, o)
+    @twopc.run_bg
+  end
+
+  def state
+    super
+    scratch :shutdown_req, ['requestid']
+    scratch :empty_echo, ['requestid']
+  end
+
+  declare 
   def shutdown
-    empty_echo <= xact.map do |x|
-      if x.status == "commit"
-        raise "Cleanly exit? #{x.data}"
+    @twopc.request_commit <= shutdown_req.map{|s| print "SHUTDOWN\n" or [s.requestid, "shutdown"] }
+
+    empty_echo <= @twopc.xact.map do |x| 
+      if x.status == "Y" 
+        raise "Cleanly exit?\n" 
       end
     end
   end
 end
 
-#source = ARGV[0].split(':')
-#ip = source[0]
-#port = source[1].to_i
-#program = ChatMaster.new(ip, port, {'visualize' => false, 'dump' => true})
 
-#program.run_bg
-#sleep 10
-#program.request_commit <+ [[ 123, 'shutdown' ]] 
-
-#sleep 60

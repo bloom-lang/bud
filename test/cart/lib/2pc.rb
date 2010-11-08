@@ -1,11 +1,16 @@
 require 'lib/voting'
 
-class TwoPCAgent < VotingAgent
+module TwoPCAgent
+  # boilerplate!!
+  include Anise
+  annotator :declare 
+  include VotingAgent
   # 2pc is a specialization of voting:
   # * ballots describe transactions
   # * voting is Y/N.  A single N vote should cause abort.
-  def state
-    super
+  def state_2pca
+    # spaghetti!
+    state_va
     scratch :can_commit, ['xact', 'decision']
   end
 
@@ -17,7 +22,11 @@ class TwoPCAgent < VotingAgent
 end
 
 
-class TwoPCVotingMaster < VotingMaster
+module TwoPCVotingMaster
+  # boilerplate
+  include Anise
+  annotator :declare 
+  include VotingMaster
   # override the default summary s.t. a single N vote
   # makes the vote_status = ABORT
   def summary
@@ -35,12 +44,17 @@ class TwoPCVotingMaster < VotingMaster
 end
 
 
-class TwoPCMaster < TwoPCVotingMaster
+module TwoPCMaster
+  # boilerplate
+  include Anise
+  annotator :declare
+  include TwoPCVotingMaster
   # 2pc is a specialization of voting:
   # * ballots describe transactions
   # * voting is Y/N.  A single N vote should cause abort.
-  def state
-    super
+  def state_2pcm
+    # spaghetti
+    state_vm
     table :xact, ['xid', 'data'], ['status']
     scratch :request_commit, ['xid'], ['data']
   end
@@ -69,14 +83,19 @@ class TwoPCMaster < TwoPCVotingMaster
   
 end
 
-class Monotonic2PCMaster < VotingMaster
+module Monotonic2PCMaster
+  # boilerplate
+  include Anise
+  annotator :declare
+  include VotingMaster
   def initialize(i, p, o)
     super(i, p, o)
     xact_order << ['prepare', 0]
     xact_order << ['commit', 1]
     xact_order << ['abort', 2]
   end
-  def state
+  def state_m2pcm
+    # TODO
     super
     table :xact_order, ['status'], ['ordinal']
     table :xact_final, ['xid', 'ordinal']

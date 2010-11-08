@@ -6,9 +6,8 @@
 require 'rubygems'
 require 'bud'
 require 'lib/chat_protocol'
-require 'lib/2pc'
 
-class ChatClient < TwoPCAgent
+class ChatClient < Bud
   include ChatProtocol
   def initialize(ip, port, me, master)
     @me = me
@@ -17,7 +16,6 @@ class ChatClient < TwoPCAgent
   end
   
   def state
-    super
     chat_protocol_state
     table :status, ['master', 'value']
   end
@@ -30,13 +28,6 @@ class ChatClient < TwoPCAgent
   def nice_time; return Time.new.strftime("%I:%M.%S"); end   
   
   def left_right_align(x, y); return x + " "*[66 - x.length,2].max + y;  end
-
-  declare
-  def shutd
-    term <= ballot.map{|b| ["Shutdown request.  type 'OK' to accept"] }
-
-    can_commit <= join([term, waiting_ballots]).map{ |t, w| [w.id, "Y"] if t == ["OK"] }
-  end
   
   declare
   def chatter
@@ -52,9 +43,3 @@ class ChatClient < TwoPCAgent
   end
 end
 
-
-#source = ARGV[0].split(':')
-#ip = source[0]
-#port = source[1].to_i
-#program = ChatClient.new(ip, port, ARGV[1], ARGV[2])
-#program.run
