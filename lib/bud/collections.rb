@@ -369,11 +369,9 @@
       end
     end
     
-    # def each
-    #   @mutex.synchronize do
-    #     super
-    #   end
-    # end
+    def flush
+      @pending.each { |p| STDOUT.puts p }
+    end
     
     def tick
       @storage = {}
@@ -389,7 +387,7 @@
     end
 
     superator "<~" do |o|
-      STDOUT.puts o[0] unless o == [] or o.nil?
+      pending_merge(o)
     end
   end
 

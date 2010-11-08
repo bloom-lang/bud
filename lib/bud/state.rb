@@ -91,6 +91,7 @@ module BudState
     end
     raise Bud::BudError("IO collection #{name} can have only one column") if keys.length != 1
     t = check_table(name, keys, [])
+    @channels[name] = nil
     @tables[name] ||= Bud::BudTerminal.new(name, keys, [], self)
   end
 

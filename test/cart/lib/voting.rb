@@ -50,9 +50,8 @@ module VotingMaster
   def counting
     # accumulate votes into votes_rcvd table, 
     # calculate current counts
-    votes_rcvd <= vote.map do |v| 
-      print "GOT VOTE: " + v.inspect + "\n" or [v.id, v.response, v.peer] 
-    end
+    stdio <~ vote.map { |v| ["GOT VOTE: " + v.inspect] }
+    votes_rcvd <= vote.map { |v| [v.id, v.response, v.peer] }
     vote_cnt <= votes_rcvd.group(
       [votes_rcvd.id, votes_rcvd.response], 
       count(votes_rcvd.peer))
@@ -75,6 +74,7 @@ module VotingMaster
     vote_status <- victor.map do |v| 
       [v.id, v.content, 'in flight'] 
     end
+    localtick <~ victor.map{|v| v}
   end
 end
 
@@ -99,7 +99,8 @@ module VotingAgent
   declare 
   def casting
     # cache incoming ballots for subsequent decisions (may be delayed)
-    waiting_ballots <= ballot.map{|b| print "PUT\n" or [b.id, b.content, b.master] }
+    waiting_ballots <= ballot.map{|b| [b.id, b.content, b.master] }
+    stdio <~ ballot.map{|b| ["PUT"] }
     # whenever we cast a vote on a waiting ballot, send the vote
     vote <~ join([cast_vote, waiting_ballots], [cast_vote.id, waiting_ballots.id]).map do |v, c| 
       [c.master, @ip_port, v.id, v.response] 
@@ -122,6 +123,7 @@ module MajorityVotingMaster
     end 
     vote_status <+ victor.map{|v| v }
     vote_status <- victor.map{|v| [v.id, v.content, 'in flight'] }
+    localtick <~ victor.map{|v| v}
   end
 
 end
