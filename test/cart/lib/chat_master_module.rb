@@ -17,6 +17,7 @@ class SafeChatMaster < ChatMaster
   def state
     super if defined? super
     scratch :empty_echo, ['xid']
+    scratch :halt, ['xid']
   end
 
   declare
@@ -27,11 +28,11 @@ class SafeChatMaster < ChatMaster
   
   declare
   def shutdown
-    empty_echo <= xact.map do |x|
-      if x.status == "commit"
-        raise "Cleanly exit? #{x.data}"
-      end
+    halt <+ xact.map do |x|
+      [x.xid] if x.status == "commit"
     end
+#    ctrl <~ join([nodelist,halt]).map { |n,h| [n.addr, @ip_port, 'halt'] }
+    halt <+ halt.map {|h| exit or [h.xid]}
   end
 end
 

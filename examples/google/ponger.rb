@@ -10,20 +10,14 @@ require 'ping_protocol'
 class Ponger < Bud
   include PingProtocol
 
-  def initialize(me, other)
-    @me = me
-    @other = other
-    ip, port = me.split(':')
-    super ip, port
-  end
-
   declare
   def logic
     # whenever we get a ping, send a pong
-    flow <~ flow.map {|p| [@other, @me, p.msg+": pong!", Time.new.to_s, budtime]}
+    flow <~ flow.map {|p| [ARGV[1], ARGV[0], p.msg+": pong!", Time.new.to_s, budtime]}
     stdio <~ flow.map {|f| [f.inspect]}
   end
 end
 
-program = Ponger.new(ARGV[0], ARGV[1])
+ip,port = ARGV[0].split(":")
+program = Ponger.new(ip, port)
 program.run

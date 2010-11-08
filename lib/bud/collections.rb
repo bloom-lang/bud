@@ -363,14 +363,17 @@
             # end
           end
         rescue
-          print "terminal reader thread failed with #{$!}\n"
+          print "terminal reader thread failed with #{$!}\ncaller: #{caller.inspect}"
           exit
         end
       end
     end
     
     def flush
-      @pending.each { |p| STDOUT.puts p }
+      @pending.each do |p| 
+        STDOUT.puts p[0]
+      end
+      @pending = {}
     end
     
     def tick

@@ -4,14 +4,13 @@
 # run "ruby chat.rb 127.0.0.1:12347 bob 127.0.0.1:12345"
 require 'rubygems'
 require 'bud'
-require 'lib/chat_protocol'
-require 'lib/2pc'
+require 'chat_protocol'
 
 class ChatMaster < Bud
   include ChatProtocol
 
   def state
-    super if defined? super
+    super
     table :nodelist, ['addr'], ['nick']    
   end
   
@@ -28,30 +27,3 @@ class ChatMaster < Bud
     end
   end
 end
-
-class GracefulStopChatMaster < ChatMaster
-  def initialize(i, p, o)
-    super(i, p, o)
-    @twopc = TwoPCMaster.new(i, p + 100, o)
-    @twopc.run_bg
-  end
-
-  def state
-    super if defined? super
-    scratch :shutdown_req, ['requestid']
-    scratch :empty_echo, ['requestid']
-  end
-
-  declare 
-  def shutdown
-    @twopc.request_commit <= shutdown_req.map{|s| print "SHUTDOWN\n" or [s.requestid, "shutdown"] }
-
-    empty_echo <= @twopc.xact.map do |x| 
-      if x.status == "Y" 
-        raise "Cleanly exit?\n" 
-      end
-    end
-  end
-end
-
-

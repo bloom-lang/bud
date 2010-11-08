@@ -20,7 +20,7 @@ class Pinger < Bud
   end
   
   def state
-    ping_protocol_state
+    super
     periodic :timer, @period, ['id'], ['time']
   end
 

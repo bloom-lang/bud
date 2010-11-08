@@ -91,7 +91,7 @@ class Bud
       begin
         run
       rescue
-        print "background thread failed with #{$!}\n"
+        print "background thread failed with #{$!}\ncaller: #{caller.inspect}"
         exit
       end
     end
@@ -102,7 +102,7 @@ class Bud
   end
 
   def stop_bg
-    @t.stop
+    @t.exit
   end
 
   def run

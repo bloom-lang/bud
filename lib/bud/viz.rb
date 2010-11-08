@@ -115,7 +115,7 @@ class Viz
       body = name_of(body)
       addonce(head, (head != d[1]))
       addonce(body, (body != d[3]))
-      addedge(body, head, d[1], d[3], (head != d[1]))
+      addedge(body, head, d[2], d[3], (head != d[1]))
     end
     #print "done processing\n"
   end
@@ -161,17 +161,9 @@ class Viz
     
 
     if op == '<+'
-      head.split(", ").each do |h|
-        if @tabinf[h] == Bud::BudChannel
-          # this is 'async'
-          # but is it guarded?
-          #print "ASYNC #{head} (#{ekey})!!\n"
-          @edges[ekey].style = 'dashed'
-        else
-          # inductive
-          @labels[ekey]['+'] = true
-        end
-      end
+      @labels[ekey]['+'] = true
+    elsif op == "<~"
+      @edges[ekey].style = 'dashed'
     elsif op == "<-"
       #@labels[ekey] = @labels[ekey] + 'NEG(del)'
       @labels[ekey]['¬'] = true
@@ -193,7 +185,7 @@ class Viz
       @edges[k].label = @labels[k].keys.join(" ")
     end
 
-    
+    @graph.output(:dot => "#{name}.dot")    
     @graph.output(:pdf => "#{name}.pdf")
   end
 
