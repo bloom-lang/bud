@@ -1,10 +1,19 @@
 require 'rubygems'
 require 'bud'
+require 'bud/bud_module'
+require 'anise'
 
-module ChatProtocol
-  def chat_protocol_state
+module ChatProtocol 
+  include Anise
+  annotator :declare
+  
+  def state
     channel :mcast, ['@to', 'from', 'nick', 'time'], ['msg']
     channel :ctrl, ['@to', 'from', 'cmd']
-    terminal :term
   end
+
+  # declare   
+  # def foo
+  #  ctrl <~ stdio.map{|t| t}
+  # end
 end

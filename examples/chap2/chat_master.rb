@@ -8,8 +8,9 @@ require 'chat_protocol'
 
 class ChatMaster < Bud
   include ChatProtocol
+
   def state
-    chat_protocol_state
+    super
     table :nodelist, ['addr'], ['nick']    
   end
   

@@ -49,8 +49,9 @@ class Bud
     @tmpvars = scratch :tmpvars_tbl, ['name'], ['value']
 
     state
-    bootstrap
 
+    bootstrap
+    
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
     unless self.class <= Stratification
@@ -114,16 +115,26 @@ class Bud
         @periodics.each do |p|
           set_timer(p.name, p.ident, p.duration)
         end
+        builtin_state
         tick
       }
     end
+  end
+
+  def builtin_state
+    channel  :localtick, ['col1']
+    terminal :stdio
   end
 
   def tick
     # reset any schema stuff that isn't already there
     # state to be defined by the user program
     # rethink this.
-    state unless @options['provenance']
+    unless @options['provenance']
+      state
+      builtin_state
+    end
+    
     receive_inbound
 
     # load the rules as a closure (will contain persistent tuples and new inbounds)

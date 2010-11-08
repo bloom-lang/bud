@@ -1,7 +1,8 @@
 # simple chat
-# run "ruby chat_master.rb 127.0.0.1:12345"
-# run "ruby chat.rb 127.0.0.1:12346 alice 127.0.0.1:12345"
-# run "ruby chat.rb 127.0.0.1:12347 bob 127.0.0.1:12345"
+# run "ruby lib/chat_master_module.rb 127.0.0.1:12345"
+# run "ruby lib/chat_module.rb 127.0.0.1:12346 alice 127.0.0.1:12345"
+# run "ruby lib/chat_module.rb 127.0.0.1:12347 bob 127.0.0.1:12345"
+# run "ruby lib/chat_module.rb 127.0.0.1:12348 harvey 127.0.0.1:12345"
 require 'rubygems'
 require 'bud'
 require 'lib/chat_protocol'
@@ -14,10 +15,7 @@ class SafeChatMaster < ChatMaster
   include TwoPCMaster
 
   def state
-    super
-    # begin spaghetti.  ideally, classes and modules can declare 'state'
-    # and we can walk them (and choose among them) in a reasonable way
-    state_2pcm
+    super if defined? super
     scratch :empty_echo, ['xid']
   end
 

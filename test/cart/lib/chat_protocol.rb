@@ -2,14 +2,14 @@ require 'rubygems'
 require 'bud'
 
 module ChatProtocol
-  def chat_protocol_state
-    channel :mcast, ['@to', 'from', 'nick', 'time'], ['msg']
+  def state
+    super if defined? super
+    channel :mcast, ['@to', 'from', 'nick', 'time', 'msg']
     channel :ctrl, ['@to', 'from', 'cmd']
-    stdio :term
   end
 
   #declare   
   #def foo
-  #  ctrl <= term.map{|t| t}
+  #  ctrl <= stdio.map{|t| t}
   #end
 end

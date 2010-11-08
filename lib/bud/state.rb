@@ -1,4 +1,5 @@
 module BudState
+  
   ######## methods for registering collection types
   def check_table(name, keys=[], cols=[])
     # rule out tablenames that used reserved words
@@ -84,11 +85,11 @@ module BudState
 
   def terminal(name, keys=['line'])
     if defined?(@terminal) && @terminal != name then
-      raise Bud::BudError, "can't register terminal #{name} in addition to #{@terminal}" 
+      raise Bud::BudError, "can't register IO collection #{name} in addition to #{@terminal}" 
     else
       @terminal = name
     end
-    raise Bud::BudError("terminal collection #{name} can have only one column") if keys.length != 1
+    raise Bud::BudError("IO collection #{name} can have only one column") if keys.length != 1
     t = check_table(name, keys, [])
     @tables[name] ||= Bud::BudTerminal.new(name, keys, [], self)
   end

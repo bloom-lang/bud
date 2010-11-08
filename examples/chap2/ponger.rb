@@ -25,7 +25,7 @@ class Ponger < Bud
   def logic
     # whenever we get a ping, send a pong
     flow <~ flow.map {|p| [@other, @me, p.msg+": pong!", Time.new.to_s, budtime]}
-    out <= flow.map {|f| [f.inspect]}
+    stdio <~ flow.map {|f| [f.inspect]}
   end
 end
 

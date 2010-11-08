@@ -16,14 +16,13 @@ class IoIn < Bud
 
   def state
     channel :flow, ['@otherloc', 'myloc', 'msg', 'wall', 'budtick']
-    terminal :entry1, ['text']
   end
 
   declare
   def logic
     # whenever we get a line, send out a tuple
-    flow <~ entry1.map {|t| [@other, @me, t.text, 0, budtime]}      
-    entry1 <= flow.map {|f| [f.inspect]}
+    flow <~ stdio.map {|t| [@other, @me, t.line, 0, budtime]}      
+    stdio <~ flow.map {|f| [f.inspect]}
   end
 end
 

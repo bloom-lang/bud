@@ -11,7 +11,7 @@ class ChatMaster < Bud
   include ChatProtocol
 
   def state
-    chat_protocol_state
+    super if defined? super
     table :nodelist, ['addr'], ['nick']    
   end
   
@@ -23,6 +23,7 @@ class ChatMaster < Bud
   
   declare
   def multicast
+    stdio <~ mcast.map{|m| [budtime.to_s + ": " + m.msg + "(from " + m.from + ")"]}
     mcast <~ join([mcast, nodelist]).map do |m,n| 
       [n.addr, @ip_port, m.nick, m.time, m.msg]  unless n.addr == m.from
     end
@@ -37,7 +38,7 @@ class GracefulStopChatMaster < ChatMaster
   end
 
   def state
-    super
+    super if defined? super
     scratch :shutdown_req, ['requestid']
     scratch :empty_echo, ['requestid']
   end

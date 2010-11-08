@@ -375,10 +375,22 @@
     #   end
     # end
     
-    def insert(o)
-      STDOUT.puts o[0] unless o == [] or o.nil?
+    def tick
+      @storage = {}
+      @pending = {}
     end
     
+    def merge(o)
+      raise BudError, "no synchronous accumulation into terminal; use <~"
+    end
+
+    def <=(o)
+      merge(o)
+    end
+
+    superator "<~" do |o|
+      STDOUT.puts o[0] unless o == [] or o.nil?
+    end
   end
 
   class BudPeriodic < BudCollection
@@ -404,7 +416,7 @@
       @storage.merge! @pending
       @to_delete = {}
       @pending = {}
-      self
+#      self
     end
     
     def init_to_delete

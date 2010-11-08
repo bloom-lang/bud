@@ -4,20 +4,22 @@ require 'bud'
 module VoteInterface
   # channels used by both ends of the voting protocol
   # paa: TODO: figure out the right way to mix in state
-  def self.extended(base)
-    base.channel :ballot, ['@peer', 'master', 'id'], ['content']
-    base.channel :vote, ['@master', 'peer', 'id'], ['response']
-    base.channel :tickler, ['@master']
+  def state
+    super if defined? super
+    channel :ballot, ['@peer', 'master', 'id'], ['content']
+    channel :vote, ['@master', 'peer', 'id'], ['response']
+    channel :tickler, ['@master']
   end
 end
 
 module VotingMaster
   # boilerplate
   include Anise
+  include VoteInterface
   annotator :declare
 
-  def state_vm
-    extend VoteInterface
+  def state
+    super if defined? super
     # local interfaces    
     scratch :begin_vote, ['id', 'content']
     scratch :victor, ['id', 'content', 'response']
@@ -80,8 +82,10 @@ end
 module VotingAgent
   include Anise
   annotator :declare
-  def state_va
-    extend VoteInterface
+  include VoteInterface
+
+  def state
+    super if defined? super
     table :waiting_ballots, ['id', 'content', 'master']
     scratch :cast_vote, ['id', 'response']
   end

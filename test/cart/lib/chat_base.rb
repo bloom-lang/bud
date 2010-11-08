@@ -16,7 +16,7 @@ class ChatClient < Bud
   end
   
   def state
-    chat_protocol_state
+    super if defined? super
     table :status, ['master', 'value']
   end
   
@@ -35,9 +35,9 @@ class ChatClient < Bud
      status <= ctrl.map {|c| [@master, 'live'] if @master == c.from and c.cmd == 'ack'}
  
     # send mcast requests to master if status is non-empty
-    mcast <~ join([term, status]).map { |t,s| [@master, @ip_port, @me, nice_time, t.line] }
+    mcast <~ join([stdio, status]).map { |t,s| [@master, @ip_port, @me, nice_time, t.line] }
     # pretty-print mcast msgs from master on terminal
-    term <= mcast.map do |m|
+    stdio <~ mcast.map do |m|
       [left_right_align(m.nick + ": " + (m.msg || ''), "(" + m.time + ")")]
     end
   end

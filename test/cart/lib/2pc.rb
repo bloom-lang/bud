@@ -8,9 +8,8 @@ module TwoPCAgent
   # 2pc is a specialization of voting:
   # * ballots describe transactions
   # * voting is Y/N.  A single N vote should cause abort.
-  def state_2pca
-    # spaghetti!
-    state_va
+  def state
+    super if defined? super
     scratch :can_commit, ['xact', 'decision']
   end
 
@@ -52,9 +51,9 @@ module TwoPCMaster
   # 2pc is a specialization of voting:
   # * ballots describe transactions
   # * voting is Y/N.  A single N vote should cause abort.
-  def state_2pcm
-    # spaghetti
-    state_vm
+  def state
+    super if defined? super
+    
     table :xact, ['xid', 'data'], ['status']
     scratch :request_commit, ['xid'], ['data']
   end
@@ -62,7 +61,8 @@ module TwoPCMaster
   declare 
   def boots
     xact <= request_commit.map{|r| [r.xid, r.data, 'prepare'] }
-    begin_vote <= request_commit.map{|r| print "begin that vote\n" or [r.xid, r.data] }
+    stdio <~ request_commit.map{|r| ["begin that vote"]}
+    begin_vote <= request_commit.map{|r| [r.xid, r.data] }
   end
 
   declare
@@ -76,9 +76,8 @@ module TwoPCMaster
       x if s.response == "N"
     end
 
-    xact <+ decide.map do |x, s|
-      print "COMMITTING\n" or [x.xid, x.data, "commit"] if s.response == "Y"
-    end
+    stdio <~ decide.map { |x, s| ["COMMITTING"] if s.response == "Y" }
+    xact <+ decide.map { |x, s| [x.xid, x.data, "commit"] if s.response == "Y" }
   end
   
 end
@@ -94,9 +93,10 @@ module Monotonic2PCMaster
     xact_order << ['commit', 1]
     xact_order << ['abort', 2]
   end
-  def state_m2pcm
+  def state
+    super if defined? super
+    
     # TODO
-    super
     table :xact_order, ['status'], ['ordinal']
     table :xact_final, ['xid', 'ordinal']
     scratch :xact, ['xid', 'data', 'status']

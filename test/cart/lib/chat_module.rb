@@ -13,14 +13,13 @@ class SafeChatClient < ChatClient
   include TwoPCAgent
 
   def state
-    super
-    state_2pca
+    super if defined? super
   end
   
   declare
   def shutd
-    term <= ballot.map{|b| ["Shutdown request.  type 'OK' to accept"] }
-    can_commit <= join([term, waiting_ballots]).map{ |t, w| [w.id, "Y"] if t == ["OK"] }
+    stdio <~ ballot.map{|b| ["Shutdown request.  type 'OK' to accept"] }
+    can_commit <= join([stdio, waiting_ballots]).map{ |t, w| [w.id, "Y"] if t == ["OK"] }
   end
   
 end
