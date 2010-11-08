@@ -1,7 +1,8 @@
-# simple chat
-# run "ruby chat_master.rb 127.0.0.1:12345"
-# run "ruby chat.rb 127.0.0.1:12346 alice 127.0.0.1:12345"
-# run "ruby chat.rb 127.0.0.1:12347 bob 127.0.0.1:12345"
+# simple chat.  run from the directory above as follows:
+# run "ruby lib/chat_master_inheritance.rb 127.0.0.1:12345"
+# run "ruby lib/chat_inheritance.rb 127.0.0.1:12346 alice 127.0.0.1:12345"
+# run "ruby lib/chat_inheritance.rb 127.0.0.1:12347 bob 127.0.0.1:12345"
+# run "ruby lib/chat_inheritance.rb 127.0.0.1:12348 harvey 127.0.0.1:12345"
 require 'rubygems'
 require 'bud'
 require 'lib/chat_protocol'
@@ -34,8 +35,9 @@ class ChatMaster < TwoPCMaster
   declare
   def shutdown
     empty_echo <= xact.map do |x|
-      if x.status == "commit"
-        raise "Cleanly exit? #{x.data}"
+      if x.status == "commit" then
+        exit
+#        raise "Cleanly exit? #{x.data}"
       end
     end
   end

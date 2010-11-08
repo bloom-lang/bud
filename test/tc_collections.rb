@@ -164,7 +164,7 @@ class TestCollections < Test::Unit::TestCase
   end
   
   def test_tickle_count
-    c = Counter.new('localhost', 12345)
+    c = TickleCount.new('localhost', 12345)
     c.run_bg
     sleep 1
     assert_equal("[[5]]", c.result.map{|t| t}.inspect)
