@@ -56,7 +56,7 @@ end
 
 class TestJoins < Test::Unit::TestCase
   def test_combos
-    program = CombosBud.new('localhost', 12345)
+    program = CombosBud.new('localhost', 12345, {'visualize' => false})
     assert_nothing_raised( RuntimeError) { program.tick }
     simple_outs = program.simple_out.map {|t| t}
     assert_equal(7, simple_outs.length)
