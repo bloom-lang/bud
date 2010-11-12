@@ -6,6 +6,11 @@ require 'test/test_lib'
 require 'lib/kvs'
 require 'lib/kvs_metered'
 
+
+class TKV < Bud
+  include BudKVS  
+end
+
 class TestKVS < TestLib
 
   def add_members(b, *hosts)
@@ -24,7 +29,7 @@ class TestKVS < TestLib
 
   def test_wl2
     # reliable delivery fails if the recipient is down
-    v = BudKVS.new("localhost", 12347, nil) # {'visualize' => true})
+    v = TKV.new("localhost", 12347, nil) # {'visualize' => true})
     assert_nothing_raised(RuntimeError) {v.run_bg}
     sleep 1
     add_members(v, "localhost:12347", "localhost:12348")
@@ -70,7 +75,7 @@ class TestKVS < TestLib
 
   def test_wl5
     # the unmetered kvs fails on a disorderly workload
-    v = BudKVS.new("localhost", 12352)
+    v = TKV.new("localhost", 12352)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:12352")
     workload2(v)
@@ -83,8 +88,8 @@ class TestKVS < TestLib
 
   def test_wl1
     # in a distributed workload, the right thing happens
-    v = BudKVS.new("localhost", 12345)
-    v2 = BudKVS.new("localhost", 12346)
+    v = TKV.new("localhost", 12345)
+    v2 = TKV.new("localhost", 12346)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     assert_nothing_raised(RuntimeError) {v2.run_bg}
     add_members(v, "localhost:12345", "localhost:12346")
@@ -100,7 +105,7 @@ class TestKVS < TestLib
   end
 
   def test_simple
-    v = BudKVS.new("localhost", 12360)
+    v = TKV.new("localhost", 12360)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:12360")
     sleep 1 
