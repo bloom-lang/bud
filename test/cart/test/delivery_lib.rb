@@ -2,6 +2,24 @@ require 'rubygems'
 require 'bud'
 require 'test/test_lib'
 
+class BED < Bud
+  include BestEffortDelivery
+  def state
+    super
+    table :pipe_perm, ['dst', 'src', 'id', 'payload']
+  end
+
+  declare
+  def memory
+    pipe_perm <= pipe_out.map{|p| p }
+  end
+end
+
+
+class RED < BED
+  include ReliableDelivery
+end
+
 
 class TestDelivery < TestLib
   def spinup(type, port)

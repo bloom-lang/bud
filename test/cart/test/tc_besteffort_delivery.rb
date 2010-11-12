@@ -3,11 +3,6 @@ require 'bud'
 require 'lib/quorum_delivery'
 require 'test/delivery_lib'
 
-class BED < Bud
-  include BestEffortDelivery
-end
-
-
 class TestBEDelivery < TestDelivery 
   def test_besteffort_delivery
     #rd = spinup("BestEffortDelivery", 11115)
@@ -21,7 +16,7 @@ class TestBEDelivery < TestDelivery
     soft_tick(rd)
 
     # transmission 'complete'
-    assert_equal(1, rd.pipe_out.length)
-    assert_equal(sendtup, rd.pipe_out.first)
+    assert_equal(1, rd.pipe_perm.length)
+    assert_equal(sendtup, rd.pipe_perm.first)
   end
 end

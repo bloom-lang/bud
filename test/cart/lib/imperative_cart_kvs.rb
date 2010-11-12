@@ -4,7 +4,8 @@ require 'bud'
 require 'lib/kvs_metered'
 require 'lib/queue'
 
-class ImperativeCartServer < MeteredKVS
+class ImperativeCartServer < Bud
+  include MeteredKVS
 
   def initialize(ip, port)
     #@q = BaseQueue.new(ip, port.to_i+1)

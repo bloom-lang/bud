@@ -1,16 +1,21 @@
 require 'rubygems'
 require 'bud'
 
-class BasicCartServer < Bud
+require 'lib/multicast'
+
+module BasicCartServer
+  include Anise
+  include Multicast
+  annotator :declare
+
+  
   def state
     table :cart_action, ['session', 'item', 'action', 'reqid']
-    table :action_cnt, ['session', 'item', 'action'] , ['cnt']
+    table :action_cnt, ['session', 'item', 'action'], ['cnt']
     scratch :status, ['server', 'client', 'session', 'item'], ['cnt']
     table :member, ['player']
     table :acked, ['server', 'peer', 'reqid']
 
-    # this was the guard
-    table :checkout_guard, ['server', 'client', 'session', 'reqid']
     table :memory, ['client', 'server', 'session', 'item', 'cnt']
 
     scratch :client_action, ['server', 'client', 'session', 'item', 'action', 'reqid']
@@ -33,31 +38,27 @@ class BasicCartServer < Bud
       action_cnt <+ cart_action.group([cart_action.session, cart_action.item, cart_action.action], count(cart_action.reqid))
       action_cnt <+ cart_action.map{|a| [a.session, a.item, 'D', 0] unless cart_action.map{|c| [c.session, c.item] if c.action == "D"}.include? [a.session, a.item]}
 
-      ##action_cnt <= cart_action.group([cart_action.session, cart_action.item, cart_action.action], count(cart_action.reqid))
-      ##action_cnt <= cart_action.map{|a| [a.session, a.item, 'D', 0] unless cart_action.map{|c| [c.session, c.item] if c.action == "D"}.include? [a.session, a.item]}
     end
-
-  #declare 
-  #  def acks
-  #    #ack <~ action.map {|a| [a.client, a.server, a.reqid] }
-  #    #acked <= ack.map{|a| a}
-  #  end
 
   declare
     def consider
       status <= join([action_cnt, action_cnt, checkout_msg]).map do |a1, a2, c| 
         if a1.session == a2.session and a1.item == a2.item and a1.session == c.session and a1.action == "A" and a2.action == "D" 
-          #[c.client, c.server, a1.session, a1.item, a1.cnt - a2.cnt] if (a1.cnt - a2.cnt) > 0
           if (a1.cnt - a2.cnt) > 0
-            print "DO that stuff\n" or [c.client, c.server, a1.session, a1.item, a1.cnt - a2.cnt] 
+            [c.client, c.server, a1.session, a1.item, a1.cnt - a2.cnt] 
           end
         end
       end
 
-      response_msg <~ status.map do |s| 
-	      s
-      end
+      response_msg <~ status.map { |s| s }
 
+    end
+
+  declare 
+    def replicate
+      send_mcast <= action_msg.map{|a| [a.reqid, [a.session, a.item. a.action]] } 
+      action_msg <+ mcast_doen
+      
     end
 
   #declare

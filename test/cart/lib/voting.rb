@@ -8,7 +8,7 @@ module VoteInterface
     super if defined? super
     channel :ballot, ['@peer', 'master', 'id'], ['content']
     channel :vote, ['@master', 'peer', 'id'], ['response']
-    channel :tickler, ['@master']
+    channel :tickler, ['@master'] unless defined? tickler
   end
 end
 

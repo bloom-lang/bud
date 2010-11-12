@@ -3,12 +3,10 @@ require 'bud'
 require 'lib/reliable_delivery'
 
 #class BudKVS < BestEffortDelivery
-#class BudKVS < ReliableDelivery
 module BudKVS
   include BestEffortDelivery
   include Anise
   annotator :declare
-
 
   def state
     super
@@ -27,8 +25,6 @@ module BudKVS
 
   declare 
     def mutate
-      
-      
       stor_saved <= kvstore.map { |k| print @budtime.to_s + " indrSTOR" + k.inspect + "\n" or k }
       readback = join [stor_saved, pipe_indirected], [stor_saved.reqid, pipe_indirected.id]
       stor_saved <- readback.map{ |s, p| print @budtime.to_s + " remove " + s.inspect + "\n" or s }

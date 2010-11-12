@@ -1,22 +1,28 @@
 require 'rubygems'
 require 'bud'
 
-#class BestEffortDelivery < Bud
-module BestEffortDelivery
+module DeliveryProtocol
+  def state
+    super
+    channel :pipe_chan, ['@dst', 'src', 'id'], ['payload']
+    channel :tickler, ['@self']
+  end
 
   def initialize(host, port, opts = nil)
     @addy = "#{host}:#{port}"
     super(host, port, opts)
   end
+end
 
+module BestEffortDelivery
+  include DeliveryProtocol
   include Anise
   annotator :declare
 
   def state
+    super
     table :pipe, ['dst', 'src', 'id'], ['payload']
-    table :pipe_out, ['dst', 'src', 'id'], ['payload']
-    channel :pipe_chan, ['@dst', 'src', 'id'], ['payload']
-    channel :tickler, ['@self']
+    scratch :pipe_out, ['dst', 'src', 'id'], ['payload']
     periodic :timer, 1
   end
   
