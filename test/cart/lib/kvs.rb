@@ -2,8 +2,14 @@ require 'rubygems'
 require 'bud'
 require 'lib/reliable_delivery'
 
-class BudKVS < BestEffortDelivery
+#class BudKVS < BestEffortDelivery
 #class BudKVS < ReliableDelivery
+module BudKVS
+  include BestEffortDelivery
+  include Anise
+  annotator :declare
+
+
   def state
     super
     table :bigtable, ['key'], ['value']

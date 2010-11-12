@@ -3,7 +3,11 @@ require 'bud'
 
 require 'lib/delivery'
 
-class ReliableDelivery < BestEffortDelivery
+#class ReliableDelivery < BestEffortDelivery
+module ReliableDelivery
+  include  BestEffortDelivery
+  include Anise
+  annotator :declare
 
   def state
     super
@@ -20,7 +24,7 @@ class ReliableDelivery < BestEffortDelivery
     end
 
   declare 
-    def done  
+    def done 
       pipe_out <= join([ack, pipe], [ack.id, pipe.id]).map do |a, p| 
         p
       end

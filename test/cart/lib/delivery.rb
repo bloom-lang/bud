@@ -1,16 +1,19 @@
 require 'rubygems'
 require 'bud'
 
-class BestEffortDelivery < Bud
+#class BestEffortDelivery < Bud
+module BestEffortDelivery
 
   def initialize(host, port, opts = nil)
     @addy = "#{host}:#{port}"
     super(host, port, opts)
   end
 
+  include Anise
+  annotator :declare
+
   def state
     table :pipe, ['dst', 'src', 'id'], ['payload']
-    #table :pipe_out, ['dst', 'src', 'id'], ['payload']
     table :pipe_out, ['dst', 'src', 'id'], ['payload']
     channel :pipe_chan, ['@dst', 'src', 'id'], ['payload']
     channel :tickler, ['@self']

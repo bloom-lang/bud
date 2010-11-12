@@ -3,7 +3,12 @@ require 'bud'
 
 require 'lib/reliable_delivery'
 
-class QuorumDelivery < ReliableDelivery
+#class QuorumDelivery < ReliableDelivery
+module QuorumDelivery
+  include ReliableDelivery
+  include Anise
+  annotator :declare
+
 
   def state
     super

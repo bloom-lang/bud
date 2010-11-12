@@ -8,7 +8,10 @@ require 'lib/kvs'
 # behavior when presented with multiple puts for the same key in the same
 # timestep.
 
-class MeteredKVS < BudKVS
+#class MeteredKVS < BudKVS
+module MeteredKVS
+  include BudKVS
+
   def initialize(ip, port, opts = nil)
     @q = BaseQueue.new(ip, port + 1, opts)
     @q.tick
