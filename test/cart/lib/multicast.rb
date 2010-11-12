@@ -41,4 +41,9 @@ module ReliableMulticast
   include Multicast
   include Anise
   annotator :declare
+
+  #declare
+  #def glue
+
+  #end
 end
