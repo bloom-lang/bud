@@ -8,7 +8,7 @@ require 'lib/kvs'
 require 'lib/kvs_metered'
 
 
-class TKV < Bud
+class MKV < Bud
   include BudKVS  
 end
 
@@ -20,6 +20,13 @@ class TestKVS < TestLib
       print "ADD MEMBER: #{h.inspect}\n"
       assert_nothing_raised(RuntimeError) { b.member << [h] }
     end
+  end
+
+  def test_metered_testandset
+    v = MKV.new("localhost", 23456)
+    assert_nothing_raised(RuntimeError) {v.run_bg}
+    add_members(v, "localhost:23456")
+    workload3(v)
   end
 
   def ntest_wl2
@@ -36,44 +43,32 @@ class TestKVS < TestLib
     
   end
 
-  def ntest_wl5
-    # the unmetered kvs fails on a disorderly workload
-    v = TKV.new("localhost", 12352)
+  def test_wl3
+    # the metered kvs succeeds on the naive workload
+    v = MKV.new("localhost", 12350)
     assert_nothing_raised(RuntimeError) {v.run_bg}
-    add_members(v, "localhost:12352")
-    workload2(v)
-    soft_tick(v)
-
-  
-    assert_raise(RuntimeError)  { advancer(v.ip, v.port) }
-  end
-
-
-  def test_wl1
-    # in a distributed workload, the right thing happens
-    v = TKV.new("localhost", 12345)
-    v2 = TKV.new("localhost", 12346)
-    assert_nothing_raised(RuntimeError) {v.run_bg}
-    assert_nothing_raised(RuntimeError) {v2.run_bg}
-    add_members(v, "localhost:12345", "localhost:12346")
-    add_members(v2, "localhost:12345", "localhost:12346")
-    sleep 1
-
+    add_members(v, "localhost:12350")
     workload1(v)
 
     assert_equal(1, v.bigtable.length)
     assert_equal("bak", v.bigtable.first[1])
-
-    assert_equal(1, v2.bigtable.length)
   end
 
-  def test_simple
-    v = TKV.new("localhost", 12360)
+
+  def test_wl4
+    # the metered kvs also succeeds on a disorderly workload
+    v = MKV.new("localhost", 12351)
     assert_nothing_raised(RuntimeError) {v.run_bg}
-    add_members(v, "localhost:12360")
-    sleep 1 
-  
-    workload1(v)
+    add_members(v, "localhost:12351")
+    workload2(v)
+
+    soft_tick(v)
+    soft_tick(v)
+    soft_tick(v)
+    soft_tick(v)
+    soft_tick(v)
+    soft_tick(v)
+    soft_tick(v)
 
     assert_equal(1, v.bigtable.length)
     assert_equal("bak", v.bigtable.first[1])

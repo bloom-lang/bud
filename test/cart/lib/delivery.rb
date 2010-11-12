@@ -36,6 +36,11 @@ module BestEffortDelivery
         p
       end
     end
+
+  declare 
+    def geecee
+      pipe <- pipe_out.map{|p| p }  
+    end
 end
 
 
