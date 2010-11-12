@@ -77,10 +77,14 @@ class Bud
   end
 
   def safe_rewrite
-    begin
-      @rewritten_strata = meta_rewrite
-    rescue 
-      print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
+    if @options["enforce_rewrite"] 
+      @rewritten_strata = meta_rewrite 
+    else
+      begin
+        @rewritten_strata = meta_rewrite
+      rescue 
+        print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
+      end
     end 
   end
 

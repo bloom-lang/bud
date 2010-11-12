@@ -141,7 +141,7 @@ class Bud
       if d[2] == '<'
         if d[5] =~ /-@/
           realop = "<-"
-        elsif d[5] =~ /\~ \)/
+        elsif d[5] =~ /\~@\)/
           realop = "<~"
         else
           realop = "<+"
