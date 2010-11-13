@@ -6,19 +6,49 @@ require 'test/cart_workloads'
 require 'lib/disorderly_cart'
 #require 'lib/imperative_cart_kvs'
 
+class BCS < Bud
+  include BestEffortMulticast
+  include ReplicatedDisorderlyCart
+  include Anise
+  annotator :declare
+
+  def state
+    super
+    table :memo, ['client', 'server', 'session', 'item', 'cnt']
+  end
+
+  declare 
+  def memm
+    memo <= response_msg.map{|r| r }
+  end
+end
+
+class BCSC < Bud
+  include CartClient
+  def state
+    super
+    table :cli_resp_mem, ['@client', 'server', 'session', 'item', 'cnt']
+  end
+
+  declare 
+  def memmy
+    cli_resp_mem <= response_msg.map{|r| r }
+  end
+end
+
 class TestCart < TestLib
   include CartWorkloads
 
   def test_disorderly_cart
-    program = BasicCartServer.new('localhost', 12345)
+    program = BCS.new('localhost', 23765, {'dump' => true})
     program.run_bg
     sleep 1
     run_cart(program)
     advance(program)
 
-    assert_equal(2, program.memory.length)
-    program.memory.each do |a|
-      print "item: #{a.inspect}\n"
+    assert_equal(2, program.memo.length)
+    program.memo.each do |a|
+      #print "item: #{a.inspect}\n"
       if a.item == "beer"
         assert_equal(3, a.cnt)
       elsif a.item == "diapers"
@@ -29,23 +59,17 @@ class TestCart < TestLib
     end
 
     # the checkout message is redelivered!
-    send_channel(program.ip, program.port, "checkout_msg", ['localhost:12345', 'localhost:12345',1234, 133])
+    addy = "#{program.ip}:#{program.port}"
+    send_channel(program.ip, program.port, "checkout_msg", [addy, addy, 1234, 133])
     advance(program)
-    advance(program)
-    advance(program)
-    advance(program)
-    
-
+ 
     pcnt = 0
-    program.memory.each do |a|
-      print "MEMO: #{a.inspect}\n"
+    program.memo.each do |a|
       pcnt = a.cnt if a.item == "papers"
-    end
+    end 
 
-    print "pcnt is #{pcnt}\n"
-  
     # undesirable but consistent that a 2nd checkout message should produce a revised manifest.
-    assert_equal(3, program.memory.length)
+    assert_equal(3, program.memo.length)
     assert_equal(1, pcnt)
     
   end

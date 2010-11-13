@@ -7,6 +7,7 @@ require 'lib/voting'
 module Multicast 
   include Anise
   annotator :declare  
+  include DeliveryProtocol
 
   def state
     super

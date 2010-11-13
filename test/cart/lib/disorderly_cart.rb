@@ -2,31 +2,19 @@ require 'rubygems'
 require 'bud'
 
 require 'lib/multicast'
+require 'lib/cart_protocol'
 
-module BasicCartServer
+module DisorderlyCart
   include Anise
-  include Multicast
+  include CartProtocol
   annotator :declare
 
-  
   def state
+    super
     table :cart_action, ['session', 'item', 'action', 'reqid']
     table :action_cnt, ['session', 'item', 'action'], ['cnt']
     scratch :status, ['server', 'client', 'session', 'item'], ['cnt']
-    table :member, ['player']
-    table :acked, ['server', 'peer', 'reqid']
-
-    table :memory, ['client', 'server', 'session', 'item', 'cnt']
-
     scratch :client_action, ['server', 'client', 'session', 'item', 'action', 'reqid']
-    channel :client_checkout, ['@server', 'client', 'session', 'reqid']
-    scratch :ac, ['session', 'item', 'action', 'reqid']
-
-    channel :ack, ['@server', 'peer', 'reqid']
-    channel :action_msg, ['@server', 'client', 'session', 'item', 'action', 'reqid']
-    channel :checkout_msg, ['@server', 'client', 'session', 'reqid']
-    channel :response_msg, ['@client', 'server', 'session', 'item', 'cnt']
-    channel :tickler, ['@server']
   end
  
   declare
@@ -49,33 +37,22 @@ module BasicCartServer
           end
         end
       end
-
       response_msg <~ status.map { |s| s }
-
-    end
-
-  declare 
-    def replicate
-      send_mcast <= action_msg.map{|a| [a.reqid, [a.session, a.item. a.action]] } 
-      action_msg <+ mcast_doen
-      
-    end
-
-  #declare
-  #  def replicate
-  #    #action_msg <+ join([action_msg, member]).map do |a, m|
-  #   #  unless acked.map{|ac| [ac.peer, ac.reqid]}.include? [m.player, a.reqid]
-  ##    #    [m.player, a.server, a.session, a.item, a.action, a.reqid]
-  #    #  end
-  #    #end
-  #  end
-
-  declare
-    def client
-      action_msg <~ client_action.map{|a| a}
-      checkout_msg <~ client_checkout.map{|a| a}
-  
-      memory <= response_msg.map{|r| r}
     end
 end
+
+module ReplicatedDisorderlyCart
+  include DisorderlyCart
+  include Multicast
+
+  include Anise
+  annotator :declare
+
+  declare 
+  def replicate
+    send_mcast <= action_msg.map {|a| [a.reqid, a] }
+    action_msg <= mcast_done.map {|m| m.payload } 
+  end    
+end
+
 

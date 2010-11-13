@@ -3,12 +3,15 @@ require 'bud'
 require 'lib/queue'
 require 'test/unit'
 
+class Q < Bud
+  include BaseQueue
+end
 
 class TestQueue < Test::Unit::TestCase
 
 
   def test_q
-    kyu = BaseQueue.new('localhost', 10001)
+    kyu = Q.new('localhost', 10001)
     kyu.tick
 
     kyu.q << [1, 'foo']

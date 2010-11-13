@@ -2,8 +2,10 @@ require 'rubygems'
 require 'bud'
 
 # you could miss it!
+module BaseQueue
+  include Anise
+  annotator :declare
 
-class BaseQueue < Bud
   def state
     table :q, ['ident'], ['payload']
     table :min_ident, ['ident']

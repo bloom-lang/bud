@@ -6,7 +6,7 @@ class TestLib < Test::Unit::TestCase
 
   def add_members(b, *hosts)
     hosts.each do |h|
-      assert_nothing_raised(RuntimeError) { b.member << [h] }
+      assert_nothing_raised(RuntimeError) { b.members << [h] }
     end
   end
 
