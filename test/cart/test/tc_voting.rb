@@ -2,11 +2,19 @@ require 'lib/voting'
 require 'test/unit'
 require 'test/test_lib'
 
+class VM < Bud
+  include VotingMaster
+end
+
+class VA < Bud
+  include VotingAgent
+end
+
 class TestVoting < TestLib
   def test_votingpair
-    t = VotingMaster.new('localhost', 12346, {'dump' => true, 'visualize' => true})
-    t2 = VotingAgent.new('localhost', 12347, {'visualize' => true})
-    t3 = VotingAgent.new('localhost', 12348, nil)
+    t = VM.new('localhost', 12346, {'dump' => true, 'visualize' => true})
+    t2 = VA.new('localhost', 12347, {'visualize' => true})
+    t3 = VA.new('localhost', 12348, nil)
     t.run_bg
     t2.run_bg
     t3.run_bg

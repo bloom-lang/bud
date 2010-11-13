@@ -11,21 +11,25 @@ module ReliableDelivery
 
   def state
     super
-    channel :ack, ['@src', 'dst', 'id']
+    table :pipe, ['dst', 'src', 'ident'], ['payload']
+    channel :ack, ['@src', 'dst', 'ident']
+  end
+  
+  declare 
+  def remember
+    pipe <= pipe_in.map{|p| p }
   end
   
   declare
     def rcv
       ack <~ pipe_chan.map do |p| 
-        if p.dst == @addy
-          [p.src, p.dst, p.id] 
-        end
+        [p.src, p.dst, p.ident] 
       end
     end
 
   declare 
     def done 
-      pipe_out <= join([ack, pipe], [ack.id, pipe.id]).map do |a, p| 
+      pipe_out <= join([ack, pipe], [ack.ident, pipe.ident]).map do |a, p| 
         p
       end
     end

@@ -4,7 +4,10 @@ require 'bud'
 module DeliveryProtocol
   def state
     super
-    channel :pipe_chan, ['@dst', 'src', 'id'], ['payload']
+    scratch :pipe_in, ['dst', 'src', 'ident'], ['payload']
+    scratch :pipe_out, ['dst', 'src', 'ident'], ['payload']
+
+    channel :pipe_chan, ['@dst', 'src', 'ident'], ['payload']
     channel :tickler, ['@self']
   end
 
@@ -21,32 +24,33 @@ module BestEffortDelivery
 
   def state
     super
-    table :pipe, ['dst', 'src', 'id'], ['payload']
-    scratch :pipe_out, ['dst', 'src', 'id'], ['payload']
-    periodic :timer, 1
+    #table :pipe, ['dst', 'src', 'ident'], ['payload']
+    #periodic :timer, 1
   end
   
   declare
     def snd
-      pipe_chan <~ join([pipe, timer]).map do |p, t|
-        unless pipe_out.map{|m| m.id}.include? p.id
-          p 
-        end
-      end
+      #pipe_chan <~ join([pipe_in, timer]).map do |p, t|
+      #  unless pipe_out.map{|m| m.ident}.include? p.ident
+      #    p 
+      #  end
+      #end
+      pipe_chan <~ pipe_in.map{|p| p }
     end
 
   declare 
     def done
       # vacuous ackuous.  override me!
-      pipe_out <+ join([pipe, timer]).map do |p, t| 
-        p
-      end
+      #pipe_out <+ join([pipe_in, timer]).map do |p, t| 
+      #  p
+      #end
+      pipe_out <= pipe_in.map{|p| p }
     end
 
-  declare 
-    def geecee
-      pipe <- pipe_out.map{|p| p }  
-    end
+  #declare 
+  #  def geecee
+  #    pipe <- pipe_out.map{|p| p }  
+  #  end
 end
 
 

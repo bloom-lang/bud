@@ -11,20 +11,21 @@ module Multicast
   def state
     super
     table :members, ['peer']
-    scratch :send_mcast, ['id'], ['payload']
-    table :mcast_done, ['id'], ['payload']
+    scratch :send_mcast, ['ident'], ['payload']
+    scratch :mcast_done, ['ident'], ['payload']
   end
 
   declare   
   def snd_mcast
-    pipe <= join([send_mcast, members]).map do |s, m|
-      [m.peer, @addy, s.id, s.payload]
+    pipe_in <= join([send_mcast, members]).map do |s, m|
+      [m.peer, @addy, s.ident, s.payload]
     end
   end
   
   declare 
-  def done_mcast
-    mcast_done <= pipe_out.map{|p| [p.id, p.payload] }
+  def done_mcast    
+    # override me
+    mcast_done <= pipe_out.map{|p| [p.ident, p.payload] }
   end
 
 end
@@ -42,8 +43,20 @@ module ReliableMulticast
   include Anise
   annotator :declare
 
-  #declare
-  #def glue
+  declare
+  def start_mcast
+    begin_vote <= send_mcast.map{|s| [s.ident, s] }
+  end
 
+  #declare
+  #def agency
+  #  ballot.map{|b| } 
   #end
+
+  declare
+  def done_mcast
+    mcast_done <= vote_status.map do |v|
+      puts "VEE: " + v.inspect 
+    end
+  end
 end

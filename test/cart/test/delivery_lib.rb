@@ -2,8 +2,10 @@ require 'rubygems'
 require 'bud'
 require 'test/test_lib'
 
-class BED < Bud
-  include BestEffortDelivery
+module TestStuff
+  include Anise
+  annotator :declare
+
   def state
     super
     table :pipe_perm, ['dst', 'src', 'id', 'payload']
@@ -15,9 +17,15 @@ class BED < Bud
   end
 end
 
+class BED < Bud
+  include BestEffortDelivery
+  include TestStuff
+end
 
-class RED < BED
+
+class RED < Bud
   include ReliableDelivery
+  include TestStuff
 end
 
 

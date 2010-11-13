@@ -4,12 +4,20 @@ require 'test/unit'
 require 'test/test_lib'
 require 'test/kvs_workloads'
 
+require 'lib/multicast'
 require 'lib/kvs'
 require 'lib/kvs_metered'
 
 
 class TKV < Bud
   include BudKVS  
+  # not necessary except to import 'tickler'
+  include BestEffortMulticast
+end
+
+class RKV < Bud
+  include ReplicatedKVS
+  include BestEffortMulticast  
 end
 
 class TestKVS < TestLib
@@ -18,7 +26,7 @@ class TestKVS < TestLib
   def add_members(b, *hosts)
     hosts.each do |h|
       print "ADD MEMBER: #{h.inspect}\n"
-      assert_nothing_raised(RuntimeError) { b.member << [h] }
+      assert_nothing_raised(RuntimeError) { b.members << [h] }
     end
   end
 
@@ -50,9 +58,9 @@ class TestKVS < TestLib
 
 
   def test_wl1
-    # in a distributed workload, the right thing happens
-    v = TKV.new("localhost", 12345)
-    v2 = TKV.new("localhost", 12346)
+    # in a distributed, ordered workload, the right thing happens
+    v = RKV.new("localhost", 12345, {'dump' => true})
+    v2 = RKV.new("localhost", 12346)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     assert_nothing_raised(RuntimeError) {v2.run_bg}
     add_members(v, "localhost:12345", "localhost:12346")
@@ -61,6 +69,8 @@ class TestKVS < TestLib
 
     workload1(v)
 
+    advance(v2)
+
     assert_equal(1, v.bigtable.length)
     assert_equal("bak", v.bigtable.first[1])
 
@@ -68,9 +78,9 @@ class TestKVS < TestLib
   end
 
   def test_simple
-    v = TKV.new("localhost", 12360)
+    v = TKV.new("localhost", 12360, {'dump' => true})
     assert_nothing_raised(RuntimeError) {v.run_bg}
-    add_members(v, "localhost:12360")
+    #add_members(v, "localhost:12360")
     sleep 1 
   
     workload1(v)

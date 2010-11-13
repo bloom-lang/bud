@@ -7,12 +7,12 @@ class TestBEDelivery < TestDelivery
   def test_delivery1
     rd = spinup("RED", 12222)
     sendtup = ['localhost:12223', 'localhost:12222', 1, 'foobar']
-    rd.pipe <+ [ sendtup ]
+    rd.pipe_in <+ [ sendtup ]
     soft_tick(rd)
     soft_tick(rd)
 
     # transmission not 'complete'
-    assert_equal(0, rd.pipe_out.length)
+    assert_equal(0, rd.pipe_perm.length)
   end
 
 
@@ -20,7 +20,7 @@ class TestBEDelivery < TestDelivery
     rd = spinup("RED", 13333)
     rd2 = spinup("RED", 13334)
     sendtup = ['localhost:13334', 'localhost:13333', 1, 'foobar']
-    rd.pipe <+ [ sendtup ]
+    rd.pipe_in <+ [ sendtup ]
     soft_tick(rd)
     soft_tick(rd2)
     soft_tick(rd)

@@ -11,14 +11,14 @@ module TestState
 
   def state
     super
-    table :mcast_done_perm, ['id'], ['payload']
-    table :rcv_perm, ['id'], ['payload']
+    table :mcast_done_perm, ['ident'], ['payload']
+    table :rcv_perm, ['ident'], ['payload']
   end
 
   declare
   def mem
     mcast_done_perm <= mcast_done.map{|d| d } 
-    rcv_perm <= pipe_chan.map{|r| [r.id, r.payload] }
+    rcv_perm <= pipe_chan.map{|r| [r.ident, r.payload] }
   end
 end
 
@@ -34,7 +34,7 @@ end
 
 
 class TestMC < TestLib
-  def test_be
+  def ntest_be
     mc = MC.new("localhost", 34256, {'dump' => true})
     mc2 = MC.new("localhost", 34257)
     mc3 = MC.new("localhost", 34258)
