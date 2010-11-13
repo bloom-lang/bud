@@ -50,19 +50,21 @@
     end
 
     # define methods to access tuple attributes by column name
+    # paa: inverted loop to add test, fix leak
     def tuple_accessors(t)
-      s = @schema
-      m = Module.new do
-        s.each_with_index do |c, i|
-          define_method c.to_sym do 
-            t[i]
+      @schema.each_with_index do |c, i|
+        unless t.respond_to? c.to_sym
+          m = Module.new do
+            define_method c.to_sym do
+              t[i]
+            end
           end
+          t.extend m
         end
       end
-      t.extend m
-      #      return t
+      return t
     end
-    
+
     def null_tuple
       return tuple_accessors(@schema.map{|c| nil})
     end
