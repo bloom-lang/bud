@@ -15,6 +15,10 @@ module BudKVS
     scratch :can_store, ['ident'], ['payload']
   end
 
+  # a class that mixes in KVS will probably provide
+  # an implementation of indir which inserts into can_store
+  # otherwise, input and internal actions are directly coupled
+  # by the below
   declare 
     def indir
       can_store <= kvstore.map{|k| [k.reqid, nil] }
@@ -40,9 +44,20 @@ module ReplicatedKVS
   annotator :declare
   include BudKVS
   # Demand MulticastProtocol
-  
+
+  def state
+    super
+    scratch :rep_can_store, ['ident'], ['payload']
+  end
+
+  # jic
   declare
   def indir
+    can_store <= rep_can_store.map {|c| c } 
+  end
+  
+  declare
+  def local_indir
     # if I am the master, multicast store requests
     send_mcast <= kvstore.map do |k| 
       unless members.include? [k.client]
@@ -58,9 +73,9 @@ module ReplicatedKVS
     end
 
     # I can "write back" to the store if I am a replica,
-    can_store <= pipe_chan.map { |c| [c.ident, c.payload] }
+    rep_can_store <= pipe_chan.map { |c| [c.ident, c.payload] }
     # or if I am the master and the multicast to replicas has succeeded
-    can_store <= mcast_done.map {|p| p}
+    rep_can_store <= mcast_done.map {|p| puts "master con store" or p}
   end
 end
 
