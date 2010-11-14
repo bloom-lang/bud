@@ -22,11 +22,11 @@ module BudKVS
 
   declare 
     def mutate
-      stor_saved <= kvstore.map { |k| k }
+      stor_saved <= kvstore.map { |k| puts "saving" or k }
       readback = join [stor_saved, can_store], [stor_saved.reqid, can_store.ident]
       stor_saved <- readback.map{ |s, p| s }
       bigtable <+ readback.map do |s, p| 
-        [s.key, s.value]
+        puts "BT: " + s.inspect or [s.key, s.value]
       end
 
       jst = join [bigtable, stor_saved, can_store], [bigtable.key, stor_saved.key], [stor_saved.reqid, can_store.ident]
@@ -46,7 +46,7 @@ module ReplicatedKVS
     # if I am the master, multicast store requests
     send_mcast <= kvstore.map do |k| 
       unless members.include? [k.client]
-        [k.reqid, [k.server, @addy, k.key, k.reqid, k.value]] 
+        puts "MCASt" or [k.reqid, [k.server, @addy, k.key, k.reqid, k.value]] 
       end
     end
 

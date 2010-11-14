@@ -8,20 +8,18 @@ require 'lib/kvs'
 # behavior when presented with multiple puts for the same key in the same
 # timestep.
 
-module MeteredKVS
-  #include BudKVS
+module KVSMetering
   include BaseQueue
+  include BudKVS
 
-  def interpose
-    @q.q <= pipe_out.map do |k| 
-      #print @budtime.to_s + " enqueue " + k.inspect + "\n" or 
-      [k.id, k] 
+  def indir
+    q <= kvstore.map do |k| 
+      [k.reqid, k] 
     end
 
-    #print "Q siz is " + @q.q.length.to_s + "\n"
-    can_store <= @q.head.map do |h| 
-      print @budtime.to_s + " Indirecting: "+ h.payload.inspect + "\n" or h.payload 
+    can_store <= head.map do |h| 
+      print @budtime.to_s + " Indirecting: "+ h.payload.inspect + "\n" or h 
     end
-    @q.consumed <+ @q.head.map{|h| [h.id] } 
+    consumed <+ head.map{|h| [h.ident] } 
   end
 end

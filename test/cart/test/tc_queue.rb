@@ -39,7 +39,6 @@ class TestQueue < Test::Unit::TestCase
 
     (0..10).each do |i|
       kyu.head.each do |h| 
-        print "HEAD(#{i}): #{h.inspect}\n"
         kyu.consumed <= [[h.ident]]
       end
       kyu.tick

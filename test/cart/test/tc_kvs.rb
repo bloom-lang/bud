@@ -23,12 +23,12 @@ end
 class TestKVS < TestLib
   include KVSWorkloads
 
-  def add_members(b, *hosts)
-    hosts.each do |h|
-      print "ADD MEMBER: #{h.inspect}\n"
-      assert_nothing_raised(RuntimeError) { b.members << [h] }
-    end
-  end
+  #def add_members(b, *hosts)
+  #  hosts.each do |h|
+  #    print "ADD MEMBER: #{h.inspect}\n"
+  #    assert_nothing_raised(RuntimeError) { b.members << [h] }
+  #  end
+  #end
 
   def ntest_wl2
     # reliable delivery fails if the recipient is down

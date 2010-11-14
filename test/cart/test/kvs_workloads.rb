@@ -9,6 +9,14 @@ require 'lib/kvs_metered'
 
 module KVSWorkloads
 
+  def add_members(b, *hosts)
+    hosts.each do |h|
+      print "ADD MEMBER: #{h.inspect}\n"
+      assert_nothing_raised(RuntimeError) { b.members << [h] }
+    end
+  end
+
+
   def workload1(v)
     # note that this naive key-value store will throw an error if we try to insert
     # two conflicting keys in the same timestep.  below, we ensure that we control

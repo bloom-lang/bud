@@ -26,12 +26,12 @@ module BaseQueue
       head <= join([q, min_ident], [q.ident, min_ident.ident]).map do |q, m| 
         unless presented.map{|p| p.ident}.include? q.ident
           # debug style
-          print "YIH head! " + q.inspect + "\n" or q 
+          q
         end
       end
 
       presented <+ head.map{|h| [h.ident]}
-      q <- join([q, consumed], [q.ident, consumed.ident]).map{|q, c| print "delete " + q.inspect + "\n" or q}
+      q <- join([q, consumed], [q.ident, consumed.ident]).map{|q, c| q }
 
     end
   

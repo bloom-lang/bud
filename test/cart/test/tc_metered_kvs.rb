@@ -11,18 +11,19 @@ require 'lib/multicast'
 
 class MKV < Bud
   include ReplicatedKVS
-  include MeteredKVS
+  include KVSMetering
+  include BestEffortMulticast
 end
 
 class TestKVS < TestLib
   include KVSWorkloads
 
-  def add_members(b, *hosts)
-    hosts.each do |h|
-      print "ADD MEMBER: #{h.inspect}\n"
-      assert_nothing_raised(RuntimeError) { b.members << [h] }
-    end
-  end
+  #def add_members(b, *hosts)
+  #  hosts.each do |h|
+  #    print "ADD MEMBER: #{h.inspect}\n"
+  #    assert_nothing_raised(RuntimeError) { b.members << [h] }
+  #  end
+  #end
 
   def ntest_metered_testandset
     v = MKV.new("localhost", 23456)
@@ -51,13 +52,16 @@ class TestKVS < TestLib
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:12350")
     workload1(v)
+    advance(v)
+    advance(v)
+    advance(v)
 
     assert_equal(1, v.bigtable.length)
     assert_equal("bak", v.bigtable.first[1])
   end
 
 
-  def ntest_wl4
+  def test_wl4
     # the metered kvs also succeeds on a disorderly workload
     v = MKV.new("localhost", 12351)
     assert_nothing_raised(RuntimeError) {v.run_bg}
