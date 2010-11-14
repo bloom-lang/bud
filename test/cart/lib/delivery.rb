@@ -22,35 +22,16 @@ module BestEffortDelivery
   include Anise
   annotator :declare
 
-  def state
-    super
-    #table :pipe, ['dst', 'src', 'ident'], ['payload']
-    #periodic :timer, 1
-  end
-  
   declare
     def snd
-      #pipe_chan <~ join([pipe_in, timer]).map do |p, t|
-      #  unless pipe_out.map{|m| m.ident}.include? p.ident
-      #    p 
-      #  end
-      #end
       pipe_chan <~ pipe_in.map{|p| p }
     end
 
   declare 
     def done
       # vacuous ackuous.  override me!
-      #pipe_out <+ join([pipe_in, timer]).map do |p, t| 
-      #  p
-      #end
       pipe_out <= pipe_in.map{|p| p }
     end
-
-  #declare 
-  #  def geecee
-  #    pipe <- pipe_out.map{|p| p }  
-  #  end
 end
 
 

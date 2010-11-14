@@ -13,11 +13,14 @@ module DestructiveCart
 
   def state
     super
-    scratch :client_action, ['server', 'client', 'session', 'item', 'action', 'reqid']
-    scratch :action_msg_deq, ['server', 'client', 'session', 'item', 'action', 'reqid']
     table :checkout_msg_guard, ['server', 'client', 'session', 'reqid']
-    # to know when to check out
-    table :action_log, ['server', 'client', 'session', 'item', 'action', 'reqid']
+  end
+
+  def delete_one(arr, item)
+    c = arr.clone
+    print "delete #{item} in array #{c.join(",")}\n"
+    c.delete_at(c.index(item))
+    c
   end
  
   declare
@@ -25,14 +28,8 @@ module DestructiveCart
       checkout_msg_guard <= checkout_msg.map{|c| c}
 
       kvstore <= action_msg.map do |a| 
-        unless bigtable.map{|b| b.key}.include? a.session
-          if a.action == "A"
-            #puts "ADD ON " + a.session.to_s + ", " + a.item.to_s or [a.server, 'localhost:10000', a.session, a.reqid, Array.new.push(a.item)]
-            [a.server, 'localhost:10000', a.session, a.reqid, Array.new.push(a.item)]
-          #elsif a.action == "D"
-            # um, problem with the naive implementation?
-            #[a.server, 'localhost:10000', a.session, a.reqid, Array.new]
-          end
+        if a.action == "A" and !bigtable.map{|b| b.key}.include? a.session
+          puts "STORE: " + a.inspect or [a.server, 'localhost:10000', a.session, a.reqid, Array.new.push(a.item)]
         end
       end
 
@@ -40,10 +37,8 @@ module DestructiveCart
       kvstore <= joldstate.map do |b, a| 
         if a.action == "A"
           print "APPEND ("  + @budtime.to_s + ") : " + a.inspect + ", " + b.inspect + "\n" or [a.server, a.client, a.session, a.reqid, (b.value.clone.push(a.item))]
-
         elsif a.action == "D"
-      #    #print "delete #{a.inspect}, #{b.inspect}\n"
-          [a.server, a.client, a.session, a.reqid, b.value.reject{|i| i == a.item}]
+          [a.server, a.client, a.session, a.reqid, delete_one(b.value, a.item)]
         end
       end
     end

@@ -1,9 +1,7 @@
 require 'rubygems'
 require 'bud'
-
 require 'lib/delivery'
 
-#class ReliableDelivery < BestEffortDelivery
 module ReliableDelivery
   include  BestEffortDelivery
   include Anise
@@ -17,22 +15,18 @@ module ReliableDelivery
   
   declare 
   def remember
-    pipe <= pipe_in.map{|p| p }
+    pipe <= pipe_in.map {|p| p }
   end
   
   declare
-    def rcv
-      ack <~ pipe_chan.map do |p| 
-        [p.src, p.dst, p.ident] 
-      end
-    end
+  def rcv
+    ack <~ pipe_chan.map {|p| [p.src, p.dst, p.ident] }
+  end
 
   declare 
-    def done 
-      pipe_out <= join([ack, pipe], [ack.ident, pipe.ident]).map do |a, p| 
-        p
-      end
-    end
+  def done 
+    pipe_out <= join([ack, pipe], [ack.ident, pipe.ident]).map {|a, p| p }
+  end
 end
 
 

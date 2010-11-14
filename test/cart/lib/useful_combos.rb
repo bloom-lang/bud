@@ -19,6 +19,11 @@ class BestEffortReplicatedKVS < Bud
   include BestEffortMulticast
 end
 
+class ReliableReplicatedKVS < Bud
+  include ReplicatedKVS
+  include ReliableMulticast
+end
+
 module ReplicatedMeteredGlue
   include Anise
   annotator :declare
@@ -47,9 +52,10 @@ module ReplicatedMeteredGlue
   def rmg_indir
     cs_rep <= rep_can_store.map {|c| c }
     cs_meter <= meter_can_store.map {|c| c }
-    rmg_can_store <= join([cs_rep, cs_meter], [cs_rep.ident, cs_meter.ident]).map do |r, m|
-      r 
-    end
+    csj = join([cs_rep, cs_meter], [cs_rep.ident, cs_meter.ident])
+    rmg_can_store <= csj.map { |r, m| r } 
+    cs_rep <- csj.map {|r, m| r }
+    cs_meter <- csj.map {|r, m| m }
   end
 end
 
