@@ -7,6 +7,7 @@ module BaseQueue
   annotator :declare
 
   def state
+    super
     table :q, ['ident'], ['payload']
     table :min_ident, ['ident']
     scratch :head, ['ident'], ['payload']

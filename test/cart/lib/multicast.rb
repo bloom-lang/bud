@@ -49,10 +49,10 @@ module ReliableMulticast
     begin_vote <= send_mcast.map{|s| [s.ident, s] }
   end
 
-  #declare
-  #def agency
-  #  ballot.map{|b| } 
-  #end
+  declare
+  def agency
+    cast_vote <= join([pipe_out, waiting_ballots], [pipe_out.ident, waiting_ballots.ident]).map{|p, b| [b.ident, b.content]} 
+  end
 
   declare
   def done_mcast
