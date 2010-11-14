@@ -12,8 +12,8 @@ module ChatProtocol
     channel :ctrl, ['@to', 'from', 'cmd']
   end
 
-  # declare   
-  # def foo
-  #  ctrl <~ stdio.map{|t| t}
-  # end
+  #declare   
+  #def foo
+  #  ctrl <= term.map{|t| t}
+  #end
 end
