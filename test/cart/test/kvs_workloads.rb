@@ -45,6 +45,15 @@ module KVSWorkloads
     #soft_tick(v)
   end
 
+  def append(prog, item)
+    curr = prog.bigtable.first[1]
+    new = curr.clone
+    new.push(item)
+    send_channel(prog.ip, prog.port, "kvstore", ["#{prog.ip}:#{prog.port}", "localhost:54321", "foo", @id, new])
+    @id = @id + 1
+    soft_tick(prog)
+  end
+
   def workload3(v)
     send_channel(v.ip, v.port, "kvstore", ["#{v.ip}:#{v.port}", "localhost:54321", "foo", 1, ["bar"]])
   
@@ -65,27 +74,16 @@ module KVSWorkloads
     soft_tick(v)
 
     assert_equal("foo", v.bigtable.first[0])
-    curr = v.bigtable.first[1]
-    assert_equal(['bar','baz'], curr)
-   
-    print "curr is #{curr.join(',')}\n" 
-    send_channel(v.ip, v.port, "kvstore", ["#{v.ip}:#{v.port}", "localhost:54321", "foo", 2, Array.new(curr).push("qux")])
-    #send_channel(v.ip, v.port, "kvstore", ["#{v.ip}:#{v.port}", "localhost:54321", "foo", 2, curr.push("qux")])
-    #curr = v.bigtable.first[1]
-    ##send_channel(v.ip, v.port, "kvstore", ["#{v.ip}:#{v.port}", "localhost:54321", "foo", 3, Array.new(curr).push("boom")])
-    #curr = v.bigtable.first[1]
-    ##send_channel(v.ip, v.port, "kvstore", ["#{v.ip}:#{v.port}", "localhost:54321", "foo", 4, Array.new(curr).push("bif")])
-
-    print "curr is #{curr.join(',')}\n" 
-    
-
+    assert_equal(['bar','baz'], v.bigtable.first[1])
+  
+    @id = 3 
+    append(v, "qux")
     curr = v.bigtable.first[1]
     print "CURR is now #{curr.inspect}\n"
-    soft_tick(v)
+    append(v, "baq")
     print "CURR is now #{curr.inspect}\n"
-    soft_tick(v)
+    append(v, "raz")
     print "CURR is now #{curr.inspect}\n"
-    
 
   end
   
