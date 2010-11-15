@@ -3,8 +3,8 @@ require 'graphviz'
 
 
 class Viz 
-  def initialize(strata, mapping, tableinfo, cycle)
-    @graph = GraphViz.new(:G, :type => :digraph)
+  def initialize(strata, mapping, tableinfo, cycle, depanalysis=nil)
+    @graph = GraphViz.new(:G, :type => :digraph, :label => "FOO")
     @graph.node[:fontname] = "Times-Roman"
     @graph.edge[:fontname] = "Times-Roman"
     @tiers = []
@@ -18,6 +18,7 @@ class Viz
     #(0..strata.first[0]+1).each do |s|
     #  @tiers[s] = @graph.subgraph("cluster" + s.to_s(), {:color => "black", :style => "dotted, rounded"})
     #end
+    @depanalysis = depanalysis
 
     # map: table -> stratum
     @t2s = {}
@@ -28,14 +29,16 @@ class Viz
 
     @tabinf = {}
     tableinfo.each do |ti|
-      #print "pop on #{ti[0].to_s}\n"
+      print "pop on #{ti[0].to_s}\n"
      # @tabinf[ti[0].to_s] = ti[1].class
       @tabinf[ti[0].to_s] = ti[1]
     end
 
     @redcycle = {}
     cycle.each do |c|
+      print "ELEM of cyc: #{c.inspect}\n"
       if c[2] and c[3]
+        print "I AM IN A REDCYCLE: #{c.inspect}\n"
         if !@redcycle[c[0]]
           @redcycle[c[0]] = []
         end
@@ -86,9 +89,11 @@ class Viz
   def name_of(predicate)
     # consider doing this in overlog.
     if @redcycle[predicate]
+      print "REDDY: #{predicate}\n"
       via = @redcycle[predicate]
       bag = name_bag(predicate, {})
       str = bag.keys.sort.join(", ")
+      print "RETURNING BAG: #{str}\n"
       return str
     else
       return predicate
@@ -167,6 +172,7 @@ class Viz
     elsif op == "<-"
       #@labels[ekey] = @labels[ekey] + 'NEG(del)'
       @labels[ekey]['¬'] = true
+      @labels[ekey]['+'] = true
     end
     if nm == 1
       # hm, nonmono
@@ -185,7 +191,18 @@ class Viz
       @edges[k].label = @labels[k].keys.join(" ")
     end
 
-    @graph.output(:dot => "#{name}.dot")    
+    addonce("S", false)
+    addonce("T", false)
+
+    @nodes["S"].color = "blue"
+    @nodes["T"].color = "blue"
+    @nodes["S"].shape = "diamond"
+    @nodes["T"].shape = "diamond"
+
+    @depanalysis.source.each {|s| addedge("S", s.pred, false, false, false) }
+    @depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false) }
+
+    #@graph.output(:dot => "#{name}.dot")    
     @graph.output(:pdf => "#{name}.pdf")
   end
 

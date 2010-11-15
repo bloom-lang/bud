@@ -1,4 +1,22 @@
 module BudState
+
+  def accounting(name, cls)
+    print "ACCMT: #{self.class} vs #{cls}, name #{name},  #{self.class.ancestors.join(",")}\n"
+  end
+
+  def scope_scope
+    anc = [] 
+    on = true
+    self.class.ancestors.each do |a|
+      on = false if a.to_s == "Bud"
+      anc << a if on
+    end
+  
+    if anc.to_s != "Stratification"
+      anc << name
+      puts "ANC: #{anc.join(".")}" 
+    end
+  end
   
   ######## methods for registering collection types
   def check_table(name, keys=[], cols=[])
@@ -8,6 +26,8 @@ module BudState
       # first time registering table, check for method name reserved
       raise Bud::BudError, "symbol :#{name} reserved, cannot be used as table name"
     end
+
+    # scope_scope   
 
     # tick previously-defined tables and tick
     if @tables[name] then
@@ -24,6 +44,25 @@ module BudState
       end 
       return nil
     end
+  end
+
+  def input
+    true
+  end
+  
+  def output
+    false
+  end
+
+  def interface(mode, name, keys, cols=[])
+    print "ADD to provides: #{mode}, #{name}\n"
+    @provides[name] = mode
+    scratch(name, keys, cols)
+  end
+  
+  def internal(mode, name)
+    @demands[name] = mode
+    #scratch(name, keys, cols)
   end
 
   def table(name, keys, cols=[], conf=nil)

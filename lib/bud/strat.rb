@@ -22,11 +22,11 @@ class Stratification < Bud
   def declaration
     strata[0] = rules {
       depends_tc <= depends.map do |d| 
-        dneg = d.neg == 1
+        dneg = (d.neg == 1 or d.op.to_s =~ /<-/)
         if d.op.to_s =~ /<[+-~]/ then
-          [d.head, d.body, nil, dneg, true] 
+          [d.head, d.body, d.body, dneg, true] 
         else
-          [d.head, d.body, nil, dneg, false] 
+          [d.head, d.body, d.body, dneg, false] 
         end
       end
       dj = join [depends, depends_tc], [depends.body, depends_tc.head]
@@ -36,12 +36,12 @@ class Stratification < Bud
         if (b.op.to_s =~ /<[+-~]/) or r.temporal
           temporal = true
         end
-        if b.neg == 1 || r.neg  
+        if (b.neg == 1 or b.op.to_s =~ /<-/) || r.neg  
           # revert the computation of 'via' -- too slow
-          # r.body -> nil
-          [b.head, r.body, nil, true, temporal]
+          # b.body -> nil
+          [b.head, r.body, b.body, true, temporal]
         else
-          [b.head, r.body, nil, false, temporal]
+          [b.head, r.body, b.body, false, temporal]
         end
       end
 
@@ -55,6 +55,7 @@ class Stratification < Bud
           else
             #print "CYC: #{d.inspect}\n"
             [d.head, d.via, d.neg, d.temporal]
+            #[d.head, d.body, d.neg, d.temporal]
           end
         end
       end

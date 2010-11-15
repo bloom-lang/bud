@@ -3,11 +3,13 @@ require 'rubygems'
 require 'bud/sane_r2r'
 require 'bud/rewrite'
 require 'bud/provenance'
+require 'bud/depanalysis'
 require 'parse_tree'
+
 
 class Bud
 
-  attr_reader :shredded_rules
+  attr_reader :shredded_rules, :provides, :demands
 
   def meta_rewrite
     # N.B. -- parse_tree will not be supported in ruby 1.9.
@@ -41,6 +43,7 @@ class Bud
 
     ###@rewritten_strata << write_postamble
     ###create_delta_tables
+ 
     visualize(strat, "#{self.class}_gvoutput") if @options['visualize']
     dump_rewrite if @options['dump']
     return @rewritten_strata
@@ -171,12 +174,13 @@ class Bud
   end
 
   
-  def visualize(strat, name)
+  def visualize(strat, name, depa=nil)
     #self.tick
     @tables.each do |t|
       @table_meta << [t[0], t[1].class]
     end
-    gv = Viz.new(strat.top_strat, strat.stratum, @table_meta, strat.cycle)
+    print "depa is #{depa}\n"
+    gv = Viz.new(strat.top_strat, strat.stratum, @table_meta, strat.cycle, depa)
     gv.process(strat.depends)
     gv.finish(name)
   end

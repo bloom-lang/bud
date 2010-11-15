@@ -24,11 +24,17 @@ class Bud
   include Anise
   annotator :declare
 
+#  def input
+#    true
+#  end
+
   def initialize(ip, port, options = nil)
     @tables = {}
     @table_meta = []
     @strata = []
     @rewritten_strata = []
+    @provides = {}
+    @demands = {}
     @channels = {}
     @budtime = 0
     @ip = ip
@@ -54,16 +60,18 @@ class Bud
     
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
-    unless self.class <= Stratification
+    unless self.class <= Stratification or self.class <= DepAnalysis
       safe_rewrite
       provenance_extend if @options['provenance']
     end
    
   end
-  
+
   ########### give empty defaults for these
   def state
     #channel :tickler, 0, ['server']
+
+    print "I am in state, base.  #{self.class}, #{self.class.ancestors.join(",")}\n"
   end  
   def declaration
   end
