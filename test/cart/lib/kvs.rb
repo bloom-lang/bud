@@ -5,13 +5,14 @@ require 'lib/reliable_delivery'
 module BudKVS
   include Anise
   annotator :declare
-  # Demand MulticastProtocol
 
   def state
     super
     table :bigtable, ['key'], ['value']
     table :stor_saved, ['server','client', 'key', 'reqid'], ['value']
-    scratch :kvstore, ['server', 'client', 'key', 'reqid'], ['value']
+    interface input, :kvstore, ['server', 'client', 'key', 'reqid'], ['value']
+    interface input :kvget, ['reqid'], ['key']
+    interface output, :kvget_response, ['reqid'], ['key', 'value']
     scratch :can_store, ['ident'], ['payload']
   end
 

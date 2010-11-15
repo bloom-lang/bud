@@ -3,9 +3,10 @@ require 'bud'
 
 module DeliveryProtocol
   def state
+    accounting("DeliveryProtocol", self)
     super
-    scratch :pipe_in, ['dst', 'src', 'ident'], ['payload']
-    scratch :pipe_out, ['dst', 'src', 'ident'], ['payload']
+    interface input, :pipe_in, ['dst', 'src', 'ident'], ['payload']
+    interface output, :pipe_out, ['dst', 'src', 'ident'], ['payload']
 
     channel :pipe_chan, ['@dst', 'src', 'ident'], ['payload']
     channel :tickler, ['@self']

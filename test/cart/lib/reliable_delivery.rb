@@ -9,8 +9,11 @@ module ReliableDelivery
 
   def state
     super
+    print "RD state\n"
     table :pipe, ['dst', 'src', 'ident'], ['payload']
     channel :ack, ['@src', 'dst', 'ident']
+    internal output, :pipe_out
+    internal input, :pipe_in
   end
   
   declare 

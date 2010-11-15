@@ -21,8 +21,8 @@ module VotingMaster
   def state
     super if defined? super
     # local interfaces    
-    scratch :begin_vote, ['ident', 'content']
-    scratch :victor, ['ident', 'content', 'response']
+    interface input, :begin_vote, ['ident', 'content']
+    interface output, :victor, ['ident', 'content', 'response']
 
     table :vote_status, 
           ['ident', 'content', 'response']
@@ -87,7 +87,7 @@ module VotingAgent
   def state
     super if defined? super
     table :waiting_ballots, ['ident', 'content', 'master']
-    scratch :cast_vote, ['ident', 'response']
+    interface input, :cast_vote, ['ident', 'response']
   end
 
   # default for decidente: always cast vote 'yes'.  expect subclasses to overridente.

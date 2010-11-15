@@ -4,7 +4,7 @@ require 'bud'
 require 'lib/reliable_delivery'
 require 'lib/voting'
 
-module Multicast 
+module MulticastProtocol 
   include Anise
   annotator :declare  
   include DeliveryProtocol
@@ -12,9 +12,21 @@ module Multicast
   def state
     super
     table :members, ['peer']
-    scratch :send_mcast, ['ident'], ['payload']
-    scratch :mcast_done, ['ident'], ['payload']
+    interface input, :send_mcast, ['ident'], ['payload']
+    interface output, :mcast_done, ['ident'], ['payload']
+
+    # contract: use some delivery class to realize the multicast
+    # we would ideally name it as below
+    #internal output, DeliveryProtocol.pipe_in
+    internal output, :pipe_in
+    internal input, :pipe_out
   end
+end
+
+module Multicast
+  include MulticastProtocol
+  include Anise
+  annotator :declare
 
   declare   
   def snd_mcast
