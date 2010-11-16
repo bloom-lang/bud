@@ -102,7 +102,7 @@
       keycols = keys.map{|k| o[schema.index(k)]}
       vals = (schema - keys).map{|v| o[schema.index(v)]}
       vals = true if vals.empty?
-      if not store[keycols].nil? then
+      if not store[keycols].nil?
         case @conflict
           when "first" then
             return if store[keycols] 
@@ -131,8 +131,8 @@
     def merge(o)
       raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
       delta = o.map {|i| self.insert(i)}
-      if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty? then 
-        self.schema = o.schema 
+      if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
+        self.schema = o.schema
       end
       return self
     end
@@ -141,7 +141,7 @@
 
     def pending_merge(o)
       delta = o.map {|i| self.pending_insert(i)}
-      if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty? then 
+      if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
         self.schema = o.schema 
       end
       return @pending
@@ -172,7 +172,7 @@
       retval = BudScratch.new('temp', @schema, [], bud_instance)
       tups = self.inject({}) do |memo,p| 
         pkeys = keynames.map{|n| p.send(n.to_sym)}
-        if memo[pkeys].nil? then
+        if memo[pkeys].nil?
           memo[pkeys] = {:agg=>agg.send(:init, p[colnum]), :tups => [p]}
         else
           newval = agg.send(:trans, memo[pkeys][:agg], p[colnum])
@@ -221,7 +221,7 @@
           agg = ap[0]
           colnum = ap[1].nil? ? nil : ap[1][1]
           colval = colnum.nil? ? nil : p[colnum]
-          if memo[pkeys][i].nil? then
+          if memo[pkeys][i].nil?
             memo[pkeys][i] = agg.send(:init, colval)
           else
             memo[pkeys][i] = agg.send(:trans, memo[pkeys][i], colval)
@@ -298,7 +298,7 @@
 
     def establish_connection(l)
       @connections ||= {}
-      @connections[l] = EventMachine::connect l[0], l[1], Server, @bud_instance
+      @connections[l] = EventMachine::connect l[0], l[1], BudServer, @bud_instance
       # rescue
       #   puts "connection #{l} failed"
     end
@@ -306,7 +306,7 @@
     def tick
       # tuples inserted during bootstrap (@budtime==0) need to get sent in the next tick
       # so only clear @pending if @budtime > 0
-      if @bud_instance.budtime > 0 then
+      if @bud_instance.budtime > 0
         @storage = {}
         # never turn pending outbounds into real tuples
         @pending = {}
@@ -359,7 +359,7 @@
             s = STDIN.gets
             s = s.chomp if s
             tup = tuple_accessors([s])
-            @connection ||= EventMachine::connect ip, port, Server, @bud_instance 
+            @connection ||= EventMachine::connect ip, port, BudServer, @bud_instance 
             @connection.send_data [name, tup].to_msgpack
           end
         rescue
@@ -442,7 +442,7 @@
       unless preds.nil?
         @localpreds = preds.reject { |p| p[0][0] != rellist[0].name and p[1][0] != rellist[0].name }
         @localpreds.each do |p| 
-          if p[1][0] == rellist[0].name then
+          if p[1][0] == rellist[0].name
             @localpreds.delete(p)
             @localpreds << [p[1], p[0]]
           end
@@ -459,7 +459,7 @@
       @rels << (rellist.length == 2 ? rellist[1] : BudJoin.new(rellist[1..rellist.length-1], otherpreds))
 
       # now derive schema: combo of rels[0] and rels[1]
-      if @rels[0].schema.empty? or @rels[1].schema.empty? then
+      if @rels[0].schema.empty? or @rels[1].schema.empty?
         @schema = []
       else
         dups = @rels[0].schema & @rels[1].schema
@@ -473,7 +473,7 @@
     end
 
     def each(&block)
-      if @localpreds.nil? or @localpreds.empty? then        
+      if @localpreds.nil? or @localpreds.empty?
         nestloop_join(&block)
       else
         hash_join(&block)
@@ -482,12 +482,12 @@
 
     def test_locals(r, s, *skips)
       retval = true
-      if (@localpreds and skips and @localpreds.length > skips.length) then           
+      if (@localpreds and skips and @localpreds.length > skips.length)
         # check remainder of the predicates
         @localpreds.each do |pred|
           next if skips.include? pred
           r_offset, s_index, s_offset = join_offsets(pred)
-          if r[r_offset] != s[s_index][s_offset] then
+          if r[r_offset] != s[s_index][s_offset]
             retval = false 
             break
           end
@@ -516,7 +516,7 @@
       # note that s doesn't contain the first entry in rels, which is r      
       index = 0
       origrels[1..origrels.length].each_with_index do |t,i|
-        if t.name == pred[1][0] then
+        if t.name == pred[1][0]
           index = i
           break
         end

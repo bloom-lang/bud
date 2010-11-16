@@ -9,7 +9,7 @@ class StaticAnalysis < Stratification
   def declaration
     strata[0] = rules {
       depends_tc <= depends.map do |d| 
-        if d.op.to_s =~ /<[+-]/ then
+        if d.op.to_s =~ /<[+-]/
           [d.head, d.body, d.body, d.neg, true] 
         else
           [d.head, d.body, d.body, d.neg, false] 
@@ -44,9 +44,7 @@ class StaticAnalysis < Stratification
         end
       end
 
-
       stratum_base <= depends.map{|d| [d.body, 0]}
-
     }
 
     strata[1] = rules {
@@ -88,4 +86,3 @@ class StaticAnalysis < Stratification
     }
   end
 end
-

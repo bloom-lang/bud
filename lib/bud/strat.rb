@@ -23,7 +23,7 @@ class Stratification < Bud
     strata[0] = rules {
       depends_tc <= depends.map do |d| 
         dneg = (d.neg == 1 or d.op.to_s =~ /<-/)
-        if d.op.to_s =~ /<[+-~]/ then
+        if d.op.to_s =~ /<[+-~]/
           [d.head, d.body, d.body, dneg, true] 
         else
           [d.head, d.body, d.body, dneg, false] 

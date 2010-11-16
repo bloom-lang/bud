@@ -30,9 +30,9 @@ module BudState
     # scope_scope   
 
     # tick previously-defined tables and tick
-    if @tables[name] then
+    if @tables[name]
       # check for consistent redefinition, and "tick" the table
-      if @tables[name].keys != keys or @tables[name].cols != cols then
+      if @tables[name].keys != keys or @tables[name].cols != cols
         raise Bud::BudError, "create :#{name}, keys = #{keys.inspect}, cols = #{cols.inspect} \n \
         table :#{name} already defined as #{@tables[name].keys.inspect} #{@tables[name].cols.inspect}"
       end
@@ -107,7 +107,7 @@ module BudState
   end
 
   def periodic(name, duration=1, keys=['ident'], cols=['time'])
-    if cols.length != 1 or keys.length != 1 then
+    if cols.length != 1 or keys.length != 1
       raise Bud::BudError("periodic collection #{name} must have one key column, and one other column") 
     end
     t = check_table(name, keys, cols)
@@ -122,7 +122,7 @@ module BudState
   end
 
   def terminal(name, keys=['line'])
-    if defined?(@terminal) && @terminal != name then
+    if defined?(@terminal) && @terminal != name
       raise Bud::BudError, "can't register IO collection #{name} in addition to #{@terminal}" 
     else
       @terminal = name
@@ -137,7 +137,7 @@ module BudState
   def regvar(name, collection)
     # rule out varnames that used reserved words
     reserved = defined?(name)
-    if reserved == "method" and not collection[name] then
+    if reserved == "method" and not collection[name]
       # first time registering var, check for method name reserved
       raise Bud::BudError, "symbol :#{name} reserved, cannot be used as variable name"
     end

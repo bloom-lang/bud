@@ -8,7 +8,7 @@ require 'anise'
 require 'bud/aggs'
 require 'bud/collections'
 require 'bud/errors'
-require 'bud/events'
+require 'bud/server'
 require 'bud/strat'
 require 'bud/static_analysis'
 require 'bud/bud_meta'
@@ -119,7 +119,7 @@ class Bud
   def run
     begin 
       EventMachine::run {
-        EventMachine::start_server(@ip, @port, Server, self)
+        EventMachine::start_server(@ip, @port, BudServer, self)
         # initialize periodics
         @periodics.each do |p|
           set_timer(p.name, p.ident, p.duration)

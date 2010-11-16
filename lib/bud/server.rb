@@ -1,6 +1,6 @@
 class Bud
   ######## the EventMachine server for handling network and timers
-  class Server < EM::Connection
+  class BudServer < EM::Connection
     attr_accessor :bud
 
     def initialize(thebud)
@@ -13,7 +13,7 @@ class Bud
 
     def post_init
       pname = get_peername
-      if pname then 
+      if pname
         @port, @ip = Socket.unpack_sockaddr_in(pname) 
  #       puts "-- server inbound connection from #{@ip}:#{@port}"
       else
@@ -38,7 +38,7 @@ class Bud
 
     def message_received(obj)
 #      puts "got " + obj.inspect
-      if (obj.class <= Array and obj.length == 2 and not bud.tables[obj[0].to_sym].nil? and obj[1].class <= Array) then
+      if (obj.class <= Array and obj.length == 2 and not bud.tables[obj[0].to_sym].nil? and obj[1].class <= Array)
         bud.inbound << obj
         bud.tick
       else
