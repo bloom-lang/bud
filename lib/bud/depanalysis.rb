@@ -38,11 +38,12 @@ class DepAnalysis < Bud
     end
 
     connected <= join([pairing, depends_tc], [pairing.in, depends_tc.body], [pairing.out, depends_tc.head]).map do |p, d|
-      p
+      puts "CONNECTED: " + p.inspect or p
     end
 
     underspecified <= pairing.map do |p|
-      unless connected.include? p
+      #unless connected.include? p
+      unless connected.map{|c| c.in}.include? p.in or connected.map{|c| c.in}.include? p.out
         [p.in, p.out, "unconnected dataflow"]
       end
     end  

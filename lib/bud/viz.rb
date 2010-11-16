@@ -108,11 +108,15 @@ class Viz
     # its name is "CYC" + concat(sort(predicate names))
 
     depends.each do |d|
-      #print "DEP: #{d.inspect}\n"
+      print "DEP: #{d.inspect}\n"
       head = d[1]
       body = d[3]
-      if d.nil? 
-        print "bizarre, d is nil.\n"
+      if !@tabinf[head] or !@tabinf[body]
+        #next
+      end
+
+      # hack attack
+      if body == "count" or head == "localtick" or head == "stdio"
         next
       end
 
@@ -199,9 +203,8 @@ class Viz
     @nodes["S"].shape = "diamond"
     @nodes["T"].shape = "diamond"
 
-
     @tabinf.each_pair do |k, v|
-      unless @nodes[k.to_s] or k.to_s =~ /_tbl/ or k.to_s == "tickler"
+      unless @nodes[name_of(k.to_s)] or k.to_s =~ /_tbl/ or k.to_s == "tickler"
         addonce(k.to_s, false)
       end
     end

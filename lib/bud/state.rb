@@ -55,7 +55,6 @@ module BudState
   end
 
   def interface(mode, name, keys, cols=[])
-    print "ADD to provides: #{mode}, #{name}\n"
     @provides[name] = mode
     scratch(name, keys, cols)
   end

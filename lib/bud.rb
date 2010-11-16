@@ -70,8 +70,6 @@ class Bud
   ########### give empty defaults for these
   def state
     #channel :tickler, 0, ['server']
-
-    print "I am in state, base.  #{self.class}, #{self.class.ancestors.join(",")}\n"
   end  
   def declaration
   end
