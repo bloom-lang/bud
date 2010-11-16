@@ -7,7 +7,7 @@ class DepAnalysis < Bud
 
   def state
     table :providing, ['pred', 'input']
-    table :demanding, ['pred'], ['input']
+    table :demanding, ['pred', 'input']
     table :depends_tc, ['head', 'body', 'via', 'neg', 'temporal']
     table :cycle, ['predicate', 'via', 'neg', 'temporal']
     table :closed,  ['predicate']

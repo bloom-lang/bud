@@ -4,7 +4,7 @@ require 'graphviz'
 
 class Viz 
   def initialize(strata, mapping, tableinfo, cycle, depanalysis=nil)
-    @graph = GraphViz.new(:G, :type => :digraph, :label => "FOO")
+    @graph = GraphViz.new(:G, :type => :digraph, :label => "")
     @graph.node[:fontname] = "Times-Roman"
     @graph.edge[:fontname] = "Times-Roman"
     @tiers = []
@@ -154,7 +154,7 @@ class Viz
   end
 
   def addedge(body, head, op, nm, negcluster)
-    #print "EKey IS #{body.to_s} + #{head.to_s}\n"
+    print "EKey IS #{body.to_s} + #{head.to_s}\n"
     return if body.nil? or head.nil?
     ekey = body + head
     if !@edges[ekey] 
@@ -199,8 +199,25 @@ class Viz
     @nodes["S"].shape = "diamond"
     @nodes["T"].shape = "diamond"
 
+
+    @tabinf.each_pair do |k, v|
+      unless @nodes[k.to_s] or k.to_s =~ /_tbl/ or k.to_s == "tickler"
+        addonce(k.to_s, false)
+      end
+    end
+
     @depanalysis.source.each {|s| addedge("S", s.pred, false, false, false) }
     @depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false) }
+
+    @depanalysis.underspecified.each do |u|
+      unless u.other.nil?
+        addonce("??", false)
+        addedge("??", u.other, false, false, false)
+        addedge(u.pred, "??", false, false, false)
+        @nodes["??"].color = "red"
+        @nodes["??"].shape = "diamond"
+      end
+    end
 
     #@graph.output(:dot => "#{name}.dot")    
     @graph.output(:pdf => "#{name}.pdf")

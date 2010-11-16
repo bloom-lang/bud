@@ -7,26 +7,29 @@ require 'lib/voting'
 module MulticastProtocol 
   include Anise
   annotator :declare  
-  include DeliveryProtocol
 
   def state
     super
     table :members, ['peer']
     interface input, :send_mcast, ['ident'], ['payload']
     interface output, :mcast_done, ['ident'], ['payload']
+  end
+end
 
+module Multicast
+  include MulticastProtocol
+  include DeliveryProtocol
+  include Anise
+  annotator :declare
+  
+  def state
+    super
     # contract: use some delivery class to realize the multicast
     # we would ideally name it as below
     #internal output, DeliveryProtocol.pipe_in
     internal output, :pipe_in
     internal input, :pipe_out
   end
-end
-
-module Multicast
-  include MulticastProtocol
-  include Anise
-  annotator :declare
 
   declare   
   def snd_mcast
