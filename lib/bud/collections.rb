@@ -348,7 +348,9 @@
       ip = b_class.instance_variable_get('@ip')
       port = b_class.instance_variable_get('@port')
       @connection = nil
-      
+
+      # XXX: Ugly hack. Rather than sending terminal data to EM via TCP,
+      # we should add the terminal file descriptor to the EM event loop.
       @reader = Thread.new() do ||
         begin
           while true
@@ -359,10 +361,6 @@
             tup = tuple_accessors([s])
             @connection ||= EventMachine::connect ip, port, Server, @bud_instance 
             @connection.send_data [name, tup].to_msgpack
-          
-            # @mutex.synchronize do
-            #   do_insert(tup, @storage)
-            # end
           end
         rescue
           print "terminal reader thread failed with #{$!}\ncaller: #{caller.inspect}"
@@ -600,6 +598,5 @@
     def tick
       self
     end
-    
   end
 end
