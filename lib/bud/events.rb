@@ -8,7 +8,7 @@ class Bud
       @bud = thebud
       super
     rescue Exception
-      print "An error occurred initializing BudServer: ",$!, "\n"
+      puts "An error occurred initializing BudServer: #{$!}"
     end
 
     def post_init
@@ -23,7 +23,7 @@ class Bud
       bud.connections ||= {}
       bud.connections[[@ip, @port]] = self
     rescue Exception
-      print "An error occurred post_init on BudServer: ",$!, "\n"
+      puts "An error occurred post_init on BudServer: #{$!}"
     end
 
     def receive_data(data)
@@ -49,7 +49,7 @@ class Bud
 
     def unbind
 #      puts "-- connection ended from #{@ip}:#{@port}"
-      bud.connections.delete [@ip,@port]
+      bud.connections.delete [@ip, @port]
     end
   end
 end
