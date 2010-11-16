@@ -64,7 +64,6 @@ class Bud
       safe_rewrite
       provenance_extend if @options['provenance']
     end
-   
   end
 
   ########### give empty defaults for these
@@ -120,9 +119,7 @@ class Bud
   def run
     begin 
       EventMachine::run {
-        EventMachine::start_server(@ip, @port, Server, self) { |con|
-          #          con.bud = self # pass this Bud object into the connection
-        }
+        EventMachine::start_server(@ip, @port, Server, self)
         # initialize periodics
         @periodics.each do |p|
           set_timer(p.name, p.ident, p.duration)
@@ -182,7 +179,6 @@ class Bud
   end
 
   def stratum_fixpoint(strat)
-    cnts = Hash.new
     begin
       cnts = {}
       @tables.each_key{|k| cnts[k] = @tables[k].length}
