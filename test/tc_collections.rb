@@ -142,7 +142,7 @@ class TestCollections < Test::Unit::TestCase
 
   def test_dup_keys
     program = DupKeyBud.new('localhost', 12345)
-    assert_raise( Bud::KeyConstraintError ) { program.tick }
+    assert_raise(Bud::KeyConstraintError) { program.tick }
   end
   
   def test_grep

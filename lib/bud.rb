@@ -108,12 +108,19 @@ class Bud
     end
     # for now
     @t.abort_on_exception = true
-    # not clean
-    sleep 0.1
+
+    # Block for EM to start up before returning
+    EventMachine::next_tick {
+      # no-op
+    }
   end
 
   def stop_bg
-    @t.exit
+    EventMachine::next_tick {
+      EventMachine::stop_event_loop
+    }
+    # Block until the background thread has actually exited
+    @t.join
   end
 
   def run
