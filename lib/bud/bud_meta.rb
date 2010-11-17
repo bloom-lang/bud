@@ -34,16 +34,16 @@ class Bud
       if @rewritten_strata[belongs_in].nil?
         @rewritten_strata[belongs_in] = ""
       end
-  
+
       unless done[d[0]]
-        @rewritten_strata[belongs_in] = @rewritten_strata[belongs_in] + "\n"+ d[5] 
+        @rewritten_strata[belongs_in] = @rewritten_strata[belongs_in] + "\n"+ d[5]
       end
       done[d[0]] = true
     end
 
     ###@rewritten_strata << write_postamble
     ###create_delta_tables
- 
+
     visualize(strat, "#{self.class}_gvoutput") if @options['visualize']
     dump_rewrite if @options['dump']
     return @rewritten_strata
@@ -61,7 +61,7 @@ class Bud
   end
 
   def dump_rewrite
-    fout = File.new(self.class.to_s + "_rewritten.txt", "w")     
+    fout = File.new(self.class.to_s + "_rewritten.txt", "w")
     @rewritten_strata.each_with_index do |r, i|
       fout.print "R[#{i}] :\n #{r}\n"
     end
@@ -130,7 +130,7 @@ class Bud
   end
 
   def stratify(depends)
-  
+
     strat = Stratification.new("localhost", 12345)
     #strat = StaticAnalysis.new("localhost", 12345)
     strat.tick
@@ -173,7 +173,7 @@ class Bud
     end
   end
 
-  
+
   def visualize(strat, name, depa=nil)
     #self.tick
     @tables.each do |t|

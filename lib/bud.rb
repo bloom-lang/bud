@@ -19,7 +19,7 @@ class Bud
   attr_reader :strata, :budtime, :inbound
   attr_accessor :connections
   attr_reader :tables, :ip, :port # for  ging; remove me later
-  
+
   include BudState
   include Anise
   annotator :declare
@@ -57,7 +57,7 @@ class Bud
     state
 
     bootstrap
-    
+
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
     unless self.class <= Stratification or self.class <= DepAnalysis
@@ -69,7 +69,7 @@ class Bud
   ########### give empty defaults for these
   def state
     #channel :tickler, 0, ['server']
-  end  
+  end
   def declaration
   end
   def bootstrap
@@ -82,17 +82,17 @@ class Bud
   end
 
   def safe_rewrite
-    if @options["enforce_rewrite"] 
-      @rewritten_strata = meta_rewrite 
+    if @options["enforce_rewrite"]
+      @rewritten_strata = meta_rewrite
     elsif !@options["disable_rewrite"]
       begin
         @rewritten_strata = meta_rewrite
-      rescue 
+      rescue
         puts "Running original (#{self.class}) code: couldn't rewrite stratified ruby (#{$!})"
       end
     else
       puts "No rewriting performed"
-    end 
+    end
   end
 
   ######## methods for controlling execution
@@ -124,7 +124,7 @@ class Bud
   end
 
   def run
-    begin 
+    begin
       EventMachine::run {
         EventMachine::start_server(@ip, @port, BudServer, self)
         # initialize periodics
@@ -150,29 +150,29 @@ class Bud
       state
       builtin_state
     end
-    
+
     receive_inbound
 
     # load the rules as a closure (will contain persistent tuples and new inbounds)
     # declaration to be provided by user program
     @strata = []
     declaration
-    if @rewritten_strata.length > 0 
+    if @rewritten_strata.length > 0
       @rewritten_strata.each_with_index do |rs, i|
         # FIX: move to compilation
         str = rs.nil? ? "" : rs
-        block = lambda { eval(str) } 
-        @strata << block 
+        block = lambda { eval(str) }
+        @strata << block
       end
     elsif @declarations.length > 0
       # the old way...
       @declarations.each do |d|
         @strata << self.method(d).to_proc
       end
-    end 
+    end
     @strata.each { |strat| stratum_fixpoint(strat) }
     @channels.each { |c| @tables[c[0]].flush }
-    reset_periodics 
+    reset_periodics
     @budtime += 1
     return @budtime
   end
@@ -194,9 +194,9 @@ class Bud
   end
 
   def reset_periodics
-    @periodics.each do |p| 
+    @periodics.each do |p|
       if @tables[p.name].length > 0 then
-        set_timer(p.name, p.ident, p.duration) 
+        set_timer(p.name, p.ident, p.duration)
         @tables[p.name] = scratch p.name, @tables[p.name].keys, @tables[p.name].cols
       end
     end
@@ -214,7 +214,7 @@ class Bud
     end
     newpreds
   end
-  
+
   def join(rels, *preds)
     BudJoin.new(rels, decomp_preds(*preds))
   end
@@ -225,7 +225,7 @@ class Bud
     rels.each do |r|
       rels.each do |s|
         matches = r.schema & s.schema
-        matches.each do |c| 
+        matches.each do |c|
           preds << [self.send(r.name).send(c), self.send(s.name).send(c)] unless r.name.to_s >= s.name.to_s
         end
       end
@@ -233,11 +233,11 @@ class Bud
     preds.uniq!
     join(rels, *preds)
   end
-  
+
   def leftjoin(rels, *preds)
     BudLeftJoin.new(rels, decomp_preds(*preds))
   end
-  
+
   ######## ids and timers
   def gen_id
     Time.new.to_i.to_s << rand.to_s

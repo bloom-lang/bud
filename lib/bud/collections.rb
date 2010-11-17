@@ -22,7 +22,7 @@
        retval.storage = []
        retval.pending = []
        return retval
-    end   
+    end
 
     def cols
       schema - keys
@@ -35,7 +35,7 @@
     end
 
     # define methods to turn 'table.col' into a [table,col] pair
-    # e.g. to support somethin like 
+    # e.g. to support somethin like
     #    j = join link, path, {link.to => path.from}
     def schema_accessors
       s = @schema
@@ -46,7 +46,7 @@
           end
         end
       end
-      self.extend m  
+      self.extend m
     end
 
     # define methods to access tuple attributes by column name
@@ -88,15 +88,15 @@
         end
       end
     end
-  
+
     def init_storage
       @storage = {}
     end
-    
+
     def init_pending
       @pending = {}
     end
-    
+
     def do_insert(o, store)
       return if o.nil? or o.length == 0
       keycols = keys.map{|k| o[schema.index(k)]}
@@ -135,7 +135,7 @@
     def pending_merge(o)
       delta = o.map {|i| self.pending_insert(i)}
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
-        self.schema = o.schema 
+        self.schema = o.schema
       end
       return @pending
     end
@@ -150,11 +150,11 @@
       tup += @storage[key] unless @storage[key] == true
       return tuple_accessors(tup)
     end
-  
+
     def method_missing(sym, *args, &block)
       @storage.send sym, *args, &block
     end
-  
+
     ######## aggs
 
     def argagg(aggname, gbkeys, col)
@@ -163,7 +163,7 @@
       keynames = gbkeys.map {|k| k[2]}
       colnum = col[1]
       retval = BudScratch.new('temp', @schema, [], bud_instance)
-      tups = self.inject({}) do |memo,p| 
+      tups = self.inject({}) do |memo,p|
         pkeys = keynames.map{|n| p.send(n.to_sym)}
         if memo[pkeys].nil?
           memo[pkeys] = {:agg=>agg.send(:init, p[colnum]), :tups => [p]}
@@ -171,7 +171,7 @@
           newval = agg.send(:trans, memo[pkeys][:agg], p[colnum])
           if memo[pkeys][:agg] == newval
             if agg.send(:tie, memo[pkeys][:agg], p[colnum])
-              memo[pkeys][:tups] << p 
+              memo[pkeys][:tups] << p
             end
           else
             memo[pkeys] = {:agg=>newval, :tups=>[p]}
@@ -179,25 +179,25 @@
         end
         memo
       end
-      
+
       finals = []
       outs = tups.each_value do |t|
         ties = t[:tups].map do |tie|
           finals << tie
         end
       end
-      retval.merge(finals)      
+      retval.merge(finals)
     end
-    
+
     def argmin(gbkeys, col)
       argagg(:min, gbkeys, col)
     end
-    
+
     def argmax(gbkeys, col)
       argagg(:max, gbkeys, col)
     end
 
-    def group(keys, *aggpairs)    
+    def group(keys, *aggpairs)
       keys = [] if keys.nil?
       keynames = keys.map {|k| k[2]}
       aggcolsdups = aggpairs.map{|ap| ap[0].class.name.split("::").last}
@@ -207,7 +207,7 @@
       end
       retval = BudScratch.new('temp', keynames, aggcols, bud_instance)
 #      retval = BudScratch.new('temp', keynames, @schema - keynames, bud_instance)
-      tups = self.inject({}) do |memo,p| 
+      tups = self.inject({}) do |memo,p|
         pkeys = keynames.map{|n| p.send(n.to_sym)}
         memo[pkeys] = [] if memo[pkeys].nil?
         aggpairs.each_with_index do |ap, i|
@@ -223,7 +223,7 @@
         memo
       end
 
-      result = tups.inject([]) do |memo,t| 
+      result = tups.inject([]) do |memo,t|
         finals = []
         aggpairs.each_with_index do |ap, i|
           finals << ap[0].send(:final, t[1][i])
@@ -232,16 +232,16 @@
       end
       retval.merge(result)
     end
-    
+
     def dump
       puts '(empty)' if (@storage.length == 0)
-      @storage.sort.each do |t| 
+      @storage.sort.each do |t|
         puts t.inspect unless cols.empty?
         puts t[0].inspect if cols.empty?
       end
       true
     end
-      
+
     alias reduce inject
   end
 
@@ -266,7 +266,7 @@
       end
     end
   end
-  
+
   class BudChannel < BudCollection
     attr_accessor :locspec, :connections
 
@@ -275,24 +275,24 @@
       @locspec = locspec_arg
       @connections = {}
     end
-    
+
     def split_locspec(l)
       lsplit = l.split(':')
       lsplit[1] = lsplit[1].to_i
       return lsplit
     end
-    
+
     def clone_empty
       retval = super
       retval.locspec = locspec
       retval.connections = @connections.clone
       return retval
-    end   
+    end
 
     def establish_connection(l)
       @connections[l] = EventMachine::connect l[0], l[1], BudServer, @bud_instance
     end
-    
+
     def tick
       # tuples inserted during bootstrap (@budtime==0) need to get sent in the next tick
       # so only clear @pending if @budtime > 0
@@ -321,20 +321,20 @@
         @pending.delete t
       end
     end
-    
+
     superator "<~" do |o|
       pending_merge o
     end
 
     superator "<+" do |o|
       raise BudError, "Illegal use of <+ with async collection on left"
-    end    
+    end
   end
-    
+
   class BudTerminal < BudCollection
     def initialize(name, keys, cols, b_class, prompt=false)
       super(name, keys, cols, b_class)
-      
+
       ip = b_class.ip
       port = b_class.port
       @connection = nil
@@ -349,7 +349,7 @@
             s = STDIN.gets
             s = s.chomp if s
             tup = tuple_accessors([s])
-            @connection ||= EventMachine::connect ip, port, BudServer, @bud_instance 
+            @connection ||= EventMachine::connect ip, port, BudServer, @bud_instance
             @connection.send_data [name, tup].to_msgpack
           end
         rescue
@@ -358,19 +358,19 @@
         end
       end
     end
-    
+
     def flush
-      @pending.each do |p| 
+      @pending.each do |p|
         STDOUT.puts p[0]
       end
       @pending = {}
     end
-    
+
     def tick
       @storage = {}
       @pending = {}
     end
-    
+
     def merge(o)
       raise BudError, "no synchronous accumulation into terminal; use <~"
     end
@@ -409,13 +409,13 @@
       @pending = {}
 #      self
     end
-    
+
     def init_to_delete
       @to_delete = {}
     end
 
     superator "<-" do |o|
-      # delta = 
+      # delta =
       o.map {|i| self.do_insert(i, @to_delete)}
     end
   end
@@ -431,12 +431,12 @@
       # extract predicates on rellist[0] and let the rest recurse
       unless preds.nil?
         @localpreds = preds.reject { |p| p[0][0] != rellist[0].name and p[1][0] != rellist[0].name }
-        @localpreds.each do |p| 
+        @localpreds.each do |p|
           if p[1][0] == rellist[0].name
             @localpreds.delete(p)
             @localpreds << [p[1], p[0]]
           end
-        end    
+        end
         otherpreds = preds.reject { |p| p[0][0] == rellist[0].name or p[1][0] == rellist[0].name}
         otherpreds = nil if otherpreds.empty?
       end
@@ -478,7 +478,7 @@
           next if skips.include? pred
           r_offset, s_index, s_offset = join_offsets(pred)
           if r[r_offset] != s[s_index][s_offset]
-            retval = false 
+            retval = false
             break
           end
         end
@@ -492,7 +492,7 @@
         @rels[1].each do |s|
           s = [s] if origrels.length == 2
           yield([r] + s) if test_locals(r, s)
-        end  
+        end
       end
     end
 
@@ -503,7 +503,7 @@
       probe_name, probe_offset = probe_entry[0], probe_entry[1]
 
       # determine which subtuple of s contains the table referenced in RHS of pred
-      # note that s doesn't contain the first entry in rels, which is r      
+      # note that s doesn't contain the first entry in rels, which is r
       index = 0
       origrels[1..origrels.length].each_with_index do |t,i|
         if t.name == pred[1][0]
@@ -511,7 +511,7 @@
           break
         end
       end
-    
+
       return probe_offset, index, build_offset
     end
 
@@ -539,21 +539,21 @@
       end
     end
   end
-  
+
   class BudLeftJoin < BudJoin
     def initialize(rellist, preds=nil)
       raise(BudError, "Left Join only defined for two relations") unless rellist.length == 2
       super(rellist, preds)
       @origpreds = preds
     end
-    
+
     def each(&block)
       super(&block)
       # previous line finds all the matches.
       # now its time to ``preserve'' the outer tuples with no matches.
       # this is totally inefficient: we should fold the identification of non-matches
       # into the join algorithms.  Another day.
-      # our trick: for each tuple of the outer, generate a singleton relation 
+      # our trick: for each tuple of the outer, generate a singleton relation
       # and join with inner.  If result is empty, preserve tuple.
       @rels[0].each do |r|
         t = @origrels[0].clone_empty
@@ -563,10 +563,10 @@
         nulltup = @origrels[1].null_tuple
         yield [r, nulltup]
       end
-    end    
+    end
   end
 
-  class BudReadOnly < BudScratch    
+  class BudReadOnly < BudScratch
     superator "<+" do |o|
       raise BudError, "Illegal use of <+ with read-only collection on left"
     end
@@ -574,7 +574,7 @@
       raise BudError, "Illegale use of <= with read-only collection on left"
     end
   end
-  
+
   class BudFileReader < BudReadOnly
     def initialize(name, filename, delimiter, b_class)
       super(name, ['lineno'], ['text'], b_class)
@@ -582,7 +582,7 @@
       @storage = {}
       File.open(@filename).each_with_index { |line, i|
           @storage[[i]] = [line.strip]
-      }      
+      }
     end
 
     def tick

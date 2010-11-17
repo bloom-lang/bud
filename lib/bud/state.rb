@@ -5,19 +5,19 @@ module BudState
   end
 
   def scope_scope
-    anc = [] 
+    anc = []
     on = true
     self.class.ancestors.each do |a|
       on = false if a.to_s == "Bud"
       anc << a if on
     end
-  
+
     if anc.to_s != "Stratification"
       anc << name
-      puts "ANC: #{anc.join(".")}" 
+      puts "ANC: #{anc.join(".")}"
     end
   end
-  
+
   ######## methods for registering collection types
   def check_table(name, keys=[], cols=[])
     # rule out tablenames that used reserved words
@@ -27,7 +27,7 @@ module BudState
       raise Bud::BudError, "symbol :#{name} reserved, cannot be used as table name"
     end
 
-    # scope_scope   
+    # scope_scope
 
     # tick previously-defined tables and tick
     if @tables[name]
@@ -39,9 +39,9 @@ module BudState
       @tables[name].tick
       return @tables[name]
     else
-      self.singleton_class.send(:define_method, name) do 
+      self.singleton_class.send(:define_method, name) do
         @tables[name]
-      end 
+      end
       return nil
     end
   end
@@ -49,7 +49,7 @@ module BudState
   def input
     true
   end
-  
+
   def output
     false
   end
@@ -58,7 +58,7 @@ module BudState
     @provides[name] = mode
     scratch(name, keys, cols)
   end
-  
+
   def internal(mode, name)
     @demands[name] = mode
     #scratch(name, keys, cols)
@@ -108,7 +108,7 @@ module BudState
 
   def periodic(name, duration=1, keys=['ident'], cols=['time'])
     if cols.length != 1 or keys.length != 1
-      raise Bud::BudError("periodic collection #{name} must have one key column, and one other column") 
+      raise Bud::BudError("periodic collection #{name} must have one key column, and one other column")
     end
     t = check_table(name, keys, cols)
     @tables[name] ||= Bud::BudPeriodic.new(name, keys, cols, self)
@@ -123,7 +123,7 @@ module BudState
 
   def terminal(name, keys=['line'])
     if defined?(@terminal) && @terminal != name
-      raise Bud::BudError, "can't register IO collection #{name} in addition to #{@terminal}" 
+      raise Bud::BudError, "can't register IO collection #{name} in addition to #{@terminal}"
     else
       @terminal = name
     end
@@ -141,7 +141,7 @@ module BudState
       # first time registering var, check for method name reserved
       raise Bud::BudError, "symbol :#{name} reserved, cannot be used as variable name"
     end
-    self.singleton_class.send :define_method, name do 
+    self.singleton_class.send :define_method, name do
       collection[name]
     end
     setter = (name.to_s + '=').to_sym

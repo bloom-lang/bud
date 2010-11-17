@@ -1,7 +1,7 @@
 class Bud
   ######## Agg definitions
   class Agg
-    def init (val)
+    def init(val)
       val
     end
 
@@ -16,16 +16,16 @@ class Bud
   # ArgExemplary aggs are used by argagg. Canonical examples are min/min (argmin/max)
   # They must have a trivial final method and be monotonic, i.e. once a value v
   # is discarded in favor of another, v can never be the final result
-  
+
   class ArgExemplary < Agg
     def tie(state, val)
-      (state == val )
-    end   
+      (state == val)
+    end
     def final(state)
       state
     end
   end
-  
+
   class Min < ArgExemplary
     def trans(state, val)
       state < val ? state : val
@@ -43,7 +43,7 @@ class Bud
   def max(x)
     [Max.new, x]
   end
-  
+
   class Choose < ArgExemplary
     def trans(state, val)
       state.nil? ? val : state
@@ -72,10 +72,10 @@ class Bud
     def trans(state, x=nil)
       state + 1
     end
-  end  
+  end
   def count(x=nil)
     [Count.new]
-  end  
+  end
 
   class Avg < Agg
     def init(val)
@@ -89,8 +89,7 @@ class Bud
       state[0]*1.0 / state[1]
     end
   end
-  def avg(x) 
+  def avg(x)
     [Avg.new, x]
   end
-
 end
