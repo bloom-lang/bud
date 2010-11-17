@@ -47,7 +47,7 @@ class Bud
     self.class.ancestors.each do |anc|
       @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact if anc.methods.include? 'annotation'
     end
-    #self.class.annotation.map {|a| print "another annotation: #{a.inspect}\n" } 
+    #self.class.annotation.map {|a| puts "another annotation: #{a.inspect}" }
     @declarations.uniq!
 
     @periodics = table :periodics_tbl, ['name'], ['ident', 'duration']
@@ -88,16 +88,16 @@ class Bud
       begin
         @rewritten_strata = meta_rewrite
       rescue 
-        print "Running original(#{self.class.to_s}) code: couldn't rewrite stratified ruby (#{$!})\n"
+        puts "Running original (#{self.class}) code: couldn't rewrite stratified ruby (#{$!})"
       end
     else
-      print "No rewriting performed\n"
+      puts "No rewriting performed"
     end 
   end
 
   ######## methods for controlling execution
   def run_bg
-    @t = Thread.new() do ||
+    @t = Thread.new() do
       # PAA, towards better error messages
       begin
         run

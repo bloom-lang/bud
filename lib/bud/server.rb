@@ -20,7 +20,6 @@ class Bud
         @port, @ip = Socket.unpack_sockaddr_in(get_sockname)
  #       puts "-- server connection to #{@ip}:#{@port}"
       end
-      bud.connections ||= {}
       bud.connections[[@ip, @port]] = self
     rescue Exception
       puts "An error occurred post_init on BudServer: #{$!}"

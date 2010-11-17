@@ -297,10 +297,7 @@
     end   
 
     def establish_connection(l)
-      @connections ||= {}
       @connections[l] = EventMachine::connect l[0], l[1], BudServer, @bud_instance
-      # rescue
-      #   puts "connection #{l} failed"
     end
     
     def tick
@@ -314,8 +311,8 @@
     end
 
     def flush
-      ip = @bud_instance.instance_variable_get('@ip')
-      port = @bud_instance.instance_variable_get('@port')
+      ip = @bud_instance.ip
+      port = @bud_instance.port
       each_pending do |t|
         if @locspec.nil?
           the_locspec = [ip, port.to_i]
@@ -345,13 +342,13 @@
     def initialize(name, keys, cols, b_class, prompt=false)
       super(name, keys, cols, b_class)
       
-      ip = b_class.instance_variable_get('@ip')
-      port = b_class.instance_variable_get('@port')
+      ip = b_class.ip
+      port = b_class.port
       @connection = nil
 
       # XXX: Ugly hack. Rather than sending terminal data to EM via TCP,
       # we should add the terminal file descriptor to the EM event loop.
-      @reader = Thread.new() do ||
+      @reader = Thread.new() do
         begin
           while true
             str = name.to_s + " > "
