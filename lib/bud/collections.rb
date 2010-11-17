@@ -102,23 +102,16 @@
       keycols = keys.map{|k| o[schema.index(k)]}
       vals = (schema - keys).map{|v| o[schema.index(v)]}
       vals = true if vals.empty?
-      if not store[keycols].nil?
-        case @conflict
-          when "first" then
-            return if store[keycols] 
-          when "last" then
-            # fall through
-          else
-            raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{vals.inspect}] into #{name}: existing tuple [#{keycols.inspect}][#{store[keycols].inspect}]" unless store[keycols].nil? or vals == store[keycols]
-        end
+      if store.include?(keycols) and vals != store[keycols]
+        raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{vals.inspect}] into #{name}: existing tuple [#{keycols.inspect}][#{store[keycols].inspect}]"
       end
-      store[keycols] = vals #unless store[keycols]
+      store[keycols] = vals
       return o
     end
 
     def insert(o)
       # puts "insert: #{o.inspect} into #{name}"
-      do_insert(o,@storage)
+      do_insert(o, @storage)
     end
 
     alias << insert
