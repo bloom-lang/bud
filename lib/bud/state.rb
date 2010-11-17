@@ -38,7 +38,7 @@ module BudState
       end
       @tables[name].tick
       return @tables[name]
-    else 
+    else
       self.singleton_class.send(:define_method, name) do 
         @tables[name]
       end 

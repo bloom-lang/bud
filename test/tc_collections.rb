@@ -104,16 +104,16 @@ class TestCollections < Test::Unit::TestCase
  
   def test_simple_deduction
     program = BabyBud.new('localhost', 12345)
-    assert_nothing_raised( RuntimeError) { program.tick }
+    assert_nothing_raised(RuntimeError) { program.tick }
     program.once
-    assert_equal(2, program.scrtch.length )
-    assert_equal(1, program.scrtch2.length )
-    assert_equal(2, program.tbl.length )
+    assert_equal(2, program.scrtch.length)
+    assert_equal(1, program.scrtch2.length)
+    assert_equal(2, program.tbl.length)
   end
   
   def test_tuple_accessors
     program = BabyBud.new('localhost', 12345)
-    assert_nothing_raised( RuntimeError) { program.tick }
+    assert_nothing_raised(RuntimeError) { program.tick }
     program.once
     # assert_equal('a', program.scrtch.first.k1)
     # assert_equal('b', program.scrtch.first.k2)
@@ -124,20 +124,20 @@ class TestCollections < Test::Unit::TestCase
   def test_insert_delete
     program = BabyBud.new('localhost', 12345)
     # tick twice to get to 2nd timestep
-    assert_nothing_raised( RuntimeError) { program.tick }
+    assert_nothing_raised(RuntimeError) { program.tick }
     program.once
-    assert_nothing_raised( RuntimeError) { program.tick }
+    assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal(1, program.scrtch.length )
     assert_equal(0, program.scrtch2.length )
     assert_equal(2, program.tbl.length )
   end
   
   def test_dup_tables
-    assert_raise( Bud::BudError ) {program = DupTableBud.new('localhost', 12345)}
+    assert_raise(Bud::BudError) {program = DupTableBud.new('localhost', 12345)}
   end
   
   def test_dup_columns
-    assert_raise( Bud::BudError ) {program = DupColBud.new('localhost', 12345)}
+    assert_raise(Bud::BudError) {program = DupColBud.new('localhost', 12345)}
   end
 
   def test_dup_keys
@@ -147,7 +147,7 @@ class TestCollections < Test::Unit::TestCase
   
   def test_grep
     program = Grep.new('localhost', ARGV[0], /[Bb]loom/)
-    assert_nothing_raised( RuntimeError ) { program.tick }
+    assert_nothing_raised(RuntimeError) { program.tick }
     lines = program.matches.map{|t| t}
     assert_equal(1, lines.length)
     assert_equal(44, lines[0][0])
