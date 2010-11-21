@@ -8,10 +8,10 @@ require 'chat_master'
 source = ARGV[0].split(':')
 ip = source[0]
 port = source[1].to_i
-program = SafeChatMaster.new(ip, port, {'visualize' => true, 'dump' => false})
+program = ChatMaster.new(ip, port, {'visualize' => true, 'dump' => false})
 
 t = program.run_bg
 sleep 10
-# program.stop_bg
-program.request_commit <+ [[ 123, 'shutdown' ]] 
-sleep 60
+program.stop_bg
+# program.request_commit <+ [[ 123, 'shutdown' ]] 
+# sleep 60

@@ -9,6 +9,7 @@ require 'tc_wordcount'
 require 'tc_inheritance'
 require 'tc_meta'
 require 'tc_timer'
+require 'tc_nest'
 
 # require 'tc_bcast'
 # require 'tc_cart'

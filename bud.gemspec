@@ -19,4 +19,5 @@ Gem::Specification.new do |s|
   s.add_dependency 'ruby2ruby'
   s.add_dependency 'anise'
   s.add_dependency 'ruby-graphviz'
+  s.add_dependency 'backports'
 end

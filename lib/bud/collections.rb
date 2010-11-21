@@ -16,7 +16,7 @@
       raise BudError, "schema for #{name} contains duplicate names" if schema.uniq.length < schema.length
       schema_accessors
     end
-
+    
     def clone_empty
        retval = self.class.new(name, keys, schema - keys, bud_instance)
        retval.storage = []

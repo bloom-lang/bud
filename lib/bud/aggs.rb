@@ -92,4 +92,16 @@ class Bud
   def avg(x)
     [Avg.new, x]
   end
+  
+  class Accum < Agg
+    def init(x)
+      [x]
+    end
+    def trans(state, val)
+      state << val
+    end
+  end
+  def accum(x)
+    [Accum.new, x]
+  end  
 end
