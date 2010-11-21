@@ -11,7 +11,7 @@ class WordCount < Bud
   end
   
   def state
-    file_reader :text, '../examples/chap2/ulysses.txt'
+    file_reader :txt, '../examples/chap2/ulysses.txt'
     table :words, ['lineno', 'wordno', 'word']
     table :wc, ['word'], ['cnt']
     table :wc2, ['word'], ['cnt']
@@ -20,7 +20,7 @@ class WordCount < Bud
   
   declare 
   def program
-    text.each do |t|
+    txt.each do |t|
       t.text.split.each_with_index {|w,i| words << [t.lineno, i, w]}
     end
 

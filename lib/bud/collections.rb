@@ -73,19 +73,15 @@
       @storage.each_key do |k|
         raise(BudError, "nil storage key") if k.nil?
         raise(BudError, "nil storage entry(#{@name}) for #{k.inspect}") if @storage[k].nil?
-        tup = (@storage[k] == true) ? k : (k + @storage[k])
-        yield tuple_accessors(tup)
+        yield @storage[k]
       end
     end
 
     def each_pending
       @pending.each_key do |k|
-        k = tuple_accessors(k)
-        if @pending[k] == true
-          yield k
-        else
-          yield k + @pending[k]
-        end
+        raise(BudError, "nil storage key") if k.nil?
+        raise(BudError, "nil storage entry(#{@name}) for #{k.inspect}") if @pending[k].nil?
+        yield @pending[k]
       end
     end
 
@@ -100,12 +96,10 @@
     def do_insert(o, store)
       return if o.nil? or o.length == 0
       keycols = keys.map{|k| o[schema.index(k)]}
-      vals = (schema - keys).map{|v| o[schema.index(v)]}
-      vals = true if vals.empty?
-      if store.include?(keycols) and vals != store[keycols]
-        raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{vals.inspect}] into #{name}: existing tuple [#{keycols.inspect}][#{store[keycols].inspect}]"
+      if store.include?(keycols) and o != store[keycols]
+        raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{o.inspect}] into #{name}: existing tuple [#{keycols.inspect}][#{store[keycols].inspect}]"
       end
-      store[keycols] = vals
+      store[keycols] = tuple_accessors(o)
       return o
     end
 
@@ -145,10 +139,7 @@
     end
 
     def [](key)
-      return nil unless @storage.include? key
-      tup = key
-      tup += @storage[key] unless @storage[key] == true
-      return tuple_accessors(tup)
+      @storage[key]
     end
 
     def method_missing(sym, *args, &block)
@@ -259,8 +250,8 @@
 
     def each
       @storage.keys.sort.each do |k|
-        tup = (@storage[k] == true) ? k : (k + @storage[k])
-        yield tuple_accessors(tup)
+        tup = (@storage[k] == true) ? k : @storage[k]
+        yield tup
         @dq[k] = true
         return
       end
@@ -581,7 +572,7 @@
       @filename = filename
       @storage = {}
       File.open(@filename).each_with_index { |line, i|
-          @storage[[i]] = [line.strip]
+          @storage[[i]] = tuple_accessors([i, line.strip])
       }
     end
 
