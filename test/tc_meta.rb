@@ -18,12 +18,7 @@ class LocalShortestPaths < Bud
   declare 
   def program
     link2 <= link.map{|l| l unless empty.include? l.id } 
-    #link2 <= link.group([link.from, link.to], count(link.cost))
     path <= link2.map{|e| [e.from, e.to, e.to, e.cost]}
-
-    #j = join [link2, path], [path.from, link2.to]
-    #path <= j.map do |l,p|
-    #path <= join([link2, path], [path.from, link2.to]).map do |l, p|
     path <= join([link2, path]).map do |l, p|
       [l.from, p.to, p.from, l.cost+p.cost] if l.to == p.from
     end
@@ -37,14 +32,14 @@ end
 
 class TestMeta < Test::Unit::TestCase
   def test_paths
-    program = LocalShortestPaths.new('localhost', 12345)
+    program = LocalShortestPaths.new('localhost', 134634)
     assert_equal(0, program.strata.length)
     assert_nothing_raised( RuntimeError) { program.tick }
     assert_equal(4, program.strata.length)
   end
 
   def test_visualization
-    assert_nothing_raised(RuntimeError) { program = LocalShortestPaths.new('localhost', 34521, {'dump' => true, 'visualize' => true}) }
+    assert_nothing_raised(RuntimeError) { program = LocalShortestPaths.new('localhost', 34521, {'dump' => true, 'visualize' => true, 'enforce_rewrite' => true}) }
     md5 = Digest::MD5.hexdigest(File.read("LocalShortestPaths_gvoutput.pdf"))
     #assert_equal("06cd9cc947cfeb7f038ea1b8f6b75fd2", md5)
   end

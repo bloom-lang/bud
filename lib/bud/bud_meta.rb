@@ -175,11 +175,9 @@ class Bud
 
 
   def visualize(strat, name, depa=nil)
-    #self.tick
     @tables.each do |t|
       @table_meta << [t[0], t[1].class]
     end
-    print "depa is #{depa}\n"
     gv = Viz.new(strat.top_strat, strat.stratum, @table_meta, strat.cycle, depa)
     gv.process(strat.depends)
     gv.finish(name)
