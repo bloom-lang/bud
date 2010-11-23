@@ -216,10 +216,6 @@ class Rewriter < SaneR2R
         newtab(t)
         @tabs[t] = @nmcontext
       end
-    else 
-      #newtab(t)
-      #@tabs[t] = @nmcontext
-      #print "in vcall, omitting nmcontext for #{exp.inspect}\n"
     end
     return "TABLE(#{exp.shift.to_s})"
   end
@@ -229,24 +225,6 @@ class Rewriter < SaneR2R
     t = exp[0].to_s
     newtab(t)
     super
-  end
-
-  def each_alias
-    @aliases.each_pair do |k, v|
-      unless v.empty? 
-        v.each do |i|
-          yield [k, i]
-        end
-      end
-    end
-  end
-
-  def each_join
-    @aliases.each_pair do |k, v|
-      if v.empty? 
-        yield k
-      end
-    end
   end
 end
 
