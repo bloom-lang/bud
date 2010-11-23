@@ -70,7 +70,7 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_visualization
-    program = KTest.new('localhost', 34521, {'dump' => true, 'visualize' => true, 'enforce_rewrite' => true})
+    program = KTest.new('localhost', 34521, {'dump' => true, 'visualize' => true, 'enforce_rewrite' => true, 'provenance' =>true})
 
   dep = DepAnalysis.new("localhost", 23525)
   
