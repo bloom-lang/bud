@@ -10,7 +10,7 @@ require 'lib/kvs'
 
 module KVSMetering
   include BaseQueue
-  include BudKVS
+  include KVSProtocol
   include Anise
   annotator :declare
 

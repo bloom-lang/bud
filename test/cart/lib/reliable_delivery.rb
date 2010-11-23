@@ -28,7 +28,10 @@ module ReliableDelivery
 
   declare 
   def done 
-    pipe_out <= join([ack, pipe], [ack.ident, pipe.ident]).map {|a, p| p }
+    apj = join [ack, pipe], [ack.ident, pipe.ident]
+    #pipe_out <= join([ack, pipe], [ack.ident, pipe.ident]).map {|a, p| p }
+    pipe_out <= apj.map {|a, p| p }
+    pipe <- apj.map {|a, p| p }
   end
 end
 

@@ -43,10 +43,10 @@ class TestMeta < Test::Unit::TestCase
     assert_equal(4, program.strata.length)
   end
 
-  def ntest_visualization
+  def test_visualization
     assert_nothing_raised(RuntimeError) { program = LocalShortestPaths.new('localhost', 34521, {'dump' => true, 'visualize' => true}) }
     md5 = Digest::MD5.hexdigest(File.read("LocalShortestPaths_gvoutput.pdf"))
-    assert_equal("06cd9cc947cfeb7f038ea1b8f6b75fd2", md5)
+    #assert_equal("06cd9cc947cfeb7f038ea1b8f6b75fd2", md5)
   end
   
 end

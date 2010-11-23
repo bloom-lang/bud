@@ -8,12 +8,11 @@ require 'lib/cart_protocol'
 module DestructiveCart
   include Anise
   include CartProtocol
-  include BudKVS
+  include KVSProtocol
   annotator :declare
 
   def state
     super
-    table :checkout_msg_guard, ['server', 'client', 'session', 'reqid']
     scratch :can_act, ['server', 'client', 'session', 'item', 'action', 'reqid']
   end
 
@@ -27,20 +26,19 @@ module DestructiveCart
   declare 
   def indirection
     can_act <= action_msg.map{|a| a } 
+    kvget <= can_act.map {|a| [a.reqid, a.session] } 
   end
  
   declare
     def queueing
-      checkout_msg_guard <= checkout_msg.map{|c| c}
-
-      kvstore <+ can_act.map do |a| 
-        if a.action == "A" and !bigtable.map{|b| b.key}.include? a.session
+      kvput <+ can_act.map do |a| 
+        if a.action == "A" and !kvget_response.map{|b| b.key}.include? a.session
           puts "STORE: " + a.inspect or [a.server, 'localhost:10000', a.session, a.reqid, Array.new.push(a.item)]
         end
       end
 
-      joldstate = join [bigtable, can_act], [bigtable.key, action_msg.session]
-      kvstore <+ joldstate.map do |b, a| 
+      joldstate = join [kvget_response, can_act], [bigtable.key, action_msg.session]
+      kvput <+ joldstate.map do |b, a| 
         if a.action == "A"
           puts " APPEND ("  + @budtime.to_s + ") : " + a.inspect + ", " + b.inspect + "\n" or [a.server, a.client, a.session, a.reqid, (b.value.clone.push(a.item))]
         elsif a.action == "D"
@@ -51,13 +49,10 @@ module DestructiveCart
 
   declare
     def finish
-      #response_msg <~ join([bigtable, checkout_msg_guard, max_act], [bigtable.key, checkout_msg_guard.session], [checkout_msg_guard.session, max_act.session]).map do |s, c, m|
-      response <~ join([bigtable, checkout_msg_guard], [bigtable.key, checkout_msg_guard.session]).map do |s, c|
-        #print "RESPONSE #{s.inspect}, #{c.inspect}\n"
+      response_msg <~ join([kvget_response, checkout_msg], [kvget_response.key, checkout_msg.session]).map do |s, c|
         [c.client, c.server, s.key, s.value]
       end
     end
-
 end
 
 

@@ -8,7 +8,7 @@ require 'lib/multicast'
 
 # was TKV
 class SingleSiteKVS < Bud
-  include BudKVS
+  include BasicKVS
   # not necessary except to import 'tickler'
   include BestEffortMulticast
 end

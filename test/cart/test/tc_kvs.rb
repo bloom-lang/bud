@@ -35,7 +35,7 @@ class TestKVS < TestLib
   end
 
 
-  def test_wl1
+  def ntest_wl1
     # in a distributed, ordered workload, the right thing happens
     v = BestEffortReplicatedKVS.new("localhost", 12345, {'dump' => true})
     v2 = BestEffortReplicatedKVS.new("localhost", 12346)
@@ -62,6 +62,9 @@ class TestKVS < TestLib
     sleep 1 
   
     workload1(v)
+    advance(v)
+
+    v.stor_saved.each{|s| puts "SS: #{s.inspect}\n" } 
 
     assert_equal(1, v.bigtable.length)
     assert_equal("bak", v.bigtable.first[1])

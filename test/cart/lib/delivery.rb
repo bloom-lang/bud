@@ -3,7 +3,7 @@ require 'bud'
 
 module DeliveryProtocol
   def state
-    accounting("DeliveryProtocol", self)
+    #accounting("DeliveryProtocol", self)
     super
     interface input, :pipe_in, ['dst', 'src', 'ident'], ['payload']
     interface output, :pipe_out, ['dst', 'src', 'ident'], ['payload']

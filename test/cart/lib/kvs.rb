@@ -1,18 +1,27 @@
 require 'rubygems'
 require 'bud'
 require 'lib/reliable_delivery'
+require 'lib/multicast'
 
-module BudKVS
+module KVSProtocol
+  def state
+    super
+    interface input, :kvput, ['client', 'key', 'reqid'], ['value']
+    interface input, :kvget, ['reqid'], ['key']
+    interface output, :kvget_response, ['reqid'], ['key', 'value']
+  end
+end
+
+module BasicKVS
   include Anise
+  include KVSProtocol
   annotator :declare
 
   def state
     super
     table :bigtable, ['key'], ['value']
-    table :stor_saved, ['server','client', 'key', 'reqid'], ['value']
-    interface input, :kvstore, ['server', 'client', 'key', 'reqid'], ['value']
-    interface input, :kvget, ['reqid'], ['key']
-    interface output, :kvget_response, ['reqid'], ['key', 'value']
+    table :stor_saved, ['client', 'key', 'reqid'], ['value']
+    scratch :kvstore, ['client', 'key', 'reqid'], ['value']
     scratch :can_store, ['ident'], ['payload']
   end
 
@@ -26,29 +35,45 @@ module BudKVS
     end
 
   declare 
+  def basisa
+    kvstore <= kvput.map {|p| p }
+  end
+
+  declare 
     def mutate
-      stor_saved <= kvstore.map { |k| puts "saving" or k }
+      stor_saved <= kvstore.map { |k| k }
       readback = join [stor_saved, can_store], [stor_saved.reqid, can_store.ident]
       stor_saved <- readback.map{ |s, p| s }
       bigtable <+ readback.map do |s, p| 
-        puts "BT: " + s.inspect or [s.key, s.value]
+        [s.key, s.value]
       end
 
       jst = join [bigtable, stor_saved, can_store], [bigtable.key, stor_saved.key], [stor_saved.reqid, can_store.ident]
       bigtable <- jst.map { |b, s, p| b }
     end
+
+  declare
+  def get
+    kvget_response <= join([kvget, bigtable], [kvget.key, bigtable.key]).map do |g, t|
+      [g.reqid, t.key, t.value]
+    end
+  end
 end
 
 
 module ReplicatedKVS
   include Anise
   annotator :declare
-  include BudKVS
-  # Demand MulticastProtocol
+  include BasicKVS
+  include MulticastProtocol
 
   def state
     super
     scratch :rep_can_store, ['ident'], ['payload']
+    internal output, :send_mcast
+    internal input, :mcast_done
+    internal output, :can_store
+    # overrides indir
   end
 
   # jic
