@@ -30,6 +30,37 @@ class LocalShortestPaths < Bud
   end
 end
 
+class KTest < Bud
+  def state
+    interface input, :upd, ['data']
+    interface input, :req, ['id']
+    interface output, :resp, ['id', 'data']
+    table :mystate, ['data']
+
+    interface output, :qq, ['data']
+  
+  end
+
+  declare
+  def update
+    mystate <+ upd
+    mystate <- join([upd, mystate]).map{|i, s| s }
+  end
+  
+  declare
+  def respond
+    resp <= join([req, mystate]).map{|r, s| [r.id, s.data] } 
+  end
+end
+
+class KTest2 < KTest
+  declare
+  def update
+    mystate <= upd
+    mystate <- join([upd, mystate]).map{|i, s| s }
+  end
+end
+
 class TestMeta < Test::Unit::TestCase
   def test_paths
     program = LocalShortestPaths.new('localhost', 134634)
@@ -39,7 +70,18 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_visualization
-    assert_nothing_raised(RuntimeError) { program = LocalShortestPaths.new('localhost', 34521, {'dump' => true, 'visualize' => true, 'enforce_rewrite' => true}) }
+    program = KTest.new('localhost', 34521, {'dump' => true, 'visualize' => true, 'enforce_rewrite' => true})
+
+  dep = DepAnalysis.new("localhost", 23525)
+  
+  program.strat_state.depends_tc.each{|d| dep.depends_tc << d }
+  program.strat_state.cycle.each{|d| dep.cycle << d }
+  program.provides.each{|p| puts "provide " + p.inspect; dep.providing << p }
+  program.demands.each{|d| puts "demand " + d.inspect; dep.demanding << d }
+
+  dep.tick
+
+
     md5 = Digest::MD5.hexdigest(File.read("LocalShortestPaths_gvoutput.pdf"))
     #assert_equal("06cd9cc947cfeb7f038ea1b8f6b75fd2", md5)
   end

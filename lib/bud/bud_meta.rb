@@ -9,7 +9,7 @@ require 'parse_tree'
 
 class Bud
 
-  attr_reader :shredded_rules, :provides, :demands
+  attr_reader :shredded_rules, :provides, :demands, :strat_state
 
   def meta_rewrite
     # N.B. -- parse_tree will not be supported in ruby 1.9.
@@ -17,10 +17,10 @@ class Bud
     # to ruby_parse (but not the "live" class)
 
     @shredded_rules = shred_rules
-    strat = stratify(@shredded_rules)
+    @strat_state = stratify(@shredded_rules)
 
     smap = {}
-    strat.stratum.each do |s|
+    @strat_state.stratum.each do |s|
       #print "ST: STRAT OUT: #{s.inspect}\n"
       smap[s[0]] = s[1]
     end
@@ -44,7 +44,7 @@ class Bud
     ###@rewritten_strata << write_postamble
     ###create_delta_tables
 
-    visualize(strat, "#{self.class}_gvoutput") if @options['visualize']
+    visualize(@strat_state, "#{self.class}_gvoutput") if @options['visualize']
     dump_rewrite if @options['dump']
     return @rewritten_strata
   end
