@@ -12,7 +12,7 @@ module DeliveryProtocol
     channel :tickler, ['@self']
   end
 
-  def initialize(host, port, opts = nil)
+  def initialize(host, port, opts)
     @addy = "#{host}:#{port}"
     super(host, port, opts)
   end

@@ -76,7 +76,7 @@ class TestMeta < Test::Unit::TestCase
   
   program.strat_state.depends_tc.each{|d| dep.depends_tc << d }
   program.strat_state.cycle.each{|d| dep.cycle << d }
-  program.provides.each{|p| puts "provide " + p.inspect; dep.providing << p }
+  program.provides.each{|p| dep.providing << p }
   program.demands.each{|d| puts "demand " + d.inspect; dep.demanding << d }
 
   dep.tick

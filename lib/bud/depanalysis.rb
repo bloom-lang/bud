@@ -56,7 +56,7 @@ class DepAnalysis < Bud
 
     sink <= providing.map do |p|
       if !p.input and !depends_tc.map{|d| d.body}.include? p.pred
-        puts "SINK: " + p.inspect or [p.pred]
+        [p.pred]
       end
     end
 
