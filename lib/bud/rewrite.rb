@@ -36,10 +36,6 @@ class Rewriter < SaneR2R
     @aliases[t] = []
   end
 
-  def delta_munge(str, dtab, sub)
-    return eval("str.#{sub}(\"TABLE(#{dtab})\", dtab + \"_delta\")")
-  end
-
   def remove_annotations(str)
     # PAA: surely there is a better way.
     while str =~ /TABLE\(([^)]+)\)/ 
@@ -78,21 +74,6 @@ class Rewriter < SaneR2R
 
   #######################
   # iterators
-
-  def each_deltas
-    @rules.each do |rule| 
-      #print "RULE: #{rule.inspect}\n"
-      (id, lhs, op, rhs, nm, block) = rule
-      # nasty
-      dlhs = remove_annotations(lhs) + "_delta"
-      drhs = remove_annotations(rhs) + "_delta"
-
-      clean_lhs = delta_munge(block, remove_annotations(lhs), "sub")
-      newblock = delta_munge(clean_lhs, remove_annotations(rhs), "gsub")
-      final_block = remove_annotations(newblock)
-      yield [id, dlhs, op, drhs, nm, final_block]
-    end
-  end
 
   def each
     done = {}

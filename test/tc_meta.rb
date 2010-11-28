@@ -36,6 +36,7 @@ class KTest < Bud
     interface input, :req, ['id']
     interface output, :resp, ['id', 'data']
     table :mystate, ['data']
+  
 
     interface output, :qq, ['data']
   
@@ -57,7 +58,8 @@ class KTest2 < KTest
   declare
   def update
     mystate <= upd
-    mystate <- join([upd, mystate]).map{|i, s| s }
+    indir =  join([upd, mystate]).map{|i, s| s }
+    mystate <- indir.map{|s| s } 
   end
 end
 
@@ -70,7 +72,7 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_visualization
-    program = KTest.new('localhost', 34521, {'dump' => true, 'visualize' => true, 'enforce_rewrite' => true, 'provenance' =>true})
+    program = KTest2.new('localhost', 34521, {'dump' => true, 'visualize' => true, 'enforce_rewrite' => true, 'provenance' =>true})
 
   dep = DepAnalysis.new("localhost", 23525)
   
@@ -81,9 +83,9 @@ class TestMeta < Test::Unit::TestCase
 
   dep.tick
 
+  program.visualize(program.strat_state, "outp", dep)
+  
 
-    md5 = Digest::MD5.hexdigest(File.read("LocalShortestPaths_gvoutput.pdf"))
-    #assert_equal("06cd9cc947cfeb7f038ea1b8f6b75fd2", md5)
   end
   
 end

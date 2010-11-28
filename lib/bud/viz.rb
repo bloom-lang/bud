@@ -136,6 +136,8 @@ class Viz
 
   def addedge(body, head, op, nm, negcluster)
     return if body.nil? or head.nil?
+    body = body.to_s
+    head = head.to_s
     ekey = body + head
     if !@edges[ekey] 
       @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head])

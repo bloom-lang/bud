@@ -41,23 +41,9 @@ class Bud
       done[d[0]] = true
     end
 
-    ###@rewritten_strata << write_postamble
-    ###create_delta_tables
-
     visualize(@strat_state, "#{self.class}_gvoutput") if @options['visualize']
     dump_rewrite if @options['dump']
     return @rewritten_strata
-  end
-
-  def write_postamble
-    postamble = ''
-    @tables.each do |t|
-      nm = t[1].name
-      if nm.class == Symbol
-        postamble = postamble + "#{nm.to_s} <+ #{nm.to_s}_delta.map{|i| i }\n"
-      end
-    end
-    return postamble
   end
 
   def dump_rewrite
@@ -74,19 +60,6 @@ class Bud
       if t[1].name.class == Symbol
         yield t[1]
       end
-    end
-  end
-
-  def create_delta_tables
-    statements = []
-    tables_each do |t|
-      tm = t.name
-      dname = tm.to_s + "_delta"
-      str = "scratch :" + dname + ", [" + t.schema.map{|i| "\"#{i}\""}.join(",") + "]"
-      statements << str
-    end
-    statements.each do |st|
-      eval ( st )
     end
   end
 
