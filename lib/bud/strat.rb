@@ -23,7 +23,7 @@ class Stratification < Bud
     strata[0] = rules {
       depends_tc <= depends.map do |d| 
         dneg = (d.neg == 1 or d.op.to_s =~ /<-/)
-        if d.op.to_s =~ /<[+-~]/
+        if d.op.to_s =~ /<[\+\-\~]/
           [d.head, d.body, d.body, dneg, true] 
         else
           [d.head, d.body, d.body, dneg, false] 
@@ -33,7 +33,7 @@ class Stratification < Bud
       depends_tc <= dj.map do |b, r|
         # theoretically illegal, would break our analysis
         temporal = false
-        if (b.op.to_s =~ /<[+-~]/) or r.temporal
+        if (b.op.to_s =~ /<[\+\-\~]/) or r.temporal
           temporal = true
         end
         if (b.neg == 1 or b.op.to_s =~ /<-/) || r.neg  
@@ -53,9 +53,7 @@ class Stratification < Bud
           if d.neg and !d.temporal
             raise RuntimeError.new("unstratifiable program: #{d.inspect}")
           else
-            #print "CYC: #{d.inspect}\n"
             [d.head, d.via, d.neg, d.temporal]
-            #[d.head, d.body, d.neg, d.temporal]
           end
         end
       end
@@ -64,12 +62,9 @@ class Stratification < Bud
 
     strata[1] = rules {
       stratum_base <= join([depends, stratum_base], [depends.body, stratum_base.predicate]).map do |d, s|
-        #print "do base #{d.inspect}\n"
         if (d.neg == 1 or d.op.to_s == "<-") and !(cycle.map{|c| c.predicate}.include? d.body and cycle.map{|c| c.predicate}.include? d.head)
-          #print "BUMP #{d.head} from #{s.stratum}\n"
           [d.head, s.stratum + 1]
         else  
-          #print "HOIST #{d.head} #{s.stratum}\n"
           [d.head, s.stratum]
         end
       end

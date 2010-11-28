@@ -38,7 +38,7 @@ class KTest < Bud
     table :mystate, ['data']
   
 
-    interface output, :qq, ['data']
+    #interface output, :qq, ['data']
   
   end
 
@@ -58,8 +58,15 @@ class KTest2 < KTest
   declare
   def update
     mystate <= upd
-    indir =  join([upd, mystate]).map{|i, s| s }
-    mystate <- indir.map{|s| s } 
+    mystate <- join([upd, mystate]).map{|i, s| s }
+  end
+end
+
+
+class KTest3 < KTest
+  declare
+  def update
+    mystate <= upd.map{|u| u unless mystate.include? u }
   end
 end
 
@@ -69,6 +76,11 @@ class TestMeta < Test::Unit::TestCase
     assert_equal(0, program.strata.length)
     assert_nothing_raised( RuntimeError) { program.tick }
     assert_equal(4, program.strata.length)
+  end
+
+  def test_unstrat
+    assert_raise(RuntimeError) { program = KTest3.new('localhost', 34521, {'dump' => true, 'visualize' => true, 'enforce_rewrite' => true, 'provenance' =>true}) }
+  
   end
 
   def test_visualization
