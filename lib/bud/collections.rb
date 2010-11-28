@@ -166,7 +166,8 @@ class Bud
             raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{i.inspect}] into #{name}: existing new_delta tuple [#{keycols.inspect}][#{self.new_delta[keycols].inspect}]"
           end
         else
-          self.do_insert(i, buf)
+          # don't call do_insert, it will just recheck our tests for hash collision
+          buf[keycols] = tuple_accessors(i)
         end
       end
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
