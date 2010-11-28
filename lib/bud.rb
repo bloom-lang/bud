@@ -19,6 +19,7 @@ class Bud
   attr_reader :strata, :budtime, :inbound
   attr_accessor :connections
   attr_reader :tables, :ip, :port # for  ging; remove me later
+  attr_accessor :each_counter
   attr_reader :stratum_first_iter
 
   include BudState
@@ -38,6 +39,7 @@ class Bud
     @demands = {}
     @channels = {}
     @budtime = 0
+    @each_counter = {}
     @ip = ip
     @port = port.to_i
     @ip_port = "#{@ip}:#{@port}"

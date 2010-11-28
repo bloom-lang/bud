@@ -89,6 +89,8 @@ class Bud
         b.each_key do |k|
           raise(BudError, "nil storage key") if k.nil?
           raise(BudError, "nil entry(#{@name}) for #{k.inspect}") if b[k].nil?
+          @bud_instance.each_counter[name] ||= 0
+          @bud_instance.each_counter[name] += 1
           yield b[k]
         end
       end
@@ -125,22 +127,17 @@ class Bud
 
     def include?(o)
       return false if o.nil? or o.length == 0
-      keycols = keys.map{|k| o[schema.index(k)]}
-      if @storage[keycols]
-        return (o == @storage[keycols]) 
-      else
-        return false
-      end
+      return (self[o] == o)
     end
 
     def do_insert(o, store)
       return if o.nil? or o.length == 0
       keycols = keys.map{|k| o[schema.index(k)]}
-      if store.include?(keycols) and o != store[keycols]
-        raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{o.inspect}] into #{name}: existing tuple [#{keycols.inspect}][#{store[keycols].inspect}]"
+      if (old = store[keycols]) and o != old
+        raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{o.inspect}] into #{name}: existing tuple [#{keycols.inspect}][#{self[keycols].inspect}]"
       end
       store[keycols] = tuple_accessors(o)
-      return o
+      return store[keycols]
     end
 
     def insert(o)
@@ -157,7 +154,21 @@ class Bud
 
     def merge(o, buf=@new_delta)
       raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
-      delta = o.map {|i| self.do_insert(i, buf) unless self.include?(i) or @delta.include?(i)}
+      delta = o.map do |i| 
+        next if i.nil? or i == []
+        keycols = keys.map{|k| i[schema.index(k)]}
+        if (old = self[keycols])
+          if old != i
+            raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{i.inspect}] into #{name}: existing tuple [#{keycols.inspect}][#{self[keycols].inspect}]"
+          end
+        elsif (oldnew = self.new_delta[keycols])
+          if oldnew != i
+            raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{i.inspect}] into #{name}: existing new_delta tuple [#{keycols.inspect}][#{self.new_delta[keycols].inspect}]"
+          end
+        else
+          self.do_insert(i, buf) unless self.include?(i) or self.new_delta.include?(i)
+        end
+      end
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
         self.schema = o.schema
       end
@@ -180,21 +191,17 @@ class Bud
 
     # move all deltas and new_deltas into storage
     def install_deltas
-      @delta.each do |k, t| 
-        do_insert(t, @storage)
-      end
-      @new_delta.each do |k,t| 
-        do_insert(t, @storage)
-      end
+      # assertion: intersect(@storage, @delta, @new_delta) == nil
+      @storage.merge!(@delta)
+      @storage.merge!(@new_delta)
       @delta = {}
       @new_delta = {}
     end
 
     # move deltas to storage, and new_deltas to deltas.
     def tick_deltas
-      @delta.each do |k, t| 
-        do_insert(t, @storage)
-      end
+      # assertion: intersect(@storage, @delta) == nil
+      @storage.merge!(@delta)
       @delta = @new_delta
       # @new_delta.each do |k,t| 
       #   do_insert(t, @delta)
@@ -203,7 +210,7 @@ class Bud
     end
 
     def [](key)
-      @storage[key]
+      return @storage[key].nil? ? @delta[key] : @storage[key]
     end
 
     def method_missing(sym, *args, &block)
