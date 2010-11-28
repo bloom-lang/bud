@@ -1,6 +1,7 @@
 # simple grep
 require 'rubygems'
 require 'bud'
+require 'test/unit'
 
 class WordCount < Bud
   attr_reader :pattern
@@ -18,12 +19,14 @@ class WordCount < Bud
     table :compare, ['word'], ['cnt', 'cnt2']
   end
   
-  declare 
-  def program
+  def bootstrap
     txt.each do |t|
       t.text.split.each_with_index {|w,i| words << [t.lineno, i, w]}
     end
-
+  end  
+  
+  declare 
+  def program
     # stratum 1
     wc <= words.group([words.word], count)
     wc2 <= words.reduce({}) do |memo, t|

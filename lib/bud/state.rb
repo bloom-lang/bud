@@ -19,16 +19,7 @@ module BudState
   end
 
   ######## methods for registering collection types
-  def check_table(name, keys=[], cols=[])
-    # rule out tablenames that used reserved words
-    reserved = eval "defined?(#{name})"
-    unless (reserved.nil? or (reserved == "method" and @tables[name]))
-      # first time registering table, check for method name reserved
-      raise Bud::BudError, "symbol :#{name} reserved, cannot be used as table name"
-    end
-
-    # scope_scope
-
+  def define_or_tick_collection(name, keys=[], cols=[])
     # tick previously-defined tables and tick
     if @tables[name]
       # check for consistent redefinition, and "tick" the table
@@ -39,6 +30,12 @@ module BudState
       @tables[name].tick
       return @tables[name]
     else
+      # rule out tablenames that used reserved words
+      reserved = eval "defined?(#{name})"
+      unless (reserved.nil? or (reserved == "method" and @tables[name]))
+        # first time registering table, check for method name reserved
+        raise Bud::BudError, "symbol :#{name} reserved, cannot be used as table name"
+      end
       self.singleton_class.send(:define_method, name) do
         @tables[name]
       end
@@ -65,7 +62,7 @@ module BudState
   end
 
   def table(name, keys, cols=[], conf=nil)
-    check_table(name, keys, cols)
+    define_or_tick_collection(name, keys, cols)
     @tables[name] ||= Bud::BudTable.new(name, keys, cols, self, conf)
   end
 
@@ -78,12 +75,12 @@ module BudState
   end
 
   def scratch(name, keys, cols=[])
-    check_table(name, keys, cols)
+    define_or_tick_collection(name, keys, cols)
     @tables[name] ||= Bud::BudScratch.new(name, keys, cols, self)
   end
 
   def serializer(name, keys, cols=[])
-    check_table(name, keys, cols)
+    define_or_tick_collection(name, keys, cols)
     @tables[name] ||= Bud::BudSerializer.new(name, keys, cols, self)
   end
 
@@ -96,13 +93,13 @@ module BudState
   def channel(name, keys, cols=[])
     locspec, keys = remove_at(keys)
     locspec, cols = remove_at(cols) if keys.nil?
-    check_table(name, keys, cols)
+    define_or_tick_collection(name, keys, cols)
     @channels[name] = locspec
     @tables[name] ||= Bud::BudChannel.new(name, keys, cols, self, locspec)
   end
 
   def file_reader(name, filename, delimiter='\n')
-    check_table(name, ['lineno'], ['text'])
+    define_or_tick_collection(name, ['lineno'], ['text'])
     @tables[name] ||= Bud::BudFileReader.new(name, filename, delimiter, self)
   end
 
@@ -110,7 +107,7 @@ module BudState
     if cols.length != 1 or keys.length != 1
       raise Bud::BudError("periodic collection #{name} must have one key column, and one other column")
     end
-    t = check_table(name, keys, cols)
+    t = define_or_tick_collection(name, keys, cols)
     @tables[name] ||= Bud::BudPeriodic.new(name, keys, cols, self)
     unless @periodics.has_key? [name]
       retval = [name, gen_id, duration]
@@ -128,7 +125,7 @@ module BudState
       @terminal = name
     end
     raise Bud::BudError("IO collection #{name} can have only one column") if keys.length != 1
-    t = check_table(name, keys, [])
+    t = define_or_tick_collection(name, keys, [])
     @channels[name] = nil
     @tables[name] ||= Bud::BudTerminal.new(name, keys, [], self)
   end

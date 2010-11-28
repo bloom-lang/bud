@@ -9,13 +9,16 @@ class BabyBud < Bud
     table :tbl, ['k1', 'k2'], ['v1', 'v2']
   end
   
-  def once
+  def bootstrap
       scrtch <= [['a', 'b', 1, 2]]
       scrtch <= [['a', 'c', 3, 4]]
       scrtch2 <= [['a', 'b']]
       tbl <= [['a', 'b', 1, 2]]
       tbl <= [['z', 'y', 9, 8]]
-
+    end
+  
+  declare 
+  def rules
       scrtch <+ [['c', 'd', 5, 6]] 
       tbl <+ [['c', 'd', 5, 6]]
       tbl <- [['a', 'b', 1, 2]] 
@@ -73,9 +76,14 @@ class Union < Bud
     table :union, ['from', 'to', 'cost']
   end
   
+  def bootstrap
+    link <= [['a', 'b', 1]]
+    delta_link <= [['a', 'b', 4]]
+  end
+  
   declare
   def prog
-    union <= (delta_link <= link).map{|e| [e.from, e.to, e.cost]}
+    union <= (delta_link <= link)
   end
 end
 
@@ -104,19 +112,15 @@ class TestCollections < Test::Unit::TestCase
  
   def test_simple_deduction
     program = BabyBud.new('localhost', 12345)
-    assert_nothing_raised(RuntimeError) { program.tick }
-    program.once
     assert_equal(2, program.scrtch.length)
     assert_equal(1, program.scrtch2.length)
+    assert_nothing_raised(RuntimeError) { program.tick }
+    assert_equal(0, program.scrtch2.length)
     assert_equal(2, program.tbl.length)
   end
   
   def test_tuple_accessors
     program = BabyBud.new('localhost', 12345)
-    assert_nothing_raised(RuntimeError) { program.tick }
-    program.once
-    # assert_equal('a', program.scrtch.first.k1)
-    # assert_equal('b', program.scrtch.first.k2)
     assert_equal(1, program.scrtch[['a','b']].v1)
     assert_equal(2, program.scrtch[['a','b']].v2)
   end
@@ -125,7 +129,6 @@ class TestCollections < Test::Unit::TestCase
     program = BabyBud.new('localhost', 12345)
     # tick twice to get to 2nd timestep
     assert_nothing_raised(RuntimeError) { program.tick }
-    program.once
     assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal(1, program.scrtch.length )
     assert_equal(0, program.scrtch2.length )
@@ -155,10 +158,7 @@ class TestCollections < Test::Unit::TestCase
   
   def test_union
     s = Union.new('localhost', 12345)
-    s.state
-    s.link << ['a', 'b', 1]
-    s.delta_link << ['a', 'b', 4]
-    s.tick
+    assert_nothing_raised(RuntimeError) { s.tick }
     assert_equal(2, s.union.length)
     assert_equal("[[\"a\", \"b\", 4], [\"a\", \"b\", 1]]", s.union.map{|t| t}.inspect)
   end

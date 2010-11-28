@@ -13,15 +13,17 @@ class ShortestPaths < Bud
     table :shortest, ['from', 'to'], ['next', 'cost']
     table :minmaxsumcntavg, ['from', 'to'], ['mincost', 'maxcost', 'sumcost', 'cnt', 'avgcost']
   end
-  
-  declare
-  def program
+
+  def bootstrap
     link << ['a', 'b', 1]
     link << ['a', 'b', 4]
     link << ['b', 'c', 1]
     link << ['c', 'd', 1]
     link << ['d', 'e', 1]
-
+  end
+  
+  declare
+  def program
     path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
 
     j = join [link, path], [path.from, link.to]
@@ -63,7 +65,7 @@ class PriorityQ < Bud
     q <- out.map{|t| t}
 
     # third stratum
-    out2 <= join([q,minny],[q.priority,minny.priority]).map{|q, m| q}
+    out2 <= natjoin([q,minny]).map{|q, m| q}
   end
 end
 
@@ -89,7 +91,7 @@ class TestAggs < Test::Unit::TestCase
   def test_paths
     program = ShortestPaths.new('localhost', 12345)
     assert_nothing_raised( RuntimeError) { program.tick }
-
+  
     program.minmaxsumcntavg.each do |t|
       assert(t[4])
       assert(t[2] <= t[3])

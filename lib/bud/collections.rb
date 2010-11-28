@@ -1,27 +1,33 @@
- class Bud
+class Bud
   ######## the collection types
   class BudCollection
     include Enumerable
 
     attr_accessor :schema, :keys, :cols
-    attr_reader :name, :bud_instance
+    attr_reader :name, :bud_instance, :storage, :delta, :new_delta
 
+    # each collection is partitioned into 4:
+    # - pending holds tuples deferred til the next tick
+    # - storage holds the "normal" tuples 
+    # - delta holds the delta for rhs's of rules during semi-naive
+    # - new_delta will hold the lhs tuples currently being produced during s-n
     def initialize(name, keys, cols, b_class)
       @name = name
       @schema = keys+cols
       @keys = keys
       init_storage
       init_pending
+      init_deltas
       @bud_instance = b_class
       raise BudError, "schema for #{name} contains duplicate names" if schema.uniq.length < schema.length
       schema_accessors
     end
-    
+
     def clone_empty
-       retval = self.class.new(name, keys, schema - keys, bud_instance)
-       retval.storage = []
-       retval.pending = []
-       return retval
+      retval = self.class.new(name, keys, schema - keys, bud_instance)
+      retval.storage = []
+      retval.pending = []
+      return retval
     end
 
     def cols
@@ -31,6 +37,8 @@
     def tick
       @storage = @pending
       @pending = {}
+      @delta = {}
+      @delta_new = {}
       self
     end
 
@@ -69,20 +77,37 @@
       return tuple_accessors(@schema.map{|c| nil})
     end
 
-    def each
-      @storage.each_key do |k|
-        raise(BudError, "nil storage key") if k.nil?
-        raise(BudError, "nil storage entry(#{@name}) for #{k.inspect}") if @storage[k].nil?
-        yield @storage[k]
+    # by default, all tuples in any rhs are in storage or delta
+    # tuples in new_delta will get transitioned to delta in the next
+    # iteration of the evaluator (but within the current time tick)
+    def each(&block)
+      each_from([@storage, @delta], &block)
+    end
+
+    def each_from(bufs, &block)
+      bufs.each do |b|
+        b.each_key do |k|
+          raise(BudError, "nil storage key") if k.nil?
+          raise(BudError, "nil entry(#{@name}) for #{k.inspect}") if b[k].nil?
+          yield b[k]
+        end
       end
     end
 
-    def each_pending
-      @pending.each_key do |k|
-        raise(BudError, "nil storage key") if k.nil?
-        raise(BudError, "nil storage entry(#{@name}) for #{k.inspect}") if @pending[k].nil?
-        yield @pending[k]
-      end
+    def each_storage(&block)
+      each_from([@storage], &block)
+    end
+
+    def each_pending(&block)
+      each_from([@pending], &block)
+    end
+
+    def each_delta(&block)
+      each_from([@delta], &block)
+    end
+
+    def each_new_delta(&block)
+      each_from([@new_delta], &block)
     end
 
     def init_storage
@@ -91,6 +116,21 @@
 
     def init_pending
       @pending = {}
+    end
+
+    def init_deltas
+      @delta = {}
+      @new_delta = {}
+    end
+
+    def include?(o)
+      return false if o.nil? or o.length == 0
+      keycols = keys.map{|k| o[schema.index(k)]}
+      if @storage[keycols]
+        return (o == @storage[keycols]) 
+      else
+        return false
+      end
     end
 
     def do_insert(o, store)
@@ -115,17 +155,17 @@
       do_insert(o, @pending)
     end
 
-    def merge(o)
+    def merge(o, buf=@new_delta)
       raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
-      delta = o.map {|i| self.insert(i)}
+      delta = o.map {|i| self.do_insert(i, buf) unless self.include?(i) or @delta.include?(i)}
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
         self.schema = o.schema
       end
       return self
     end
-
+    
     alias <= merge
-
+    
     def pending_merge(o)
       delta = o.map {|i| self.pending_insert(i)}
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
@@ -136,6 +176,30 @@
 
     superator "<+" do |o|
       pending_merge o
+    end
+
+    # move all deltas and new_deltas into storage
+    def install_deltas
+      @delta.each do |k, t| 
+        do_insert(t, @storage)
+      end
+      @new_delta.each do |k,t| 
+        do_insert(t, @storage)
+      end
+      @delta = {}
+      @new_delta = {}
+    end
+
+    # move deltas to storage, and new_deltas to deltas.
+    def tick_deltas
+      @delta.each do |k, t| 
+        do_insert(t, @storage)
+      end
+      @delta = @new_delta
+      # @new_delta.each do |k,t| 
+      #   do_insert(t, @delta)
+      # end
+      @new_delta = {}
     end
 
     def [](key)
@@ -197,7 +261,6 @@
         aggcols << ((aggcolsdups.select{|ca| ca==n}.length > 1) ? "#{n.downcase}_#{i}" : n)
       end
       retval = BudScratch.new('temp', keynames, aggcols, bud_instance)
-#      retval = BudScratch.new('temp', keynames, @schema - keynames, bud_instance)
       tups = self.inject({}) do |memo,p|
         pkeys = keynames.map{|n| p.send(n.to_sym)}
         memo[pkeys] = [] if memo[pkeys].nil?
@@ -221,7 +284,9 @@
         end
         memo << t[0] + finals
       end
-      retval.merge(result)
+      # merge directly into result.storage, so that the temp tuples get picked up
+      # by the lhs of the rule
+      retval.merge(result, retval.storage)
     end
 
     def dump
@@ -238,7 +303,7 @@
 
   class BudScratch < BudCollection
   end
-
+  
   class BudSerializer < BudCollection
     def initialize(name, keys, cols, b_class)
       @dq = {}
@@ -398,7 +463,7 @@
       @storage.merge! @pending
       @to_delete = {}
       @pending = {}
-#      self
+      #      self
     end
 
     def init_to_delete
@@ -414,10 +479,11 @@
   class BudJoin < BudCollection
     attr_accessor :rels, :origrels
 
-    def initialize(rellist, preds=nil)
+    def initialize(rellist, b_class, preds=nil)
       @schema = []
       otherpreds = nil
       @origrels = rellist
+      @bud_instance = b_class
 
       # extract predicates on rellist[0] and let the rest recurse
       unless preds.nil?
@@ -437,7 +503,7 @@
 
       # recurse to form a tree of binary BudJoins
       @rels = [rellist[0]]
-      @rels << (rellist.length == 2 ? rellist[1] : BudJoin.new(rellist[1..rellist.length-1], otherpreds))
+      @rels << (rellist.length == 2 ? rellist[1] : BudJoin.new(rellist[1..rellist.length-1], @bud_instance, otherpreds))
 
       # now derive schema: combo of rels[0] and rels[1]
       if @rels[0].schema.empty? or @rels[1].schema.empty?
@@ -445,7 +511,11 @@
       else
         dups = @rels[0].schema & @rels[1].schema
         bothschema = @rels[0].schema + @rels[1].schema
-        @schema = bothschema.to_enum(:each_with_index).map  {|c,i| if dups.include?(c) then c + '_' + i.to_s else c end }
+        @schema = bothschema.to_enum(:each_with_index).map do |c,i| 
+          if dups.include?(c) then 
+            c + '_' + i.to_s else c 
+          end
+        end
       end
     end
 
@@ -453,12 +523,33 @@
       raise BudError, "no insertion into joins"
     end
 
-    def each(&block)
-      if @localpreds.nil? or @localpreds.empty?
-        nestloop_join(&block)
+    def each(mode=:both, &block)
+      mode = :storage if @bud_instance.stratum_first_iter
+      if mode == :storage
+        methods = [:storage]
       else
-        hash_join(&block)
+        methods = [:delta, :storage]
       end
+
+      methods.each do |collection1|
+        methods.each do |collection2|
+          next if (mode == :delta and collection1 == :storage and collection2 == :storage)
+          if @localpreds.nil? or @localpreds.empty?
+            nestloop_join(collection1, collection2, &block)
+          else
+            hash_join(collection1, collection2, &block)
+          end
+        end
+      end
+    end
+
+    def each_storage(&block)
+      return each(:storage, &block)
+    end
+    
+    # this needs to be made more efficient!
+    def each_delta(&block)
+      return each(:delta, &block)
     end
 
     def test_locals(r, s, *skips)
@@ -477,16 +568,15 @@
       return retval
     end
 
-    def nestloop_join(&block)
-      raise BloomError, "invalid argument to join" if @rels.nil? or @rels[0].nil? or @rels[1].nil?
-      @rels[0].each do |r|
-        @rels[1].each do |s|
+    def nestloop_join(collection1, collection2, &block)
+      @rels[0].send(('each_' + collection1.to_s).to_sym) do |r|
+        @rels[1].send(('each_' + collection2.to_s).to_sym) do |s|
           s = [s] if origrels.length == 2
           yield([r] + s) if test_locals(r, s)
         end
       end
     end
-
+    
     def join_offsets(pred)
       build_entry = pred[1]
       build_name, build_offset = build_entry[0], build_entry[1]
@@ -506,14 +596,14 @@
       return probe_offset, index, build_offset
     end
 
-    def hash_join(&block)
+    def hash_join(collection1, collection2, &block)
       # hash join on first predicate!
       ht = {}
 
       probe_offset, build_tup, build_offset = join_offsets(@localpreds.first)
 
       # build the hashtable on s!
-      rels[1].each do |s|
+      rels[1].send(('each_' + collection2.to_s).to_sym) do |s|
         s = [s] if origrels.length == 2
         attrval = s[build_tup][build_offset]
         ht[attrval] ||= []
@@ -521,7 +611,7 @@
       end
 
       # probe the hashtable!
-      rels[0].each do |r|
+      rels[0].send(('each_' + collection1.to_s).to_sym) do |r|
         next if ht[r[probe_offset]].nil?
         ht[r[probe_offset]].each do |s|
           retval = [r] + s
@@ -532,9 +622,9 @@
   end
 
   class BudLeftJoin < BudJoin
-    def initialize(rellist, preds=nil)
+    def initialize(rellist, b_class, preds=nil)
       raise(BudError, "Left Join only defined for two relations") unless rellist.length == 2
-      super(rellist, preds)
+      super(rellist, b_class, preds)
       @origpreds = preds
     end
 
@@ -549,7 +639,7 @@
       @rels[0].each do |r|
         t = @origrels[0].clone_empty
         t.insert(r)
-        j = BudJoin.new([t,@origrels[1]], @origpreds)
+        j = BudJoin.new([t,@origrels[1]], @bud_instance, @origpreds)
         next if j.any?
         nulltup = @origrels[1].null_tuple
         yield [r, nulltup]
@@ -572,7 +662,7 @@
       @filename = filename
       @storage = {}
       File.open(@filename).each_with_index { |line, i|
-          @storage[[i]] = tuple_accessors([i, line.strip])
+        @storage[[i]] = tuple_accessors([i, line.strip])
       }
     end
 

@@ -15,8 +15,8 @@ class Nesting < Bud
   end
 
   def bootstrap
-    nested_people << [1, 'Nick', 'Machiavelli', ['scheming', 'books']]
-    nested_people << [2, 'Chris', 'Columbus', ['sailing', 'books']]
+    nested_people <= [[1, 'Nick', 'Machiavelli', ['scheming', 'books']]]
+    nested_people <= [[2, 'Chris', 'Columbus', ['sailing', 'books']]]
     has_hobby <= [[1, 'scheming'], [1, 'books'], [2, 'sailing'], [2, 'books']]
     meta <= [["nested_people", nested_people], ["has_hobby", has_hobby]]
   end

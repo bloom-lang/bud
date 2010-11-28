@@ -19,6 +19,7 @@ class Bud
   attr_reader :strata, :budtime, :inbound
   attr_accessor :connections
   attr_reader :tables, :ip, :port # for  ging; remove me later
+  attr_reader :stratum_first_iter
 
   include BudState
   include Anise
@@ -57,6 +58,9 @@ class Bud
     state
 
     bootstrap
+    # make sure that new_delta tuples from bootstrap rules are transitioned into 
+    # storage before first tick.
+    tables.each{|name,coll| coll.install_deltas}
 
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
@@ -123,6 +127,10 @@ class Bud
     @t.join
   end
 
+
+  # We proceed in time ticks, a la Dedalus.
+  # Within each tick there may be multiple strata.
+  # Within each stratum we do multiple semi-naive iterations.
   def run
     begin
       EventMachine::run {
@@ -152,9 +160,12 @@ class Bud
     end
 
     receive_inbound
+    @tables.each do |name,coll| 
+      coll.tick_deltas
+    end
 
     # load the rules as a closure (will contain persistent tuples and new inbounds)
-    # declaration to be provided by user program
+    # declaration is gathered from "declare def" blocks
     @strata = []
     declaration
     if @rewritten_strata.length > 0
@@ -186,11 +197,42 @@ class Bud
   end
 
   def stratum_fixpoint(strat)
+    # This routine uses semi-naive evaluation to compute 
+    # a fixpoint of the rules in strat.
+    # We *almost* have semi-naive evaluation working.
+    # at end of each iteration of this loop we transition:
+    # - delta tuples move into storage
+    # - new_delta moves to delta
+    # - new_delta is set to empty
+    # (see BudCollection for a description of the 4 partitions 
+    #  of tuples within a collection.)
+    # This scheme does semi-naive eval for Join.map
+    # because the join.each code understands
+    # the diff between storage and delta.
+    # But calling map on a non-join collection goes through both
+    # storage and delta.
+
+    # XXX
+    # To use deltas for all Collections (not just Join), we would
+    # need Collection.each to understand that on iteration 1 of a 
+    # fixpoint, it should use storage for all predicates, but
+    # on iterations 2..n of a fixpoint, it should use
+    # deltas for predicates that appear in lhs in this stratum,
+    # and use storage for predicates that appear in lower strata.
+
+    # In semi-naive, the first iteration should join up tables
+    # on their storage fields; subsequent iterations do the
+    # delta-joins only.  The stratum_first_iter field here distinguishes
+    # these cases.
+    @stratum_first_iter = true
     begin
-      cnts = {}
-      @tables.each_key{|k| cnts[k] = @tables[k].length}
       strat.call
-    end while cnts.inject(0){|sum,t| sum + (@tables[t[0]].length - t[1])} > 0
+      @stratum_first_iter = false
+      # this is overkill.
+      # should call tick_deltas only on predicates in this stratum
+      # and then should appropriately deal with deltas in subsequent strata.
+      @tables.each{|name,coll| coll.tick_deltas}
+    end while not @tables.all?{|name,coll| coll.new_delta.empty? and coll.delta.empty?}    
   end
 
   def reset_periodics
@@ -216,7 +258,7 @@ class Bud
   end
 
   def join(rels, *preds)
-    BudJoin.new(rels, decomp_preds(*preds))
+    BudJoin.new(rels, self, decomp_preds(*preds))
   end
 
   def natjoin(rels)
@@ -235,7 +277,7 @@ class Bud
   end
 
   def leftjoin(rels, *preds)
-    BudLeftJoin.new(rels, decomp_preds(*preds))
+    BudLeftJoin.new(rels, self, decomp_preds(*preds))
   end
 
   ######## ids and timers
