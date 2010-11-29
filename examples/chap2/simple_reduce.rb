@@ -8,8 +8,8 @@ require 'bud'
 class SimpleReducer < Bud
 
   def initialize(ip, port, reducer)
-    super ip, port
     @reducer = reducer
+    super ip, port
   end
   
   def state

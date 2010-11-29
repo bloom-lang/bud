@@ -221,6 +221,11 @@ class Bud
     # on iterations 2..n of a fixpoint, it should use
     # deltas for predicates that appear in lhs in this stratum,
     # and use storage for predicates that appear in lower strata.
+    # XXX
+    # another performance optimization would be to bypass the delta 
+    # tables for any preds that don't participate in an rhs -- in that
+    # case the deltas just end up requiring pointless extra tuple movement
+
 
     # In semi-naive, the first iteration should join up tables
     # on their storage fields; subsequent iterations do the

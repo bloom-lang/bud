@@ -669,11 +669,19 @@ class Bud
       super(name, ['lineno'], ['text'], b_class)
       @filename = filename
       @storage = {}
-      File.open(@filename).each_with_index { |line, i|
-        @storage[[i]] = tuple_accessors([i, line.strip])
-      }
+      # NEEDS A TRY/RESCUE BLOCK
+      @fd = File.open(@filename, "r")
+      @linenum=0
     end
-
+    
+    def each(&block)
+      while (l = @fd.gets)
+        t = tuple_accessors([@linenum, l.strip])
+        @linenum += 1
+        yield t
+      end
+    end
+    
     def tick
       self
     end

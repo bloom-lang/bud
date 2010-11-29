@@ -8,14 +8,14 @@ require 'zlib'
 class SimpleMapper < Bud
 
   def initialize(ip, port, file, mapper)
-    super ip, port
     @mapper = mapper
     @file = file
+    super ip, port
   end
   
   def state
     file_reader :nodelist, 'mr_reducelist.txt'
-    file_reader :input, @file
+    file_reader :inputs, @file
     scratch     :map_out, ['key', 'uniq', 'value']
     table       :kvs, ['key', 'uniq'], ['value', 'hashed']
     table       :kvs_addrs, ['key', 'uniq'], ['value', 'addr']
@@ -28,7 +28,7 @@ class SimpleMapper < Bud
   def rules
       nodecnt <= nodelist.group([], count)
 
-      input.each { |i| @mapper.do_map(map_out, i) }
+      inputs.each { |i| @mapper.do_map(map_out, i) }
         
       kvs <= join([map_out, nodecnt]).map do |mo,cnt|
         [mo.key, mo.uniq, mo.value, Zlib.crc32(mo.key) % cnt.cnt]
