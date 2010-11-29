@@ -57,26 +57,30 @@ class Bud
       self.extend m
     end
 
+    def tuple_accessor(tup, colname, offset)
+      unless tup.respond_to? colname.to_sym
+        m = Module.new do
+          define_method colname.to_sym do
+            tup[offset]
+          end
+        end
+        tup.extend m
+      end
+    end
+
     # define methods to access tuple attributes by column name
     # paa: inverted loop to add test, fix leak
-    def tuple_accessors(t)
-      @schema.each_with_index do |c, i|
-        unless t.respond_to? c.to_sym
-          m = Module.new do
-            define_method c.to_sym do
-              t[i]
-            end
-          end
-          t.extend m
-        end
+    def tuple_accessors(tup)
+      @schema.each_with_index do |colname, i|
+        tuple_accessor(tup,colname,i)
       end
-      return t
+      return tup
     end
 
     def null_tuple
       return tuple_accessors(@schema.map{|c| nil})
     end
-
+    
     # by default, all tuples in any rhs are in storage or delta
     # tuples in new_delta will get transitioned to delta in the next
     # iteration of the evaluator (but within the current time tick)
@@ -89,8 +93,8 @@ class Bud
         b.each_key do |k|
           raise(BudError, "nil storage key") if k.nil?
           raise(BudError, "nil entry(#{@name}) for #{k.inspect}") if b[k].nil?
-          @bud_instance.each_counter[name] ||= 0
-          @bud_instance.each_counter[name] += 1
+          @bud_instance.each_counter[name] ||= 0 unless @bud_instance.nil?
+          @bud_instance.each_counter[name] += 1  unless @bud_instance.nil?
           yield b[k]
         end
       end
@@ -219,12 +223,23 @@ class Bud
     end
 
     ######## aggs
-
+    # currently support two options for column ref syntax -- :colname or table.colname
     def argagg(aggname, gbkeys, col)
       agg = bud_instance.send(aggname, nil)[0]
       raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
-      keynames = gbkeys.map {|k| k[2]}
-      colnum = col[1]
+      #keynames = gbkeys.map {|k| k[2]}
+      keynames = gbkeys.map do |k| 
+        if k.class == Symbol
+          k.to_s
+        else
+          k[2]
+        end
+      end
+      if col.class == Symbol
+        colnum = self.send(col.to_s)[1]
+      else
+        colnum = col[1]
+      end
       retval = BudScratch.new('temp', @schema, [], bud_instance)
       tups = self.inject({}) do |memo,p|
         pkeys = keynames.map{|n| p.send(n.to_sym)}
@@ -260,21 +275,32 @@ class Bud
       argagg(:max, gbkeys, col)
     end
 
+    # currently support two options for column ref syntax -- :colname or table.colname
     def group(keys, *aggpairs)
       keys = [] if keys.nil?
-      keynames = keys.map {|k| k[2]}
+      keynames = keys.map do |k| 
+        if k.class == Symbol
+          k.to_s
+        else
+          k[2]
+        end
+      end
       aggcolsdups = aggpairs.map{|ap| ap[0].class.name.split("::").last}
       aggcols = []
       aggcolsdups.each_with_index do |n,i|
         aggcols << ((aggcolsdups.select{|ca| ca==n}.length > 1) ? "#{n.downcase}_#{i}" : n)
       end
-      retval = BudScratch.new('temp', keynames, aggcols, bud_instance)
       tups = self.inject({}) do |memo,p|
         pkeys = keynames.map{|n| p.send(n.to_sym)}
+#        pkeys = keys.map{|n| p.send(n)}
         memo[pkeys] = [] if memo[pkeys].nil?
         aggpairs.each_with_index do |ap, i|
           agg = ap[0]
-          colnum = ap[1].nil? ? nil : ap[1][1]
+          if ap[1].class == Symbol
+            colnum = ap[1].nil? ? nil : self.send(ap[1].to_s)[1]
+          else
+            colnum = ap[1].nil? ? nil : ap[1][1]
+          end
           colval = colnum.nil? ? nil : p[colnum]
           if memo[pkeys][i].nil?
             memo[pkeys][i] = agg.send(:init, colval)
@@ -292,9 +318,14 @@ class Bud
         end
         memo << t[0] + finals
       end
-      # merge directly into result.storage, so that the temp tuples get picked up
-      # by the lhs of the rule
-      retval.merge(result, retval.storage)
+      if block_given?
+        result.map{|r| yield r}      
+      else
+        # merge directly into retval.storage, so that the temp tuples get picked up
+        # by the lhs of the rule
+        retval = BudScratch.new('temp', keynames, aggcols, bud_instance)        
+        retval.merge(result, retval.storage)
+      end
     end
 
     def dump
@@ -685,5 +716,13 @@ class Bud
     def tick
       self
     end
+  end
+end
+
+module Enumerable
+  def rename(keys, cols=[])
+    s = Bud::BudScratch.new('temp', keys, cols, nil)
+    s.merge(self, s.storage)
+    s
   end
 end

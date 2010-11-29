@@ -14,6 +14,7 @@ class WordCount < Bud
   
   def state
     file_reader :txt, '../examples/chap2/ulysses.txt'
+    file_reader :txt2, '../examples/chap2/ulysses.txt'
 #    file_reader :txt, 'shaks12.txt'
     scratch :words, ['lineno', 'wordno'], ['word']
     scratch :wc, ['word'], ['cnt']
@@ -27,7 +28,9 @@ class WordCount < Bud
       t.text.split.enum_for(:each_with_index).map {|w, i| [t.lineno, i, w]}
     end
     # stratum 1
-    wc <= words.group([words.word], count)
+    wc <= txt2.flat_map do |t|
+            t.text.split.enum_for(:each_with_index).map {|w, i| [t.lineno, i, w]}
+          end.rename(['lineno','wordno','word']).group([:word], count)
     wc2 <= words.reduce({}) do |memo, t|
       memo[t.word] ||= 0
       memo[t.word] += 1
@@ -43,5 +46,6 @@ class TestWC < Test::Unit::TestCase
     assert_nothing_raised { program.tick }
     assert_equal([], program.compare.map {|t| t if t.cnt != t.cnt2}.compact)
     assert_equal(23, program.wc[["yes"]].cnt)
+    assert_equal(23, program.wc2[["yes"]].cnt)
   end
 end

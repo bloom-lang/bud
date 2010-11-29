@@ -12,6 +12,7 @@ class ShortestPaths < Bud
     table :path, ['from', 'to', 'next', 'cost']
     table :shortest, ['from', 'to'], ['next', 'cost']
     table :minmaxsumcntavg, ['from', 'to'], ['mincost', 'maxcost', 'sumcost', 'cnt', 'avgcost']
+    table :avrg, ['from', 'to'], ['ave', 'some', 'kount']
   end
 
   def bootstrap
@@ -34,6 +35,9 @@ class ShortestPaths < Bud
     # second stratum
     shortest <= path.argmin([path.from, path.to], path.cost)
     minmaxsumcntavg <= path.group([path.from, path.to], min(path.cost), max(path.cost), sum(path.cost), count, avg(path.cost))
+    avrg <= path.group([:from, :to], min(:cost), max(:cost), sum(:cost), count, avg(:cost)) do |t|
+      [t[0], t[1], t[6], t[4], t[5]]
+    end
   end
 end
 
@@ -96,6 +100,9 @@ class TestAggs < Test::Unit::TestCase
       assert(t[4])
       assert(t[2] <= t[3])
       assert_equal(t[4]*1.0 / t[5], t[6])
+    end
+    program.avrg.each do |t|
+      assert_equal(t.some*1.0 / t.kount, t.ave)
     end
     program.shortest.each do |t|
       assert_equal(t[1][0] - t[0][0], t[3])
