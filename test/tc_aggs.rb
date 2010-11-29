@@ -35,7 +35,7 @@ class ShortestPaths < Bud
     # second stratum
     shortest <= path.argmin([path.from, path.to], path.cost)
     minmaxsumcntavg <= path.group([path.from, path.to], min(path.cost), max(path.cost), sum(path.cost), count, avg(path.cost))
-    avrg <= path.group([:from, :to], min(:cost), max(:cost), sum(:cost), count, avg(:cost)) do |t|
+    avrg <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)) do |t|
       [t[0], t[1], t[6], t[4], t[5]]
     end
   end
@@ -91,6 +91,24 @@ class DupAggs < Bud
   end
 end
 
+class Rename < Bud
+  def state
+    table :emp, ['ename', 'dname'], ['sal']
+    table :shoes, ['dname'], ['usualsal']
+  end
+  
+  def bootstrap
+    emp << ['joe', 'shoe', 10]
+    emp << ['joe', 'toy', 5]
+    emp << ['bob', 'shoe', 11]
+  end
+  
+  declare
+  def rules
+    shoes <= emp.group([:dname], avg(:sal)).rename(['dept'], ['avgsal']).map{|t| t if t.dept == 'shoe'}
+  end
+end
+
 class TestAggs < Test::Unit::TestCase
   def test_paths
     program = ShortestPaths.new('localhost', 12345)
@@ -129,5 +147,12 @@ class TestAggs < Test::Unit::TestCase
     argouts = program.out.map{|t| t}
     basicouts = program.out2.map{|t| t}
     assert_equal([], argouts - basicouts)
+  end
+  
+  def test_rename
+    program = Rename.new('localhost', 12345)
+    assert_nothing_raised (RuntimeError) { program.tick }
+    shoes = program.shoes.map{|t| t}
+    assert_equal([["shoe", 10.5]], shoes)
   end
 end
