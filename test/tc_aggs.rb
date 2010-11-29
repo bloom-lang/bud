@@ -13,6 +13,7 @@ class ShortestPaths < Bud
     table :shortest, ['from', 'to'], ['next', 'cost']
     table :minmaxsumcntavg, ['from', 'to'], ['mincost', 'maxcost', 'sumcost', 'cnt', 'avgcost']
     table :avrg, ['from', 'to'], ['ave', 'some', 'kount']
+    table :avrg2, ['from', 'to'], ['ave', 'some', 'kount']
   end
 
   def bootstrap
@@ -37,6 +38,9 @@ class ShortestPaths < Bud
     minmaxsumcntavg <= path.group([path.from, path.to], min(path.cost), max(path.cost), sum(path.cost), count, avg(path.cost))
     avrg <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)) do |t|
       [t[0], t[1], t[6], t[4], t[5]]
+    end
+    avrg2 <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)).rename(['from', 'to'], ['min', 'max', 'sum', 'cnt', 'avg']).map do |t|
+        [t.from, t.to, t.avg, t.sum, t.cnt]
     end
   end
 end
@@ -120,6 +124,9 @@ class TestAggs < Test::Unit::TestCase
       assert_equal(t[4]*1.0 / t[5], t[6])
     end
     program.avrg.each do |t|
+      assert_equal(t.some*1.0 / t.kount, t.ave)
+    end
+    program.avrg2.each do |t|
       assert_equal(t.some*1.0 / t.kount, t.ave)
     end
     program.shortest.each do |t|
