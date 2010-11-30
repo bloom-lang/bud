@@ -14,7 +14,7 @@ class WordCount1 < Bud
   
   def state
     file_reader :txt, '../examples/chap2/ulysses.txt'
-    # file_reader :txt, 'shaks12_10000.txt'
+    # file_reader :txt, 'shaks12.txt'
     scratch :wc, ['word'], ['cnt']
   end
   
