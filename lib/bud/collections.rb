@@ -75,19 +75,16 @@ class Bud
       end
     end
 
-    def tuple_accessor(tup, colname, offset)
-      unless tup.respond_to? colname.to_sym
-        tup.extend @tupaccess
-      end
-    end
+    # def tuple_accessor(tup, colname, offset)
+    #   unless tup.respond_to? colname.to_sym
+    #     tup.extend @tupaccess
+    #   end
+    # end
 
     # define methods to access tuple attributes by column name
     # paa: inverted loop to add test, fix leak
     def tuple_accessors(tup)
-      @schema.each_with_index do |colname, i|
-        tuple_accessor(tup,colname,i)
-      end
-      return tup
+      tup.extend @tupaccess
     end
 
     def null_tuple
