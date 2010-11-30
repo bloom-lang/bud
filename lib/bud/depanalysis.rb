@@ -12,8 +12,8 @@ class DepAnalysis < Bud
     table :cycle, ['predicate', 'via', 'neg', 'temporal']
     table :closed,  ['predicate']
     table :underspecified, ['pred', 'other', 'kind']
-    scratch :pairing, ['in', 'out']
-    table :connected, ['in', 'out']
+    scratch :pairing, ['incol', 'outcol']
+    table :connected, ['incol', 'outcol']
 
     table :source, ['pred']
     table :sink, ['pred']
@@ -37,14 +37,14 @@ class DepAnalysis < Bud
       end
     end
 
-    connected <= join([pairing, depends_tc], [pairing.in, depends_tc.body], [pairing.out, depends_tc.head]).map do |p, d|
+    connected <= join([pairing, depends_tc], [pairing.incol, depends_tc.body], [pairing.outcol, depends_tc.head]).map do |p, d|
       puts "CONNECTED: " + p.inspect or p
     end
 
     underspecified <= pairing.map do |p|
       #unless connected.include? p
-      unless connected.map{|c| c.in}.include? p.in or connected.map{|c| c.in}.include? p.out
-        [p.in, p.out, "unconnected dataflow"]
+      unless connected.map{|c| c.incol}.include? p.incol or connected.map{|c| c.incol}.include? p.outcol
+        [p.incol, p.outcol, "unconnected dataflow"]
       end
     end  
 

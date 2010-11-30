@@ -4,7 +4,7 @@ class Bud
     include Enumerable
 
     attr_accessor :schema, :keys, :cols
-    attr_reader :name, :bud_instance, :storage, :delta, :new_delta
+    attr_reader :tabname, :bud_instance, :storage, :delta, :new_delta
 
     # each collection is partitioned into 4:
     # - pending holds tuples deferred til the next tick
@@ -12,19 +12,19 @@ class Bud
     # - delta holds the delta for rhs's of rules during semi-naive
     # - new_delta will hold the lhs tuples currently being produced during s-n
     def initialize(name, keys, cols, b_class)
-      @name = name
+      @tabname = name
       @schema = keys+cols
       @keys = keys
       init_storage
       init_pending
       init_deltas
       @bud_instance = b_class
-      raise BudError, "schema for #{name} contains duplicate names" if schema.uniq.length < schema.length
+      raise BudError, "schema for #{tabname} contains duplicate names" if schema.uniq.length < schema.length
       schema_accessors
     end
 
     def clone_empty
-      retval = self.class.new(name, keys, schema - keys, bud_instance)
+      retval = self.class.new(tabname, keys, schema - keys, bud_instance)
       retval.storage = []
       retval.pending = []
       return retval
@@ -47,10 +47,18 @@ class Bud
     #    j = join link, path, {link.to => path.from}
     def schema_accessors
       s = @schema
+      s.each do |colname|
+        reserved = eval "defined?(#{colname})"
+        unless (reserved.nil? or 
+                (reserved == "method" and method(colname).arity == -1 and (eval(colname))[0] == self.tabname))
+          raise Bud::BudError, "symbol :#{colname} reserved, cannot be used as column name for #{tabname}"
+        end
+      end
+  
       m = Module.new do
         s.each_with_index do |c, i|
           define_method c.to_sym do
-            [@name, i, c]
+            [@tabname, i, c]
           end
         end
       end
@@ -92,9 +100,9 @@ class Bud
       bufs.each do |b|
         b.each_key do |k|
           raise(BudError, "nil storage key") if k.nil?
-          raise(BudError, "nil entry(#{@name}) for #{k.inspect}") if b[k].nil?
-          @bud_instance.each_counter[name] ||= 0 unless @bud_instance.nil?
-          @bud_instance.each_counter[name] += 1  unless @bud_instance.nil?
+          raise(BudError, "nil entry(#{@tabname}) for #{k.inspect}") if b[k].nil?
+          @bud_instance.each_counter[tabname] ||= 0 unless @bud_instance.nil?
+          @bud_instance.each_counter[tabname] += 1  unless @bud_instance.nil?
           yield b[k]
         end
       end
@@ -138,21 +146,21 @@ class Bud
       return if o.nil? or o.length == 0
       keycols = keys.map{|k| o[schema.index(k)]}
       if (old = store[keycols]) and o != old
-        raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{o.inspect}] into #{name}: existing tuple [#{keycols.inspect}][#{self[keycols].inspect}]"
+        raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{o.inspect}] into #{tabname}: existing tuple [#{keycols.inspect}][#{self[keycols].inspect}]"
       end
       store[keycols] = tuple_accessors(o)
       return store[keycols]
     end
 
     def insert(o)
-      # puts "insert: #{o.inspect} into #{name}"
+      # puts "insert: #{o.inspect} into #{tabname}"
       do_insert(o, @storage)
     end
 
     alias << insert
 
     def pending_insert(o)
-      # puts "pending_insert: #{o.inspect} into #{name}"
+      # puts "pending_insert: #{o.inspect} into #{tabname}"
       do_insert(o, @pending)
     end
 
@@ -163,11 +171,11 @@ class Bud
         keycols = keys.map{|k| i[schema.index(k)]}
         if (old = self[keycols])
           if old != i
-            raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{i.inspect}] into #{name}: existing tuple [#{keycols.inspect}][#{self[keycols].inspect}]"
+            raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{i.inspect}] into #{tabname}: existing tuple [#{keycols.inspect}][#{self[keycols].inspect}]"
           end
         elsif (oldnew = self.new_delta[keycols])
           if oldnew != i
-            raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{i.inspect}] into #{name}: existing new_delta tuple [#{keycols.inspect}][#{self.new_delta[keycols].inspect}]"
+            raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{i.inspect}] into #{tabname}: existing new_delta tuple [#{keycols.inspect}][#{self.new_delta[keycols].inspect}]"
           end
         else
           # don't call do_insert, it will just recheck our tests for hash collision
@@ -240,7 +248,7 @@ class Bud
       else
         colnum = col[1]
       end
-      retval = BudScratch.new('temp', @schema, [], bud_instance)
+      retval = BudScratch.new('argagg_temp', @schema, [], bud_instance)
       tups = self.inject({}) do |memo,p|
         pkeys = keynames.map{|n| p.send(n.to_sym)}
         if memo[pkeys].nil?
@@ -288,7 +296,7 @@ class Bud
       aggcolsdups = aggpairs.map{|ap| ap[0].class.name.split("::").last}
       aggcols = []
       aggcolsdups.each_with_index do |n,i|
-        aggcols << ((aggcolsdups.select{|ca| ca==n}.length > 1) ? "#{n.downcase}_#{i}" : n)
+        aggcols << "#{n.downcase}_#{i}"
       end
       tups = self.inject({}) do |memo,p|
         pkeys = keynames.map{|n| p.send(n.to_sym)}
@@ -408,11 +416,11 @@ class Bud
           begin
             the_locspec = split_locspec(t[@locspec])
           rescue
-            puts "bad locspec #{@locspec} for #{@name}"
+            puts "bad locspec #{@locspec} for #{@tabname}"
           end
         end
         establish_connection(the_locspec) if @connections[the_locspec].nil?
-        @connections[the_locspec].send_data [@name, t].to_msgpack
+        @connections[the_locspec].send_data [@tabname, t].to_msgpack
         @pending.delete t
       end
     end
@@ -439,13 +447,13 @@ class Bud
       @reader = Thread.new() do
         begin
           while true
-            str = name.to_s + " > "
+            str = tabname.to_s + " > "
             STDOUT.print(str) if prompt
             s = STDIN.gets
             s = s.chomp if s
             tup = tuple_accessors([s])
             @connection ||= EventMachine::connect ip, port, BudServer, @bud_instance
-            @connection.send_data [name, tup].to_msgpack
+            @connection.send_data [tabname, tup].to_msgpack
           end
         rescue
           print "terminal reader thread failed with #{$!}\ncaller: #{caller.inspect}"
@@ -526,14 +534,14 @@ class Bud
 
       # extract predicates on rellist[0] and let the rest recurse
       unless preds.nil?
-        @localpreds = preds.reject { |p| p[0][0] != rellist[0].name and p[1][0] != rellist[0].name }
+        @localpreds = preds.reject { |p| p[0][0] != rellist[0].tabname and p[1][0] != rellist[0].tabname }
         @localpreds.each do |p|
-          if p[1][0] == rellist[0].name
+          if p[1][0] == rellist[0].tabname
             @localpreds.delete(p)
             @localpreds << [p[1], p[0]]
           end
         end
-        otherpreds = preds.reject { |p| p[0][0] == rellist[0].name or p[1][0] == rellist[0].name}
+        otherpreds = preds.reject { |p| p[0][0] == rellist[0].tabname or p[1][0] == rellist[0].tabname}
         otherpreds = nil if otherpreds.empty?
       end
       if rellist.length == 2 and not otherpreds.nil?
@@ -626,7 +634,7 @@ class Bud
       # note that s doesn't contain the first entry in rels, which is r
       index = 0
       origrels[1..origrels.length].each_with_index do |t,i|
-        if t.name == pred[1][0]
+        if t.tabname == pred[1][0]
           index = i
           break
         end

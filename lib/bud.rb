@@ -53,9 +53,9 @@ class Bud
     #self.class.annotation.map {|a| puts "another annotation: #{a.inspect}" }
     @declarations.uniq!
 
-    @periodics = table :periodics_tbl, ['name'], ['ident', 'duration']
-    @vars = table :vars_tbl, ['name'], ['value']
-    @tmpvars = scratch :tmpvars_tbl, ['name'], ['value']
+    @periodics = table :periodics_tbl, ['pername'], ['ident', 'duration']
+    @vars = table :vars_tbl, ['varname'], ['value']
+    @tmpvars = scratch :tmpvars_tbl, ['tmpvarname'], ['value']
 
     state
 
@@ -139,7 +139,7 @@ class Bud
         EventMachine::start_server(@ip, @port, BudServer, self)
         # initialize periodics
         @periodics.each do |p|
-          set_timer(p.name, p.ident, p.duration)
+          set_timer(p.pername, p.ident, p.duration)
         end
         builtin_state
         tick
@@ -174,7 +174,9 @@ class Bud
       @rewritten_strata.each_with_index do |rs, i|
         # FIX: move to compilation
         str = rs.nil? ? "" : rs
-        block = lambda { eval(str) }
+        # eval once and put into block
+        block = eval "lambda { #{str} }"
+        #block = lambda { eval(str) }
         @strata << block
       end
     elsif @declarations.length > 0
@@ -244,9 +246,9 @@ class Bud
 
   def reset_periodics
     @periodics.each do |p|
-      if @tables[p.name].length > 0 then
-        set_timer(p.name, p.ident, p.duration)
-        @tables[p.name] = scratch p.name, @tables[p.name].keys, @tables[p.name].cols
+      if @tables[p.pername].length > 0 then
+        set_timer(p.pername, p.ident, p.duration)
+        @tables[p.pername] = scratch p.pername, @tables[p.pername].keys, @tables[p.pername].cols
       end
     end
   end
@@ -275,7 +277,7 @@ class Bud
       rels.each do |s|
         matches = r.schema & s.schema
         matches.each do |c|
-          preds << [self.send(r.name).send(c), self.send(s.name).send(c)] unless r.name.to_s >= s.name.to_s
+          preds << [self.send(r.tabname).send(c), self.send(s.tabname).send(c)] unless r.tabname.to_s >= s.tabname.to_s
         end
       end
     end

@@ -39,8 +39,8 @@ class ShortestPaths < Bud
     avrg <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)) do |t|
       [t[0], t[1], t[6], t[4], t[5]]
     end
-    avrg2 <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)).rename(['from', 'to'], ['min', 'max', 'sum', 'cnt', 'avg']).map do |t|
-        [t.from, t.to, t.avg, t.sum, t.cnt]
+    avrg2 <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)).rename(['from', 'to'], ['mincol', 'maxcol', 'sumcol', 'cntcol', 'avgcol']).map do |t|
+        [t.from, t.to, t.avgcol, t.sumcol, t.cntcol]
     end
   end
 end

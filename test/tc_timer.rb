@@ -5,7 +5,7 @@ require 'test/unit'
 class TemporalBudTest < Bud
   def state
     periodic :tik, 1
-    table :log, ['time', 'too']
+    table :log, ['timecol', 'too']
   end
 
   declare 

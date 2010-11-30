@@ -1,4 +1,6 @@
-# variable design still rather tentative
+require 'rubygems'
+require 'bud'
+require 'test/unit'
 
 class ParentBud < Bud
   def state

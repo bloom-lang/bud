@@ -103,7 +103,8 @@ module BudState
     @tables[name] ||= Bud::BudFileReader.new(name, filename, delimiter, self)
   end
 
-  def periodic(name, duration=1, keys=['ident'], cols=['time'])
+  def periodic(name, duration=1, keys=['ident'], cols=['timecol'])
+    @name = name
     if cols.length != 1 or keys.length != 1
       raise Bud::BudError("periodic collection #{name} must have one key column, and one other column")
     end

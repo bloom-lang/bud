@@ -8,7 +8,7 @@ class LocalShortestPaths < Bud
   def state
     table :link, ['from', 'to', 'cost']
     table :link2, ['from', 'to', 'cost']
-    table :empty, ['id']
+    table :empty, ['ident']
     table :path, ['from', 'to', 'next', 'cost']
     table :shortest, ['from', 'to'], ['next', 'cost']
     table :minz,['cost']
@@ -17,7 +17,7 @@ class LocalShortestPaths < Bud
 
   declare 
   def program
-    link2 <= link.map{|l| l unless empty.include? l.id } 
+    link2 <= link.map{|l| l unless empty.include? l.ident } 
     path <= link2.map{|e| [e.from, e.to, e.to, e.cost]}
     path <= join([link2, path]).map do |l, p|
       [l.from, p.to, p.from, l.cost+p.cost] if l.to == p.from
@@ -32,13 +32,13 @@ end
 
 class KTest < Bud
   def state
-    interface input, :upd, ['data']
-    interface input, :req, ['id']
-    interface output, :resp, ['id', 'data']
-    table :mystate, ['data']
+    interface input, :upd, ['datacol']
+    interface input, :req, ['ident']
+    interface output, :resp, ['ident', 'datacol']
+    table :mystate, ['datacol']
   
 
-    #interface output, :qq, ['data']
+    #interface output, :qq, ['datacol']
   
   end
 
@@ -50,7 +50,7 @@ class KTest < Bud
   
   declare
   def respond
-    resp <= join([req, mystate]).map{|r, s| [r.id, s.data] } 
+    resp <= join([req, mystate]).map{|r, s| [r.ident, s.datacol] } 
   end
 end
 

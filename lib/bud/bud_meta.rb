@@ -57,7 +57,7 @@ class Bud
   def tables_each
     @tables.each do |t|
       #print "TABE: #{t.inspect}\n"
-      if t[1].name.class == Symbol
+      if t[1].tabname.class == Symbol
         yield t[1]
       end
     end
@@ -66,7 +66,7 @@ class Bud
   def provenance_extend
     #print "EXTEND!\n"
     tables_each do |t|
-      #print "pUSH ontto #{t.name.to_s} schema #{t.schema.class} (#{t.schema.join(",")})\n"
+      #print "pUSH ontto #{t.tabname.to_s} schema #{t.schema.class} (#{t.schema.join(",")})\n"
       t.schema.push("prov")
       # con cari~no
       t.keys.push("prov")

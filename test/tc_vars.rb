@@ -1,4 +1,7 @@
 # variable design still rather tentative
+require 'rubygems'
+require 'bud'
+require 'test/unit'
 
 class VarBud < Bud
   def state

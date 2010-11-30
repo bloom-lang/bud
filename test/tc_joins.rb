@@ -5,10 +5,10 @@ require 'test/unit'
 class CombosBud < Bud
 
   def state
-    table :r, ['x', 'y']
-    table :s_tab, ['x', 'y']
-    table :t, ['x', 'y']
-    table :mismatches, ['x', 'y']
+    table :r, ['x', 'y1']
+    table :s_tab, ['x', 'y1']
+    table :t, ['x', 'y1']
+    table :mismatches, ['x', 'y1']
     scratch :simple_out, ['x', 'y1', 'y2']
     scratch :match_out, ['x', 'y1', 'y2']
     scratch :chain_out, ['x1', 'x2', 'x3', 'y1', 'y2', 'y3']
@@ -35,22 +35,22 @@ class CombosBud < Bud
     mismatches << ['z', 1]    
 
     j = join [r,s_tab], [r.x, s_tab.x]
-    simple_out <= j.map { |t1,t2| [t1.x, t1.y, t2.y] }
+    simple_out <= j.map { |t1,t2| [t1.x, t1.y1, t2.y1] }
     
-    k = join [r,s_tab], [r.x, s_tab.x], [r.y, s_tab.y]
-    match_out <= k.map { |t1,t2| [t1.x, t1.y, t2.y] }
+    k = join [r,s_tab], [r.x, s_tab.x], [r.y1, s_tab.y1]
+    match_out <= k.map { |t1,t2| [t1.x, t1.y1, t2.y1] }
     
     l = join [r,s_tab,t], [r.x, s_tab.x], [s_tab.x, t.x]
-    chain_out <= l.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y, t2.y, t3.y] }
+    chain_out <= l.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
     
     m = join [r,s_tab,t], [r.x, s_tab.x, t.x]
-    flip_out <= m.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y, t2.y, t3.y] }
+    flip_out <= m.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
     
     n = natjoin [r,s_tab,t]
-    nat_out <= n.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y, t2.y, t3.y] }
+    nat_out <= n.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
     
     #loj = leftjoin [mismatches,s_tab], [mismatches.x, s_tab.x]
-    #loj_out <= loj.map { |t1, t2| [t1.x, t2.x, t1.y, t2.y] }
+    #loj_out <= loj.map { |t1, t2| [t1.x, t2.x, t1.y1, t2.y1] }
   end
 end
 

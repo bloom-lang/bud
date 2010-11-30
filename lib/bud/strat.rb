@@ -12,7 +12,7 @@ class Stratification < Bud
     table :stratum, ['predicate', 'stratum']
     table :top_strat, ['stratum']
 
-    table :tab_info, ['tab', 'type', 'columns']
+    table :tab_info, ['tab', 'typecol', 'columns']
 
     table :col_alias, ['head', 'als', 'name', 'ord']
     table :tab_alias, ['head', 'tab', 'als']
