@@ -139,9 +139,8 @@ class Bud
         EventMachine::start_server(@ip, @port, BudServer, self)
         # initialize periodics
         @periodics.each do |p|
-          set_timer(p.pername, p.ident, p.duration)
+          set_periodic_timer(p.pername, p.ident, p.duration)
         end
-        builtin_state
         tick
       }
     end
@@ -187,7 +186,8 @@ class Bud
     end
     @strata.each { |strat| stratum_fixpoint(strat) }
     @channels.each { |c| @tables[c[0]].flush }
-    reset_periodics
+    # let Eventmachine handle periodics
+    # reset_periodics
     @budtime += 1
     return @budtime
   end
@@ -292,6 +292,13 @@ class Bud
   ######## ids and timers
   def gen_id
     Time.new.to_i.to_s << rand.to_s
+  end
+
+  def set_periodic_timer(name, id, secs)
+    EventMachine::PeriodicTimer.new(secs) do
+      @tables[name] <+ [[id, Time.new.to_s]]
+      tick
+    end
   end
 
   def set_timer(name, id, secs)

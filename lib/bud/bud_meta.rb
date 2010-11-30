@@ -70,7 +70,7 @@ class Bud
       t.schema.push("prov")
       # con cari~no
       t.keys.push("prov")
-      t.schema_accessors
+      t.setup_accessors
       #print "now it's #{t.schema.join(",")}\n"
     end
     #print "DONE EXtending\n"

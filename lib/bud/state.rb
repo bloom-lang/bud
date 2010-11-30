@@ -19,27 +19,26 @@ module BudState
   end
 
   ######## methods for registering collection types
+  def define_collection(name, keys=[], cols=[])
+    # rule out tablenames that used reserved words
+    reserved = eval "defined?(#{name})"
+    unless (reserved.nil? or (reserved == "method" and @tables[name]))
+      # first time registering table, check for method name reserved
+      raise Bud::BudError, "symbol :#{name} reserved, cannot be used as table name"
+    end
+    self.singleton_class.send(:define_method, name) do
+      @tables[name]
+    end
+    return nil
+  end
+  
   def define_or_tick_collection(name, keys=[], cols=[])
     # tick previously-defined tables and tick
     if @tables[name]
-      # check for consistent redefinition, and "tick" the table
-      if @tables[name].keys != keys or @tables[name].cols != cols
-        raise Bud::BudError, "create :#{name}, keys = #{keys.inspect}, cols = #{cols.inspect} \n \
-        table :#{name} already defined as #{@tables[name].keys.inspect} #{@tables[name].cols.inspect}"
-      end
       @tables[name].tick
       return @tables[name]
     else
-      # rule out tablenames that used reserved words
-      reserved = eval "defined?(#{name})"
-      unless (reserved.nil? or (reserved == "method" and @tables[name]))
-        # first time registering table, check for method name reserved
-        raise Bud::BudError, "symbol :#{name} reserved, cannot be used as table name"
-      end
-      self.singleton_class.send(:define_method, name) do
-        @tables[name]
-      end
-      return nil
+      return define_collection(name, keys, cols)
     end
   end
 
@@ -94,7 +93,7 @@ module BudState
     locspec, keys = remove_at(keys)
     locspec, cols = remove_at(cols) if keys.nil?
     define_or_tick_collection(name, keys, cols)
-    @channels[name] = locspec
+    @channels[name] ||= locspec
     @tables[name] ||= Bud::BudChannel.new(name, keys, cols, self, locspec)
   end
 

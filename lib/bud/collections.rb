@@ -20,7 +20,7 @@ class Bud
       init_deltas
       @bud_instance = b_class
       raise BudError, "schema for #{tabname} contains duplicate names" if schema.uniq.length < schema.length
-      schema_accessors
+      setup_accessors
     end
 
     def clone_empty
@@ -45,7 +45,7 @@ class Bud
     # define methods to turn 'table.col' into a [table,col] pair
     # e.g. to support somethin like
     #    j = join link, path, {link.to => path.from}
-    def schema_accessors
+    def setup_accessors
       s = @schema
       s.each do |colname|
         reserved = eval "defined?(#{colname})"
@@ -55,6 +55,7 @@ class Bud
         end
       end
   
+      # set up schema accessors, which are class methods
       m = Module.new do
         s.each_with_index do |c, i|
           define_method c.to_sym do
@@ -63,16 +64,20 @@ class Bud
         end
       end
       self.extend m
+      
+      # now set up a Module for tuple accessors, which are instance methods
+      @tupaccess = Module.new do
+        s.each_with_index do |colname, offset|
+          define_method colname.to_sym do
+            self[offset]
+          end
+        end
+      end
     end
 
     def tuple_accessor(tup, colname, offset)
       unless tup.respond_to? colname.to_sym
-        m = Module.new do
-          define_method colname.to_sym do
-            tup[offset]
-          end
-        end
-        tup.extend m
+        tup.extend @tupaccess
       end
     end
 
