@@ -113,6 +113,22 @@ class Rename < Bud
   end
 end
 
+class JoinAgg < Rename
+  def state
+    super
+    scratch :richsal, ['sal']
+    scratch :rich, emp.keys, emp.cols
+    scratch :argrich, emp.keys, emp.cols
+  end
+  
+  declare
+  def rules
+    richsal <= emp.group([], max(:sal))
+    rich <= natjoin([richsal, emp]).map{|r,e| e}
+    argrich <= emp.argmax([], emp.sal)
+  end
+end
+
 class TestAggs < Test::Unit::TestCase
   def test_paths
     program = ShortestPaths.new('localhost', 12345)
@@ -161,5 +177,14 @@ class TestAggs < Test::Unit::TestCase
     assert_nothing_raised (RuntimeError) { program.tick }
     shoes = program.shoes.map{|t| t}
     assert_equal([["shoe", 10.5]], shoes)
+  end
+  
+  def test_join_agg
+    program = JoinAgg.new('localhost', 12345)
+    assert_nothing_raised (RuntimeError) { program.tick }
+    rich = program.rich.first
+    assert_equal(['bob', 'shoe', 11], rich)
+    argrich = program.argrich.first
+    assert_equal(['bob', 'shoe', 11], argrich)
   end
 end

@@ -250,7 +250,6 @@ class Bud
       else
         colnum = col[1]
       end
-      retval = BudScratch.new('argagg_temp', @schema, [], bud_instance)
       tups = self.inject({}) do |memo,p|
         pkeys = keynames.map{|n| p.send(n.to_sym)}
         if memo[pkeys].nil?
@@ -274,7 +273,16 @@ class Bud
           finals << tie
         end
       end
-      retval.merge(finals)
+      #retval.merge(finals)
+      if block_given?
+        finals.map{|r| yield r}      
+      else
+        # merge directly into retval.storage, so that the temp tuples get picked up
+        # by the lhs of the rule
+        retval = BudScratch.new('argagg_temp', @schema, [], bud_instance)
+        retval.merge(finals, retval.storage)
+      end
+
     end
 
     def argmin(gbkeys, col)
