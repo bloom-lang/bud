@@ -100,12 +100,10 @@ class Bud
 
     def each_from(bufs, &block)
       bufs.each do |b|
-        b.each_key do |k|
-          raise(BudError, "nil storage key") if k.nil?
-          raise(BudError, "nil entry(#{@tabname}) for #{k.inspect}") if b[k].nil?
-          @bud_instance.each_counter[tabname] ||= 0 unless @bud_instance.nil?
-          @bud_instance.each_counter[tabname] += 1  unless @bud_instance.nil?
-          yield b[k]
+        b.each_value do |v|
+          # @bud_instance.each_counter[tabname] ||= 0 unless @bud_instance.nil?
+          # @bud_instance.each_counter[tabname] += 1  unless @bud_instance.nil?
+          yield v
         end
       end
     end
