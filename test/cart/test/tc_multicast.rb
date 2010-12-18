@@ -58,8 +58,8 @@ class TestMC < TestLib
 
   def test_rd
     mc = RMC.new("localhost", 44256, {'dump' => true})
-    mc2 = RMC.new("localhost", 44257)
-    mc3 = RMC.new("localhost", 44258)
+    mc2 = RMC.new("localhost", 44257, {})
+    mc3 = RMC.new("localhost", 44258, {})
 
     assert_nothing_raised(RuntimeError) { mc.run_bg; mc2.run_bg; mc3.run_bg } 
 

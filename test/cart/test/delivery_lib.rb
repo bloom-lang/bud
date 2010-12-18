@@ -8,7 +8,7 @@ module TestStuff
 
   def state
     super
-    table :pipe_perm, ['dst', 'src', 'id', 'payload']
+    table :pipe_perm, ['dst', 'src', 'pid', 'payload']
   end
 
   declare

@@ -14,11 +14,13 @@ module ReliableDelivery
     channel :ack, ['@src', 'dst', 'ident']
     internal output, :pipe_out
     internal input, :pipe_in
+    periodic :tock, 10
   end
   
   declare 
   def remember
     pipe <= pipe_in.map {|p| p }
+    pipe_chan <~ join([pipe, tock]).map{|p, t| p }
   end
   
   declare
