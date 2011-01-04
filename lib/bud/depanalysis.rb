@@ -7,13 +7,11 @@ class DepAnalysis < Bud
 
   def state
     table :providing, ['pred', 'input']
-    table :demanding, ['pred', 'input']
     table :depends_tc, ['head', 'body', 'via', 'neg', 'temporal']
-    table :cycle, ['predicate', 'via', 'neg', 'temporal']
-    table :closed,  ['predicate']
     table :underspecified, ['pred', 'other', 'kind']
-    scratch :pairing, ['incol', 'outcol']
-    table :connected, ['incol', 'outcol']
+
+    #scratch :pairing, ['incol', 'outcol']
+    table :pairing, ['incol', 'outcol']
 
     table :source, ['pred']
     table :sink, ['pred']
@@ -21,35 +19,19 @@ class DepAnalysis < Bud
 
   declare
   def process
-    closed <= join([providing, demanding], [providing.pred, demanding.pred]).map do |p, d|
-      [p.pred] if p.input != d.input 
-    end
-
-    underspecified <= demanding.map do |d|
-      unless closed.include? [d.pred]
-        puts "UNDERSPEC'd " + d.pred or [d.pred, nil, "demanded tables not implemented"]
-      end
-    end
-
     pairing <= join([providing, providing]).map do |p1, p2|
       if p1.input and !p2.input
+        puts "pair off " + p1.inspect + " and " + p2.inspect
         [p1.pred, p2.pred]
       end
     end
+  end
 
-    connected <= join([pairing, depends_tc], [pairing.incol, depends_tc.body], [pairing.outcol, depends_tc.head]).map do |p, d|
-      puts "CONNECTED: " + p.inspect or p
-    end
-
-    underspecified <= pairing.map do |p|
-      #unless connected.include? p
-      unless connected.map{|c| c.incol}.include? p.incol or connected.map{|c| c.incol}.include? p.outcol
-        [p.incol, p.outcol, "unconnected dataflow"]
-      end
-    end  
-
+  declare
+  def next_s
     source <= providing.map do |p|
       if p.input and !depends_tc.map{|d| d.head}.include? p.pred
+        puts "SRC" 
         [p.pred]
       end
     end
@@ -59,9 +41,15 @@ class DepAnalysis < Bud
         [p.pred]
       end
     end
-
-
   end
-  
+
+  declare 
+  def otherz
+    underspecified <= pairing.map do |p|
+      unless depends_tc.map{|d| d.body}.include? p.outcol or depends_tc.map{|d| d.head}.include? p.incol
+        puts "UNCONNECTED" or [p.incol, p.outcol, "unconnected dataflow"]
+      end
+    end  
+  end
 end
 

@@ -152,13 +152,13 @@ class Viz
       @edges[ekey].style = 'dashed'
     elsif op == "<-"
       #@labels[ekey] = @labels[ekey] + 'NEG(del)'
-      @labels[ekey]['¬'] = true
+      #@labels[ekey]['¬'] = true
       @labels[ekey]['+'] = true
     end
     if nm == 1
       # hm, nonmono
       #@labels[ekey] = @labels[ekey] + 'NEG'
-      @labels[ekey]['¬'] = true
+      #@labels[ekey]['¬'] = true
     end
   
     if (safe_t2s(head) != safe_t2s(body)) or negcluster

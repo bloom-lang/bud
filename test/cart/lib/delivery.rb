@@ -7,9 +7,7 @@ module DeliveryProtocol
     super
     interface input, :pipe_in, ['dst', 'src', 'ident'], ['payload']
     interface output, :pipe_out, ['dst', 'src', 'ident'], ['payload']
-
-    channel :pipe_chan, ['@dst', 'src', 'ident'], ['payload']
-    channel :tickler, ['@self']
+    #channel :tickler, ['@self']
   end
 
   def initialize(host, port, opts)
@@ -22,6 +20,11 @@ module BestEffortDelivery
   include DeliveryProtocol
   include Anise
   annotator :declare
+
+  def state
+    super
+    channel :pipe_chan, ['@dst', 'src', 'ident'], ['payload']
+  end
 
   declare
     def snd
