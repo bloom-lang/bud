@@ -9,6 +9,7 @@ require 'lib/disorderly_cart'
 class BCS < Bud
   include BestEffortMulticast
   include ReplicatedDisorderlyCart
+  include CartClient
   include Anise
   annotator :declare
 
@@ -46,9 +47,10 @@ class TestCart < TestLib
     run_cart(program)
     advance(program)
 
+    print "um\n"
     assert_equal(2, program.memo.length)
     program.memo.each do |a|
-      #print "item: #{a.inspect}\n"
+      print "item: #{a.inspect}\n"
       if a.item == "beer"
         assert_equal(3, a.cnt)
       elsif a.item == "diapers"

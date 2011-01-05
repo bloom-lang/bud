@@ -11,32 +11,40 @@ module DisorderlyCart
 
   def state
     super
-    table :cart_action, ['session', 'item', 'action', 'reqid']
-    table :action_cnt, ['session', 'item', 'action'], ['cnt']
+    table :cart_action, ['session', 'reqid'], ['item', 'action']
+    scratch :action_cnt, ['session', 'item', 'action'], ['cnt']
     scratch :status, ['server', 'client', 'session', 'item'], ['cnt']
   end
  
   declare
   def saved
     # store actions against the "cart;" that is, the session.
-    cart_action <= action_msg.map { |c| [c.session, c.item, c.action, c.reqid] }
+    cart_action <= action_msg.map { |c| [c.session, c.reqid, c.item, c.action] }
 
-    # PAA - CRASH without the +?  find out why.
-    action_cnt <+ cart_action.group([cart_action.session, cart_action.item, cart_action.action], count(cart_action.reqid))
-    action_cnt <+ cart_action.map{|a| [a.session, a.item, 'D', 0] unless cart_action.map{|c| [c.session, c.item] if c.action == "D"}.include? [a.session, a.item]}
+    action_cnt <= cart_action.group([cart_action.session, cart_action.item, cart_action.action], count(cart_action.reqid))
+    #action_cnt <= cart_action.map{|a| [a.session, a.item, 'Del', 0] unless cart_action.map{|c| [c.session, c.item] if c.action == "Del"}.include? [a.session, a.item]}
 
   end
 
   declare
   def consider
     status <= join([action_cnt, action_cnt, checkout_msg]).map do |a1, a2, c| 
-      if a1.session == a2.session and a1.item == a2.item and a1.session == c.session and a1.action == "A" and a2.action == "D" 
+      if a1.session == a2.session and a1.item == a2.item and a1.session == c.session and a1.action == "Add" and a2.action == "Del" 
         if (a1.cnt - a2.cnt) > 0
-          [c.client, c.server, a1.session, a1.item, a1.cnt - a2.cnt] 
+          puts "STAT" or [c.client, c.server, a1.session, a1.item, a1.cnt - a2.cnt] 
         end
       end
     end
-    response_msg <~ status.map { |s| s }
+    status <= join([action_cnt, checkout_msg]).map do |a, c|
+      if a.action == "Add" and not action_cnt.map{|d| d.item if d.action == "Del"}.include? a.item
+        [c.client, c.server, a.session, a.item, a.cnt]
+      end
+    end
+
+    #response_msg <~ status.map { |s| s }
+    #response_msg <~ status.group([status.client, status.server, status.session], accum((0..(status.cnt)).map{status.item})) 
+    #response_msg <~ status.group([status.client, status.server, status.session], accum([status.item, status.cnt]))
+    response_msg <~ status.group([status.client, status.server, status.session], accum(status.item))
   end
 end
 
@@ -48,8 +56,10 @@ module ReplicatedDisorderlyCart
 
   declare 
   def replicate
-    send_mcast <= action_msg.map {|a| [a.reqid, a] }
-    action_msg <= mcast_done.map {|m| m.payload } 
+    send_mcast <= action_msg.map {|a| [a.reqid, [a.session, a.reqid, a.item, a.action]] }
+    #action_msg <= mcast_done.map {|m| m.payload } 
+    cart_action <= mcast_done.map {|m| m.payload } 
+    cart_action <= pipe_chan.map{|c| c.payload }
   end    
 end
 

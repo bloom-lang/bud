@@ -2,7 +2,9 @@ require 'rubygems'
 require 'bud'
 require 'lib/reliable_delivery'
 require 'lib/queue'
-require 'lib/kvs'
+#require 'lib/kvs'
+require 'lib/kvs_pedagogical'
+
 
 # extend the key-value store in such a way that it has a (arguably) reasonable
 # behavior when presented with multiple puts for the same key in the same

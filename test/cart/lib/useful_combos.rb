@@ -1,7 +1,8 @@
 require 'rubygems'
 require 'bud'
 
-require 'lib/kvs_metered'
+#require 'lib/kvs_metered'
+require 'lib/kvs_pedagogical'
 require 'lib/multicast'
 
 # some combinations are simple:
@@ -59,9 +60,9 @@ module ReplicatedMeteredGlue
   end
 end
 
-class MeteredBestEffortReplicatedKVS < Bud
-  include ReplicatedKVS
-  include KVSMetering
-  include BestEffortMulticast
-  include ReplicatedMeteredGlue
-end
+#class MeteredBestEffortReplicatedKVS < Bud
+#  include ReplicatedKVS
+#  include KVSMetering
+#  include BestEffortMulticast
+#  include ReplicatedMeteredGlue
+#end

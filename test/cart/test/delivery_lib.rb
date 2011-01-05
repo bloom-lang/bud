@@ -13,19 +13,29 @@ module TestStuff
 
   declare
   def memory
-    pipe_perm <= pipe_out.map{|p| p }
+    pipe_perm <= pipe_sent.map{|p| puts "put in perm" or p }
   end
 end
 
 class BED < Bud
   include BestEffortDelivery
   include TestStuff
+
+  declare
+  def memory
+    pipe_perm <= pipe_sent.map{|p| p }
+  end
 end
 
 
 class RED < Bud
   include ReliableDelivery
   include TestStuff
+
+  declare
+  def memory
+    pipe_perm <= pipe_sent.map{|p| puts "RED permo" or p }
+  end
 end
 
 
@@ -38,7 +48,7 @@ class TestDelivery < TestLib
 
   def spinup_dist(type, host, port)
     d = nil
-    assert_nothing_raised(RuntimeError) { d = eval "#{type}.new(\"#{host}\", #{port}, {'visualize' => false, 'dump' => true, 'enforce_rewrite' => true})" } 
+    assert_nothing_raised(RuntimeError) { d = eval "#{type}.new(\"#{host}\", #{port}, {'visualize' => true, 'dump' => true, 'enforce_rewrite' => true, 'scoping' => false})" } 
     #assert_nothing_raised(RuntimeError) { d = eval "#{type}.new(\"#{host}\", #{port}, {'visualize' => false})" } 
     assert_nothing_raised(RuntimeError) { d.run_bg }     
     return d

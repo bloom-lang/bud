@@ -26,8 +26,12 @@ class TestBEDelivery < TestDelivery
     soft_tick(rd)
     sleep 1
 
+    # debugging
+    assert_equal(1, rd.pipe.length)
+
     # transmission 'complete'
-    assert_equal(1, rd.pipe_perm.length)
+    assert_equal(1, rd.teststuff_pipe_perm.length)
+    #assert_equal(1, rd.pipe_perm.length)
   end
 
 

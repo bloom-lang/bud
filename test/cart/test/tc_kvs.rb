@@ -3,10 +3,16 @@ require 'bud'
 require 'test/unit'
 require 'test/test_lib'
 require 'test/kvs_workloads'
+require 'lib/kvs_pedagogical'
 require 'lib/useful_combos'
 
 class TestKVS < TestLib
   include KVSWorkloads
+
+  def initialize(args)
+    @opts = {'dump' => true, 'visualize' => true, 'scoping' => true}
+    super
+  end
 
   def ntest_wl2
     # reliable delivery fails if the recipient is down
@@ -17,7 +23,7 @@ class TestKVS < TestLib
     if v.is_a?  ReliableDelivery
       sleep 1
       workload1(v)
-      assert_equal(0, v.bigtable.length)
+      assert_equal(0, v.kvstate.length)
     end
     
   end
@@ -35,10 +41,10 @@ class TestKVS < TestLib
   end
 
 
-  def ntest_wl1
+  def test_wl1
     # in a distributed, ordered workload, the right thing happens
-    v = BestEffortReplicatedKVS.new("localhost", 12345, {'dump' => true})
-    v2 = BestEffortReplicatedKVS.new("localhost", 12346)
+    v = BestEffortReplicatedKVS.new("localhost", 12345, @opts)
+    v2 = BestEffortReplicatedKVS.new("localhost", 12346, @opts)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     assert_nothing_raised(RuntimeError) {v2.run_bg}
     add_members(v, "localhost:12345", "localhost:12346")
@@ -49,14 +55,15 @@ class TestKVS < TestLib
 
     advance(v2)
 
-    assert_equal(1, v.bigtable.length)
-    assert_equal("bak", v.bigtable.first[1])
 
-    assert_equal(1, v2.bigtable.length)
+    assert_equal(1, v.kvstate.length)
+    assert_equal("bak", v.kvstate.first[1])
+
+    assert_equal(1, v2.kvstate.length)
   end
 
-  def test_simple
-    v = SingleSiteKVS.new("localhost", 12360, {'dump' => true})
+  def ntest_simple
+    v = SingleSiteKVS.new("localhost", 12360, {'dump' => true, 'scoping' => true, 'visualize' => true})
     assert_nothing_raised(RuntimeError) {v.run_bg}
     #add_members(v, "localhost:12360")
     sleep 1 
@@ -64,10 +71,10 @@ class TestKVS < TestLib
     workload1(v)
     advance(v)
 
-    v.stor_saved.each{|s| puts "SS: #{s.inspect}\n" } 
+    v.kvstate.each{|s| puts "SS: #{s.inspect}\n" } 
 
-    assert_equal(1, v.bigtable.length)
-    assert_equal("bak", v.bigtable.first[1])
+    assert_equal(1, v.kvstate.length)
+    assert_equal("bak", v.kvstate.first[1])
   end
   
 end

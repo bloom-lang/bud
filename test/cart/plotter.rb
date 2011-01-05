@@ -15,10 +15,10 @@ def work
   dep = DepAnalysis.new("localhost", 23525)
 
   strat.depends_tc.each{|d| dep.depends_tc << d }
-  strat.cycle.each{|d| dep.cycle << d }
+  #strat.cycle.each{|d| dep.cycle << d }
 
   @provides.each{|p| puts "provide " + p.inspect; dep.providing << p }
-  @demands.each{|d| puts "demand " + d.inspect; dep.demanding << d }
+  #@demands.each{|d| puts "demand " + d.inspect; dep.demanding << d }
   dep.tick
 
   dep.tick
@@ -43,7 +43,7 @@ end
 def instant(cls)
   print "try port #{@port}\n\n"
   sleep 1
-  d = eval("class FooBar < Bud\ninclude #{cls}\nend\n FooBar.new('localhost', #{@port}, {'enforce_rewrite' => true})")
+  d = eval("class FooBar < Bud\ninclude #{cls}\nend\n FooBar.new('localhost', #{@port}, {'enforce_rewrite' => true, 'dump' => true, 'scoping' => false})")
   d.shredded_rules.each {|s| @shreddies << s }
   d.provides.each_pair {|k, v| @provides << [k.to_s, v] } 
   d.demands.each_pair {|k, v| @demands << [k.to_s, v] } 

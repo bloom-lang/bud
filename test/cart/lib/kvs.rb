@@ -6,7 +6,8 @@ require 'lib/multicast'
 module KVSProtocol
   def state
     super
-    interface input, :kvput, ['client', 'key', 'reqid'], ['value']
+    #interface input, :kvput, ['client', 'key', 'reqid'], ['value']
+    interface input, :kvput, ['client', 'key'], ['reqid', 'value']
     interface input, :kvget, ['reqid'], ['key']
     interface output, :kvget_response, ['reqid'], ['key', 'value']
   end
@@ -20,8 +21,8 @@ module BasicKVS
   def state
     super
     table :bigtable, ['key'], ['value']
-    table :stor_saved, ['client', 'key', 'reqid'], ['value']
-    scratch :kvstore, ['client', 'key', 'reqid'], ['value']
+    table :stor_saved, ['client', 'key'], ['reqid', 'value']
+    scratch :kvstore, ['client', 'key'], ['reqid', 'value']
     scratch :can_store, ['ident'], ['payload']
   end
 
@@ -69,11 +70,9 @@ module ReplicatedKVS
 
   def state
     super
-    scratch :rep_can_store, ['ident'], ['payload']
-    internal output, :send_mcast
-    internal input, :mcast_done
-    internal output, :can_store
+    #scratch :rep_can_store, ['ident'], ['payload']
     # overrides indir
+    interface input, :kvput, ['client', 'key'], ['reqid', 'value']
   end
 
   # jic
@@ -92,7 +91,7 @@ module ReplicatedKVS
     end
 
     # if I am a replica, store the payload of the multicast
-    kvstore <= pipe_chan.map do |d|
+    basickvs_kvstore <= pipe_chan.map do |d|
       if d.payload.fetch(1) != @addy
         d.payload 
       end

@@ -13,7 +13,7 @@ module DestructiveCart
 
   def state
     super
-    scratch :can_act, ['server', 'client', 'session', 'item', 'action', 'reqid']
+    scratch :can_act, ['server', 'client', 'session', 'reqid', 'item', 'action']
   end
 
   def delete_one(arr, item)
@@ -33,11 +33,11 @@ module DestructiveCart
     def queueing
       kvput <+ can_act.map do |a| 
         if a.action == "A" and !kvget_response.map{|b| b.key}.include? a.session
-          puts "STORE: " + a.inspect or [a.server, 'localhost:10000', a.session, a.reqid, Array.new.push(a.item)]
+          puts "STORE: " + a.inspect or [a.client, a.session, a.reqid, Array.new.push(a.item)]
         end
       end
 
-      joldstate = join [kvget_response, can_act], [bigtable.key, action_msg.session]
+      joldstate = join [kvget_response, can_act], [kvget_response.key, can_act.session]
       kvput <+ joldstate.map do |b, a| 
         if a.action == "A"
           puts " APPEND ("  + @budtime.to_s + ") : " + a.inspect + ", " + b.inspect + "\n" or [a.server, a.client, a.session, a.reqid, (b.value.clone.push(a.item))]
