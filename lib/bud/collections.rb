@@ -38,7 +38,7 @@ class Bud
       @storage = @pending
       @pending = {}
       @delta = {}
-      @delta_new = {}
+      @new_delta = {}
       self
     end
 
