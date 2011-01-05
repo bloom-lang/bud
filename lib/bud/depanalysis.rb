@@ -46,7 +46,7 @@ class DepAnalysis < Bud
   declare 
   def otherz
     underspecified <= pairing.map do |p|
-      unless depends_tc.map{|d| d.body}.include? p.outcol or depends_tc.map{|d| d.head}.include? p.incol
+      unless depends_tc.map{|d| [d.head, d.body]}.include? [p.outcol, p.incol]
         puts "UNCONNECTED" or [p.incol, p.outcol, "unconnected dataflow"]
       end
     end  
