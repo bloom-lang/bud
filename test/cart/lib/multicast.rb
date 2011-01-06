@@ -22,6 +22,15 @@ module Multicast
   include Anise
   annotator :declare
   
+  def state
+    super
+    # contract: use some delivery class to realize the multicast
+    # we would ideally name it as below
+    #internal output, DeliveryProtocol.pipe_in
+    internal output, :pipe_in
+    internal input, :pipe_sent
+  end
+
   declare   
   def snd_mcast
     deliveryprotocol_pipe_in <= join([send_mcast, members]).map do |s, m|
@@ -32,7 +41,7 @@ module Multicast
   declare 
   def done_mcast    
     # override me
-    mcast_done <= deliveryprotocol_pipe_sent.map{|p| [p.ident, p.payload] }
+    mcast_done <= pipe_sent.map{|p| [p.ident, p.payload] }
   end
 
 end
@@ -63,7 +72,7 @@ module ReliableMulticast
   declare
   def done_mcast
     mcast_done <= vote_status.map do |v|
-      puts "VEE: " + v.inspect 
+      "VEE: " + v.inspect 
     end
   end
 end

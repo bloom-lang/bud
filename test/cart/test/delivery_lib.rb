@@ -13,7 +13,7 @@ module TestStuff
 
   declare
   def memory
-    pipe_perm <= pipe_sent.map{|p| puts "put in perm" or p }
+    pipe_perm <= pipe_sent.map{|p| p }
   end
 end
 
