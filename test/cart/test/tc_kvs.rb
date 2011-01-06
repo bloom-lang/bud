@@ -14,7 +14,7 @@ class TestKVS < TestLib
     super
   end
 
-  def ntest_wl2
+  def test_wl2
     # reliable delivery fails if the recipient is down
     v = SingleSiteKVS.new("localhost", 12347, nil) # {'visualize' => true})
     assert_nothing_raised(RuntimeError) {v.run_bg}
@@ -30,21 +30,20 @@ class TestKVS < TestLib
 
   def ntest_wl5
     # the unmetered kvs fails on a disorderly workload
-    v = SingleSiteKVS.new("localhost", 12352)
+    v = SingleSiteKVS.new("localhost", 12352, @opts)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:12352")
     workload2(v)
     soft_tick(v)
-
   
-    assert_raise(RuntimeError)  { advancer(v.ip, v.port) }
+    assert_raise(KeyConstraintError)  { advancer(v.ip, v.port) }
   end
 
 
   def test_wl1
     # in a distributed, ordered workload, the right thing happens
-    v = BestEffortReplicatedKVS.new("localhost", 12345, {'dump' => true})
-    v2 = BestEffortReplicatedKVS.new("localhost", 12346, {})
+    v = BestEffortReplicatedKVS.new("localhost", 12345, @opts)
+    v2 = BestEffortReplicatedKVS.new("localhost", 12346, @opts)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     assert_nothing_raised(RuntimeError) {v2.run_bg}
     add_members(v, "localhost:12345", "localhost:12346")
@@ -53,16 +52,14 @@ class TestKVS < TestLib
 
 
     workload1(v)
-
-    # PAA
-    return
-
+    advance(v2)
     advance(v2)
 
     assert_equal(1, v.kvstate.length)
     assert_equal("bak", v.kvstate.first[1])
-
     assert_equal(1, v2.kvstate.length)
+
+    assert_equal("bak", v2.kvstate.first[1])
   end
 
   def test_simple
@@ -76,8 +73,6 @@ class TestKVS < TestLib
     advance(v)
     advance(v)
     advance(v)
-
-    #v.stor_saved.each{|s| puts "SS: #{s.inspect}\n" } 
 
     assert_equal(1, v.kvstate.length)
     assert_equal("bak", v.kvstate.first[1])

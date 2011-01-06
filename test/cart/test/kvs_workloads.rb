@@ -20,9 +20,9 @@ module KVSWorkloads
     v.kvput <+ [["localhost:54321", "foo", 1, "bar"]]
     advance(v)
     advance(v)
-    puts "I putteded it"
     v.kvput <+ [["localhost:54321", "foo", 2, "baz"]]
     advance(v)
+
     v.kvput <+ [["localhost:54321", "foo", 3, "bam"]]
     advance(v)
     v.kvput <+ [["localhost:54321", "foo", 4, "bak"]]

@@ -21,15 +21,16 @@ module BasicKVS
   def state
     super
     table :kvstate, ['key'], ['value']
+    interface input, :kvput_internal, ['client', 'key'], ['reqid', 'value']
   end
 
   declare 
     def mutate
-      kvstate <+ kvput.map do |s| 
+      kvstate <+ kvput_internal.map do |s| 
         [s.key, s.value]
       end
 
-      prev = join [kvstate, kvput], [kvstate.key, kvput.key]
+      prev = join [kvstate, kvput_internal], [kvstate.key, kvput_internal.key]
       kvstate <- prev.map { |b, s| b }
     end
 
@@ -40,6 +41,12 @@ module BasicKVS
       [g.reqid, t.key, t.value]
     end
   end
+
+  # place holder until scoping is fully implemented
+  declare 
+  def local_indir
+    kvput_internal <= kvput
+  end
 end
 
 
@@ -49,12 +56,11 @@ module ReplicatedKVS
   include BasicKVS
   include MulticastProtocol
 
-  def state
-    super
-    # override kvput
-    interface input, :kvput, ['client', 'key', 'reqid'], ['value']
-    interface input, :kvput, ['client', 'key'], ['reqid', 'value']
-  end
+  #def state
+  #  super
+  #  # override kvput
+  #  interface input, :kvput_in, ['client', 'key'], ['reqid', 'value']
+  #end
 
   declare
   def local_indir
@@ -65,10 +71,10 @@ module ReplicatedKVS
       end
     end
 
-    kvput <= mcast_done.map {|m| m.payload } 
+    kvput_internal <= mcast_done.map {|m| m.payload } 
 
     # if I am a replica, store the payload of the multicast
-    kvput <= pipe_chan.map do |d|
+    kvput_internal <= pipe_chan.map do |d|
       if d.payload.fetch(1) != @addy
         d.payload 
       end

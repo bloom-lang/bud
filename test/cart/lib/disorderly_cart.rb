@@ -20,10 +20,7 @@ module DisorderlyCart
   def saved
     # store actions against the "cart;" that is, the session.
     cart_action <= action_msg.map { |c| [c.session, c.reqid, c.item, c.action] }
-
     action_cnt <= cart_action.group([cart_action.session, cart_action.item, cart_action.action], count(cart_action.reqid))
-    #action_cnt <= cart_action.map{|a| [a.session, a.item, 'Del', 0] unless cart_action.map{|c| [c.session, c.item] if c.action == "Del"}.include? [a.session, a.item]}
-
   end
 
   declare
@@ -57,7 +54,6 @@ module ReplicatedDisorderlyCart
   declare 
   def replicate
     send_mcast <= action_msg.map {|a| [a.reqid, [a.session, a.reqid, a.item, a.action]] }
-    #action_msg <= mcast_done.map {|m| m.payload } 
     cart_action <= mcast_done.map {|m| m.payload } 
     cart_action <= pipe_chan.map{|c| c.payload }
   end    

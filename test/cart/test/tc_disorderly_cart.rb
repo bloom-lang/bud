@@ -4,15 +4,13 @@ require 'test/test_lib'
 require 'test/cart_workloads'
 
 require 'lib/disorderly_cart'
-#require 'lib/imperative_cart_kvs'
+require 'lib/destructive_cart'
 
-class BCS < Bud
-  include BestEffortMulticast
-  include ReplicatedDisorderlyCart
-  include CartClient
+
+
+module Remember
   include Anise
   annotator :declare
-
   def state
     super
     table :memo, ['client', 'server', 'session', 'item', 'cnt']
@@ -21,6 +19,41 @@ class BCS < Bud
   declare 
   def memm
     memo <= response_msg.map{|r| r }
+  end
+end
+
+
+class BCS < Bud
+  include BestEffortMulticast
+  include ReplicatedDisorderlyCart
+  include CartClient
+  include Remember
+end
+
+
+
+class DCR < Bud
+  include CartClientProtocol
+  include CartClient
+  include CartProtocol
+  include DestructiveCart
+  include ReplicatedKVS
+  include BestEffortMulticast
+  include Remember
+end
+
+class DummyDC < Bud
+  include CartClientProtocol
+  include CartClient
+  include CartProtocol
+  include DestructiveCart
+  include BasicKVS
+  include Remember
+
+  def state
+    super
+    table :members, ['peer']
+    channel :tickler, ['myself']
   end
 end
 
@@ -41,7 +74,9 @@ class TestCart < TestLib
   include CartWorkloads
 
   def test_disorderly_cart
-    program = BCS.new('localhost', 23765, {'dump' => true})
+    #program = BCS.new('localhost', 23765, {'dump' => true})
+    program = DummyDC.new('localhost', 23765, {'dump' => true})
+
     program.run_bg
     sleep 1
     run_cart(program)

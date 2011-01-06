@@ -1,8 +1,7 @@
 require 'rubygems'
 require 'bud'
 
-#require 'lib/kvs_metered'
-require 'lib/kvs_pedagogical'
+require 'lib/kvs'
 require 'lib/queue'
 require 'lib/cart_protocol'
 
@@ -15,7 +14,7 @@ module DestructiveCart
 
   declare
   def queueing
-    kvget <= action_msg.map {|a| puts "test" or [a.reqid, a.key] }
+    kvget <= action_msg.map {|a| puts "test" or [a.reqid, a.session] }
     kvput <= action_msg.map do |a| 
       if a.action == "A" and not kvget_response.map{|b| b.key}.include? a.session
         puts "PUT EMPTY" or [a.client, a.session, a.reqid, Array.new.push(a.item)]
