@@ -3,7 +3,7 @@ require 'bud'
 require 'test/unit'
 require 'test/test_lib'
 require 'test/kvs_workloads'
-require 'lib/kvs_pedagogical'
+require 'lib/kvs'
 require 'lib/useful_combos'
 
 class TestKVS < TestLib
@@ -65,7 +65,7 @@ class TestKVS < TestLib
     assert_equal(1, v2.kvstate.length)
   end
 
-  def ntest_simple
+  def test_simple
     v = SingleSiteKVS.new("localhost", 12360, {'dump' => true, 'scoping' => true, 'visualize' => true})
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:12360")

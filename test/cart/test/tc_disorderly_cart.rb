@@ -48,6 +48,10 @@ class TestCart < TestLib
     advance(program)
 
     print "um\n"
+    # PAA
+    program.memo.each {|m| puts "MEMO: #{m.inspect}" }
+
+
     assert_equal(2, program.memo.length)
     program.memo.each do |a|
       print "item: #{a.inspect}\n"

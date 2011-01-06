@@ -3,7 +3,7 @@ require 'bud'
 require 'test/unit'
 require 'test/test_lib'
 
-require 'lib/kvs_pedagogical'
+require 'lib/kvs'
 #require 'lib/kvs_metered'
 
 

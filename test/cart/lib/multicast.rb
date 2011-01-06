@@ -33,7 +33,7 @@ module Multicast
 
   declare   
   def snd_mcast
-    deliveryprotocol_pipe_in <= join([send_mcast, members]).map do |s, m|
+    pipe_in <= join([send_mcast, members]).map do |s, m|
       [m.peer, @addy, s.ident, s.payload]
     end
   end
