@@ -25,20 +25,20 @@ module BasicKVS
   end
 
   declare 
-    def mutate
-      kvstate <+ kvput_internal.map do |s| 
-        [s.key, s.value]
-      end
-
-      prev = join [kvstate, kvput_internal], [kvstate.key, kvput_internal.key]
-      kvstate <- prev.map { |b, s| b }
+  def mutate
+    kvstate <+ kvput_internal.map do |s| 
+      puts "put" or [s.key, s.value]
     end
+
+    prev = join [kvstate, kvput_internal], [kvstate.key, kvput_internal.key]
+    kvstate <- prev.map { |b, s| b }
+  end
 
   declare
   def get
     getj = join([kvget, kvstate], [kvget.key, kvstate.key])
     kvget_response <= getj.map do |g, t|
-      [g.reqid, t.key, t.value]
+      puts "RESPONSE" or [g.reqid, t.key, t.value]
     end
   end
 
@@ -67,7 +67,7 @@ module ReplicatedKVS
     # if I am the master, multicast store requests
     send_mcast <= kvput.map do |k| 
       unless members.include? [k.client]
-        [k.reqid, [@addy, k.key, k.reqid, k.value]] 
+        puts "MCAST" or [k.reqid, [@addy, k.key, k.reqid, k.value]] 
       end
     end
 
@@ -76,7 +76,7 @@ module ReplicatedKVS
     # if I am a replica, store the payload of the multicast
     kvput_internal <= pipe_chan.map do |d|
       if d.payload.fetch(1) != @addy
-        d.payload 
+        puts "M DONE" or d.payload 
       end
     end
   end

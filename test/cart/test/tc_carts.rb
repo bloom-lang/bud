@@ -30,8 +30,6 @@ class BCS < Bud
   include Remember
 end
 
-
-
 class DCR < Bud
   include CartClientProtocol
   include CartClient
@@ -74,16 +72,20 @@ class TestCart < TestLib
   include CartWorkloads
 
   def test_disorderly_cart
-    #program = BCS.new('localhost', 23765, {'dump' => true})
-    program = DummyDC.new('localhost', 23765, {'dump' => true})
+    program = BCS.new('localhost', 23765, {'dump' => true})
+    #program = DummyDC.new('localhost', 23765, {'dump' => true})
+    #program = DCR.new('localhost', 23765, {'dump' => true, 'scoping' => true})
 
     program.run_bg
     sleep 1
     run_cart(program)
     advance(program)
 
-    print "um\n"
     # PAA
+    advance(program)
+    advance(program)
+    advance(program)
+
     program.memo.each {|m| puts "MEMO: #{m.inspect}" }
 
 

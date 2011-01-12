@@ -38,7 +38,6 @@ module DisorderlyCart
       end
     end
 
-    #response_msg <~ status.map { |s| s }
     #response_msg <~ status.group([status.client, status.server, status.session], accum((0..(status.cnt)).map{status.item})) 
     #response_msg <~ status.group([status.client, status.server, status.session], accum([status.item, status.cnt]))
     response_msg <~ status.group([status.client, status.server, status.session], accum(status.item))
