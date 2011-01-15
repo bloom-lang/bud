@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.homepage = %q{http://bud.cs.berkeley.edu/}
   s.description = %q{This gem provides a prototype Bloom-like declarative distributed sublanguage for Ruby.}
 
-  s.files = ["README", "Changelog", "LICENSE", "lib/bud.rb"]
+  s.files = ["README", "LICENSE", "lib/bud.rb"]
   s.files += Dir.entries("lib/bud").select{|f| f.include? ".rb"}.map{|f| "lib/bud/" + f}
 
   s.add_dependency 'msgpack'
