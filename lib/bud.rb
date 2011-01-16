@@ -185,8 +185,6 @@ class Bud
     end
     @strata.each { |strat| stratum_fixpoint(strat) }
     @channels.each { |c| @tables[c[0]].flush }
-    # let Eventmachine handle periodics
-    # reset_periodics
     @budtime += 1
     return @budtime
   end
@@ -241,15 +239,6 @@ class Bud
       # and then should appropriately deal with deltas in subsequent strata.
       @tables.each{|name,coll| coll.tick_deltas}
     end while not @tables.all?{|name,coll| coll.new_delta.empty? and coll.delta.empty?}    
-  end
-
-  def reset_periodics
-    @periodics.each do |p|
-      if @tables[p.pername].length > 0 then
-        set_timer(p.pername, p.ident, p.duration)
-        @tables[p.pername] = scratch p.pername, @tables[p.pername].keys, @tables[p.pername].cols
-      end
-    end
   end
 
 
