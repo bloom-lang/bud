@@ -4,9 +4,12 @@ require 'graphviz'
 
 class Viz 
   def initialize(strata, mapping, tableinfo, cycle, depanalysis=nil)
-    @graph = GraphViz.new(:G, :type => :digraph, :label => "")
+    @graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85)
+    #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 1.2)
     @graph.node[:fontname] = "Times-Roman"
+    @graph.node[:fontsize] = 28
     @graph.edge[:fontname] = "Times-Roman"
+    @graph.edge[:fontsize] = 28
     @tiers = []
     @depanalysis = depanalysis
 
@@ -91,6 +94,7 @@ class Viz
     # its name is "CYC" + concat(sort(predicate names))
 
     depends.each do |d|
+      puts "DEPENDS #{d.inspect}"
       head = d[1]
       body = d[3]
       if !@tabinf[head] or !@tabinf[body]
@@ -106,6 +110,7 @@ class Viz
       body = name_of(body)
       addonce(head, (head != d[1]))
       addonce(body, (body != d[3]))
+      puts "add edge #{head} #{d[2]} #{body}"
       addedge(body, head, d[2], d[3], (head != d[1]))
     end
   end
@@ -113,6 +118,7 @@ class Viz
   def addonce(node, negcluster)
     if !@nodes[node]
       @nodes[node] = @graph.add_node(node)
+      #@nodes[node].label = "<b>" + node + "</b>"
     end
     if negcluster
       # cleaning 
@@ -126,9 +132,11 @@ class Viz
           res = res + ", " + p
         end
       end
+      #@nodes[node].label = "<b>" + res + "</b>"
       @nodes[node].label = res
       @nodes[node].color = "red"
       @nodes[node].shape = "octagon"
+      @nodes[node].penwidth = 3
     elsif @tabinf[node] and (@tabinf[node] == Bud::BudTable)
       @nodes[node].shape = "rect"
     end
@@ -138,30 +146,40 @@ class Viz
     return if body.nil? or head.nil?
     body = body.to_s
     head = head.to_s
+    return if negcluster and body == head
     ekey = body + head
     if !@edges[ekey] 
       @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head])
+      @edges[ekey].arrowsize = 2
+      if head =~ /_msg\z/
+        puts "WOOOO"
+        @edges[ekey].minlen = 2
+      else
+        @edges[ekey].minlen = 1.5
+      end
       @labels[ekey] = {}
+      
     end
 
-    
+    #@edges[ekey].minlen = 5 if negcluster and body == head
 
     if op == '<+'
-      @labels[ekey]['+'] = true
+      puts "got a PLUS for #{ekey}"
+      @labels[ekey][' +/-'] = true
     elsif op == "<~"
+      puts "dashed, fool!"
       @edges[ekey].style = 'dashed'
     elsif op == "<-"
       #@labels[ekey] = @labels[ekey] + 'NEG(del)'
-      #@labels[ekey]['¬'] = true
-      @labels[ekey]['+'] = true
+      @labels[ekey][' +/-'] = true
     end
-    if nm == 1
+    if nm == 1 and head != "T"
       # hm, nonmono
       #@labels[ekey] = @labels[ekey] + 'NEG'
       #@labels[ekey]['¬'] = true
     end
   
-    if (safe_t2s(head) != safe_t2s(body)) or negcluster
+    if ((safe_t2s(head) != safe_t2s(body)) or negcluster) and head != "T"
       @edges[ekey].arrowhead = 'veeodot'
     end
 
@@ -180,6 +198,9 @@ class Viz
     @nodes["S"].shape = "diamond"
     @nodes["T"].shape = "diamond"
 
+    @nodes["S"].penwidth = 3
+    @nodes["T"].penwidth = 3
+
     @tabinf.each_pair do |k, v|
       unless @nodes[name_of(k.to_s)] or k.to_s =~ /_tbl/ or k.to_s == "tickler"
         addonce(k.to_s, false)
@@ -197,10 +218,11 @@ class Viz
           addedge(u.pred, "??", false, false, false)
           @nodes["??"].color = "red"
           @nodes["??"].shape = "diamond"
+          @nodes["??"].penwidth = 2
         end
       end
     end
-    #@graph.output(:dot => "#{name}.dot")    
+    @graph.output(:dot => "#{name}.dot")    
     @graph.output(:pdf => "#{name}.pdf")
   end
 
