@@ -89,7 +89,6 @@ class TestMeta < Test::Unit::TestCase
   dep = DepAnalysis.new("localhost", 23525)
   
   program.strat_state.depends_tc.each{|d| dep.depends_tc << d }
-  program.strat_state.cycle.each{|d| dep.cycle << d }
   program.provides.each{|p| dep.providing << p }
   program.demands.each{|d| puts "demand " + d.inspect; dep.demanding << d }
 
