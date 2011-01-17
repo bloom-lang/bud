@@ -25,10 +25,6 @@ class Bud
   include Anise
   annotator :declare
 
-#  def input
-#    true
-#  end
-
   def initialize(ip, port, options = nil)
     @tables = {}
     @table_meta = []
@@ -56,8 +52,7 @@ class Bud
     @vars = table :vars_tbl, ['varname'], ['value']
     @tmpvars = scratch :tmpvars_tbl, ['tmpvarname'], ['value']
 
-    state
-
+    init_state
     bootstrap
     # make sure that new_delta tuples from bootstrap rules are transitioned into 
     # storage before first tick.
@@ -150,13 +145,17 @@ class Bud
     terminal :stdio
   end
 
-  def tick
+  def init_state
     # reset any schema stuff that isn't already there
     # state to be defined by the user program
     # rethink this.
+    state
+    builtin_state
+  end
+
+  def tick
     unless @options['provenance']
-      state
-      builtin_state
+      init_state
     end
 
     receive_inbound
