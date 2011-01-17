@@ -56,8 +56,8 @@ class Bud
     # make sure that new_delta tuples from bootstrap rules are transitioned into 
     # storage before first tick.
     tables.each{|name,coll| coll.install_deltas}
-    # flush any tuples installed into channels during bootstrap block
-    @channels.each { |c| @tables[c[0]].flush }
+    # note that any tuples installed into a channel won't immediately be
+    # flushed; we need to wait for EM startup to do that
 
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
@@ -131,6 +131,12 @@ class Bud
     begin
       EventMachine::run {
         EventMachine::start_server(@ip, @port, BudServer, self)
+
+        # flush any tuples installed into channels during bootstrap block
+        # XXX: doing this here is a kludge; we should do all of bootstrap
+        # in one place
+        @channels.each { |c| @tables[c[0]].flush }
+
         # initialize periodics
         @periodics.each do |p|
           set_periodic_timer(p.pername, p.ident, p.period)
