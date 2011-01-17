@@ -405,13 +405,9 @@ class Bud
     end
 
     def tick
-      # tuples inserted during bootstrap (@budtime==0) need to get sent in the next tick
-      # so only clear @pending if @budtime > 0
-      if @bud_instance.budtime > 0
-        @storage = {}
-        # never turn pending outbounds into real tuples
-        @pending = {}
-      end
+      @storage = {}
+      # never turn pending outbounds into real tuples
+      @pending = {}
     end
 
     def flush
