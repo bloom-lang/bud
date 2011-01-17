@@ -15,7 +15,7 @@ class BabyBud < Bud
       scrtch2 <= [['a', 'b']]
       tbl <= [['a', 'b', 1, 2]]
       tbl <= [['z', 'y', 9, 8]]
-    end
+  end
   
   declare 
   def rules
