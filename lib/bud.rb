@@ -52,7 +52,7 @@ class Bud
     #self.class.annotation.map {|a| puts "another annotation: #{a.inspect}" }
     @declarations.uniq!
 
-    @periodics = table :periodics_tbl, ['pername'], ['ident', 'duration']
+    @periodics = table :periodics_tbl, ['pername'], ['ident', 'period']
     @vars = table :vars_tbl, ['varname'], ['value']
     @tmpvars = scratch :tmpvars_tbl, ['tmpvarname'], ['value']
 
@@ -138,7 +138,7 @@ class Bud
         EventMachine::start_server(@ip, @port, BudServer, self)
         # initialize periodics
         @periodics.each do |p|
-          set_periodic_timer(p.pername, p.ident, p.duration)
+          set_periodic_timer(p.pername, p.ident, p.period)
         end
         tick
       }
@@ -282,8 +282,8 @@ class Bud
     Time.new.to_i.to_s << rand.to_s
   end
 
-  def set_periodic_timer(name, id, secs)
-    EventMachine::PeriodicTimer.new(secs) do
+  def set_periodic_timer(name, id, period)
+    EventMachine::PeriodicTimer.new(period) do
       @tables[name] <+ [[id, Time.new.to_s]]
       tick
     end
