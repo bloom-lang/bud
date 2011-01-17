@@ -24,8 +24,7 @@ class PingPong < Bud
 
   def bootstrap
     if ARGV[2]
-      # XXX: fix this
-      #stdio <~ [["injecting into pingbuf"]]
+      stdio <~ [["injecting into pingbuf"]]
       pingbuf << [@otherloc, @myloc, 'pong!', Time.new.to_s, budtime]
     end
   end

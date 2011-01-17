@@ -45,7 +45,6 @@ class Bud
     self.class.ancestors.each do |anc|
       @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact if anc.methods.include? 'annotation'
     end
-    #self.class.annotation.map {|a| puts "another annotation: #{a.inspect}" }
     @declarations.uniq!
 
     @periodics = table :periodics_tbl, ['pername'], ['ident', 'period']
@@ -57,6 +56,8 @@ class Bud
     # make sure that new_delta tuples from bootstrap rules are transitioned into 
     # storage before first tick.
     tables.each{|name,coll| coll.install_deltas}
+    # flush any tuples installed into channels during bootstrap block
+    @channels.each { |c| @tables[c[0]].flush }
 
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
@@ -68,7 +69,6 @@ class Bud
 
   ########### give empty defaults for these
   def state
-    #channel :tickler, 0, ['server']
   end
   def declaration
   end
