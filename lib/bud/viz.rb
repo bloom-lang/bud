@@ -94,7 +94,7 @@ class Viz
     # its name is "CYC" + concat(sort(predicate names))
 
     depends.each do |d|
-      puts "DEPENDS #{d.inspect}"
+      #puts "DEPENDS #{d.inspect}"
       head = d[1]
       body = d[3]
       if !@tabinf[head] or !@tabinf[body]
@@ -110,7 +110,7 @@ class Viz
       body = name_of(body)
       addonce(head, (head != d[1]))
       addonce(body, (body != d[3]))
-      puts "add edge #{head} #{d[2]} #{body}"
+      #puts "add edge #{head} #{d[2]} #{body}"
       addedge(body, head, d[2], d[3], (head != d[1]))
     end
   end
@@ -152,7 +152,7 @@ class Viz
       @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head])
       @edges[ekey].arrowsize = 2
       if head =~ /_msg\z/
-        puts "WOOOO"
+        #puts "WOOOO"
         @edges[ekey].minlen = 2
       else
         @edges[ekey].minlen = 1.5
@@ -164,10 +164,9 @@ class Viz
     #@edges[ekey].minlen = 5 if negcluster and body == head
 
     if op == '<+'
-      puts "got a PLUS for #{ekey}"
+      #puts "got a PLUS for #{ekey}"
       @labels[ekey][' +/-'] = true
     elsif op == "<~"
-      puts "dashed, fool!"
       @edges[ekey].style = 'dashed'
     elsif op == "<-"
       #@labels[ekey] = @labels[ekey] + 'NEG(del)'

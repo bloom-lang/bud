@@ -53,7 +53,8 @@ class Stratification < Bud
           if d.neg and !d.temporal
             raise RuntimeError.new("unstratifiable program: #{d.inspect}")
           else
-            [d.head, d.via, d.neg, d.temporal]
+            # a special hack for scope rewriting; mod_p <- p and p <- mod_p 
+            [d.head, d.via, d.neg, d.temporal] unless d.head =~ /_#{d.via}/ or d.via =~ /_#{d.head}/
           end
         end
       end

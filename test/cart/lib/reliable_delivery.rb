@@ -11,13 +11,13 @@ module ReliableDelivery
     super
     table :pipe, ['dst', 'src', 'ident'], ['payload']
     channel :ack, ['@src', 'dst', 'ident']
-    periodic :tock, 10
+    #periodic :tock, 10
   end
   
   declare 
   def remember
     pipe <= pipe_in
-    pipe_chan <~ join([pipe, tock]).map{|p, t| p }
+    #pipe_chan <~ join([pipe, tock]).map{|p, t| p }
   end
   
   declare
@@ -30,7 +30,7 @@ module ReliableDelivery
   def done 
     apj = join [ack, pipe], [ack.ident, pipe.ident]
     pipe_sent <= apj.map {|a, p| p }
-    pipe <- apj.map {|a, p| p }
+    #pipe <- apj.map {|a, p| p }
   end
 end
 

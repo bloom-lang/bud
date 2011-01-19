@@ -15,17 +15,12 @@ class Bud
     # N.B. -- parse_tree will not be supported in ruby 1.9.
     # however, we can still pass the "string" code of bud modules
     # to ruby_parse (but not the "live" class)
-
+    @defns = []
     @shredded_rules = shred_rules
+
     @strat_state = stratify(@shredded_rules)
+    smap = binaryrel2map(@strat_state.stratum)
 
-    smap = {}
-    @strat_state.stratum.each do |s|
-      #print "ST: STRAT OUT: #{s.inspect}\n"
-      smap[s[0]] = s[1]
-    end
-
-    # temporary suppression of delta rule duplication
     done = {}
     @rewritten_strata = []
     @shredded_rules.sort{|a, b| oporder(a[2]) <=> oporder(b[2])}.each do |d|
@@ -46,66 +41,128 @@ class Bud
     return @rewritten_strata
   end
 
+  def binaryrel2map(rel)
+    smap = {}
+    rel.each do |s|
+      smap[s[0]] = s[1]
+    end
+    return smap
+  end
+
   def dump_rewrite
     fout = File.new(self.class.to_s + "_rewritten.txt", "w")
+    fout.puts "Declarations:"
+    @defns.each do |d|
+      fout.puts d
+    end
+    
     @rewritten_strata.each_with_index do |r, i|
-      fout.print "R[#{i}] :\n #{r}\n"
+      fout.puts "R[#{i}] :\n #{r}"
     end
     fout.close
   end
 
-  def tables_each
-    @tables.each do |t|
-      #print "TABE: #{t.inspect}\n"
-      if t[1].tabname.class == Symbol
-        yield t[1]
+  def each_relevant_ancestor
+    on = false
+    self.class.ancestors.reverse.each do |anc|
+      if on
+        yield anc
+      elsif anc == Bud
+        on = true
       end
     end
   end
 
-  def provenance_extend
-    #print "EXTEND!\n"
-    tables_each do |t|
-      #print "pUSH ontto #{t.tabname.to_s} schema #{t.schema.class} (#{t.schema.join(",")})\n"
-      t.schema.push("prov")
-      # con cari~no
-      t.keys.push("prov")
-      t.setup_accessors
-      #print "now it's #{t.schema.join(",")}\n"
+  def rewrite(pt, tab_map, seed)
+    rules = []
+    unless pt[0].nil?
+      rewriter = Rewriter.new(seed, tab_map, @options['provenance'])
+      rewriter.process(pt)
     end
-    #print "DONE EXtending\n"
+    return rewriter
+  end
+
+  def write_postamble(tabs, seed)
+    # rationale for the postamble: 
+    # for any module M, any table T declared within is internally named m_t.
+    # if T is an input interface, we need to add a rule m_t <- t.
+    # if T is an output interface, we need a rule t <- m_t.
+
+    postamble = "def foobar\n"
+    tabs.each_pair do |k, v|
+      last = v[v.length-1]
+      if last[1] == "input"  
+        postamble = postamble + "#{last[0]} <= #{k}.map{|t| puts \"INPUT POSTAMBLE\" or t }\n\n"
+      elsif last[1] == "output"
+        postamble = postamble + "#{k} <= #{last[0]}.map{|t| puts \"OUTPUT POSTAMBLE\" or t }\n\n"
+      else
+        left = "#{k} <= #{last[0]}"
+        right = "#{last[0]} <= #{k}"
+        postamble = postamble + "#{left}.map{|t| puts \"VISIBILITy POSTAMBLE #{left} :: \" + t.inspect or t }\n\n"
+        postamble = postamble + "#{right}.map{|t| puts \"VISIBILITy POSTAMBLE #{right} :: \" + t.inspect or t }\n\n"
+      end
+    end
+    postamble = postamble + "\nend\n"   
+
+    return rewrite(ParseTree.translate(postamble), {}, seed)
+  end
+
+  def shred_state(anc, tabs)
+    stp = ParseTree.translate(anc, "state")
+    return tabs if stp[0].nil?
+    state_reader = StateExtractor.new(anc.to_s)
+    res = state_reader.process(stp)
+    # create the state
+    #puts "DEFN : #{res}"
+    @defns << res
+    eval(res)
+    state_reader.tabs.each_pair do |k, v| 
+      #puts "tab KEYPAIR #{k.inspect} = #{v.inspect}"
+      unless tabs[k]
+        tabs[k] = []
+      end
+      tabs[k] << v 
+    end
+    return tabs
   end
 
   def shred_rules
     # to completely characterize the rules of a bud class we must extract
     # from all parent classes/modules
-
     # after making this pass, we no longer care about the names of methods.
     # we are shredding down to the granularity of rule heads.
     rules = []
     seed = 0
-    done = {}
-    @declarations.each do |d|
-      self.class.ancestors.each do |anc|
-        unless done[d]
-          pt = ParseTree.translate(anc, d)
-          unless pt[0].nil?
-            rewriter = Rewriter.new(seed, @options['provenance'])
-            rewriter.process(pt)
-            rewriter.each {|re| rules << re}
-            done[d] = true
-            seed = rewriter.rule_indx
-          end
+    rulebag = {}
+    tabs = {} 
+    each_relevant_ancestor do |anc|
+      tabs = shred_state(anc, tabs) if @options['scoping']
+      @declarations.each do |d|
+        rw = rewrite(ParseTree.translate(anc, d), tabs, seed)
+        unless rw.nil? 
+          seed = rw.rule_indx
+          rulebag[d] = []
+          rw.each{ |r| rulebag[d] << r }
         end
       end
+    end
+    rulebag.each_pair do |k, v|
+      v.each do |val|
+        #puts "RULEBAG #{k.inspect} = #{val.inspect}"
+        rules << val
+      end
+    end
+    if @options['scoping']
+      res = write_postamble(tabs, seed + 100)
+      res.each {|p| rules << p } 
     end
     return rules
   end
 
+
   def stratify(depends)
 
     strat = Stratification.new("localhost", 12345)
-    #strat = StaticAnalysis.new("localhost", 12345)
     strat.tick
 
     @tables.each do |t|
@@ -113,13 +170,13 @@ class Bud
     end
 
     depends.each do |d|
-      #print "INSIDE DEP: #{d.inspect}\n"
       if d[2] == '<'
         if d[5] =~ /-@/
           realop = "<-"
-        elsif d[5] =~ /\~@\)/
+        elsif d[5] =~ /\~ \)/
+          # hackerly
           realop = "<~"
-        else
+        else  
           realop = "<+"
         end
       else

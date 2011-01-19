@@ -67,7 +67,6 @@ class Bud
     # get dependency info, and determine stratification order.
     unless self.class <= Stratification or self.class <= DepAnalysis
       safe_rewrite
-      provenance_extend if @options['provenance']
     end
   end
 

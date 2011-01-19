@@ -21,7 +21,7 @@ class DepAnalysis < Bud
   def process
     pairing <= join([providing, providing]).map do |p1, p2|
       if p1.input and !p2.input
-        puts "pair off " + p1.inspect + " and " + p2.inspect
+        #puts "pair off " + p1.inspect + " and " + p2.inspect
         [p1.pred, p2.pred]
       end
     end
@@ -31,7 +31,6 @@ class DepAnalysis < Bud
   def next_s
     source <= providing.map do |p|
       if p.input and !depends_tc.map{|d| d.head}.include? p.pred
-        puts "SRC" 
         [p.pred]
       end
     end
@@ -47,7 +46,7 @@ class DepAnalysis < Bud
   def otherz
     underspecified <= pairing.map do |p|
       unless depends_tc.map{|d| [d.head, d.body]}.include? [p.outcol, p.incol]
-        puts "UNCONNECTED" or [p.incol, p.outcol, "unconnected dataflow"]
+        [p.incol, p.outcol, "unconnected dataflow"]
       end
     end  
   end

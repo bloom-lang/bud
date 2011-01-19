@@ -4,6 +4,61 @@ require 'bud/sane_r2r'
 require 'parse_tree'
 
 
+class StateExtractor < SaneR2R
+  attr_reader :tabs
+  def initialize(context)
+    @cxt = context
+    @tabs = {}
+    @ttype = nil
+    super()
+  end
+
+  def process_zsuper(exp)
+    # suppress superclass calls for this rewrite.
+    # but consider obsoleting such calls via rewriting!
+    exp.shift
+    return ""
+  end
+  
+  def process_block(exp)
+    term  = exp.shift
+    res = ""
+    until term.nil?
+      res = res + process(term) + "\n"
+      term = exp.shift
+    end
+    return res
+  end
+
+  def process_defn(exp)
+    if exp.first.to_s == "state"
+      exp.shift
+      ret = exp.shift
+      process ret
+    end
+  end
+
+  def process_vcall(exp)
+    @ttype = exp.to_s
+    super
+  end
+
+  def process_lit(exp)
+    if exp.first.class == Symbol
+      tab = exp.shift.to_s
+      if @cxt.nil?
+        res = tab
+      else
+        res =  @cxt.downcase + "_" + tab
+      end
+      @tabs[tab] = [res, @ttype]
+      return ":" + res
+    else
+      super
+    end
+  end
+end
+
 class Rewriter < SaneR2R
   # the purpose of this class is to parse a bud class and provide
   # useful meta information about it for the purposes of analysis 
@@ -13,7 +68,7 @@ class Rewriter < SaneR2R
 
   attr_reader :tabs, :cols, :aliases, :rule_indx
 
-  def initialize(seed, prov)
+  def initialize(seed, tabcxt, prov)
     @rules = []
     @aliases={}
     @suppress = 0; 
@@ -24,6 +79,7 @@ class Rewriter < SaneR2R
     @nmcontext = 0
     @cols = []
     @provenance = prov
+    @tabcxt = tabcxt
     newtab(nil)
     super()
   end
@@ -69,21 +125,35 @@ class Rewriter < SaneR2R
     # try to rethink this deep copy.  
     # r2r heinously clobbers things it processes..
     l = Marshal.load(Marshal.dump(clause[1]))
-    return  (l.class == Symbol) ? l.to_s : l.nil? ? "" : process(l.clone)
+    
+    @lhs = true
+    ret =   (l.class == Symbol) ? l.to_s : l.nil? ? "" : process(l.clone)
+    @lhs = false
+    return ret
+  end
+
+  def resolve(res)
+    if @tabcxt[res] 
+      last = @tabcxt[res][@tabcxt[res].length-1]
+      if ((last[1] == "input" and @lhs) or (last[1] == "output" and !@lhs)) and not res =~ /_/ # and this is not already a fully-qualified table; pls fix
+        tab = @tabcxt[res][(@tabcxt[res].length)-2][0]
+      else
+        tab = last[0]
+      end
+      return tab
+    else 
+      return res
+    end
   end
 
   #######################
   # iterators
 
   def each
-    done = {}
     @rules.each do |rule|
-      #print "RULE: #{rule.inspect}\n"
-      (id, lhs, op, rhs, nm, block) = rule
-      clhs = remove_annotations(lhs)
-      crhs = remove_annotations(rhs)
-      body = remove_annotations(block)
-      yield [id, clhs, op, crhs, nm, body]  
+      #(id, lhs, op, rhs, nm, block) = rule
+      #yield [id, lhs, op, rhs, nm, block]  
+      yield rule
     end
   end
 
@@ -91,7 +161,6 @@ class Rewriter < SaneR2R
 
   def process_array(exp)
     cxt = self.context[1].to_s
-    #print "CXT #{cxt} grouoing #{@grouping} exp #{exp.inspect}\n"
     # suppress those dang angle brackets...
     if cxt == "masgn" 
       return "#{process_arglist(exp)}"
@@ -121,7 +190,6 @@ class Rewriter < SaneR2R
 
   def process_block(exp)
     # shift off the 'args'
-    #print "BLOCK: #{exp.inspect}\n"
     exp.shift
     until exp.empty?
       clause = exp.shift
@@ -151,10 +219,8 @@ class Rewriter < SaneR2R
   end
 
   def process_call(exp)
-    #print "CALL: #{exp.inspect}\n"
     op = exp[1].to_s
     if exp.length == 2
-      #print "CALL HAS 2: #{exp.inspect}\n"
       l = exp[0][0] 
       if l.to_s == 'dvar'
         aliass = exp[0][1].to_s
@@ -162,15 +228,16 @@ class Rewriter < SaneR2R
         @cols << [aliass, col, @offset]
         @offset = @offset + 1
       elsif l.to_s == 'vcall'
-        tab = exp[0][1]
+        tab = resolve(exp[0][1])
       end
+    else
+      @lhs = true
     end
     if op == "include?" and !tab.nil?
       @tabs[tab] = 1
       ret = super
     elsif @nm[op]
       if op == "group"
-        #print "GRoUPING(#{exp.length}): #{exp.inspect}. need to add a provenance argument\n"
         @grouping = true
       end
       @nmcontext = @nmcontext + 1
@@ -191,14 +258,18 @@ class Rewriter < SaneR2R
   end
 
   def process_vcall(exp)
-    t = exp[0].to_s
+    t = resolve(exp[0].to_s)
     if self.context[1].to_s == "call" or (self.context[1].to_s == "array")# and self.context[3].to_s == "lasgn")
       unless self.context[2].to_s == "block"
         newtab(t)
         @tabs[t] = @nmcontext
       end
     end
-    return "TABLE(#{exp.shift.to_s})"
+    # I want, for a given table, what its type is (eg interface or not, and if so which type) and where
+    # "below me" it was defined.
+    ret =  resolve(exp.shift.to_s) 
+    @lhs = false
+    return ret
   end
 
   def process_fcall(exp)

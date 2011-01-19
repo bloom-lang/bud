@@ -1,23 +1,5 @@
 module BudState
 
-  def accounting(name, cls)
-    print "ACCMT: #{self.class} vs #{cls}, name #{name},  #{self.class.ancestors.join(",")}\n"
-  end
-
-  def scope_scope
-    anc = []
-    on = true
-    self.class.ancestors.each do |a|
-      on = false if a.to_s == "Bud"
-      anc << a if on
-    end
-
-    if anc.to_s != "Stratification"
-      anc << name
-      puts "ANC: #{anc.join(".")}"
-    end
-  end
-
   ######## methods for registering collection types
   def define_collection(name, keys=[], cols=[])
     # rule out tablenames that used reserved words
