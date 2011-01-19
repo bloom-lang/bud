@@ -25,10 +25,6 @@ class Bud
   include Anise
   annotator :declare
 
-#  def input
-#    true
-#  end
-
   def initialize(ip, port, options = nil)
     @tables = {}
     @table_meta = []
@@ -49,19 +45,19 @@ class Bud
     self.class.ancestors.each do |anc|
       @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact if anc.methods.include? 'annotation'
     end
-    #self.class.annotation.map {|a| puts "another annotation: #{a.inspect}" }
     @declarations.uniq!
 
-    @periodics = table :periodics_tbl, ['pername'], ['ident', 'duration']
+    @periodics = table :periodics_tbl, ['pername'], ['ident', 'period']
     @vars = table :vars_tbl, ['varname'], ['value']
     @tmpvars = scratch :tmpvars_tbl, ['tmpvarname'], ['value']
 
-    state
-
+    init_state
     bootstrap
     # make sure that new_delta tuples from bootstrap rules are transitioned into 
     # storage before first tick.
     tables.each{|name,coll| coll.install_deltas}
+    # note that any tuples installed into a channel won't immediately be
+    # flushed; we need to wait for EM startup to do that
 
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
@@ -72,7 +68,6 @@ class Bud
 
   ########### give empty defaults for these
   def state
-    #channel :tickler, 0, ['server']
   end
   def declaration
   end
@@ -135,9 +130,15 @@ class Bud
     begin
       EventMachine::run {
         EventMachine::start_server(@ip, @port, BudServer, self)
+
+        # flush any tuples installed into channels during bootstrap block
+        # XXX: doing this here is a kludge; we should do all of bootstrap
+        # in one place
+        @channels.each { |c| @tables[c[0]].flush }
+
         # initialize periodics
         @periodics.each do |p|
-          set_periodic_timer(p.pername, p.ident, p.duration)
+          set_periodic_timer(p.pername, p.ident, p.period)
         end
         tick
       }
@@ -149,13 +150,17 @@ class Bud
     terminal :stdio
   end
 
-  def tick
+  def init_state
     # reset any schema stuff that isn't already there
     # state to be defined by the user program
     # rethink this.
+    state
+    builtin_state
+  end
+
+  def tick
     unless @options['provenance']
-      state
-      builtin_state
+      init_state
     end
 
     receive_inbound
@@ -281,8 +286,8 @@ class Bud
     Time.new.to_i.to_s << rand.to_s
   end
 
-  def set_periodic_timer(name, id, secs)
-    EventMachine::PeriodicTimer.new(secs) do
+  def set_periodic_timer(name, id, period)
+    EventMachine::PeriodicTimer.new(period) do
       @tables[name] <+ [[id, Time.new.to_s]]
       tick
     end
