@@ -364,6 +364,7 @@ class Bud
       @dq = {}
       super
     end
+
     def tick
       @dq.each_key {|k| @storage.delete k}
     end
@@ -522,7 +523,6 @@ class Bud
     end
 
     superator "<-" do |o|
-      # delta =
       o.map {|i| self.do_insert(i, @to_delete)}
     end
   end
@@ -570,7 +570,7 @@ class Bud
       end
     end
 
-    def do_insert(o,store)
+    def do_insert(o, store)
       raise BudError, "no insertion into joins"
     end
 
@@ -714,7 +714,7 @@ class Bud
       @storage = {}
       # NEEDS A TRY/RESCUE BLOCK
       @fd = File.open(@filename, "r")
-      @linenum=0
+      @linenum = 0
     end
     
     def each(&block)

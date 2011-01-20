@@ -2,7 +2,7 @@ module BudState
 
   ######## methods for registering collection types
   def define_collection(name, keys=[], cols=[])
-    # rule out tablenames that used reserved words
+    # rule out table names that use reserved words
     reserved = eval "defined?(#{name})"
     unless (reserved.nil? or (reserved == "method" and @tables[name]))
       # first time registering table, check for method name reserved
