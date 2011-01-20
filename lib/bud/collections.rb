@@ -496,14 +496,13 @@ class Bud
   end
 
   class BudTable < BudCollection
-    def initialize(name, keys, cols, bud_instance, conflict)
+    def initialize(name, keys, cols, bud_instance)
       super(name, keys, cols, bud_instance)
-      @conflict = conflict
       init_to_delete
     end
 
     def clone_empty
-      retval = self.class.new(name, keys, schema - keys, bud_instance, @conflict)
+      retval = self.class.new(name, keys, schema - keys, bud_instance)
       retval.init_storage
       retval.init_pending
       retval.init_to_delete

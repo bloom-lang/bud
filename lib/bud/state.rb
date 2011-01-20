@@ -42,17 +42,9 @@ module BudState
     #scratch(name, keys, cols)
   end
 
-  def table(name, keys, cols=[], conf=nil)
+  def table(name, keys, cols=[])
     define_or_tick_collection(name, keys, cols)
-    @tables[name] ||= Bud::BudTable.new(name, keys, cols, self, conf)
-  end
-
-  def blackboard(name, keys, cols=[])
-    table(name, keys, cols, "last")
-  end
-
-  def permanent(name, keys, cols=[])
-    table(name, keys, cols, "first")
+    @tables[name] ||= Bud::BudTable.new(name, keys, cols, self)
   end
 
   def scratch(name, keys, cols=[])
