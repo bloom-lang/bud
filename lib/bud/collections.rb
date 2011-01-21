@@ -8,7 +8,7 @@ class Bud
 
     # each collection is partitioned into 4:
     # - pending holds tuples deferred til the next tick
-    # - storage holds the "normal" tuples 
+    # - storage holds the "normal" tuples
     # - delta holds the delta for rhs's of rules during semi-naive
     # - new_delta will hold the lhs tuples currently being produced during s-n
     def initialize(name, keys, cols, b_class)
@@ -24,10 +24,7 @@ class Bud
     end
 
     def clone_empty
-      retval = self.class.new(tabname, keys, schema - keys, bud_instance)
-      retval.storage = []
-      retval.pending = []
-      return retval
+      self.class.new(tabname, keys, cols, bud_instance)
     end
 
     def cols
@@ -195,7 +192,7 @@ class Bud
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
         self.schema = o.schema
       end
-      return @pending
+      @pending
     end
 
     superator "<+" do |o|
@@ -216,9 +213,6 @@ class Bud
       # assertion: intersect(@storage, @delta) == nil
       @storage.merge!(@delta)
       @delta = @new_delta
-      # @new_delta.each do |k,t| 
-      #   do_insert(t, @delta)
-      # end
       @new_delta = {}
     end
 
@@ -280,7 +274,6 @@ class Bud
         retval = BudScratch.new('argagg_temp', @schema, [], bud_instance)
         retval.merge(finals, retval.storage)
       end
-
     end
 
     def argmin(gbkeys, col)
@@ -345,7 +338,7 @@ class Bud
     end
 
     def dump
-      puts '(empty)' if (@storage.length == 0)
+      puts '(empty)' if @storage.length == 0
       @storage.sort.each do |t|
         puts t.inspect unless cols.empty?
         puts t[0].inspect if cols.empty?
@@ -529,11 +522,11 @@ class Bud
   class BudJoin < BudCollection
     attr_accessor :rels, :origrels
 
-    def initialize(rellist, b_class, preds=nil)
+    def initialize(rellist, bud_instance, preds=nil)
       @schema = []
       otherpreds = nil
       @origrels = rellist
-      @bud_instance = b_class
+      @bud_instance = bud_instance
 
       # extract predicates on rellist[0] and let the rest recurse
       unless preds.nil?
@@ -672,9 +665,9 @@ class Bud
   end
 
   class BudLeftJoin < BudJoin
-    def initialize(rellist, b_class, preds=nil)
+    def initialize(rellist, bud_instance, preds=nil)
       raise(BudError, "Left Join only defined for two relations") unless rellist.length == 2
-      super(rellist, b_class, preds)
+      super(rellist, bud_instance, preds)
       @origpreds = preds
     end
 
@@ -707,8 +700,8 @@ class Bud
   end
 
   class BudFileReader < BudReadOnly
-    def initialize(name, filename, delimiter, b_class)
-      super(name, ['lineno'], ['text'], b_class)
+    def initialize(name, filename, delimiter, bud_instance)
+      super(name, ['lineno'], ['text'], bud_instance)
       @filename = filename
       @storage = {}
       # NEEDS A TRY/RESCUE BLOCK
