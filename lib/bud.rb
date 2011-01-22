@@ -124,7 +124,7 @@ class Bud
   # Schedule a "graceful" shutdown for a future EM tick
   def schedule_shutdown
     EventMachine::schedule do
-      @disk_tables.each do |t|
+      @disk_tables.each_value do |t|
         t.close
       end
       EventMachine::stop_event_loop
@@ -166,8 +166,7 @@ class Bud
   # tables.
   def do_flush
     @channels.each { |c| @tables[c[0]].flush }
-
-    @disk_tables.each { |t| t.flush }
+    @disk_tables.each_value { |t| t.flush }
   end
 
   def builtin_state
