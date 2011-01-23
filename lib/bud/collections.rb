@@ -13,14 +13,14 @@ class Bud
     # - storage holds the "normal" tuples
     # - delta holds the delta for rhs's of rules during semi-naive
     # - new_delta will hold the lhs tuples currently being produced during s-n
-    def initialize(name, keys, cols, b_class)
+    def initialize(name, keys, cols, bud_instance)
       @tabname = name
       @schema = keys+cols
       @keys = keys
       init_storage
       init_pending
       init_deltas
-      @bud_instance = b_class
+      @bud_instance = bud_instance
       raise BudError, "schema for #{tabname} contains duplicate names" if schema.uniq.length < schema.length
       setup_accessors
     end
@@ -355,7 +355,7 @@ class Bud
   end
   
   class BudSerializer < BudCollection
-    def initialize(name, keys, cols, b_class)
+    def initialize(name, keys, cols, bud_instance)
       @dq = {}
       super
     end
@@ -377,8 +377,8 @@ class Bud
   class BudChannel < BudCollection
     attr_accessor :locspec, :connections
 
-    def initialize(name, keys, cols, b_class, locspec_arg)
-      super(name, keys, cols, b_class)
+    def initialize(name, keys, cols, bud_instance, locspec_arg)
+      super(name, keys, cols, bud_instance)
       @locspec = locspec_arg
       @connections = {}
     end
@@ -435,11 +435,11 @@ class Bud
   end
 
   class BudTerminal < BudCollection
-    def initialize(name, keys, cols, b_class, prompt=false)
-      super(name, keys, cols, b_class)
+    def initialize(name, keys, cols, bud_instance, prompt=false)
+      super(name, keys, cols, bud_instance)
 
-      ip = b_class.ip
-      port = b_class.port
+      ip = bud_instance.ip
+      port = bud_instance.port
       @connection = nil
 
       # XXX: Ugly hack. Rather than sending terminal data to EM via TCP,
@@ -726,10 +726,12 @@ class Bud
       super(name, keys, cols, bud_instance)
       @to_delete = {}
       @hdb = TokyoCabinet::HDB.new
+      db_fname = "/tmp/bud_#{@bud_instance.port}.tch"
       # XXX: HDB::OTRUNC is not right, but convenient for now
-      if !@hdb.open("/tmp/bud.tch", TokyoCabinet::HDB::OWRITER |
-                                    TokyoCabinet::HDB::OTRUNC)
-        raise BudError, "Failed to open TokyoCabinet DB!"
+      if !@hdb.open(db_fname, TokyoCabinet::HDB::OWRITER |
+                              TokyoCabinet::HDB::OTRUNC |
+                              TokyoCabinet::HDB::OCREAT)
+        raise BudError, "Failed to open TokyoCabinet DB: #{@hdb.errmsg}"
       end
       @hdb.tranbegin
     end
@@ -779,6 +781,7 @@ class Bud
     end
 
     def close
+      puts "TC::close() -- port = #{@bud_instance.port}"
       @hdb.close
     end
 
