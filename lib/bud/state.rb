@@ -106,6 +106,12 @@ module BudState
     @tables[name] ||= Bud::BudTerminal.new(name, keys, [], self)
   end
 
+  def tctable(name, keys, cols)
+    define_or_tick_collection(name, keys, cols)
+    @tables[name] ||= Bud::BudTcTable.new(name, keys, cols, self)
+    @disk_tables[name] ||= @tables[name]
+  end
+
   # methods to define vars and tmpvars.  This code still quite tentative
   def regvar(name, collection)
     # rule out varnames that used reserved words

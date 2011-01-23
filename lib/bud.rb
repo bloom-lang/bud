@@ -202,7 +202,6 @@ class Bud
         str = rs.nil? ? "" : rs
         # eval once and put into block
         block = eval "lambda { #{str} }"
-        #block = lambda { eval(str) }
         @strata << block
       end
     elsif @declarations.length > 0

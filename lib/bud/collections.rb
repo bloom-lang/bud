@@ -1,3 +1,5 @@
+require 'tokyocabinet'
+
 class Bud
   ######## the collection types
   class BudCollection
@@ -150,7 +152,7 @@ class Bud
     end
 
     def insert(o)
-      # puts "insert: #{o.inspect} into #{tabname}"
+      puts "insert: #{o.inspect} into #{tabname}"
       do_insert(o, @storage)
     end
 
@@ -391,7 +393,7 @@ class Bud
       retval = super
       retval.locspec = locspec
       retval.connections = @connections.clone
-      return retval
+      retval
     end
 
     def establish_connection(l)
@@ -419,8 +421,8 @@ class Bud
         end
         establish_connection(the_locspec) if @connections[the_locspec].nil?
         @connections[the_locspec].send_data [@tabname, t].to_msgpack
-        @pending.delete t
       end
+      @pending.clear
     end
 
     superator "<~" do |o|
@@ -495,11 +497,7 @@ class Bud
     end
 
     def clone_empty
-      retval = self.class.new(name, keys, schema - keys, bud_instance)
-      retval.init_storage
-      retval.init_pending
-      retval.init_to_delete
-      return retval
+      self.class.new(name, keys, cols, bud_instance)
     end
 
     def tick
@@ -719,6 +717,122 @@ class Bud
     
     def tick
       self
+    end
+  end
+
+  # Persistent table implementation based on TokyoCabinet.
+  class BudTcTable < BudCollection
+    def initialize(name, keys, cols, bud_instance)
+      super(name, keys, cols, bud_instance)
+      @to_delete = {}
+      @hdb = TokyoCabinet::HDB.new
+      # XXX: HDB::OTRUNC is not right, but convenient for now
+      if !@hdb.open("/tmp/bud.tch", TokyoCabinet::HDB::OWRITER |
+                                    TokyoCabinet::HDB::OTRUNC)
+        raise BudError, "Failed to open TokyoCabinet DB!"
+      end
+      @hdb.tranbegin
+    end
+
+    def init_storage
+      # XXX: ugly; we can't easily use the @storage infrastructure provided by
+      # BudCollection; issue #33
+      @storage = nil
+    end
+
+    def [](key)
+      puts "TC::[] -- key = #{key.inspect}"
+      key_s = Marshal.dump(key)
+      val_s = @hdb[key_s]
+      if val_s
+        return make_tuple(key, Marshal.load(val_s))
+      else
+        return @delta[key]
+      end
+    end
+
+    def make_tuple(k_ary, v_ary)
+      t = Array.new(k_ary.length + v_ary.length)
+      keys.each_with_index do |k,i|
+        t[schema.index(k)] = k_ary[i]
+      end
+      cols.each_with_index do |c,i|
+        t[schema.index(c)] = v_ary[i]
+      end
+      puts "Reconstructed tuple: #{t.inspect}"
+      t
+    end
+
+    def each(&block)
+      puts "TC::each() invoked"
+      each_delta(&block)
+      @hdb.each do |k,v|
+        k_ary = Marshal.load(k)
+        v_ary = Marshal.load(v)
+        yield make_tuple(k_ary, v_ary)
+      end
+    end
+
+    def flush
+      puts "TC::flush()"
+      @hdb.trancommit
+    end
+
+    def close
+      @hdb.close
+    end
+
+    def merge_to_hdb(buf)
+      buf.each do |key,tuple|
+        val = cols.map{|c| tuple[schema.index(c)]}
+        puts "merge_to_hdb: key = #{key.inspect}; tuple = #{tuple.inspect}; val = #{val.inspect}"
+        key_s = Marshal.dump(key)
+        val_s = Marshal.dump(val)
+        if @hdb.putkeep(key_s, val_s) == false
+          raise KeyConstraintError, "Key conflict on tuple #{t.inspect}"
+        end
+      end
+    end
+
+    # move all deltas and new_deltas to TC
+    def install_deltas
+      puts "TC::install_deltas(): pending = #{@pending.length}, delta = #{@delta.length}, new_delta = #{@new_delta.length}"
+      merge_to_hdb(@delta)
+      merge_to_hdb(@new_delta)
+      @delta = {}
+      @new_delta = {}
+    end
+
+    # move deltas to TC, and new_deltas to deltas
+    def tick_deltas
+      puts "TC::tick_deltas(): pending = #{@pending.length}, delta = #{@delta.length}, new_delta = #{@new_delta.length}"
+      merge_to_hdb(@delta)
+      @delta = @new_delta
+      @new_delta = {}
+    end
+
+    superator "<-" do |o|
+      o.map {|i| self.do_insert(i, @to_delete)}
+    end
+
+    # Remove to_delete and then add pending to HDB
+    def tick
+      puts "TC::tick(): # of tuples = #{@hdb.length}"
+      @to_delete.each_key do |k|
+        k_str = Marshal.dump(k)
+        @hdb.delete(k_str)
+      end
+      @pending.each do |k,v|
+        # ...
+      end
+      @pending = {}
+      @to_delete = {}
+      @hdb.trancommit
+      @hdb.tranbegin
+    end
+
+    def method_missing(sym, *args, &block)
+      @hdb.send sym, *args, &block
     end
   end
 end
