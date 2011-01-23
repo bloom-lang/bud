@@ -10,14 +10,14 @@ class DeltaTest < Bud
   end
 
   def bootstrap
-      orig <= [['a', 'b', 1, 2]]
-      orig <= [['a', 'c', 3, 4]]
+    orig <= [['a', 'b', 1, 2]]
+    orig <= [['a', 'c', 3, 4]]
   end
 
   declare
   def rules
-      scr <= orig
-      result <= scr
+    scr <= orig
+    result <= scr
   end
 end
 
