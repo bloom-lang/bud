@@ -8,13 +8,13 @@ class DeltaTest < Bud
     scratch :scr, ['k1', 'k2']
     table :result, ['k1', 'k2'], ['v1', 'v2']
   end
-  
+
   def bootstrap
       orig <= [['a', 'b', 1, 2]]
       orig <= [['a', 'c', 3, 4]]
-    end
-  
-  declare 
+  end
+
+  declare
   def rules
       scr <= orig
       result <= scr
@@ -31,8 +31,8 @@ class DeltaJoinTest < Bud
   def bootstrap
     orig <= [['a', 'b'], ['b', 'c'], ['c', 'd']]
   end
-  
-  declare 
+
+  declare
   def paths
     link <= orig
     path <= link
@@ -54,8 +54,8 @@ class Delta3JoinTest < Bud
     orig <= [['a', 'b'], ['b', 'c'], ['c', 'd']]
     wanted <= [['a'], ['b'], ['c']]
   end
-  
-  declare 
+
+  declare
   def paths
     link <= orig
     path <= link
@@ -66,13 +66,12 @@ class Delta3JoinTest < Bud
 end
 
 class TestDelta < Test::Unit::TestCase
- 
   def test_transitivity
     program = DeltaTest.new('localhost', 12345)
     assert_nothing_raised(RuntimeError) {program.tick}
     assert_equal(2, program.result.length)
   end
-  
+
   def test_one
     program = DeltaJoinTest.new('localhost', 12345)
     assert_nothing_raised(RuntimeError) {program.tick}
@@ -86,5 +85,4 @@ class TestDelta < Test::Unit::TestCase
     assert_equal(6, program.path.length)
     assert_equal(6, program.hashpath.length)
   end
-  
 end
