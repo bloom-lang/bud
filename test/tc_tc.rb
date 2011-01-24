@@ -10,11 +10,11 @@ class TcTest < Bud
     table :pending_buf, ['k1', 'k2'], ['v1', 'v2']
     table :pending_buf2, ['k1', 'k2'], ['v1', 'v2']
 
-    tctable :t2, ['k'], ['v']
-    tctable :t3, ['k'], ['v']
-    tctable :t4, ['k'], ['v']
-    table :chain_start, ['k'], ['v']
-    table :chain_del, ['k'], ['v']
+    scratch :t2, ['k'], ['v']
+    scratch :t3, ['k'], ['v']
+    scratch :t4, ['k'], ['v']
+    tctable :chain_start, ['k'], ['v']
+    tctable :chain_del, ['k'], ['v']
   end
 
   declare
@@ -30,7 +30,7 @@ class TcTest < Bud
     t2 <= chain_start.map{|c| [c.k, c.v + 1]}
     t3 <= t2.map{|c| [c.k, c.v + 1]}
     t4 <= t3.map{|c| [c.k, c.v + 1]}
-    t2 <- chain_del
+    chain_start <- chain_del
   end
 end
 
@@ -69,10 +69,6 @@ class TestTc < Test::Unit::TestCase
     t.in_buf << ['6', '10', '3', '4']
     assert_nothing_raised(RuntimeError) {t.tick}
     assert_equal(3, t.t1.length)
-  end
-
-  # TODO: check that each() works
-  def test_scan
   end
 
   # TODO: check that stopping / restarting a Bud instance persists storage
@@ -135,15 +131,16 @@ class TestTc < Test::Unit::TestCase
     assert_equal(2, t.t4.length)
     assert_equal([10,18], t.t4[[10]])
 
-    # XXX: finish
-    t.chain_del << [5,11]
+    t.chain_del << [5,10]
     assert_nothing_raised(RuntimeError) {t.tick}
+    assert_equal(2, t.chain_start.length)
     assert_equal(2, t.t2.length)
     assert_equal(2, t.t3.length)
     assert_equal(2, t.t4.length)
     assert_nothing_raised(RuntimeError) {t.tick}
-    assert_equal(2, t.t2.length)
-    assert_equal(2, t.t3.length)
-    assert_equal(2, t.t4.length)
+    assert_equal(1, t.chain_start.length)
+    assert_equal(1, t.t2.length)
+    assert_equal(1, t.t3.length)
+    assert_equal(1, t.t4.length)
   end
 end
