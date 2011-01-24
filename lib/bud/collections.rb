@@ -42,7 +42,7 @@ class Bud
     end
 
     # define methods to turn 'table.col' into a [table,col] pair
-    # e.g. to support somethin like
+    # e.g. to support something like
     #    j = join link, path, {link.to => path.from}
     def setup_accessors
       s = @schema
@@ -725,7 +725,7 @@ class Bud
       super(name, keys, cols, bud_instance)
       @to_delete = {}
       @hdb = TokyoCabinet::HDB.new
-      db_fname = "/tmp/bud_#{@bud_instance.port}.tch"
+      db_fname = "/tmp/bud_#{@bud_instance.port}_#{name}.tch"
       # XXX: HDB::OTRUNC is wrong, but convenient for now
       if !@hdb.open(db_fname, TokyoCabinet::HDB::OWRITER |
                               TokyoCabinet::HDB::OTRUNC |
@@ -759,7 +759,7 @@ class Bud
       cols.each_with_index do |c,i|
         t[schema.index(c)] = v_ary[i]
       end
-      t
+      tuple_accessors(t)
     end
 
     def each(&block)
