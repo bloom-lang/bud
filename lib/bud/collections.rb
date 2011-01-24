@@ -827,11 +827,11 @@ class Bud
         k_str = Marshal.dump(k)
         @hdb.delete(k_str)
       end
-      @pending.each do |k,v|
-        # ...
-      end
-      @pending = {}
       @to_delete = {}
+
+      merge_to_hdb(@pending)
+      @pending = {}
+
       @hdb.trancommit
       @hdb.tranbegin
     end

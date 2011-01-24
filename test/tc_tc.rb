@@ -7,18 +7,23 @@ class TcTest < Bud
     tctable :t1, ['k1', 'k2'], ['v1', 'v2']
     table :in_buf, ['k1', 'k2', 'v1', 'v2']
     table :del_buf, ['k1', 'k2', 'v1', 'v2']
+    table :pending_buf, ['k1', 'k2'], ['v1', 'v2']
+    table :pending_buf2, ['k1', 'k2'], ['v1', 'v2']
   end
 
   declare
   def logic
     t1 <= in_buf
     t1 <- del_buf
+    t1 <+ pending_buf
+    t1 <+ pending_buf2
   end
 end
 
 class TestTc < Test::Unit::TestCase
   def test_basic_ins
     t = TcTest.new('localhost', 12345)
+    assert_equal(0, t.t1.length)
     t.in_buf << ['1', '2', '3', '4']
     t.in_buf << ['1', '3', '3', '4']
     assert_nothing_raised(RuntimeError) {t.tick}
@@ -61,10 +66,23 @@ class TestTc < Test::Unit::TestCase
   end
 
   def test_pending_ins
+    t = TcTest.new('localhost', 12349)
+    t.pending_buf << ['1', '2', '3', '4']
+    assert_nothing_raised(RuntimeError) {t.tick}
+    assert_equal(0, t.t1.length)
+    assert_nothing_raised(RuntimeError) {t.tick}
+    assert_equal(1, t.t1.length)
+  end
+
+  def test_pending_key_conflict
+    t = TcTest.new('localhost', 12350)
+    t.pending_buf << ['1', '2', '3', '4']
+    t.pending_buf2 << ['1', '2', '3', '5']
+    assert_raise(Bud::KeyConstraintError) {t.tick}
   end
 
   def test_basic_del
-    t = TcTest.new('localhost', 12349)
+    t = TcTest.new('localhost', 12351)
     t.t1 << ['1', '2', '3', '4']
     t.t1 << ['1', '3', '3', '4']
     t.t1 << ['2', '4', '3', '4']
