@@ -152,7 +152,7 @@ class Bud
     end
 
     def insert(o)
-      puts "insert: #{o.inspect} into #{tabname}"
+      # puts "insert: #{o.inspect} into #{tabname}"
       do_insert(o, @storage)
     end
 
@@ -505,7 +505,6 @@ class Bud
       @storage.merge! @pending
       @to_delete = {}
       @pending = {}
-      #      self
     end
 
     def init_to_delete
@@ -727,7 +726,7 @@ class Bud
       @to_delete = {}
       @hdb = TokyoCabinet::HDB.new
       db_fname = "/tmp/bud_#{@bud_instance.port}.tch"
-      # XXX: HDB::OTRUNC is not right, but convenient for now
+      # XXX: HDB::OTRUNC is wrong, but convenient for now
       if !@hdb.open(db_fname, TokyoCabinet::HDB::OWRITER |
                               TokyoCabinet::HDB::OTRUNC |
                               TokyoCabinet::HDB::OCREAT)
@@ -743,7 +742,6 @@ class Bud
     end
 
     def [](key)
-      puts "TC::[] -- key = #{key.inspect}"
       key_s = Marshal.dump(key)
       val_s = @hdb[key_s]
       if val_s
@@ -761,12 +759,10 @@ class Bud
       cols.each_with_index do |c,i|
         t[schema.index(c)] = v_ary[i]
       end
-      puts "Reconstructed tuple: #{t.inspect}"
       t
     end
 
     def each(&block)
-      puts "TC::each() invoked"
       each_delta(&block)
       @hdb.each do |k,v|
         k_ary = Marshal.load(k)
@@ -776,7 +772,6 @@ class Bud
     end
 
     def flush
-      puts "TC::flush()"
       @hdb.trancommit
     end
 
@@ -787,19 +782,21 @@ class Bud
 
     def merge_to_hdb(buf)
       buf.each do |key,tuple|
-        val = cols.map{|c| tuple[schema.index(c)]}
-        puts "merge_to_hdb: key = #{key.inspect}; tuple = #{tuple.inspect}; val = #{val.inspect}"
-        key_s = Marshal.dump(key)
-        val_s = Marshal.dump(val)
-        if @hdb.putkeep(key_s, val_s) == false
-          raise KeyConstraintError, "Key conflict on tuple #{t.inspect}"
-        end
+        merge_tuple(key, tuple)
+      end
+    end
+
+    def merge_tuple(key, tuple)
+      val = cols.map{|c| tuple[schema.index(c)]}
+      key_s = Marshal.dump(key)
+      val_s = Marshal.dump(val)
+      if @hdb.putkeep(key_s, val_s) == false
+        raise KeyConstraintError, "Key conflict on tuple #{t.inspect}"
       end
     end
 
     # move all deltas and new_deltas to TC
     def install_deltas
-      puts "TC::install_deltas(): pending = #{@pending.length}, delta = #{@delta.length}, new_delta = #{@new_delta.length}"
       merge_to_hdb(@delta)
       merge_to_hdb(@new_delta)
       @delta = {}
@@ -808,7 +805,6 @@ class Bud
 
     # move deltas to TC, and new_deltas to deltas
     def tick_deltas
-      puts "TC::tick_deltas(): pending = #{@pending.length}, delta = #{@delta.length}, new_delta = #{@new_delta.length}"
       merge_to_hdb(@delta)
       @delta = @new_delta
       @new_delta = {}
@@ -818,9 +814,15 @@ class Bud
       o.map {|i| self.do_insert(i, @to_delete)}
     end
 
+    def insert(tuple)
+      key = keys.map{|k| tuple[schema.index(k)]}
+      merge_tuple(key, tuple)
+    end
+
+    alias << insert
+
     # Remove to_delete and then add pending to HDB
     def tick
-      puts "TC::tick(): # of tuples = #{@hdb.length}"
       @to_delete.each_key do |k|
         k_str = Marshal.dump(k)
         @hdb.delete(k_str)

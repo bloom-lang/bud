@@ -6,11 +6,13 @@ class TcTest < Bud
   def state
     tctable :t1, ['k1', 'k2'], ['v1', 'v2']
     table :in_buf, ['k1', 'k2', 'v1', 'v2']
+    table :del_buf, ['k1', 'k2', 'v1', 'v2']
   end
 
   declare
   def logic
     t1 <= in_buf
+    t1 <- del_buf
   end
 end
 
@@ -40,5 +42,40 @@ class TestTc < Test::Unit::TestCase
     t.in_buf << ['6', '10', '3', '4']
     assert_nothing_raised(RuntimeError) {t.tick}
     assert_equal(3, t.t1.length)
+  end
+
+  def test_scan
+  end
+
+  def test_pending_ins
+  end
+
+  def test_basic_del
+    t = TcTest.new('localhost', 12349)
+    t.t1 << ['1', '2', '3', '4']
+    t.t1 << ['1', '3', '3', '4']
+    t.t1 << ['2', '4', '3', '4']
+    assert_nothing_raised(RuntimeError) {t.tick}
+    assert_equal(3, t.t1.length)
+
+    t.del_buf << ['2', '4', '3', '4'] # should delete
+    assert_nothing_raised(RuntimeError) {t.tick}
+    assert_equal(3, t.t1.length)
+    assert_nothing_raised(RuntimeError) {t.tick}
+    assert_equal(2, t.t1.length)
+
+    if false
+    t.del_buf << ['1', '2', '3', '5'] # shouldn't delete
+    assert_nothing_raised(RuntimeError) {t.tick}
+    assert_equal(2, t.t1.length)
+    assert_nothing_raised(RuntimeError) {t.tick}
+    assert_equal(2, t.t1.length)
+    end
+
+    t.del_buf << ['1', '3', '3', '4'] # should delete
+    assert_nothing_raised(RuntimeError) {t.tick}
+    assert_equal(2, t.t1.length)
+    assert_nothing_raised(RuntimeError) {t.tick}
+    assert_equal(1, t.t1.length)
   end
 end
