@@ -57,7 +57,7 @@ class TestJoins < Test::Unit::TestCase
   def test_combos
     program = CombosBud.new('localhost', 12345, {'visualize' => false})
     assert_nothing_raised(RuntimeError) { program.tick }
-    simple_outs = program.simple_out.map {|t| t}
+    simple_outs = program.simple_out
     assert_equal(7, simple_outs.length)
     assert_equal(1, simple_outs.select { |t| t[0] == 'a'} .length)
     assert_equal(2, simple_outs.select { |t| t[0] == 'b'} .length)
@@ -67,7 +67,7 @@ class TestJoins < Test::Unit::TestCase
   def test_secondary_join_predicates
     program = CombosBud.new('localhost', 12345)
     assert_nothing_raised(RuntimeError) { program.tick }
-    match_outs = program.match_out.map {|t| t}
+    match_outs = program.match_out
     assert_equal(4, match_outs.length)
     assert_equal(1, match_outs.select { |t| t[0] == 'a'} .length)
     assert_equal(1, match_outs.select { |t| t[0] == 'b'} .length)
@@ -77,11 +77,11 @@ class TestJoins < Test::Unit::TestCase
   def test_3_joins
     program = CombosBud.new('localhost', 12345)
     assert_nothing_raised(RuntimeError) { program.tick }
-    chain_outs = program.chain_out.map {|t| t}
+    chain_outs = program.chain_out.to_a
     assert_equal(1, chain_outs.length)
-    flip_outs = program.flip_out.map {|t| t}
+    flip_outs = program.flip_out.to_a
     assert_equal(1, flip_outs.length)
-    nat_outs = program.nat_out.map{|t| t}
+    nat_outs = program.nat_out
     assert_equal(1, nat_outs.length)
     assert_equal(chain_outs, flip_outs)
   end
@@ -91,7 +91,7 @@ class TestJoins < Test::Unit::TestCase
   def ntest_left_outer_join
     program = CombosBud.new('localhost', 12345)
     assert_nothing_raised(RuntimeError) { program.tick }
-    loj_outs = program.loj_out.map{|t| t}
+    loj_outs = program.loj_out
     assert_equal(3, loj_outs.length)
     assert_equal(loj_outs.inspect, '[["z", nil, 1, nil], ["v", nil, 1, nil], ["a", "a", 1, 1]]')
   end
