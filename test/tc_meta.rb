@@ -74,13 +74,12 @@ class TestMeta < Test::Unit::TestCase
   def test_paths
     program = LocalShortestPaths.new('localhost', 134634)
     assert_equal(0, program.strata.length)
-    assert_nothing_raised( RuntimeError) { program.tick }
+    assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal(4, program.strata.length)
   end
 
   def test_unstrat
     assert_raise(RuntimeError) { program = KTest3.new('localhost', 34521, {'dump' => true, 'visualize' => true, 'enforce_rewrite' => true, 'provenance' =>true}) }
-  
   end
 
   def test_visualization
@@ -95,8 +94,5 @@ class TestMeta < Test::Unit::TestCase
   dep.tick
 
   program.visualize(program.strat_state, "outp", dep)
-  
-
   end
-  
 end

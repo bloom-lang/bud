@@ -2,7 +2,7 @@ module BudState
 
   ######## methods for registering collection types
   def define_collection(name, keys=[], cols=[])
-    # rule out tablenames that used reserved words
+    # rule out table names that use reserved words
     reserved = eval "defined?(#{name})"
     unless (reserved.nil? or (reserved == "method" and @tables[name]))
       # first time registering table, check for method name reserved
@@ -42,17 +42,9 @@ module BudState
     #scratch(name, keys, cols)
   end
 
-  def table(name, keys, cols=[], conf=nil)
+  def table(name, keys, cols=[])
     define_or_tick_collection(name, keys, cols)
-    @tables[name] ||= Bud::BudTable.new(name, keys, cols, self, conf)
-  end
-
-  def blackboard(name, keys, cols=[])
-    table(name, keys, cols, "last")
-  end
-
-  def permanent(name, keys, cols=[])
-    table(name, keys, cols, "first")
+    @tables[name] ||= Bud::BudTable.new(name, keys, cols, self)
   end
 
   def scratch(name, keys, cols=[])

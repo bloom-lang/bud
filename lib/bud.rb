@@ -33,6 +33,7 @@ class Bud
     @provides = {}
     @demands = {}
     @channels = {}
+    @disk_tables = {}
     @budtime = 0
     @each_counter = {}
     @ip = ip
@@ -115,13 +116,20 @@ class Bud
   end
 
   def stop_bg
-    EventMachine::next_tick {
-      EventMachine::stop_event_loop
-    }
+    schedule_shutdown
     # Block until the background thread has actually exited
     @t.join
   end
 
+  # Schedule a "graceful" shutdown for a future EM tick
+  def schedule_shutdown
+    EventMachine::schedule do
+      @disk_tables.each_value do |t|
+        t.close
+      end
+      EventMachine::stop_event_loop
+    end
+  end
 
   # We proceed in time ticks, a la Dedalus.
   # Within each tick there may be multiple strata.
@@ -129,12 +137,20 @@ class Bud
   def run
     begin
       EventMachine::run {
+        # If we get SIGINT or SIGTERM, shutdown gracefully
+        Signal.trap("INT") do
+          schedule_shutdown
+        end
+        Signal.trap("TRAP") do
+          schedule_shutdown
+        end
+
         EventMachine::start_server(@ip, @port, BudServer, self)
 
         # flush any tuples installed into channels during bootstrap block
         # XXX: doing this here is a kludge; we should do all of bootstrap
         # in one place
-        @channels.each { |c| @tables[c[0]].flush }
+        do_flush
 
         # initialize periodics
         @periodics.each do |p|
@@ -143,6 +159,14 @@ class Bud
         tick
       }
     end
+  end
+
+  # "Flush" any tuples that need to be flushed. This does two things: (1) emit
+  # outgoing tuples in channels (2) commit to disk any changes made to on-disk
+  # tables.
+  def do_flush
+    @channels.each { |c| @tables[c[0]].flush }
+    @disk_tables.each_value { |t| t.flush }
   end
 
   def builtin_state
@@ -188,7 +212,7 @@ class Bud
       end
     end
     @strata.each { |strat| stratum_fixpoint(strat) }
-    @channels.each { |c| @tables[c[0]].flush }
+    do_flush
     @budtime += 1
     return @budtime
   end
