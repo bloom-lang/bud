@@ -141,11 +141,16 @@ class Bud
       return (self[o] == o)
     end
 
+    def raise_pk_error(new, old)
+      keycols = keys.map{|k| old[schema.index(k)]}
+      raise KeyConstraintError, "Key conflict inserting #{old.inspect} into \"#{tabname}\": existing tuple #{new.inspect}, keys = #{keycols.inspect}"
+    end
+
     def do_insert(o, store)
       return if o.nil? or o.length == 0
       keycols = keys.map{|k| o[schema.index(k)]}
       if (old = store[keycols]) and o != old
-        raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{o.inspect}] into #{tabname}: existing tuple [#{keycols.inspect}][#{self[keycols].inspect}]"
+        raise_pk_error(o, old)
       end
       store[keycols] = tuple_accessors(o)
       return store[keycols]
@@ -170,11 +175,11 @@ class Bud
         keycols = keys.map{|k| i[schema.index(k)]}
         if (old = self[keycols])
           if old != i
-            raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{i.inspect}] into #{tabname}: existing tuple [#{keycols.inspect}][#{self[keycols].inspect}]"
+            raise_pk_error(i, old)
           end
         elsif (oldnew = self.new_delta[keycols])
           if oldnew != i
-            raise KeyConstraintError, "Key conflict inserting [#{keycols.inspect}][#{i.inspect}] into #{tabname}: existing new_delta tuple [#{keycols.inspect}][#{self.new_delta[keycols].inspect}]"
+            raise_pk_error(i, oldnew)
           end
         else
           # don't call do_insert, it will just recheck our tests for hash collision
@@ -754,7 +759,7 @@ class Bud
     end
 
     def init_storage
-      # XXX: ugly; we can't easily use the @storage infrastructure provided by
+      # XXX: we can't easily use the @storage infrastructure provided by
       # BudCollection; issue #33
       @storage = nil
     end
@@ -808,7 +813,8 @@ class Bud
       key_s = Marshal.dump(key)
       val_s = Marshal.dump(val)
       if @hdb.putkeep(key_s, val_s) == false
-        raise KeyConstraintError, "Key conflict on tuple #{t.inspect}"
+        old_tuple = self[key]
+        raise_pk_error(tuple, old_tuple)
       end
     end
 
