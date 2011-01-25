@@ -8,8 +8,8 @@ Main deficiencies at this point are:
 - No test harness.  Currently just Ruby's builtin test harness.  Need something better suited to Bud.
 
 To install:
-	% gem build bud.gemspec
-	% sudo gem install bud-0.0.1.gem
+    % gem build bud.gemspec
+    % sudo gem install bud-0.0.1.gem
 
 To run the regression tests:
     % cd test; ruby ts_bud.rb
