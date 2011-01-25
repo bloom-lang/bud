@@ -493,7 +493,7 @@ class Bud
   class BudTable < BudCollection
     def initialize(name, keys, cols, bud_instance)
       super(name, keys, cols, bud_instance)
-      init_to_delete
+      @to_delete = []
     end
 
     def clone_empty
@@ -501,18 +501,21 @@ class Bud
     end
 
     def tick
-      @to_delete.each_key {|t| @storage.delete t}
+      @to_delete.each do |tuple|
+        keycols = keys.map{|k| tuple[schema.index(k)]}
+        if @storage[keycols] == tuple
+          @storage.delete keycols
+        end
+      end
       @storage.merge! @pending
-      @to_delete = {}
+      @to_delete = []
       @pending = {}
     end
 
-    def init_to_delete
-      @to_delete = {}
-    end
-
     superator "<-" do |o|
-      o.map {|i| self.do_insert(i, @to_delete)}
+      o.each do |tuple|
+        @to_delete << tuple
+      end
     end
   end
 
@@ -736,7 +739,7 @@ class Bud
       end
 
       super(name, keys, cols, bud_instance)
-      @to_delete = {}
+      @to_delete = []
 
       @hdb = TokyoCabinet::HDB.new
       db_fname = "#{dirname}/#{name}.tch"
@@ -825,7 +828,9 @@ class Bud
     end
 
     superator "<-" do |o|
-      o.map {|i| self.do_insert(i, @to_delete)}
+      o.each do |tuple|
+        @to_delete << tuple
+      end
     end
 
     def insert(tuple)
@@ -837,11 +842,19 @@ class Bud
 
     # Remove to_delete and then add pending to HDB
     def tick
-      @to_delete.each_key do |k|
+      @to_delete.each do |tuple|
+        k = keys.map{|c| tuple[schema.index(c)]}
         k_str = Marshal.dump(k)
-        @hdb.delete(k_str)
+        cols_str = @hdb[k_str]
+        unless cols_str.nil?
+          hdb_cols = Marshal.load(cols_str)
+          delete_cols = cols.map{|c| tuple[schema.index(c)]}
+          if hdb_cols == delete_cols
+            @hdb.delete k_str
+          end
+        end
       end
-      @to_delete = {}
+      @to_delete = []
 
       merge_to_hdb(@pending)
       @pending = {}

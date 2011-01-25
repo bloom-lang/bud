@@ -134,14 +134,11 @@ class TestTc < Test::Unit::TestCase
     assert_nothing_raised(RuntimeError) {@t.tick}
     assert_equal(2, @t.t1.length)
 
-    # XXX: fix this behavior
-    if false
-    @t.del_buf << ['1', '2', '3', '5'] # shouldn't delete
+    @t.del_buf << ['1', '3', '3', '5'] # shouldn't delete
     assert_nothing_raised(RuntimeError) {@t.tick}
     assert_equal(2, @t.t1.length)
     assert_nothing_raised(RuntimeError) {@t.tick}
     assert_equal(2, @t.t1.length)
-    end
 
     @t.del_buf << ['1', '3', '3', '4'] # should delete
     assert_nothing_raised(RuntimeError) {@t.tick}

@@ -108,8 +108,23 @@ class TickleCount < Bud
   end
 end
 
-class TestCollections < Test::Unit::TestCase
+class DeleteKey < Bud
+  def state
+    table :t1, ['k'], ['v']
+    table :del_buf, ['k', 'v']
+  end
 
+  def bootstrap
+    t1 << [5, 10]
+  end
+
+  declare
+  def rules
+    t1 <- del_buf
+  end
+end
+
+class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new('localhost', 12345)
     assert_equal(2, program.scrtch.length)
@@ -169,5 +184,22 @@ class TestCollections < Test::Unit::TestCase
     sleep 1
     assert_equal("[[5]]", c.result.map{|t| t}.inspect)
     assert_equal("[[5]]", c.mresult.map{|t| t}.inspect)
+  end
+
+  def test_delete_key
+    d = DeleteKey.new('localhost', 12345)
+    assert_nothing_raised(RuntimeError) { d.tick }
+    assert_equal(1, d.t1.length)
+    d.del_buf << [5, 11] # shouldn't delete
+    assert_nothing_raised(RuntimeError) { d.tick }
+    assert_equal(1, d.t1.length)
+    assert_nothing_raised(RuntimeError) { d.tick }
+    assert_equal(1, d.t1.length)
+
+    d.del_buf << [5, 10] # should delete
+    assert_nothing_raised(RuntimeError) { d.tick }
+    assert_equal(1, d.t1.length)
+    assert_nothing_raised(RuntimeError) { d.tick }
+    assert_equal(0, d.t1.length)
   end
 end
