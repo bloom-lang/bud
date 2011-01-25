@@ -148,12 +148,12 @@ class Bud
 
     def do_insert(o, store)
       return if o.nil? or o.length == 0
+
       keycols = keys.map{|k| o[schema.index(k)]}
-      if (old = store[keycols]) and o != old
-        raise_pk_error(o, old)
-      end
+      old = store[keycols]
+      raise_pk_error(o, old) unless old.nil? or old == o
+
       store[keycols] = tuple_accessors(o)
-      return store[keycols]
     end
 
     def insert(o)
@@ -174,13 +174,9 @@ class Bud
         next if i.nil? or i == []
         keycols = keys.map{|k| i[schema.index(k)]}
         if (old = self[keycols])
-          if old != i
-            raise_pk_error(i, old)
-          end
+          raise_pk_error(i, old) if old != i
         elsif (oldnew = self.new_delta[keycols])
-          if oldnew != i
-            raise_pk_error(i, oldnew)
-          end
+          raise_pk_error(i, oldnew) if oldnew != i
         else
           # don't call do_insert, it will just recheck our tests for hash collision
           buf[keycols] = tuple_accessors(i)
