@@ -20,6 +20,7 @@ class Bud
   attr_reader :tables, :ip, :port # for  ging; remove me later
   attr_accessor :each_counter
   attr_reader :stratum_first_iter
+  attr_reader :options
 
   include BudState
   include Anise
@@ -121,12 +122,16 @@ class Bud
     @t.join
   end
 
+  def close
+    @disk_tables.each_value do |t|
+      t.close
+    end
+  end
+
   # Schedule a "graceful" shutdown for a future EM tick
   def schedule_shutdown
     EventMachine::schedule do
-      @disk_tables.each_value do |t|
-        t.close
-      end
+      close
       EventMachine::stop_event_loop
     end
   end

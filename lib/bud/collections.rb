@@ -722,15 +722,30 @@ class Bud
   # Persistent table implementation based on TokyoCabinet.
   class BudTcTable < BudCollection
     def initialize(name, keys, cols, bud_instance)
+      tc_dir = bud_instance.options['tc_dir']
+      raise "TC support must be enabled via 'tc_dir'" if tc_dir.nil?
+      unless File.exists?(tc_dir)
+        Dir.mkdir(tc_dir)
+        puts "Created directory: #{tc_dir}" unless bud_instance.options['quiet']
+      end
+
+      dirname = "#{tc_dir}/bud_#{bud_instance.port}"
+      unless File.exists?(dirname)
+        Dir.mkdir(dirname)
+        puts "Created directory: #{dirname}" unless bud_instance.options['quiet']
+      end
+
       super(name, keys, cols, bud_instance)
       @to_delete = {}
+
       @hdb = TokyoCabinet::HDB.new
-      db_fname = "/tmp/bud_#{@bud_instance.port}_#{name}.tch"
-      # XXX: HDB::OTRUNC is wrong, but convenient for now
-      if !@hdb.open(db_fname, TokyoCabinet::HDB::OWRITER |
-                              TokyoCabinet::HDB::OTRUNC |
-                              TokyoCabinet::HDB::OCREAT)
-        raise BudError, "Failed to open TokyoCabinet DB: #{@hdb.errmsg}"
+      db_fname = "#{dirname}/#{name}.tch"
+      flags = TokyoCabinet::HDB::OWRITER | TokyoCabinet::HDB::OCREAT
+      if bud_instance.options['tc_truncate'] == true
+        flags |= TokyoCabinet::HDB::OTRUNC
+      end
+      if !@hdb.open(db_fname, flags)
+        raise BudError, "Failed to open TokyoCabinet DB '#{db_fname}': #{@hdb.errmsg}"
       end
       @hdb.tranbegin
     end
@@ -776,7 +791,6 @@ class Bud
     end
 
     def close
-      puts "TC::close() -- port = #{@bud_instance.port}"
       @hdb.close
     end
 
