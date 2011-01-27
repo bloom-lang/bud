@@ -1,7 +1,9 @@
 require 'rubygems' 
 require 'bud'
-require '../../lib/bud/bud_meta'
-require '../../lib/bud/depanalysis'
+#require '../../lib/bud/bud_meta'
+#require '../../lib/bud/depanalysis'
+require 'bud/bud_meta'
+require 'bud/depanalysis'
 
 # args: N, files_n, classes_m
 

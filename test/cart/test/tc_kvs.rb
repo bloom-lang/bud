@@ -10,7 +10,7 @@ class TestKVS < TestLib
   include KVSWorkloads
 
   def initialize(args)
-    @opts = {'dump' => true, 'visualize' => true, 'scoping' => true}
+    @opts = {'dump' => true, 'visualize' => true, 'scoping' => false}
     super
   end
 
@@ -63,7 +63,7 @@ class TestKVS < TestLib
   end
 
   def test_simple
-    v = SingleSiteKVS.new("localhost", 12360, {'dump' => true, 'scoping' => true, 'visualize' => true})
+    v = SingleSiteKVS.new("localhost", 12360, {'dump' => true, 'scoping' => false, 'visualize' => true})
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:12360")
     sleep 1 
