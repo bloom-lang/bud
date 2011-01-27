@@ -1,7 +1,7 @@
 module BudState
 
   ######## methods for registering collection types
-  def define_collection(name, keys=[], cols=[])
+  def define_collection(name)
     # rule out table names that use reserved words
     reserved = eval "defined?(#{name})"
     unless (reserved.nil? or (reserved == "method" and @tables[name]))
@@ -14,13 +14,13 @@ module BudState
     return nil
   end
   
-  def define_or_tick_collection(name, keys=[], cols=[])
+  def define_or_tick_collection(name)
     # tick previously-defined tables and tick
     if @tables[name]
       @tables[name].tick
       return @tables[name]
     else
-      return define_collection(name, keys, cols)
+      return define_collection(name)
     end
   end
 
@@ -43,17 +43,17 @@ module BudState
   end
 
   def table(name, keys, cols=[])
-    define_or_tick_collection(name, keys, cols)
+    define_or_tick_collection(name)
     @tables[name] ||= Bud::BudTable.new(name, keys, cols, self)
   end
 
   def scratch(name, keys, cols=[])
-    define_or_tick_collection(name, keys, cols)
+    define_or_tick_collection(name)
     @tables[name] ||= Bud::BudScratch.new(name, keys, cols, self)
   end
 
   def serializer(name, keys, cols=[])
-    define_or_tick_collection(name, keys, cols)
+    define_or_tick_collection(name)
     @tables[name] ||= Bud::BudSerializer.new(name, keys, cols, self)
   end
 
@@ -68,13 +68,13 @@ module BudState
       @locspec, keys = remove_at(keys)
       @locspec, cols = remove_at(cols) if keys.nil?
     end
-    define_or_tick_collection(name, keys, cols)
+    define_or_tick_collection(name)
     @channels[name] ||= @locspec
     @tables[name] ||= Bud::BudChannel.new(name, keys, cols, self, @locspec)
   end
 
   def file_reader(name, filename, delimiter='\n')
-    define_or_tick_collection(name, ['lineno'], ['text'])
+    define_or_tick_collection(name)
     @tables[name] ||= Bud::BudFileReader.new(name, filename, delimiter, self)
   end
 
@@ -83,7 +83,7 @@ module BudState
     if cols.length != 1 or keys.length != 1
       raise Bud::BudError("periodic collection #{name} must have one key column, and one other column")
     end
-    t = define_or_tick_collection(name, keys, cols)
+    t = define_or_tick_collection(name)
     @tables[name] ||= Bud::BudPeriodic.new(name, keys, cols, self)
     unless @periodics.has_key? [name]
       retval = [name, gen_id, period]
@@ -101,13 +101,13 @@ module BudState
       @terminal = name
     end
     raise Bud::BudError("IO collection #{name} can have only one column") if keys.length != 1
-    t = define_or_tick_collection(name, keys, [])
+    t = define_or_tick_collection(name)
     @channels[name] = nil
     @tables[name] ||= Bud::BudTerminal.new(name, keys, [], self)
   end
 
   def tctable(name, keys, cols)
-    define_or_tick_collection(name, keys, cols)
+    define_or_tick_collection(name)
     @tables[name] ||= Bud::BudTcTable.new(name, keys, cols, self)
     @disk_tables[name] ||= @tables[name]
   end
