@@ -7,10 +7,16 @@ require 'bud'
 # set up everything
 bud_class = Class.new(Bud)
 bud_class_instance = bud_class.new('localhost', 0, 'enforce_rewrite' => true)
+bud_class_instance.instance_eval("@declarations << :rules")
 
-# 3 wasted lines on an accessor
-def bud_class_instance.add_declaration(method_sym)
-  @declarations << method_sym
+def bud_class_instance.safe_instance_eval(str)
+  begin
+    self.instance_eval(str)
+  rescue Exception => exc
+    puts "#{$!}"
+    return false
+  end
+  return true
 end
 
 bud_class_instance.instance_eval("def print_state\nend")
@@ -18,8 +24,7 @@ bud_class_instance.instance_eval("def state\nend")
 
 table_names = []
 state_exprs = []
-
-i = 0
+rules = []
 
 loop do
   line = Readline::readline('> ').lstrip
@@ -35,13 +40,7 @@ loop do
 
   # XXX: expand to other types of tables
   if line[0..5] == "table " then
-    begin
-      bud_class_instance.instance_eval(line)
-    rescue Exception => exc
-      puts "Uh oh, an error while trying to create a table: (#{$!})\n"
-      next
-    end
-
+    next if not bud_class_instance.safe_instance_eval(line)
     state_exprs << line
 
     # 100% hacky parsing
@@ -55,30 +54,36 @@ loop do
       remove_method(:print_state)
       remove_method(:state)
     end
-    
+
     # add them back with new state
-    def_state = "def state\n"
-    state_exprs.each {|s| def_state += s + "\n"}
-    bud_class_instance.instance_eval(def_state + "end")
+    next if not bud_class_instance.safe_instance_eval("def state\n" + state_exprs.join("\n") + "\nend")
 
     def_print_state = "def print_state\n"
     table_names.each{|t| def_print_state += "puts \"" + t + ":\n\"\n" + t + ".each {|t| puts t.inspect}\n"}
-    bud_class_instance.instance_eval(def_print_state + "end")
+    next if not bud_class_instance.safe_instance_eval(def_print_state + "end")
 
   else
-    bud_class_instance.instance_eval("def rule" + i.to_s + "\n\t" + line + "\nend")
-    bud_class_instance.add_declaration(("rule" + i.to_s).to_sym)
-    i += 1
-    begin
-      bud_class_instance.safe_rewrite
-    rescue
-      puts "Uh oh, an error while trying to add a rule: (#{$!})\n"
-      # XXX: not sure if this is necessary
-      # revert changes:   
-      class << bud_class
-        remove_method(rule + i.to_s)
-      end
-    end
-  end
 
+    # do a dry run of inserting the block with the new rule, and a safe_rewrite
+    rules << line
+    if bud_class_instance.safe_instance_eval("def rules\n\t" + rules.join("\n") + "\nend")
+      begin
+        # even if our code passes the dry run, it might still fail on tick
+        bud_class_instance.safe_rewrite
+      rescue Exception => exc
+        puts "#{$!}"
+        class << bud_class
+          remove_method(:rules)
+        end
+        # revert
+        rules.pop()
+        bud_class_instance.safe_instance_eval("def rules\n\t" + rules.join("\n") + "\nend")
+        next
+      end
+    else
+      rules.pop()
+      next
+    end
+
+  end
 end
