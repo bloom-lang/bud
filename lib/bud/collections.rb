@@ -874,6 +874,8 @@ class Bud
   class BudZkTable < BudCollection
     def initialize(name, zk_path, zk_addr, bud_instance)
       super(name, ["key"], ["value"], bud_instance)
+
+      zk_path = zk_path.chomp("/") unless zk_path == "/"
       @zk = Zookeeper.new(zk_addr)
       @zk_path = zk_path
       @next_storage = {}
@@ -889,13 +891,21 @@ class Bud
     end
 
     def get_and_watch
+      puts "hello, world"
       r = @zk.get_children(:path => @zk_path, :watcher => @cb)
 
       # XXX: can we easily get snapshot isolation?
       new_children = {}
       r[:children].each do |c|
-        get_r = @zk.get(:path => c)
-        return unless get_r[:stat].exists
+        child_path = @zk_path
+        child_path += "/" unless child_path.end_with? "/"
+        child_path += c
+
+        get_r = @zk.get(:path => child_path)
+        unless get_r[:stat].exists
+          puts "Failed to fetch child: #{child_path}"
+          return
+        end
         data = get_r[:data] or ""
         new_children[c] = data
       end
