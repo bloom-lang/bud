@@ -1,6 +1,8 @@
 # XXX: still not catching some exceptions
 # XXX: parsing is horrible
 # XXX: catch signals
+# XXX: separate tick from print
+# XXX: allow rules or oneshot queries to be added "at the current time"
 require 'readline'
 require 'bud'
 
