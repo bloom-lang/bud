@@ -21,4 +21,5 @@ Gem::Specification.new do |s|
   s.add_dependency 'ruby-graphviz'
   s.add_dependency 'backports'
   s.add_dependency 'tokyocabinet'
+  s.add_dependency 'syntax'
 end
