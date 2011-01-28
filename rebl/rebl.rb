@@ -90,6 +90,7 @@ loop do
 
     # if we've succeeded with the dry run, then it's time to commit the new rule:
     bud_class_instance.safe_instance_eval("def rules\n\t" + rules.join("\n") + "\nend")
+    bud_class_instance.safe_rewrite
 
   end
 end
