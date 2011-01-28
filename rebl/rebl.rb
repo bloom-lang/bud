@@ -1,4 +1,3 @@
-# XXX: still not catching some exceptions
 # XXX: parsing is horrible
 # XXX: catch signals
 # XXX: separate tick from print
@@ -66,26 +65,31 @@ loop do
 
   else
 
-    # do a dry run of inserting the block with the new rule, and a safe_rewrite
+    # do a dry run of inserting the block with the new rule, a safe_rewrite, and a tick
     rules << line
-    if bud_class_instance.safe_instance_eval("def rules\n\t" + rules.join("\n") + "\nend")
+    # XXX: NOT a deep copy! (but seems to work)
+    temp_bud_instance = bud_class_instance.clone
+    if temp_bud_instance.safe_instance_eval("def rules\n\t" + rules.join("\n") + "\nend")
       begin
         # even if our code passes the dry run, it might still fail on tick
-        bud_class_instance.safe_rewrite
+        temp_bud_instance.safe_rewrite
+        # so let's tick that ho
+        # XXX: don't know if this will catch all potential problems
+        #      might still find yourself in an unrecoverable state
+        #      due to this statement even if tick succeeds
+        temp_bud_instance.tick
       rescue Exception => exc
         puts "#{$!}"
-        class << bud_class
-          remove_method(:rules)
-        end
-        # revert
         rules.pop()
-        bud_class_instance.safe_instance_eval("def rules\n\t" + rules.join("\n") + "\nend")
         next
       end
     else
       rules.pop()
       next
     end
+
+    # if we've succeeded with the dry run, then it's time to commit the new rule:
+    bud_class_instance.safe_instance_eval("def rules\n\t" + rules.join("\n") + "\nend")
 
   end
 end
