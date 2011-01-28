@@ -93,6 +93,6 @@ class TestMeta < Test::Unit::TestCase
 
   dep.tick
 
-  program.visualize(program.strat_state, "outp", dep)
+  program.visualize(program.strat_state, "outp", nil, dep)
   end
 end

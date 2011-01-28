@@ -36,7 +36,7 @@ class Bud
       done[d[0]] = true
     end
 
-    visualize(@strat_state, "#{self.class}_gvoutput") if @options['visualize']
+    visualize(@strat_state, "#{self.class}_gvoutput", @shredded_rules) if @options['visualize']
     dump_rewrite if @options['dump']
     return @rewritten_strata
   end
@@ -204,12 +204,13 @@ class Bud
   end
 
 
-  def visualize(strat, name, depa=nil)
+  def visualize(strat, name, rules, depa=nil)
     @tables.each do |t|
       @table_meta << [t[0], t[1].class]
     end
     gv = Viz.new(strat.top_strat, strat.stratum, @table_meta, strat.cycle, depa)
     gv.process(strat.depends)
+    gv.dump(rules)
     gv.finish(name)
   end
 end

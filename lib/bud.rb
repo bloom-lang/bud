@@ -188,9 +188,7 @@ class Bud
   end
 
   def tick
-    unless @options['provenance']
-      init_state
-    end
+    init_state
 
     receive_inbound
     @tables.each do |name,coll| 

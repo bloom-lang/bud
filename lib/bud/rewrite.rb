@@ -190,6 +190,7 @@ class Rewriter < SaneR2R
 
   def process_block(exp)
     # shift off the 'args'
+    #line_no = exp.line
     exp.shift
     until exp.empty?
       clause = exp.shift
