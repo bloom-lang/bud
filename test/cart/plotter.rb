@@ -1,7 +1,5 @@
 require 'rubygems' 
 require 'bud'
-#require '../../lib/bud/bud_meta'
-#require '../../lib/bud/depanalysis'
 require 'bud/bud_meta'
 require 'bud/depanalysis'
 
@@ -34,7 +32,7 @@ def work
   prpr("SINK", dep.sink)
 
 
-  ic.visualize(strat, "outp", dep)
+  ic.visualize(strat, "outp", @shreddies, dep)
 end
 
 def prpr(tab, content)
@@ -85,4 +83,5 @@ end
 end
 
 work
+
 

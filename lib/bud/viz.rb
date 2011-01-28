@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'graphviz'
-
+require 'syntax/convertors/html'
 
 class Viz 
   def initialize(strata, mapping, tableinfo, cycle, depanalysis=nil)
@@ -86,6 +86,48 @@ class Viz
     end 
   end
 
+  def dump(shredded_rules)
+    return if shredded_rules.nil?
+    `rm -r plotter_out`
+    `mkdir plotter_out`
+
+    fout = File.new("plotter_out/style.css", "w")
+    fout.puts css
+    fout.close
+
+    code = {}
+    rules = {}
+    convertor = Syntax::Convertors::HTML.for_syntax "ruby"
+    shredded_rules.each do |s|
+      fout = File.new("plotter_out/#{s[0]}.html", "w+")
+      fout.puts "<h1>Rule #{s[0]}</h1><br>"
+      fout.puts convertor.convert(s[5]) 
+      rules[s[0]] = [s[1], s[5]]
+      fout.close
+    end
+  
+    rules.each_pair do |k, v|
+      if !code[v[0]]
+        code[v[0]] = ""
+      end
+      #code[v[0]] = "<br># RULE #{k}<br> " + code[v[0]] + "<br>" + v[1]
+      code[v[0]] = "\n# RULE #{k}\n " + code[v[0]] + "\n" + v[1]
+    end
+    @nodes.each_pair do |k, v|
+      fout = File.new("plotter_out/#{k}.html", "w+")
+      fout.puts header
+      k.split(", ").each do |i|
+        unless code[i].nil?
+          c = convertor.convert(code[i])
+          c.sub!(/^<pre>/, "<pre class=\"code\">\n")
+          fout.puts c
+        end
+      end
+      fout.puts("</body></html>")
+      fout.close
+    end 
+  end
+ 
   def process(depends)
 
     # collapsing NEG/+ cycles.
@@ -94,7 +136,6 @@ class Viz
     # its name is "CYC" + concat(sort(predicate names))
 
     depends.each do |d|
-      #puts "DEPENDS #{d.inspect}"
       head = d[1]
       body = d[3]
       if !@tabinf[head] or !@tabinf[body]
@@ -111,7 +152,7 @@ class Viz
       addonce(head, (head != d[1]))
       addonce(body, (body != d[3]))
       #puts "add edge #{head} #{d[2]} #{body}"
-      addedge(body, head, d[2], d[3], (head != d[1]))
+      addedge(body, head, d[2], d[3], (head != d[1]), d[0])
     end
   end
 
@@ -119,7 +160,9 @@ class Viz
     if !@nodes[node]
       @nodes[node] = @graph.add_node(node)
       #@nodes[node].label = "<b>" + node + "</b>"
+      @nodes[node].URL = "file://#{ENV['PWD']}/plotter_out/#{node}.html"
     end
+
     if negcluster
       # cleaning 
       res = node
@@ -142,7 +185,7 @@ class Viz
     end
   end
 
-  def addedge(body, head, op, nm, negcluster)
+  def addedge(body, head, op, nm, negcluster, rule_id=nil)
     return if body.nil? or head.nil?
     body = body.to_s
     head = head.to_s
@@ -151,8 +194,8 @@ class Viz
     if !@edges[ekey] 
       @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head])
       @edges[ekey].arrowsize = 2
+      @edges[ekey].URL = "file://#{ENV['PWD']}/plotter_out/#{rule_id}.html" unless rule_id.nil?
       if head =~ /_msg\z/
-        #puts "WOOOO"
         @edges[ekey].minlen = 2
       else
         @edges[ekey].minlen = 1.5
@@ -164,7 +207,6 @@ class Viz
     #@edges[ekey].minlen = 5 if negcluster and body == head
 
     if op == '<+'
-      #puts "got a PLUS for #{ekey}"
       @labels[ekey][' +/-'] = true
     elsif op == "<~"
       @edges[ekey].style = 'dashed'
@@ -223,6 +265,39 @@ class Viz
     end
     @graph.output(:dot => "#{name}.dot")    
     @graph.output(:pdf => "#{name}.pdf")
+    @graph.output(:cmapx => "#{name}.cmapx")
+    @graph.output(:svg => "#{name}.svg")
+  end
+
+  def header
+      return "<html><meta content='text/html; charset=UTF-8' http-equiv='Content-Type'/>\n<head><link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\" /></head><body>"
+  end
+
+  def css
+    return "pre.code {
+  padding: 1ex 1ex 1ex 1ex;
+  border: 4px groove #CC0000;
+  overflow-x: auto;
+}
+
+pre.code span.attribute { color: #009900; }
+pre.code span.char { color: #F00; }
+pre.code span.class { color: #A020F0; font-weight: bold; }
+pre.code span.comment { color: #0000FF; }
+pre.code span.constant { color: #008B8B; }
+pre.code span.escape { color: #6A5ACD; }
+pre.code span.expr { color: #2222CC; }
+pre.code span.global { color: #11AA44; }
+pre.code span.ident { color: #000000; }
+pre.code span.keyword { color: #A52A2A; font-weight: bold; }
+pre.code span.method { color: #008B8B; }
+pre.code span.module { color: #A020F0; font-weight: bold; }
+pre.code span.number { color: #DD00DD; }
+pre.code span.punct { color: #6A5ACD; }
+pre.code span.regex { color: #DD00DD; }
+pre.code span.string { color: #DD00DD; }
+pre.code span.symbol { color: #008B8B; }
+"
   end
 
   
