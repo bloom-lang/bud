@@ -440,8 +440,6 @@ class Bud
     def initialize(name, keys, cols, bud_instance, prompt=false)
       super(name, keys, cols, bud_instance)
 
-      ip = bud_instance.ip
-      port = bud_instance.port
       @connection = nil
 
       # XXX: Ugly hack. Rather than sending terminal data to EM via TCP,
@@ -454,6 +452,9 @@ class Bud
             s = STDIN.gets
             s = s.chomp if s
             tup = tuple_accessors([s])
+
+            ip = @bud_instance.ip
+            port = @bud_instance.port
             @connection ||= EventMachine::connect ip, port, BudServer, @bud_instance
             @connection.send_data [tabname, tup].to_msgpack
           end
