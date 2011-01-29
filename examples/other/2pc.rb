@@ -5,10 +5,6 @@ require 'rubygems'
 require 'bud'
 
 class TwoPC < Bud
-  def initialize(ip, port)
-    super ip, port
-  end
-
   def state
     scratch :peer_cnt, ['coord'], ['cnt']
     table   :peers,    ['coord', 'peer']

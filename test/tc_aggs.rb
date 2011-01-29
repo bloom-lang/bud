@@ -3,10 +3,6 @@ require 'bud'
 require 'test/unit'
 
 class ShortestPaths < Bud
-  def initialize(ip, port)
-    super(ip, port)
-  end
-  
   def state
     table :link, ['from', 'to', 'cost']
     table :path, ['from', 'to', 'next', 'cost']
@@ -46,10 +42,6 @@ class ShortestPaths < Bud
 end
 
 class PriorityQ < Bud
-  def initialize(ip, port)
-    super(ip,port)
-  end
-  
   def state
     table :q, ['item'], ['priority']
     scratch :out, ['item'], ['priority']
@@ -156,7 +148,7 @@ class TestAggs < Test::Unit::TestCase
   end
   
   def test_non_exemplary
-    program = ShortestPaths.new('localhost', 12345)
+    program = ShortestPaths.new
     assert_nothing_raised(RuntimeError) { program.tick }
     assert_raise(Bud::BudError) {p = program.path.argagg(:count, [program.path.from, program.path.to], nil)}
     assert_raise(Bud::BudError) {p = program.path.argagg(:sum, [program.path.from, program.path.to], program.path.cost)}
@@ -164,7 +156,7 @@ class TestAggs < Test::Unit::TestCase
   end
   
   def test_argaggs
-    program = PriorityQ.new('localhost', 12345)
+    program = PriorityQ.new
     assert_nothing_raised (RuntimeError) { program.tick }
     argouts = program.out.map{|t| t}
     basicouts = program.out2.map{|t| t}
@@ -172,14 +164,14 @@ class TestAggs < Test::Unit::TestCase
   end
   
   def test_rename
-    program = Rename.new('localhost', 12345)
+    program = Rename.new
     assert_nothing_raised (RuntimeError) { program.tick }
     shoes = program.shoes.map{|t| t}
     assert_equal([["shoe", 10.5]], shoes)
   end
   
   def test_join_agg
-    program = JoinAgg.new('localhost', 12345)
+    program = JoinAgg.new
     assert_nothing_raised (RuntimeError) { program.tick }
     rich = program.rich.first
     assert_equal(['bob', 'shoe', 11], rich)

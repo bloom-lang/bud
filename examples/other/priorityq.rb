@@ -2,10 +2,6 @@ require 'rubygems'
 require 'bud'
 
 class PriorityQ < Bud
-  def initialize(ip, port)
-    super(ip, port)
-  end
-
   def state
     table :q, ['item'], ['priority']
     scratch :out, ['item'], ['priority']
@@ -29,7 +25,7 @@ class PriorityQ < Bud
   end
 end
 
-program = PriorityQ.new('localhost', ARGV[0])
+program = PriorityQ.new
 
 (1..4).each do
   puts '---tick---'
@@ -37,3 +33,4 @@ program = PriorityQ.new('localhost', ARGV[0])
   program.out.each {|o| puts "argmin: #{o.inspect}"}
   program.out2.each {|o| puts "joinmin: #{o.inspect}"}
 end
+

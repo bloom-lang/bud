@@ -5,9 +5,9 @@ require 'test/unit'
 class Paths < Bud
   # a naive transitive closure of an edge relation.
   attr_reader :cnt, :pcnt
-  def initialize(ip, port)
+  def initialize
     @cnt = @pcnt = 0
-    super(ip,port)
+    super()
   end
   
   def state
@@ -32,9 +32,9 @@ class PathsDelta < Paths
   # the same transitive closure, made seminaive with supplemental
   # rules and relations
   attr_reader :m1cnt, :m2cnt
-  def initialize(ip, port)
+  def initialize
     @m1cnt = @m2cnt = 0
-    super(ip, port)
+    super()
   end
 
   def state
@@ -126,11 +126,10 @@ class TestDelta < Test::Unit::TestCase
     # round 4: (a, e)
 
     # total: 10 paths, of which 4 were 'base'.
-    
   end
 
   def test_naive
-    program = Paths.new('localhost', 12345)
+    program = Paths.new
     inserts(program.link)
     assert_nothing_raised( RuntimeError) { program.tick }
     # cnt: base case applications. 
@@ -140,8 +139,7 @@ class TestDelta < Test::Unit::TestCase
 
     # 10-4, good buddy. (10 paths, 4 base)
     assert_equal(10, program.path.length)
-    assert_equal(4, program.link.length)
-    
+    assert_equal(4, program.link.length)    
   end
 
   def top_half(program)
@@ -172,7 +170,7 @@ class TestDelta < Test::Unit::TestCase
   end
 
   def test_handwrite_delta
-    program = PathsDelta.new('localhost', 12345)
+    program = PathsDelta.new
     top_half(program)
     # I am "seminaive"
     iters = 0
@@ -193,7 +191,7 @@ class TestDelta < Test::Unit::TestCase
   end
 
   def test_handwrite_indirect_delta
-    program = PathsDeltaIndirected.new("localhost", 54321)
+    program = PathsDeltaIndirected.new
     top_half(program)
     # I am "seminaive"
     iters = 0
