@@ -1,14 +1,13 @@
 require 'rubygems'
 
-require 'bud/sane_r2r'
-require 'bud/rewrite'
-require 'bud/provenance'
 require 'bud/depanalysis'
+require 'bud/provenance'
+require 'bud/rewrite'
+require 'bud/sane_r2r'
 require 'parse_tree'
 
 
 class Bud
-
   attr_reader :shredded_rules, :provides, :demands, :strat_state
 
   def meta_rewrite
@@ -161,7 +160,6 @@ class Bud
 
 
   def stratify(depends)
-
     strat = Stratification.new("localhost", 12345)
     strat.tick
 
