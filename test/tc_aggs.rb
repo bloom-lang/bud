@@ -122,7 +122,7 @@ end
 
 class TestAggs < Test::Unit::TestCase
   def test_paths
-    program = ShortestPaths.new('localhost', 12345)
+    program = ShortestPaths.new
     assert_nothing_raised(RuntimeError) { program.tick }
   
     program.minmaxsumcntavg.each do |t|

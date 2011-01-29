@@ -23,8 +23,8 @@ end
 
 class TestSubclass < Test::Unit::TestCase
   def test_override
-    p1 = ParentBud.new('localhost', 12345)
-    p2 = ChildBud.new('localhost', 12346)
+    p1 = ParentBud.new
+    p2 = ChildBud.new
     assert_nothing_raised( RuntimeError) { p1.tick }
     assert_nothing_raised( RuntimeError) { p2.tick }
     assert_equal('a', p1.tbl[[2]][1])
