@@ -21,7 +21,7 @@ class Viz
       @t2s[m[0]] = m[1].to_i
     end
 
-
+    # map: table -> type
     @tabinf = {}
     tableinfo.each do |ti|
       @tabinf[ti[0].to_s] = ti[1]

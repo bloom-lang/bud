@@ -37,11 +37,6 @@ module BudState
     scratch(name, keys, cols)
   end
 
-  def internal(mode, name)
-    @demands[name] = mode
-    #scratch(name, keys, cols)
-  end
-
   def table(name, keys, cols=[])
     define_or_tick_collection(name)
     @tables[name] ||= Bud::BudTable.new(name, keys, cols, self)

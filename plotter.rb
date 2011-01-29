@@ -46,7 +46,6 @@ def instant(cls)
   d = eval("class FooBar < Bud\ninclude #{cls}\nend\n FooBar.new('localhost', #{@port}, {'enforce_rewrite' => true, 'dump' => true, 'scoping' => false})")
   d.shredded_rules.each {|s| @shreddies << s }
   d.provides.each_pair {|k, v| @provides << [k.to_s, v] } 
-  d.demands.each_pair {|k, v| @demands << [k.to_s, v] } 
   d.tables.each_pair {|k, v| @tabinf[k] = v }
   @port = @port + 1
 end

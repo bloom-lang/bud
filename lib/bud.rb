@@ -32,7 +32,6 @@ class Bud
     @strata = []
     @rewritten_strata = []
     @provides = {}
-    @demands = {}
     @channels = {}
     @disk_tables = {}
     @budtime = 0
