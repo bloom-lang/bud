@@ -6,6 +6,7 @@ require 'parse_tree'
 
 class StateExtractor < SaneR2R
   attr_reader :tabs
+
   def initialize(context)
     @cxt = context
     @tabs = {}
@@ -24,7 +25,7 @@ class StateExtractor < SaneR2R
     term  = exp.shift
     res = ""
     until term.nil?
-      res = res + process(term) + "\n"
+      res += process(term) + "\n"
       term = exp.shift
     end
     return res
@@ -64,18 +65,18 @@ class Rewriter < SaneR2R
   # useful meta information about it for the purposes of analysis 
   # and rewriting.  in particular, we want to populate a depends
   # relation and to decompose the user-supplied code by rule so 
-  # that we can rewrite in in stratum order.
+  # that we can rewrite it in stratum order.
 
   attr_reader :tabs, :cols, :aliases, :rule_indx
 
   def initialize(seed, tabcxt, prov)
     @rules = []
-    @aliases={}
-    @suppress = 0; 
+    @aliases = {}
+    @suppress = 0
     @rule_indx = seed + 1
     @tabs = {}
     @currtab = nil
-    @nm = {"group", 1, "argagg", 1, "include?", 1}
+    @nm = {"group" => 1, "argagg" => 1, "include?" => 1}
     @nmcontext = 0
     @cols = []
     @provenance = prov
@@ -280,6 +281,3 @@ class Rewriter < SaneR2R
     super
   end
 end
-
-
-

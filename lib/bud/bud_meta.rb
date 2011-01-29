@@ -88,7 +88,7 @@ class Bud
 
     postamble = "def foobar\n"
     tabs.each_pair do |k, v|
-      last = v[v.length-1]
+      last = v.last
       if last[1] == "input"  
         postamble = postamble + "#{last[0]} <= #{k}.map{|t| puts \"INPUT POSTAMBLE\" or t }\n\n"
       elsif last[1] == "output"
