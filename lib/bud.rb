@@ -17,7 +17,7 @@ require 'bud/state'
 class Bud
   attr_reader :strata, :budtime, :inbound
   attr_accessor :connections
-  attr_reader :tables, :ip, :port # for  ging; remove me later
+  attr_reader :tables, :ip, :port
   attr_accessor :each_counter
   attr_reader :stratum_first_iter
   attr_reader :options
