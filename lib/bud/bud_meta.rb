@@ -8,7 +8,7 @@ require 'parse_tree'
 
 
 class Bud
-  attr_reader :shredded_rules, :provides, :demands, :strat_state
+  attr_reader :shredded_rules, :provides, :strat_state
 
   def meta_rewrite
     # N.B. -- parse_tree will not be supported in ruby 1.9.
