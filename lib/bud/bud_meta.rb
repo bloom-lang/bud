@@ -203,12 +203,48 @@ class Bud
     end
   end
 
+  def do_cards
+    return unless options['visualize']
+    cards = {}
+    @tables.each do |t|
+      puts "#{@budtime}, #{t[0]}, #{t[1].length}"
+      cards[t[0].to_s] = t[1].length
+    end
+    write_svgs(cards)
+    write_html
+    
+  end
+
+  def write_svgs(c)
+    `mkdir time_pics`
+    return if @strat_state.nil?
+    puts "construct viz with cards = #{c.class}"
+    gv = Viz.new(@strat_state.stratum, @tables, @strat_state.cycle, nil, c)
+    gv.process(@strat_state.depends)
+    gv.finish("time_pics/#{self.class}_tm_#{@budtime}")
+  end
+
+  def write_html
+    nm = "#{self.class}_tm_#{@budtime}"
+    prev = "#{self.class}_tm_#{@budtime-1}"
+    nxt = "#{self.class}_tm_#{@budtime+1}"
+    fout = File.new("time_pics/#{nm}.html", "w")
+    fout.puts "<center><h1>#{self.class} @ #{@budtime}</h1><center>"
+    #fout.puts "<img src=\"#{ENV['PWD']}/time_pics/#{nm}.svg\">"
+    fout.puts "<embed src=\"#{ENV['PWD']}/time_pics/#{nm}.svg\" width=\"100%\" height=\"75%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
+    #fout.puts "<embed src=\"#{ENV['PWD']}/time_pics/#{nm}.svg\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
+    fout.puts "<hr><h2><a href=\"#{ENV['PWD']}/time_pics/#{prev}.html\">last</a>"
+    fout.puts "<a href=\"#{ENV['PWD']}/time_pics/#{nxt}.html\">next</a>"
+    fout.close
+  end
 
   def visualize(strat, name, rules, depa=nil)
-    @tables.each do |t|
-      @table_meta << [t[0], t[1].class]
-    end
-    gv = Viz.new(strat.top_strat, strat.stratum, @table_meta, strat.cycle, depa)
+    #@tables.each do |t|
+    #  @table_meta << [t[0], t[1].class]
+    #end
+    #gv = Viz.new(strat.stratum, @table_meta, strat.cycle, depa)
+    puts "VIZZ"
+    gv = Viz.new(strat.stratum, @tables, strat.cycle, depa)
     gv.process(strat.depends)
     gv.dump(rules)
     gv.finish(name)

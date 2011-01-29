@@ -214,6 +214,7 @@ class Bud
       end
     end
     @strata.each { |strat| stratum_fixpoint(strat) }
+    do_cards
     do_flush
     @budtime += 1
     return @budtime
