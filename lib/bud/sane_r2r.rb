@@ -1,4 +1,4 @@
-# Ruby2ruby is a fine idea, but it crashes on a lot of perfectly
+# Ruby2Ruby is a fine idea, but it crashes on a lot of perfectly
 # legal ruby.  SaneR2R extends Ruby2Ruby so that it can handle Bud
 # syntax, either by creating handlers for expression types (e.g. 
 # masgn, dasgn_curr, vcall) not declared in r2r, or overriding 
@@ -87,7 +87,7 @@ class SaneR2R < Ruby2Ruby
     if exp.length == 2
       l = exp.shift
       r = exp.shift
-      throw = r.shift
+      r.shift
       return l.to_s + "(" + process_arglist(r) + ")"
     else
       return process_fcall_list(exp)

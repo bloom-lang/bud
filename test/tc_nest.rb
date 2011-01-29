@@ -43,7 +43,7 @@ end
 
 class TestNest < Test::Unit::TestCase
   def test_nest
-    u = Nesting.new('localhost', 12345)
+    u = Nesting.new
     u.tick
     assert_equal([[1, "Nick", "Machiavelli", "books"],
                   [1, "Nick", "Machiavelli", "scheming"],

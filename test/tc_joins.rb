@@ -65,7 +65,7 @@ class TestJoins < Test::Unit::TestCase
   end
   
   def test_secondary_join_predicates
-    program = CombosBud.new('localhost', 12345)
+    program = CombosBud.new
     assert_nothing_raised(RuntimeError) { program.tick }
     match_outs = program.match_out
     assert_equal(4, match_outs.length)
@@ -75,7 +75,7 @@ class TestJoins < Test::Unit::TestCase
   end   
   
   def test_3_joins
-    program = CombosBud.new('localhost', 12345)
+    program = CombosBud.new
     assert_nothing_raised(RuntimeError) { program.tick }
     chain_outs = program.chain_out.to_a
     assert_equal(1, chain_outs.length)
@@ -89,7 +89,7 @@ class TestJoins < Test::Unit::TestCase
   # PAA: problems recognizing 'leftjoin()' ? 
   # fix.
   def ntest_left_outer_join
-    program = CombosBud.new('localhost', 12345)
+    program = CombosBud.new
     assert_nothing_raised(RuntimeError) { program.tick }
     loj_outs = program.loj_out
     assert_equal(3, loj_outs.length)

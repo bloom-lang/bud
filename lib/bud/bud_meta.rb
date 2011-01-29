@@ -25,12 +25,10 @@ class Bud
     @shredded_rules.sort{|a, b| oporder(a[2]) <=> oporder(b[2])}.each do |d|
       belongs_in = smap[d[1]]
       belongs_in = 0 if belongs_in.nil?
-      if @rewritten_strata[belongs_in].nil?
-        @rewritten_strata[belongs_in] = ""
-      end
 
+      @rewritten_strata[belongs_in] ||= ""
       unless done[d[0]]
-        @rewritten_strata[belongs_in] = @rewritten_strata[belongs_in] + "\n"+ d[5]
+        @rewritten_strata[belongs_in] += "\n" + d[5]
       end
       done[d[0]] = true
     end
@@ -73,7 +71,6 @@ class Bud
   end
 
   def rewrite(pt, tab_map, seed)
-    rules = []
     unless pt[0].nil?
       rewriter = Rewriter.new(seed, tab_map, @options['provenance'])
       rewriter.process(pt)
@@ -89,7 +86,7 @@ class Bud
 
     postamble = "def foobar\n"
     tabs.each_pair do |k, v|
-      last = v[v.length-1]
+      last = v.last
       if last[1] == "input"  
         postamble = postamble + "#{last[0]} <= #{k}.map{|t| puts \"INPUT POSTAMBLE\" or t }\n\n"
       elsif last[1] == "output"
@@ -117,9 +114,7 @@ class Bud
     eval(res)
     state_reader.tabs.each_pair do |k, v| 
       #puts "tab KEYPAIR #{k.inspect} = #{v.inspect}"
-      unless tabs[k]
-        tabs[k] = []
-      end
+      tabs[k] ||= []
       tabs[k] << v 
     end
     return tabs
@@ -160,7 +155,7 @@ class Bud
 
 
   def stratify(depends)
-    strat = Stratification.new("localhost", 12345)
+    strat = Stratification.new
     strat.tick
 
     @tables.each do |t|

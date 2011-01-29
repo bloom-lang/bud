@@ -5,10 +5,6 @@ require 'rubygems'
 require 'bud'
 
 class ShortestPaths < Bud
-  def initialize(ip, port)
-    super(ip, port)
-  end
-  
   def state
     table :link, ['from', 'to', 'cost']
     table :path, ['from', 'to', 'next', 'cost']
@@ -46,7 +42,7 @@ class ShortestPaths < Bud
   end
 end
 
-program = ShortestPaths.new('localhost', ARGV[0])
+program = ShortestPaths.new
 
 program.tick
 program.print_paths

@@ -7,8 +7,8 @@ require 'backports'
 class WordCount1 < Bud
   attr_reader :pattern
   
-  def initialize(ip, port, pattern)
-    super(ip,port)
+  def initialize(pattern)
+    super()
     @pattern = pattern
   end
   
@@ -28,7 +28,7 @@ end
 
 class TestWC1 < Test::Unit::TestCase
   def test_wc1
-    program = WordCount1.new('localhost', ARGV[0], /[Bb]loom/)
+    program = WordCount1.new(/[Bb]loom/)
     assert_nothing_raised { program.tick }
     assert_equal(23, program.wc[["yes"]].cnt)
   end

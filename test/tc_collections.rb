@@ -53,8 +53,8 @@ end
 class Grep < Bud
   attr_reader :pattern
 
-  def initialize(ip, port, pattern)
-    super(ip,port)
+  def initialize(pattern)
+    super()
     @pattern = pattern
   end
 
@@ -126,7 +126,7 @@ end
 
 class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
-    program = BabyBud.new('localhost', 12345)
+    program = BabyBud.new
     assert_equal(2, program.scrtch.length)
     assert_equal(1, program.scrtch2.length)
     assert_nothing_raised(RuntimeError) { program.tick }
@@ -135,13 +135,13 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_tuple_accessors
-    program = BabyBud.new('localhost', 12345)
+    program = BabyBud.new
     assert_equal(1, program.scrtch[['a','b']].v1)
     assert_equal(2, program.scrtch[['a','b']].v2)
   end
 
   def test_insert_delete
-    program = BabyBud.new('localhost', 12345)
+    program = BabyBud.new
     # tick twice to get to 2nd timestep
     assert_nothing_raised(RuntimeError) { program.tick }
     assert_nothing_raised(RuntimeError) { program.tick }
@@ -151,20 +151,20 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_dup_tables
-    assert_raise(Bud::BudError) {program = DupTableBud.new('localhost', 12345)}
+    assert_raise(Bud::BudError) {program = DupTableBud.new}
   end
 
   def test_dup_columns
-    assert_raise(Bud::BudError) {program = DupColBud.new('localhost', 12345)}
+    assert_raise(Bud::BudError) {program = DupColBud.new}
   end
 
   def test_dup_keys
-    program = DupKeyBud.new('localhost', 12345)
+    program = DupKeyBud.new
     assert_raise(Bud::KeyConstraintError) { program.tick }
   end
 
   def test_grep
-    program = Grep.new('localhost', ARGV[0], /[Bb]loom/)
+    program = Grep.new(/[Bb]loom/)
     assert_nothing_raised(RuntimeError) { program.tick }
     lines = program.matches.map{|t| t}
     assert_equal(1, lines.length)
@@ -172,22 +172,23 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_union
-    s = Union.new('localhost', 12345)
+    s = Union.new
     assert_nothing_raised(RuntimeError) { s.tick }
     assert_equal(2, s.union.length)
     assert_equal("[[\"a\", \"b\", 4], [\"a\", \"b\", 1]]", s.union.map{|t| t}.inspect)
   end
 
   def test_tickle_count
-    c = TickleCount.new('localhost', 12345)
+    c = TickleCount.new
     c.run_bg
     sleep 1
     assert_equal("[[5]]", c.result.map{|t| t}.inspect)
     assert_equal("[[5]]", c.mresult.map{|t| t}.inspect)
+    c.stop_bg
   end
 
   def test_delete_key
-    d = DeleteKey.new('localhost', 12345)
+    d = DeleteKey.new
     assert_nothing_raised(RuntimeError) { d.tick }
     assert_equal(1, d.t1.length)
     d.del_buf << [5, 11] # shouldn't delete

@@ -26,7 +26,7 @@ class Bud
   include Anise
   annotator :declare
 
-  def initialize(ip, port, options = nil)
+  def initialize(ip = "localhost", port = 0, options = nil)
     @tables = {}
     @table_meta = []
     @strata = []
@@ -36,13 +36,16 @@ class Bud
     @disk_tables = {}
     @budtime = 0
     @each_counter = {}
-    @ip = ip
-    @port = port.to_i
-    @ip_port = "#{@ip}:#{@port}"
     @connections = {}
     @inbound = []
     @declarations = []
+    @ip = ip
+    @initial_port = port.to_i
+    # If using an ephemeral port (specified by port = 0), port number may not be
+    # known until we start EM, so delay publicizing it until then
+    @port = @ip_port = nil
     @options = options.nil? ? {} : options
+
     self.class.ancestors.each do |anc|
       @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact if anc.methods.include? 'annotation'
     end
@@ -149,7 +152,7 @@ class Bud
           schedule_shutdown
         end
 
-        EventMachine::start_server(@ip, @port, BudServer, self)
+        do_start_server
 
         # flush any tuples installed into channels during bootstrap block
         # XXX: doing this here is a kludge; we should do all of bootstrap
@@ -163,6 +166,31 @@ class Bud
         tick
       }
     end
+  end
+
+  def do_start_server
+    # XXX: EM doesn't really support binding to an ephemeral port at the moment
+    # (it provides no way to determine which port number was chosen), so for now
+    # we emulate this by attempting to bind to randomly-chosen ports until we
+    # find a free one.
+    if @initial_port == 0
+      success = false
+      15.times do
+        @port = 5000 + rand(20000)
+        begin
+          EventMachine::start_server(@ip, @port, BudServer, self)
+          success = true
+          break
+        rescue
+          next
+        end
+      end
+      raise "Failed to bind to local TCP port" unless success
+    else
+      @port = @initial_port
+      EventMachine::start_server(@ip, @port, BudServer, self)
+    end
+    @ip_port = "#{@ip}:#{@port}"
   end
 
   # "Flush" any tuples that need to be flushed. This does two things: (1) emit
