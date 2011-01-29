@@ -25,12 +25,10 @@ class Bud
     @shredded_rules.sort{|a, b| oporder(a[2]) <=> oporder(b[2])}.each do |d|
       belongs_in = smap[d[1]]
       belongs_in = 0 if belongs_in.nil?
-      if @rewritten_strata[belongs_in].nil?
-        @rewritten_strata[belongs_in] = ""
-      end
 
+      @rewritten_strata[belongs_in] ||= ""
       unless done[d[0]]
-        @rewritten_strata[belongs_in] = @rewritten_strata[belongs_in] + "\n"+ d[5]
+        @rewritten_strata[belongs_in] += "\n" + d[5]
       end
       done[d[0]] = true
     end

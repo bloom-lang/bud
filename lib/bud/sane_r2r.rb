@@ -87,7 +87,7 @@ class SaneR2R < Ruby2Ruby
     if exp.length == 2
       l = exp.shift
       r = exp.shift
-      throw = r.shift
+      r.shift
       return l.to_s + "(" + process_arglist(r) + ")"
     else
       return process_fcall_list(exp)
