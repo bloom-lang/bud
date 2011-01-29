@@ -73,7 +73,6 @@ class Bud
   end
 
   def rewrite(pt, tab_map, seed)
-    rules = []
     unless pt[0].nil?
       rewriter = Rewriter.new(seed, tab_map, @options['provenance'])
       rewriter.process(pt)
@@ -117,9 +116,7 @@ class Bud
     eval(res)
     state_reader.tabs.each_pair do |k, v| 
       #puts "tab KEYPAIR #{k.inspect} = #{v.inspect}"
-      unless tabs[k]
-        tabs[k] = []
-      end
+      tabs[k] ||= []
       tabs[k] << v 
     end
     return tabs
