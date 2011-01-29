@@ -1,4 +1,5 @@
 require 'tokyocabinet'
+require 'zookeeper'
 
 class Bud
   ######## the collection types
@@ -378,9 +379,9 @@ class Bud
   class BudChannel < BudCollection
     attr_accessor :locspec, :connections
 
-    def initialize(name, keys, cols, bud_instance, locspec_arg)
+    def initialize(name, keys, cols, locspec, bud_instance)
       super(name, keys, cols, bud_instance)
-      @locspec = locspec_arg
+      @locspec = locspec
       @connections = {}
     end
 
@@ -431,7 +432,7 @@ class Bud
     end
 
     superator "<+" do |o|
-      raise BudError, "Illegal use of <+ with async collection on left"
+      raise BudError, "Illegal use of <+ with channel on left"
     end
   end
 
@@ -867,6 +868,70 @@ class Bud
 
     def method_missing(sym, *args, &block)
       @hdb.send sym, *args, &block
+    end
+  end
+
+  class BudZkTable < BudCollection
+    def initialize(name, zk_path, zk_addr, bud_instance)
+      super(name, ["key"], ["value"], bud_instance)
+
+      zk_path = zk_path.chomp("/") unless zk_path == "/"
+      @zk = Zookeeper.new(zk_addr)
+      @zk_path = zk_path
+      @next_storage = {}
+      @cb = Zookeeper::WatcherCallback.new {
+        puts "Got callback!"
+        get_and_watch
+      }
+      get_and_watch
+    end
+
+    def clone_empty
+      raise BudError
+    end
+
+    def get_and_watch
+      puts "hello, world"
+      r = @zk.get_children(:path => @zk_path, :watcher => @cb)
+
+      # XXX: can we easily get snapshot isolation?
+      new_children = {}
+      r[:children].each do |c|
+        child_path = @zk_path
+        child_path += "/" unless child_path.end_with? "/"
+        child_path += c
+
+        get_r = @zk.get(:path => child_path)
+        unless get_r[:stat].exists
+          puts "Failed to fetch child: #{child_path}"
+          return
+        end
+        data = get_r[:data] or ""
+        new_children[c] = data
+      end
+
+      # We successfully fetched all the children of @zk_path; at the
+      # next Bud tick, install the new data in @storage
+      @next_storage = new_children
+      puts "get_and_watch()!"
+    end
+
+    def tick
+      @storage = @next_storage
+      @new_storage = {}
+      puts "tick()!"
+    end
+
+    def flush
+      puts "flush()!"
+    end
+
+    superator "<~" do |o|
+      raise BudError, "Not implemented yet"
+    end
+
+    superator "<+" do |o|
+      raise BudError, "Illegal use of <+ with zktable on left"
     end
   end
 end

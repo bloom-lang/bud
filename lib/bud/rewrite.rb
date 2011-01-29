@@ -127,7 +127,7 @@ class Rewriter < SaneR2R
     l = Marshal.load(Marshal.dump(clause[1]))
     
     @lhs = true
-    ret =   (l.class == Symbol) ? l.to_s : l.nil? ? "" : process(l.clone)
+    ret = (l.class == Symbol) ? l.to_s : l.nil? ? "" : process(l.clone)
     @lhs = false
     return ret
   end

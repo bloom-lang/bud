@@ -70,7 +70,7 @@ module BudState
     end
     define_or_tick_collection(name)
     @channels[name] ||= @locspec
-    @tables[name] ||= Bud::BudChannel.new(name, keys, cols, self, @locspec)
+    @tables[name] ||= Bud::BudChannel.new(name, keys, cols, @locspec, self)
   end
 
   def file_reader(name, filename, delimiter='\n')
@@ -109,6 +109,13 @@ module BudState
   def tctable(name, keys, cols)
     define_or_tick_collection(name)
     @tables[name] ||= Bud::BudTcTable.new(name, keys, cols, self)
+    @disk_tables[name] ||= @tables[name]
+  end
+
+  def zktable(name, path, addr="localhost:2181")
+    define_or_tick_collection(name)
+    @tables[name] ||= Bud::BudZkTable.new(name, path, addr, self)
+    # XXX: refactor
     @disk_tables[name] ||= @tables[name]
   end
 
