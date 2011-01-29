@@ -131,12 +131,11 @@ class Bud
     tabs = {} 
     each_relevant_ancestor do |anc|
       tabs = shred_state(anc, tabs) if @options['scoping']
-      @declarations.each do |d|
-        rw = rewrite(ParseTree.translate(anc, d), tabs, seed)
+      @declarations.each do |meth_name|
+        rw = rewrite(ParseTree.translate(anc, meth_name), tabs, seed)
         unless rw.nil? 
           seed = rw.rule_indx
-          rulebag[d] = []
-          rw.each{ |r| rulebag[d] << r }
+          rulebag[meth_name] = rw
         end
       end
     end
@@ -148,11 +147,10 @@ class Bud
     end
     if @options['scoping']
       res = write_postamble(tabs, seed + 100)
-      res.each {|p| rules << p } 
+      rules.concat(res)
     end
     return rules
   end
-
 
   def stratify(depends)
     strat = Stratification.new
