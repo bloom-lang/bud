@@ -3,14 +3,16 @@ require 'graphviz'
 require 'syntax/convertors/html'
 
 class Viz 
-  def initialize(strata, mapping, tableinfo, cycle, depanalysis=nil)
-    @graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85)
+  def initialize(mapping, tableinfo, cycle, depanalysis=nil, cardinalities={})
+    #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85 )
+    @graph = GraphViz.new(:G, :type => :digraph, :label => "")
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 1.2)
     @graph.node[:fontname] = "Times-Roman"
     @graph.node[:fontsize] = 28
     @graph.edge[:fontname] = "Times-Roman"
     @graph.edge[:fontsize] = 28
     @tiers = []
+    @cards = cardinalities
     @depanalysis = depanalysis
 
     # map: table -> stratum
@@ -61,6 +63,10 @@ class Viz
     else
       bag[predicate] = true
       res = bag
+      if @redcycle[predicate].nil?
+        puts "nil for #{predicate}"
+        return res 
+      end
       @redcycle[predicate].each do |rp|
         res = name_bag(rp, res)      
       end
@@ -159,7 +165,14 @@ class Viz
   def addonce(node, negcluster)
     if !@nodes[node]
       @nodes[node] = @graph.add_node(node)
-      #@nodes[node].label = "<b>" + node + "</b>"
+      #@nodes[node].label = "<b>" + node + "</b> (#{@tabinf[node].length}) "
+  
+      puts "NODE IS #{node.class} or #{node} and cards is #{@cards.class}"
+      puts "NODE cards is #{@cards[node]}"
+      #if @cards[node]
+        @nodes[node].label = node + "\n (" + @cards[node].to_s + ")"
+      #end
+    
       @nodes[node].URL = "file://#{ENV['PWD']}/plotter_out/#{node}.html"
     end
 
@@ -180,7 +193,7 @@ class Viz
       @nodes[node].color = "red"
       @nodes[node].shape = "octagon"
       @nodes[node].penwidth = 3
-    elsif @tabinf[node] and (@tabinf[node] == Bud::BudTable)
+    elsif @tabinf[node] and (@tabinf[node].class == Bud::BudTable)
       @nodes[node].shape = "rect"
     end
   end
@@ -263,9 +276,9 @@ class Viz
         end
       end
     end
-    @graph.output(:dot => "#{name}.dot")    
-    @graph.output(:pdf => "#{name}.pdf")
-    @graph.output(:cmapx => "#{name}.cmapx")
+    #@graph.output(:dot => "#{name}.dot")    
+    #@graph.output(:pdf => "#{name}.pdf")
+    #@graph.output(:cmapx => "#{name}.cmapx")
     @graph.output(:svg => "#{name}.svg")
   end
 
