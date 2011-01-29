@@ -155,7 +155,7 @@ class Bud
 
 
   def stratify(depends)
-    strat = Stratification.new("localhost", 12345)
+    strat = Stratification.new
     strat.tick
 
     @tables.each do |t|

@@ -34,13 +34,13 @@ end
 
 class TestVars < Test::Unit::TestCase
   def test_goodvars
-    program = VarBud.new('localhost', 12345)
+    program = VarBud.new
     assert_nothing_raised( RuntimeError) { program.tick }
     assert_nothing_raised( RuntimeError) { program.tick }
   end
   
   def test_dupvars
-    program = VarBudDup.new('localhost', 12345)
+    program = VarBudDup.new
     assert_raise(Bud::KeyConstraintError) {program.tick}
   end
 end
