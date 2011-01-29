@@ -177,10 +177,8 @@ class Bud
     if @initial_port == 0
       success = false
       15.times do
-        #@port = 5000 + rand(20000)
-        @port = 0 + rand(1200)
+        @port = 5000 + rand(20000)
         begin
-          puts "Trying port #{@port}..."
           EventMachine::start_server(@ip, @port, BudServer, self)
           success = true
           break
