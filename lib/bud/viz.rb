@@ -157,8 +157,6 @@ class Viz
         next
       end
 
-      puts "#{head} and #{body} are non-internal"
-
       head = name_of(head)
       body = name_of(body)
       addonce(head, (head != d[1]))

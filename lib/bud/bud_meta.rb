@@ -200,11 +200,16 @@ class Bud
     return unless options['visualize']
     cards = {}
     @tables.each do |t|
-      puts "#{@budtime}, #{t[0]}, #{t[1].length}"
+      #puts "#{@budtime}, #{t[0]}, #{t[1].length}"
       cards[t[0].to_s] = t[1].length
+      write_table_contents(t) if @options['visualize'] >= 3
     end
     write_svgs(cards)
     write_html
+  end
+    
+  def write_table_contents(tab)
+    
   end
 
   def prepare_viz
@@ -222,7 +227,6 @@ class Bud
 
   def write_svgs(c)
     return if @strat_state.nil?
-    puts "construct viz with cards = #{c.class}"
     gv = Viz.new(@strat_state.stratum, @tables, @strat_state.cycle, "time_pics/#{self.class}_tm_#{@budtime}", false, nil, c)
     gv.process(@strat_state.depends)
     gv.finish
