@@ -15,7 +15,7 @@ require 'bud/viz'
 require 'bud/state'
 
 class Bud
-  attr_reader :strata, :budtime, :inbound
+  attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir
   attr_accessor :connections
   attr_reader :tables, :ip, :port
   attr_accessor :each_counter

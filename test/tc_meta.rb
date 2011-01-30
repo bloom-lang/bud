@@ -79,19 +79,19 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_unstrat
-    assert_raise(RuntimeError) { program = KTest3.new('localhost', 34521, {'dump' => true, 'visualize' => true, 'enforce_rewrite' => true, 'provenance' =>true}) }
+    assert_raise(RuntimeError) { program = KTest3.new('localhost', 34521, {'dump' => true, 'visualize' => false, 'enforce_rewrite' => true, 'provenance' =>true}) }
   end
 
   def test_visualization
-    program = KTest2.new('localhost', 34521, {'dump' => true, 'visualize' => true, 'enforce_rewrite' => true, 'provenance' =>true})
+    program = KTest2.new('localhost', 34521, {'dump' => true, 'visualize' => 3, 'enforce_rewrite' => true, 'provenance' =>true})
 
-  dep = DepAnalysis.new("localhost", 23525)
+    dep = DepAnalysis.new("localhost", 23525)
   
-  program.strat_state.depends_tc.each{|d| dep.depends_tc << d }
-  program.provides.each{|p| dep.providing << p }
+    program.strat_state.depends_tc.each{|d| dep.depends_tc << d }
+    program.provides.each{|p| dep.providing << p }
 
-  dep.tick
+    dep.tick
 
-  program.visualize(program.strat_state, "outp", nil, dep)
+    program.visualize(program.strat_state, "outp", nil, dep)
   end
 end

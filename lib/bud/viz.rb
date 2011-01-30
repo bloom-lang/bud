@@ -3,7 +3,7 @@ require 'graphviz'
 require 'syntax/convertors/html'
 
 class Viz 
-  def initialize(mapping, tableinfo, cycle, name, collapse=false, depanalysis=nil, cardinalities={})
+  def initialize(mapping, tableinfo, cycle, name, bud_instance, collapse=false, depanalysis=nil, cardinalities={})
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85 )
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 1.2)
@@ -16,7 +16,7 @@ class Viz
     @name = name
     @collapse = collapse
     @depanalysis = depanalysis
-
+    @bud_instance = bud_instance
     @internals = {'count' => 1, 'localtick' => 1, 'stdio' => 1}
 
     # map: table -> stratum
@@ -109,8 +109,12 @@ class Viz
     convertor = Syntax::Convertors::HTML.for_syntax "ruby"
     shredded_rules.each do |s|
       fout = File.new("plotter_out/#{s[0]}.html", "w+")
+      fout.puts header
       fout.puts "<h1>Rule #{s[0]}</h1><br>"
-      fout.puts convertor.convert(s[5]) 
+
+      c = convertor.convert(s[5])
+      c.sub!(/^<pre>/, "<pre class=\"code\">\n")
+      fout.puts c
       rules[s[0]] = [s[1], s[5]]
       fout.close
     end
@@ -176,8 +180,12 @@ class Viz
       if @cards and @cards[node]
         @nodes[node].label = node + "\n (" + @cards[node].to_s + ")"
       end
-    
-      @nodes[node].URL = "file://#{ENV['PWD']}/plotter_out/#{node}.html"
+   
+      if @bud_instance.options['visualize'] >= 3
+        @nodes[node].URL = "file://#{ENV['PWD']}/#{@bud_instance.time_pics_dir}/#{node}_#{@bud_instance.budtime}.html"
+      else 
+        @nodes[node].URL = "file://#{ENV['PWD']}/plotter_out/#{node}.html"
+      end
     end
 
     if negcluster

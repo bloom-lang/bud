@@ -33,7 +33,7 @@ module BudState
   end
 
   def interface(mode, name, keys, cols=[])
-    @provides[name] = mode
+    @provides[name.to_s] = mode
     scratch(name, keys, cols)
   end
 

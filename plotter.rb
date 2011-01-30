@@ -13,14 +13,10 @@ def work
   strat = ic.stratify(@shreddies)
 
   dep = DepAnalysis.new("localhost", 23525)
-
   strat.depends_tc.each{|d| dep.depends_tc << d }
-  #strat.cycle.each{|d| dep.cycle << d }
 
   @provides.each{|p| puts "provide " + p.inspect; dep.providing << p }
-  #@demands.each{|d| puts "demand " + d.inspect; dep.demanding << d }
   dep.tick
-
   dep.tick
   dep.tick
 

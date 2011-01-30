@@ -33,7 +33,13 @@ class Bud
       done[d[0]] = true
     end
 
-    visualize(@strat_state, "#{self.class}_gvoutput", @shredded_rules) if @options['visualize']
+
+    @depanalysis = DepAnalysis.new("localhost", 23525)
+    @strat_state.depends_tc.each{|d| @depanalysis.depends_tc << d }
+    @provides.each{|p| @depanalysis.providing << p }
+    3.times { @depanalysis.tick }
+    @depanalysis.underspecified.each{|u| puts "UNDERSPECIFIED: #{u.inspect}" }
+    visualize(@strat_state, "#{self.class}_gvoutput", @shredded_rules, @depanalysis) if @options['visualize']
     dump_rewrite if @options['dump']
     return @rewritten_strata
   end
@@ -209,25 +215,41 @@ class Bud
   end
     
   def write_table_contents(tab)
+    fout = File.new("#{@time_pics_dir}/#{tab[0]}_#{@budtime}.html", "w")
+    fout.puts "<h1>#{tab[0]} @ #{budtime}</h1>"
+    fout.puts "<table border=1>"
+    fout.puts "<tr>" + tab[1].schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>"
+    tab[1].each do |row|
+      fout.puts "<tr>"
+      fout.puts row.map{|c| "<td>#{c.to_s}</td>"}.join(" ")
     
+      fout.puts "</tr>"
+    end
+    fout.puts "</table>"
+    fout.close
   end
 
   def prepare_viz
     return unless @options['visualize']
-    create_clean("time_pics")
+    unless File::directory? "time_pics"
+      Dir.mkdir("time_pics") 
+    end
+    @time_pics_dir = "time_pics/#{self.class.to_s}_#{self.object_id}"
+    create_clean(@time_pics_dir)
     create_clean("plotter_out")
   end
 
   def create_clean(dir)
     if File::directory? dir
+      # fix.
       `rm -r #{dir}`
     end
-    `mkdir #{dir}`
+    Dir.mkdir(dir)
   end
 
   def write_svgs(c)
     return if @strat_state.nil?
-    gv = Viz.new(@strat_state.stratum, @tables, @strat_state.cycle, "time_pics/#{self.class}_tm_#{@budtime}", false, nil, c)
+    gv = Viz.new(@strat_state.stratum, @tables, @strat_state.cycle, "#{@time_pics_dir}/#{self.class}_tm_#{@budtime}", self, false, @depanalysis, c)
     gv.process(@strat_state.depends)
     gv.finish
   end
@@ -236,23 +258,24 @@ class Bud
     nm = "#{self.class}_tm_#{@budtime}"
     prev = "#{self.class}_tm_#{@budtime-1}"
     nxt = "#{self.class}_tm_#{@budtime+1}"
-    fout = File.new("time_pics/#{nm}.html", "w")
+    fout = File.new("#{@time_pics_dir}/#{nm}.html", "w")
     fout.puts "<center><h1>#{self.class} @ #{@budtime}</h1><center>"
-    fout.puts "<embed src=\"#{ENV['PWD']}/time_pics/#{nm}_expanded.svg\" width=\"100%\" height=\"75%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
-    fout.puts "<hr><h2><a href=\"#{ENV['PWD']}/time_pics/#{prev}.html\">last</a>"
-    fout.puts "<a href=\"#{ENV['PWD']}/time_pics/#{nxt}.html\">next</a>"
+    fout.puts "<embed src=\"#{ENV['PWD']}/#{@time_pics_dir}/#{nm}_expanded.svg\" width=\"100%\" height=\"75%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
+    fout.puts "<hr><h2><a href=\"#{ENV['PWD']}/#{@time_pics_dir}/#{prev}.html\">last</a>"
+    fout.puts "<a href=\"#{ENV['PWD']}/#{@time_pics_dir}/#{nxt}.html\">next</a>"
     fout.close
   end
 
   def visualize(strat, name, rules, depa=nil)
+
     # collapsed
-    gv = Viz.new(strat.stratum, @tables, strat.cycle, name, true, depa)
+    gv = Viz.new(strat.stratum, @tables, strat.cycle, name, self, true, depa)
     gv.process(strat.depends)
     gv.dump(rules)
     gv.finish
 
     # detail
-    gv = Viz.new(strat.stratum, @tables, strat.cycle, name, false, depa)
+    gv = Viz.new(strat.stratum, @tables, strat.cycle, name, self, false, depa)
     gv.process(strat.depends)
     gv.dump(rules)
     gv.finish
