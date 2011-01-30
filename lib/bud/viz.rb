@@ -3,7 +3,7 @@ require 'graphviz'
 require 'syntax/convertors/html'
 
 class Viz 
-  def initialize(mapping, tableinfo, cycle, depanalysis=nil, cardinalities={})
+  def initialize(mapping, tableinfo, cycle, name, collapse=false, depanalysis=nil, cardinalities={})
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85 )
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 1.2)
@@ -13,7 +13,11 @@ class Viz
     @graph.edge[:fontsize] = 28
     @tiers = []
     @cards = cardinalities
+    @name = name
+    @collapse = collapse
     @depanalysis = depanalysis
+
+    @internals = {'count' => 1, 'localtick' => 1, 'stdio' => 1}
 
     # map: table -> stratum
     @t2s = {}
@@ -82,7 +86,8 @@ class Viz
 
   def name_of(predicate)
     # consider doing this in bud
-    if @redcycle[predicate]
+    # PAA
+    if @redcycle[predicate] and @collapse
       via = @redcycle[predicate]
       bag = name_bag(predicate, {})
       str = bag.keys.sort.join(", ")
@@ -94,8 +99,6 @@ class Viz
 
   def dump(shredded_rules)
     return if shredded_rules.nil?
-    `rm -r plotter_out`
-    `mkdir plotter_out`
 
     fout = File.new("plotter_out/style.css", "w")
     fout.puts css
@@ -149,9 +152,12 @@ class Viz
       end
 
       # hack attack
-      if body == "count" or head == "localtick" or head == "stdio"
+      #if body == "count" or head == "localtick" or head == "stdio" 
+      if @internals[head] or @internals[body]
         next
       end
+
+      puts "#{head} and #{body} are non-internal"
 
       head = name_of(head)
       body = name_of(body)
@@ -167,11 +173,11 @@ class Viz
       @nodes[node] = @graph.add_node(node)
       #@nodes[node].label = "<b>" + node + "</b> (#{@tabinf[node].length}) "
   
-      puts "NODE IS #{node.class} or #{node} and cards is #{@cards.class}"
-      puts "NODE cards is #{@cards[node]}"
-      #if @cards[node]
+      #puts "NODE IS #{node.class} or #{node} and cards is #{@cards.class}"
+      #puts "NODE cards is #{@cards[node]}"
+      if @cards and @cards[node]
         @nodes[node].label = node + "\n (" + @cards[node].to_s + ")"
-      #end
+      end
     
       @nodes[node].URL = "file://#{ENV['PWD']}/plotter_out/#{node}.html"
     end
@@ -193,6 +199,7 @@ class Viz
       @nodes[node].color = "red"
       @nodes[node].shape = "octagon"
       @nodes[node].penwidth = 3
+      @nodes[node].URL = "file://#{ENV['PWD']}/#{@name}_expanded.svg"
     elsif @tabinf[node] and (@tabinf[node].class == Bud::BudTable)
       @nodes[node].shape = "rect"
     end
@@ -239,7 +246,7 @@ class Viz
 
   end
 
-  def finish(name)
+  def finish
     @labels.each_key do |k|
       @edges[k].label = @labels[k].keys.join(" ")
     end
@@ -256,7 +263,7 @@ class Viz
     @nodes["T"].penwidth = 3
 
     @tabinf.each_pair do |k, v|
-      unless @nodes[name_of(k.to_s)] or k.to_s =~ /_tbl/ or k.to_s == "tickler"
+      unless @nodes[name_of(k.to_s)] or k.to_s =~ /_tbl/ or @internals[k.to_s]
         addonce(k.to_s, false)
       end
     end
@@ -276,10 +283,8 @@ class Viz
         end
       end
     end
-    #@graph.output(:dot => "#{name}.dot")    
-    #@graph.output(:pdf => "#{name}.pdf")
-    #@graph.output(:cmapx => "#{name}.cmapx")
-    @graph.output(:svg => "#{name}.svg")
+    suffix = @collapse ? "collapsed" : "expanded"
+    @graph.output(:svg => "#{@name}_#{suffix}.svg")
   end
 
   def header

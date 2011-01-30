@@ -57,6 +57,7 @@ class Bud
 
     init_state
     bootstrap
+    prepare_viz
     # make sure that new_delta tuples from bootstrap rules are transitioned into 
     # storage before first tick.
     tables.each{|name,coll| coll.install_deltas}

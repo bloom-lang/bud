@@ -208,13 +208,25 @@ class Bud
     
   end
 
+  def prepare_viz
+    return unless @options['visualize']
+    create_clean("time_pics")
+    create_clean("plotter_out")
+  end
+
+  def create_clean(dir)
+    if File::directory? dir
+      `rm -r #{dir}`
+    end
+    `mkdir #{dir}`
+  end
+
   def write_svgs(c)
-    `mkdir time_pics`
     return if @strat_state.nil?
     puts "construct viz with cards = #{c.class}"
-    gv = Viz.new(@strat_state.stratum, @tables, @strat_state.cycle, nil, c)
+    gv = Viz.new(@strat_state.stratum, @tables, @strat_state.cycle, "time_pics/#{self.class}_tm_#{@budtime}", false, nil, c)
     gv.process(@strat_state.depends)
-    gv.finish("time_pics/#{self.class}_tm_#{@budtime}")
+    gv.finish
   end
 
   def write_html
@@ -223,23 +235,23 @@ class Bud
     nxt = "#{self.class}_tm_#{@budtime+1}"
     fout = File.new("time_pics/#{nm}.html", "w")
     fout.puts "<center><h1>#{self.class} @ #{@budtime}</h1><center>"
-    #fout.puts "<img src=\"#{ENV['PWD']}/time_pics/#{nm}.svg\">"
-    fout.puts "<embed src=\"#{ENV['PWD']}/time_pics/#{nm}.svg\" width=\"100%\" height=\"75%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
-    #fout.puts "<embed src=\"#{ENV['PWD']}/time_pics/#{nm}.svg\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
+    fout.puts "<embed src=\"#{ENV['PWD']}/time_pics/#{nm}_expanded.svg\" width=\"100%\" height=\"75%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
     fout.puts "<hr><h2><a href=\"#{ENV['PWD']}/time_pics/#{prev}.html\">last</a>"
     fout.puts "<a href=\"#{ENV['PWD']}/time_pics/#{nxt}.html\">next</a>"
     fout.close
   end
 
   def visualize(strat, name, rules, depa=nil)
-    #@tables.each do |t|
-    #  @table_meta << [t[0], t[1].class]
-    #end
-    #gv = Viz.new(strat.stratum, @table_meta, strat.cycle, depa)
-    puts "VIZZ"
-    gv = Viz.new(strat.stratum, @tables, strat.cycle, depa)
+    # collapsed
+    gv = Viz.new(strat.stratum, @tables, strat.cycle, name, true, depa)
     gv.process(strat.depends)
     gv.dump(rules)
-    gv.finish(name)
+    gv.finish
+
+    # detail
+    gv = Viz.new(strat.stratum, @tables, strat.cycle, name, false, depa)
+    gv.process(strat.depends)
+    gv.dump(rules)
+    gv.finish
   end
 end
