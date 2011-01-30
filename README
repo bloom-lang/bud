@@ -18,3 +18,11 @@ A "one-shot" shortest paths example:
     % ruby examples/other/paths.rb
 
 To run a "ping-pong" example, see instructions in examples/other/pingpong.rb
+
+Development Notes
+=================
+
+When installing an updated gem, using the "-l" option avoids querying the remote
+RubyGems repository, and hence is significantly faster:
+
+    % sudo gem install -l bud-0.0.1.gem
