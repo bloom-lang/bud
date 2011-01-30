@@ -180,9 +180,9 @@ class Rewriter < SaneR2R
       if op == "group"
         @grouping = true
       end
-      @nmcontext = @nmcontext + 1
+      @nmcontext += 1
       ret = super exp
-      @nmcontext = @nmcontext - 1
+      @nmcontext -= 1
     else
       ret = super
     end
@@ -205,9 +205,9 @@ class Rewriter < SaneR2R
         @tabs[t] = @nmcontext
       end
     end
-    # I want, for a given table, what its type is (eg interface or not, and if so which type) and where
-    # "below me" it was defined.
-    ret =  resolve(exp.shift.to_s)
+    # I want, for a given table, what its type is (eg interface or not, and if
+    # so which type) and where "below me" it was defined.
+    ret = resolve(exp.shift.to_s)
     @lhs = false
     return ret
   end
@@ -229,15 +229,6 @@ class Rewriter < SaneR2R
     @aliases[t] = []
   end
 
-  def remove_annotations(str)
-    # PAA: surely there is a better way.
-    while str =~ /TABLE\(([^)]+)\)/
-      $m = $1
-      str = str.sub(/TABLE\([^)]+?\)/, $m)
-    end
-    return str
-  end
-
   def empty(exp)
     until exp.empty?
       exp.shift
@@ -255,7 +246,7 @@ class Rewriter < SaneR2R
       end
     end
     @tabs = {}
-    @rule_indx = @rule_indx + 1
+    @rule_indx += 1
   end
 
   def extract_lhs(clause)
