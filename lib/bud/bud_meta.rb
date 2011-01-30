@@ -234,7 +234,11 @@ class Bud
     unless File::directory? "time_pics"
       Dir.mkdir("time_pics") 
     end
-    @time_pics_dir = "time_pics/#{self.class.to_s}_#{self.object_id}"
+    
+    #@time_pics_dir = "time_pics/#{self.class.to_s}_#{self.object_id}"
+    arr = [self.class.to_s, self.object_id.to_s]
+    arr << @options['tag'] if @options['tag']
+    @time_pics_dir = "time_pics/#{arr.join("_")}"
     create_clean(@time_pics_dir)
     create_clean("plotter_out")
   end
