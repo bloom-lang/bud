@@ -133,6 +133,9 @@ class Rewriter < SaneR2R
     exp.shift
     until exp.empty?
       clause = exp.shift
+      # Empty block?
+      return "" if clause.length == 1 and clause.first == :nil
+
       lhs = extract_lhs(clause)
       len = clause.length
       if len == 3
@@ -142,7 +145,7 @@ class Rewriter < SaneR2R
         # 'rule'
         op = clause[2].to_s
         if op[0,1].to_s != '<'
-          raise "Invalid op (#{op[0,1].to_s}) in top-level block #{clause.inspect}\n"
+          raise "Invalid op (#{op[0,1].to_s}) in top-level block #{clause.inspect}"
         else
           shove(lhs, op, clause)
         end
