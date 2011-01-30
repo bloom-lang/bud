@@ -105,7 +105,7 @@ class Bud
       begin
         run
       rescue
-        print "background thread failed with #{$!}\ncaller: #{caller.inspect}"
+        print "Background thread failed with #{$!}\ncaller: #{caller.inspect}"
         exit
       end
     end

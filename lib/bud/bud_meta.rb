@@ -59,21 +59,10 @@ class Bud
     fout.close
   end
 
-  def each_relevant_ancestor
-    on = false
-    self.class.ancestors.reverse.each do |anc|
-      if on
-        yield anc
-      elsif anc == Bud
-        on = true
-      end
-    end
-  end
-
-  def rewrite(pt, tab_map, seed)
-    unless pt[0].nil?
+  def rewrite(parse_tree, tab_map, seed)
+    unless parse_tree[0].nil?
       rewriter = Rewriter.new(seed, tab_map, @options['provenance'])
-      rewriter.process(pt)
+      rewriter.process(parse_tree)
     end
     return rewriter
   end
@@ -88,17 +77,17 @@ class Bud
     tabs.each_pair do |k, v|
       last = v.last
       if last[1] == "input"  
-        postamble = postamble + "#{last[0]} <= #{k}.map{|t| puts \"INPUT POSTAMBLE\" or t }\n\n"
+        postamble += "#{last[0]} <= #{k}.map{|t| puts \"INPUT POSTAMBLE\" or t }\n\n"
       elsif last[1] == "output"
-        postamble = postamble + "#{k} <= #{last[0]}.map{|t| puts \"OUTPUT POSTAMBLE\" or t }\n\n"
+        postamble += "#{k} <= #{last[0]}.map{|t| puts \"OUTPUT POSTAMBLE\" or t }\n\n"
       else
         left = "#{k} <= #{last[0]}"
         right = "#{last[0]} <= #{k}"
-        postamble = postamble + "#{left}.map{|t| puts \"VISIBILITy POSTAMBLE #{left} :: \" + t.inspect or t }\n\n"
-        postamble = postamble + "#{right}.map{|t| puts \"VISIBILITy POSTAMBLE #{right} :: \" + t.inspect or t }\n\n"
+        postamble += "#{left}.map{|t| puts \"VISIBILITy POSTAMBLE #{left} :: \" + t.inspect or t }\n\n"
+        postamble += "#{right}.map{|t| puts \"VISIBILITy POSTAMBLE #{right} :: \" + t.inspect or t }\n\n"
       end
     end
-    postamble = postamble + "\nend\n"   
+    postamble += "\nend\n"   
 
     return rewrite(ParseTree.translate(postamble), {}, seed)
   end
@@ -125,7 +114,6 @@ class Bud
     # from all parent classes/modules
     # after making this pass, we no longer care about the names of methods.
     # we are shredding down to the granularity of rule heads.
-    rules = []
     seed = 0
     rulebag = {}
     tabs = {} 
@@ -139,6 +127,8 @@ class Bud
         end
       end
     end
+
+    rules = []
     rulebag.each_pair do |k, v|
       v.each do |val|
         #puts "RULEBAG #{k.inspect} = #{val.inspect}"
@@ -150,6 +140,17 @@ class Bud
       rules.concat(res)
     end
     return rules
+  end
+
+  def each_relevant_ancestor
+    on = false
+    self.class.ancestors.reverse.each do |anc|
+      if on
+        yield anc
+      elsif anc == Bud
+        on = true
+      end
+    end
   end
 
   def stratify(depends)
@@ -173,8 +174,9 @@ class Bud
       else
         realop = d[2]
       end
-      # seriously, consider named notation for d.
-      strat.depends << [ d[0], d[1], realop, d[3], d[4] ]
+      # Format: rule, head, op, body, neg
+      # XXX: consider named notation for d.
+      strat.depends << [d[0], d[1], realop, d[3], d[4]]
     end
 
     strat.tick
@@ -203,7 +205,6 @@ class Bud
     end
     write_svgs(cards)
     write_html
-    
   end
 
   def write_svgs(c)
