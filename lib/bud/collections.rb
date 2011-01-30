@@ -447,8 +447,7 @@ class Bud
       @reader = Thread.new() do
         begin
           while true
-            str = tabname.to_s + " > "
-            STDOUT.print(str) if prompt
+            STDOUT.print("#{tabname} > ") if prompt
             s = STDIN.gets
             s = s.chomp if s
             tup = tuple_accessors([s])
@@ -459,7 +458,8 @@ class Bud
             @connection.send_data [tabname, tup].to_msgpack
           end
         rescue
-          print "terminal reader thread failed with #{$!}\ncaller: #{caller.inspect}"
+          puts "terminal reader thread failed: #{$!}"
+          print $!.backtrace.join("\n")
           exit
         end
       end
@@ -872,6 +872,7 @@ class Bud
     end
   end
 
+  # Persistent table implementation based on Zookeeper.
   class BudZkTable < BudCollection
     def initialize(name, zk_path, zk_addr, bud_instance)
       super(name, ["key"], ["value"], bud_instance)
@@ -894,6 +895,7 @@ class Bud
     def get_and_watch
       puts "hello, world"
       r = @zk.get_children(:path => @zk_path, :watcher => @cb)
+      return unless r[:stat].exists
 
       # XXX: can we easily get snapshot isolation?
       new_children = {}
@@ -925,6 +927,10 @@ class Bud
 
     def flush
       puts "flush()!"
+    end
+
+    def close
+      puts "close()!"
     end
 
     superator "<~" do |o|
