@@ -15,7 +15,7 @@ require 'bud/viz'
 require 'bud/state'
 
 class Bud
-  attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir
+  attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir, :provides, :meta_parser
   attr_accessor :connections
   attr_reader :tables, :ip, :port
   attr_accessor :each_counter
@@ -59,7 +59,10 @@ class Bud
 
     init_state
     bootstrap
-    prepare_viz
+    #prepare_viz
+    @viz = Viz.new(self)
+    @viz.prepare_viz
+
     # make sure that new_delta tuples from bootstrap rules are transitioned into 
     # storage before first tick.
     tables.each{|name,coll| coll.install_deltas}
@@ -88,13 +91,14 @@ class Bud
   end
 
   def safe_rewrite
+    @meta_parser = BudMeta.new(self, @declarations)
     if @options[:disable_rewrite]
       puts "No rewriting performed"
       return
     end
 
     begin
-      @rewritten_strata = meta_rewrite
+      @rewritten_strata = @meta_parser.meta_rewrite
     rescue
       raise if @options[:enforce_rewrite]
       puts "Running original (#{self.class}) code: couldn't rewrite stratified ruby (#{$!})"
@@ -245,7 +249,7 @@ class Bud
       end
     end
     @strata.each { |strat| stratum_fixpoint(strat) }
-    do_cards
+    @viz.do_cards
     do_flush
     @budtime += 1
     return @budtime

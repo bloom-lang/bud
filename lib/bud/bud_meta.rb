@@ -4,11 +4,17 @@ require 'bud/depanalysis'
 require 'bud/provenance'
 require 'bud/rewrite'
 require 'bud/sane_r2r'
+require 'bud/graphs'
 require 'parse_tree'
 
 
-class Bud
+class BudMeta
   attr_reader :shredded_rules, :provides, :strat_state
+
+  def initialize(bud_instance, declarations)
+    @bud_instance = bud_instance
+    @declarations = declarations
+  end
 
   def meta_rewrite
     # N.B. -- parse_tree will not be supported in ruby 1.9.
@@ -35,11 +41,11 @@ class Bud
 
     @depanalysis = DepAnalysis.new
     @strat_state.depends_tc.each{|d| @depanalysis.depends_tc << d}
-    @provides.each{|p| @depanalysis.providing << p}
+    @bud_instance.provides.each{|p| @depanalysis.providing << p}
     3.times { @depanalysis.tick }
     @depanalysis.underspecified.each{|u| puts "UNDERSPECIFIED: #{u.inspect}"}
-    visualize(@strat_state, "#{self.class}_gvoutput", @shredded_rules, @depanalysis) if @options[:visualize]
-    dump_rewrite if @options[:dump]
+    visualize(@strat_state, "#{self.class}_gvoutput", @shredded_rules, @depanalysis) if @bud_instance.options[:visualize]
+    dump_rewrite if @bud_instance.options[:dump]
     return @rewritten_strata
   end
 
@@ -66,7 +72,7 @@ class Bud
 
   def rewrite(parse_tree, tab_map, seed)
     unless parse_tree[0].nil?
-      rewriter = Rewriter.new(seed, tab_map, @options[:provenance])
+      rewriter = Rewriter.new(seed, tab_map, @bud_instance.options[:provenance])
       rewriter.process(parse_tree)
     end
     return rewriter
@@ -98,6 +104,7 @@ class Bud
   end
 
   def shred_state(anc, tabs)
+    return {} unless @bud_instance.options[:scoping]
     stp = ParseTree.translate(anc, "state")
     return tabs if stp[0].nil?
     state_reader = StateExtractor.new(anc.to_s)
@@ -121,9 +128,8 @@ class Bud
     # we are shredding down to the granularity of rule heads.
     seed = 0
     rulebag = {}
-    tabs = {} 
     each_relevant_ancestor do |anc|
-      tabs = shred_state(anc, tabs) if @options[:scoping]
+      tabs = shred_state(anc, tabs)
       @declarations.each do |meth_name|
         rw = rewrite(ParseTree.translate(anc, meth_name), tabs, seed)
         unless rw.nil? 
@@ -140,7 +146,7 @@ class Bud
         rules << val
       end
     end
-    if @options[:scoping]
+    if @bud_instance.options[:scoping]
       res = write_postamble(tabs, seed + 100)
       rules.concat(res)
     end
@@ -149,7 +155,7 @@ class Bud
 
   def each_relevant_ancestor
     on = false
-    self.class.ancestors.reverse.each do |anc|
+    @bud_instance.class.ancestors.reverse.each do |anc|
       if on
         yield anc
       elsif anc == Bud
@@ -162,7 +168,7 @@ class Bud
     strat = Stratification.new
     strat.tick
 
-    @tables.each do |t|
+    @bud_instance.tables.each do |t|
       strat.tab_info << [t[0].to_s, t[1].class, t[1].schema.length]
     end
 
@@ -201,84 +207,16 @@ class Bud
     end
   end
 
-  def do_cards
-    return unless options[:visualize]
-    cards = {}
-    @tables.each do |t|
-      #puts "#{@budtime}, #{t[0]}, #{t[1].length}"
-      cards[t[0].to_s] = t[1].length
-      write_table_contents(t) if @options[:visualize] >= 3
-    end
-    write_svgs(cards)
-    write_html
-  end
-    
-  def write_table_contents(tab)
-    fout = File.new("#{@time_pics_dir}/#{tab[0]}_#{@budtime}.html", "w")
-    fout.puts "<h1>#{tab[0]} @ #{budtime}</h1>"
-    fout.puts "<table border=1>"
-    fout.puts "<tr>" + tab[1].schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>"
-    tab[1].each do |row|
-      fout.puts "<tr>"
-      fout.puts row.map{|c| "<td>#{c.to_s}</td>"}.join(" ")
-    
-      fout.puts "</tr>"
-    end
-    fout.puts "</table>"
-    fout.close
-  end
-
-  def prepare_viz
-    return unless @options[:visualize]
-    unless File::directory? "time_pics"
-      Dir.mkdir("time_pics") 
-    end
-    
-    #@time_pics_dir = "time_pics/#{self.class.to_s}_#{self.object_id}"
-    arr = [self.class.to_s, self.object_id.to_s]
-    arr << @options[:tag] if @options[:tag]
-    @time_pics_dir = "time_pics/#{arr.join("_")}"
-    create_clean(@time_pics_dir)
-    create_clean("plotter_out")
-  end
-
-  def create_clean(dir)
-    if File::directory? dir
-      # fix.
-      `rm -r #{dir}`
-    end
-    Dir.mkdir(dir)
-  end
-
-  def write_svgs(c)
-    return if @strat_state.nil?
-    gv = Viz.new(@strat_state.stratum, @tables, @strat_state.cycle, "#{@time_pics_dir}/#{self.class}_tm_#{@budtime}", self, false, @depanalysis, c)
-    gv.process(@strat_state.depends)
-    gv.finish
-  end
-
-  def write_html
-    nm = "#{self.class}_tm_#{@budtime}"
-    prev = "#{self.class}_tm_#{@budtime-1}"
-    nxt = "#{self.class}_tm_#{@budtime+1}"
-    fout = File.new("#{@time_pics_dir}/#{nm}.html", "w")
-    fout.puts "<center><h1>#{self.class} @ #{@budtime}</h1><center>"
-    fout.puts "<embed src=\"#{ENV['PWD']}/#{@time_pics_dir}/#{nm}_expanded.svg\" width=\"100%\" height=\"75%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
-    fout.puts "<hr><h2><a href=\"#{ENV['PWD']}/#{@time_pics_dir}/#{prev}.html\">last</a>"
-    fout.puts "<a href=\"#{ENV['PWD']}/#{@time_pics_dir}/#{nxt}.html\">next</a>"
-    fout.close
-  end
-
   def visualize(strat, name, rules, depa=nil)
 
     # collapsed
-    gv = Viz.new(strat.stratum, @tables, strat.cycle, name, self, true, depa)
+    gv = GraphGen.new(strat.stratum, @bud_instance.tables, strat.cycle, name, @bud_instance, true, depa)
     gv.process(strat.depends)
     gv.dump(rules)
     gv.finish
 
     # detail
-    gv = Viz.new(strat.stratum, @tables, strat.cycle, name, self, false, depa)
+    gv = GraphGen.new(strat.stratum, @bud_instance.tables, strat.cycle, name, @bud_instance, false, depa)
     gv.process(strat.depends)
     gv.dump(rules)
     gv.finish
