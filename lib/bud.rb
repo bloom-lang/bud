@@ -108,7 +108,8 @@ class Bud
       begin
         run
       rescue
-        print "Background thread failed with #{$!}\ncaller: #{caller.inspect}"
+        puts "Background thread failed: #{$!}"
+        puts $!.backtrace.join("\n")
         exit
       end
     end
