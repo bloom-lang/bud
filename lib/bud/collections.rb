@@ -702,7 +702,7 @@ class Bud
       raise BudError, "Illegal use of <+ with read-only collection on left"
     end
     def merge
-      raise BudError, "Illegale use of <= with read-only collection on left"
+      raise BudError, "Illegal use of <= with read-only collection on left"
     end
   end
 
