@@ -702,7 +702,7 @@ class Bud
       raise BudError, "Illegal use of <+ with read-only collection on left"
     end
     def merge
-      raise BudError, "Illegale use of <= with read-only collection on left"
+      raise BudError, "Illegal use of <= with read-only collection on left"
     end
   end
 
@@ -885,21 +885,50 @@ class Bud
       @zk = Zookeeper.new(zk_addr)
       @zk_path = zk_path
       @next_storage = {}
-      @cb = Zookeeper::WatcherCallback.new {
-        puts "Got callback!"
+      @watch_req_id = nil
+      @child_watcher = Zookeeper::WatcherCallback.new {
+        puts "Got child callback!"
         get_and_watch
       }
-      get_and_watch
+      @stat_watcher = Zookeeper::WatcherCallback.new {
+        puts "Got stat callback!"
+        stat_and_watch
+      }
+      stat_and_watch
     end
 
     def clone_empty
       raise BudError
     end
 
+    def stat_and_watch
+      puts "setting stat watch: #{@zk_path}"
+      r = @zk.stat(:path => @zk_path, :watcher => @stat_watcher)
+      if r[:stat].exists
+        # Make sure we're watching for children
+        get_and_watch unless @watch_req_id
+      else
+        cancel_child_watch
+      end
+    end
+
+    def cancel_child_watch
+      if @watch_req_id
+        puts "Cancelling get_children watcher (id = #{@watch_req_id})"
+        @zk.unregister_watcher(@watch_req_id)
+        @watch_req_id = nil
+      end
+    end
+
     def get_and_watch
-      puts "hello, world"
-      r = @zk.get_children(:path => @zk_path, :watcher => @cb)
-      return unless r[:stat].exists
+      puts "setting get_children watch: #{@zk_path}"
+      r = @zk.get_children(:path => @zk_path, :watcher => @child_watcher)
+      @watch_req_id = r[:req_id]
+      puts "result = #{r.inspect}"
+      unless r[:stat].exists
+        cancel_child_watch
+        return
+      end
 
       # XXX: can we easily get snapshot isolation?
       new_children = {}
@@ -914,13 +943,14 @@ class Bud
           return
         end
         data = get_r[:data] or ""
-        new_children[c] = data
+        tup = tuple_accessors([c, data])
+        new_children[c] = tup
+        puts "Mapping #{c} => #{tup}"
       end
 
       # We successfully fetched all the children of @zk_path; at the
       # next Bud tick, install the new data in @storage
       @next_storage = new_children
-      puts "get_and_watch()!"
     end
 
     def tick
