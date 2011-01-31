@@ -72,9 +72,9 @@ class TestCart < TestLib
   include CartWorkloads
 
   def test_disorderly_cart
-    program = BCS.new('localhost', 23765, {'dump' => true})
-    #program = DummyDC.new('localhost', 23765, {'dump' => true})
-    #program = DCR.new('localhost', 23765, {'dump' => true, 'scoping' => true})
+    program = BCS.new(:port => 23765, :dump => true)
+    #program = DummyDC.new(:port => 23765, :dump => true)
+    #program = DCR.new(:port => 23765, :dump => true, :scoping => true)
 
     program.run_bg
     sleep 1
@@ -114,7 +114,5 @@ class TestCart < TestLib
     # undesirable but consistent that a 2nd checkout message should produce a revised manifest.
     assert_equal(3, program.memo.length)
     assert_equal(1, pcnt)
-    
   end
-
 end

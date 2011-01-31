@@ -9,10 +9,10 @@ require 'chat_protocol'
 
 class ChatClient < Bud
   include ChatProtocol
-  def initialize(ip, port, me, master)
+  def initialize(me, master, opts)
     @me = me
     @master = master
-    super ip, port
+    super opts
   end
   
   def state
@@ -46,6 +46,7 @@ end
 
 source = ARGV[0].split(':')
 ip = source[0]
-port = source[1].to_i
-program = ChatClient.new(ip, port, ARGV[1], ARGV[2])
+port = source[1]
+program = ChatClient.new(ARGV[1], ARGV[2],
+                         :ip => ip, :port => port, :read_stdin => true)
 program.run

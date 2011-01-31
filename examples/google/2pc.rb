@@ -2,13 +2,13 @@ require 'voting'
 
 module TwoPCAgent
   include Anise
-  annotator :declare 
+  annotator :declare
   include VotingAgent
   # 2pc is a specialization of voting:
   # * ballots describe transactions
   # * voting is Y/N.  A single N vote should cause abort.
   def state
-    super if defined? super
+    super
     scratch :can_commit, ['xact', 'decision']
   end
 
@@ -16,14 +16,13 @@ module TwoPCAgent
   def decide
     cast_vote <= join([waiting_ballots, can_commit], [waiting_ballots.id, can_commit.xact]).map{|w, c| [w.id, c.decision] }
   end
-
 end
 
 
 module TwoPCVotingMaster
   # boilerplate
   include Anise
-  annotator :declare 
+  annotator :declare
   include VotingMaster
   # override the default summary s.t. a single N vote
   # makes the vote_status = ABORT
@@ -52,13 +51,13 @@ module TwoPCMaster
   # * ballots describe transactions
   # * voting is Y/N.  A single N vote should cause abort.
   def state
-    super if defined? super
-    
+    super
+
     table :xact, ['xid', 'data'], ['status']
     scratch :request_commit, ['xid'], ['data']
   end
-  
-  declare 
+
+  declare
   def boots
     xact <= request_commit.map{|r| [r.xid, r.data, 'prepare'] }
     stdio <~ request_commit.map{|r| ["begin that vote"]}
@@ -79,7 +78,7 @@ module TwoPCMaster
     stdio <~ decide.map { |x, s| ["COMMITTING"] if s.response == "Y" }
     xact <+ decide.map { |x, s| [x.xid, x.data, "commit"] if s.response == "Y" }
   end
-  
+
 end
 
 module Monotonic2PCMaster
@@ -94,8 +93,8 @@ module Monotonic2PCMaster
     xact_order << ['abort', 2]
   end
   def state
-    super if defined? super
-    
+    super
+
     # TODO
     table :xact_order, ['status'], ['ordinal']
     table :xact_final, ['xid', 'ordinal']
@@ -104,8 +103,8 @@ module Monotonic2PCMaster
     scratch :request_commit, ['xid'], ['data']
     scratch :sj, ['xid', 'data', 'status', 'ordinal']
   end
-  
-  declare 
+
+  declare
   def boots
     xact_accum <= request_commit.map{|r| [r.xid, r.data, 'prepare'] }
     begin_vote <= request_commit.map{|r| [r.xid, r.data] }
@@ -122,7 +121,7 @@ module Monotonic2PCMaster
       [x.xid, x.data, "commit"] if s.response == "Y"
     end
   end
-  
+
   declare
   def twopc_status
     sj <= join([xact_accum, xact_order], [xact_accum.status, xact_order.status]).map do |x,o|

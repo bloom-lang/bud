@@ -3,8 +3,8 @@ require 'rubygems'
 require 'bud'
 
 class Grep < Bud
-  def initialize(ip, port, pattern)
-    super(ip, port)
+  def initialize(pattern)
+    super()
     @pattern = pattern
   end
 
@@ -19,6 +19,6 @@ class Grep < Bud
   end
 end
 
-program = Grep.new('localhost', ARGV[0], /[Bb]loom/)
+program = Grep.new(/[Bb]loom/)
 program.tick
 program.matches.sort.each {|t| puts t.inspect}

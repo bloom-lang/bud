@@ -7,8 +7,9 @@ require 'chat_master'
 
 source = ARGV[0].split(':')
 ip = source[0]
-port = source[1].to_i
-program = ChatMaster.new(ip, port, {'visualize' => true, 'dump' => false})
+port = source[1]
+program = ChatMaster.new(:ip => ip, :port => port,
+                         :visualize => false, :dump => false)
 
 t = program.run_bg
 sleep 10
