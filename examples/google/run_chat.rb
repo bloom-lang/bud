@@ -9,5 +9,5 @@ source = ARGV[0].split(':')
 ip = source[0]
 port = source[1].to_i
 program = ChatClient.new(ARGV[1], ARGV[2],
-                         :ip => ip, :port => port, :visualize => true, :read_stdin => true)
+                         :ip => ip, :port => port, :visualize => 1, :read_stdin => true)
 program.run
