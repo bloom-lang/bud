@@ -33,14 +33,13 @@ class Bud
       done[d[0]] = true
     end
 
-
-    @depanalysis = DepAnalysis.new("localhost", 23525)
-    @strat_state.depends_tc.each{|d| @depanalysis.depends_tc << d }
-    @provides.each{|p| @depanalysis.providing << p }
+    @depanalysis = DepAnalysis.new
+    @strat_state.depends_tc.each{|d| @depanalysis.depends_tc << d}
+    @provides.each{|p| @depanalysis.providing << p}
     3.times { @depanalysis.tick }
-    @depanalysis.underspecified.each{|u| puts "UNDERSPECIFIED: #{u.inspect}" }
-    visualize(@strat_state, "#{self.class}_gvoutput", @shredded_rules, @depanalysis) if @options['visualize']
-    dump_rewrite if @options['dump']
+    @depanalysis.underspecified.each{|u| puts "UNDERSPECIFIED: #{u.inspect}"}
+    visualize(@strat_state, "#{self.class}_gvoutput", @shredded_rules, @depanalysis) if @options[:visualize]
+    dump_rewrite if @options[:dump]
     return @rewritten_strata
   end
 
@@ -67,7 +66,7 @@ class Bud
 
   def rewrite(parse_tree, tab_map, seed)
     unless parse_tree[0].nil?
-      rewriter = Rewriter.new(seed, tab_map, @options['provenance'])
+      rewriter = Rewriter.new(seed, tab_map, @options[:provenance])
       rewriter.process(parse_tree)
     end
     return rewriter
@@ -124,7 +123,7 @@ class Bud
     rulebag = {}
     tabs = {} 
     each_relevant_ancestor do |anc|
-      tabs = shred_state(anc, tabs) if @options['scoping']
+      tabs = shred_state(anc, tabs) if @options[:scoping]
       @declarations.each do |meth_name|
         rw = rewrite(ParseTree.translate(anc, meth_name), tabs, seed)
         unless rw.nil? 
@@ -141,7 +140,7 @@ class Bud
         rules << val
       end
     end
-    if @options['scoping']
+    if @options[:scoping]
       res = write_postamble(tabs, seed + 100)
       rules.concat(res)
     end
@@ -203,12 +202,12 @@ class Bud
   end
 
   def do_cards
-    return unless options['visualize']
+    return unless options[:visualize]
     cards = {}
     @tables.each do |t|
       #puts "#{@budtime}, #{t[0]}, #{t[1].length}"
       cards[t[0].to_s] = t[1].length
-      write_table_contents(t) if @options['visualize'] >= 3
+      write_table_contents(t) if @options[:visualize] >= 3
     end
     write_svgs(cards)
     write_html
@@ -230,14 +229,14 @@ class Bud
   end
 
   def prepare_viz
-    return unless @options['visualize']
+    return unless @options[:visualize]
     unless File::directory? "time_pics"
       Dir.mkdir("time_pics") 
     end
     
     #@time_pics_dir = "time_pics/#{self.class.to_s}_#{self.object_id}"
     arr = [self.class.to_s, self.object_id.to_s]
-    arr << @options['tag'] if @options['tag']
+    arr << @options[:tag] if @options[:tag]
     @time_pics_dir = "time_pics/#{arr.join("_")}"
     create_clean(@time_pics_dir)
     create_clean("plotter_out")

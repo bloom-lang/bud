@@ -3,12 +3,6 @@ require 'rubygems'
 require 'bud'
 
 class Clean < Bud
-  attr_reader :pattern
-  
-  def initialize(ip, port)
-    super(ip,port)
-  end
-  
   def state
     file_reader :text, 'ulysses.txt'
     file_reader :carlin, 'carlin.txt'
@@ -29,7 +23,6 @@ class Clean < Bud
   end
 end
 
-program = Clean.new('localhost', ARGV[0])
-
+program = Clean.new
 program.tick
 program.cleaned.sort.each{|t| puts t.text if t.text =~ /\@/}

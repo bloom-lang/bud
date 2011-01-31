@@ -8,9 +8,9 @@ require 'rubygems'
 require 'bud'
 
 class PingPong < Bud
-  def initialize(ip, port)
-    super ip, port
-    @myloc = ip.to_s + ":" + port.to_s
+  def initialize(opt)
+    super
+    @myloc = "#{opt[:ip]}:#{opt[:port]}"
     loc1 = "127.0.0.1:12345"
     loc2 = "127.0.0.1:12346"
     @otherloc = (@myloc == loc1) ? loc2 : loc1
@@ -43,5 +43,5 @@ class PingPong < Bud
   end
 end
 
-program = PingPong.new('127.0.0.1', ARGV[0])
+program = PingPong.new(:ip => "127.0.0.1", :port => ARGV[0])
 program.run

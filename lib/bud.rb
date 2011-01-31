@@ -20,13 +20,12 @@ class Bud
   attr_reader :tables, :ip, :port
   attr_accessor :each_counter
   attr_reader :stratum_first_iter
-  attr_reader :options
 
   include BudState
   include Anise
   annotator :declare
 
-  def initialize(ip = "localhost", port = 0, options = nil)
+  def initialize(options = {})
     @tables = {}
     @table_meta = []
     @strata = []
@@ -39,12 +38,15 @@ class Bud
     @connections = {}
     @inbound = []
     @declarations = []
-    @ip = ip
-    @initial_port = port.to_i
-    # If using an ephemeral port (specified by port = 0), port number may not be
-    # known until we start EM, so delay publicizing it until then
-    @port = @ip_port = nil
-    @options = options.nil? ? {} : options
+
+    # Setup options (named arguments), along with default values
+    @options = options
+    @options[:ip] ||= "localhost"
+    @ip = @options[:ip]
+    @options[:port] ||= 0
+    @options[:port] = @options[:port].to_i
+    # NB: If using an ephemeral port (specified by port = 0), the actual port
+    # number may not be known until we start EM
 
     self.class.ancestors.each do |anc|
       @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact if anc.methods.include? 'annotation'
@@ -86,7 +88,7 @@ class Bud
   end
 
   def safe_rewrite
-    if @options["disable_rewrite"]
+    if @options[:disable_rewrite]
       puts "No rewriting performed"
       return
     end
@@ -94,7 +96,7 @@ class Bud
     begin
       @rewritten_strata = meta_rewrite
     rescue
-      raise if @options["enforce_rewrite"]
+      raise if @options[:enforce_rewrite]
       puts "Running original (#{self.class}) code: couldn't rewrite stratified ruby (#{$!})"
     end
   end
@@ -174,7 +176,7 @@ class Bud
     # (it provides no way to determine which port number was chosen), so for now
     # we emulate this by attempting to bind to randomly-chosen ports until we
     # find a free one.
-    if @initial_port == 0
+    if @options[:port] == 0
       success = false
       15.times do
         @port = 5000 + rand(20000)
@@ -188,7 +190,7 @@ class Bud
       end
       raise "Failed to bind to local TCP port" unless success
     else
-      @port = @initial_port
+      @port = @options[:port]
       EventMachine::start_server(@ip, @port, BudServer, self)
     end
     @ip_port = "#{@ip}:#{@port}"

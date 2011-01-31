@@ -6,11 +6,10 @@ require 'bud'
 require 'zlib'
 
 class SimpleMapper < Bud
-
-  def initialize(ip, port, file, mapper)
+  def initialize(ip, port, file, opts)
     @mapper = mapper
     @file = file
-    super ip, port
+    super opts
   end
   
   def state
@@ -26,19 +25,19 @@ class SimpleMapper < Bud
 
   declare
   def rules
-      nodecnt <= nodelist.group([], count)
+    nodecnt <= nodelist.group([], count)
 
-      inputs.each { |i| @mapper.do_map(map_out, i) }
+    inputs.each { |i| @mapper.do_map(map_out, i) }
         
-      kvs <= join([map_out, nodecnt]).map do |mo,cnt|
-        [mo.key, mo.uniq, mo.value, Zlib.crc32(mo.key) % cnt.cnt]
-      end
+    kvs <= join([map_out, nodecnt]).map do |mo,cnt|
+      [mo.key, mo.uniq, mo.value, Zlib.crc32(mo.key) % cnt.cnt]
+    end
       
-      kvs_addrs <= join([kvs, nodelist], [kvs.hashed, nodelist.lineno]).map do |k, n|
-        [k.key, k.uniq, k.value, n.text]
-      end
+    kvs_addrs <= join([kvs, nodelist], [kvs.hashed, nodelist.lineno]).map do |k, n|
+      [k.key, k.uniq, k.value, n.text]
+    end
     
-      reducers <~ kvs_addrs.map{ |t| [t.addr, t.key, t.uniq] }
+    reducers <~ kvs_addrs.map{ |t| [t.addr, t.key, t.uniq] }
   end
 end
 
@@ -64,7 +63,7 @@ source = ARGV[0].split(':')
 ip = source[0]
 port = source[1].to_i
 file = ARGV[1]
-splitter = Splitter.new(ip, port+10)
-program = SimpleMapper.new(ip, port, file, splitter)
+splitter = Splitter.new(:ip => ip, :port => port+10)
+program = SimpleMapper.new(file, splitter, :ip => ip, :port => port)
 r = Thread.new {program.run}
 sleep 40

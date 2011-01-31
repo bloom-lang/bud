@@ -8,5 +8,5 @@ require 'chat'
 source = ARGV[0].split(':')
 ip = source[0]
 port = source[1].to_i
-program = ChatClient.new(ip, port, ARGV[1], ARGV[2], {'visualize'=>true})
+program = ChatClient.new(ARGV[1], ARGV[2], :ip => ip, :port => port, :visualize => true)
 program.run

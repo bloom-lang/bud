@@ -11,6 +11,5 @@ class SafeChatClient < ChatClient
   def shutd
     stdio <~ ballot.map{|b| ["Shutdown request.  type 'OK' to accept"] }
     can_commit <= join([stdio, waiting_ballots]).map{ |t, w| [w.id, "Y"] if t == ["OK"] }
-  end
-  
+  end  
 end

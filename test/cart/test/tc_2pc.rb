@@ -5,10 +5,10 @@ require 'test/test_lib'
 
 class TestVoting < TestLib
   def test_singlenode
-    t = TwoPCMaster.new('localhost', 12345, {'visualize' => true})
-    #t = Monotonic2PCMaster.new('localhost', 12345, {'dump' => true, 'visualize' => true})
-    t2 = TwoPCAgent.new('localhost', 12346, {'visualize' => true})
-    t3 = TwoPCAgent.new('localhost', 12347, nil)
+    t = TwoPCMaster.new(:port => 12345, :visualize => true)
+    #t = Monotonic2PCMaster.new(:port => 12345, :dump => true, :visualize => true)
+    t2 = TwoPCAgent.new(:port => 12346, :visualize => true)
+    t3 = TwoPCAgent.new(:port => 12347)
     t.run_bg
     t2.run_bg
     t3.run_bg

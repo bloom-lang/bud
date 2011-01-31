@@ -9,10 +9,10 @@ require 'chat_protocol'
 
 class ChatClient < Bud
   include ChatProtocol
-  def initialize(ip, port, me, master, *args)
+  def initialize(me, master, opts)
     @me = me
     @master = master
-    super ip, port, *args
+    super opts
   end
   
   def state

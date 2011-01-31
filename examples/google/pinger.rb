@@ -24,6 +24,6 @@ class Pinger < Bud
   end
 end
 
-ip,port = ARGV[0].split(":")
-program = Pinger.new(ip,port)
+ip, port = ARGV[0].split(":")
+program = Pinger.new(:ip => ip, :port => port)
 program.run

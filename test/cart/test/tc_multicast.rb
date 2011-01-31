@@ -17,7 +17,7 @@ module TestState
 
   declare
   def mem
-    mcast_done_perm <= mcast_done.map{|d| d } 
+    mcast_done_perm <= mcast_done.map{|d| d }
     rcv_perm <= pipe_chan.map{|r| [r.ident, r.payload] }
   end
 end
@@ -35,16 +35,16 @@ end
 
 class TestMC < TestLib
   def ntest_be
-    mc = MC.new("localhost", 34256, {'dump' => true})
-    mc2 = MC.new("localhost", 34257)
-    mc3 = MC.new("localhost", 34258)
+    mc = MC.new(:port => 34256, :dump => true)
+    mc2 = MC.new(:port => 34257)
+    mc3 = MC.new(:port => 34258)
 
-    assert_nothing_raised(RuntimeError) { mc.run_bg; mc2.run_bg; mc3.run_bg } 
+    assert_nothing_raised(RuntimeError) { mc.run_bg; mc2.run_bg; mc3.run_bg }
 
-    mc.members << ["localhost: 34257" ] 
-    mc.members << ["localhost: 34258" ] 
+    mc.members << ["localhost: 34257" ]
+    mc.members << ["localhost: 34258" ]
 
-    mc.send_mcast <+ [[1, 'foobar']] 
+    mc.send_mcast <+ [[1, 'foobar']]
 
     advance(mc)
     advance(mc)
@@ -61,16 +61,14 @@ class TestMC < TestLib
     mc2 = RMC.new("localhost", 44257, {})
     mc3 = RMC.new("localhost", 44258, {})
 
-    assert_nothing_raised(RuntimeError) { mc.run_bg; mc2.run_bg; mc3.run_bg } 
+    assert_nothing_raised(RuntimeError) { mc.run_bg; mc2.run_bg; mc3.run_bg }
 
-    mc.members << ["localhost: 34257" ] 
-    mc.members << ["localhost: 34258" ] 
+    mc.members << ["localhost: 34257" ]
+    mc.members << ["localhost: 34258" ]
 
-    mc.send_mcast <+ [[1, 'foobar']] 
-
+    mc.send_mcast <+ [[1, 'foobar']]
 
     advance(mc)
     advance(mc)
   end
-  
 end

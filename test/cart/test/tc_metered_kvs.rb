@@ -11,7 +11,7 @@ class TestKVS < TestLib
   include KVSWorkloads
 
   def test_metered_testandset
-    v = MeteredBestEffortReplicatedKVS.new("localhost", 23456)
+    v = MeteredBestEffortReplicatedKVS.new(:port => 23456)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:23456")
     workload3(v)
@@ -19,7 +19,7 @@ class TestKVS < TestLib
 
   def ntest_wl3
     # the metered kvs succeeds on the naive workload
-    v = MeteredBestEffortReplicatedKVS.new("localhost", 13350, {'dump' => true})
+    v = MeteredBestEffortReplicatedKVS.new(:port => 13350, :dump => true)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:12350")
     workload1(v)
@@ -34,7 +34,7 @@ class TestKVS < TestLib
 
   def ntest_wl4
     # the metered kvs also succeeds on a disorderly workload
-    v = MeteredBestEffortReplicatedKVS.new("localhost", 13351)
+    v = MeteredBestEffortReplicatedKVS.new(:port => 13351)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     add_members(v, "localhost:12351")
     workload2(v)
@@ -47,6 +47,4 @@ class TestKVS < TestLib
     assert_equal(1, v.bigtable.length)
     assert_equal("bak", v.bigtable.first[1])
   end
-  
 end
-

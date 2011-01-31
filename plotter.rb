@@ -8,11 +8,11 @@ require 'bud/depanalysis'
 def work
   # a bit gnarly.  use an empty shell of a bud instance to run 
   # stratification over the composed program...
-  ic = Bud.new('localhost', 56789)
+  ic = Bud.new
   @tabinf.each_pair{|k, v| ic.tables[k] = v } 
   strat = ic.stratify(@shreddies)
 
-  dep = DepAnalysis.new("localhost", 23525)
+  dep = DepAnalysis.new
   strat.depends_tc.each{|d| dep.depends_tc << d }
 
   @provides.each{|p| puts "provide " + p.inspect; dep.providing << p }
@@ -27,7 +27,6 @@ def work
   prpr("SOURCE", dep.source)
   prpr("SINK", dep.sink)
 
-
   ic.visualize(strat, "outp", @shreddies, dep)
 end
 
@@ -39,7 +38,7 @@ end
 def instant(cls)
   print "try port #{@port}\n\n"
   sleep 1
-  d = eval("class FooBar < Bud\ninclude #{cls}\nend\n FooBar.new('localhost', #{@port}, {'enforce_rewrite' => true, 'dump' => true, 'scoping' => false})")
+  d = eval("class FooBar < Bud\ninclude #{cls}\nend\n FooBar.new(:port => #{@port}, :enforce_rewrite => true, :dump => true, :scoping => false)")
   d.shredded_rules.each {|s| @shreddies << s }
   d.provides.each_pair {|k, v| @provides << [k.to_s, v] } 
   d.tables.each_pair {|k, v| @tabinf[k] = v }
@@ -78,5 +77,3 @@ end
 end
 
 work
-
-

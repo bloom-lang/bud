@@ -8,10 +8,8 @@ class Q < Bud
 end
 
 class TestQueue < Test::Unit::TestCase
-
-
   def test_q
-    kyu = Q.new('localhost', 10001)
+    kyu = Q.new(:port => 10001)
     kyu.tick
 
     kyu.q << [1, 'foo']
@@ -38,7 +36,7 @@ class TestQueue < Test::Unit::TestCase
     assert_equal([3, 'bar'], kyu.head.first)
 
     (0..10).each do |i|
-      kyu.head.each do |h| 
+      kyu.head.each do |h|
         kyu.consumed <= [[h.ident]]
       end
       kyu.tick

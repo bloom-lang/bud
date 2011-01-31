@@ -728,17 +728,17 @@ class Bud
   # Persistent table implementation based on TokyoCabinet.
   class BudTcTable < BudCollection
     def initialize(name, keys, cols, bud_instance)
-      tc_dir = bud_instance.options['tc_dir']
-      raise "TC support must be enabled via 'tc_dir'" if tc_dir.nil?
+      tc_dir = bud_instance.options[:tc_dir]
+      raise "TC support must be enabled via 'tc_dir'" unless tc_dir
       unless File.exists?(tc_dir)
         Dir.mkdir(tc_dir)
-        puts "Created directory: #{tc_dir}" unless bud_instance.options['quiet']
+        puts "Created directory: #{tc_dir}" unless bud_instance.options[:quiet]
       end
 
       dirname = "#{tc_dir}/bud_#{bud_instance.port}"
       unless File.exists?(dirname)
         Dir.mkdir(dirname)
-        puts "Created directory: #{dirname}" unless bud_instance.options['quiet']
+        puts "Created directory: #{dirname}" unless bud_instance.options[:quiet]
       end
 
       super(name, keys, cols, bud_instance)
@@ -747,7 +747,7 @@ class Bud
       @hdb = TokyoCabinet::HDB.new
       db_fname = "#{dirname}/#{name}.tch"
       flags = TokyoCabinet::HDB::OWRITER | TokyoCabinet::HDB::OCREAT
-      if bud_instance.options['tc_truncate'] == true
+      if bud_instance.options[:tc_truncate] == true
         flags |= TokyoCabinet::HDB::OTRUNC
       end
       if !@hdb.open(db_fname, flags)

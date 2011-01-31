@@ -7,7 +7,7 @@ require 'bud'
 
 # set up everything
 bud_class = Class.new(Bud)
-bud_class_instance = bud_class.new('localhost', 0, 'enforce_rewrite' => true)
+bud_class_instance = bud_class.new(:enforce_rewrite => true)
 bud_class_instance.instance_eval("@declarations << :rules")
 
 def bud_class_instance.safe_instance_eval(str)

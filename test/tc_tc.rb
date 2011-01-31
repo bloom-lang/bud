@@ -52,8 +52,7 @@ class TestTc < Test::Unit::TestCase
   end
 
   def make_bud(truncate)
-    TcTest.new('localhost', 1234,
-               { 'tc_dir' => BUD_DIR, 'tc_truncate' => truncate, 'quiet' => true })
+    TcTest.new(:tc_dir => BUD_DIR, :tc_truncate => truncate, :quiet => true)
   end
 
   def rm_bud_dir

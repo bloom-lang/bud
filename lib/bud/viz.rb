@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 require 'rubygems'
 require 'graphviz'
 require 'syntax/convertors/html'
@@ -181,7 +182,7 @@ class Viz
         @nodes[node].label = node + "\n (" + @cards[node].to_s + ")"
       end
    
-      if @bud_instance.options['visualize'] >= 3
+      if @bud_instance.options[:visualize] >= 3
         @nodes[node].URL = "file://#{ENV['PWD']}/#{@bud_instance.time_pics_dir}/#{node}_#{@bud_instance.budtime}.html"
       else 
         @nodes[node].URL = "file://#{ENV['PWD']}/plotter_out/#{node}.html"

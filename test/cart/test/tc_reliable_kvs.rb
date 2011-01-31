@@ -27,7 +27,7 @@ class TestKVS < TestLib
 
   def test_wl2
     # reliable delivery fails if the recipient is down
-    v = RMKV.new("localhost", 12347, nil) # {'visualize' => true})
+    v = RMKV.new(:port => 12347)
     assert_nothing_raised(RuntimeError) {v.run_bg}
     sleep 1
     add_members(v, "localhost:12347", "localhost:12348")

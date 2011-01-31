@@ -6,10 +6,9 @@ require 'rubygems'
 require 'bud'
 
 class SimpleReducer < Bud
-
-  def initialize(ip, port, reducer)
+  def initialize(reducer, opts)
     @reducer = reducer
-    super ip, port
+    super opts
   end
   
   def state
@@ -50,7 +49,7 @@ end
 source = ARGV[0].split(':')
 ip = source[0]
 port = source[1].to_i
-program = SimpleReducer.new(ip, port, Counter.new)
+program = SimpleReducer.new(Counter.new, :ip => ip, :port => port)
 r = Thread.new {program.run}
 sleep 40
 program.final.each {|t| puts "[#{t.key}, #{t.value}]"}

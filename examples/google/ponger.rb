@@ -18,6 +18,6 @@ class Ponger < Bud
   end
 end
 
-ip,port = ARGV[0].split(":")
-program = Ponger.new(ip, port)
+ip, port = ARGV[0].split(":")
+program = Ponger.new(:ip => ip, :port => port)
 program.run

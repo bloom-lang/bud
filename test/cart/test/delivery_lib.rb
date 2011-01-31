@@ -48,9 +48,8 @@ class TestDelivery < TestLib
 
   def spinup_dist(type, host, port)
     d = nil
-    assert_nothing_raised(RuntimeError) { d = eval "#{type}.new(\"#{host}\", #{port}, {'visualize' => true, 'dump' => true, 'enforce_rewrite' => true, 'scoping' => false})" } 
-    #assert_nothing_raised(RuntimeError) { d = eval "#{type}.new(\"#{host}\", #{port}, {'visualize' => false})" } 
-    assert_nothing_raised(RuntimeError) { d.run_bg }     
+    assert_nothing_raised(RuntimeError) { d = eval "#{type}.new(:ip => '#{host}', :port => #{port}, :visualize => true, :dump => true, :enforce_rewrite => true, :scoping => false)" }
+    assert_nothing_raised(RuntimeError) { d.run_bg }
     return d
   end
 
@@ -59,5 +58,4 @@ class TestDelivery < TestLib
       assert_nothing_raised(RuntimeError){advance(b)}
     end
   end
-
 end

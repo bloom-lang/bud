@@ -9,9 +9,11 @@ module DeliveryProtocol
     channel :tickler, ['@myself']
   end
 
-  def initialize(host, port, opts)
+  def initialize(opts)
+    host = opts[:ip]
+    port = opts[:port]
     @addy = "#{host}:#{port}"
-    super(host, port, opts)
+    super(opts)
   end
 end
 
@@ -22,7 +24,7 @@ module BestEffortDelivery
 
   def state
     super
-    # PAA -- note that something is broken about the new @ syntax.  downstream modules referencing 'dst' 
+    # PAA -- note that something is broken about the new @ syntax.  downstream modules referencing 'dst'
     # when it is prefixed with '@' in its declaration get errors.  temporary fix is to undo the '@'.
     #channel :pipe_chan, ['@dst', 'src', 'ident'], ['payload']
     channel :pipe_chan, ['dst', 'src', 'ident'], ['payload']
@@ -33,11 +35,9 @@ module BestEffortDelivery
       pipe_chan <~ pipe_in
     end
 
-  declare 
+  declare
     def done
       # vacuous ackuous.  override me!
       pipe_sent <= pipe_in
     end
 end
-
-

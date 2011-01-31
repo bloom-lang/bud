@@ -43,7 +43,6 @@ class ShortestPaths < Bud
 end
 
 program = ShortestPaths.new
-
 program.tick
 program.print_paths
 
