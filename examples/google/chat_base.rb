@@ -9,6 +9,7 @@ require 'chat_protocol'
 
 class ChatClient < Bud
   include ChatProtocol
+
   def initialize(me, master, opts)
     @me = me
     @master = master
@@ -16,7 +17,7 @@ class ChatClient < Bud
   end
   
   def state
-    super if defined? super
+    super
     table :status, ['master', 'value']
   end
   
@@ -54,4 +55,3 @@ class ChatClient < Bud
     end
   end
 end
-

@@ -439,15 +439,19 @@ class Bud
   class BudTerminal < BudCollection
     def initialize(name, keys, cols, bud_instance, prompt=false)
       super(name, keys, cols, bud_instance)
-
       @connection = nil
+      @prompt = prompt
 
+      start_stdin_reader if bud_instance.options[:read_stdin]
+    end
+
+    def start_stdin_reader
       # XXX: Ugly hack. Rather than sending terminal data to EM via TCP,
       # we should add the terminal file descriptor to the EM event loop.
       @reader = Thread.new() do
         begin
           while true
-            STDOUT.print("#{tabname} > ") if prompt
+            STDOUT.print("#{tabname} > ") if @prompt
             s = STDIN.gets
             s = s.chomp if s
             tup = tuple_accessors([s])

@@ -9,7 +9,7 @@ source = ARGV[0].split(':')
 ip = source[0]
 port = source[1]
 program = ChatMaster.new(:ip => ip, :port => port,
-                         :visualize => true, :dump => false)
+                         :visualize => false, :dump => false)
 
 t = program.run_bg
 sleep 10

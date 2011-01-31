@@ -9,7 +9,7 @@ class SafeChatMaster < ChatMaster
   include TwoPCMaster
 
   def state
-    super if defined? super
+    super
     scratch :halt, ['xid']
   end
 

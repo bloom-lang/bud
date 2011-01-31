@@ -16,7 +16,6 @@ module TwoPCAgent
   def decide
     cast_vote <= join([waiting_ballots, can_commit], [waiting_ballots.id, can_commit.xact]).map{|w, c| [w.id, c.decision] }
   end
-
 end
 
 
