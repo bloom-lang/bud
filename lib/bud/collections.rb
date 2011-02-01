@@ -899,7 +899,6 @@ class Bud
     end
 
     def stat_and_watch
-      puts "setting stat watch: #{@zk_path}"
       r = @zk.stat(:path => @zk_path, :watcher => @stat_watcher)
       if r[:stat].exists
         # Make sure we're watching for children
@@ -911,17 +910,14 @@ class Bud
 
     def cancel_child_watch
       if @watch_req_id
-        puts "Cancelling get_children watcher (id = #{@watch_req_id})"
         @zk.unregister_watcher(@watch_req_id)
         @watch_req_id = nil
       end
     end
 
     def get_and_watch
-      puts "setting get_children watch: #{@zk_path}"
       r = @zk.get_children(:path => @zk_path, :watcher => @child_watcher)
       @watch_req_id = r[:req_id]
-      puts "result = #{r.inspect}"
       unless r[:stat].exists
         cancel_child_watch
         return
@@ -929,10 +925,10 @@ class Bud
 
       # XXX: can we easily get snapshot isolation?
       new_children = {}
+      base_path = @zk_path
+      base_path += "/" unless @zk_path.end_with? "/"
       r[:children].each do |c|
-        child_path = @zk_path
-        child_path += "/" unless child_path.end_with? "/"
-        child_path += c
+        child_path = base_path + c
 
         get_r = @zk.get(:path => child_path)
         unless get_r[:stat].exists
@@ -940,9 +936,8 @@ class Bud
           return
         end
         data = get_r[:data] or ""
-        tup = tuple_accessors([c, data])
-        new_children[c] = tup
-        puts "Mapping #{c} => #{tup}"
+        new_children[c] = tuple_accessors([c, data])
+        puts "Mapping #{c} => #{new_children[c].inspect}"
       end
 
       # We successfully fetched all the children of @zk_path; at the
@@ -955,7 +950,6 @@ class Bud
 
       @storage = @next_storage
       @next_storage = {}
-      puts "tick()! @storage.len = #{@storage.length}"
     end
 
     def flush
