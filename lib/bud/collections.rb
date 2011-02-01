@@ -931,7 +931,6 @@ class Bud
         end
         data = get_r[:data] or ""
         new_children[c] = tuple_accessors([c, data])
-        puts "Mapping #{c} => #{new_children[c].inspect}"
       end
 
       # We successfully fetched all the children of @zk_path; at the
