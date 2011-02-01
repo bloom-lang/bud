@@ -110,16 +110,18 @@ class TestTc < Test::Unit::TestCase
   end
 
   def test_persist
-    @t.in_buf << ['1', '2', '3', '4']
-    @t.in_buf << ['5', '10', '3', '4']
+    @t.in_buf << [1, 2, 3, 4]
+    @t.in_buf << [5, 10, 3, 4]
     assert_nothing_raised(RuntimeError) {@t.tick}
     assert_equal(2, @t.t1.length)
-    @t.close
 
-    @t = make_bud(false)
-    @t.in_buf << ['6', '10', '3', '4']
-    assert_nothing_raised(RuntimeError) {@t.tick}
-    assert_equal(3, @t.t1.length)
+    10.times do |i|
+      @t.close
+      @t = make_bud(false)
+      @t.in_buf << [6, 10 + i, 3, 4]
+      assert_nothing_raised(RuntimeError) {@t.tick}
+      assert_equal(3 + i, @t.t1.length)
+    end
   end
 
   def test_pending_ins
