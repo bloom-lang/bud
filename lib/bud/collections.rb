@@ -882,15 +882,9 @@ class Bud
       @zk = Zookeeper.new(zk_addr)
       @zk_path = zk_path
       @next_storage = {}
-      @watch_req_id = nil
-      @child_watcher = Zookeeper::WatcherCallback.new {
-        puts "Got child callback!"
-        get_and_watch
-      }
-      @stat_watcher = Zookeeper::WatcherCallback.new {
-        puts "Got stat callback!"
-        stat_and_watch
-      }
+      @child_watch_id = nil
+      @child_watcher = Zookeeper::WatcherCallback.new { get_and_watch }
+      @stat_watcher = Zookeeper::WatcherCallback.new { stat_and_watch }
       stat_and_watch
     end
 
@@ -902,22 +896,22 @@ class Bud
       r = @zk.stat(:path => @zk_path, :watcher => @stat_watcher)
       if r[:stat].exists
         # Make sure we're watching for children
-        get_and_watch unless @watch_req_id
+        get_and_watch unless @child_watch_id
       else
         cancel_child_watch
       end
     end
 
     def cancel_child_watch
-      if @watch_req_id
-        @zk.unregister_watcher(@watch_req_id)
-        @watch_req_id = nil
+      if @child_watch_id
+        @zk.unregister_watcher(@child_watch_id)
+        @child_watch_id = nil
       end
     end
 
     def get_and_watch
       r = @zk.get_children(:path => @zk_path, :watcher => @child_watcher)
-      @watch_req_id = r[:req_id]
+      @child_watch_id = r[:req_id]
       unless r[:stat].exists
         cancel_child_watch
         return
@@ -966,6 +960,14 @@ class Bud
 
     superator "<+" do |o|
       raise BudError, "Illegal use of <+ with zktable on left"
+    end
+
+    def <=(o)
+      raise BudError, "Illegal use of <= with zktable on left"
+    end
+
+    def <<(o)
+      raise BudError, "Illegal use of << with zktable on left"
     end
   end
 end
