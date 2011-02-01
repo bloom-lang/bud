@@ -789,6 +789,10 @@ class Bud
 
     def each(&block)
       each_delta(&block)
+      each_storage(&block)
+    end
+
+    def each_storage(&block)
       @hdb.each do |k,v|
         k_ary = Marshal.load(k)
         v_ary = Marshal.load(v)

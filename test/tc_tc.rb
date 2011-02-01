@@ -16,6 +16,11 @@ class TcTest < Bud
     scratch :t4, ['k'], ['v']
     tctable :chain_start, ['k'], ['v']
     tctable :chain_del, ['k'], ['v']
+
+    tctable :join_t1, ['k'], ['v1', 'v2']
+    tctable :join_t2, ['k'], ['v1', 'v2']
+    scratch :cart_prod, ['k', 'v1', 'v2']
+    scratch :join_res, ['k'], ['v1', 'v2']
   end
 
   declare
@@ -32,6 +37,13 @@ class TcTest < Bud
     t3 <= t2.map{|c| [c.k, c.v + 1]}
     t4 <= t3.map{|c| [c.k, c.v + 1]}
     chain_start <- chain_del
+  end
+
+  declare
+  def do_join
+    j = join [join_t1, join_t2], [join_t1.k, join_t2.k]
+    join_res <= j
+    cart_prod <= join([join_t1, join_t2])
   end
 end
 
@@ -170,5 +182,31 @@ class TestTc < Test::Unit::TestCase
     assert_equal(1, @t.t2.length)
     assert_equal(1, @t.t3.length)
     assert_equal(1, @t.t4.length)
+  end
+
+  def test_cartesian_product
+    @t.join_t1 << [12, 50, 100]
+    @t.join_t1 << [15, 50, 120]
+    @t.join_t2 << [12, 70, 150]
+    @t.join_t2 << [6, 20, 30]
+
+    assert_nothing_raised(RuntimeError) {@t.tick}
+    assert_equal(4, @t.cart_prod.length)
+
+    @t.join_t2 << [6, 20, 30] # dup
+    @t.join_t2 << [18, 70, 150]
+
+    assert_nothing_raised(RuntimeError) {@t.tick}
+    assert_equal(6, @t.cart_prod.length)
+  end
+
+  def test_join
+    @t.join_t1 << [12, 50, 100]
+    @t.join_t1 << [15, 50, 120]
+    @t.join_t2 << [12, 70, 150]
+    @t.join_t2 << [6, 20, 30]
+    assert_nothing_raised(RuntimeError) {@t.tick}
+
+    assert_equal(1, @t.join_res.length)
   end
 end
