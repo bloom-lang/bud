@@ -881,6 +881,8 @@ class Bud
       zk_path = zk_path.chomp("/") unless zk_path == "/"
       @zk = Zookeeper.new(zk_addr)
       @zk_path = zk_path
+      @base_path = @zk_path
+      @base_path += "/" unless @zk_path.end_with? "/"
       @next_storage = {}
       @child_watch_id = nil
       @child_watcher = Zookeeper::WatcherCallback.new { get_and_watch }
@@ -919,10 +921,8 @@ class Bud
 
       # XXX: can we easily get snapshot isolation?
       new_children = {}
-      base_path = @zk_path
-      base_path += "/" unless @zk_path.end_with? "/"
       r[:children].each do |c|
-        child_path = base_path + c
+        child_path = @base_path + c
 
         get_r = @zk.get(:path => child_path)
         unless get_r[:stat].exists
@@ -947,7 +947,18 @@ class Bud
     end
 
     def flush
-      puts "flush()!"
+      puts "flush()! # pending = #{@pending.length}"
+      each_pending do |t|
+        path = @base_path + t.key
+        data = t.value or ""
+        r = @zk.create(:path => path, :data => data)
+        if r[:rc] == Zookeeper::ZNODEEXISTS
+          puts "Ignoring duplicate insert: #{t.inspect}"
+        elsif r[:rc] != Zookeeper::ZOK
+          puts "Failed create of #{path}: #{r.inspect}"
+        end
+      end
+      @pending.clear
     end
 
     def close
@@ -955,7 +966,7 @@ class Bud
     end
 
     superator "<~" do |o|
-      raise BudError, "Not implemented yet"
+      pending_merge(o)
     end
 
     superator "<+" do |o|
