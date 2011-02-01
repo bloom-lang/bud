@@ -816,7 +816,7 @@ class Bud
       val_s = Marshal.dump(val)
       if @hdb.putkeep(key_s, val_s) == false
         old_tuple = self[key]
-        raise_pk_error(tuple, old_tuple)
+        raise_pk_error(tuple, old_tuple) if tuple != old_tuple
       end
     end
 

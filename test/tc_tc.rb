@@ -89,6 +89,10 @@ class TestTc < Test::Unit::TestCase
     @t.in_buf << ['5', '10', '3', '4']
     @t.in_buf << ['6', '10', '3', '4']
     @t.in_buf << ['6', '10', '3', '4']
+
+    @t.t1 << ['1', '2', '3', '4']
+    @t.t1 << ['1', '2', '3', '4']
+
     assert_nothing_raised(RuntimeError) {@t.tick}
     assert_equal(3, @t.t1.length)
   end
