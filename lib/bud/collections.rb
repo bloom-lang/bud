@@ -75,20 +75,13 @@ class Bud
       end
     end
 
-    # def tuple_accessor(tup, colname, offset)
-    #   unless tup.respond_to? colname.to_sym
-    #     tup.extend @tupaccess
-    #   end
-    # end
-
     # define methods to access tuple attributes by column name
-    # paa: inverted loop to add test, fix leak
     def tuple_accessors(tup)
       tup.extend @tupaccess
     end
 
     def null_tuple
-      return tuple_accessors(@schema.map{|c| nil})
+      tuple_accessors(Array.new(@schema.length))
     end
     
     # by default, all tuples in any rhs are in storage or delta
@@ -958,9 +951,11 @@ class Bud
     end
 
     def tick
+      return if @next_storage.empty?
+
       @storage = @next_storage
-      @new_storage = {}
-      puts "tick()!"
+      @next_storage = {}
+      puts "tick()! @storage.len = #{@storage.length}"
     end
 
     def flush
