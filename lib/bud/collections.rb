@@ -39,7 +39,6 @@ class Bud
       @pending = {}
       @delta = {}
       @new_delta = {}
-      self
     end
 
     # define methods to turn 'table.col' into a [table,col] pair
@@ -189,7 +188,6 @@ class Bud
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
         self.schema = o.schema
       end
-      @pending
     end
 
     superator "<+" do |o|
@@ -340,7 +338,6 @@ class Bud
         puts t.inspect unless cols.empty?
         puts t[0].inspect if cols.empty?
       end
-      true
     end
 
     alias reduce inject
@@ -587,12 +584,12 @@ class Bud
     end
 
     def each_storage(&block)
-      return each(:storage, &block)
+      each(:storage, &block)
     end
     
     # this needs to be made more efficient!
     def each_delta(&block)
-      return each(:delta, &block)
+      each(:delta, &block)
     end
 
     def test_locals(r, s, *skips)
@@ -715,10 +712,6 @@ class Bud
         @linenum += 1
         yield t
       end
-    end
-    
-    def tick
-      self
     end
   end
 
