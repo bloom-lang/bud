@@ -64,8 +64,7 @@ class SaneR2R < Ruby2Ruby
   end
 
   def process_vcall(exp)
-    foo = exp.shift
-    return foo.to_s
+    return exp.shift.to_s
   end
 
   def process_fcall_list(exp)

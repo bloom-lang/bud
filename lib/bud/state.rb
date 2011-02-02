@@ -104,14 +104,13 @@ module BudState
   def tctable(name, keys, cols)
     define_or_tick_collection(name)
     @tables[name] ||= Bud::BudTcTable.new(name, keys, cols, self)
-    @disk_tables[name] ||= @tables[name]
+    @tc_tables[name] ||= @tables[name]
   end
 
   def zktable(name, path, addr="localhost:2181")
     define_or_tick_collection(name)
     @tables[name] ||= Bud::BudZkTable.new(name, path, addr, self)
-    # XXX: refactor
-    @disk_tables[name] ||= @tables[name]
+    @zk_tables[name] ||= @tables[name]
   end
 
   # methods to define vars and tmpvars.  This code still quite tentative
