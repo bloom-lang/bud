@@ -8,23 +8,10 @@ class DepAnalysis < Bud
   def state
     table :providing, ['pred', 'input']
     table :depends_tc, ['head', 'body', 'via', 'neg', 'temporal']
-    table :underspecified, ['pred', 'other', 'kind']
-
-    #scratch :pairing, ['incol', 'outcol']
-    table :pairing, ['incol', 'outcol']
+    table :underspecified, ['pred', 'input']
 
     table :source, ['pred']
     table :sink, ['pred']
-  end
-
-  declare
-  def process
-    pairing <= join([providing, providing]).map do |p1, p2|
-      if p1.input and !p2.input
-        #puts "pair off " + p1.inspect + " and " + p2.inspect
-        [p1.pred, p2.pred]
-      end
-    end
   end
 
   declare
@@ -44,9 +31,15 @@ class DepAnalysis < Bud
 
   declare 
   def otherz
-    underspecified <= pairing.map do |p|
-      unless depends_tc.map{|d| [d.head, d.body]}.include? [p.outcol, p.incol]
-        [p.incol, p.outcol, "unconnected dataflow"]
+    underspecified <= providing.map do |p|
+      if p.input
+        unless depends_tc.map{|d| d.body if d.head != d.body}.include? p.pred 
+          [p.pred, true]
+        end
+      else 
+        unless depends_tc.map{|d| d.head if d.head != d.body}.include? p.pred 
+          [p.pred, false]
+        end
       end
     end  
   end

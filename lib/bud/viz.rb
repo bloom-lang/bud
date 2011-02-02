@@ -3,6 +3,7 @@ require 'syntax/convertors/html'
 
 class Viz 
   def initialize(bud_instance)
+    # needs:  class, object_id, options, tables, budtime
     @bud_instance = bud_instance
   end
 
@@ -18,6 +19,21 @@ class Viz
     create_clean(@time_pics_dir)
     create_clean("plotter_out")
   end
+
+  def visualize(strat, name, rules, depa=nil)
+    # collapsed
+    gv = GraphGen.new(strat.stratum, @bud_instance.tables, strat.cycle, name, @bud_instance, @time_pics_dir, true, depa)
+    gv.process(strat.depends)
+    gv.dump(rules)
+    gv.finish
+
+    # detail
+    gv = GraphGen.new(strat.stratum, @bud_instance.tables, strat.cycle, name, @bud_instance, @time_pics_dir, false, depa)
+    gv.process(strat.depends)
+    gv.dump(rules)
+    gv.finish
+  end
+
 
   def create_clean(dir)
     if File::directory? dir
@@ -55,18 +71,19 @@ class Viz
   end
 
   def write_svgs(c)
-    return if @strat_state.nil?
-    gv = Viz.new(@strat_state.stratum, @tables, @strat_state.cycle, "#{@time_pics_dir}/#{self.class}_tm_#{@bud_instance.budtime}", self, false, @depanalysis, c)
-    gv.process(@strat_state.depends)
+    sts = @bud_instance.meta_parser.strat_state
+    return if sts.nil?
+    gv = GraphGen.new(sts.stratum, @bud_instance.tables, sts.cycle, "#{@time_pics_dir}/#{@bud_instance.class}_tm_#{@bud_instance.budtime}", @bud_instance, @time_pics_dir, false, @depanalysis, c)
+    gv.process(sts.depends)
     gv.finish
   end
 
   def write_html
-    nm = "#{self.class}_tm_#{@bud_instance.budtime}"
-    prev = "#{self.class}_tm_#{@bud_instance.budtime-1}"
-    nxt = "#{self.class}_tm_#{@bud_instance.budtime+1}"
+    nm = "#{@bud_instance.class}_tm_#{@bud_instance.budtime}"
+    prev = "#{@bud_instance.class}_tm_#{@bud_instance.budtime-1}"
+    nxt = "#{@bud_instance.class}_tm_#{@bud_instance.budtime+1}"
     fout = File.new("#{@time_pics_dir}/#{nm}.html", "w")
-    fout.puts "<center><h1>#{self.class} @ #{@bud_instance.budtime}</h1><center>"
+    fout.puts "<center><h1>#{@bud_instance.class} @ #{@bud_instance.budtime}</h1><center>"
     fout.puts "<embed src=\"#{ENV['PWD']}/#{@time_pics_dir}/#{nm}_expanded.svg\" width=\"100%\" height=\"75%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
     fout.puts "<hr><h2><a href=\"#{ENV['PWD']}/#{@time_pics_dir}/#{prev}.html\">last</a>"
     fout.puts "<a href=\"#{ENV['PWD']}/#{@time_pics_dir}/#{nxt}.html\">next</a>"

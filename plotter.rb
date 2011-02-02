@@ -8,26 +8,29 @@ require 'bud/depanalysis'
 def work
   # a bit gnarly.  use an empty shell of a bud instance to run 
   # stratification over the composed program...
-  ic = Bud.new
+  ic = Bud.new(:visualize => 3)
   @tabinf.each_pair{|k, v| ic.tables[k] = v } 
-  strat = ic.stratify(@shreddies)
+  strat = ic.meta_parser.stratify(@shreddies)
 
   dep = DepAnalysis.new
-  strat.depends_tc.each{|d| dep.depends_tc << d }
+  strat.depends_tc.each{|d| dep.depends_tc << d; puts "DTC: #{d.inspect}" }
 
   @provides.each{|p| puts "provide " + p.inspect; dep.providing << p }
   dep.tick
   dep.tick
   dep.tick
 
-  dep.pairing.each{|p| puts "PAIRING: #{p.inspect}" }   
   puts "DEP DONE"
 
   prpr("UNDERSPECIFIED", dep.underspecified)
   prpr("SOURCE", dep.source)
   prpr("SINK", dep.sink)
 
-  ic.visualize(strat, "outp", @shreddies, dep)
+  strat.depends.each do |d|
+    puts "DEP: #{d.inspect}"
+  end
+
+  ic.viz.visualize(strat, "outp", @shreddies, dep)
 end
 
 def prpr(tab, content)
@@ -39,7 +42,7 @@ def instant(cls)
   print "try port #{@port}\n\n"
   sleep 1
   d = eval("class FooBar < Bud\ninclude #{cls}\nend\n FooBar.new(:port => #{@port}, :enforce_rewrite => true, :dump => true, :scoping => false)")
-  d.shredded_rules.each {|s| @shreddies << s }
+  d.meta_parser.shredded_rules.each {|s| @shreddies << s }
   d.provides.each_pair {|k, v| @provides << [k.to_s, v] } 
   d.tables.each_pair {|k, v| @tabinf[k] = v }
   @port = @port + 1

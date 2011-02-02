@@ -85,9 +85,7 @@ class TestMeta < Test::Unit::TestCase
   
     program.meta_parser.strat_state.depends_tc.each{|d| dep.depends_tc << d }
     program.provides.each{|p| dep.providing << p }
-
     dep.tick
 
-    program.meta_parser.visualize(program.meta_parser.strat_state, "outp", nil, dep)
   end
 end

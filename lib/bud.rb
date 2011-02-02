@@ -15,7 +15,7 @@ require 'bud/viz'
 require 'bud/state'
 
 class Bud
-  attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir, :provides, :meta_parser
+  attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir, :provides, :meta_parser, :viz
   attr_accessor :connections
   attr_reader :tables, :ip, :port
   attr_accessor :each_counter
@@ -103,6 +103,7 @@ class Bud
       raise if @options[:enforce_rewrite]
       puts "Running original (#{self.class}) code: couldn't rewrite stratified ruby (#{$!})"
     end
+    @viz.visualize(@meta_parser.strat_state, "#{self.class}_gvoutput", @meta_parser.shredded_rules, @meta_parser.depanalysis) if @options[:visualize]
   end
 
   ######## methods for controlling execution

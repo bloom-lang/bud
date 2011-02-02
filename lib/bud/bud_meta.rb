@@ -9,9 +9,12 @@ require 'parse_tree'
 
 
 class BudMeta
-  attr_reader :shredded_rules, :provides, :strat_state
+  attr_reader :shredded_rules, :provides, :strat_state, :depanalysis
 
   def initialize(bud_instance, declarations)
+    # need: provides, options, declarations, class, tables, self for viz
+    # meanwhile, viz needs:  class, object_id, options, tables, budtime
+    # meh.
     @bud_instance = bud_instance
     @declarations = declarations
   end
@@ -40,11 +43,12 @@ class BudMeta
     end
 
     @depanalysis = DepAnalysis.new
-    @strat_state.depends_tc.each{|d| @depanalysis.depends_tc << d}
+    @strat_state.depends_tc.each{|d| @depanalysis.depends_tc << d }
     @bud_instance.provides.each{|p| @depanalysis.providing << p}
     3.times { @depanalysis.tick }
     @depanalysis.underspecified.each{|u| puts "UNDERSPECIFIED: #{u.inspect}"}
-    visualize(@strat_state, "#{self.class}_gvoutput", @shredded_rules, @depanalysis) if @bud_instance.options[:visualize]
+    
+    ##visualize(@strat_state, "#{self.class}_gvoutput", @shredded_rules, @depanalysis) if @bud_instance.options[:visualize]
     dump_rewrite if @bud_instance.options[:dump]
     return @rewritten_strata
   end
@@ -205,20 +209,5 @@ class BudMeta
     else
       return 3
     end
-  end
-
-  def visualize(strat, name, rules, depa=nil)
-
-    # collapsed
-    gv = GraphGen.new(strat.stratum, @bud_instance.tables, strat.cycle, name, @bud_instance, true, depa)
-    gv.process(strat.depends)
-    gv.dump(rules)
-    gv.finish
-
-    # detail
-    gv = GraphGen.new(strat.stratum, @bud_instance.tables, strat.cycle, name, @bud_instance, false, depa)
-    gv.process(strat.depends)
-    gv.dump(rules)
-    gv.finish
   end
 end

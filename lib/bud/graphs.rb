@@ -4,7 +4,7 @@ require 'graphviz'
 
 class GraphGen
 
-  def initialize(mapping, tableinfo, cycle, name, bud_instance, collapse=false, depanalysis=nil, cardinalities={})
+  def initialize(mapping, tableinfo, cycle, name, bud_instance, pics_dir, collapse=false, depanalysis=nil, cardinalities={})
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85 )
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 1.2)
@@ -18,6 +18,7 @@ class GraphGen
     @collapse = collapse
     @depanalysis = depanalysis
     @bud_instance = bud_instance
+    @pics_dir = pics_dir
     @internals = {'count' => 1, 'localtick' => 1, 'stdio' => 1}
 
     # map: table -> stratum
@@ -69,7 +70,6 @@ class GraphGen
       bag[predicate] = true
       res = bag
       if @redcycle[predicate].nil?
-        puts "nil for #{predicate}"
         return res 
       end
       @redcycle[predicate].each do |rp|
@@ -167,7 +167,7 @@ class GraphGen
       addonce(head, (head != d[1]))
       addonce(body, (body != d[3]))
       #puts "add edge #{head} #{d[2]} #{body}"
-      addedge(body, head, d[2], d[3], (head != d[1]), d[0])
+      addedge(body, head, d[2], d[4], (head != d[1]), d[0])
     end
   end
 
@@ -183,7 +183,7 @@ class GraphGen
       end
    
       if @bud_instance.options[:visualize] >= 3
-        @nodes[node].URL = "file://#{ENV['PWD']}/#{@bud_instance.time_pics_dir}/#{node}_#{@bud_instance.budtime}.html"
+        @nodes[node].URL = "file://#{ENV['PWD']}/#{@pics_dir}/#{node}_#{@bud_instance.budtime}.html"
       else 
         @nodes[node].URL = "file://#{ENV['PWD']}/plotter_out/#{node}.html"
       end
@@ -217,6 +217,8 @@ class GraphGen
     body = body.to_s
     head = head.to_s
     return if negcluster and body == head
+
+    #puts "ADD EDGE #{head} #{op} #{body}, nm=#{nm}, nc=#{negcluster}, rid=#{rule_id}"
     ekey = body + head
     if !@edges[ekey] 
       @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head])
@@ -240,16 +242,18 @@ class GraphGen
     elsif op == "<-"
       #@labels[ekey] = @labels[ekey] + 'NEG(del)'
       @labels[ekey][' +/-'] = true
+      @edges[ekey].arrowhead = 'veeodot'
     end
     if nm == 1 and head != "T"
       # hm, nonmono
       #@labels[ekey] = @labels[ekey] + 'NEG'
       #@labels[ekey]['¬'] = true
-    end
-  
-    if ((safe_t2s(head) != safe_t2s(body)) or negcluster) and head != "T"
       @edges[ekey].arrowhead = 'veeodot'
     end
+  
+    #if ((safe_t2s(head) != safe_t2s(body)) or negcluster) and head != "T"
+    #  @edges[ekey].arrowhead = 'veeodot'
+    #end
 
   end
 
@@ -275,21 +279,32 @@ class GraphGen
       end
     end
 
-    unless @depanalysis.nil?
+    unless @depanalysis.nil? or @depanalysis.underspecified.length == 0
       @depanalysis.source.each {|s| addedge("S", s.pred, false, false, false) }
       @depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false) }
 
+
+      addonce("??", false)
+      @nodes["??"].color = "red"
+      @nodes["??"].shape = "diamond"
+      @nodes["??"].penwidth = 2
+
       @depanalysis.underspecified.each do |u|
-        unless u.other.nil?
-          addonce("??", false)
-          addedge("??", u.other, false, false, false)
+        #unless u.other.nil?
+        #  puts "FOO: #{u.other}, #{u.pred}"
+        #  addonce("??", false)
+        #  addedge("??", u.other, false, false, false)
+        #  addedge(u.pred, "??", false, false, false)
+        #end
+        if u.input
           addedge(u.pred, "??", false, false, false)
-          @nodes["??"].color = "red"
-          @nodes["??"].shape = "diamond"
-          @nodes["??"].penwidth = 2
+        else
+          addedge("??", u.pred, false, false, false)
         end
       end
     end
+
+
     suffix = @collapse ? "collapsed" : "expanded"
     @graph.output(:svg => "#{@name}_#{suffix}.svg")
   end
