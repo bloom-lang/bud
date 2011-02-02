@@ -32,7 +32,8 @@ class Bud
     @rewritten_strata = []
     @provides = {}
     @channels = {}
-    @disk_tables = {}
+    @tc_tables = {}
+    @zk_tables = {}
     @budtime = 0
     @each_counter = {}
     @connections = {}
@@ -133,7 +134,7 @@ class Bud
   end
 
   def close
-    @disk_tables.each_value do |t|
+    @tables.each_value do |t|
       t.close
     end
   end
@@ -202,11 +203,12 @@ class Bud
   end
 
   # "Flush" any tuples that need to be flushed. This does two things: (1) emit
-  # outgoing tuples in channels (2) commit to disk any changes made to on-disk
-  # tables.
+  # outgoing tuples in channels and ZK tables (2) commit to disk any changes
+  # made to on-disk tables.
   def do_flush
     @channels.each { |c| @tables[c[0]].flush }
-    @disk_tables.each_value { |t| t.flush }
+    @zk_tables.each_value { |t| t.flush }
+    @tc_tables.each_value { |t| t.flush }
   end
 
   def builtin_state

@@ -129,6 +129,9 @@ class Bud
       @new_delta = {}
     end
 
+    def close
+    end
+
     def include?(o)
       return false if o.nil? or o.length == 0
       return (self[o] == o)
@@ -260,7 +263,7 @@ class Bud
           finals << tie
         end
       end
-      #retval.merge(finals)
+
       if block_given?
         finals.map{|r| yield r}      
       else
@@ -960,7 +963,7 @@ class Bud
     end
 
     def close
-      @z.close
+      @zk.close
     end
 
     superator "<~" do |o|
