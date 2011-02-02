@@ -169,7 +169,7 @@ class Rewriter < SaneR2R
         aliass = exp[0][1].to_s
         col = exp[1].to_s
         @cols << [aliass, col, @offset]
-        @offset = @offset + 1
+        @offset += 1
       elsif l.to_s == 'vcall'
         tab = resolve(exp[0][1])
       end
