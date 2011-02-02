@@ -876,8 +876,11 @@ class Bud
       @zk_path = zk_path
       @base_path = @zk_path
       @base_path += "/" unless @zk_path.end_with? "/"
+      @store_mutex = Mutex.new
       @next_storage = {}
       @child_watch_id = nil
+
+      # NB: Watcher callbacks are invoked in a separate Ruby thread.
       @child_watcher = Zookeeper::WatcherCallback.new { get_and_watch }
       @stat_watcher = Zookeeper::WatcherCallback.new { stat_and_watch }
       stat_and_watch
@@ -928,18 +931,21 @@ class Bud
 
       # We successfully fetched all the children of @zk_path; at the
       # next Bud tick, install the new data in @storage
-      @next_storage = new_children
+      @store_mutex.synchronize {
+        @next_storage = new_children
+      }
     end
 
     def tick
-      return if @next_storage.empty?
+      @store_mutex.synchronize {
+        return if @next_storage.empty?
 
-      @storage = @next_storage
-      @next_storage = {}
+        @storage = @next_storage
+        @next_storage = {}
+      }
     end
 
     def flush
-      puts "flush()! # pending = #{@pending.length}"
       each_pending do |t|
         path = @base_path + t.key
         data = t.value or ""
@@ -954,7 +960,7 @@ class Bud
     end
 
     def close
-      puts "close()!"
+      @z.close
     end
 
     superator "<~" do |o|
