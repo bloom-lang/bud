@@ -368,18 +368,5 @@ class Bud
     end
   end
 
-  def set_timer(name, id, secs)
-    EventMachine::Timer.new(secs) do
-      @tables[name] <+ [[id, Time.new.to_s]]
-      tick
-    end
-  end
-
-  def tickle
-    EventMachine::connect(@ip, @port) do |c|
-      c.send_data(" ")
-    end
-  end
-
   alias rules lambda
 end
