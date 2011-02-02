@@ -18,7 +18,6 @@ class Bud
   attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir, :provides, :meta_parser, :viz
   attr_accessor :connections
   attr_reader :tables, :ip, :port
-  attr_accessor :each_counter
   attr_reader :stratum_first_iter
 
   include BudState
@@ -35,7 +34,6 @@ class Bud
     @tc_tables = {}
     @zk_tables = {}
     @budtime = 0
-    @each_counter = {}
     @connections = {}
     @inbound = []
     @declarations = []
@@ -92,12 +90,12 @@ class Bud
   end
 
   def safe_rewrite
-    @meta_parser = BudMeta.new(self, @declarations)
     if @options[:disable_rewrite]
       puts "No rewriting performed"
       return
     end
 
+    @meta_parser = BudMeta.new(self, @declarations)
     begin
       @rewritten_strata = @meta_parser.meta_rewrite
     rescue
@@ -108,6 +106,13 @@ class Bud
   end
 
   ######## methods for controlling execution
+
+  # Spawn a new thread and use it to run Bud in. This means that the Bud
+  # interpreter will run asynchronously from the calling code, so care must be
+  # used when interacting with it. For example, it is not safe to directly
+  # examine Bud collections from the caller's thread.
+  #
+  # Bud will continue to run until stop_bg is invoked.
   def run_bg
     @t = Thread.new() do
       # PAA, towards better error messages
@@ -128,6 +133,8 @@ class Bud
     }
   end
 
+  # Shutdown a Bud instance running as a separate thread. This method blocks
+  # until the thread has exited.
   def stop_bg
     schedule_shutdown
     # Block until the background thread has actually exited
@@ -140,7 +147,7 @@ class Bud
     end
   end
 
-  # Schedule a "graceful" shutdown for a future EM tick
+  # Schedule a "graceful" shutdown for a future EM tick.
   def schedule_shutdown
     EventMachine::schedule do
       close
@@ -148,9 +155,12 @@ class Bud
     end
   end
 
+  # Run Bud in the "foreground" -- this method typically doesn't return unless
+  # an error occurs.
+  #
   # We proceed in time ticks, a la Dedalus.
-  # Within each tick there may be multiple strata.
-  # Within each stratum we do multiple semi-naive iterations.
+  # * Within each tick there may be multiple strata.
+  # * Within each stratum we do multiple semi-naive iterations.
   def run
     begin
       EventMachine::run {
@@ -203,9 +213,9 @@ class Bud
     @ip_port = "#{@ip}:#{@port}"
   end
 
-  # "Flush" any tuples that need to be flushed. This does two things: (1) emit
-  # outgoing tuples in channels and ZK tables (2) commit to disk any changes
-  # made to on-disk tables.
+  # "Flush" any tuples that need to be flushed. This does two things:
+  # 1. Emit outgoing tuples in channels and ZK tables.
+  # 2. Commit to disk any changes made to on-disk tables.
   def do_flush
     @channels.each { |c| @tables[c[0]].flush }
     @zk_tables.each_value { |t| t.flush }
@@ -373,4 +383,3 @@ class Bud
 
   alias rules lambda
 end
-

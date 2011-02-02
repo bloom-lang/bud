@@ -93,8 +93,6 @@ class Bud
     def each_from(bufs, &block)
       bufs.each do |b|
         b.each_value do |v|
-          # @bud_instance.each_counter[tabname] ||= 0 unless @bud_instance.nil?
-          # @bud_instance.each_counter[tabname] += 1  unless @bud_instance.nil?
           yield v
         end
       end
