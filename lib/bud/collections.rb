@@ -943,11 +943,22 @@ class Bud
         new_children[c] = tuple_accessors([c, data])
       end
 
-      # We successfully fetched all the children of @zk_path; at the
-      # next Bud tick, install the new data in @storage
+      # We successfully fetched all the children of @zk_path; arrange to install
+      # the new data into @storage at the next Bud tick
+      need_tick = false
       @store_mutex.synchronize {
         @next_storage = new_children
+        if @storage != @next_storage
+          need_tick = true
+        end
       }
+
+      # If we have new data, force a new Bud tick in the near future
+      if need_tick
+        EventMachine::schedule {
+          @bud_instance.tick
+        }
+      end
     end
 
     def tick
