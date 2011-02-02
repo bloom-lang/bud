@@ -895,12 +895,20 @@ class Bud
 
     def stat_and_watch
       r = @zk.stat(:path => @zk_path, :watcher => @stat_watcher)
-      if r[:stat].exists
-        # Make sure we're watching for children
-        get_and_watch unless @child_watch_id
-      else
+
+      unless r[:stat].exists
         cancel_child_watch
+        # The given @zk_path doesn't exist, so try to create it. Unclear
+        # whether this is always the best behavior.
+        r = @zk.create(:path => @zk_path)
+        if r[:rc] != Zookeeper::ZOK and r[:rc] != Zookeeper::ZNODEEXISTS
+          raise
+        end
+        puts "Created root path: #{@zk_path}"
       end
+
+      # Make sure we're watching for children
+      get_and_watch unless @child_watch_id
     end
 
     def cancel_child_watch
@@ -928,7 +936,10 @@ class Bud
           puts "Failed to fetch child: #{child_path}"
           return
         end
-        data = get_r[:data] or ""
+
+        data = get_r[:data]
+        # XXX: For now, conflate empty string values with nil values
+        data ||= ""
         new_children[c] = tuple_accessors([c, data])
       end
 
@@ -951,7 +962,7 @@ class Bud
     def flush
       each_pending do |t|
         path = @base_path + t.key
-        data = t.value or ""
+        data = t.value
         r = @zk.create(:path => path, :data => data)
         if r[:rc] == Zookeeper::ZNODEEXISTS
           puts "Ignoring duplicate insert: #{t.inspect}"
