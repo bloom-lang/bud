@@ -17,7 +17,7 @@ require 'bud/state'
 class Bud
   attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir, :provides, :meta_parser, :viz
   attr_accessor :connections
-  attr_reader :tables, :ip, :port
+  attr_reader :tables, :ip, :port, :ip_port
   attr_reader :stratum_first_iter
 
   include BudState
@@ -138,6 +138,18 @@ class Bud
     schedule_shutdown
     # Block until the background thread has actually exited
     @t.join
+  end
+
+  # Given a block, evaluate that block inside the background Ruby thread at some
+  # point in the future. Because the background Ruby thread is blocked, Bud
+  # state can be safely examined inside the block. Naturally, this method can
+  # only be used when Bud is running in the background.
+  def async_do
+    EventMachine::schedule do
+      yield
+      # Do another tick, in case the user-supplied block inserted any data
+      tick
+    end
   end
 
   def close
