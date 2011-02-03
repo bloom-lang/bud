@@ -182,9 +182,9 @@ class TestCollections < Test::Unit::TestCase
     c = TickleCount.new
     c.run_bg
     sleep 1
+    c.stop_bg
     assert_equal("[[5]]", c.result.map{|t| t}.inspect)
     assert_equal("[[5]]", c.mresult.map{|t| t}.inspect)
-    c.stop_bg
   end
 
   def test_delete_key

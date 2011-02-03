@@ -115,7 +115,6 @@ class Bud
   # Bud will continue to run until stop_bg is invoked.
   def run_bg
     @t = Thread.new() do
-      # PAA, towards better error messages
       begin
         run
       rescue
