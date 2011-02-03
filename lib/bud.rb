@@ -239,9 +239,8 @@ class Bud
   end
 
   def init_state
-    # reset any schema stuff that isn't already there
-    # state to be defined by the user program
-    # rethink this.
+    # For every state declaration, either define a new collection instance
+    # (first time seen) or tick the collection to advance to the next time step.
     state
     builtin_state
   end
@@ -254,8 +253,9 @@ class Bud
       coll.tick_deltas
     end
 
-    # load the rules as a closure (will contain persistent tuples and new inbounds)
+    # Load the rules as a closure (will contain persistent tuples and new inbounds)
     # declaration is gathered from "declare def" blocks
+    # XXX: can we kill the old "declaration" code?
     @strata = []
     declaration
     if @rewritten_strata.length > 0
@@ -276,7 +276,6 @@ class Bud
     @viz.do_cards
     do_flush
     @budtime += 1
-    return @budtime
   end
 
   # handle any inbound tuples off the wire and then clear
