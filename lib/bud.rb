@@ -17,8 +17,7 @@ require 'bud/state'
 class Bud
   attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir, :provides, :meta_parser, :viz
   attr_accessor :connections
-  attr_reader :tables, :ip, :port
-  attr_accessor :each_counter
+  attr_reader :tables, :ip, :port, :ip_port
   attr_reader :stratum_first_iter
 
   include BudState
@@ -35,7 +34,6 @@ class Bud
     @tc_tables = {}
     @zk_tables = {}
     @budtime = 0
-    @each_counter = {}
     @connections = {}
     @inbound = []
     @declarations = []
@@ -60,7 +58,6 @@ class Bud
 
     init_state
     bootstrap
-    #prepare_viz
     @viz = Viz.new(self)
     @viz.prepare_viz
 
@@ -92,12 +89,12 @@ class Bud
   end
 
   def safe_rewrite
-    @meta_parser = BudMeta.new(self, @declarations)
     if @options[:disable_rewrite]
       puts "No rewriting performed"
       return
     end
 
+    @meta_parser = BudMeta.new(self, @declarations)
     begin
       @rewritten_strata = @meta_parser.meta_rewrite
     rescue
@@ -108,9 +105,15 @@ class Bud
   end
 
   ######## methods for controlling execution
+
+  # Spawn a new thread and use it to run Bud in. This means that the Bud
+  # interpreter will run asynchronously from the calling code, so care must be
+  # used when interacting with it. For example, it is not safe to directly
+  # examine Bud collections from the caller's thread.
+  #
+  # Bud will continue to run until stop_bg is invoked.
   def run_bg
     @t = Thread.new() do
-      # PAA, towards better error messages
       begin
         run
       rescue
@@ -128,10 +131,24 @@ class Bud
     }
   end
 
+  # Shutdown a Bud instance running as a separate thread. This method blocks
+  # until the thread has exited.
   def stop_bg
     schedule_shutdown
     # Block until the background thread has actually exited
     @t.join
+  end
+
+  # Given a block, evaluate that block inside the background Ruby thread at some
+  # point in the future. Because the background Ruby thread is blocked, Bud
+  # state can be safely examined inside the block. Naturally, this method can
+  # only be used when Bud is running in the background.
+  def async_do
+    EventMachine::schedule do
+      yield
+      # Do another tick, in case the user-supplied block inserted any data
+      tick
+    end
   end
 
   def close
@@ -140,7 +157,7 @@ class Bud
     end
   end
 
-  # Schedule a "graceful" shutdown for a future EM tick
+  # Schedule a "graceful" shutdown for a future EM tick.
   def schedule_shutdown
     EventMachine::schedule do
       close
@@ -148,9 +165,12 @@ class Bud
     end
   end
 
+  # Run Bud in the "foreground" -- this method typically doesn't return unless
+  # an error occurs.
+  #
   # We proceed in time ticks, a la Dedalus.
-  # Within each tick there may be multiple strata.
-  # Within each stratum we do multiple semi-naive iterations.
+  # * Within each tick there may be multiple strata.
+  # * Within each stratum we do multiple semi-naive iterations.
   def run
     begin
       EventMachine::run {
@@ -203,9 +223,9 @@ class Bud
     @ip_port = "#{@ip}:#{@port}"
   end
 
-  # "Flush" any tuples that need to be flushed. This does two things: (1) emit
-  # outgoing tuples in channels and ZK tables (2) commit to disk any changes
-  # made to on-disk tables.
+  # "Flush" any tuples that need to be flushed. This does two things:
+  # 1. Emit outgoing tuples in channels and ZK tables.
+  # 2. Commit to disk any changes made to on-disk tables.
   def do_flush
     @channels.each { |c| @tables[c[0]].flush }
     @zk_tables.each_value { |t| t.flush }
@@ -218,9 +238,8 @@ class Bud
   end
 
   def init_state
-    # reset any schema stuff that isn't already there
-    # state to be defined by the user program
-    # rethink this.
+    # For every state declaration, either define a new collection instance
+    # (first time seen) or tick the collection to advance to the next time step.
     state
     builtin_state
   end
@@ -233,8 +252,9 @@ class Bud
       coll.tick_deltas
     end
 
-    # load the rules as a closure (will contain persistent tuples and new inbounds)
+    # Load the rules as a closure (will contain persistent tuples and new inbounds)
     # declaration is gathered from "declare def" blocks
+    # XXX: can we kill the old "declaration" code?
     @strata = []
     declaration
     if @rewritten_strata.length > 0
@@ -255,7 +275,6 @@ class Bud
     @viz.do_cards
     do_flush
     @budtime += 1
-    return @budtime
   end
 
   # handle any inbound tuples off the wire and then clear
@@ -358,19 +377,5 @@ class Bud
     end
   end
 
-  def set_timer(name, id, secs)
-    EventMachine::Timer.new(secs) do
-      @tables[name] <+ [[id, Time.new.to_s]]
-      tick
-    end
-  end
-
-  def tickle
-    EventMachine::connect(@ip, @port) do |c|
-      c.send_data(" ")
-    end
-  end
-
   alias rules lambda
 end
-

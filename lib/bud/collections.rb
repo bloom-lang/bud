@@ -93,8 +93,6 @@ class Bud
     def each_from(bufs, &block)
       bufs.each do |b|
         b.each_value do |v|
-          # @bud_instance.each_counter[tabname] ||= 0 unless @bud_instance.nil?
-          # @bud_instance.each_counter[tabname] += 1  unless @bud_instance.nil?
           yield v
         end
       end
@@ -391,14 +389,14 @@ class Bud
       retval
     end
 
-    def establish_connection(l)
-      @connections[l] = EventMachine::connect l[0], l[1], BudServer, @bud_instance
-    end
-
     def tick
       @storage = {}
       # never turn pending outbounds into real tuples
       @pending = {}
+    end
+
+    def establish_connection(l)
+      @connections[l] = EventMachine::connect l[0], l[1], BudServer, @bud_instance
     end
 
     def flush

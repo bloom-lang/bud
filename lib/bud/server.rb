@@ -5,7 +5,7 @@ class Bud
       @pac = MessagePack::Unpacker.new
       @bud = bud
       super
-    rescue Exception
+    rescue
       puts "An error occurred initializing BudServer: #{$!}"
     end
 
@@ -13,13 +13,13 @@ class Bud
       pname = get_peername
       if pname
         @port, @ip = Socket.unpack_sockaddr_in(pname) 
- #       puts "-- server inbound connection from #{@ip}:#{@port}"
+#        puts "-- server inbound connection from #{@ip}:#{@port}"
       else
         @port, @ip = Socket.unpack_sockaddr_in(get_sockname)
- #       puts "-- server connection to #{@ip}:#{@port}"
+#        puts "-- server connection to #{@ip}:#{@port}"
       end
       @bud.connections[[@ip, @port]] = self
-    rescue Exception
+    rescue
       puts "An error occurred post_init on BudServer: #{$!}"
     end
 
@@ -34,13 +34,12 @@ class Bud
     end
 
     def message_received(obj)
-#      puts "got " + obj.inspect
+#      puts "got #{obj.inspect} (@ #{@bud.ip_port})"
       if (obj.class <= Array and obj.length == 2 and not @bud.tables[obj[0].to_sym].nil? and obj[1].class <= Array)
         @bud.inbound << obj
         @bud.tick
       else
         raise BudError, "Bad inbound message of class #{obj.class}: #{obj.inspect}"
-        # @bud.tick
       end
     end
 
