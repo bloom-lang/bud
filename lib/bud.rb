@@ -58,7 +58,6 @@ class Bud
 
     init_state
     bootstrap
-    #prepare_viz
     @viz = Viz.new(self)
     @viz.prepare_viz
 
