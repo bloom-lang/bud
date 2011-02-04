@@ -389,14 +389,14 @@ class Bud
       retval
     end
 
-    def establish_connection(l)
-      @connections[l] = EventMachine::connect l[0], l[1], BudServer, @bud_instance
-    end
-
     def tick
       @storage = {}
       # never turn pending outbounds into real tuples
       @pending = {}
+    end
+
+    def establish_connection(l)
+      @connections[l] = EventMachine::connect l[0], l[1], BudServer, @bud_instance
     end
 
     def flush
