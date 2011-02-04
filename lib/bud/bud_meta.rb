@@ -80,6 +80,7 @@ class BudMeta
       u = Unifier.new
       pt = u.process(parse_tree)
       rewriter.process(pt)
+      rewriter.each {|r| puts "RW: #{r.inspect}" }
     end
     return rewriter
   end

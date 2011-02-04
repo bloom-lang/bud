@@ -10,7 +10,7 @@ class RW < Ruby2Ruby
   def initialize(seed)
     @ops = {:<< => 1, :< => 1, :<= => 1 }
     @nm_funcs = {:group => 1, :argagg => 1, :include? => 1, :-@ => 1}
-    @temp_ops = {:-@ => 1, :~@ => 1, :+@ => 1}
+    @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tabs = {}
     # for upstream compatibility.  consider using a bool
     @nm = 0
@@ -50,10 +50,9 @@ class RW < Ruby2Ruby
       # basically not analyzed
       if @nm_funcs[exp[1]]
         @nm = 1
-        #if exp[1] == :-@
-        if @temp_ops[exp[1]]
-          @temp_op = exp[1].to_s
-        end
+      end
+      if @temp_ops[exp[1]]
+          @temp_op = exp[1].to_s.gsub("@", "")
       end
       super
     end
@@ -70,11 +69,6 @@ class RW < Ruby2Ruby
     rule_txt = "#{lhs} #{op} #{rhs}"
     if op == :< 
       op = "<#{@temp_op}"
-      #if @delete
-      #  op = '<-' 
-      #else
-      #  op = '<+'
-      #end
     else
       op = op.to_s
     end
