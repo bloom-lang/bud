@@ -1,6 +1,5 @@
 require 'rubygems'
-
-require 'parse_tree'
+require 'ruby2ruby'
 
 class RW < Ruby2Ruby
   attr_accessor :rule_indx
