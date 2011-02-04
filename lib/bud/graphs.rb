@@ -7,7 +7,6 @@ class GraphGen
   def initialize(mapping, tableinfo, cycle, name, bud_instance, pics_dir, collapse=false, depanalysis=nil, cardinalities={})
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85 )
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
-    #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 1.2)
     @graph.node[:fontname] = "Times-Roman"
     @graph.node[:fontsize] = 28
     @graph.edge[:fontname] = "Times-Roman"
@@ -80,11 +79,6 @@ class GraphGen
     return res
   end
 
-  def nice_str(str)
-    
-    
-  end
-
   def name_of(predicate)
     # consider doing this in bud
     # PAA
@@ -98,50 +92,6 @@ class GraphGen
     end 
   end
 
-  def dump(shredded_rules)
-    return if shredded_rules.nil?
-
-    fout = File.new("plotter_out/style.css", "w")
-    fout.puts css
-    fout.close
-
-    code = {}
-    rules = {}
-    convertor = Syntax::Convertors::HTML.for_syntax "ruby"
-    shredded_rules.each do |s|
-      fout = File.new("plotter_out/#{s[0]}.html", "w+")
-      fout.puts header
-      fout.puts "<h1>Rule #{s[0]}</h1><br>"
-
-      c = convertor.convert(s[5])
-      c.sub!(/^<pre>/, "<pre class=\"code\">\n")
-      fout.puts c
-      rules[s[0]] = [s[1], s[5]]
-      fout.close
-    end
-  
-    rules.each_pair do |k, v|
-      if !code[v[0]]
-        code[v[0]] = ""
-      end
-      #code[v[0]] = "<br># RULE #{k}<br> " + code[v[0]] + "<br>" + v[1]
-      code[v[0]] = "\n# RULE #{k}\n " + code[v[0]] + "\n" + v[1]
-    end
-    @nodes.each_pair do |k, v|
-      fout = File.new("plotter_out/#{k}.html", "w+")
-      fout.puts header
-      k.split(", ").each do |i|
-        unless code[i].nil?
-          c = convertor.convert(code[i])
-          c.sub!(/^<pre>/, "<pre class=\"code\">\n")
-          fout.puts c
-        end
-      end
-      fout.puts("</body></html>")
-      fout.close
-    end 
-  end
- 
   def process(depends)
 
     # collapsing NEG/+ cycles.
@@ -150,14 +100,11 @@ class GraphGen
     # its name is "CYC" + concat(sort(predicate names))
 
     depends.each do |d|
+      #puts "DEP: #{d.inspect}"
       head = d[1]
       body = d[3]
-      if !@tabinf[head] or !@tabinf[body]
-        #next
-      end
 
       # hack attack
-      #if body == "count" or head == "localtick" or head == "stdio" 
       if @internals[head] or @internals[body]
         next
       end
@@ -166,7 +113,6 @@ class GraphGen
       body = name_of(body)
       addonce(head, (head != d[1]))
       addonce(body, (body != d[3]))
-      #puts "add edge #{head} #{d[2]} #{body}"
       addedge(body, head, d[2], d[4], (head != d[1]), d[0])
     end
   end
@@ -174,19 +120,11 @@ class GraphGen
   def addonce(node, negcluster)
     if !@nodes[node]
       @nodes[node] = @graph.add_node(node)
-      #@nodes[node].label = "<b>" + node + "</b> (#{@tabinf[node].length}) "
-  
-      #puts "NODE IS #{node.class} or #{node} and cards is #{@cards.class}"
-      #puts "NODE cards is #{@cards[node]}"
       if @cards and @cards[node]
         @nodes[node].label = node + "\n (" + @cards[node].to_s + ")"
       end
-   
-      if @bud_instance.options[:visualize] >= 3
-        @nodes[node].URL = "file://#{ENV['PWD']}/#{@pics_dir}/#{node}_#{@bud_instance.budtime}.html"
-      else 
-        @nodes[node].URL = "file://#{ENV['PWD']}/plotter_out/#{node}.html"
-      end
+  
+      @nodes[node].URL = "#{output_dir}/#{node}_#{@bud_instance.budtime}.html" 
     end
 
     if negcluster
@@ -218,12 +156,13 @@ class GraphGen
     head = head.to_s
     return if negcluster and body == head
 
-    #puts "ADD EDGE #{head} #{op} #{body}, nm=#{nm}, nc=#{negcluster}, rid=#{rule_id}"
     ekey = body + head
     if !@edges[ekey] 
       @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head])
       @edges[ekey].arrowsize = 2
-      @edges[ekey].URL = "file://#{ENV['PWD']}/plotter_out/#{rule_id}.html" unless rule_id.nil?
+
+      #@edges[ekey].URL = "file://#{ENV['PWD']}/plotter_out/#{rule_id}.html" unless rule_id.nil?
+      @edges[ekey].URL = "#{output_dir}/#{rule_id}.html" unless rule_id.nil?
       if head =~ /_msg\z/
         @edges[ekey].minlen = 2
       else
@@ -246,15 +185,8 @@ class GraphGen
     end
     if nm == 1 and head != "T"
       # hm, nonmono
-      #@labels[ekey] = @labels[ekey] + 'NEG'
-      #@labels[ekey]['¬'] = true
       @edges[ekey].arrowhead = 'veeodot'
     end
-  
-    #if ((safe_t2s(head) != safe_t2s(body)) or negcluster) and head != "T"
-    #  @edges[ekey].arrowhead = 'veeodot'
-    #end
-
   end
 
   def finish
@@ -282,20 +214,12 @@ class GraphGen
     unless @depanalysis.nil? or @depanalysis.underspecified.length == 0
       @depanalysis.source.each {|s| addedge("S", s.pred, false, false, false) }
       @depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false) }
-
-
       addonce("??", false)
       @nodes["??"].color = "red"
       @nodes["??"].shape = "diamond"
       @nodes["??"].penwidth = 2
 
       @depanalysis.underspecified.each do |u|
-        #unless u.other.nil?
-        #  puts "FOO: #{u.other}, #{u.pred}"
-        #  addonce("??", false)
-        #  addedge("??", u.other, false, false, false)
-        #  addedge(u.pred, "??", false, false, false)
-        #end
         if u.input
           addedge(u.pred, "??", false, false, false)
         else
@@ -304,10 +228,67 @@ class GraphGen
       end
     end
 
-
     suffix = @collapse ? "collapsed" : "expanded"
     @graph.output(:svg => "#{@name}_#{suffix}.svg")
   end
+
+  def output_base
+    if @bud_instance.options[:visualize] >= 3
+      @pics_dir
+    else
+      "plotter_out"
+    end 
+  end
+
+  def output_dir
+    "file://#{ENV['PWD']}/#{output_base}/"
+  end
+
+  def dump(shredded_rules)
+    return if shredded_rules.nil?
+
+    fout = File.new("#{output_base}/style.css", "w")
+    fout.puts css
+    fout.close
+
+    code = {}
+    rules = {}
+    convertor = Syntax::Convertors::HTML.for_syntax "ruby"
+    shredded_rules.each do |s|
+      #fout = File.new("#{output_base}/#{s[0]}.html", "w+")
+      fout = File.new("#{output_base}/#{s[0]}.html", "w+")
+      fout.puts header
+      fout.puts "<h1>Rule #{s[0]}</h1><br>"
+
+      c = convertor.convert(s[5])
+      c.sub!(/^<pre>/, "<pre class=\"code\">\n")
+      fout.puts c
+      rules[s[0]] = [s[1], s[5]]
+      fout.close
+    end
+
+    rules.each_pair do |k, v|
+      if !code[v[0]]
+        code[v[0]] = ""
+      end
+      #code[v[0]] = "<br># RULE #{k}<br> " + code[v[0]] + "<br>" + v[1]
+      code[v[0]] = "\n# RULE #{k}\n " + code[v[0]] + "\n" + v[1]
+    end
+    @nodes.each_pair do |k, v|
+      fout = File.new("#{output_base}/#{k}.html", "w+")
+      fout.puts header
+      k.split(", ").each do |i|
+        unless code[i].nil?
+          c = convertor.convert(code[i])
+          c.sub!(/^<pre>/, "<pre class=\"code\">\n")
+          fout.puts c
+        end
+      end
+      fout.puts("</body></html>")
+      fout.close
+    end
+  end
+
 
   def header
       return "<html><meta content='text/html; charset=UTF-8' http-equiv='Content-Type'/>\n<head><link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\" /></head><body>"
