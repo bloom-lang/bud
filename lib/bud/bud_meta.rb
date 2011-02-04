@@ -76,8 +76,10 @@ class BudMeta
 
   def rewrite(parse_tree, tab_map, seed)
     unless parse_tree[0].nil?
-      rewriter = Rewriter.new(seed, tab_map, @bud_instance.options[:provenance])
-      rewriter.process(parse_tree)
+      rewriter = RW.new(seed)
+      u = Unifier.new
+      pt = u.process(parse_tree)
+      rewriter.process(pt)
     end
     return rewriter
   end
