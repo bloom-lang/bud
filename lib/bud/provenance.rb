@@ -1,6 +1,5 @@
 require 'rubygems'
 
-require 'bud/sane_r2r'
 require 'bud/rewrite'
 require 'parse_tree'
 

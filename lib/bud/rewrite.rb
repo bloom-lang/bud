@@ -1,14 +1,12 @@
 require 'rubygems'
 
-require 'bud/sane_r2r'
 require 'parse_tree'
 
 class RW < Ruby2Ruby
-
   attr_accessor :rule_indx
 
   def initialize(seed)
-    @ops = {:<< => 1, :< => 1, :<= => 1 }
+    @ops = {:<< => 1, :< => 1, :<= => 1}
     @nm_funcs = {:group => 1, :argagg => 1, :include? => 1, :-@ => 1}
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tabs = {}

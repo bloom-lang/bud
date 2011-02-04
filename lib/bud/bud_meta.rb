@@ -3,7 +3,6 @@ require 'rubygems'
 require 'bud/depanalysis'
 require 'bud/provenance'
 require 'bud/rewrite'
-require 'bud/sane_r2r'
 require 'bud/graphs'
 require 'parse_tree'
 
