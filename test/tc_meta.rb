@@ -18,7 +18,8 @@ class LocalShortestPaths < Bud
   def program
     link2 <= link.map{|l| l unless empty.include? l.ident } 
     path <= link2.map{|e| [e.from, e.to, e.to, e.cost]}
-    path <= join([link2, path]).map do |l, p|
+    j = join([link2, path])
+    path <= j.map do |l, p|
       [l.from, p.to, p.from, l.cost+p.cost] if l.to == p.from
     end
 
@@ -69,7 +70,7 @@ end
 
 class TestMeta < Test::Unit::TestCase
   def test_paths
-    program = LocalShortestPaths.new
+    program = LocalShortestPaths.new(:enforce_rewrite => true, :dump => true)
     assert_equal(0, program.strata.length)
     assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal(4, program.strata.length)
