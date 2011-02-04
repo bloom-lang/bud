@@ -54,10 +54,6 @@ class Bud
     end
     @declarations.uniq!
 
-    @periodics = table :periodics_tbl, ['pername'], ['ident', 'period']
-    @vars = table :vars_tbl, ['varname'], ['value']
-    @tmpvars = scratch :tmpvars_tbl, ['tmpvarname'], ['value']
-
     init_state
     bootstrap
     @viz = Viz.new(self)
@@ -277,13 +273,16 @@ class Bud
   def builtin_state
     channel  :localtick, ['col1']
     terminal :stdio
+    @periodics = table :periodics_tbl, ['pername'], ['ident', 'period']
+    @vars = table :vars_tbl, ['varname'], ['value']
+    @tmpvars = scratch :tmpvars_tbl, ['tmpvarname'], ['value']
   end
 
   def init_state
     # For every state declaration, either define a new collection instance
     # (first time seen) or tick the collection to advance to the next time step.
-    state
     builtin_state
+    state
   end
 
   def tick
