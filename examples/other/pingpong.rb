@@ -44,4 +44,5 @@ class PingPong < Bud
 end
 
 program = PingPong.new(:ip => "127.0.0.1", :port => ARGV[0])
-program.run
+program.run_bg
+

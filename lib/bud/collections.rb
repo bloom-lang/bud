@@ -418,6 +418,12 @@ class Bud
       @pending.clear
     end
 
+    def close
+      @connections.each_value do |c|
+        c.close_connection
+      end
+    end
+
     superator "<~" do |o|
       pending_merge o
     end

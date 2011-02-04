@@ -75,7 +75,7 @@ class TestRing < Test::Unit::TestCase
       next_idx = 0 if next_idx == RING_SIZE
       next_addr = ring[next_idx].ip_port
 
-      r.async_do {
+      r.sync_do {
         r.next_guy << [next_addr]
       }
     end
@@ -88,7 +88,6 @@ class TestRing < Test::Unit::TestCase
     sleep 5
 
     ring.each_with_index do |r, i|
-      r.async_do {}
       r.stop_bg
       puts "#{i}: last_cnt = #{r.last_cnt.to_a.inspect}, len = #{r.last_cnt.length}"
     end
