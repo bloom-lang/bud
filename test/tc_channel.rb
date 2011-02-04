@@ -2,9 +2,6 @@ require 'rubygems'
 require 'bud'
 require 'test/unit'
 
-# XXX: these tests are somewhat bogus because channels use UDP to send messages,
-# so we can't count on messages being delivered.
-
 class TickleCount < Bud
   def state
     channel :loopback, ['cnt']
@@ -33,8 +30,8 @@ class TestTickle < Test::Unit::TestCase
     c.run_bg
     sleep 1
     c.stop_bg
-    assert_equal("[[5]]", c.result.map{|t| t}.inspect)
-    assert_equal("[[5]]", c.mresult.map{|t| t}.inspect)
+    assert_equal([[5]], c.result.to_a)
+    assert_equal([[5]], c.mresult.to_a)
   end
 end
 
