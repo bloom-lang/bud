@@ -41,15 +41,12 @@ class RingMember < Bud
     scratch :kickoff, ['cnt']
     table :next_guy, ['addr']
     table :last_cnt, ['cnt']
-    periodic :tik, 1
   end
 
   declare
   def ring_msg
-    stdio <~ pipe.map {|p| ["Self: " + @ip_port + ", cnt = " + p.cnt.to_s]}
-    stdio <~ kickoff.map {|k| ["KICKOFF: " + k.cnt.to_s]}
     pipe <~ kickoff.map {|k| [@ip_port, k.cnt.to_i]}
-    pipe <~ join([pipe, next_guy]).map {|p,n| [n.addr, p.cnt.to_i + 1] if p.cnt.to_i < 10}
+    pipe <~ join([pipe, next_guy]).map {|p,n| [n.addr, p.cnt.to_i + 1] if p.cnt.to_i < 39}
   end
 
   declare
@@ -60,10 +57,9 @@ class RingMember < Bud
 end
 
 class TestRing < Test::Unit::TestCase
-  RING_SIZE = 4
+  RING_SIZE = 10
 
   def test_basic
-    return
     ring = []
     0.upto(RING_SIZE - 1) do |i|
       ring[i] = RingMember.new
@@ -85,11 +81,14 @@ class TestRing < Test::Unit::TestCase
       first.kickoff <+ [[0]]
     }
 
-    sleep 5
+    sleep 3
 
     ring.each_with_index do |r, i|
+      # XXX: we need to do a final tick here to ensure that each Bud instance
+      # applies pending <+ and <- derivations. See issue #50.
+      r.sync_do {}
       r.stop_bg
-      puts "#{i}: last_cnt = #{r.last_cnt.to_a.inspect}, len = #{r.last_cnt.length}"
+      assert_equal(r.last_cnt.first, [30 + i])
     end
   end
 end

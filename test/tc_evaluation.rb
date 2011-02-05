@@ -175,7 +175,7 @@ class TestDelta < Test::Unit::TestCase
     iters = 0
     while (program.d_link.length > 0 or program.d_path.length > 0) do
       assert_nothing_raised( RuntimeError) { program.tick }
-      iters = iters + 1
+      iters += 1
       # however, intermediate results are visible at each step of iteration:
       case iters
         when 1 then assert_equal(program.path.length, 4)
