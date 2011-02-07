@@ -12,16 +12,19 @@ Gem::Specification.new do |s|
   s.files = ["README", "LICENSE", "lib/bud.rb"]
   s.files += Dir.entries("lib/bud").select{|f| f.include? ".rb"}.map{|f| "lib/bud/" + f}
 
-  s.add_dependency 'msgpack'
-  s.add_dependency 'eventmachine'
-  s.add_dependency 'superators'
-  s.add_dependency 'ParseTree'
-  s.add_dependency 'sexp_path'
-  s.add_dependency 'ruby2ruby'
   s.add_dependency 'anise'
-  s.add_dependency 'ruby-graphviz'
   s.add_dependency 'backports'
-  s.add_dependency 'tokyocabinet'
+  s.add_dependency 'eventmachine'
+  s.add_dependency 'msgpack'
+  s.add_dependency 'ParseTree'
+  s.add_dependency 'ruby-graphviz'
+  s.add_dependency 'ruby2ruby'
+  s.add_dependency 'sexp_path'
+  s.add_dependency 'superators'
   s.add_dependency 'syntax'
-  s.add_dependency 'zookeeper'
+
+  # Optional dependencies -- if we can't find these libraries, certain features
+  # will be disabled.
+  # s.add_dependency 'tokyocabinet'
+  # s.add_dependency 'zookeeper'
 end
