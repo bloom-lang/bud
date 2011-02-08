@@ -121,8 +121,9 @@ class GraphGen
     if !@nodes[node]
       @nodes[node] = @graph.add_node(node)
       if @cards and @cards[node]
-       # @nodes[node].label = node + "\n (<IMG SRC=\"" + @cards[node].to_s + "\">)"
-        @nodes[node].image = @cards[node].to_s 
+        #@nodes[node].label = node + "\n (<IMG SRC=\"" + @cards[node].to_s + "\">)"
+        @nodes[node].label = node + "\n (#{@cards[node].to_s})"
+        #@nodes[node].image = @cards[node].to_s 
         @nodes[node].imagescale = "both"
       end
   
