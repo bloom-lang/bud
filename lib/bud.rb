@@ -101,7 +101,7 @@ class Bud
       raise if @options[:enforce_rewrite]
       puts "Running original (#{self.class}) code: couldn't rewrite stratified ruby (#{$!})"
     end
-    @viz.visualize(@meta_parser.strat_state, "#{self.class}_gvoutput", @meta_parser.shredded_rules, @meta_parser.depanalysis) if @options[:visualize]
+    @viz.visualize(@meta_parser.strat_state, "#{self.class}_gvoutput", @meta_parser.rules, @meta_parser.depanalysis) if @options[:visualize]
   end
 
   ######## methods for controlling execution

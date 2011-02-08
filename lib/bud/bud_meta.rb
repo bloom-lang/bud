@@ -5,11 +5,13 @@ require 'bud/provenance'
 require 'bud/rewrite'
 require 'bud/sane_r2r'
 require 'bud/graphs'
+require 'bud/state'
 require 'parse_tree'
 
 
 class BudMeta
-  attr_reader :shredded_rules, :provides, :strat_state, :depanalysis
+  include BudState
+  attr_reader :rules, :provides, :strat_state, :depanalysis, :depends
 
   def initialize(bud_instance, declarations)
     # need: provides, options, declarations, class, tables, self for viz
@@ -17,6 +19,9 @@ class BudMeta
     # meh.
     @bud_instance = bud_instance
     @declarations = declarations
+    @rules = []
+    @depends = []
+
   end
 
   def meta_rewrite
@@ -25,19 +30,17 @@ class BudMeta
     # to ruby_parse (but not the "live" class)
     @defns = []
     @shredded_rules = shred_rules
-
-    @strat_state = stratify(@shredded_rules)
+    @strat_state = stratify
     smap = binaryrel2map(@strat_state.stratum)
 
     done = {}
     @rewritten_strata = []
-    @shredded_rules.sort{|a, b| oporder(a[2]) <=> oporder(b[2])}.each do |d|
+    @rules.sort{|a, b| oporder(a[2]) <=> oporder(b[2])}.each do |d|
       belongs_in = smap[d[1]]
       belongs_in = 0 if belongs_in.nil?
-
       @rewritten_strata[belongs_in] ||= ""
       unless done[d[0]]
-        @rewritten_strata[belongs_in] += "\n" + d[5]
+        @rewritten_strata[belongs_in] += "\n" + d[3]
       end
       done[d[0]] = true
     end
@@ -80,7 +83,7 @@ class BudMeta
       u = Unifier.new
       pt = u.process(parse_tree)
       rewriter.process(pt)
-      rewriter.each {|r| puts "RW: #{r.inspect}" }
+      #rewriter.rules.each {|r| puts "RW: #{r.inspect}" }
     end
     return rewriter
   end
@@ -121,7 +124,6 @@ class BudMeta
     @defns << res
     eval(res)
     state_reader.tabs.each_pair do |k, v| 
-      #puts "tab KEYPAIR #{k.inspect} = #{v.inspect}"
       tabs[k] ||= []
       tabs[k] << v 
     end
@@ -145,19 +147,15 @@ class BudMeta
         end
       end
     end
-
-    rules = []
-    rulebag.each_pair do |k, v|
-      v.each do |val|
-        #puts "RULEBAG #{k.inspect} = #{val.inspect}"
-        rules << val
+    
+    rulebag.each_pair do |k,v| 
+      v.rules.each do |r|
+        @rules << r 
+      end
+      v.depends.each do |d|
+        @depends << d 
       end
     end
-    if @bud_instance.options[:scoping]
-      res = write_postamble(tabs, seed + 100)
-      rules.concat(res)
-    end
-    return rules
   end
 
   def each_relevant_ancestor
@@ -171,7 +169,7 @@ class BudMeta
     end
   end
 
-  def stratify(depends)
+  def stratify
     strat = Stratification.new
     strat.tick
 
@@ -179,22 +177,8 @@ class BudMeta
       strat.tab_info << [t[0].to_s, t[1].class, t[1].schema.length]
     end
 
-    depends.each do |d|
-      if d[2] == '<'
-        if d[5] =~ /-@/
-          realop = "<-"
-        elsif d[5] =~ /\~ \)/
-          # hackerly
-          realop = "<~"
-        else  
-          realop = "<+"
-        end
-      else
-        realop = d[2]
-      end
-      # Format: rule, head, op, body, neg
-      # XXX: consider named notation for d.
-      strat.depends << [d[0], d[1], realop, d[3], d[4]]
+    @depends.each do |d|
+      strat.depends << d
     end
 
     strat.tick

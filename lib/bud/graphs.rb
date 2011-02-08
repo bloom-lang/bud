@@ -121,7 +121,9 @@ class GraphGen
     if !@nodes[node]
       @nodes[node] = @graph.add_node(node)
       if @cards and @cards[node]
-        @nodes[node].label = node + "\n (" + @cards[node].to_s + ")"
+       # @nodes[node].label = node + "\n (<IMG SRC=\"" + @cards[node].to_s + "\">)"
+        @nodes[node].image = @cards[node].to_s 
+        @nodes[node].imagescale = "both"
       end
   
       @nodes[node].URL = "#{output_dir}/#{node}_#{@bud_instance.budtime}.html" 
@@ -230,6 +232,7 @@ class GraphGen
 
     suffix = @collapse ? "collapsed" : "expanded"
     @graph.output(:svg => "#{@name}_#{suffix}.svg")
+    @graph.output(:dot => "#{@name}_#{suffix}.dot")
   end
 
   def output_base
@@ -260,10 +263,10 @@ class GraphGen
       fout.puts header
       fout.puts "<h1>Rule #{s[0]}</h1><br>"
 
-      c = convertor.convert(s[5])
+      c = convertor.convert(s[3])
       c.sub!(/^<pre>/, "<pre class=\"code\">\n")
       fout.puts c
-      rules[s[0]] = [s[1], s[5]]
+      rules[s[0]] = [s[1], s[3]]
       fout.close
     end
 

@@ -5,7 +5,7 @@ require 'parse_tree'
 
 class RW < Ruby2Ruby
 
-  attr_accessor :rule_indx
+  attr_accessor :rule_indx, :rules, :depends
 
   def initialize(seed)
     @ops = {:<< => 1, :< => 1, :<= => 1 }
@@ -18,7 +18,8 @@ class RW < Ruby2Ruby
     @collect = false
     @delete = false
     @join_alias = {}
-    @flat_state = []
+    @rules = []
+    @depends = []
     super()
   end
 
@@ -73,10 +74,11 @@ class RW < Ruby2Ruby
       op = op.to_s
     end
 
-    @flat_state << [@rule_indx, lhs, op, nil, nil, rule_txt] if @tabs.empty?
+    @rules << [@rule_indx, lhs, op, rule_txt]
     @tabs.each_pair do |k, v| 
-      @flat_state << [@rule_indx, lhs, op, k, v, rule_txt]
+      @depends << [@rule_indx, lhs, op, k, v]
     end
+    
     @tabs = {}
     @nm = 0
     @temp_op = nil
