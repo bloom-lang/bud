@@ -30,14 +30,13 @@ module SelectiveMembership
   declare
   def logic
     good_add_reqs <= add_member.map do |m|
-      m unless bad_people.include? m.name
+      m unless bad_people.include? [m.name]
     end
 
     member <= good_add_reqs.map {|m| [m.name, m.addr]}
     result <= good_add_reqs.map {|m| [m.req_id, true]}
 #    result <= add_member.map {|m| [m.req_id, false] unless good_add_reqs.include? m}
-    result <= add_member.map {|m| [m.req_id, false] if bad_people.include? m.name}
-    stdio <~ add_member.map {|m| ["got add_member!"]}
+    result <= add_member.map {|m| [m.req_id, false] if bad_people.include? [m.name]}
   end
 end
 
@@ -49,17 +48,28 @@ class InterfaceTest < Test::Unit::TestCase
   def test_basic
     c = SimpleClient.new
     c.run_bg
-    puts "got to 1"
+
+    # Add a legal member
     c.sync_do {
-      puts "got to 2"
       c.add_member <+ [[1, 'quux', c.ip_port]]
-      puts "got to 3"
     }
-    puts "got to 4"
-    c.sync_do {}
-    sleep 1
-    puts "got to 5"
+    c.sync_do {
+      assert_equal(1, c.result.length)
+      assert_equal([1, true], c.result.first)
+    }
+    # Test that output interface flushed after tick
+    c.sync_do {
+      assert(c.result.empty?)
+    }
+
+    # Add two members, one is illegal
+    c.sync_do {
+      c.add_member <+ [[2, 'foo', c.ip_port], [3, 'baz', c.ip_port]]
+    }
+    c.sync_do {
+      results = c.result.to_a.sort
+      assert_equal([[2, false], [3, true]], results)
+    }
     c.stop_bg
-    puts "got to 6"
   end
 end
