@@ -163,13 +163,19 @@ class Bud
   # block until this has happened.
   def schedule_and_wait
     # Ruby doesn't provide semaphores (!), so we use thread-safe queues.
+    ret = false
     q = Queue.new
     EventMachine::schedule do
-      yield
-      q.push(true)
+      begin
+        yield
+      rescue 
+        ret = $!
+      end
+      q.push(ret)
     end
 
-    q.pop
+    resp = q.pop
+    raise resp if resp
   end
 
   def close_tables
