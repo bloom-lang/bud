@@ -163,9 +163,9 @@ class Bud
   # block until this has happened.
   def schedule_and_wait
     # Ruby doesn't provide semaphores (!), so we use thread-safe queues.
-    ret = false
     q = Queue.new
     EventMachine::schedule do
+      ret = false
       begin
         yield
       rescue 
