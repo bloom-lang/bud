@@ -92,7 +92,7 @@ class Bud
     @meta_parser = BudMeta.new(self, @declarations)
     begin
       @rewritten_strata = @meta_parser.meta_rewrite
-    rescue
+    rescue Exception
       raise if @options[:enforce_rewrite]
       puts "Running original (#{self.class}) code: couldn't rewrite stratified ruby (#{$!})"
     end
@@ -165,7 +165,7 @@ class Bud
       ret = false
       begin
         yield
-      rescue 
+      rescue Exception
         ret = $!
       end
       q.push(ret)
@@ -252,7 +252,7 @@ class Bud
           @server = EventMachine::start_server(@ip, @port, BudServer, self)
           success = true
           break
-        rescue
+        rescue Exception
           next
         end
       end
