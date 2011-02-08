@@ -57,7 +57,7 @@ class TestTc < Test::Unit::TestCase
 
   def teardown
     unless @t.nil?
-      @t.close
+      @t.close_tables
       @t = nil
     end
     rm_bud_dir
@@ -116,7 +116,7 @@ class TestTc < Test::Unit::TestCase
     assert_equal(2, @t.t1.length)
 
     10.times do |i|
-      @t.close
+      @t.close_tables
       @t = make_bud(false)
       @t.in_buf << [6, 10 + i, 3, 4]
       assert_nothing_raised(RuntimeError) {@t.tick}

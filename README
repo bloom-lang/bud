@@ -1,11 +1,19 @@
-This is Bud, a.k.a. "Bloom Under Development".  It is an initial cut at providing a Bloom-like language, using Ruby as a basis.
+This is Bud, a.k.a. "Bloom Under Development".  It is an initial cut at
+providing a Bloom-like language, using Ruby as a basis.
 
 This 0.0 version is not supported.  
 
 Main deficiencies at this point are:
-- No Ruby constraints:  Although the important Bud language features are available, the full power of Ruby is also available, including mutable state.  This allows programmers to get outside the Bud framework and lose cleanliness.
-- Inefficient evaluation: Programs are run using naive evaluation strategies, no query optimization has been implemented, and little effort has been spent in tuning.
-- No test harness.  Currently just Ruby's builtin test harness.  Need something better suited to Bud.
+- No Ruby constraints: Although the important Bud language features are
+  available, the full power of Ruby is also available, including mutable state.
+  This allows programmers to get outside the Bud framework and lose cleanliness.
+
+- Inefficient evaluation: Programs are run using naive evaluation strategies, no
+  query optimization has been implemented, and little effort has been spent in
+  tuning.
+
+- No test harness.  Currently just Ruby's builtin test harness.  Need something
+  better suited to Bud.
 
 To install:
     % gem build bud.gemspec
@@ -18,6 +26,14 @@ A "one-shot" shortest paths example:
     % ruby examples/other/paths.rb
 
 To run a "ping-pong" example, see instructions in examples/other/pingpong.rb
+
+Optional Dependencies
+=====================
+
+The bud gem depends on a handful of mandatory depencies. It also has some
+optional dependencies: if you wish to use the Bud collections backed by Tokyo
+Cabinet or Zookeeper ("tctable" and "zktable" collection types, respectively),
+the "tokyocabinet" and/or "zookeeper" gems must be installed.
 
 Development Notes
 =================

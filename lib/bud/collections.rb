@@ -1,5 +1,14 @@
-require 'tokyocabinet'
-require 'zookeeper'
+begin
+  require 'tokyocabinet'
+  HAVE_TOKYO_CABINET = true
+rescue LoadError
+end
+
+begin
+  require 'zookeeper'
+  HAVE_ZOOKEEPER = true
+rescue LoadError
+end
 
 class Bud
   ######## the collection types
@@ -418,6 +427,12 @@ class Bud
       @pending.clear
     end
 
+    def close
+      @connections.each_value do |c|
+        c.close_connection
+      end
+    end
+
     superator "<~" do |o|
       pending_merge o
     end
@@ -719,6 +734,10 @@ class Bud
   # Persistent table implementation based on TokyoCabinet.
   class BudTcTable < BudCollection
     def initialize(name, keys, cols, bud_instance)
+      unless defined? HAVE_TOKYO_CABINET
+        raise BudError, "tokyocabinet gem is not available: tctable cannot be used"
+      end
+
       tc_dir = bud_instance.options[:tc_dir]
       raise "TC support must be enabled via 'tc_dir'" unless tc_dir
       unless File.exists?(tc_dir)
@@ -870,6 +889,10 @@ class Bud
   # Persistent table implementation based on Zookeeper.
   class BudZkTable < BudCollection
     def initialize(name, zk_path, zk_addr, bud_instance)
+      unless defined? HAVE_ZOOKEEPER
+        raise BudError, "zookeeper gem is not installed: zktables cannot be used"
+      end
+
       super(name, ["key"], ["value"], bud_instance)
 
       zk_path = zk_path.chomp("/") unless zk_path == "/"

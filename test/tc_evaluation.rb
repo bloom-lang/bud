@@ -9,12 +9,12 @@ class Paths < Bud
     @cnt = @pcnt = 0
     super()
   end
-  
+
   def state
     table :link, ['from', 'to']
     table :path, ['from', 'to']
   end
-  
+
   declare
   def program
     # this is the program a user might write.
@@ -54,7 +54,7 @@ class PathsDelta < Paths
     j2 = join [link, d_path], [d_path.from, link.to]
 
     d_path <+ j.map do |l,p|
-      (@pcnt = @pcnt + 1) and [l.from, p.to] 
+      (@pcnt = @pcnt + 1) and [l.from, p.to]
     end
 
     d_path <+ j2.map do |l,p|
@@ -73,9 +73,9 @@ class PathsDeltaIndirected < PathsDelta
   def state
     super
     table :n_link, ['from', 'to']
-    table :n_path, ['from', 'to']    
+    table :n_path, ['from', 'to']
   end
-  
+
   declare
   def program
     d_path <+ d_link.map{|e| (@cnt = @cnt + 1) and [e.from, e.to]}
@@ -106,19 +106,18 @@ class PathsDeltaIndirected < PathsDelta
     # need to clean up the intermediates
     n_link <+ n_link.map{|n| n if d_link.empty? and d_path.empty?}
     n_path <+ n_path.map{|n| n if d_link.empty? and d_path.empty?}
-
   end
 end
 
 class TestDelta < Test::Unit::TestCase
   def inserts(tab)
-    # observe: 
+    # observe:
     # 5 vertices. 4 edges.
     # diameter 4.  so we'll need 4 rounds (am I off by 1?) of semi-naive.
-    tab <+ [['a', 'b']]  
-    tab <+ [['b', 'c']] 
-    tab <+ [['c', 'd']] 
-    tab <+ [['d', 'e']] 
+    tab <+ [['a', 'b']]
+    tab <+ [['b', 'c']]
+    tab <+ [['c', 'd']]
+    tab <+ [['d', 'e']]
 
     # round 1: 5 derivations.
     # round 2: (a,c), (b,d), (c, e)
@@ -132,14 +131,14 @@ class TestDelta < Test::Unit::TestCase
     program = Paths.new
     inserts(program.link)
     assert_nothing_raised( RuntimeError) { program.tick }
-    # cnt: base case applications. 
+    # cnt: base case applications.
     # pcnt: inductive case applications
     assert_equal(20, program.cnt)
     assert_equal(20, program.pcnt)
 
     # 10-4, good buddy. (10 paths, 4 base)
     assert_equal(10, program.path.length)
-    assert_equal(4, program.link.length)    
+    assert_equal(4, program.link.length)
   end
 
   def top_half(program)
@@ -155,7 +154,7 @@ class TestDelta < Test::Unit::TestCase
   def bottom_half(program)
     # m1cnt: # of times a d_link tuple was 'stored' in link
     # m2cnt: # of times a d_path tuple was 'stored' in path
-    # 40 times? huh? 
+    # 40 times? huh?
     assert_equal(10, program.m1cnt)
     assert_equal(4, program.m2cnt)
     # and in fact these counts are final:
@@ -174,9 +173,9 @@ class TestDelta < Test::Unit::TestCase
     top_half(program)
     # I am "seminaive"
     iters = 0
-    while (program.d_link.length > 0 or program.d_path.length > 0) do  
+    while (program.d_link.length > 0 or program.d_path.length > 0) do
       assert_nothing_raised( RuntimeError) { program.tick }
-      iters = iters + 1
+      iters += 1
       # however, intermediate results are visible at each step of iteration:
       case iters
         when 1 then assert_equal(program.path.length, 4)
@@ -197,7 +196,7 @@ class TestDelta < Test::Unit::TestCase
     iters = 0
     while (program.d_link.length > 0 or program.d_path.length > 0) do
       assert_nothing_raised( RuntimeError) { program.tick }
-      iters = iters + 1
+      iters += 1
       # intermediate results are not visible.
       assert_equal(0, program.path.length)
     end

@@ -154,7 +154,7 @@ class TestCollections < Test::Unit::TestCase
     s = Union.new
     assert_nothing_raised(RuntimeError) { s.tick }
     assert_equal(2, s.union.length)
-    assert_equal("[[\"a\", \"b\", 4], [\"a\", \"b\", 1]]", s.union.map{|t| t}.inspect)
+    assert_equal([["a", "b", 4], ["a", "b", 1]], s.union.to_a)
   end
 
   def test_delete_key

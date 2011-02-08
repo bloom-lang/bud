@@ -2,9 +2,6 @@ require 'rubygems'
 require 'bud'
 require 'test/unit'
 
-# XXX: these tests are somewhat bogus because channels use UDP to send messages,
-# so we can't count on messages being delivered.
-
 class TickleCount < Bud
   def state
     channel :loopback, ['cnt']
@@ -33,8 +30,8 @@ class TestTickle < Test::Unit::TestCase
     c.run_bg
     sleep 1
     c.stop_bg
-    assert_equal("[[5]]", c.result.map{|t| t}.inspect)
-    assert_equal("[[5]]", c.mresult.map{|t| t}.inspect)
+    assert_equal([[5]], c.result.to_a)
+    assert_equal([[5]], c.mresult.to_a)
   end
 end
 
@@ -44,15 +41,12 @@ class RingMember < Bud
     scratch :kickoff, ['cnt']
     table :next_guy, ['addr']
     table :last_cnt, ['cnt']
-    periodic :tik, 1
   end
 
   declare
   def ring_msg
-    stdio <~ pipe.map {|p| ["Self: " + @ip_port + ", cnt = " + p.cnt.to_s]}
-    stdio <~ kickoff.map {|k| ["KICKOFF: " + k.cnt.to_s]}
     pipe <~ kickoff.map {|k| [@ip_port, k.cnt.to_i]}
-    pipe <~ join([pipe, next_guy]).map {|p,n| [n.addr, p.cnt.to_i + 1] if p.cnt.to_i < 10}
+    pipe <~ join([pipe, next_guy]).map {|p,n| [n.addr, p.cnt.to_i + 1] if p.cnt.to_i < 39}
   end
 
   declare
@@ -63,10 +57,9 @@ class RingMember < Bud
 end
 
 class TestRing < Test::Unit::TestCase
-  RING_SIZE = 4
+  RING_SIZE = 10
 
   def test_basic
-    return
     ring = []
     0.upto(RING_SIZE - 1) do |i|
       ring[i] = RingMember.new
@@ -78,7 +71,7 @@ class TestRing < Test::Unit::TestCase
       next_idx = 0 if next_idx == RING_SIZE
       next_addr = ring[next_idx].ip_port
 
-      r.async_do {
+      r.sync_do {
         r.next_guy << [next_addr]
       }
     end
@@ -88,12 +81,14 @@ class TestRing < Test::Unit::TestCase
       first.kickoff <+ [[0]]
     }
 
-    sleep 5
+    sleep 3
 
     ring.each_with_index do |r, i|
-      r.async_do {}
+      # XXX: we need to do a final tick here to ensure that each Bud instance
+      # applies pending <+ and <- derivations. See issue #50.
+      r.sync_do {}
       r.stop_bg
-      puts "#{i}: last_cnt = #{r.last_cnt.to_a.inspect}, len = #{r.last_cnt.length}"
+      assert_equal(r.last_cnt.first, [30 + i])
     end
   end
 end
