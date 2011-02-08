@@ -279,6 +279,11 @@ class Bud
     @periodics = table :periodics_tbl, ['pername'], ['ident', 'period']
     @vars = table :vars_tbl, ['varname'], ['value']
     @tmpvars = scratch :tmpvars_tbl, ['tmpvarname'], ['value']
+    
+    # for BUD reflection
+    table :rules, ['rule_id', 'lhs', 'op', 'src']
+    table :depends, ['rule_id', 'lhs', 'op', 'rhs', 'nm']
+    table :provides, ['interface', 'input']
   end
 
   def init_state
