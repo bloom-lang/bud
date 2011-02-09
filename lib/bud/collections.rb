@@ -148,8 +148,10 @@ class Bud
       return @storage[key].nil? ? @delta[key] : @storage[key]
     end
 
-    def include?(o)
-      return false if o.nil? or o.empty?
+    def include?(tuple)
+      return false if tuple.nil? or tuple.empty?
+      key = keys.map{|k| tuple[schema.index(k)]}
+      return (tuple == self[key])
 
       @storage.each_value do |t|
         return true if t == o
