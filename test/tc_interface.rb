@@ -35,8 +35,7 @@ module SelectiveMembership
 
     member <= good_add_reqs.map {|m| [m.name, m.addr]}
     result <= good_add_reqs.map {|m| [m.req_id, true]}
-#    result <= add_member.map {|m| [m.req_id, false] unless good_add_reqs.include? m}
-    result <= add_member.map {|m| [m.req_id, false] if bad_people.include? [m.name]}
+    result <= add_member.map {|m| [m.req_id, false] unless good_add_reqs.include? m}
   end
 end
 

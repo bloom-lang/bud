@@ -139,9 +139,26 @@ class Bud
     def close
     end
 
+    def has_key?(k)
+      return false if k.nil? or k.empty? or self[k].nil?
+      return true
+    end
+
+    def [](key)
+      return @storage[key].nil? ? @delta[key] : @storage[key]
+    end
+
     def include?(o)
-      return false if o.nil? or o.length == 0
-      return (self[o] == o)
+      return false if o.nil? or o.empty?
+
+      @storage.each_value do |t|
+        return true if t == o
+      end
+      @delta.each_value do |t|
+        return true if t == o
+      end
+
+      return false
     end
 
     def raise_pk_error(new, old)
@@ -150,7 +167,7 @@ class Bud
     end
 
     def do_insert(o, store)
-      return if o.nil? or o.length == 0
+      return if o.nil? or o.empty?
 
       keycols = keys.map{|k| o[schema.index(k)]}
       old = store[keycols]
@@ -219,10 +236,6 @@ class Bud
       @storage.merge!(@delta)
       @delta = @new_delta
       @new_delta = {}
-    end
-
-    def [](key)
-      return @storage[key].nil? ? @delta[key] : @storage[key]
     end
 
     def method_missing(sym, *args, &block)
@@ -343,7 +356,7 @@ class Bud
     end
 
     def dump
-      puts '(empty)' if @storage.length == 0
+      puts '(empty)' if @storage.empty?
       @storage.sort.each do |t|
         puts t.inspect unless cols.empty?
         puts t[0].inspect if cols.empty?
