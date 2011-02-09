@@ -795,6 +795,18 @@ class Bud
       end
     end
 
+    def has_key?(k)
+      key_s = Marshal.dump(k)
+      return true if @hdb.has_key? key_s
+      return @delta.has_key? k
+    end
+
+    def include?(tuple)
+      key = keys.map{|k| tuple[schema.index(k)]}
+      value = self[key]
+      return (value == tuple)
+    end
+
     def make_tuple(k_ary, v_ary)
       t = Array.new(k_ary.length + v_ary.length)
       keys.each_with_index do |k,i|
