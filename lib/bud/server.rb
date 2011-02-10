@@ -1,3 +1,5 @@
+require 'socket'
+
 class Bud
   ######## the EventMachine server for handling network and timers
   class BudServer < EM::Connection

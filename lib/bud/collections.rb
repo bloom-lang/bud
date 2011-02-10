@@ -57,12 +57,12 @@ class Bud
       s = @schema
       s.each do |colname|
         reserved = eval "defined?(#{colname})"
-        unless (reserved.nil? or 
+        unless (reserved.nil? or
                 (reserved == "method" and method(colname).arity == -1 and (eval(colname))[0] == self.tabname))
           raise Bud::BudError, "symbol :#{colname} reserved, cannot be used as column name for #{tabname}"
         end
       end
-  
+
       # set up schema accessors, which are class methods
       m = Module.new do
         s.each_with_index do |c, i|
@@ -72,7 +72,7 @@ class Bud
         end
       end
       self.extend m
-      
+
       # now set up a Module for tuple accessors, which are instance methods
       @tupaccess = Module.new do
         s.each_with_index do |colname, offset|
@@ -91,7 +91,7 @@ class Bud
     def null_tuple
       tuple_accessors(Array.new(@schema.length))
     end
-    
+
     # by default, all tuples in any rhs are in storage or delta
     # tuples in new_delta will get transitioned to delta in the next
     # iteration of the evaluator (but within the current time tick)
@@ -139,9 +139,28 @@ class Bud
     def close
     end
 
-    def include?(o)
-      return false if o.nil? or o.length == 0
-      return (self[o] == o)
+    def has_key?(k)
+      return false if k.nil? or k.empty? or self[k].nil?
+      return true
+    end
+
+    def [](key)
+      return @storage[key].nil? ? @delta[key] : @storage[key]
+    end
+
+    def include?(tuple)
+      return false if tuple.nil? or tuple.empty?
+      key = keys.map{|k| tuple[schema.index(k)]}
+      return (tuple == self[key])
+
+      @storage.each_value do |t|
+        return true if t == o
+      end
+      @delta.each_value do |t|
+        return true if t == o
+      end
+
+      return false
     end
 
     def raise_pk_error(new, old)
@@ -150,7 +169,7 @@ class Bud
     end
 
     def do_insert(o, store)
-      return if o.nil? or o.length == 0
+      return if o.nil? or o.empty?
 
       keycols = keys.map{|k| o[schema.index(k)]}
       old = store[keycols]
@@ -173,7 +192,7 @@ class Bud
 
     def merge(o, buf=@new_delta)
       raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
-      delta = o.map do |i| 
+      delta = o.map do |i|
         next if i.nil? or i == []
         keycols = keys.map{|k| i[schema.index(k)]}
         if (old = self[keycols])
@@ -190,9 +209,9 @@ class Bud
       end
       return self
     end
-    
+
     alias <= merge
-    
+
     def pending_merge(o)
       delta = o.map {|i| self.pending_insert(i)}
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
@@ -221,10 +240,6 @@ class Bud
       @new_delta = {}
     end
 
-    def [](key)
-      return @storage[key].nil? ? @delta[key] : @storage[key]
-    end
-
     def method_missing(sym, *args, &block)
       @storage.send sym, *args, &block
     end
@@ -235,7 +250,7 @@ class Bud
       agg = bud_instance.send(aggname, nil)[0]
       raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
       #keynames = gbkeys.map {|k| k[2]}
-      keynames = gbkeys.map do |k| 
+      keynames = gbkeys.map do |k|
         if k.class == Symbol
           k.to_s
         else
@@ -272,7 +287,7 @@ class Bud
       end
 
       if block_given?
-        finals.map{|r| yield r}      
+        finals.map{|r| yield r}
       else
         # merge directly into retval.storage, so that the temp tuples get picked up
         # by the lhs of the rule
@@ -292,7 +307,7 @@ class Bud
     # currently support two options for column ref syntax -- :colname or table.colname
     def group(keys, *aggpairs)
       keys = [] if keys.nil?
-      keynames = keys.map do |k| 
+      keynames = keys.map do |k|
         if k.class == Symbol
           k.to_s
         else
@@ -333,17 +348,17 @@ class Bud
         memo << t[0] + finals
       end
       if block_given?
-        result.map{|r| yield r}      
+        result.map{|r| yield r}
       else
         # merge directly into retval.storage, so that the temp tuples get picked up
         # by the lhs of the rule
-        retval = BudScratch.new('temp', keynames, aggcols, bud_instance)        
+        retval = BudScratch.new('temp', keynames, aggcols, bud_instance)
         retval.merge(result, retval.storage)
       end
     end
 
     def dump
-      puts '(empty)' if @storage.length == 0
+      puts '(empty)' if @storage.empty?
       @storage.sort.each do |t|
         puts t.inspect unless cols.empty?
         puts t[0].inspect if cols.empty?
@@ -355,7 +370,7 @@ class Bud
 
   class BudScratch < BudCollection
   end
-  
+
   class BudSerializer < BudCollection
     def initialize(name, keys, cols, bud_instance)
       @dq = {}
@@ -573,9 +588,9 @@ class Bud
       else
         dups = @rels[0].schema & @rels[1].schema
         bothschema = @rels[0].schema + @rels[1].schema
-        @schema = bothschema.to_enum(:each_with_index).map do |c,i| 
-          if dups.include?(c) then 
-            c + '_' + i.to_s else c 
+        @schema = bothschema.to_enum(:each_with_index).map do |c,i|
+          if dups.include?(c) then
+            c + '_' + i.to_s else c
           end
         end
       end
@@ -608,7 +623,7 @@ class Bud
     def each_storage(&block)
       each(:storage, &block)
     end
-    
+
     # this needs to be made more efficient!
     def each_delta(&block)
       each(:delta, &block)
@@ -638,7 +653,7 @@ class Bud
         end
       end
     end
-    
+
     def join_offsets(pred)
       build_entry = pred[1]
       build_name, build_offset = build_entry[0], build_entry[1]
@@ -727,7 +742,7 @@ class Bud
       @fd = File.open(@filename, "r")
       @linenum = 0
     end
-    
+
     def each(&block)
       while (l = @fd.gets)
         t = tuple_accessors([@linenum, l.strip])
@@ -786,6 +801,18 @@ class Bud
       else
         return @delta[key]
       end
+    end
+
+    def has_key?(k)
+      key_s = Marshal.dump(k)
+      return true if @hdb.has_key? key_s
+      return @delta.has_key? k
+    end
+
+    def include?(tuple)
+      key = keys.map{|k| tuple[schema.index(k)]}
+      value = self[key]
+      return (value == tuple)
     end
 
     def make_tuple(k_ary, v_ary)

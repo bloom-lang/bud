@@ -1,18 +1,15 @@
-require 'msgpack'
-require 'eventmachine'
-require 'socket'
-require 'superators'
-require 'parse_tree'
-require 'parse_tree_extensions'
 require 'anise'
+require 'eventmachine'
+require 'msgpack'
+require 'superators'
 require 'bud/aggs'
+require 'bud/bud_meta'
 require 'bud/collections'
 require 'bud/errors'
 require 'bud/server'
-require 'bud/strat'
-require 'bud/bud_meta'
-require 'bud/viz'
 require 'bud/state'
+require 'bud/strat'
+require 'bud/viz'
 
 class Bud
   attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir, :provides, :meta_parser, :viz, :server
@@ -96,7 +93,7 @@ class Bud
     @meta_parser = BudMeta.new(self, @declarations)
     begin
       @rewritten_strata = @meta_parser.meta_rewrite
-    rescue
+    rescue Exception
       raise if @options[:enforce_rewrite]
       puts "Running original (#{self.class}) code: couldn't rewrite stratified ruby (#{$!})"
     end
@@ -166,11 +163,17 @@ class Bud
     # Ruby doesn't provide semaphores (!), so we use thread-safe queues.
     q = Queue.new
     EventMachine::schedule do
-      yield
-      q.push(true)
+      ret = false
+      begin
+        yield
+      rescue Exception
+        ret = $!
+      end
+      q.push(ret)
     end
 
-    q.pop
+    resp = q.pop
+    raise resp if resp
   end
 
   def close_tables
@@ -250,7 +253,7 @@ class Bud
           @server = EventMachine::start_server(@ip, @port, BudServer, self)
           success = true
           break
-        rescue
+        rescue Exception
           next
         end
       end

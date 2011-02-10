@@ -14,9 +14,9 @@ class LocalShortestPaths < Bud
     table :minmaxsumcntavg, ['from', 'to'], ['mincost', 'maxcost', 'sumcost', 'cnt', 'avgcost']
   end
 
-  declare 
+  declare
   def program
-    link2 <= link.map{|l| l unless empty.include? l.ident } 
+    link2 <= link.map{|l| l unless empty.include? [l.ident] }
     path <= link2.map{|e| [e.from, e.to, e.to, e.cost]}
     j = join([link2, path])
     path <= j.map do |l, p|
@@ -45,10 +45,10 @@ class KTest < Bud
     mystate <+ upd
     mystate <- join([upd, mystate]).map{|i, s| s }
   end
-  
+
   declare
   def respond
-    resp <= join([req, mystate]).map{|r, s| [r.ident, s.datacol] } 
+    resp <= join([req, mystate]).map{|r, s| [r.ident, s.datacol] }
   end
 end
 
@@ -83,7 +83,7 @@ class TestMeta < Test::Unit::TestCase
   def test_visualization
     program = KTest2.new(:dump => true, :visualize => 3, :enforce_rewrite => true, :provenance => true)
     dep = DepAnalysis.new
-  
+
     program.meta_parser.strat_state.depends_tc.each{|d| dep.depends_tc << d }
     program.provides.each{|p| dep.providing << p }
     dep.tick
