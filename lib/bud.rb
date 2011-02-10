@@ -1,3 +1,4 @@
+require 'rubygems'
 require 'anise'
 require 'eventmachine'
 require 'msgpack'
