@@ -565,6 +565,7 @@ class Bud
       otherpreds = nil
       @origrels = rellist
       @bud_instance = bud_instance
+      @localpreds = nil
 
       # extract predicates on rellist[0] and let the rest recurse
       unless preds.nil?
