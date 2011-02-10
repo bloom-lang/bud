@@ -406,23 +406,29 @@ class Bud
 
     def establish_connection(l)
       @connections[l] = EventMachine::connect l[0], l[1], BudServer, @bud_instance
+      
     end
 
     def flush
-      ip = @bud_instance.ip
-      port = @bud_instance.port
-      each_pending do |t|
-        if @locspec.nil?
-          the_locspec = [ip, port.to_i]
-        else
-          begin
-            the_locspec = split_locspec(t[@locspec])
-          rescue
-            puts "bad locspec #{@locspec} for #{@tabname}"
+      if @bud_instance.server.nil? and @pending.length > 0
+        puts "warning: server not started, dropping outbound packets on channel #{@tabname}" 
+      else
+        ip = @bud_instance.ip
+        port = @bud_instance.port
+        each_pending do |t|
+          if @locspec.nil?
+            the_locspec = [ip, port.to_i]
+          else
+            begin
+              the_locspec = split_locspec(t[@locspec])
+            rescue
+              puts "bad locspec #{@locspec} for #{@tabname}"
+            end
           end
+#          puts "#{@bud_instance.ip_port} => #{the_locspec.inspect}: #{[@tabname, t].inspect}"
+          establish_connection(the_locspec) if @connections[the_locspec].nil?
+          @connections[the_locspec].send_data [@tabname, t].to_msgpack
         end
-        establish_connection(the_locspec) if @connections[the_locspec].nil?
-        @connections[the_locspec].send_data [@tabname, t].to_msgpack
       end
       @pending.clear
     end

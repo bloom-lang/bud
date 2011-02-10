@@ -38,7 +38,7 @@ module VotingMaster
     # to members, set status to 'in flight'
     j = join([begin_vote, member])
     ballot <~ j.map do |b,m| 
-      [m.peer, @ip_port, b.id, b.content] 
+      [m.peer, ip_port, b.id, b.content] 
     end
     vote_status <+ begin_vote.map do |b| 
       [b.id, b.content, 'in flight'] 
@@ -101,7 +101,7 @@ module VotingAgent
     waiting_ballots <= ballot.map{|b| [b.id, b.content, b.master] }
     # whenever we cast a vote on a waiting ballot, send the vote
     vote <~ join([cast_vote, waiting_ballots], [cast_vote.id, waiting_ballots.id]).map do |v, c| 
-      [c.master, @ip_port, v.id, v.response] 
+      [c.master, ip_port, v.id, v.response] 
     end
   end
 end

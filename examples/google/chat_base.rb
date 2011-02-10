@@ -23,7 +23,7 @@ class ChatClient < Bud
   
   def bootstrap
     # send connection request to master
-    ctrl <~ [[@master, @ip_port, @me]]
+    ctrl <~ [[@master, ip_port, @me]]
   end
 
   def nice_time
@@ -45,7 +45,7 @@ class ChatClient < Bud
  
     # send mcast requests to master if status is non-empty
     mcast <~ join([stdio, status]).map do |t,s| 
-      [@master, @ip_port, @me, nice_time, t.line]
+      [@master, ip_port, @me, nice_time, t.line]
     end
     # pretty-print mcast msgs from master on terminal
     stdio <~ mcast.map do |m|

@@ -15,9 +15,9 @@ require 'bud/viz'
 require 'bud/state'
 
 class Bud
-  attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir, :provides, :meta_parser, :viz
+  attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir, :provides, :meta_parser, :viz, :server
   attr_accessor :connections
-  attr_reader :tables, :ip, :port, :ip_port
+  attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
 
   include BudState
@@ -46,6 +46,7 @@ class Bud
     @ip = @options[:ip]
     @options[:port] ||= 0
     @options[:port] = @options[:port].to_i
+    
     # NB: If using an ephemeral port (specified by port = 0), the actual port
     # number may not be known until we start EM
 
@@ -257,8 +258,12 @@ class Bud
     else
       @port = @options[:port]
       @server = EventMachine::start_server(@ip, @port, BudServer, self)
+#      puts "[#{@ip}, #{@port}]: EM started"
     end
-    @ip_port = "#{@ip}:#{@port}"
+  end
+
+  def ip_port
+    "#{@ip}:#{@port}"
   end
 
   # "Flush" any tuples that need to be flushed. This does two things:
@@ -321,6 +326,7 @@ class Bud
   # handle any inbound tuples off the wire and then clear
   def receive_inbound
     @inbound.each do |msg|
+#      puts "dequeueing tuple #{msg[1].inspect} into #{msg[0]} @ #{ip_port}"
       tables[msg[0].to_sym] << msg[1]
     end
     @inbound = []
