@@ -8,9 +8,9 @@ class GraphGen
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85 )
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
     @graph.node[:fontname] = "Times-Roman"
-    @graph.node[:fontsize] = 28
+    @graph.node[:fontsize] = 18
     @graph.edge[:fontname] = "Times-Roman"
-    @graph.edge[:fontsize] = 28
+    @graph.edge[:fontsize] = 18
     @tiers = []
     @cards = cardinalities
     @name = name
@@ -214,7 +214,7 @@ class GraphGen
       end
     end
 
-    unless @depanalysis.nil? or @depanalysis.underspecified.length == 0
+    unless @depanalysis.nil? or @depanalysis.underspecified.empty?
       @depanalysis.source.each {|s| addedge("S", s.pred, false, false, false) }
       @depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false) }
       addonce("??", false)

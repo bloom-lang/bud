@@ -1,6 +1,4 @@
-require 'rubygems'
-require 'bud'
-require 'test/unit'
+require 'test_common'
 require 'fileutils'
 
 class TcTest < Bud
@@ -78,6 +76,9 @@ class TestTc < Test::Unit::TestCase
     @t.in_buf << ['1', '3', '3', '4']
     assert_nothing_raised(RuntimeError) {@t.tick}
     assert_equal(2, @t.t1.length)
+    assert(@t.t1.include? ['1', '2', '3', '4'])
+    assert(@t.t1.has_key? ['1', '2'])
+    assert_equal(false, @t.t1.include?(['1', '2', '3', '5']))
   end
 
   def test_key_conflict_delta

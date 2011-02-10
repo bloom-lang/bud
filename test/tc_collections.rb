@@ -1,6 +1,4 @@
-require 'rubygems'
-require 'bud'
-require 'test/unit'
+require 'test_common'
 
 class BabyBud < Bud
   def state
@@ -103,6 +101,21 @@ class DeleteKey < Bud
   end
 end
 
+class RowValueTest < Bud
+  def state
+    table :t1, ['k'], ['v']
+    table :t2, ['k'], ['v']
+    table :t3, ['k'], ['v']
+    table :t4, ['k'], ['v']
+  end
+
+  declare
+  def rules
+    t3 <= t1.map {|t| t if t2.include? t}
+    t4 <= t1.map {|t| t if t2.has_key? [t.k]}
+  end
+end
+
 class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
@@ -172,5 +185,24 @@ class TestCollections < Test::Unit::TestCase
     assert_equal(1, d.t1.length)
     assert_nothing_raised(RuntimeError) { d.tick }
     assert_equal(0, d.t1.length)
+  end
+
+  def test_row_equality
+    rv = RowValueTest.new
+    rv.run_bg
+    rv.sync_do {
+      rv.t1 << [5, 10]
+      rv.t1 << [6, 11]
+      rv.t2 << [5, 10]
+      rv.t2 << [7, 12]
+      rv.t2 << [6, 15]
+    }
+
+    rv.sync_do {
+      assert_equal(1, rv.t3.length)
+      assert_equal(2, rv.t4.length)
+    }
+
+    rv.stop_bg
   end
 end

@@ -1,3 +1,4 @@
+require 'rubygems'
 require 'anise'
 require 'eventmachine'
 require 'msgpack'
@@ -12,16 +13,16 @@ require 'bud/strat'
 require 'bud/viz'
 
 class Bud
-  attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir, :provides, :meta_parser, :viz
+  attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir, :provides, :meta_parser, :viz, :server
   attr_accessor :connections
-  attr_reader :tables, :ip, :port, :ip_port
+  attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
 
   include BudState
   include Anise
   annotator :declare
 
-  def initialize(options = {})
+  def initialize(options={})
     @tables = {}
     @table_meta = []
     @strata = []
@@ -43,6 +44,7 @@ class Bud
     @ip = @options[:ip]
     @options[:port] ||= 0
     @options[:port] = @options[:port].to_i
+
     # NB: If using an ephemeral port (specified by port = 0), the actual port
     # number may not be known until we start EM
 
@@ -56,7 +58,7 @@ class Bud
     @viz = Viz.new(self)
     @viz.prepare_viz
 
-    # make sure that new_delta tuples from bootstrap rules are transitioned into 
+    # make sure that new_delta tuples from bootstrap rules are transitioned into
     # storage before first tick.
     tables.each{|name,coll| coll.install_deltas}
     # note that any tuples installed into a channel won't immediately be
@@ -261,7 +263,10 @@ class Bud
       @port = @options[:port]
       @server = EventMachine::start_server(@ip, @port, BudServer, self)
     end
-    @ip_port = "#{@ip}:#{@port}"
+  end
+
+  def ip_port
+    "#{@ip}:#{@port}"
   end
 
   # "Flush" any tuples that need to be flushed. This does two things:
@@ -297,7 +302,7 @@ class Bud
     init_state
 
     receive_inbound
-    @tables.each do |name,coll| 
+    @tables.each do |name,coll|
       coll.tick_deltas
     end
 
@@ -329,20 +334,21 @@ class Bud
   # handle any inbound tuples off the wire and then clear
   def receive_inbound
     @inbound.each do |msg|
+#      puts "dequeueing tuple #{msg[1].inspect} into #{msg[0]} @ #{ip_port}"
       tables[msg[0].to_sym] << msg[1]
     end
     @inbound = []
   end
 
   def stratum_fixpoint(strat)
-    # This routine uses semi-naive evaluation to compute 
+    # This routine uses semi-naive evaluation to compute
     # a fixpoint of the rules in strat.
     # We *almost* have semi-naive evaluation working.
     # at end of each iteration of this loop we transition:
     # - delta tuples move into storage
     # - new_delta moves to delta
     # - new_delta is set to empty
-    # (see BudCollection for a description of the 4 partitions 
+    # (see BudCollection for a description of the 4 partitions
     #  of tuples within a collection.)
     # This scheme does semi-naive eval for Join.map
     # because the join.each code understands
@@ -352,13 +358,13 @@ class Bud
 
     # XXX
     # To use deltas for all Collections (not just Join), we would
-    # need Collection.each to understand that on iteration 1 of a 
+    # need Collection.each to understand that on iteration 1 of a
     # fixpoint, it should use storage for all predicates, but
     # on iterations 2..n of a fixpoint, it should use
     # deltas for predicates that appear in lhs in this stratum,
     # and use storage for predicates that appear in lower strata.
     # XXX
-    # another performance optimization would be to bypass the delta 
+    # another performance optimization would be to bypass the delta
     # tables for any preds that don't participate in an rhs -- in that
     # case the deltas just end up requiring pointless extra tuple movement
 
@@ -375,7 +381,7 @@ class Bud
       # should call tick_deltas only on predicates in this stratum
       # and then should appropriately deal with deltas in subsequent strata.
       @tables.each{|name,coll| coll.tick_deltas}
-    end while not @tables.all?{|name,coll| coll.new_delta.empty? and coll.delta.empty?}    
+    end while not @tables.all?{|name,coll| coll.new_delta.empty? and coll.delta.empty?}
   end
 
 

@@ -1,6 +1,4 @@
-require 'rubygems'
-require 'bud'
-require 'test/unit'
+require 'test_common'
 
 class TickleCount < Bud
   def state
@@ -19,7 +17,7 @@ class TickleCount < Bud
     loopback <~ loopback.map{|l| [l.cnt + 1] if l.cnt < 6}
     result <= loopback.map{|l| [l.cnt] if l.cnt == 5}
 
-    mcast <~ loopback.map{|l| [@ip_port, l.cnt] if l.cnt < 6}
+    mcast <~ loopback.map{|l| [ip_port, l.cnt] if l.cnt < 6}
     mresult <= mcast.map{|m| [m.cnt] if m.cnt == 5}
   end
 end
@@ -45,7 +43,7 @@ class RingMember < Bud
 
   declare
   def ring_msg
-    pipe <~ kickoff.map {|k| [@ip_port, k.cnt.to_i]}
+    pipe <~ kickoff.map {|k| [ip_port, k.cnt.to_i]}
     pipe <~ join([pipe, next_guy]).map {|p,n| [n.addr, p.cnt.to_i + 1] if p.cnt.to_i < 39}
   end
 

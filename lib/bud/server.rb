@@ -36,7 +36,7 @@ class Bud
     end
 
     def message_received(obj)
-#      puts "got #{obj.inspect} (@ #{@bud.ip_port})"
+#      puts "#{@bud.ip_port} <= #{obj.inspect}"
       if (obj.class <= Array and obj.length == 2 and not @bud.tables[obj[0].to_sym].nil? and obj[1].class <= Array)
         @bud.inbound << obj
         @bud.tick

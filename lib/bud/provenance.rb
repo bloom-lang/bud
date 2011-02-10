@@ -43,7 +43,7 @@ class Bud
         stms << [name, tuple]
       else
         stms << tuple.prov
-      end  
+      end
     end
     return ["r#{rule}", stms]
   end
@@ -55,7 +55,7 @@ class Bud
       str = str + "  "
     end
     return str
-  end 
+  end
 
   def whence_p(data, lvl)
     # string stuff for now...

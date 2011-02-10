@@ -1,10 +1,14 @@
 require 'rubygems'
 require 'syntax/convertors/html'
 
-class Viz 
+class Viz
   def initialize(bud_instance)
     # needs:  class, object_id, options, tables, budtime
     @bud_instance = bud_instance
+  end
+
+  def time_node_header
+    "@ #{@bud_instance.budtime}<br>[#{@bud_instance.ip_port}]"
   end
 
   def prepare_viz
@@ -12,7 +16,7 @@ class Viz
     unless File::directory? "time_pics"
       Dir.mkdir("time_pics")
     end
-   
+
     arr = [@bud_instance.class.to_s, @bud_instance.object_id.to_s]
     arr << @bud_instance.options[:tag] if @bud_instance.options[:tag]
     @time_pics_dir = "time_pics/#{arr.join("_")}"
@@ -53,16 +57,16 @@ class Viz
     write_svgs(cards)
     write_html
   end
-  
+
   def write_table_contents(tab)
     fout = File.new("#{@time_pics_dir}/#{tab[0]}_#{@bud_instance.budtime}.html", "w")
-    fout.puts "<h1>#{tab[0]} @ #{@bud_instance.budtime}</h1>"
+    fout.puts "<h1>#{tab[0]} #{time_node_header()}</h1>"
     fout.puts "<table border=1>"
     fout.puts "<tr>" + tab[1].schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>"
     tab[1].each do |row|
       fout.puts "<tr>"
       fout.puts row.map{|c| "<td>#{c.to_s}</td>"}.join(" ")
-  
+
       fout.puts "</tr>"
     end
     fout.puts "</table>"
@@ -82,9 +86,9 @@ class Viz
     prev = "#{@bud_instance.class}_tm_#{@bud_instance.budtime-1}"
     nxt = "#{@bud_instance.class}_tm_#{@bud_instance.budtime+1}"
     fout = File.new("#{@time_pics_dir}/#{nm}.html", "w")
-    fout.puts "<center><h1>#{@bud_instance.class} @ #{@bud_instance.budtime}</h1><center>"
+    fout.puts "<center><h1>#{@bud_instance.class} #{time_node_header()}</h1><center>"
     fout.puts "<embed src=\"#{ENV['PWD']}/#{@time_pics_dir}/#{nm}_expanded.svg\" width=\"100%\" height=\"75%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
-    fout.puts "<hr><h2><a href=\"#{ENV['PWD']}/#{@time_pics_dir}/#{prev}.html\">last</a>"
+    fout.puts "<hr><h2><a href=\"#{ENV['PWD']}/#{@time_pics_dir}/#{prev}.html\">prev</a>"
     fout.puts "<a href=\"#{ENV['PWD']}/#{@time_pics_dir}/#{nxt}.html\">next</a>"
     fout.close
   end
