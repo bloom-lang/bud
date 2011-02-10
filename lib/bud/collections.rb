@@ -426,7 +426,7 @@ class Bud
 
     def flush
       if @bud_instance.server.nil? and @pending.length > 0
-        puts "warning: server not started, dropping outbound packets on channel '#{@tabname}'" 
+        puts "warning: server not started, dropping outbound packets on channel '#{@tabname}'"
       else
         ip = @bud_instance.ip
         port = @bud_instance.port

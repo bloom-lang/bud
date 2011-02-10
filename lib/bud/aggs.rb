@@ -92,7 +92,7 @@ class Bud
   def avg(x)
     [Avg.new, x]
   end
-  
+
   class Accum < Agg
     def init(x)
       [x]
@@ -103,5 +103,5 @@ class Bud
   end
   def accum(x)
     [Accum.new, x]
-  end  
+  end
 end

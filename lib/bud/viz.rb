@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'syntax/convertors/html'
 
-class Viz 
+class Viz
   def initialize(bud_instance)
     # needs:  class, object_id, options, tables, budtime
     @bud_instance = bud_instance
@@ -16,7 +16,7 @@ class Viz
     unless File::directory? "time_pics"
       Dir.mkdir("time_pics")
     end
-   
+
     arr = [@bud_instance.class.to_s, @bud_instance.object_id.to_s]
     arr << @bud_instance.options[:tag] if @bud_instance.options[:tag]
     @time_pics_dir = "time_pics/#{arr.join("_")}"
@@ -57,7 +57,7 @@ class Viz
     write_svgs(cards)
     write_html
   end
-  
+
   def write_table_contents(tab)
     fout = File.new("#{@time_pics_dir}/#{tab[0]}_#{@bud_instance.budtime}.html", "w")
     fout.puts "<h1>#{tab[0]} #{time_node_header()}</h1>"
@@ -66,7 +66,7 @@ class Viz
     tab[1].each do |row|
       fout.puts "<tr>"
       fout.puts row.map{|c| "<td>#{c.to_s}</td>"}.join(" ")
-  
+
       fout.puts "</tr>"
     end
     fout.puts "</table>"
