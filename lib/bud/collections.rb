@@ -426,7 +426,7 @@ class Bud
 
     def flush
       if @bud_instance.server.nil? and @pending.length > 0
-        puts "warning: server not started, dropping outbound packets on channel #{@tabname}" 
+        puts "warning: server not started, dropping outbound packets on channel '#{@tabname}'" 
       else
         ip = @bud_instance.ip
         port = @bud_instance.port
@@ -437,7 +437,7 @@ class Bud
             begin
               the_locspec = split_locspec(t[@locspec])
             rescue
-              puts "bad locspec #{@locspec} for #{@tabname}"
+              puts "bad locspec #{@locspec} for collection '#{@tabname}'"
             end
           end
 #          puts "#{@bud_instance.ip_port} => #{the_locspec.inspect}: #{[@tabname, t].inspect}"
@@ -463,7 +463,7 @@ class Bud
     end
 
     superator "<+" do |o|
-      raise BudError, "Illegal use of <+ with channel on left"
+      raise BudError, "Illegal use of <+ with channel '#{@tabname}' on left"
     end
   end
 
@@ -730,10 +730,10 @@ class Bud
 
   class BudReadOnly < BudScratch
     superator "<+" do |o|
-      raise BudError, "Illegal use of <+ with read-only collection on left"
+      raise BudError, "Illegal use of <+ with read-only collection '#{@tabname}' on left"
     end
     def merge
-      raise BudError, "Illegal use of <= with read-only collection on left"
+      raise BudError, "Illegal use of <= with read-only collection '#{@tabname}' on left"
     end
   end
 
@@ -1051,15 +1051,15 @@ class Bud
     end
 
     superator "<+" do |o|
-      raise BudError, "Illegal use of <+ with zktable on left"
+      raise BudError, "Illegal use of <+ with zktable '#{@tabname}' on left"
     end
 
     def <=(o)
-      raise BudError, "Illegal use of <= with zktable on left"
+      raise BudError, "Illegal use of <= with zktable '#{@tabname}' on left"
     end
 
     def <<(o)
-      raise BudError, "Illegal use of << with zktable on left"
+      raise BudError, "Illegal use of << with zktable '#{@tabname}' on left"
     end
   end
 end
