@@ -421,7 +421,7 @@ class Bud
 
     def establish_connection(l)
       @connections[l] = EventMachine::connect l[0], l[1], BudServer, @bud_instance
-      
+      @connections.delete(l) if @connections[l].error?
     end
 
     def flush
@@ -442,7 +442,11 @@ class Bud
           end
 #          puts "#{@bud_instance.ip_port} => #{the_locspec.inspect}: #{[@tabname, t].inspect}"
           establish_connection(the_locspec) if @connections[the_locspec].nil?
-          @connections[the_locspec].send_data [@tabname, t].to_msgpack
+          # if the connection failed, we silently ignore and let the tuples be cleared.
+          # if we didn't clear them here, we'd be clearing them at end-of-tick anyhow
+          unless @connections[the_locspec].nil?
+            @connections[the_locspec].send_data [@tabname, t].to_msgpack
+          end
         end
       end
       @pending.clear
