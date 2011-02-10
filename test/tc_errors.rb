@@ -1,6 +1,4 @@
-require 'rubygems'
-require 'bud'
-require 'test/unit'
+require 'test_common'
 
 class TestErrorHandling < Test::Unit::TestCase
   def test_do_sync_error

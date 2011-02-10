@@ -1,7 +1,5 @@
 # simple grep
-require 'rubygems'
-require 'bud'
-require 'test/unit'
+require 'test_common'
 require 'backports'
 
 class WordCount1 < Bud

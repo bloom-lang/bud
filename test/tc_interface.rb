@@ -1,6 +1,4 @@
-require 'rubygems'
-require 'bud'
-require 'test/unit'
+require 'test_common'
 
 module MemberProtocol
   def state

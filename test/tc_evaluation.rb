@@ -1,6 +1,4 @@
-require 'rubygems'
-require 'bud'
-require 'test/unit'
+require 'test_common'
 
 class Paths < Bud
   # a naive transitive closure of an edge relation.

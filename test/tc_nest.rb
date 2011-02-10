@@ -1,8 +1,5 @@
-require 'rubygems'
-require 'bud'
+require 'test_common'
 require 'backports'
-require 'test/unit'
-
 
 class Nesting < Bud
   def state

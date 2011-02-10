@@ -1,7 +1,4 @@
-require 'rubygems'
-require 'bud'
-require 'test/unit'
-
+require 'test_common'
 
 class LocalShortestPaths < Bud
   def state
