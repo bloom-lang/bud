@@ -59,13 +59,14 @@ module BudState
   end
 
   def channel(name, keys, cols=[])
-    if @locspec.nil?
-      @locspec, keys = remove_at(keys)
-      @locspec, cols = remove_at(cols) if keys.nil?
-    end
     define_or_tick_collection(name)
-    @channels[name] ||= @locspec
-    @tables[name] ||= Bud::BudChannel.new(name, keys, cols, @locspec, self)
+
+    unless @tables[name]
+      locspec, keys = remove_at(keys)
+      locspec, cols = remove_at(cols) if keys.nil?
+      @tables[name] = Bud::BudChannel.new(name, keys, cols, locspec, self)
+      @channels[name] = locspec
+    end
   end
 
   def file_reader(name, filename, delimiter='\n')
