@@ -2,16 +2,16 @@ require 'test_common'
 
 class CombosBud < Bud
   def state
-    table :r, ['x', 'y1']
-    table :s_tab, ['x', 'y1']
-    table :t, ['x', 'y1']
-    table :mismatches, ['x', 'y1']
-    scratch :simple_out, ['x', 'y1', 'y2']
-    scratch :match_out, ['x', 'y1', 'y2']
-    scratch :chain_out, ['x1', 'x2', 'x3', 'y1', 'y2', 'y3']
-    scratch :flip_out, ['x1', 'x2', 'x3', 'y1', 'y2', 'y3']
-    scratch :nat_out, ['x1', 'x2', 'x3', 'y1', 'y2', 'y3']
-    scratch :loj_out, ['x1', 'x2', 'y1', 'y2']
+    table :r, [:x, :y1]
+    table :s_tab, [:x, :y1]
+    table :t, [:x, :y1]
+    table :mismatches, [:x, :y1]
+    scratch :simple_out, [:x, :y1, :y2]
+    scratch :match_out, [:x, :y1, :y2]
+    scratch :chain_out, [:x1, :x2, :x3, :y1, :y2, :y3]
+    scratch :flip_out, [:x1, :x2, :x3, :y1, :y2, :y3]
+    scratch :nat_out, [:x1, :x2, :x3, :y1, :y2, :y3]
+    scratch :loj_out, [:x1, :x2, :y1, :y2]
   end
   
   declare

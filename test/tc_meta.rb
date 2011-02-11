@@ -2,13 +2,13 @@ require 'test_common'
 
 class LocalShortestPaths < Bud
   def state
-    table :link, ['from', 'to', 'cost']
-    table :link2, ['from', 'to', 'cost']
-    table :empty, ['ident']
-    table :path, ['from', 'to', 'next', 'cost']
-    table :shortest, ['from', 'to'], ['next', 'cost']
-    table :minz,['cost']
-    table :minmaxsumcntavg, ['from', 'to'], ['mincost', 'maxcost', 'sumcost', 'cnt', 'avgcost']
+    table :link, [:from, :to, :cost]
+    table :link2, [:from, :to, :cost]
+    table :empty, [:ident]
+    table :path, [:from, :to, :next, :cost]
+    table :shortest, [:from, :to] => [:next, :cost]
+    table :minz, [:cost]
+    table :minmaxsumcntavg, [:from, :to] => [:mincost, :maxcost, :sumcost, :cnt, :avgcost]
   end
 
   declare
@@ -29,12 +29,12 @@ end
 
 class KTest < Bud
   def state
-    interface input, :upd, ['datacol']
-    interface input, :req, ['ident']
-    interface output, :resp, ['ident', 'datacol']
-    table :mystate, ['datacol']
+    interface input, :upd, [:datacol]
+    interface input, :req, [:ident]
+    interface output, :resp, [:ident, :datacol]
+    table :mystate, [:datacol]
 
-    #interface output, :qq, ['datacol']
+    #interface output, :qq, [:datacol]
   end
 
   declare
@@ -84,6 +84,5 @@ class TestMeta < Test::Unit::TestCase
     program.meta_parser.strat_state.depends_tc.each{|d| dep.depends_tc << d }
     program.provides.each{|p| dep.providing << p }
     dep.tick
-
   end
 end

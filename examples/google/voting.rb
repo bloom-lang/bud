@@ -6,9 +6,9 @@ module VoteInterface
   # paa: TODO: figure out the right way to mix in state
   def state
     super if defined? super
-    channel :ballot, ['@peer', 'master', 'id'], ['content']
-    channel :vote, ['@master', 'peer', 'id'], ['response']
-    channel :tickler, ['@master']
+    channel :ballot, [:@peer, :master, :id] => [:content]
+    channel :vote, [:@master, :peer, :id] => [:response]
+    channel :tickler, [:@master]
   end
 end
 
@@ -21,15 +21,14 @@ module VotingMaster
   def state
     super if defined? super
     # local interfaces    
-    scratch :begin_vote, ['id', 'content']
-    scratch :victor, ['id', 'content', 'response']
+    scratch :begin_vote, [:id, :content]
+    scratch :victor, [:id, :content, :response]
 
-    table :vote_status, 
-          ['id', 'content', 'response']
-    table :member, ['peer']
-    table :votes_rcvd, ['id', 'response', 'peer']
-    scratch :member_cnt, ['cnt']
-    scratch :vote_cnt, ['id', 'response', 'cnt']
+    table :vote_status, [:id, :content, :response]
+    table :member, [:peer]
+    table :votes_rcvd, [:id, :response, :peer]
+    scratch :member_cnt, [:cnt]
+    scratch :vote_cnt, [:id, :response, :cnt]
   end
 
   declare
@@ -85,14 +84,14 @@ module VotingAgent
 
   def state
     super if defined? super
-    table :waiting_ballots, ['id', 'content', 'master']
-    scratch :cast_vote, ['id', 'response']
+    table :waiting_ballots, [:id, :content, :master]
+    scratch :cast_vote, [:id, :response]
   end
 
   # default for decide: always cast vote 'yes'.  expect subclasses to override.
   declare 
   def decide
-    cast_vote <= waiting_ballots.map{ |b| print "EMPTY cast\n" or [b.id, 'yes'] }
+    cast_vote <= waiting_ballots.map{ |b| puts "EMPTY cast" or [b.id, 'yes'] }
   end
   
   declare 
@@ -123,5 +122,4 @@ module MajorityVotingMaster
     vote_status <- victor.map{|v| [v.id, v.content, 'in flight'] }
     localtick <~ victor.map{|v| v}
   end
-
 end

@@ -13,14 +13,14 @@ class WordCount1 < Bud
   def state
     file_reader :txt, '../examples/chap2/ulysses.txt'
     # file_reader :txt, 'shaks12.txt'
-    scratch :wc, ['word'], ['cnt']
+    scratch :wc, [:word] => [:cnt]
   end
   
   declare 
   def program
     wc <= txt.flat_map do |t|
             t.text.split.enum_for(:each_with_index).map {|w, i| [t.lineno, i, w]}
-          end.rename(['lineno','wordno','word']).group([:word], count)
+          end.rename([:lineno, :wordno, :word]).group([:word], count)
   end
 end
 

@@ -15,12 +15,12 @@ class SimpleMapper < Bud
   def state
     file_reader :nodelist, 'mr_reducelist.txt'
     file_reader :inputs, @file
-    scratch     :map_out, ['key', 'uniq', 'value']
-    table       :kvs, ['key', 'uniq'], ['value', 'hashed']
-    table       :kvs_addrs, ['key', 'uniq'], ['value', 'addr']
-    channel     :reducers, ['@addr', 'key', 'value']
-    scratch     :all, ['key', 'value']
-    scratch     :nodecnt, ['cnt']
+    scratch     :map_out, [:key, :uniq, :value]
+    table       :kvs, [:key, :uniq] => [:value, :hashed]
+    table       :kvs_addrs, [:key, :uniq] => [:value, :addr]
+    channel     :reducers, [:@addr, :key, :value]
+    scratch     :all, [:key, :value]
+    scratch     :nodecnt, [:cnt]
   end
 
   declare
@@ -43,8 +43,8 @@ end
 
 class Splitter < Bud
   def state
-    table :in_table, ['lineno'], ['text']
-    table :out_table, ['word', 'uniq'], ['cnt']
+    table :in_table, [:lineno] => [:text]
+    table :out_table, [:word, :uniq] => [:cnt]
   end
   
   declare
@@ -65,5 +65,6 @@ port = source[1].to_i
 file = ARGV[1]
 splitter = Splitter.new(:ip => ip, :port => port+10)
 program = SimpleMapper.new(file, splitter, :ip => ip, :port => port)
+# XXX: update to use run_bg
 r = Thread.new {program.run}
 sleep 40

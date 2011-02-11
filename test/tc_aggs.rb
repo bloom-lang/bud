@@ -2,12 +2,12 @@ require 'test_common'
 
 class ShortestPaths < Bud
   def state
-    table :link, ['from', 'to', 'cost']
-    table :path, ['from', 'to', 'next', 'cost']
-    table :shortest, ['from', 'to'], ['next', 'cost']
-    table :minmaxsumcntavg, ['from', 'to'], ['mincost', 'maxcost', 'sumcost', 'cnt', 'avgcost']
-    table :avrg, ['from', 'to'], ['ave', 'some', 'kount']
-    table :avrg2, ['from', 'to'], ['ave', 'some', 'kount']
+    table :link, [:from, :to, :cost]
+    table :path, [:from, :to, :next, :cost]
+    table :shortest, [:from, :to] => [:next, :cost]
+    table :minmaxsumcntavg, [:from, :to] => [:mincost, :maxcost, :sumcost, :cnt, :avgcost]
+    table :avrg, [:from, :to] => [:ave, :some, :kount]
+    table :avrg2, [:from, :to] => [:ave, :some, :kount]
   end
 
   def bootstrap
@@ -33,7 +33,7 @@ class ShortestPaths < Bud
     avrg <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)) do |t|
       [t[0], t[1], t[6], t[4], t[5]]
     end
-    avrg2 <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)).rename(['from', 'to'], ['mincol', 'maxcol', 'sumcol', 'cntcol', 'avgcol']).map do |t|
+    avrg2 <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)).rename([:from, :to] => [:mincol, :maxcol, :sumcol, :cntcol, :avgcol]).map do |t|
         [t.from, t.to, t.avgcol, t.sumcol, t.cntcol]
     end
   end
@@ -41,10 +41,10 @@ end
 
 class PriorityQ < Bud
   def state
-    table :q, ['item'], ['priority']
-    scratch :out, ['item'], ['priority']
-    scratch :minny, ['priority']
-    scratch :out2, ['item'], ['priority']
+    table :q, [:item] => [:priority]
+    scratch :out, [:item] => [:priority]
+    scratch :minny, [:priority]
+    scratch :out2, [:item] => [:priority]
   end
   
   def bootstrap
@@ -68,8 +68,8 @@ end
 
 class DupAggs < Bud
   def state
-    table :tab, ['i']
-#    scratch :out, ['s1', 's2']
+    table :tab, [:i]
+#    scratch :out, [:s1, :s2]
   end
   
   def bootstrap
@@ -86,8 +86,8 @@ end
 
 class Rename < Bud
   def state
-    table :emp, ['ename', 'dname'], ['sal']
-    table :shoes, ['dname'], ['usualsal']
+    table :emp, [:ename, :dname] => [:sal]
+    table :shoes, [:dname] => [:usualsal]
   end
   
   def bootstrap
@@ -98,16 +98,16 @@ class Rename < Bud
   
   declare
   def rules
-    shoes <= emp.group([:dname], avg(:sal)).rename(['dept'], ['avgsal']).map{|t| t if t.dept == 'shoe'}
+    shoes <= emp.group([:dname], avg(:sal)).rename([:dept] => [:avgsal]).map{|t| t if t.dept == 'shoe'}
   end
 end
 
 class JoinAgg < Rename
   def state
     super
-    scratch :richsal, ['sal']
-    scratch :rich, emp.keys, emp.cols
-    scratch :argrich, emp.keys, emp.cols
+    scratch :richsal, [:sal]
+    scratch :rich, emp.keys => emp.cols
+    scratch :argrich, emp.keys => emp.cols
   end
   
   declare
@@ -156,15 +156,15 @@ class TestAggs < Test::Unit::TestCase
   def test_argaggs
     program = PriorityQ.new
     assert_nothing_raised (RuntimeError) { program.tick }
-    argouts = program.out.map{|t| t}
-    basicouts = program.out2.map{|t| t}
+    argouts = program.out.to_a
+    basicouts = program.out2.to_a
     assert_equal([], argouts - basicouts)
   end
   
   def test_rename
     program = Rename.new
     assert_nothing_raised (RuntimeError) { program.tick }
-    shoes = program.shoes.map{|t| t}
+    shoes = program.shoes.to_a
     assert_equal([["shoe", 10.5]], shoes)
   end
   

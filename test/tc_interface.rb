@@ -3,9 +3,9 @@ require 'test_common'
 module MemberProtocol
   def state
     super
-    interface input, :add_member, ['req_id'], ['name', 'addr']
-    interface output, :result, ['req_id'], ['success']
-    table :member, ['name'], ['addr']
+    interface input, :add_member, [:req_id] => [:name, :addr]
+    interface output, :result, [:req_id] => [:success]
+    table :member, [:name] => [:addr]
   end
 end
 
@@ -17,8 +17,8 @@ module SelectiveMembership
 
   def state
     super
-    table :bad_people, ['name']
-    scratch :good_add_reqs, ['req_id'], ['name', 'addr']
+    table :bad_people, [:name]
+    scratch :good_add_reqs, [:req_id] => [:name, :addr]
   end
 
   def bootstrap

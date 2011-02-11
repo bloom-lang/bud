@@ -14,7 +14,7 @@ class Ponger < Bud
     @me = me
     @other = other
     ip, port = me.split(':')
-    super ip, port
+    super(:ip => ip, :port => port)
   end
 
   declare

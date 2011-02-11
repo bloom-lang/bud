@@ -3,20 +3,20 @@ require 'bud'
 
 class Stratification < Bud
   def state
-    table :depends, ['rule', 'head', 'op', 'body', 'neg']
+    table :depends, [:rule, :head, :op, :body, :neg]
 
     # adding a 'via' attribute for further analysis
-    table :depends_tc, ['head', 'body', 'via', 'neg', 'temporal']
-    table :cycle, ['predicate', 'via', 'neg', 'temporal']
-    table :stratum_base, ['predicate', 'stratum']
-    table :stratum, ['predicate', 'stratum']
-    table :top_strat, ['stratum']
+    table :depends_tc, [:head, :body, :via, :neg, :temporal]
+    table :cycle, [:predicate, :via, :neg, :temporal]
+    table :stratum_base, [:predicate, :stratum]
+    table :stratum, [:predicate, :stratum]
+    table :top_strat, [:stratum]
 
-    table :tab_info, ['tab', 'typecol', 'columns']
+    table :tab_info, [:tab, :typecol, :columns]
 
-    table :col_alias, ['head', 'als', 'name', 'ord']
-    table :tab_alias, ['head', 'tab', 'als']
-    scratch :guarded, ['channel', 'table']
+    table :col_alias, [:head, :als, :name, :ord]
+    table :tab_alias, [:head, :tab, :als]
+    scratch :guarded, [:channel, :table]
   end
   
   def declaration

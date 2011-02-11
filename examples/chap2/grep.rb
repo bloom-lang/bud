@@ -10,7 +10,7 @@ class Grep < Bud
 
   def state
     file_reader :text, 'ulysses.txt'
-    table :matches, ['lineno', 'text']
+    table :matches, [:lineno, :text]
   end
 
   declare

@@ -3,10 +3,10 @@ require 'bud'
 
 class PriorityQ < Bud
   def state
-    table :q, ['item'], ['priority']
-    scratch :out, ['item'], ['priority']
-    scratch :minny, ['priority']
-    scratch :out2, ['item'], ['priority']
+    table :q, [:item] => [:priority]
+    scratch :out, [:item] => [:priority]
+    scratch :minny, [:priority]
+    scratch :out2, [:item] => [:priority]
   end
 
   def bootstrap
@@ -33,4 +33,3 @@ program = PriorityQ.new
   program.out.each {|o| puts "argmin: #{o.inspect}"}
   program.out2.each {|o| puts "joinmin: #{o.inspect}"}
 end
-

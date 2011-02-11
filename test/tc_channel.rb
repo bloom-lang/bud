@@ -2,10 +2,10 @@ require 'test_common'
 
 class TickleCount < Bud
   def state
-    channel :loopback, ['cnt']
-    channel :mcast, ['@addr', 'cnt']
-    table   :result, ['nums']
-    table   :mresult, ['nums']
+    channel :loopback, [:cnt]
+    channel :mcast, [:@addr, :cnt]
+    table   :result, [:nums]
+    table   :mresult, [:nums]
   end
 
   def bootstrap
@@ -35,10 +35,10 @@ end
 
 class RingMember < Bud
   def state
-    channel :pipe, ['@addr', 'cnt']
-    scratch :kickoff, ['cnt']
-    table :next_guy, ['addr']
-    table :last_cnt, ['cnt']
+    channel :pipe, [:@addr, :cnt]
+    scratch :kickoff, [:cnt]
+    table :next_guy, [:addr]
+    table :last_cnt, [:cnt]
   end
 
   declare

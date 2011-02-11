@@ -3,22 +3,22 @@ require 'fileutils'
 
 class TcTest < Bud
   def state
-    tctable :t1, ['k1', 'k2'], ['v1', 'v2']
-    table :in_buf, ['k1', 'k2', 'v1', 'v2']
-    table :del_buf, ['k1', 'k2', 'v1', 'v2']
-    table :pending_buf, ['k1', 'k2'], ['v1', 'v2']
-    table :pending_buf2, ['k1', 'k2'], ['v1', 'v2']
+    tctable :t1, [:k1, :k2] => [:v1, :v2]
+    table :in_buf, [:k1, :k2, :v1, :v2]
+    table :del_buf, [:k1, :k2, :v1, :v2]
+    table :pending_buf, [:k1, :k2] => [:v1, :v2]
+    table :pending_buf2, [:k1, :k2] => [:v1, :v2]
 
-    scratch :t2, ['k'], ['v']
-    scratch :t3, ['k'], ['v']
-    scratch :t4, ['k'], ['v']
-    tctable :chain_start, ['k'], ['v']
-    tctable :chain_del, ['k'], ['v']
+    scratch :t2, [:k] => [:v]
+    scratch :t3, [:k] => [:v]
+    scratch :t4, [:k] => [:v]
+    tctable :chain_start, [:k] => [:v]
+    tctable :chain_del, [:k] => [:v]
 
-    tctable :join_t1, ['k'], ['v1', 'v2']
-    tctable :join_t2, ['k'], ['v1', 'v2']
-    scratch :cart_prod, ['k', 'v1', 'v2']
-    scratch :join_res, ['k'], ['v1', 'v2']
+    tctable :join_t1, [:k] => [:v1, :v2]
+    tctable :join_t2, [:k] => [:v1, :v2]
+    scratch :cart_prod, [:k, :v1, :v2]
+    scratch :join_res, [:k] => [:v1, :v2]
   end
 
   declare

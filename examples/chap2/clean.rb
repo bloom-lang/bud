@@ -6,8 +6,8 @@ class Clean < Bud
   def state
     file_reader :text, 'ulysses.txt'
     file_reader :carlin, 'carlin.txt'
-    scratch :matches, ['lineno', 'text', 'word']
-    table :cleaned, ['lineno', 'text']
+    scratch :matches, [:lineno, :text, :word]
+    table :cleaned, [:lineno, :text]
   end
   
   declare

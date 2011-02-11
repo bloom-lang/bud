@@ -18,25 +18,50 @@ class Bud
     attr_accessor :schema, :keys, :cols
     attr_reader :tabname, :bud_instance, :storage, :delta, :new_delta
 
+    # The user-specified schema might come in two forms: a hash of Array =>
+    # Array, or simply an Array (if no keys were specified). Return a pair:
+    # [list of columns in entire tuple, list of key columns]
+    def parse_schema(user_schema)
+      if user_schema.respond_to? :keys
+        raise BudError, "invalid schema for #{tabname}" if user_schema.length != 1
+        keys = user_schema.keys.first
+        cols = user_schema[keys]
+      else
+        keys = user_schema
+        cols = []
+      end
+
+      schema = keys + cols
+      schema.each do |s|
+        if s.class != Symbol
+          raise "Invalid schema element \"#{s}\", type \"#{s.class}\""
+        end
+      end
+      if schema.uniq.length < schema.length
+        raise BudError, "schema for #{tabname} contains duplicate names"
+      end
+
+      return [schema, keys]
+    end
+
     # each collection is partitioned into 4:
     # - pending holds tuples deferred til the next tick
     # - storage holds the "normal" tuples
     # - delta holds the delta for rhs's of rules during semi-naive
     # - new_delta will hold the lhs tuples currently being produced during s-n
-    def initialize(name, keys, cols, bud_instance)
+    def initialize(name, user_schema, bud_instance)
       @tabname = name
-      @schema = keys+cols
-      @keys = keys
+      @user_schema = user_schema
+      @schema, @keys = parse_schema(user_schema)
+      @bud_instance = bud_instance
       init_storage
       init_pending
       init_deltas
-      @bud_instance = bud_instance
-      raise BudError, "schema for #{tabname} contains duplicate names" if schema.uniq.length < schema.length
       setup_accessors
     end
 
     def clone_empty
-      self.class.new(tabname, keys, cols, bud_instance)
+      self.class.new(tabname, @user_schema, bud_instance)
     end
 
     def cols
@@ -66,7 +91,7 @@ class Bud
       # set up schema accessors, which are class methods
       m = Module.new do
         s.each_with_index do |c, i|
-          define_method c.to_sym do
+          define_method c do
             [@tabname, i, c]
           end
         end
@@ -76,7 +101,7 @@ class Bud
       # now set up a Module for tuple accessors, which are instance methods
       @tupaccess = Module.new do
         s.each_with_index do |colname, offset|
-          define_method colname.to_sym do
+          define_method colname do
             self[offset]
           end
         end
@@ -249,7 +274,6 @@ class Bud
     def argagg(aggname, gbkeys, col)
       agg = bud_instance.send(aggname, nil)[0]
       raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
-      #keynames = gbkeys.map {|k| k[2]}
       keynames = gbkeys.map do |k|
         if k.class == Symbol
           k.to_s
@@ -291,7 +315,7 @@ class Bud
       else
         # merge directly into retval.storage, so that the temp tuples get picked up
         # by the lhs of the rule
-        retval = BudScratch.new('argagg_temp', @schema, [], bud_instance)
+        retval = BudScratch.new('argagg_temp', @user_schema, bud_instance)
         retval.merge(finals, retval.storage)
       end
     end
@@ -309,19 +333,18 @@ class Bud
       keys = [] if keys.nil?
       keynames = keys.map do |k|
         if k.class == Symbol
-          k.to_s
+          k
         else
-          k[2]
+          k[2].to_sym
         end
       end
       aggcolsdups = aggpairs.map{|ap| ap[0].class.name.split("::").last}
       aggcols = []
-      aggcolsdups.each_with_index do |n,i|
-        aggcols << "#{n.downcase}_#{i}"
+      aggcolsdups.each_with_index do |n, i|
+        aggcols << "#{n.downcase}_#{i}".to_sym
       end
-      tups = self.inject({}) do |memo,p|
-        pkeys = keynames.map{|n| p.send(n.to_sym)}
-#        pkeys = keys.map{|n| p.send(n)}
+      tups = self.inject({}) do |memo, p|
+        pkeys = keynames.map{|n| p.send(n)}
         memo[pkeys] = [] if memo[pkeys].nil?
         aggpairs.each_with_index do |ap, i|
           agg = ap[0]
@@ -340,7 +363,7 @@ class Bud
         memo
       end
 
-      result = tups.inject([]) do |memo,t|
+      result = tups.inject([]) do |memo, t|
         finals = []
         aggpairs.each_with_index do |ap, i|
           finals << ap[0].send(:final, t[1][i])
@@ -352,7 +375,12 @@ class Bud
       else
         # merge directly into retval.storage, so that the temp tuples get picked up
         # by the lhs of the rule
-        retval = BudScratch.new('temp', keynames, aggcols, bud_instance)
+        if aggcols.empty?
+          schema = keynames
+        else
+          schema = { keynames => aggcols }
+        end
+        retval = BudScratch.new('temp', schema, bud_instance)
         retval.merge(result, retval.storage)
       end
     end
@@ -372,13 +400,14 @@ class Bud
   end
 
   class BudSerializer < BudCollection
-    def initialize(name, keys, cols, bud_instance)
+    def initialize(name, user_schema, bud_instance)
       @dq = {}
       super
     end
 
     def tick
       @dq.each_key {|k| @storage.delete k}
+      super
     end
 
     def each
@@ -394,10 +423,30 @@ class Bud
   class BudChannel < BudCollection
     attr_accessor :locspec, :connections
 
-    def initialize(name, keys, cols, locspec, bud_instance)
-      super(name, keys, cols, bud_instance)
+    def initialize(name, user_schema, bud_instance)
+      # First, find column with @ sign and remove it
+      if user_schema.respond_to? :keys
+        keys = user_schema.keys.first
+        cols = user_schema[keys]
+      else
+        keys = user_schema
+        cols = []
+      end
+      locspec = remove_at_sign!(keys)
+      locspec = remove_at_sign!(cols) if locspec.nil?
+      # If locspec is still nil, this is a loopback channel
+
+      super(name, user_schema, bud_instance)
       @locspec = locspec
       @connections = {}
+    end
+
+    def remove_at_sign!(cols)
+      i = cols.find_index {|c| c.to_s[0].chr == '@'}
+      unless i.nil?
+        cols[i] = cols[i].to_s.delete('@').to_sym
+      end
+      return i
     end
 
     def split_locspec(l)
@@ -468,8 +517,8 @@ class Bud
   end
 
   class BudTerminal < BudCollection
-    def initialize(name, keys, cols, bud_instance, prompt=false)
-      super(name, keys, cols, bud_instance)
+    def initialize(name, user_schema, bud_instance, prompt=false)
+      super(name, user_schema, bud_instance)
       @connection = nil
       @prompt = prompt
 
@@ -529,13 +578,9 @@ class Bud
   end
 
   class BudTable < BudCollection
-    def initialize(name, keys, cols, bud_instance)
-      super(name, keys, cols, bud_instance)
+    def initialize(name, user_schema, bud_instance)
+      super(name, user_schema, bud_instance)
       @to_delete = []
-    end
-
-    def clone_empty
-      self.class.new(name, keys, cols, bud_instance)
     end
 
     def tick
@@ -594,8 +639,10 @@ class Bud
         dups = @rels[0].schema & @rels[1].schema
         bothschema = @rels[0].schema + @rels[1].schema
         @schema = bothschema.to_enum(:each_with_index).map do |c,i|
-          if dups.include?(c) then
-            c + '_' + i.to_s else c
+          if dups.include?(c)
+            "#{c}_#{i}".to_sym
+          else
+            c
           end
         end
       end
@@ -740,7 +787,7 @@ class Bud
 
   class BudFileReader < BudReadOnly
     def initialize(name, filename, delimiter, bud_instance)
-      super(name, ['lineno'], ['text'], bud_instance)
+      super(name, {[:lineno] => [:text]}, bud_instance)
       @filename = filename
       @storage = {}
       # NEEDS A TRY/RESCUE BLOCK
@@ -759,7 +806,7 @@ class Bud
 
   # Persistent table implementation based on TokyoCabinet.
   class BudTcTable < BudCollection
-    def initialize(name, keys, cols, bud_instance)
+    def initialize(name, user_schema, bud_instance)
       unless defined? HAVE_TOKYO_CABINET
         raise BudError, "tokyocabinet gem is not available: tctable cannot be used"
       end
@@ -777,7 +824,7 @@ class Bud
         puts "Created directory: #{dirname}" unless bud_instance.options[:quiet]
       end
 
-      super(name, keys, cols, bud_instance)
+      super(name, user_schema, bud_instance)
       @to_delete = []
 
       @hdb = TokyoCabinet::HDB.new
@@ -931,7 +978,8 @@ class Bud
         raise BudError, "zookeeper gem is not installed: zktables cannot be used"
       end
 
-      super(name, ["key"], ["value"], bud_instance)
+      schema = {[:key] => [:value]}
+      super(name, schema, bud_instance)
 
       zk_path = zk_path.chomp("/") unless zk_path == "/"
       @zk = Zookeeper.new(zk_addr)
@@ -1066,8 +1114,8 @@ class Bud
 end
 
 module Enumerable
-  def rename(keys, cols=[])
-    s = Bud::BudScratch.new('temp', keys, cols, nil)
+  def rename(schema)
+    s = Bud::BudScratch.new('temp', schema, nil)
     s.merge(self, s.storage)
     s
   end

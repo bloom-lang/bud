@@ -12,7 +12,7 @@ class ChatMaster < Bud
 
   def state
     super
-    table :nodelist, ['addr'], ['nick']    
+    table :nodelist, [:addr] => [:nick]
   end
   
   declare
@@ -40,8 +40,8 @@ class GracefulStopChatMaster < ChatMaster
 
   def state
     super
-    scratch :shutdown_req, ['requestid']
-    scratch :empty_echo, ['requestid']
+    scratch :shutdown_req, [:requestid]
+    scratch :empty_echo, [:requestid]
   end
 
   declare 

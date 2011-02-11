@@ -13,7 +13,7 @@ class Pinger < Bud
 
   def state
     super
-    periodic :timer, ARGV[2], ['ident'], ['time']
+    periodic :timer, ARGV[2]
   end
 
   declare

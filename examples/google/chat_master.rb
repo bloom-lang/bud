@@ -10,7 +10,7 @@ class SafeChatMaster < ChatMaster
 
   def state
     super
-    scratch :halt, ['xid']
+    scratch :halt, [:xid]
   end
 
   declare

@@ -6,10 +6,10 @@ require 'bud'
 
 class ShortestPaths < Bud
   def state
-    table :link, ['from', 'to', 'cost']
-    table :path, ['from', 'to', 'next', 'cost']
-    table :shortest, ['from', 'to'], ['next', 'cost']
-    table :mincnt, ['from', 'to'], ['mincost', 'cnt']
+    table :link, [:from, :to, :cost]
+    table :path, [:from, :to, :next, :cost]
+    table :shortest, [:from, :to] => [:next, :cost]
+    table :mincnt, [:from, :to] => [:mincost, :cnt]
   end
 
   def bootstrap

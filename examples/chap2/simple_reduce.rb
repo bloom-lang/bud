@@ -12,15 +12,15 @@ class SimpleReducer < Bud
   end
   
   def state
-    channel     :reducers, ['@addr', 'key', 'value']
-    table       :in_channel, ['addr', 'key', 'value']
-    scratch     :near_final, ['key'], ['value']
-    scratch     :final, ['key'], ['value']
+    channel     :reducers, [:@addr, :key, :value]
+    table       :in_channel, [:addr, :key, :value]
+    scratch     :near_final, [:key] => [:value]
+    scratch     :final, [:key] => [:value]
   end
 
   declare
   def rules
-    in_channel <= reducers.map {|t| t}
+    in_channel <= reducers
 
     near_final <= in_channel.reduce({}) do |memo, t|
       memo[t.key] ||= @reducer.init(t)

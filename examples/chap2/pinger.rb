@@ -16,12 +16,12 @@ class Pinger < Bud
     @other = other
     @period = period
     ip, port = me.split(':')
-    super ip, port
+    super(:ip => ip, :port => port)
   end
   
   def state
     super
-    periodic :timer, @period, ['ident'], ['time']
+    periodic :timer, @period
   end
 
   declare

@@ -9,7 +9,7 @@ module TwoPCAgent
   # * voting is Y/N.  A single N vote should cause abort.
   def state
     super
-    scratch :can_commit, ['xact', 'decision']
+    scratch :can_commit, [:xact, :decision]
   end
 
   declare
@@ -53,8 +53,8 @@ module TwoPCMaster
   def state
     super
 
-    table :xact, ['xid', 'data'], ['status']
-    scratch :request_commit, ['xid'], ['data']
+    table :xact, [:xid, :data] => [:status]
+    scratch :request_commit, [:xid] => [:data]
   end
 
   declare
@@ -96,12 +96,12 @@ module Monotonic2PCMaster
     super
 
     # TODO
-    table :xact_order, ['status'], ['ordinal']
-    table :xact_final, ['xid', 'ordinal']
-    scratch :xact, ['xid', 'data', 'status']
-    table :xact_accum, ['xid', 'data', 'status']
-    scratch :request_commit, ['xid'], ['data']
-    scratch :sj, ['xid', 'data', 'status', 'ordinal']
+    table :xact_order, [:status] => [:ordinal]
+    table :xact_final, [:xid, :ordinal]
+    scratch :xact, [:xid, :data, :status]
+    table :xact_accum, [:xid, :data, :status]
+    scratch :request_commit, [:xid] => [:data]
+    scratch :sj, [:xid, :data, :status, :ordinal]
   end
 
   declare

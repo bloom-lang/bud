@@ -17,8 +17,8 @@ class PingPong < Bud
   end
 
   def state
-    channel :pipe, ['@otherloc', 'myloc', 'msg', 'wall', 'bud']
-    table   :pingbuf, ['otherloc', 'myloc', 'msg', 'wall', 'bud']
+    channel :pipe, [:@otherloc, :myloc, :msg, :wall, :bud]
+    table   :pingbuf, [:otherloc, :myloc, :msg, :wall, :bud]
     periodic :timer, ARGV[1]
   end
 
@@ -33,7 +33,7 @@ class PingPong < Bud
   def rules
     # whenever we get a message, store it in pingbuf and print it
     pingbuf <= pipe
-    stdio <~ pipe.map {|p| ["got message: " + p.msg]}
+    stdio <~ pipe.map {|p| ["got message: #{p.msg}"]}
 
     # whenever we get a timer event, send out the contents of pingbuf, and
     # delete them for the next tick
@@ -45,4 +45,3 @@ end
 
 program = PingPong.new(:ip => "127.0.0.1", :port => ARGV[0])
 program.run
-

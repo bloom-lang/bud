@@ -11,16 +11,14 @@ module BudState
     self.singleton_class.send(:define_method, name) do
       @tables[name]
     end
-    return nil
   end
   
   def define_or_tick_collection(name)
     # tick previously-defined tables and tick
     if @tables[name]
       @tables[name].tick
-      return @tables[name]
     else
-      return define_collection(name)
+      define_collection(name)
     end
   end
 
@@ -32,40 +30,32 @@ module BudState
     false
   end
 
-  def interface(mode, name, keys, cols=[])
+  def interface(mode, name, schema)
     @provides[name.to_s] = mode
-    scratch(name, keys, cols)
+    scratch(name, schema)
   end
 
-  def table(name, keys, cols=[])
+  def table(name, schema)
     define_or_tick_collection(name)
-    @tables[name] ||= Bud::BudTable.new(name, keys, cols, self)
+    @tables[name] ||= Bud::BudTable.new(name, schema, self)
   end
 
-  def scratch(name, keys, cols=[])
+  def scratch(name, schema)
     define_or_tick_collection(name)
-    @tables[name] ||= Bud::BudScratch.new(name, keys, cols, self)
+    @tables[name] ||= Bud::BudScratch.new(name, schema, self)
   end
 
-  def serializer(name, keys, cols=[])
+  def serializer(name, schema)
     define_or_tick_collection(name)
-    @tables[name] ||= Bud::BudSerializer.new(name, keys, cols, self)
+    @tables[name] ||= Bud::BudSerializer.new(name, schema, self)
   end
 
-  def remove_at(cols)
-    i = cols.find_index{ |k| k[0].chr == '@'}
-    cols[i] = cols[i].delete('@') unless i.nil?
-    return i, cols
-  end
-
-  def channel(name, keys, cols=[])
+  def channel(name, schema)
     define_or_tick_collection(name)
 
     unless @tables[name]
-      locspec, keys = remove_at(keys)
-      locspec, cols = remove_at(cols) if keys.nil?
-      @tables[name] = Bud::BudChannel.new(name, keys, cols, locspec, self)
-      @channels[name] = locspec
+      @tables[name] = Bud::BudChannel.new(name, schema, self)
+      @channels[name] = @tables[name].locspec
     end
   end
 
@@ -74,37 +64,30 @@ module BudState
     @tables[name] ||= Bud::BudFileReader.new(name, filename, delimiter, self)
   end
 
-  def periodic(name, period=1, keys=['ident'], cols=['time'])
-    @name = name
-    if cols.length != 1 or keys.length != 1
-      raise Bud::BudError("periodic collection #{name} must have one key column, and one other column")
-    end
-    t = define_or_tick_collection(name)
-    @tables[name] ||= Bud::BudPeriodic.new(name, keys, cols, self)
+  def periodic(name, period=1)
+    define_or_tick_collection(name)
+    schema = {[:ident] => [:time]}
+    @tables[name] ||= Bud::BudPeriodic.new(name, schema, self)
     unless @periodics.has_key? [name]
       retval = [name, gen_id, period]
       @periodics << retval
-    else
-      retval = @periodics.find([name]).first
     end
-    return retval
   end
 
-  def terminal(name, keys=['line'])
+  def terminal(name)
     if defined?(@terminal) && @terminal != name
       raise Bud::BudError, "can't register IO collection #{name} in addition to #{@terminal}"
     else
       @terminal = name
     end
-    raise Bud::BudError("IO collection #{name} can have only one column") if keys.length != 1
-    t = define_or_tick_collection(name)
+    define_or_tick_collection(name)
     @channels[name] = nil
-    @tables[name] ||= Bud::BudTerminal.new(name, keys, [], self)
+    @tables[name] ||= Bud::BudTerminal.new(name, [:line], self)
   end
 
-  def tctable(name, keys, cols)
+  def tctable(name, schema)
     define_or_tick_collection(name)
-    @tables[name] ||= Bud::BudTcTable.new(name, keys, cols, self)
+    @tables[name] ||= Bud::BudTcTable.new(name, schema, self)
     @tc_tables[name] ||= @tables[name]
   end
 

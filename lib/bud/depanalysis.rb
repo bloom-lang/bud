@@ -3,15 +3,15 @@ require 'bud'
 
 class DepAnalysis < Bud
   include Anise
-  annotator :declare  
+  annotator :declare
 
   def state
-    table :providing, ['pred', 'input']
-    table :depends_tc, ['head', 'body', 'via', 'neg', 'temporal']
-    table :underspecified, ['pred', 'input']
+    table :providing, [:pred, :input]
+    table :depends_tc, [:head, :body, :via, :neg, :temporal]
+    table :underspecified, [:pred, :input]
 
-    table :source, ['pred']
-    table :sink, ['pred']
+    table :source, [:pred]
+    table :sink, [:pred]
   end
 
   declare

@@ -15,7 +15,7 @@ class IoIn < Bud
   end
 
   def state
-    channel :flow, ['@otherloc', 'myloc', 'msg', 'wall', 'budtick']
+    channel :flow, [:@otherloc, :myloc, :msg, :wall, :budtick]
   end
 
   declare

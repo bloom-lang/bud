@@ -2,9 +2,9 @@ require 'test_common'
 
 class BabyBud < Bud
   def state
-    scratch :scrtch, ['k1', 'k2'], ['v1', 'v2']
-    scratch :scrtch2, ['k1', 'k2']
-    table :tbl, ['k1', 'k2'], ['v1', 'v2']
+    scratch :scrtch, [:k1, :k2] => [:v1, :v2]
+    scratch :scrtch2, [:k1, :k2]
+    table :tbl, [:k1, :k2] => [:v1, :v2]
   end
 
   def bootstrap
@@ -25,7 +25,7 @@ end
 
 class DupKeyBud < Bud
   def state
-    scratch :tab, ['k'], ['name']
+    scratch :tab, [:k] => [:name]
   end
 
   declare
@@ -37,14 +37,14 @@ end
 
 class DupTableBud < Bud
   def state
-    scratch :s, ['k']
-    scratch :s, ['l']
+    scratch :s, [:k]
+    scratch :s, [:l]
   end
 end
 
 class DupColBud < Bud
   def state
-    scratch :silly, ['a', 'a']
+    scratch :silly, [:a, :a]
   end
 end
 
@@ -58,7 +58,7 @@ class Grep < Bud
 
   def state
     file_reader :text, '../examples/chap2/ulysses.txt'
-    table :matches, ['lineno', 'text']
+    table :matches, [:lineno, :text]
   end
 
   declare
@@ -69,9 +69,9 @@ end
 
 class Union < Bud
   def state
-    table :link, ['from', 'to', 'cost']
-    table :delta_link, ['from', 'to', 'cost']
-    table :union, ['from', 'to', 'cost']
+    table :link, [:from, :to, :cost]
+    table :delta_link, [:from, :to, :cost]
+    table :union, [:from, :to, :cost]
   end
 
   def bootstrap
@@ -87,8 +87,8 @@ end
 
 class DeleteKey < Bud
   def state
-    table :t1, ['k'], ['v']
-    table :del_buf, ['k', 'v']
+    table :t1, [:k] => [:v]
+    table :del_buf, [:k, :v]
   end
 
   def bootstrap
@@ -103,10 +103,10 @@ end
 
 class RowValueTest < Bud
   def state
-    table :t1, ['k'], ['v']
-    table :t2, ['k'], ['v']
-    table :t3, ['k'], ['v']
-    table :t4, ['k'], ['v']
+    table :t1, [:k] => [:v]
+    table :t2, [:k] => [:v]
+    table :t3, [:k] => [:v]
+    table :t4, [:k] => [:v]
   end
 
   declare

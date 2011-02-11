@@ -15,12 +15,12 @@ class ChatClient < Bud
     @master = master
     super opts
   end
-  
+
   def state
     super
-    table :status, ['master', 'value']
+    table :status, [:master, :value]
   end
-  
+
   def bootstrap
     # send connection request to master
     ctrl <~ [[@master, ip_port, @me]]
@@ -28,29 +28,29 @@ class ChatClient < Bud
 
   def nice_time
     return Time.new.strftime("%I:%M.%S")
-  end   
-  
+  end
+
   def left_right_align(x, y)
     return x + " "*[66 - x.length,2].max + y
   end
-  
+
   declare
   def chatter
     # add "live" status on ack
      status <= ctrl.map do |c|
        if @master == c.from and c.cmd == 'ack'
-         [@master, 'live'] 
+         [@master, 'live']
        end
      end
- 
+
     # send mcast requests to master if status is non-empty
-    mcast <~ join([stdio, status]).map do |t,s| 
+    mcast <~ join([stdio, status]).map do |t,s|
       [@master, ip_port, @me, nice_time, t.line]
     end
     # pretty-print mcast msgs from master on terminal
     stdio <~ mcast.map do |m|
       [left_right_align(m.nick + ": " \
-                        + (m.msg || ''), 
+                        + (m.msg || ''),
                         "(" + m.time + ")")]
     end
   end

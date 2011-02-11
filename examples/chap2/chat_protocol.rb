@@ -8,8 +8,8 @@ module ChatProtocol
   annotator :declare
   
   def state
-    channel :mcast, ['@to', 'from', 'nick', 'time'], ['msg']
-    channel :ctrl, ['@to', 'from', 'cmd']
+    channel :mcast, [:@to, :from, :nick, :time] => [:msg]
+    channel :ctrl, [:@to, :from, :cmd]
   end
 
   #declare   
