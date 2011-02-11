@@ -30,16 +30,24 @@ class BudMeta
     @defns = []
     @shredded_rules = shred_rules
     @strat_state = stratify
+    top = @strat_state.top_strat.first.stratum
     smap = binaryrel2map(@strat_state.stratum)
 
     done = {}
     @rewritten_strata = []
+    (0..top).each{ |i| @rewritten_strata[i] = "" } 
     @rules.sort{|a, b| oporder(a[2]) <=> oporder(b[2])}.each do |d|
+      # joins may have to be re-stated
       belongs_in = smap[d[1]]
       belongs_in = 0 if belongs_in.nil?
-      @rewritten_strata[belongs_in] ||= ""
       unless done[d[0]]
-        @rewritten_strata[belongs_in] += "\n" + d[3]
+        if d[2] == "=" 
+          (belongs_in..top).each do |i|
+            @rewritten_strata[i] += "\n" + d[3]
+          end
+        else
+          @rewritten_strata[belongs_in] += "\n" + d[3]
+        end
       end
       done[d[0]] = true
     end
@@ -64,7 +72,7 @@ class BudMeta
   end
 
   def dump_rewrite
-    fout = File.new(self.class.to_s + "_rewritten.txt", "w")
+    fout = File.new(@bud_instance.class.to_s + "_rewritten.txt", "w")
     fout.puts "Declarations:"
     @defns.each do |d|
       fout.puts d
