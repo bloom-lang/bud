@@ -30,7 +30,8 @@ class BudMeta
     @defns = []
     @shredded_rules = shred_rules
     @strat_state = stratify
-    top = @strat_state.top_strat.first.stratum
+    fst = @strat_state.top_strat.first
+    top = fst.nil? ? 1 : fst.stratum
     smap = binaryrel2map(@strat_state.stratum)
 
     done = {}
