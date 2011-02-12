@@ -41,7 +41,7 @@ end
 def instant(cls)
   print "try port #{@port}\n\n"
   sleep 1
-  d = eval("class FooBar < Bud\ninclude #{cls}\nend\n FooBar.new(:port => #{@port}, :enforce_rewrite => true, :dump => true, :scoping => false)")
+  d = eval("class FooBar < Bud\ninclude #{cls}\nend\n FooBar.new(:port => #{@port}, :dump => true, :scoping => false)")
   d.meta_parser.shredded_rules.each {|s| @shreddies << s }
   d.provides.each_pair {|k, v| @provides << [k.to_s, v] } 
   d.tables.each_pair {|k, v| @tabinf[k] = v }

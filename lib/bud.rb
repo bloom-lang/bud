@@ -67,7 +67,7 @@ class Bud
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
     unless self.class <= Stratification or self.class <= DepAnalysis
-      safe_rewrite
+      do_rewrite
     end
   end
 
@@ -85,20 +85,14 @@ class Bud
     class << self; self; end
   end
 
-  def safe_rewrite
-    if @options[:disable_rewrite]
-      puts "No rewriting performed"
-      return
-    end
-
+  def do_rewrite
     @meta_parser = BudMeta.new(self, @declarations)
-    begin
-      @rewritten_strata = @meta_parser.meta_rewrite
-    rescue Exception
-      raise if @options[:enforce_rewrite]
-      puts "Running original (#{self.class}) code: couldn't rewrite stratified ruby (#{$!})"
+    @rewritten_strata = @meta_parser.meta_rewrite
+
+    if @options[:visualize]
+      @viz.visualize(@meta_parser.strat_state, "#{self.class}_gvoutput",
+                     @meta_parser.rules, @meta_parser.depanalysis)
     end
-    @viz.visualize(@meta_parser.strat_state, "#{self.class}_gvoutput", @meta_parser.rules, @meta_parser.depanalysis) if @options[:visualize]
   end
 
   ######## methods for controlling execution

@@ -67,18 +67,18 @@ end
 
 class TestMeta < Test::Unit::TestCase
   def test_paths
-    program = LocalShortestPaths.new(:enforce_rewrite => true, :dump => true)
+    program = LocalShortestPaths.new(:dump => true)
     assert_equal(0, program.strata.length)
     assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal(4, program.strata.length)
   end
 
   def test_unstrat
-    assert_raise(RuntimeError) { program = KTest3.new(:dump => true, :visualize => false, :enforce_rewrite => true, :provenance => true) }
+    assert_raise(RuntimeError) { program = KTest3.new(:dump => true, :visualize => false, :provenance => true) }
   end
 
   def test_visualization
-    program = KTest2.new(:dump => true, :visualize => 3, :enforce_rewrite => true, :provenance => true)
+    program = KTest2.new(:dump => true, :visualize => 3, :provenance => true)
     dep = DepAnalysis.new
 
     program.meta_parser.strat_state.depends_tc.each{|d| dep.depends_tc << d }

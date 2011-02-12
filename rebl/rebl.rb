@@ -7,13 +7,13 @@ require 'bud'
 
 # set up everything
 bud_class = Class.new(Bud)
-bud_class_instance = bud_class.new(:enforce_rewrite => true)
+bud_class_instance = bud_class.new
 bud_class_instance.instance_eval("@declarations << :rules")
 
 def bud_class_instance.safe_instance_eval(str)
   begin
     self.instance_eval(str)
-  rescue Exception => exc
+  rescue Exception
     puts "#{$!}"
     return false
   end
@@ -65,20 +65,20 @@ loop do
 
   else
 
-    # do a dry run of inserting the block with the new rule, a safe_rewrite, and a tick
+    # do a dry run of inserting the block with the new rule, a do_rewrite, and a tick
     rules << line
     # XXX: NOT a deep copy! (but seems to work)
     temp_bud_instance = bud_class_instance.clone
     if temp_bud_instance.safe_instance_eval("def rules\n\t" + rules.join("\n") + "\nend")
       begin
         # even if our code passes the dry run, it might still fail on tick
-        temp_bud_instance.safe_rewrite
+        temp_bud_instance.do_rewrite
         # so let's tick that ho
         # XXX: don't know if this will catch all potential problems
         #      might still find yourself in an unrecoverable state
         #      due to this statement even if tick succeeds
         temp_bud_instance.tick
-      rescue Exception => exc
+      rescue Exception
         puts "#{$!}"
         rules.pop()
         next
@@ -90,7 +90,6 @@ loop do
 
     # if we've succeeded with the dry run, then it's time to commit the new rule:
     bud_class_instance.safe_instance_eval("def rules\n\t" + rules.join("\n") + "\nend")
-    bud_class_instance.safe_rewrite
-
+    bud_class_instance.do_rewrite
   end
 end
