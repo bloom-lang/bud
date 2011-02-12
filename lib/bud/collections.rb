@@ -25,7 +25,7 @@ class Bud
       if user_schema.respond_to? :keys
         raise BudError, "invalid schema for #{tabname}" if user_schema.length != 1
         keys = user_schema.keys.first
-        cols = user_schema[keys]
+        cols = user_schema.values.first
       else
         keys = user_schema
         cols = []
@@ -427,7 +427,7 @@ class Bud
       # First, find column with @ sign and remove it
       if user_schema.respond_to? :keys
         keys = user_schema.keys.first
-        cols = user_schema[keys]
+        cols = user_schema.values.first
       else
         keys = user_schema
         cols = []
@@ -435,6 +435,12 @@ class Bud
       locspec = remove_at_sign!(keys)
       locspec = remove_at_sign!(cols) if locspec.nil?
       # If locspec is still nil, this is a loopback channel
+
+      # Note that we mutate the hash key above, so we need to recreate the hash
+      # XXX: ugh, hacky
+      if user_schema.respond_to? :keys
+        user_schema = {keys => cols}
+      end
 
       super(name, user_schema, bud_instance)
       @locspec = locspec
