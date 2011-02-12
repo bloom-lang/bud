@@ -20,7 +20,6 @@ class BudMeta
     @declarations = declarations
     @rules = []
     @depends = []
-
   end
 
   def meta_rewrite

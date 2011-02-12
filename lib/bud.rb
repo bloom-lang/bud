@@ -44,7 +44,6 @@ class Bud
     @ip = @options[:ip]
     @options[:port] ||= 0
     @options[:port] = @options[:port].to_i
-
     # NB: If using an ephemeral port (specified by port = 0), the actual port
     # number may not be known until we start EM
 
@@ -73,8 +72,6 @@ class Bud
 
   ########### give empty defaults for these
   def state
-  end
-  def declaration
   end
   def bootstrap
   end
@@ -155,7 +152,6 @@ class Bud
   # Schedule a block to be evaluated by EventMachine in the future, and
   # block until this has happened.
   def schedule_and_wait
-    # Ruby doesn't provide semaphores (!), so we use thread-safe queues.
     q = Queue.new
     EventMachine::schedule do
       ret = false
@@ -295,22 +291,14 @@ class Bud
 
     # Load the rules as a closure (will contain persistent tuples and new inbounds)
     # declaration is gathered from "declare def" blocks
-    # XXX: can we kill the old "declaration" code?
     @strata = []
     declaration
-    if @rewritten_strata.length > 0
-      @rewritten_strata.each_with_index do |rs, i|
-        # FIX: move to compilation
-        str = rs.nil? ? "" : rs
-        # eval once and put into block
-        block = eval "lambda { #{str} }"
-        @strata << block
-      end
-    elsif @declarations.length > 0
-      # the old way...
-      @declarations.each do |d|
-        @strata << self.method(d).to_proc
-      end
+    @rewritten_strata.each_with_index do |rs, i|
+      # FIX: move to compilation
+      str = rs.nil? ? "" : rs
+      # eval once and put into block
+      block = eval "lambda { #{str} }"
+      @strata << block
     end
     @strata.each { |strat| stratum_fixpoint(strat) }
     @viz.do_cards
