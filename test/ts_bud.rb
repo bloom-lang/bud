@@ -13,7 +13,6 @@ require 'tc_joins'
 require 'tc_meta'
 require 'tc_nest'
 require 'tc_timer'
-require 'tc_vars'
 require 'tc_wc1'
 # require 'tc_wc2'
 

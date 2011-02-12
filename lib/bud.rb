@@ -282,8 +282,6 @@ class Bud
     channel  :localtick, [:col1]
     terminal :stdio
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
-    @vars = table :vars_tbl, [:varname] => [:value]
-    @tmpvars = scratch :tmpvars_tbl, [:tmpvarname] => [:value]
   end
 
   def init_state

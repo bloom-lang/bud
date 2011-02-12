@@ -1,5 +1,4 @@
 module BudState
-
   ######## methods for registering collection types
   def define_collection(name)
     # rule out table names that use reserved words
@@ -95,35 +94,5 @@ module BudState
     define_or_tick_collection(name)
     @tables[name] ||= Bud::BudZkTable.new(name, path, addr, self)
     @zk_tables[name] ||= @tables[name]
-  end
-
-  # methods to define vars and tmpvars.  This code still quite tentative
-  def regvar(name, collection)
-    # rule out varnames that used reserved words
-    reserved = defined?(name)
-    if reserved == "method" and not collection[name]
-      # first time registering var, check for method name reserved
-      raise Bud::BudError, "symbol :#{name} reserved, cannot be used as variable name"
-    end
-    self.singleton_class.send :define_method, name do
-      collection[name]
-    end
-    setter = (name.to_s + '=').to_sym
-    self.class.send :define_method, setter do |val|
-      curval = collection[name]
-      raise Bud::BudError, "#{name} is frozen with value #{curval}" unless curval.nil?
-      collection.delete(val)
-      collection << [name,val]
-      # collection <- [name]
-      # collection <+ [name,val]
-    end
-  end
-
-  def var(name)
-    regvar(name, @vars)
-  end
-
-  def tmpvar(name)
-    regvar(name, @tmpvars)
   end
 end
