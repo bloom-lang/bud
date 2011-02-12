@@ -33,8 +33,6 @@ class KTest < Bud
     interface input, :req, [:ident]
     interface output, :resp, [:ident, :datacol]
     table :mystate, [:datacol]
-
-    #interface output, :qq, [:datacol]
   end
 
   declare
@@ -67,8 +65,7 @@ end
 
 class TestMeta < Test::Unit::TestCase
   def test_paths
-    program = LocalShortestPaths.new(:dump => true)
-    assert_equal(0, program.strata.length)
+    program = LocalShortestPaths.new
     assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal(4, program.strata.length)
   end

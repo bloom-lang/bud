@@ -25,7 +25,6 @@ class Bud
   def initialize(options={})
     @tables = {}
     @table_meta = []
-    @strata = []
     @rewritten_strata = []
     @provides = {}
     @channels = {}
@@ -57,7 +56,7 @@ class Bud
     @viz = Viz.new(self)
     @viz.prepare_viz
 
-    # make sure that new_delta tuples from bootstrap rules are transitioned into
+    # Make sure that new_delta tuples from bootstrap rules are transitioned into
     # storage before first tick.
     tables.each{|name,coll| coll.install_deltas}
     # note that any tuples installed into a channel won't immediately be
@@ -67,6 +66,15 @@ class Bud
     # get dependency info, and determine stratification order.
     unless self.class <= Stratification or self.class <= DepAnalysis
       do_rewrite
+    end
+
+    # Load the rules as a closure (will contain persistent tuples and new inbounds)
+    # declaration is gathered from "declare def" blocks
+    @strata = []
+    declaration
+    @rewritten_strata.each_with_index do |rs, i|
+      block = eval "lambda { #{rs} }"
+      @strata << block
     end
   end
 
@@ -291,17 +299,6 @@ class Bud
       coll.tick_deltas
     end
 
-    # Load the rules as a closure (will contain persistent tuples and new inbounds)
-    # declaration is gathered from "declare def" blocks
-    @strata = []
-    declaration
-    @rewritten_strata.each_with_index do |rs, i|
-      # FIX: move to compilation
-      str = rs.nil? ? "" : rs
-      # eval once and put into block
-      block = eval "lambda { #{str} }"
-      @strata << block
-    end
     @strata.each { |strat| stratum_fixpoint(strat) }
     @viz.do_cards
     do_flush
