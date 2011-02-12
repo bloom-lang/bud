@@ -13,7 +13,7 @@ require 'bud/strat'
 require 'bud/viz'
 
 class Bud
-  attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir, :provides, :meta_parser, :viz, :server
+  attr_reader :strata, :budtime, :inbound, :options, :provides, :meta_parser, :viz, :server
   attr_accessor :connections
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter

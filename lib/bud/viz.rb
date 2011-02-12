@@ -12,7 +12,7 @@ class Viz
   end
 
   def prepare_viz
-    #return unless @options[:visualize]
+    return unless @bud_instance.options[:visualize]
     unless File::directory? "time_pics"
       Dir.mkdir("time_pics")
     end
