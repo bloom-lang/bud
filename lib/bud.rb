@@ -73,6 +73,8 @@ class Bud
   ########### give empty defaults for these
   def state
   end
+  def declaration
+  end
   def bootstrap
   end
 
