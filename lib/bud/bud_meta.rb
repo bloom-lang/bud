@@ -36,20 +36,20 @@ class BudMeta
     done = {}
     @rewritten_strata = []
     (0..top).each{ |i| @rewritten_strata[i] = "" } 
-    @bud_instance.t_rules.sort{|a, b| oporder(a[3]) <=> oporder(b[2])}.each do |d|
+    @bud_instance.t_rules.sort{|a, b| oporder(a[2]) <=> oporder(b[2])}.each do |d|
       # joins may have to be re-stated
-      belongs_in = smap[d[1]]
+      belongs_in = smap[d.lhs]
       belongs_in = 0 if belongs_in.nil?
-      unless done[d[0]]
-        if d[2] == "=" 
+      unless done[d.rule_id]
+        if d.op == "=" 
           (belongs_in..top).each do |i|
-            @rewritten_strata[i] += "\n" + d[3]
+            @rewritten_strata[i] += "\n" + d.src
           end
         else
-          @rewritten_strata[belongs_in] += "\n" + d[3]
+          @rewritten_strata[belongs_in] += "\n" + d.src
         end
       end
-      done[d[0]] = true
+      done[d.rule_id] = true
     end
 
     @depanalysis = DepAnalysis.new
