@@ -13,14 +13,10 @@ class Stratification < Bud
     table :top_strat, [:stratum]
 
     table :tab_info, [:tab, :typecol, :columns]
-
-    table :col_alias, [:head, :als, :name, :ord]
-    table :tab_alias, [:head, :tab, :als]
-    scratch :guarded, [:channel, :table]
   end
   
   def declaration
-    strata[0] = rules {
+    strata[0] = lambda {
       depends_tc <= depends.map do |d| 
         dneg = (d.neg == 1 or d.op.to_s =~ /<-/)
         if d.op.to_s =~ /<[\+\-\~]/
@@ -61,7 +57,7 @@ class Stratification < Bud
       stratum_base <= depends.map{|d| [d.body, 0]}
     }
 
-    strata[1] = rules {
+    strata[1] = lambda {
       stratum_base <= join([depends, stratum_base], [depends.body, stratum_base.predicate]).map do |d, s|
         if (d.neg == 1 or d.op.to_s == "<-") and !(cycle.map{|c| c.predicate}.include? d.body and cycle.map{|c| c.predicate}.include? d.head)
           [d.head, s.stratum + 1]
@@ -71,7 +67,7 @@ class Stratification < Bud
       end
     }
 
-    strata[2] = rules {
+    strata[2] = lambda {
       stratum <= stratum_base.group([stratum_base.predicate], max(stratum_base.stratum))
       top_strat <= stratum_base.group(nil, max(stratum_base.stratum)) 
     }

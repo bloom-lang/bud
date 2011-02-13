@@ -405,6 +405,4 @@ class Bud
       tick
     end
   end
-
-  alias rules lambda
 end
