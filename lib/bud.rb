@@ -282,6 +282,12 @@ class Bud
     channel  :localtick, [:col1]
     terminal :stdio
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
+    @periodics = table :periodics_tbl, ['pername'], ['ident', 'period']
+    
+    # for BUD reflection
+    table :t_rules, ['rule_id', 'lhs', 'op', 'src']
+    table :t_depends, ['rule_id', 'lhs', 'op', 'body', 'nm']
+    table :t_provides, ['interface', 'input']
   end
 
   def init_state

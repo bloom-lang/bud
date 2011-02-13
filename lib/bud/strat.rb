@@ -21,6 +21,7 @@ class Stratification < Bud
   
   def declaration
     strata[0] = rules {
+      #stdio <~ depends.map{|d| ["DEP: " + d.inspect] }
       depends_tc <= depends.map do |d| 
         dneg = (d.neg == 1 or d.op.to_s =~ /<-/)
         if d.op.to_s =~ /<[\+\-\~]/

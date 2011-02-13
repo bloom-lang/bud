@@ -1,10 +1,14 @@
 require 'rubygems'
 require 'syntax/convertors/html'
+require 'gchart'
+require 'digest/md5'
 
 class Viz
   def initialize(bud_instance)
     # needs:  class, object_id, options, tables, budtime
     @bud_instance = bud_instance
+    @table_cards = {}
+    @series_fp = File.open("series_#{bud_instance.object_id}.txt", "w")
   end
 
   def time_node_header
@@ -51,13 +55,33 @@ class Viz
     return unless @bud_instance.options[:visualize]
     cards = {}
     @bud_instance.tables.each do |t|
-      cards[t[0].to_s] = t[1].length
+      tab = t[0].to_s
+      cards[tab] = t[1].length
+      unless @table_cards[tab]
+        @table_cards[tab] = {}
+      end
+      @table_cards[tab][@bud_instance.budtime] = t[1].length
+      # or, make it URLs
+      series = @table_cards[tab].sort{|a,b| a[0] <=> b[0]}.map{|v| v[1]}
+      ##puts "SERIES: [#{series.join(",")}]"
+      name = "#{self.object_id}_#{@bud_instance.budtime}.png"
+      # PROTOTYPE.  very silly things to do on the critical path :)
+      #cht = Gchart.bar(:format => 'file', :filename => name, :data => @table_cards[tab].sort{|a,b| a[0] <=> b[0]}.map{|v| v[1]})
+      #cards[tab] = "#{ENV['PWD']}/#{name}"
+      #puts "CHT #{cht}"
+      write_timeseries(tab, series)
       write_table_contents(t) if @bud_instance.options[:visualize] >= 3
     end
     write_svgs(cards)
     write_html
   end
 
+  def write_timeseries(tab, series)
+    name = "#{tab}_#{self.object_id}_#{@bud_instance.budtime}.txt"
+    @series_fp.puts "#{@bud_instance.budtime},#{tab}," + series.join(",")
+    @series_fp.flush
+  end
+  
   def write_table_contents(tab)
     fout = File.new("#{@time_pics_dir}/#{tab[0]}_#{@bud_instance.budtime}.html", "w")
     fout.puts "<h1>#{tab[0]} #{time_node_header()}</h1>"
