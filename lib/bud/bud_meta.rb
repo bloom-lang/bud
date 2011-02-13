@@ -36,7 +36,7 @@ class BudMeta
     done = {}
     @rewritten_strata = []
     (0..top).each{ |i| @rewritten_strata[i] = "" } 
-    @bud_instance.t_rules.sort{|a, b| oporder(a[2]) <=> oporder(b[2])}.each do |d|
+    @bud_instance.t_rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
       # joins may have to be re-stated
       belongs_in = smap[d.lhs]
       belongs_in = 0 if belongs_in.nil?
@@ -157,11 +157,9 @@ class BudMeta
     
     rulebag.each_pair do |k,v| 
       v.rules.each do |r|
-        #@rules << r 
         @bud_instance.t_rules << r
       end
       v.depends.each do |d|
-        #@depends << d 
         @bud_instance.t_depends << d
       end
     end

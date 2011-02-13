@@ -53,8 +53,11 @@ class Bud
 
     init_state
     bootstrap
-    @viz = Viz.new(self)
-    @viz.prepare_viz
+   
+    if @options[:visualize] 
+      @viz = Viz.new(self)
+      @viz.prepare_viz
+    end
 
     # Make sure that new_delta tuples from bootstrap rules are transitioned into
     # storage before first tick.
@@ -305,7 +308,7 @@ class Bud
     end
 
     @strata.each { |strat| stratum_fixpoint(strat) }
-    @viz.do_cards
+    @viz.do_cards if @options[:visualize]
     do_flush
     @budtime += 1
   end
