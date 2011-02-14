@@ -55,8 +55,7 @@ class Bud
     bootstrap
    
     if @options[:visualize] 
-      @viz = Viz.new(self)
-      @viz.prepare_viz
+      @viz = VizOnline.new(self)
     end
 
     # Make sure that new_delta tuples from bootstrap rules are transitioned into
@@ -98,11 +97,6 @@ class Bud
   def do_rewrite
     @meta_parser = BudMeta.new(self, @declarations)
     @rewritten_strata = @meta_parser.meta_rewrite
-
-    if @options[:visualize]
-      @viz.visualize(@meta_parser.strat_state, "#{self.class}_gvoutput",
-                     @meta_parser.rules, @meta_parser.depanalysis)
-    end
   end
 
   ######## methods for controlling execution
@@ -289,7 +283,10 @@ class Bud
     # for BUD reflection
     table :t_rules, [:rule_id] => [:lhs, :op, :src]
     table :t_depends, [:rule_id, :lhs, :op, :body] => [:nm]
+    table :t_depends_tc, [:head, :body, :via, :neg, :temporal]
     table :t_provides, [:interface] => [:input]
+    table :t_stratum, [:predicate] => [:stratum]
+    table :t_cycle, [:predicate, :via, :neg, :temporal]
   end
 
   def init_state

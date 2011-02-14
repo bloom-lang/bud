@@ -10,7 +10,7 @@ require 'parse_tree'
 
 class BudMeta
   include BudState
-  attr_reader :rules, :provides, :strat_state, :depanalysis, :depends
+  attr_reader :rules, :provides, :depanalysis, :depends
 
   def initialize(bud_instance, declarations)
     # need: provides, options, declarations, class, tables, self for viz
@@ -27,11 +27,9 @@ class BudMeta
     # however, we can still pass the "string" code of bud modules
     # to ruby_parse (but not the "live" class)
     @defns = []
-    @shredded_rules = shred_rules
-    @strat_state = stratify
-    fst = @strat_state.top_strat.first
-    top = fst.nil? ? 1 : fst.stratum
-    smap = binaryrel2map(@strat_state.stratum)
+    shred_rules
+    top = stratify
+    smap = binaryrel2map(@bud_instance.t_stratum)
 
     done = {}
     @rewritten_strata = []
@@ -53,12 +51,10 @@ class BudMeta
     end
 
     @depanalysis = DepAnalysis.new
-    @strat_state.depends_tc.each{|d| @depanalysis.depends_tc << d }
-    @bud_instance.provides.each{|p| @depanalysis.providing << p}
+    @bud_instance.t_depends_tc.each{|d| @depanalysis.depends_tc << d }
+    @bud_instance.t_provides.each{|p| @depanalysis.providing << p}
     3.times { @depanalysis.tick }
     @depanalysis.underspecified.each{|u| puts "UNDERSPECIFIED: #{u.inspect}"}
-    
-    ##visualize(@strat_state, "#{self.class}_gvoutput", @shredded_rules, @depanalysis) if @bud_instance.options[:visualize]
     dump_rewrite if @bud_instance.options[:dump]
     return @rewritten_strata
   end
@@ -188,7 +184,17 @@ class BudMeta
     end
 
     strat.tick
-    return strat
+    strat.stratum.each do |s|
+      @bud_instance.t_stratum << s      
+    end
+    strat.depends_tc.each{|d| @bud_instance.t_depends_tc << d }
+    strat.cycle.each{|c| @bud_instance.t_cycle << c }
+    if strat.top_strat.length > 0
+      top = strat.top_strat.first.stratum
+    else
+      top = 1 
+    end
+    return top
   end
 
   def oporder(op)

@@ -78,7 +78,7 @@ class TestMeta < Test::Unit::TestCase
     program = KTest2.new(:dump => true, :visualize => 3, :provenance => true)
     dep = DepAnalysis.new
 
-    program.meta_parser.strat_state.depends_tc.each{|d| dep.depends_tc << d }
+    program.t_depends_tc.each{|d| dep.depends_tc << d }
     program.provides.each{|p| dep.providing << p }
     dep.tick
   end

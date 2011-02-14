@@ -4,7 +4,7 @@ require 'graphviz'
 
 class GraphGen
 
-  def initialize(mapping, tableinfo, cycle, name, bud_instance, pics_dir, collapse=false, depanalysis=nil, cardinalities={})
+  def initialize(mapping, tableinfo, cycle, name, budtime, vizlevel, pics_dir, collapse=false, depanalysis=nil, cardinalities={})
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85 )
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
     @graph.node[:fontname] = "Times-Roman"
@@ -16,13 +16,16 @@ class GraphGen
     @name = name
     @collapse = collapse
     @depanalysis = depanalysis
-    @bud_instance = bud_instance
+    @budtime = budtime
+    @vizlevel = vizlevel
     @pics_dir = pics_dir
     @internals = {'count' => 1, 'localtick' => 1, 'stdio' => 1}
 
     # map: table -> stratum
     @t2s = {}
+    #mapping.each_pair do |m,v|
     mapping.each do |m|
+      puts "MAP: #{m.inspect}" 
       @t2s[m[0]] = m[1].to_i
     end
 
@@ -99,8 +102,9 @@ class GraphGen
     # bottom if the predicate is not in a NEG/+ cycle.  otherwise,
     # its name is "CYC" + concat(sort(predicate names))
 
+    #depends.each_pair do |d, v|
     depends.each do |d|
-      #puts "DEP: #{d.inspect}"
+      puts "DEP: #{d.inspect}"
       head = d[1]
       body = d[3]
 
@@ -109,6 +113,7 @@ class GraphGen
         next
       end
 
+      puts "get name of #{head}"
       head = name_of(head)
       body = name_of(body)
       addonce(head, (head != d[1]))
@@ -118,16 +123,18 @@ class GraphGen
   end
 
   def addonce(node, negcluster)
+    puts "ADD NODE #{node}"
     if !@nodes[node]
       @nodes[node] = @graph.add_node(node)
       if @cards and @cards[node]
         #@nodes[node].label = node + "\n (<IMG SRC=\"" + @cards[node].to_s + "\">)"
         @nodes[node].label = node + "\n (#{@cards[node].to_s})"
+        #@nodes[node].label = "<html>" + node + "<table><tr><td>1</td></tr></table> \n (#{@cards[node].to_s}) </html>"
         #@nodes[node].image = @cards[node].to_s 
         @nodes[node].imagescale = "both"
       end
   
-      @nodes[node].URL = "#{output_dir}/#{node}_#{@bud_instance.budtime}.html" 
+      @nodes[node].URL = "#{output_dir}/#{node}_#{@budtime}.html" 
     end
 
     if negcluster
@@ -237,7 +244,7 @@ class GraphGen
   end
 
   def output_base
-    if @bud_instance.options[:visualize] >= 3
+    if @vizlevel >= 3
       @pics_dir
     else
       "plotter_out"

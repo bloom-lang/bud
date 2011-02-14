@@ -3,7 +3,10 @@ require 'tokyocabinet'
 require 'bud'
 include TokyoCabinet
 
+# prototype offline viz
+
 BUD_TC_DIR = "#{ARGV[0]}/bud_"
+
 
 class VizHelper < Bud
   def state
