@@ -9,7 +9,7 @@ class VizOnline
   def initialize(bud_instance)
     @bud_instance = bud_instance
     @meta_tables = {'t_rules' => 1, 't_depends' => 1, 't_table_info' => 1, 't_cycle' => 1, 't_stratum' => 1, 't_depends_tc' => 1}
-    @bud_instance.options[:tc_dir] = "#{@bud_instance.class}_#{@bud_instance.port}_#{bud_instance.object_id}"
+    @bud_instance.options[:tc_dir] = "#{@bud_instance.class}_#{bud_instance.object_id}_#{bud_instance.port}"
     @table_info = new_tab(:t_table_info, [:tab_name, :tab_type], @bud_instance)
 
     @logtab = {}

@@ -19,7 +19,8 @@ class GraphGen
     @budtime = budtime
     @vizlevel = vizlevel
     @pics_dir = pics_dir
-    @internals = {'count' => 1, 'localtick' => 1, 'stdio' => 1}
+    #@internals = {'count' => 1, 'localtick' => 1, 'stdio' => 1, 't_rules' => 1, 't_depends' => 1, 't_depends_tc' => 1, 't_provides' => 1, 't_cycle' => 1}
+    @internals = {'count' => 1, 'localtick' => 1, 'stdio' => 1} #, 't_rules' => 1, 't_depends' => 1, 't_depends_tc' => 1, 't_provides' => 1, 't_cycle' => 1}
 
     # map: table -> stratum
     @t2s = {}
@@ -134,7 +135,10 @@ class GraphGen
         @nodes[node].imagescale = "both"
       end
   
-      @nodes[node].URL = "#{output_dir}/#{node}_#{@budtime}.html" 
+      #@nodes[node].URL = "#{output_dir}/#{node}_#{@budtime}.html" 
+      ###out = "#{output_dir}/#{node}_#{@budtime}.html"
+      out = "#{output_dir}/#{node}"
+      @nodes[node].URL = "javascript:openWin(\"#{out}\", #{@budtime})"
     end
 
     if negcluster
@@ -155,7 +159,7 @@ class GraphGen
       @nodes[node].shape = "octagon"
       @nodes[node].penwidth = 3
       @nodes[node].URL = "file://#{ENV['PWD']}/#{@name}_expanded.svg"
-    elsif @tabinf[node] and (@tabinf[node].class == Bud::BudTable)
+    elsif @tabinf[node] and (@tabinf[node] == "Bud::BudTable")
       @nodes[node].shape = "rect"
     end
   end
@@ -207,6 +211,9 @@ class GraphGen
     addonce("S", false)
     addonce("T", false)
 
+    @nodes["T"].URL = "javascript:advanceTo(\"#{output_dir}\", #{@budtime+1})"
+    @nodes["S"].URL = "javascript:advanceTo(\"#{output_dir}\", #{@budtime-1})"
+
     @nodes["S"].color = "blue"
     @nodes["T"].color = "blue"
     @nodes["S"].shape = "diamond"
@@ -239,8 +246,17 @@ class GraphGen
     end
 
     suffix = @collapse ? "collapsed" : "expanded"
-    @graph.output(:svg => "#{@name}_#{suffix}.svg")
-    @graph.output(:dot => "#{@name}_#{suffix}.dot")
+    fn = "#{@name}_#{suffix}.svg"
+    puts "fn is #{fn}"
+    staging = "#{fn}_staging"
+    @graph.output(:svg => staging)
+    fin = File.open(staging, "r")
+    fout = File.open(fn, "w")
+    while line = fin.gets
+      fout.puts line.gsub("<title>G</title>", svg_javascript())
+    end
+    fin.close
+    fout.close
   end
 
   def output_base
@@ -334,3 +350,37 @@ pre.code span.symbol { color: #008B8B; }
 
   
 end
+
+  def svg_javascript
+    return "
+<script type='javascript'>
+  <![CDATA[
+
+var windows = new Array()
+var info = new Array()
+
+function openWin(target, time) {
+    win = window.open(target + \"_\" + time + \".html\", target + time, \"width=320,height=210,scrollbars=yes\");
+    windows.push(win);
+    info.push(target);
+}
+
+function advanceTo(dir, time) {
+    self.window.location.href = dir + 'tm_' + time + '_expanded.svg'
+    for (i=0; i < windows.length; i++) {
+      windows[i].location.href = info[i] + \"_\" + time + \".html\";
+    }
+}
+
+  ]]>
+</script>
+"
+  end
+
+##
+##
+#
+
+#      for (i=0; i < windows.length; i++) {
+#        windows[0].document.writeLn(\"foo\")
+#      }

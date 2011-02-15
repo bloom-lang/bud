@@ -67,16 +67,38 @@ class VizHelper < Bud
     
   end
 
+  def javascript
+    return "
+<script language=\"JavaScript\">
+<!--
+
+function openWin() {
+    win3 = window.open(\"\", \"Window3\", \"width=320,height=210,scrollbars=yes\");
+}
+
+function writeTo3() {
+    win3.document.writeln(\"<h2>This is written to Window 3 by the main window</h2>\");
+
+}
+
+//-->
+</script>
+"
+  end
+
+
   def write_html(dir, tm)
     puts "tm is #{tm} as #{tm.class}"
     nm = "tm_#{tm}"
     prev = "tm_#{tm-1}"
     nxt = "tm_#{tm+1}"
     fout = File.new("#{dir}/#{nm}.html", "w")
+    fout.puts javascript
     ##fout.puts "<center><h1>#{@bud_instance.class} #{time_node_header()}</h1><center>"
     fout.puts "<embed src=\"#{ENV['PWD']}/#{dir}/#{nm}_expanded.svg\" width=\"100%\" height=\"75%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
     fout.puts "<hr><h2><a href=\"#{ENV['PWD']}/#{dir}/#{prev}.html\">prev</a>"
     fout.puts "<a href=\"#{ENV['PWD']}/#{dir}/#{nxt}.html\">next</a>"
+    fout.puts "<a href=\"javascript:openWin()\">try me</a>"
     fout.close
   end
 
