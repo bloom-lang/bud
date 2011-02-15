@@ -912,7 +912,6 @@ class Bud
     end
 
     def merge_tuple(key, tuple)
-      puts "MERGE: key is #{key.inspect}, #{key.class}"
       val = cols.map{|c| tuple[schema.index(c)]}
       key_s = Marshal.dump(key)
       val_s = Marshal.dump(val)
