@@ -67,38 +67,16 @@ class VizHelper < Bud
     
   end
 
-  def javascript
-    return "
-<script language=\"JavaScript\">
-<!--
-
-function openWin() {
-    win3 = window.open(\"\", \"Window3\", \"width=320,height=210,scrollbars=yes\");
-}
-
-function writeTo3() {
-    win3.document.writeln(\"<h2>This is written to Window 3 by the main window</h2>\");
-
-}
-
-//-->
-</script>
-"
-  end
-
-
   def write_html(dir, tm)
     puts "tm is #{tm} as #{tm.class}"
     nm = "tm_#{tm}"
     prev = "tm_#{tm-1}"
     nxt = "tm_#{tm+1}"
     fout = File.new("#{dir}/#{nm}.html", "w")
-    fout.puts javascript
     ##fout.puts "<center><h1>#{@bud_instance.class} #{time_node_header()}</h1><center>"
     fout.puts "<embed src=\"#{ENV['PWD']}/#{dir}/#{nm}_expanded.svg\" width=\"100%\" height=\"75%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
     fout.puts "<hr><h2><a href=\"#{ENV['PWD']}/#{dir}/#{prev}.html\">prev</a>"
     fout.puts "<a href=\"#{ENV['PWD']}/#{dir}/#{nxt}.html\">next</a>"
-    fout.puts "<a href=\"javascript:openWin()\">try me</a>"
     fout.close
   end
 
@@ -138,6 +116,22 @@ def deserialize_table(tab, strict)
   end
   return ret
 end
+
+def usage
+  puts "Usage:"
+  puts "Running a Bud program with option :visualize => 3 will cause a TC directory TC_dir to be created (Class_ObjectId_Port)"
+  puts "> ruby visualize.rb TC_dir"
+  puts "This will create a series of svg files in TC_dir, the root of which will be named tm_0_expanded.svg.  Open in a browser.\n"
+  puts "e.g."
+  puts "> ruby test/tc_carts.rb"
+  puts "> ruby visualize.rb BCS_2159661360_"
+  puts "> open -a /Applications/Google\ Chrome.app/ BCS_2159661360_/tm_0_expanded.svg"
+  exit
+end
+
+# begin "main"
+
+usage unless ARGV[0]
 
 @tables = {}
 
