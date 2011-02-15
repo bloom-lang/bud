@@ -131,13 +131,13 @@ end
 
 
 # let's try to do a visualization
-strata = deserialize_table(@tables['t_stratum_log.tch'], true)
-tabinf = deserialize_table(@tables['t_table_info_log.tch'], true)
-tabscm = deserialize_table(@tables['t_table_schema_log.tch'], true)
+strata = deserialize_table(@tables['t_stratum_vizlog.tch'], true)
+tabinf = deserialize_table(@tables['t_table_info_vizlog.tch'], true)
+tabscm = deserialize_table(@tables['t_table_schema_vizlog.tch'], true)
 puts "try cyc"
-cycle = deserialize_table(@tables['t_cycle_log.tch'], true)
-depends = deserialize_table(@tables['t_depends_log.tch'], true)
-rules = deserialize_table(@tables['t_rules_log.tch'], true)
+cycle = deserialize_table(@tables['t_cycle_vizlog.tch'], true)
+depends = deserialize_table(@tables['t_depends_vizlog.tch'], true)
+rules = deserialize_table(@tables['t_rules_vizlog.tch'], true)
 
 
 schminf = {}
@@ -159,7 +159,7 @@ strata.each{|s| puts "STRAT: #{s.inspect}" }
 vh = VizHelper.new(strata, tabinf, cycle, depends, rules, ARGV[0])
 
 @tables.each_pair do |name, contents|
-  name = name.gsub("_log.tch", "")
+  name = name.gsub("_vizlog.tch", "")
   puts "TAB #{name}"
   contents.each_pair do |k, v|
     key = Marshal.load(k)
