@@ -360,7 +360,7 @@ var info = new Array()
 var dir = \"#{output_dir}\"
 
 function openWin(target, time) {
-    win = window.open(dir + \"/\" + target + \"_\" + time + \".html\", target, \"width=320,height=210,scrollbars=yes,title='foobar'\");
+    win = window.open(dir + \"/\" + target + \"_\" + time + \".html\", target, \"width=320,height=210,scrollbars=yes,location=0\");
     windows.push(win);
     info.push(target);
 }

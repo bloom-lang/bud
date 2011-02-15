@@ -30,14 +30,12 @@ class VizHelper < Bud
     times <= full_info.map{|f| [f.bud_time]}
   end
 
-  def summarize(dir)
+  def summarize(dir, schema)
     table_io = {}
-    times.each do |time|
-      write_html(dir, time.bud_time)
-    end
     cardinalities.each do |card|
       puts "CARD: #{card.inspect}"
-      table_io["#{card.table}_#{card.bud_time}"] = start_table(dir, card.table, card.bud_time)
+      puts "SCHEMA : #{schema[card.table]} for #{card.table.class}"
+      table_io["#{card.table}_#{card.bud_time}"] = start_table(dir, card.table, card.bud_time, schema[card.table])
     end
     full_info.each do |info|
       puts "write out #{info.table} at #{info.bud_time}: #{info.row}"
@@ -67,25 +65,12 @@ class VizHelper < Bud
     
   end
 
-  def write_html(dir, tm)
-    puts "tm is #{tm} as #{tm.class}"
-    nm = "tm_#{tm}"
-    prev = "tm_#{tm-1}"
-    nxt = "tm_#{tm+1}"
-    fout = File.new("#{dir}/#{nm}.html", "w")
-    ##fout.puts "<center><h1>#{@bud_instance.class} #{time_node_header()}</h1><center>"
-    fout.puts "<embed src=\"#{ENV['PWD']}/#{dir}/#{nm}_expanded.svg\" width=\"100%\" height=\"75%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
-    fout.puts "<hr><h2><a href=\"#{ENV['PWD']}/#{dir}/#{prev}.html\">prev</a>"
-    fout.puts "<a href=\"#{ENV['PWD']}/#{dir}/#{nxt}.html\">next</a>"
-    fout.close
-  end
-
-  def start_table(dir, tab, time)
+  def start_table(dir, tab, time, schema)
     fout = File.new("#{dir}/#{tab}_#{time}.html", "w")
     #fout.puts "<h1>#{tab} #{time_node_header()}</h1>"
     fout.puts "<html><title>#{tab} @ #{time}</title>"
     fout.puts "<table border=1>"
-    #fout.puts "<tr>" + data.schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>"
+    fout.puts "<tr>" + schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>"
     return fout
   end
   
@@ -104,12 +89,10 @@ end
 def deserialize_table(tab, strict)
   # oy.  meta only
   ret = []
-  puts "DS #{tab}"
   tab.each_pair do |k, v|
     key = Marshal.load(k)
     time = key.shift
     raise "non-zero budtime.  sure this is metadata?" if time != 0 and strict
-    #ret[key] = Marshal.load(v)
     tup = key
     Marshal.load(v).each{|v| tup << v }
     ret << tup
@@ -148,9 +131,21 @@ end
 # let's try to do a visualization
 strata = deserialize_table(@tables['t_stratum_log.tch'], true)
 tabinf = deserialize_table(@tables['t_table_info_log.tch'], true)
+tabscm = deserialize_table(@tables['t_table_schema_log.tch'], true)
 puts "try cyc"
 cycle = deserialize_table(@tables['t_cycle_log.tch'], true)
 depends = deserialize_table(@tables['t_depends_log.tch'], true)
+
+
+schminf = {}
+tabscm.each do |ts|
+  puts "TS: #{ts.inspect} for #{ts[0].class}"
+  tab = ts[0].to_s
+  unless schminf[tab]
+    schminf[tab] = []
+  end
+  schminf[tab][ts[2]] = ts[1]
+end
 
 gv = GraphGen.new(strata, tabinf, cycle, "OUTPUT", -1, 1, "plotter_out")
 gv.process(depends)
@@ -173,4 +168,4 @@ vh = VizHelper.new(strata, tabinf, cycle, depends, ARGV[0])
 end
 
 vh.tick
-vh.summarize(ARGV[0])
+vh.summarize(ARGV[0], schminf)
