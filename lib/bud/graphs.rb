@@ -24,9 +24,7 @@ class GraphGen
 
     # map: table -> stratum
     @t2s = {}
-    #mapping.each_pair do |m,v|
     mapping.each do |m|
-      puts "MAP: #{m.inspect}" 
       @t2s[m[0]] = m[1].to_i
     end
 
@@ -103,9 +101,8 @@ class GraphGen
     # bottom if the predicate is not in a NEG/+ cycle.  otherwise,
     # its name is "CYC" + concat(sort(predicate names))
 
-    #depends.each_pair do |d, v|
     depends.each do |d|
-      puts "DEP: #{d.inspect}"
+      #puts "DEP: #{d.inspect}"
       head = d[1]
       body = d[3]
 
@@ -114,7 +111,6 @@ class GraphGen
         next
       end
 
-      puts "get name of #{head}"
       head = name_of(head)
       body = name_of(body)
       addonce(head, (head != d[1]))
@@ -124,7 +120,7 @@ class GraphGen
   end
 
   def addonce(node, negcluster)
-    puts "ADD NODE #{node}"
+    #puts "ADD NODE #{node}"
     if !@nodes[node]
       @nodes[node] = @graph.add_node(node)
       if @cards and @cards[node]

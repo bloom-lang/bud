@@ -15,12 +15,13 @@ class VizHelper < Bud
     scratch :times, [:bud_time]
   end
 
-  def initialize(strata, tabinf, cycle, depends, dir)
+  def initialize(strata, tabinf, cycle, depends, rules, dir)
     @t_strata = strata
     @t_tabinf = tabinf
     @t_cycle = cycle
     @t_depends = depends
     @dir = dir
+    @t_rules = rules
     super()
   end
 
@@ -59,6 +60,7 @@ class VizHelper < Bud
       @t_strata.each{|s| puts "strata: #{s.inspect}" } 
       gv = GraphGen.new(@t_strata, @t_tabinf, @t_cycle, "#{@dir}/tm_#{time.bud_time}", time.bud_time, 3, @dir, false, nil, card_info)
       gv.process(@t_depends)
+      gv.dump(@t_rules)
       gv.finish
         
     end
@@ -135,6 +137,7 @@ tabscm = deserialize_table(@tables['t_table_schema_log.tch'], true)
 puts "try cyc"
 cycle = deserialize_table(@tables['t_cycle_log.tch'], true)
 depends = deserialize_table(@tables['t_depends_log.tch'], true)
+rules = deserialize_table(@tables['t_rules_log.tch'], true)
 
 
 schminf = {}
@@ -153,7 +156,7 @@ gv.finish
 
 
 strata.each{|s| puts "STRAT: #{s.inspect}" } 
-vh = VizHelper.new(strata, tabinf, cycle, depends, ARGV[0])
+vh = VizHelper.new(strata, tabinf, cycle, depends, rules, ARGV[0])
 
 @tables.each_pair do |name, contents|
   name = name.gsub("_log.tch", "")

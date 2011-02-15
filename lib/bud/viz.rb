@@ -41,7 +41,12 @@ class VizOnline
       next if tab.to_s =~ /_log\z/
       next if @meta_tables[tab.to_s] and @bud_instance.budtime > 0
       t[1].each do |row|
-        newrow = row.clone.unshift(@bud_instance.budtime)
+        puts "initially row is #{row.inspect}"  
+        nr = []
+        row.each {|r| puts "\tROW ITEM: #{r.inspect}, #{r.class}"; nr << r.nil? ? "foo" : r } 
+        newrow = nr.clone.unshift(@bud_instance.budtime)
+        
+        puts "NEWROW(#{t[0]}) is #{newrow.inspect}"
         @logtab[tab] << newrow
       end
       @logtab[tab].tick
