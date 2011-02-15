@@ -137,8 +137,7 @@ class GraphGen
   
       #@nodes[node].URL = "#{output_dir}/#{node}_#{@budtime}.html" 
       ###out = "#{output_dir}/#{node}_#{@budtime}.html"
-      out = "#{output_dir}/#{node}"
-      @nodes[node].URL = "javascript:openWin(\"#{out}\", #{@budtime})"
+      @nodes[node].URL = "javascript:openWin(\"#{node}\", #{@budtime})"
     end
 
     if negcluster
@@ -211,8 +210,8 @@ class GraphGen
     addonce("S", false)
     addonce("T", false)
 
-    @nodes["T"].URL = "javascript:advanceTo(\"#{output_dir}\", #{@budtime+1})"
-    @nodes["S"].URL = "javascript:advanceTo(\"#{output_dir}\", #{@budtime-1})"
+    @nodes["T"].URL = "javascript:advanceTo(#{@budtime+1})"
+    @nodes["S"].URL = "javascript:advanceTo(#{@budtime-1})"
 
     @nodes["S"].color = "blue"
     @nodes["T"].color = "blue"
@@ -358,18 +357,38 @@ end
 
 var windows = new Array()
 var info = new Array()
+var dir = \"#{output_dir}\"
 
 function openWin(target, time) {
-    win = window.open(target + \"_\" + time + \".html\", target + time, \"width=320,height=210,scrollbars=yes\");
+    win = window.open(dir + \"/\" + target + \"_\" + time + \".html\", target, \"width=320,height=210,scrollbars=yes,title='foobar'\");
     windows.push(win);
     info.push(target);
 }
 
-function advanceTo(dir, time) {
-    self.window.location.href = dir + 'tm_' + time + '_expanded.svg'
+function advanceTo(time) {
+    arr = gup(\"wins\").split(\",\")
+    for (i=0; i < arr.length; i++) {
+      if (arr[i] != \"\") {
+        openWin(arr[i], time)
+      }
+    }
     for (i=0; i < windows.length; i++) {
       windows[i].location.href = info[i] + \"_\" + time + \".html\";
     }
+    self.window.location.href = dir + 'tm_' + time + '_expanded.svg?wins=' + info.join(\",\")
+}
+
+// off the netz
+function gup( name )
+{
+  name = name.replace(/[\[]/,\"\\\[\").replace(/[\]]/,\"\\\]\");
+  var regexS = \"[\\?&]\"+name+\"=([^&#]*)\";
+  var regex = new RegExp( regexS );
+  var results = regex.exec( window.location.href );
+  if( results == null )
+    return \"\";
+  else
+    return results[1];
 }
 
   ]]>
@@ -377,10 +396,3 @@ function advanceTo(dir, time) {
 "
   end
 
-##
-##
-#
-
-#      for (i=0; i < windows.length; i++) {
-#        windows[0].document.writeLn(\"foo\")
-#      }

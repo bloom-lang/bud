@@ -105,6 +105,7 @@ function writeTo3() {
   def start_table(dir, tab, time)
     fout = File.new("#{dir}/#{tab}_#{time}.html", "w")
     #fout.puts "<h1>#{tab} #{time_node_header()}</h1>"
+    fout.puts "<html><title>#{tab} @ #{time}</title>"
     fout.puts "<table border=1>"
     #fout.puts "<tr>" + data.schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>"
     return fout
