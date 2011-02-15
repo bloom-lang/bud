@@ -34,12 +34,9 @@ class VizHelper < Bud
   def summarize(dir, schema)
     table_io = {}
     cardinalities.each do |card|
-      puts "CARD: #{card.inspect}"
-      puts "SCHEMA : #{schema[card.table]} for #{card.table.class}"
       table_io["#{card.table}_#{card.bud_time}"] = start_table(dir, card.table, card.bud_time, schema[card.table])
     end
     full_info.each do |info|
-      puts "write out #{info.table} at #{info.bud_time}: #{info.row}"
       write_table_content(table_io["#{info.table}_#{info.bud_time}"], info.row)
     end
 
@@ -52,12 +49,10 @@ class VizHelper < Bud
       card_info = {}
       cardinalities.each do |card|
         if card.bud_time == time.bud_time
-          puts "info #{card.table} is #{card.cnt}"
           card_info[card.table] = card.cnt
         end
       end
       
-      @t_strata.each{|s| puts "strata: #{s.inspect}" } 
       gv = GraphGen.new(@t_strata, @t_tabinf, @t_cycle, "#{@dir}/tm_#{time.bud_time}", time.bud_time, 3, @dir, false, nil, card_info)
       gv.process(@t_depends)
       gv.dump(@t_rules)
@@ -131,18 +126,16 @@ end
 
 
 # let's try to do a visualization
-strata = deserialize_table(@tables['t_stratum_log.tch'], true)
-tabinf = deserialize_table(@tables['t_table_info_log.tch'], true)
-tabscm = deserialize_table(@tables['t_table_schema_log.tch'], true)
-puts "try cyc"
-cycle = deserialize_table(@tables['t_cycle_log.tch'], true)
-depends = deserialize_table(@tables['t_depends_log.tch'], true)
-rules = deserialize_table(@tables['t_rules_log.tch'], true)
+strata = deserialize_table(@tables['t_stratum_vizlog.tch'], true)
+tabinf = deserialize_table(@tables['t_table_info_vizlog.tch'], true)
+tabscm = deserialize_table(@tables['t_table_schema_vizlog.tch'], true)
+cycle = deserialize_table(@tables['t_cycle_vizlog.tch'], true)
+depends = deserialize_table(@tables['t_depends_vizlog.tch'], true)
+rules = deserialize_table(@tables['t_rules_vizlog.tch'], true)
 
 
 schminf = {}
 tabscm.each do |ts|
-  puts "TS: #{ts.inspect} for #{ts[0].class}"
   tab = ts[0].to_s
   unless schminf[tab]
     schminf[tab] = []
@@ -155,12 +148,10 @@ gv.process(depends)
 gv.finish
 
 
-strata.each{|s| puts "STRAT: #{s.inspect}" } 
 vh = VizHelper.new(strata, tabinf, cycle, depends, rules, ARGV[0])
 
 @tables.each_pair do |name, contents|
-  name = name.gsub("_log.tch", "")
-  puts "TAB #{name}"
+  name = name.gsub("_vizlog.tch", "")
   contents.each_pair do |k, v|
     key = Marshal.load(k)
     time = key[0]
