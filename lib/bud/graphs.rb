@@ -356,9 +356,9 @@ var info = new Array()
 var dir = \"#{output_dir}\"
 
 function openWin(target, time) {
-    win = window.open(dir + \"/\" + target + \"_\" + time + \".html\", target, \"width=320,height=210,scrollbars=yes,location=0\");
-    // hm, an associative array, how strange.
-    info[target] = 1
+  win = window.open(dir + \"/\" + target + \"_\" + time + \".html\", target, \"location=no,width=400,height=180,left=0\");
+  // hm, an associative array, how strange.
+  info[target] = 1
 }
 
 function advanceTo(time) {
