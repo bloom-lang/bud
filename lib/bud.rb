@@ -12,15 +12,47 @@ require 'bud/state'
 require 'bud/strat'
 require 'bud/viz'
 
-class Bud
+module BudModule
+  include Anise
+  annotator :declare
+
+  def self.included(o)
+    # Add support for the "declare" annotator to the specified module
+    o.send(:include, Anise)
+    o.send(:annotator, :declare)
+
+    # NB: it would be easy to workaround this by creating an alias for the
+    # user's included method and then calling the alias from our replacement
+    # "included" method.
+    if o.singleton_methods.include? "included"
+      raise "{o} already defines 'included' singleton method!"
+    end
+
+    def o.included(other)
+      RootModule.included(other)
+    end
+
+    def o.state(&block)
+      meth_name = "__#{m}_state".to_sym
+      define_method meth_name &block
+    end
+  end
+
+  # Add support for the "declare" annotator to the specified module
+  def self.setup_anise(o)
+    o.send(:include, Anise)
+    o.send(:annotator, :declare)
+  end
+end
+
+module Bud
   attr_reader :strata, :budtime, :inbound, :options, :provides, :meta_parser, :viz, :server
   attr_accessor :connections
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
 
+  include BudModule
   include BudState
-  include Anise
-  annotator :declare
 
   def initialize(options={})
     @tables = {}
