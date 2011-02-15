@@ -21,8 +21,8 @@ module BudModule
     # Transform "state" blocks (calls to a module module of that name) into
     # instance methods with a special name.
     def o.state(&block)
-      meth_name = "__#{m}_state".to_sym
-      define_method meth_name &block
+      meth_name = "__#{self}__state".to_sym
+      define_method(meth_name, &block)
     end
 
     # NB: it would be easy to workaround this by creating an alias for the
@@ -74,9 +74,13 @@ class Bud
     # number may not be known until we start EM
 
     self.class.ancestors.each do |anc|
-      @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact if anc.methods.include? 'annotation'
+      if anc.methods.include? 'annotation'
+        @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact
+      end
     end
     @declarations.uniq!
+
+    @state_methods = lookup_state_methods
 
     init_state
     bootstrap
@@ -105,6 +109,17 @@ class Bud
       block = eval "lambda { #{rs} }"
       @strata << block
     end
+  end
+
+  def lookup_state_methods
+    rv = []
+    self.class.ancestors.each do |anc|
+      meth_name = anc.instance_methods.find {|m| m == "__#{anc}__state"}
+      if meth_name
+        rv << self.method(meth_name.to_sym)
+      end
+    end
+    rv
   end
 
   ########### give empty defaults for these
@@ -302,7 +317,8 @@ class Bud
     @tc_tables.each_value { |t| t.flush }
   end
 
-  def builtin_state
+  # Builtin BUD state (predefined collections)
+  state {
     channel  :localtick, [:col1]
     terminal :stdio
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
@@ -314,12 +330,15 @@ class Bud
     table :t_provides, [:interface] => [:input]
     table :t_stratum, [:predicate] => [:stratum]
     table :t_cycle, [:predicate, :via, :neg, :temporal]
-  end
+  }
 
   def init_state
     # For every state declaration, either define a new collection instance
     # (first time seen) or tick the collection to advance to the next time step.
-    builtin_state
+    @state_methods.each do |s|
+      s.call
+    end
+    # XXX: old syntax
     state
   end
 
