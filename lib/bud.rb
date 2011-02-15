@@ -85,8 +85,10 @@ module Bud
 
     init_state
     bootstrap
-    @viz = Viz.new(self)
-    @viz.prepare_viz
+   
+    if @options[:visualize] 
+      @viz = VizOnline.new(self)
+    end
 
     # Make sure that new_delta tuples from bootstrap rules are transitioned into
     # storage before first tick.
@@ -127,11 +129,6 @@ module Bud
   def do_rewrite
     @meta_parser = BudMeta.new(self, @declarations)
     @rewritten_strata = @meta_parser.meta_rewrite
-
-    if @options[:visualize]
-      @viz.visualize(@meta_parser.strat_state, "#{self.class}_gvoutput",
-                     @meta_parser.rules, @meta_parser.depanalysis)
-    end
   end
 
   ######## methods for controlling execution
@@ -314,6 +311,14 @@ module Bud
     channel  :localtick, [:col1]
     terminal :stdio
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
+    
+    # for BUD reflection
+    table :t_rules, [:rule_id] => [:lhs, :op, :src]
+    table :t_depends, [:rule_id, :lhs, :op, :body] => [:nm]
+    table :t_depends_tc, [:head, :body, :via, :neg, :temporal]
+    table :t_provides, [:interface] => [:input]
+    table :t_stratum, [:predicate] => [:stratum]
+    table :t_cycle, [:predicate, :via, :neg, :temporal]
   end
 
   def init_state
@@ -332,7 +337,7 @@ module Bud
     end
 
     @strata.each { |strat| stratum_fixpoint(strat) }
-    @viz.do_cards
+    @viz.do_cards if @options[:visualize]
     do_flush
     @budtime += 1
   end

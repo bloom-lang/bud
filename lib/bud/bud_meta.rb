@@ -10,7 +10,7 @@ require 'parse_tree'
 
 class BudMeta
   include BudState
-  attr_reader :rules, :provides, :strat_state, :depanalysis, :depends
+  attr_reader :rules, :provides, :depanalysis, :depends
 
   def initialize(bud_instance, declarations)
     # need: provides, options, declarations, class, tables, self for viz
@@ -27,38 +27,34 @@ class BudMeta
     # however, we can still pass the "string" code of bud modules
     # to ruby_parse (but not the "live" class)
     @defns = []
-    @shredded_rules = shred_rules
-    @strat_state = stratify
-    fst = @strat_state.top_strat.first
-    top = fst.nil? ? 1 : fst.stratum
-    smap = binaryrel2map(@strat_state.stratum)
+    shred_rules
+    top = stratify
+    smap = binaryrel2map(@bud_instance.t_stratum)
 
     done = {}
     @rewritten_strata = []
     (0..top).each{ |i| @rewritten_strata[i] = "" } 
-    @rules.sort{|a, b| oporder(a[2]) <=> oporder(b[2])}.each do |d|
+    @bud_instance.t_rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
       # joins may have to be re-stated
-      belongs_in = smap[d[1]]
+      belongs_in = smap[d.lhs]
       belongs_in = 0 if belongs_in.nil?
-      unless done[d[0]]
-        if d[2] == "=" 
+      unless done[d.rule_id]
+        if d.op == "=" 
           (belongs_in..top).each do |i|
-            @rewritten_strata[i] += "\n" + d[3]
+            @rewritten_strata[i] += "\n" + d.src
           end
         else
-          @rewritten_strata[belongs_in] += "\n" + d[3]
+          @rewritten_strata[belongs_in] += "\n" + d.src
         end
       end
-      done[d[0]] = true
+      done[d.rule_id] = true
     end
 
     @depanalysis = DepAnalysis.new
-    @strat_state.depends_tc.each{|d| @depanalysis.depends_tc << d }
-    @bud_instance.provides.each{|p| @depanalysis.providing << p}
+    @bud_instance.t_depends_tc.each{|d| @depanalysis.depends_tc << d }
+    @bud_instance.t_provides.each{|p| @depanalysis.providing << p}
     3.times { @depanalysis.tick }
     @depanalysis.underspecified.each{|u| puts "UNDERSPECIFIED: #{u.inspect}"}
-    
-    ##visualize(@strat_state, "#{self.class}_gvoutput", @shredded_rules, @depanalysis) if @bud_instance.options[:visualize]
     dump_rewrite if @bud_instance.options[:dump]
     return @rewritten_strata
   end
@@ -157,10 +153,10 @@ class BudMeta
     
     rulebag.each_pair do |k,v| 
       v.rules.each do |r|
-        @rules << r 
+        @bud_instance.t_rules << r
       end
       v.depends.each do |d|
-        @depends << d 
+        @bud_instance.t_depends << d
       end
     end
   end
@@ -179,17 +175,26 @@ class BudMeta
   def stratify
     strat = Stratification.new
     strat.tick
-
     @bud_instance.tables.each do |t|
       strat.tab_info << [t[0].to_s, t[1].class, t[1].schema.length]
     end
 
-    @depends.each do |d|
+    @bud_instance.t_depends.each do |d|
       strat.depends << d
     end
 
     strat.tick
-    return strat
+    strat.stratum.each do |s|
+      @bud_instance.t_stratum << s      
+    end
+    strat.depends_tc.each{|d| @bud_instance.t_depends_tc << d }
+    strat.cycle.each{|c| @bud_instance.t_cycle << c }
+    if strat.top_strat.length > 0
+      top = strat.top_strat.first.stratum
+    else
+      top = 1 
+    end
+    return top
   end
 
   def oporder(op)
