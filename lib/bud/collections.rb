@@ -19,8 +19,9 @@ class Bud
     attr_reader :tabname, :bud_instance, :storage, :delta, :new_delta
 
     # The user-specified schema might come in two forms: a hash of Array =>
-    # Array, or simply an Array (if no keys were specified). Return a pair:
-    # [list of columns in entire tuple, list of key columns]
+    # Array (keys => remaining columns), or simply an Array of columns (if no
+    # keys were specified). Return a pair: [list of columns in entire tuple,
+    # list of key columns]
     def parse_schema(user_schema)
       if user_schema.respond_to? :keys
         raise BudError, "invalid schema for #{tabname}" if user_schema.length != 1
@@ -169,6 +170,8 @@ class Bud
       return true
     end
 
+    # assumes that key is in storage or delta, but not both
+    # is this enforced in do_insert?
     def [](key)
       return @storage[key].nil? ? @delta[key] : @storage[key]
     end
@@ -197,6 +200,10 @@ class Bud
       return if o.nil? or o.empty?
 
       keycols = keys.map{|k| o[schema.index(k)]}
+      # XXX should this be self[keycols?]
+      # but what about if we're not calling on store = @storage?
+      # probably pk should be tested by the caller of this routing
+      # XXX please check in some key violation tests!!
       old = store[keycols]
       raise_pk_error(o, old) unless old.nil? or old == o
 
