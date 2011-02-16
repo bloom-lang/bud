@@ -15,6 +15,9 @@ Main deficiencies at this point are:
 - No test harness.  Currently just Ruby's builtin test harness.  Need something
   better suited to Bud.
 
+- Compatibility: BUD only works with Ruby (MRI) 1.8. MRI 1.9 and other Ruby
+  implementations are currently not supported.
+
 To install:
     % gem build bud.gemspec
     % sudo gem install bud-0.0.1.gem
