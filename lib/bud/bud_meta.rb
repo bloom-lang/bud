@@ -1,12 +1,8 @@
-require 'rubygems'
-
-require 'bud/depanalysis'
 require 'bud/provenance'
 require 'bud/rewrite'
 require 'bud/graphs'
 require 'bud/state'
 require 'parse_tree'
-
 
 class BudMeta
   include BudState
@@ -51,7 +47,7 @@ class BudMeta
     end
 
     @depanalysis = DepAnalysis.new
-    @bud_instance.t_depends_tc.each{|d| @depanalysis.depends_tc << d }
+    @bud_instance.t_depends_tc.each{|d| @depanalysis.depends_tc << d}
     @bud_instance.t_provides.each{|p| @depanalysis.providing << p}
     3.times { @depanalysis.tick }
     @depanalysis.underspecified.each{|u| puts "UNDERSPECIFIED: #{u.inspect}"}

@@ -3,13 +3,13 @@ require 'anise'
 require 'eventmachine'
 require 'msgpack'
 require 'superators'
+
 require 'bud/aggs'
 require 'bud/bud_meta'
 require 'bud/collections'
 require 'bud/errors'
 require 'bud/server'
 require 'bud/state'
-require 'bud/strat'
 require 'bud/viz'
 
 module BudModule
@@ -88,6 +88,11 @@ class Bud
     init_state
     bootstrap
 
+    # NB: Somewhat hacky. Dependency analysis and stratification are implemented
+    # by Bud programs, so in order for those programs to parse, we need the
+    # "Bud" class to have been defined first.
+    require 'bud/depanalysis'
+    require 'bud/strat'
     if @options[:visualize]
       @viz = VizOnline.new(self)
     end
