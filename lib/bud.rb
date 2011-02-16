@@ -122,7 +122,11 @@ class Bud
 
   def lookup_state_methods
     rv = []
-    self.class.ancestors.each do |anc|
+
+    # Note that we traverse the ancestor hierarchy from root => leaf. This helps
+    # support a common idiom: the schema of a table in a child module/class
+    # might be defined in terms of an inherited schema.
+    self.class.ancestors.reverse.each do |anc|
       meth_name = anc.instance_methods.find {|m| m == "__#{anc}__state"}
       if meth_name
         rv << self.method(meth_name.to_sym)
