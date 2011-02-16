@@ -2,7 +2,7 @@ require 'test_common'
 require 'fileutils'
 
 class TcTest < Bud
-  def state
+  state {
     tctable :t1, [:k1, :k2] => [:v1, :v2]
     table :in_buf, [:k1, :k2, :v1, :v2]
     table :del_buf, [:k1, :k2, :v1, :v2]
@@ -19,7 +19,7 @@ class TcTest < Bud
     tctable :join_t2, [:k] => [:v1, :v2]
     scratch :cart_prod, [:k, :v1, :v2]
     scratch :join_res, [:k] => [:v1, :v2]
-  end
+  }
 
   declare
   def logic

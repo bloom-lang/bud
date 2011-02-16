@@ -8,10 +8,10 @@ class Paths < Bud
     super()
   end
 
-  def state
+  state {
     table :link, ['from', 'to']
     table :path, ['from', 'to']
-  end
+  }
 
   declare
   def program
@@ -35,11 +35,10 @@ class PathsDelta < Paths
     super()
   end
 
-  def state
-    super
+  state {
     scratch :d_link, ['from', 'to']
     scratch :d_path, ['from', 'to']
-  end
+  }
 
   declare
   def program
@@ -68,11 +67,10 @@ class PathsDelta < Paths
 end
 
 class PathsDeltaIndirected < PathsDelta
-  def state
-    super
+  state {
     table :n_link, ['from', 'to']
     table :n_path, ['from', 'to']
-  end
+  }
 
   declare
   def program

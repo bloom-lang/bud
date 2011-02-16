@@ -2,17 +2,14 @@ require 'rubygems'
 require 'bud'
 
 class DepAnalysis < Bud
-  include Anise
-  annotator :declare
-
-  def state
+  state {
     table :providing, [:pred, :input]
     table :depends_tc, [:head, :body, :via, :neg, :temporal]
     table :underspecified, [:pred, :input]
 
     table :source, [:pred]
     table :sink, [:pred]
-  end
+  }
 
   declare
   def next_s

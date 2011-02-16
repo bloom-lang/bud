@@ -16,11 +16,11 @@ class PingPong < Bud
     @otherloc = (@myloc == loc1) ? loc2 : loc1
   end
 
-  def state
+  state {
     channel :pipe, [:@otherloc, :myloc, :msg, :wall, :bud]
     table   :pingbuf, [:otherloc, :myloc, :msg, :wall, :bud]
     periodic :timer, ARGV[1]
-  end
+  }
 
   def bootstrap
     if ARGV[2]

@@ -15,6 +15,9 @@ Main deficiencies at this point are:
 - No test harness.  Currently just Ruby's builtin test harness.  Need something
   better suited to Bud.
 
+- Compatibility: BUD only works with Ruby (MRI) 1.8. MRI 1.9 and other Ruby
+  implementations are currently not supported.
+
 To install:
     % gem build bud.gemspec
     % sudo gem install bud-0.0.1.gem
@@ -30,7 +33,7 @@ To run a "ping-pong" example, see instructions in examples/other/pingpong.rb
 Optional Dependencies
 =====================
 
-The bud gem depends on a handful of mandatory depencies. It also has some
+The bud gem depends on a handful of mandatory dependencies. It also has some
 optional dependencies: if you wish to use the Bud collections backed by Tokyo
 Cabinet or Zookeeper ("tctable" and "zktable" collection types, respectively),
 the "tokyocabinet" and/or "zookeeper" gems must be installed.

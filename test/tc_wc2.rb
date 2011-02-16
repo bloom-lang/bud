@@ -10,11 +10,11 @@ class WordCount2 < Bud
     @pattern = pattern
   end
   
-  def state
+  state {
     file_reader :txt, '../examples/chap2/ulysses.txt'
     scratch :words, [:lineno, :wordno] => [:word]
     scratch :wc, [:word] => [:cnt]
-  end
+  }
   
   declare 
   def program

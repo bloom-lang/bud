@@ -1,7 +1,7 @@
 require 'test_common'
 
 class LocalShortestPaths < Bud
-  def state
+  state {
     table :link, [:from, :to, :cost]
     table :link2, [:from, :to, :cost]
     table :empty, [:ident]
@@ -9,7 +9,7 @@ class LocalShortestPaths < Bud
     table :shortest, [:from, :to] => [:next, :cost]
     table :minz, [:cost]
     table :minmaxsumcntavg, [:from, :to] => [:mincost, :maxcost, :sumcost, :cnt, :avgcost]
-  end
+  }
 
   declare
   def program
@@ -28,12 +28,12 @@ class LocalShortestPaths < Bud
 end
 
 class KTest < Bud
-  def state
+  state {
     interface input, :upd, [:datacol]
     interface input, :req, [:ident]
     interface output, :resp, [:ident, :datacol]
     table :mystate, [:datacol]
-  end
+  }
 
   declare
   def update

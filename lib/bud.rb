@@ -3,14 +3,46 @@ require 'anise'
 require 'eventmachine'
 require 'msgpack'
 require 'superators'
+
 require 'bud/aggs'
 require 'bud/bud_meta'
 require 'bud/collections'
 require 'bud/errors'
 require 'bud/server'
 require 'bud/state'
-require 'bud/strat'
 require 'bud/viz'
+
+module BudModule
+  def self.included(o)
+    # Add support for the "declare" annotator to the specified module
+    o.send(:include, Anise)
+    o.send(:annotator, :declare)
+
+    # Transform "state" blocks (calls to a module module of that name) into
+    # instance methods with a special name.
+    def o.state(&block)
+      meth_name = "__#{self}__state".to_sym
+      define_method(meth_name, &block)
+    end
+
+    # NB: it would be easy to workaround this by creating an alias for the
+    # user's included method and then calling the alias from our replacement
+    # "included" method.
+    if o.singleton_methods.include? "included"
+      # XXX: If o is a subclass of Bud, it already has a definition of the
+      # included method, so avoid complaining or defining a duplicate.
+      # return if o < Bud
+      # raise "#{o} already defines 'included' singleton method!"
+      return
+    end
+
+    # If Module X includes BudModule and Y includes X, we want BudModule's
+    # "included" method to be invoked for both X and Y.
+    def o.included(other)
+      BudModule.included(other)
+    end
+  end
+end
 
 class Bud
   attr_reader :strata, :budtime, :inbound, :options, :provides, :meta_parser, :viz, :server
@@ -18,9 +50,8 @@ class Bud
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
 
+  include BudModule
   include BudState
-  include Anise
-  annotator :declare
 
   def initialize(options={})
     @tables = {}
@@ -47,14 +78,23 @@ class Bud
     # number may not be known until we start EM
 
     self.class.ancestors.each do |anc|
-      @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact if anc.methods.include? 'annotation'
+      if anc.methods.include? 'annotation'
+        @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact
+      end
     end
     @declarations.uniq!
 
+    @state_methods = lookup_state_methods
+
     init_state
     bootstrap
-   
-    if @options[:visualize] 
+
+    # NB: Somewhat hacky. Dependency analysis and stratification are implemented
+    # by Bud programs, so in order for those programs to parse, we need the
+    # "Bud" class to have been defined first.
+    require 'bud/depanalysis'
+    require 'bud/strat'
+    if @options[:visualize]
       @viz = VizOnline.new(self)
     end
 
@@ -78,6 +118,17 @@ class Bud
       block = eval "lambda { #{rs} }"
       @strata << block
     end
+  end
+
+  def lookup_state_methods
+    rv = []
+    self.class.ancestors.each do |anc|
+      meth_name = anc.instance_methods.find {|m| m == "__#{anc}__state"}
+      if meth_name
+        rv << self.method(meth_name.to_sym)
+      end
+    end
+    rv
   end
 
   ########### give empty defaults for these
@@ -275,11 +326,14 @@ class Bud
     @tc_tables.each_value { |t| t.flush }
   end
 
+  # Builtin BUD state (predefined collections). We could define this using the
+  # standard "state" syntax, but we want to ensure that builtin state is
+  # initialized before user-defined state.
   def builtin_state
     channel  :localtick, [:col1]
     terminal :stdio
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
-    
+
     # for BUD reflection
     table :t_rules, [:rule_id] => [:lhs, :op, :src]
     table :t_depends, [:rule_id, :lhs, :op, :body] => [:nm]
@@ -293,7 +347,11 @@ class Bud
     # For every state declaration, either define a new collection instance
     # (first time seen) or tick the collection to advance to the next time step.
     builtin_state
+    # XXX: old syntax
     state
+    @state_methods.each do |s|
+      s.call
+    end
   end
 
   def tick
