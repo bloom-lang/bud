@@ -1,6 +1,8 @@
 require 'test_common'
 
-class ParentBud < Bud
+class ParentBud
+  include Bud
+
   state {
     table :tbl, [:k] => [:v]
   }

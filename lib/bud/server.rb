@@ -1,6 +1,6 @@
 require 'socket'
 
-class Bud
+module Bud
   ######## the EventMachine server for handling network and timers
   class BudServer < EM::Connection
     def initialize(bud)

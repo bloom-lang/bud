@@ -44,7 +44,7 @@ module BudModule
   end
 end
 
-class Bud
+module Bud
   attr_reader :strata, :budtime, :inbound, :options, :provides, :meta_parser, :viz, :server
   attr_accessor :connections
   attr_reader :tables, :ip, :port

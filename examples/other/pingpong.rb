@@ -7,7 +7,9 @@
 require 'rubygems'
 require 'bud'
 
-class PingPong < Bud
+class PingPong
+  include Bud
+
   def initialize(opt)
     super
     @myloc = "#{opt[:ip]}:#{opt[:port]}"

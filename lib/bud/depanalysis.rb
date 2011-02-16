@@ -1,7 +1,9 @@
 require 'rubygems'
 require 'bud'
 
-class DepAnalysis < Bud
+class DepAnalysis
+  include Bud
+
   state {
     table :providing, [:pred, :input]
     table :depends_tc, [:head, :body, :via, :neg, :temporal]

@@ -1,7 +1,9 @@
 require 'test_common'
 require 'backports'
 
-class Nesting < Bud
+class Nesting
+  include Bud
+
   state {
     table :nested_people, [:p_id, :firstname, :lastname, :hobbies]
     table :has_hobby, [:person_id, :name]
@@ -33,7 +35,7 @@ class Nesting < Bud
   declare
   def structured_nesting
     np2 <= meta.flat_map do |m|
-      m.tab.map{ |t| [t.firstname, t.lastname, t.hobbies] if m.name == 'nested_people'}
+      m.tab.map {|t| [t.firstname, t.lastname, t.hobbies] if m.name == 'nested_people'}
     end
   end
 end

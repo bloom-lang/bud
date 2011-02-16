@@ -3,7 +3,7 @@ require 'rubygems'
 require 'bud/rewrite'
 require 'parse_tree'
 
-class Bud
+module Bud
   # stringy provenance implementation: store a derivation tree at tuple granularity.
   # later, pretty-print it.
 
