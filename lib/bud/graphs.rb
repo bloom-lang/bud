@@ -124,11 +124,9 @@ class GraphGen
     if !@nodes[node]
       @nodes[node] = @graph.add_node(node)
       if @cards and @cards[node]
-        #@nodes[node].label = node + "\n (<IMG SRC=\"" + @cards[node].to_s + "\">)"
-        @nodes[node].label = node + "\n (#{@cards[node].to_s})"
-        #@nodes[node].label = "<html>" + node + "<table><tr><td>1</td></tr></table> \n (#{@cards[node].to_s}) </html>"
-        #@nodes[node].image = @cards[node].to_s 
-        @nodes[node].imagescale = "both"
+        @nodes[node].label = node #+ "\n (#{@cards[node].to_s})"
+        puts "IMAGE IS #{@cards[node]}"
+        @nodes[node].image = @cards[node]
       end
   
       #@nodes[node].URL = "#{output_dir}/#{node}_#{@budtime}.html" 
@@ -218,7 +216,7 @@ class GraphGen
     @nodes["T"].penwidth = 3
 
     @tabinf.each_pair do |k, v|
-      unless @nodes[name_of(k.to_s)] or k.to_s =~ /_tbl/ or @internals[k.to_s]
+      unless @nodes[name_of(k.to_s)] or k.to_s =~ /_tbl/ or @internals[k.to_s] or (k.to_s =~ /^t_/ and @budtime != 0)
         addonce(k.to_s, false)
       end
     end
@@ -356,7 +354,7 @@ var info = new Array()
 var dir = \"#{output_dir}\"
 
 function openWin(target, time) {
-  win = window.open(dir + \"/\" + target + \"_\" + time + \".html\", target, \"location=no,width=400,height=180,left=0\");
+  win = window.open(dir + \"/\" + target + \"_\" + time + \".html\", target, \"location=no,width=400,height=180,left=0,status=no\");
   // hm, an associative array, how strange.
   info[target] = 1
 }
