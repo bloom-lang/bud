@@ -21,8 +21,8 @@ class VizOnline
       next if t[0].to_s =~ /_vizlog\z/
       news = [:c_bud_time]
       @table_schema << [t[0], :c_bud_time, 0] #unless t[1].schema[0] == :bud_time
-      t[1].schema.each_with_index do |s, i| 
-        news << s 
+      t[1].schema.each_with_index do |s, i|
+        news << s
         @table_schema << [t[0], s, i+1]
       end
       lt = "#{t[0]}_vizlog".to_sym
@@ -32,9 +32,9 @@ class VizOnline
   end
 
   def new_tab(name, schema, instance)
-      ret = Bud::BudTcTable.new(name, schema, instance)
-      instance.tables[name] = ret
-      return ret
+    ret = Bud::BudTcTable.new(name, schema, instance)
+    instance.tables[name] = ret
+    return ret
   end
 
   def do_cards

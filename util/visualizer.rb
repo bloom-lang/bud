@@ -25,7 +25,7 @@ class VizHelper < Bud
     super()
   end
 
-  declare 
+  declare
   def counting
     cardinalities <= full_info.group([full_info.bud_time, full_info.table], count)
     times <= full_info.map{|f| [f.bud_time]}
@@ -52,14 +52,14 @@ class VizHelper < Bud
           card_info[card.table] = card.cnt
         end
       end
-      
+
       gv = GraphGen.new(@t_strata, @t_tabinf, @t_cycle, "#{@dir}/tm_#{time.bud_time}", time.bud_time, 3, @dir, false, nil, card_info)
       gv.process(@t_depends)
       gv.dump(@t_rules)
       gv.finish
-        
+
     end
-    
+
   end
 
   def start_table(dir, tab, time, schema)
@@ -70,7 +70,7 @@ class VizHelper < Bud
     fout.puts "<tr>" + schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>"
     return fout
   end
-  
+
   def end_table(stream)
     stream.puts "</table>"
     stream.close
@@ -156,7 +156,7 @@ vh = VizHelper.new(strata, tabinf, cycle, depends, rules, ARGV[0])
     key = Marshal.load(k)
     time = key[0]
     row = key
-    Marshal.load(v).each{|val| row << val } 
+    Marshal.load(v).each{|val| row << val }
     vh.full_info << [time, name, row]
   end
 end
