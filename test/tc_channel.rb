@@ -1,12 +1,12 @@
 require 'test_common'
 
 class TickleCount < Bud
-  def state
+  state {
     channel :loopback, [:cnt]
     channel :mcast, [:@addr, :cnt]
     table   :result, [:nums]
     table   :mresult, [:nums]
-  end
+  }
 
   def bootstrap
     loopback <~ [[0]]

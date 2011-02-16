@@ -2,12 +2,12 @@ require 'rubygems'
 require 'bud'
 
 class PriorityQ < Bud
-  def state
+  state {
     table :q, [:item] => [:priority]
     scratch :out, [:item] => [:priority]
     scratch :minny, [:priority]
     scratch :out2, [:item] => [:priority]
-  end
+  }
 
   def bootstrap
     q << ['c', 2]

@@ -29,7 +29,7 @@ module BudModule
     # user's included method and then calling the alias from our replacement
     # "included" method.
     if o.singleton_methods.include? "included"
-      raise "{o} already defines 'included' singleton method!"
+      raise "#{o} already defines 'included' singleton method!"
     end
 
     # If Module X includes BudModule and Y includes X, we want BudModule's
@@ -84,8 +84,8 @@ class Bud
 
     init_state
     bootstrap
-   
-    if @options[:visualize] 
+
+    if @options[:visualize]
       @viz = VizOnline.new(self)
     end
 
@@ -317,12 +317,14 @@ class Bud
     @tc_tables.each_value { |t| t.flush }
   end
 
-  # Builtin BUD state (predefined collections)
-  state {
+  # Builtin BUD state (predefined collections). We could define this using the
+  # standard "state" syntax, but we want to ensure that builtin state is
+  # initialized before user-defined state.
+  def builtin_state
     channel  :localtick, [:col1]
     terminal :stdio
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
-    
+
     # for BUD reflection
     table :t_rules, [:rule_id] => [:lhs, :op, :src]
     table :t_depends, [:rule_id, :lhs, :op, :body] => [:nm]
@@ -330,16 +332,17 @@ class Bud
     table :t_provides, [:interface] => [:input]
     table :t_stratum, [:predicate] => [:stratum]
     table :t_cycle, [:predicate, :via, :neg, :temporal]
-  }
+  end
 
   def init_state
     # For every state declaration, either define a new collection instance
     # (first time seen) or tick the collection to advance to the next time step.
+    builtin_state
+    # XXX: old syntax
+    state
     @state_methods.each do |s|
       s.call
     end
-    # XXX: old syntax
-    state
   end
 
   def tick
