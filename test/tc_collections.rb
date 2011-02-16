@@ -56,10 +56,10 @@ class Grep < Bud
     @pattern = pattern
   end
 
-  def state
+  state {
     file_reader :text, '../examples/chap2/ulysses.txt'
     table :matches, [:lineno, :text]
-  end
+  }
 
   declare
   def program

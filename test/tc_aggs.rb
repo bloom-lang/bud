@@ -85,10 +85,10 @@ class DupAggs < Bud
 end
 
 class Rename < Bud
-  def state
+  state {
     table :emp, [:ename, :dname] => [:sal]
     table :shoes, [:dname] => [:usualsal]
-  end
+  }
 
   def bootstrap
     emp << ['joe', 'shoe', 10]

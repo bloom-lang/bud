@@ -34,12 +34,12 @@ class TestTickle < Test::Unit::TestCase
 end
 
 class RingMember < Bud
-  def state
+  state {
     channel :pipe, [:@addr, :cnt]
     scratch :kickoff, [:cnt]
     table :next_guy, [:addr]
     table :last_cnt, [:cnt]
-  end
+  }
 
   declare
   def ring_msg
