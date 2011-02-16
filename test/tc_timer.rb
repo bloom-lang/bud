@@ -1,10 +1,10 @@
 require 'test_common'
 
 class TemporalBudTest < Bud
-  def state
+  state {
     periodic :tik, 0.1
     table :log, [:ident, :time]
-  end
+  }
 
   declare 
   def logic

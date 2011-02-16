@@ -29,6 +29,9 @@ module BudModule
     # user's included method and then calling the alias from our replacement
     # "included" method.
     if o.singleton_methods.include? "included"
+      # XXX: If o is a subclass of Bud, it already has a definition of the
+      # included method, so avoid complaining or defining a duplicate.
+      return if o < Bud
       raise "#{o} already defines 'included' singleton method!"
     end
 

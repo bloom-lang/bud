@@ -1,9 +1,9 @@
 require 'test_common'
 
 class ParentBud < Bud
-  def state
+  state {
     table :tbl, [:k] => [:v]
-  end
+  }
   
   declare
   def bundle
@@ -12,12 +12,12 @@ class ParentBud < Bud
 end
 
 class ChildBud < ParentBud
+  # Test overriding
   declare
   def bundle
     tbl << [2, 'b']
   end
 end
-
 
 class TestSubclass < Test::Unit::TestCase
   def test_override

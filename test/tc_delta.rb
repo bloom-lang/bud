@@ -1,11 +1,11 @@
 require 'test_common'
 
 class DeltaTest < Bud
-  def state
+  state {
     table :orig, [:k1, :k2] => [:v1, :v2]
     scratch :scr, [:k1, :k2]
     table :result, [:k1, :k2] => [:v1, :v2]
-  end
+  }
 
   def bootstrap
     orig <= [['a', 'b', 1, 2]]
@@ -20,12 +20,13 @@ class DeltaTest < Bud
 end
 
 class DeltaJoinTest < Bud
-  def state
+  state {
     table :orig, [:from, :to]
     scratch :link, [:from, :to]
     scratch :path, [:from, :to]
     scratch :hashpath, [:from, :to]
-  end
+  }
+
   def bootstrap
     orig <= [['a', 'b'], ['b', 'c'], ['c', 'd']]
   end
@@ -41,13 +42,14 @@ class DeltaJoinTest < Bud
 end
 
 class Delta3JoinTest < Bud
-  def state
+  state {
     table :orig, [:from, :to]
     table :wanted, [:node]
     scratch :link, [:from, :to]
     scratch :path, [:from, :to]
     scratch :hashpath, [:from, :to]
-  end
+  }
+
   def bootstrap
     orig <= [['a', 'b'], ['b', 'c'], ['c', 'd']]
     wanted <= [['a'], ['b'], ['c']]

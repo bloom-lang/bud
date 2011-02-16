@@ -2,14 +2,14 @@ require 'test_common'
 require 'backports'
 
 class Nesting < Bud
-  def state
+  state {
     table :nested_people, [:p_id, :firstname, :lastname, :hobbies]
     table :has_hobby, [:person_id, :name]
     table :meta, [:name, :tab]
     scratch :flat, [:p_id, :firstname, :lastname, :hobby]
     scratch :renested, nested_people.keys => nested_people.cols
     scratch :np2, [:firstname, :lastname, :hobbies]
-  end
+  }
 
   def bootstrap
     nested_people <= [[1, 'Nick', 'Machiavelli', ['scheming', 'books']]]

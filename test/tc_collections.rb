@@ -1,11 +1,11 @@
 require 'test_common'
 
 class BabyBud < Bud
-  def state
+  state {
     scratch :scrtch, [:k1, :k2] => [:v1, :v2]
     scratch :scrtch2, [:k1, :k2]
     table :tbl, [:k1, :k2] => [:v1, :v2]
-  end
+  }
 
   def bootstrap
     scrtch <= [['a', 'b', 1, 2]]
@@ -24,9 +24,9 @@ class BabyBud < Bud
 end
 
 class DupKeyBud < Bud
-  def state
+  state {
     scratch :tab, [:k] => [:name]
-  end
+  }
 
   declare
   def program
@@ -36,16 +36,16 @@ class DupKeyBud < Bud
 end
 
 class DupTableBud < Bud
-  def state
+  state {
     scratch :s, [:k]
     scratch :s, [:l]
-  end
+  }
 end
 
 class DupColBud < Bud
-  def state
+  state {
     scratch :silly, [:a, :a]
-  end
+  }
 end
 
 class Grep < Bud
@@ -68,11 +68,11 @@ class Grep < Bud
 end
 
 class Union < Bud
-  def state
+  state {
     table :link, [:from, :to, :cost]
     table :delta_link, [:from, :to, :cost]
     table :union, [:from, :to, :cost]
-  end
+  }
 
   def bootstrap
     link <= [['a', 'b', 1]]
@@ -86,10 +86,10 @@ class Union < Bud
 end
 
 class DeleteKey < Bud
-  def state
+  state {
     table :t1, [:k] => [:v]
     table :del_buf, [:k, :v]
-  end
+  }
 
   def bootstrap
     t1 << [5, 10]
@@ -102,12 +102,12 @@ class DeleteKey < Bud
 end
 
 class RowValueTest < Bud
-  def state
+  state {
     table :t1, [:k] => [:v]
     table :t2, [:k] => [:v]
     table :t3, [:k] => [:v]
     table :t4, [:k] => [:v]
-  end
+  }
 
   declare
   def rules
