@@ -31,8 +31,9 @@ module BudModule
     if o.singleton_methods.include? "included"
       # XXX: If o is a subclass of Bud, it already has a definition of the
       # included method, so avoid complaining or defining a duplicate.
-      return if o < Bud
-      raise "#{o} already defines 'included' singleton method!"
+      # return if o < Bud
+      # raise "#{o} already defines 'included' singleton method!"
+      return
     end
 
     # If Module X includes BudModule and Y includes X, we want BudModule's
