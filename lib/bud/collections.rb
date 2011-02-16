@@ -170,6 +170,8 @@ module Bud
       return true
     end
 
+    # assumes that key is in storage or delta, but not both
+    # is this enforced in do_insert?
     def [](key)
       return @storage[key].nil? ? @delta[key] : @storage[key]
     end
@@ -198,6 +200,10 @@ module Bud
       return if o.nil? or o.empty?
 
       keycols = keys.map{|k| o[schema.index(k)]}
+      # XXX should this be self[keycols?]
+      # but what about if we're not calling on store = @storage?
+      # probably pk should be tested by the caller of this routing
+      # XXX please check in some key violation tests!!
       old = store[keycols]
       raise_pk_error(o, old) unless old.nil? or old == o
 

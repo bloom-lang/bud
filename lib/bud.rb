@@ -384,31 +384,30 @@ module Bud
   def stratum_fixpoint(strat)
     # This routine uses semi-naive evaluation to compute
     # a fixpoint of the rules in strat.
-    # We *almost* have semi-naive evaluation working.
-    # at end of each iteration of this loop we transition:
-    # - delta tuples move into storage
-    # - new_delta moves to delta
-    # - new_delta is set to empty
-    # (see BudCollection for a description of the 4 partitions
-    #  of tuples within a collection.)
-    # This scheme does semi-naive eval for Join.map
-    # because the join.each code understands
-    # the diff between storage and delta.
-    # But calling map on a non-join collection goes through both
+    #
+    # As described in lib/collections.rb, each collection has three
+    # sub-collections of note here:
+    #   @storage: the "main" storage of tuples
+    #   @delta: tuples that should be used to drive derivation of new facts
+    #   @new_delta: a place to store newly-derived facts
+    #
+    # The first time through this loop we mark @stratum_first_iter=true,
+    # while tells the Join::each code to join up all its @storage subcollections
+    # to start. In subsequent iterations the join code uses some table's @delta
+    # to ensure that only new tuples are derived.
+    #
+    # Note that calling "each" on a non-Join collection will iterate through both
     # storage and delta.
-
-    # XXX
-    # To use deltas for all Collections (not just Join), we would
-    # need Collection.each to understand that on iteration 1 of a
-    # fixpoint, it should use storage for all predicates, but
-    # on iterations 2..n of a fixpoint, it should use
-    # deltas for predicates that appear in lhs in this stratum,
-    # and use storage for predicates that appear in lower strata.
-    # XXX
-    # another performance optimization would be to bypass the delta
-    # tables for any preds that don't participate in an rhs -- in that
-    # case the deltas just end up requiring pointless extra tuple movement
-
+    #
+    # At the end of each iteration of this loop we transition:
+    # - @delta tuples are merged into @storage
+    # - @new_delta tuples are moved into @delta
+    # - @new_delta is set to empty
+    #
+    # XXX as a performance optimization, it would be nice to bypass the delta
+    # tables for any preds that don't participate in a rhs Join -- in that
+    # case there's pointless extra tuple movement letting tuples "graduate" 
+    # through @new_delta and @delta.
 
     # In semi-naive, the first iteration should join up tables
     # on their storage fields; subsequent iterations do the
@@ -418,9 +417,9 @@ module Bud
     begin
       strat.call
       @stratum_first_iter = false
-      # this is overkill.
-      # should call tick_deltas only on predicates in this stratum
-      # and then should appropriately deal with deltas in subsequent strata.
+      # XXX this next line is inefficient.
+      # we could call tick_deltas only on predicates in this stratum.
+      # but it's not easy right now (??) to pull out tables in a given stratum
       @tables.each{|name,coll| coll.tick_deltas}
     end while not @tables.all?{|name,coll| coll.new_delta.empty? and coll.delta.empty?}
   end
