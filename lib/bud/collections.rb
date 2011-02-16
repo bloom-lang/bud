@@ -19,8 +19,9 @@ class Bud
     attr_reader :tabname, :bud_instance, :storage, :delta, :new_delta
 
     # The user-specified schema might come in two forms: a hash of Array =>
-    # Array, or simply an Array (if no keys were specified). Return a pair:
-    # [list of columns in entire tuple, list of key columns]
+    # Array (keys => remaining columns), or simply an Array of columns (if no
+    # keys were specified). Return a pair: [list of columns in entire tuple,
+    # list of key columns]
     def parse_schema(user_schema)
       if user_schema.respond_to? :keys
         raise BudError, "invalid schema for #{tabname}" if user_schema.length != 1
