@@ -47,16 +47,17 @@ class VizHelper < Bud
 
     ts2 = {}
     timeseries.each_pair do |k, v|
-      #taburl = Gchart.(:size => '100x100', :data => v, :axis_with_labels => 'x, y')
+      #taburl = gchart.(:size => '100x100', :data => v, :axis_with_labels => 'x, y')
       puts "TS[#{k}] = #{v.inspect}"
-      taburl = Gchart.line(:data => v, :axis_with_labels => 'x, y')
-      url = URI::parse(taburl)
-      puts "TABURL = #{taburl}"
-      response = Net::HTTP.get_response(url)
-      fn = "#{@dir}/#{k}_timeseries.png"
-      fout = File.new(fn, "w")
-      fout.write response.body
-      fout.close
+      #taburl = gchart.line(:data => v, :axis_with_labels => 'x, y')
+      #url = URI::parse(taburl)
+      #puts "TABURL = #{taburl}"
+      #response = Net::HTTP.get_response(url)
+      #fn = "#{@dir}/#{k}_timeseries.png"
+      #fout = File.new(fn, "w")
+      #fout.write response.body
+      #fout.close
+      fn = v
       puts "GOT #{fn}"
       ts2[k] = "#{ENV['PWD']}/#{fn}"
     end
