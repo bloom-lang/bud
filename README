@@ -33,7 +33,7 @@ To run a "ping-pong" example, see instructions in examples/other/pingpong.rb
 Optional Dependencies
 =====================
 
-The bud gem depends on a handful of mandatory depencies. It also has some
+The bud gem depends on a handful of mandatory dependencies. It also has some
 optional dependencies: if you wish to use the Bud collections backed by Tokyo
 Cabinet or Zookeeper ("tctable" and "zktable" collection types, respectively),
 the "tokyocabinet" and/or "zookeeper" gems must be installed.
