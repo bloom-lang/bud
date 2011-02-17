@@ -1,4 +1,4 @@
-class Bud
+module Bud
   ######## error types  
   class BudError < Exception
   end

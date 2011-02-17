@@ -10,7 +10,7 @@ begin
 rescue LoadError
 end
 
-class Bud
+module Bud
   ######## the collection types
   class BudCollection
     include Enumerable

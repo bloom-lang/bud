@@ -1,6 +1,8 @@
 require 'test_common'
 
-class TickleCount < Bud
+class TickleCount
+  include Bud
+
   state {
     channel :loopback, [:cnt]
     channel :mcast, [:@addr, :cnt]
@@ -33,7 +35,9 @@ class TestTickle < Test::Unit::TestCase
   end
 end
 
-class RingMember < Bud
+class RingMember
+  include Bud
+
   state {
     channel :pipe, [:@addr, :cnt]
     scratch :kickoff, [:cnt]

@@ -1,6 +1,8 @@
 require 'test_common'
 
-class CombosBud < Bud
+class CombosBud
+  include Bud
+
   state {
     table :r, [:x, :y1]
     table :s_tab, [:x, :y1]

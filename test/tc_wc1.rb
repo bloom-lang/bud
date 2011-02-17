@@ -1,8 +1,10 @@
-# simple grep
+# simple word count
 require 'test_common'
 require 'backports'
 
-class WordCount1 < Bud
+class WordCount1
+  include Bud
+
   attr_reader :pattern
   
   def initialize(pattern)

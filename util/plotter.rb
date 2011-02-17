@@ -1,21 +1,25 @@
-require 'rubygems' 
+require 'rubygems'
 require 'bud'
 require 'bud/bud_meta'
 require 'bud/depanalysis'
 
 # args: N, files_n, classes_m
 
+class EmptyBud
+  include Bud
+end
+
 def work
-  # a bit gnarly.  use an empty shell of a bud instance to run 
+  # a bit gnarly.  use an empty shell of a bud instance to run
   # stratification over the composed program...
-  ic = Bud.new(:visualize => 3)
-  @tabinf.each_pair{|k, v| ic.tables[k] = v } 
+  ic = EmptyBud.new(:visualize => 3)
+  @tabinf.each_pair {|k, v| ic.tables[k] = v}
   strat = ic.meta_parser.stratify
 
   dep = DepAnalysis.new
-  strat.depends_tc.each{|d| dep.depends_tc << d; puts "DTC: #{d.inspect}" }
+  strat.depends_tc.each {|d| dep.depends_tc << d; puts "DTC: #{d.inspect}"}
 
-  @provides.each{|p| puts "provide " + p.inspect; dep.providing << p }
+  @provides.each {|p| puts "provide " + p.inspect; dep.providing << p}
   dep.tick
   dep.tick
   dep.tick
@@ -35,17 +39,17 @@ end
 
 def prpr(tab, content)
   puts "#{tab}: "
-  content.each {|c| puts "\t#{c.inspect}" }
+  content.each {|c| puts "\t#{c.inspect}"}
 end
 
 def instant(cls)
   print "try port #{@port}\n\n"
   sleep 1
-  d = eval("class FooBar < Bud\ninclude #{cls}\nend\n FooBar.new(:port => #{@port}, :dump => true, :scoping => false)")
-  d.t_rules.each {|s| @shreddies << s }
-  d.provides.each_pair {|k, v| @provides << [k.to_s, v] } 
-  d.tables.each_pair {|k, v| @tabinf[k] = v }
-  @port = @port + 1
+  d = eval("class FooBar\ninclude Bud\ninclude #{cls}\nend\n FooBar.new(:port => #{@port}, :dump => true, :scoping => false)")
+  d.t_rules.each {|s| @shreddies << s}
+  d.provides.each_pair {|k, v| @provides << [k.to_s, v]}
+  d.tables.each_pair {|k, v| @tabinf[k] = v}
+  @port += 1
 end
 
 @shreddies = []
@@ -57,7 +61,7 @@ files = []
 classes = []
 
 if ARGV.length < 2
-  print "USAGE:\nruby plotter.rb LIST_OF_FILES LIST_OF_MODULES\n"
+  puts "USAGE:\nruby plotter.rb LIST_OF_FILES LIST_OF_MODULES"
   exit
 end
 
@@ -70,12 +74,12 @@ end
   end
 
   unless mods
-    print "DO #{ARGV[i]}\n"
+    puts "DO #{ARGV[i]}"
     eval ( "require \"#{ARGV[i]}\"")
   else
-    print "Work on #{ARGV[i]}\n"
+    puts "Work on #{ARGV[i]}"
     instant(ARGV[i])
-    print "OK\n"
+    puts "OK"
   end
 end
 

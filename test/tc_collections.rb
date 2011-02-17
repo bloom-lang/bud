@@ -1,6 +1,8 @@
 require 'test_common'
 
-class BabyBud < Bud
+class BabyBud
+  include Bud
+
   state {
     scratch :scrtch, [:k1, :k2] => [:v1, :v2]
     scratch :scrtch2, [:k1, :k2]
@@ -23,7 +25,9 @@ class BabyBud < Bud
   end
 end
 
-class DupKeyBud < Bud
+class DupKeyBud
+  include Bud
+
   state {
     scratch :tab, [:k] => [:name]
   }
@@ -35,20 +39,25 @@ class DupKeyBud < Bud
   end
 end
 
-class DupTableBud < Bud
+class DupTableBud
+  include Bud
+
   state {
     scratch :s, [:k]
     scratch :s, [:l]
   }
 end
 
-class DupColBud < Bud
+class DupColBud
+  include Bud
+
   state {
     scratch :silly, [:a, :a]
   }
 end
 
-class Grep < Bud
+class Grep
+  include Bud
   attr_reader :pattern
 
   def initialize(pattern)
@@ -67,7 +76,9 @@ class Grep < Bud
   end
 end
 
-class Union < Bud
+class Union
+  include Bud
+
   state {
     table :link, [:from, :to, :cost]
     table :delta_link, [:from, :to, :cost]
@@ -85,7 +96,9 @@ class Union < Bud
   end
 end
 
-class DeleteKey < Bud
+class DeleteKey
+  include Bud
+
   state {
     table :t1, [:k] => [:v]
     table :del_buf, [:k, :v]
@@ -101,7 +114,9 @@ class DeleteKey < Bud
   end
 end
 
-class RowValueTest < Bud
+class RowValueTest
+  include Bud
+
   state {
     table :t1, [:k] => [:v]
     table :t2, [:k] => [:v]

@@ -35,7 +35,8 @@ module SelectiveMembership
   end
 end
 
-class SimpleClient < Bud
+class SimpleClient
+  include Bud
   include SelectiveMembership
 end
 

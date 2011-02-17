@@ -4,7 +4,9 @@
 require 'rubygems'
 require 'bud'
 
-class ShortestPaths < Bud
+class ShortestPaths
+  include Bud
+
   state {
     table :link, [:from, :to, :cost]
     table :path, [:from, :to, :next, :cost]
