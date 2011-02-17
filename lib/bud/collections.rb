@@ -35,7 +35,7 @@ module Bud
       schema = key_cols + cols
       schema.each do |s|
         if s.class != Symbol
-          raise "Invalid schema element \"#{s}\", type \"#{s.class}\""
+          raise BudError, "Invalid schema element \"#{s}\", type \"#{s.class}\""
         end
       end
       if schema.uniq.length < schema.length
@@ -86,7 +86,7 @@ module Bud
         reserved = eval "defined?(#{colname})"
         unless (reserved.nil? or
                 (reserved == "method" and method(colname).arity == -1 and (eval(colname))[0] == self.tabname))
-          raise Bud::BudError, "symbol :#{colname} reserved, cannot be used as column name for #{tabname}"
+          raise BudError, "symbol :#{colname} reserved, cannot be used as column name for #{tabname}"
         end
       end
 
@@ -845,7 +845,7 @@ module Bud
       end
 
       tc_dir = bud_instance.options[:tc_dir]
-      raise "TC support must be enabled via 'tc_dir'" unless tc_dir
+      raise BudError, "TC support must be enabled via 'tc_dir'" unless tc_dir
       unless File.exists?(tc_dir)
         Dir.mkdir(tc_dir)
         puts "Created directory: #{tc_dir}" unless bud_instance.options[:quiet]

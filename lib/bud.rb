@@ -216,7 +216,7 @@ module Bud
   def schedule_and_wait
     # Try to defend against error situations in which EM has stopped, but we've
     # been called nonetheless. This is racy, but better than nothing.
-    raise "EM not running" unless EventMachine::reactor_running?
+    raise BudError, "EM not running" unless EventMachine::reactor_running?
 
     q = Queue.new
     EventMachine::schedule do
@@ -264,7 +264,7 @@ module Bud
   end
 
   def start_bud
-    raise unless EventMachine::reactor_thread?
+    raise BudError unless EventMachine::reactor_thread?
 
     # If we get SIGINT or SIGTERM, shutdown gracefully
     Signal.trap("INT") do
@@ -295,7 +295,7 @@ module Bud
   # * Within each tick there may be multiple strata.
   # * Within each stratum we do multiple semi-naive iterations.
   def run
-    raise if EventMachine::reactor_running?
+    raise BudError if EventMachine::reactor_running?
 
     EventMachine::run {
       start_bud
