@@ -87,7 +87,7 @@ class GraphGen
     if @redcycle[predicate] and @collapse
       via = @redcycle[predicate]
       bag = name_bag(predicate, {})
-      str = bag.keys.sort.join(", ")
+      str = bag.key_cols.sort.join(", ")
       return str
     else
       return predicate
@@ -200,7 +200,7 @@ class GraphGen
 
   def finish
     @labels.each_key do |k|
-      @edges[k].label = @labels[k].keys.join(" ")
+      @edges[k].label = @labels[k].key_cols.join(" ")
     end
 
     addonce("S", false)
@@ -369,7 +369,7 @@ function advanceTo(time) {
     }
   }
   str = '';
-  // getting 'keys'
+  // getting 'key_cols'
   for (var i in info) {
     str = str + ',' + i;
   }

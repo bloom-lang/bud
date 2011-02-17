@@ -15,24 +15,24 @@ module Bud
   class BudCollection
     include Enumerable
 
-    attr_accessor :schema, :keys, :cols
+    attr_accessor :schema, :key_cols, :cols
     attr_reader :tabname, :bud_instance, :storage, :delta, :new_delta
 
     # The user-specified schema might come in two forms: a hash of Array =>
-    # Array (keys => remaining columns), or simply an Array of columns (if no
-    # keys were specified). Return a pair: [list of columns in entire tuple,
+    # Array (key_cols => remaining columns), or simply an Array of columns (if no
+    # key_cols were specified). Return a pair: [list of columns in entire tuple,
     # list of key columns]
     def parse_schema(user_schema)
       if user_schema.respond_to? :keys
         raise BudError, "invalid schema for #{tabname}" if user_schema.length != 1
-        keys = user_schema.keys.first
+        key_cols = user_schema.keys.first
         cols = user_schema.values.first
       else
-        keys = user_schema
+        key_cols = user_schema
         cols = []
       end
 
-      schema = keys + cols
+      schema = key_cols + cols
       schema.each do |s|
         if s.class != Symbol
           raise "Invalid schema element \"#{s}\", type \"#{s.class}\""
@@ -42,7 +42,7 @@ module Bud
         raise BudError, "schema for #{tabname} contains duplicate names"
       end
 
-      return [schema, keys]
+      return [schema, key_cols]
     end
 
     # each collection is partitioned into 4:
@@ -50,10 +50,11 @@ module Bud
     # - storage holds the "normal" tuples
     # - delta holds the delta for rhs's of rules during semi-naive
     # - new_delta will hold the lhs tuples currently being produced during s-n
-    def initialize(name, user_schema, bud_instance)
+    def initialize(name, bud_instance, user_schema=nil)
       @tabname = name
+      user_schema ||= {[:key]=>[:val]}
       @user_schema = user_schema
-      @schema, @keys = parse_schema(user_schema)
+      @schema, @key_cols = parse_schema(user_schema)
       @bud_instance = bud_instance
       init_storage
       init_pending
@@ -62,11 +63,11 @@ module Bud
     end
 
     def clone_empty
-      self.class.new(tabname, @user_schema, bud_instance)
+      self.class.new(tabname, bud_instance, @user_schema)
     end
 
     def cols
-      schema - keys
+      schema - key_cols
     end
 
     def tick
@@ -116,6 +117,18 @@ module Bud
 
     def null_tuple
       tuple_accessors(Array.new(@schema.length))
+    end
+    
+    def keys
+      self.map{|t| (0..self.key_cols.length-1).map{|i| t[i]}}
+    end
+    
+    def values
+      self.map{|t| (self.key_cols.length..self.schema.length-1).map{|i| t[i]}}
+    end
+    
+    def inspectables
+      self.map{|t| [t.inspect]}
     end
 
     # by default, all tuples in any rhs are in storage or delta
@@ -178,7 +191,7 @@ module Bud
 
     def include?(tuple)
       return false if tuple.nil? or tuple.empty?
-      key = keys.map{|k| tuple[schema.index(k)]}
+      key = key_cols.map{|k| tuple[schema.index(k)]}
       return (tuple == self[key])
 
       @storage.each_value do |t|
@@ -192,14 +205,14 @@ module Bud
     end
 
     def raise_pk_error(new, old)
-      keycols = keys.map{|k| old[schema.index(k)]}
-      raise KeyConstraintError, "Key conflict inserting #{old.inspect} into \"#{tabname}\": existing tuple #{new.inspect}, keys = #{keycols.inspect}"
+      keycols = key_cols.map{|k| old[schema.index(k)]}
+      raise KeyConstraintError, "Key conflict inserting #{old.inspect} into \"#{tabname}\": existing tuple #{new.inspect}, key_cols = #{keycols.inspect}"
     end
 
     def do_insert(o, store)
       return if o.nil? or o.empty?
 
-      keycols = keys.map{|k| o[schema.index(k)]}
+      keycols = key_cols.map{|k| o[schema.index(k)]}
       # XXX should this be self[keycols?]
       # but what about if we're not calling on store = @storage?
       # probably pk should be tested by the caller of this routing
@@ -226,7 +239,7 @@ module Bud
       raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
       delta = o.map do |i|
         next if i.nil? or i == []
-        keycols = keys.map{|k| i[schema.index(k)]}
+        keycols = key_cols.map{|k| i[schema.index(k)]}
         if (old = self[keycols])
           raise_pk_error(i, old) if old != i
         elsif (oldnew = self.new_delta[keycols])
@@ -278,10 +291,10 @@ module Bud
 
     ######## aggs
     # currently support two options for column ref syntax -- :colname or table.colname
-    def argagg(aggname, gbkeys, col)
+    def argagg(aggname, gbkey_cols, col)
       agg = bud_instance.send(aggname, nil)[0]
       raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
-      keynames = gbkeys.map do |k|
+      keynames = gbkey_cols.map do |k|
         if k.class == Symbol
           k.to_s
         else
@@ -294,17 +307,17 @@ module Bud
         colnum = col[1]
       end
       tups = self.inject({}) do |memo,p|
-        pkeys = keynames.map{|n| p.send(n.to_sym)}
-        if memo[pkeys].nil?
-          memo[pkeys] = {:agg=>agg.send(:init, p[colnum]), :tups => [p]}
+        pkey_cols = keynames.map{|n| p.send(n.to_sym)}
+        if memo[pkey_cols].nil?
+          memo[pkey_cols] = {:agg=>agg.send(:init, p[colnum]), :tups => [p]}
         else
-          newval = agg.send(:trans, memo[pkeys][:agg], p[colnum])
-          if memo[pkeys][:agg] == newval
-            if agg.send(:tie, memo[pkeys][:agg], p[colnum])
-              memo[pkeys][:tups] << p
+          newval = agg.send(:trans, memo[pkey_cols][:agg], p[colnum])
+          if memo[pkey_cols][:agg] == newval
+            if agg.send(:tie, memo[pkey_cols][:agg], p[colnum])
+              memo[pkey_cols][:tups] << p
             end
           else
-            memo[pkeys] = {:agg=>newval, :tups=>[p]}
+            memo[pkey_cols] = {:agg=>newval, :tups=>[p]}
           end
         end
         memo
@@ -322,23 +335,23 @@ module Bud
       else
         # merge directly into retval.storage, so that the temp tuples get picked up
         # by the lhs of the rule
-        retval = BudScratch.new('argagg_temp', @user_schema, bud_instance)
+        retval = BudScratch.new('argagg_temp', bud_instance, @user_schema)
         retval.merge(finals, retval.storage)
       end
     end
 
-    def argmin(gbkeys, col)
-      argagg(:min, gbkeys, col)
+    def argmin(gbkey_cols, col)
+      argagg(:min, gbkey_cols, col)
     end
 
-    def argmax(gbkeys, col)
-      argagg(:max, gbkeys, col)
+    def argmax(gbkey_cols, col)
+      argagg(:max, gbkey_cols, col)
     end
 
     # currently support two options for column ref syntax -- :colname or table.colname
-    def group(keys, *aggpairs)
-      keys = [] if keys.nil?
-      keynames = keys.map do |k|
+    def group(key_cols, *aggpairs)
+      key_cols = [] if key_cols.nil?
+      keynames = key_cols.map do |k|
         if k.class == Symbol
           k
         else
@@ -351,8 +364,8 @@ module Bud
         aggcols << "#{n.downcase}_#{i}".to_sym
       end
       tups = self.inject({}) do |memo, p|
-        pkeys = keynames.map{|n| p.send(n)}
-        memo[pkeys] = [] if memo[pkeys].nil?
+        pkey_cols = keynames.map{|n| p.send(n)}
+        memo[pkey_cols] = [] if memo[pkey_cols].nil?
         aggpairs.each_with_index do |ap, i|
           agg = ap[0]
           if ap[1].class == Symbol
@@ -361,10 +374,10 @@ module Bud
             colnum = ap[1].nil? ? nil : ap[1][1]
           end
           colval = colnum.nil? ? nil : p[colnum]
-          if memo[pkeys][i].nil?
-            memo[pkeys][i] = agg.send(:init, colval)
+          if memo[pkey_cols][i].nil?
+            memo[pkey_cols][i] = agg.send(:init, colval)
           else
-            memo[pkeys][i] = agg.send(:trans, memo[pkeys][i], colval)
+            memo[pkey_cols][i] = agg.send(:trans, memo[pkey_cols][i], colval)
           end
         end
         memo
@@ -387,7 +400,7 @@ module Bud
         else
           schema = { keynames => aggcols }
         end
-        retval = BudScratch.new('temp', schema, bud_instance)
+        retval = BudScratch.new('temp', bud_instance, schema)
         retval.merge(result, retval.storage)
       end
     end
@@ -407,7 +420,7 @@ module Bud
   end
 
   class BudSerializer < BudCollection
-    def initialize(name, user_schema, bud_instance)
+    def initialize(name, bud_instance, user_schema)
       @dq = {}
       super
     end
@@ -418,7 +431,7 @@ module Bud
     end
 
     def each
-      @storage.keys.sort.each do |k|
+      @storage.key_cols.sort.each do |k|
         tup = (@storage[k] == true) ? k : @storage[k]
         yield tup
         @dq[k] = true
@@ -428,29 +441,31 @@ module Bud
   end
 
   class BudChannel < BudCollection
-    attr_accessor :locspec, :connections
+    attr_accessor :locspec, :connections, :locspec_ix
 
-    def initialize(name, user_schema, bud_instance)
+    def initialize(name, bud_instance, user_schema=nil)
+      user_schema ||= [:@address, :val]
       # First, find column with @ sign and remove it
-      if user_schema.respond_to? :keys
-        keys = user_schema.keys.first
+      if user_schema.respond_to? :key_cols
+        key_cols = user_schema.key_cols.first
         cols = user_schema.values.first
       else
-        keys = user_schema
+        key_cols = user_schema
         cols = []
       end
-      locspec = remove_at_sign!(keys)
+      locspec = remove_at_sign!(key_cols)
       locspec = remove_at_sign!(cols) if locspec.nil?
       # If locspec is still nil, this is a loopback channel
 
       # Note that we mutate the hash key above, so we need to recreate the hash
       # XXX: ugh, hacky
-      if user_schema.respond_to? :keys
-        user_schema = {keys => cols}
+      if user_schema.respond_to? :key_cols
+        user_schema = {key_cols => cols}
       end
 
-      super(name, user_schema, bud_instance)
+      super(name, bud_instance, user_schema)
       @locspec = locspec
+      @locspec_ix = @schema.index(@locspec)
       @connections = {}
     end
 
@@ -519,6 +534,10 @@ module Bud
         c.close_connection
       end
     end
+    
+    def payloads
+      self.map{|t| t.val}
+    end
 
     superator "<~" do |o|
       pending_merge o
@@ -531,7 +550,7 @@ module Bud
 
   class BudTerminal < BudCollection
     def initialize(name, user_schema, bud_instance, prompt=false)
-      super(name, user_schema, bud_instance)
+      super(name, bud_instance, user_schema)
       @connection = nil
       @prompt = prompt
 
@@ -591,14 +610,14 @@ module Bud
   end
 
   class BudTable < BudCollection
-    def initialize(name, user_schema, bud_instance)
-      super(name, user_schema, bud_instance)
+    def initialize(name, bud_instance, user_schema)
+      super(name, bud_instance, user_schema)
       @to_delete = []
     end
 
     def tick
       @to_delete.each do |tuple|
-        keycols = keys.map{|k| tuple[schema.index(k)]}
+        keycols = key_cols.map{|k| tuple[schema.index(k)]}
         if @storage[keycols] == tuple
           @storage.delete keycols
         end
@@ -800,7 +819,7 @@ module Bud
 
   class BudFileReader < BudReadOnly
     def initialize(name, filename, delimiter, bud_instance)
-      super(name, {[:lineno] => [:text]}, bud_instance)
+      super(name, bud_instance, {[:lineno] => [:text]})
       @filename = filename
       @storage = {}
       # NEEDS A TRY/RESCUE BLOCK
@@ -819,7 +838,7 @@ module Bud
 
   # Persistent table implementation based on TokyoCabinet.
   class BudTcTable < BudCollection
-    def initialize(name, user_schema, bud_instance)
+    def initialize(name, bud_instance, user_schema)
       unless defined? HAVE_TOKYO_CABINET
         raise BudError, "tokyocabinet gem is not available: tctable cannot be used"
       end
@@ -837,7 +856,7 @@ module Bud
         puts "Created directory: #{dirname}" unless bud_instance.options[:quiet]
       end
 
-      super(name, user_schema, bud_instance)
+      super(name, bud_instance, user_schema)
       @to_delete = []
 
       @hdb = TokyoCabinet::HDB.new
@@ -875,14 +894,14 @@ module Bud
     end
 
     def include?(tuple)
-      key = keys.map{|k| tuple[schema.index(k)]}
+      key = key_cols.map{|k| tuple[schema.index(k)]}
       value = self[key]
       return (value == tuple)
     end
 
     def make_tuple(k_ary, v_ary)
       t = Array.new(k_ary.length + v_ary.length)
-      keys.each_with_index do |k,i|
+      key_cols.each_with_index do |k,i|
         t[schema.index(k)] = k_ary[i]
       end
       cols.each_with_index do |c,i|
@@ -950,7 +969,7 @@ module Bud
     end
 
     def insert(tuple)
-      key = keys.map{|k| tuple[schema.index(k)]}
+      key = key_cols.map{|k| tuple[schema.index(k)]}
       merge_tuple(key, tuple)
     end
 
@@ -959,7 +978,7 @@ module Bud
     # Remove to_delete and then add pending to HDB
     def tick
       @to_delete.each do |tuple|
-        k = keys.map{|c| tuple[schema.index(c)]}
+        k = key_cols.map{|c| tuple[schema.index(c)]}
         k_str = Marshal.dump(k)
         cols_str = @hdb[k_str]
         unless cols_str.nil?
@@ -992,7 +1011,7 @@ module Bud
       end
 
       schema = {[:key] => [:value]}
-      super(name, schema, bud_instance)
+      super(name, bud_instance, schema)
 
       zk_path = zk_path.chomp("/") unless zk_path == "/"
       @zk = Zookeeper.new(zk_addr)
@@ -1128,7 +1147,7 @@ end
 
 module Enumerable
   def rename(schema)
-    s = Bud::BudScratch.new('temp', schema, nil)
+    s = Bud::BudScratch.new('temp', nil, schema)
     s.merge(self, s.storage)
     s
   end

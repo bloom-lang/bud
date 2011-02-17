@@ -29,31 +29,31 @@ module BudState
     false
   end
 
-  def interface(mode, name, schema)
+  def interface(mode, name, schema=nil)
     @provides[name.to_s] = mode
     scratch(name, schema)
   end
 
-  def table(name, schema)
+  def table(name, schema=nil)
     define_or_tick_collection(name)
-    @tables[name] ||= Bud::BudTable.new(name, schema, self)
+    @tables[name] ||= Bud::BudTable.new(name, self, schema)
   end
 
-  def scratch(name, schema)
+  def scratch(name, schema=nil)
     define_or_tick_collection(name)
-    @tables[name] ||= Bud::BudScratch.new(name, schema, self)
+    @tables[name] ||= Bud::BudScratch.new(name, self, schema)
   end
 
-  def serializer(name, schema)
+  def serializer(name, schema=nil)
     define_or_tick_collection(name)
-    @tables[name] ||= Bud::BudSerializer.new(name, schema, self)
+    @tables[name] ||= Bud::BudSerializer.new(name, self, schema)
   end
 
-  def channel(name, schema)
+  def channel(name, schema=nil)
     define_or_tick_collection(name)
 
     unless @tables[name]
-      @tables[name] = Bud::BudChannel.new(name, schema, self)
+      @tables[name] = Bud::BudChannel.new(name, self, schema)
       @channels[name] = @tables[name].locspec
     end
   end
@@ -66,7 +66,7 @@ module BudState
   def periodic(name, period=1)
     define_or_tick_collection(name)
     schema = {[:ident] => [:time]}
-    @tables[name] ||= Bud::BudPeriodic.new(name, schema, self)
+    @tables[name] ||= Bud::BudPeriodic.new(name, self, schema)
     unless @periodics.has_key? [name]
       retval = [name, gen_id, period]
       @periodics << retval
@@ -84,9 +84,9 @@ module BudState
     @tables[name] ||= Bud::BudTerminal.new(name, [:line], self)
   end
 
-  def tctable(name, schema)
+  def tctable(name, schema=nil)
     define_or_tick_collection(name)
-    @tables[name] ||= Bud::BudTcTable.new(name, schema, self)
+    @tables[name] ||= Bud::BudTcTable.new(name, self, schema)
     @tc_tables[name] ||= @tables[name]
   end
 
