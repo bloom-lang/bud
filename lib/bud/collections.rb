@@ -446,8 +446,8 @@ module Bud
     def initialize(name, bud_instance, user_schema=nil)
       user_schema ||= [:@address, :val]
       # First, find column with @ sign and remove it
-      if user_schema.respond_to? :key_cols
-        key_cols = user_schema.key_cols.first
+      if user_schema.respond_to? :keys
+        key_cols = user_schema.keys.first
         cols = user_schema.values.first
       else
         key_cols = user_schema
@@ -459,7 +459,7 @@ module Bud
 
       # Note that we mutate the hash key above, so we need to recreate the hash
       # XXX: ugh, hacky
-      if user_schema.respond_to? :key_cols
+      if user_schema.respond_to? :keys
         user_schema = {key_cols => cols}
       end
 

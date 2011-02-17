@@ -94,3 +94,43 @@ class TestRing < Test::Unit::TestCase
     end
   end
 end
+
+class ChannelWithKey
+  include Bud
+
+  state {
+    channel :c, [:@addr] => [:v1, :v2]
+    scratch :kickoff, [:addr, :v1, :v2]
+    table :recv, c.keys => c.cols
+  }
+
+  declare
+  def send_msg
+    c <= kickoff.map {|k| [k.addr, k.v1, k.v2]}
+    recv <= c
+  end
+end
+
+class TestChannelWithKey < Test::Unit::TestCase
+  def test_basic
+    p1 = ChannelWithKey.new
+    p2 = ChannelWithKey.new
+
+    p1.run_bg
+    p2.run_bg
+
+    target_addr = p2.ip_port
+    p1.sync_do {
+      p1.kickoff <+ [[target_addr, 10, 20]]
+    }
+
+    sleep 1
+
+    p2.sync_do {
+      assert_equal(p1.recv.first, [target_addr, 10, 20])
+    }
+
+    p1.stop_bg
+    p2.stop_bg
+  end
+end
