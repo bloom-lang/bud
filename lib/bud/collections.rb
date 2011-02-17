@@ -1,3 +1,5 @@
+require 'msgpack'
+
 begin
   require 'tokyocabinet'
   Bud::HAVE_TOKYO_CABINET = true
@@ -879,17 +881,17 @@ module Bud
     end
 
     def [](key)
-      key_s = Marshal.dump(key)
+      key_s = MessagePack.pack(key)
       val_s = @hdb[key_s]
       if val_s
-        return make_tuple(key, Marshal.load(val_s))
+        return make_tuple(key, MessagePack.unpack(val_s))
       else
         return @delta[key]
       end
     end
 
     def has_key?(k)
-      key_s = Marshal.dump(k)
+      key_s = MessagePack.pack(k)
       return true if @hdb.has_key? key_s
       return @delta.has_key? k
     end
@@ -918,8 +920,8 @@ module Bud
 
     def each_storage(&block)
       @hdb.each do |k,v|
-        k_ary = Marshal.load(k)
-        v_ary = Marshal.load(v)
+        k_ary = MessagePack.unpack(k)
+        v_ary = MessagePack.unpack(v)
         yield make_tuple(k_ary, v_ary)
       end
     end
@@ -940,8 +942,8 @@ module Bud
 
     def merge_tuple(key, tuple)
       val = cols.map{|c| tuple[schema.index(c)]}
-      key_s = Marshal.dump(key)
-      val_s = Marshal.dump(val)
+      key_s = MessagePack.pack(key)
+      val_s = MessagePack.pack(val)
       if @hdb.putkeep(key_s, val_s) == false
         old_tuple = self[key]
         raise_pk_error(tuple, old_tuple) if tuple != old_tuple
@@ -980,10 +982,10 @@ module Bud
     def tick
       @to_delete.each do |tuple|
         k = key_cols.map{|c| tuple[schema.index(c)]}
-        k_str = Marshal.dump(k)
+        k_str = MessagePack.pack(k)
         cols_str = @hdb[k_str]
         unless cols_str.nil?
-          hdb_cols = Marshal.load(cols_str)
+          hdb_cols = MessagePack.unpack(cols_str)
           delete_cols = cols.map{|c| tuple[schema.index(c)]}
           if hdb_cols == delete_cols
             @hdb.delete k_str
