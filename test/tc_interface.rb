@@ -42,7 +42,7 @@ end
 
 class InterfaceTest < Test::Unit::TestCase
   def test_basic
-    c = SimpleClient.new(:dump => true, :visualize => 3)
+    c = SimpleClient.new
     c.run_bg
 
     # Add a legal member
