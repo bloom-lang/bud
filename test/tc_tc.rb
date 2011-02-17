@@ -47,29 +47,37 @@ class TcTest
   end
 end
 
-class TestTc < Test::Unit::TestCase
-  BUD_DIR = "#{Dir.pwd}/bud_tmp"
+BUD_DIR = "#{Dir.pwd}/bud_tmp"
 
+def setup_bud
+  rm_bud_dir
+end
+
+def cleanup_bud(b)
+  unless b.nil?
+    b.close_tables
+  end
+  rm_bud_dir
+end
+
+def rm_bud_dir
+  return unless File.directory? BUD_DIR
+  FileUtils.rm_r(BUD_DIR)
+end
+
+class TestTc < Test::Unit::TestCase
   def setup
-    rm_bud_dir
+    setup_bud
     @t = make_bud(true)
   end
 
   def teardown
-    unless @t.nil?
-      @t.close_tables
-      @t = nil
-    end
-    rm_bud_dir
+    cleanup_bud(@t)
+    @t = nil
   end
 
   def make_bud(truncate)
     TcTest.new(:tc_dir => BUD_DIR, :tc_truncate => truncate, :quiet => true)
-  end
-
-  def rm_bud_dir
-    return unless File.directory? BUD_DIR
-    FileUtils.rm_r(BUD_DIR)
   end
 
   def test_basic_ins
