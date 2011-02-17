@@ -1,12 +1,12 @@
 begin
   require 'tokyocabinet'
-  HAVE_TOKYO_CABINET = true
+  Bud::HAVE_TOKYO_CABINET = true
 rescue LoadError
 end
 
 begin
   require 'zookeeper'
-  HAVE_ZOOKEEPER = true
+  Bud::HAVE_ZOOKEEPER = true
 rescue LoadError
 end
 
