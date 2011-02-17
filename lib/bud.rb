@@ -214,6 +214,10 @@ module Bud
   # Schedule a block to be evaluated by EventMachine in the future, and
   # block until this has happened.
   def schedule_and_wait
+    # Try to defend against error situations in which EM has stopped, but we've
+    # been called nonetheless. This is racy, but better than nothing.
+    raise "EM not running" unless EventMachine::reactor_running?
+
     q = Queue.new
     EventMachine::schedule do
       ret = false
@@ -247,9 +251,14 @@ module Bud
     EventMachine::stop_event_loop if stop_em
   end
 
-  # Schedule a "graceful" shutdown for a future EM tick.
+  # Schedule a "graceful" shutdown for a future EM tick. If EM is not currently
+  # running, shutdown immediately.
   def schedule_shutdown(stop_em = false)
-    EventMachine::schedule do
+    if EventMachine::reactor_running?
+      EventMachine::schedule do
+        do_shutdown(stop_em)
+      end
+    else
       do_shutdown(stop_em)
     end
   end
