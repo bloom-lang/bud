@@ -194,7 +194,7 @@ module Bud
   # async_do returns immediately; the callback is invoked at some future time.
   def async_do
     EventMachine::schedule do
-      yield
+      yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
       tick
     end
@@ -205,7 +205,7 @@ module Bud
   # Bud thread. Note that calls to sync_do and async_do respect FIFO order.
   def sync_do
     schedule_and_wait do
-      yield
+      yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
       tick
     end
