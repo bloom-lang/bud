@@ -101,7 +101,7 @@ class ChannelWithKey
   state {
     channel :c, [:@addr] => [:v1, :v2]
     scratch :kickoff, [:addr, :v1, :v2]
-    table :recv, c.keys => c.cols
+    table :recv, c.key_cols => c.cols
   }
 
   declare
