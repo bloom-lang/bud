@@ -1,5 +1,4 @@
 require 'test_common'
-require 'backports'
 
 class SchemaFree
   include Bud
@@ -19,7 +18,7 @@ class SchemaFree
   end
 end
 
-class TestBasic < Test::Unit::TestCase
+class TestSFree < Test::Unit::TestCase
   def test_bloom
     p = SchemaFree.new({:port=>54321})
     assert_nothing_raised(RuntimeError) { p.run_bg }
