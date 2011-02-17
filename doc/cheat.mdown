@@ -1,0 +1,88 @@
+# Bud Cheat Sheet #
+
+## Skeleton of a Bud Module ##
+	require 'rubygems'
+	require 'bud'
+
+	module YourModule
+	  include BudModule
+	
+	  state {
+		  ...
+	  }
+	
+	  def bootstrap
+	    ...
+	  end
+	
+	  declare 
+	  def YourBudStmts
+	     ...
+	  end
+	end
+	
+## Bloom Operators ##
+Merge operators differ only in terms of *when* they take effect:
+
+*	`L <= R`  merges R into L *now* (**instant**)
+*	`L <+ R`  merges R into L at the start of the *next* timestep (**deferred**)
+*	`L <~ R`  merges R into L *asynchronously* (**async**)
+
+Delete only comes in one flavor:
+
+* `L <- R` deletes anything from L that is found in R (**deferred**)
+
+It is impossible/meaningless to delete instantly (to avoid the [grandfather paradox](http://en.wikipedia.org/wiki/Grandfather_paradox)).  Asynchronous deletion is easy to achieve as a combo: 
+
+    doit <~ R  
+    L <- doit
+
+## Collection Types ##
+Bud collections hold *tuples*: arrays of named Ruby objects called *attributes*.  Unlike relational databases, attributes need not be "flat" atomic objects.  Bud collections can optionally specify a subarray of attributes as a *key*.  
+
+`table`: contents persist in memory until deleted
+
+    table :shopping, [:cartnum, :storenum] => [:items]
+
+`scratch`: contents are emptied at the beginning of each timestep
+
+    scratch :stats, [:storenum] => [:num_carts, :avg_num_items]
+
+`interface`: a scratch collection at the interface of a module
+
+    interface input :request, [:client_id, :seq_no] => [:command, :params]
+    interface output :response, [:client_id, :seq_no] => [:result]
+
+`channel`: a communication channel manifested as a scratch collection.
+
+    channel :req_chan, [:@address, :cartnum, :storenum] => [:command, :params]
+
+`periodic`: a system timer manifested as a scratch collection.  argument in seconds.
+
+    periodic :timer, 1
+  
+
+## Collection Methods ##
+Common Ruby Enumerable methods of Bud collections:
+
+* `bc.map`
+* `bc.flat_map`
+* `bc.reduce`, `bc.inject`
+* `bc.empty?` 
+* `bc.include?`
+
+Relational operators over Bud Collections:
+
+* `join`
+* `natjoin`
+* `leftjoin`
+* `outerjoin`
+* `bc.group`
+* `bc.argmax`, `bc.argmin`
+* `bc.argagg`
+
+Relational Aggregates:
+
+* Exemplary aggs: `min`, `max`, `choose`
+* Summary aggs: `count`, `sum`, `avg`
+* Structural aggs: `accum`
