@@ -181,9 +181,9 @@ module Bud
 
   # Shutdown a Bud instance running asynchronously. This method blocks until Bud
   # has been shutdown.
-  def stop_bg
+  def stop_bg(stop_em = false)
     schedule_and_wait do
-      do_shutdown
+      do_shutdown(stop_em)
     end
   end
 
