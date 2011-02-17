@@ -223,3 +223,54 @@ class TestTc < Test::Unit::TestCase
     assert_equal(1, @t.join_res.length)
   end
 end
+
+class TcNest
+  include Bud
+
+  state {
+    scratch :in_buf, [:k1, :k2] => [:v1]
+    table :t1, [:k1] => [:v1]
+    tctable :t2, [:k1, :k2] => [:v1, :v2]
+  }
+
+  def bootstrap
+    t1 << [5, 10]
+  end
+
+  declare
+  def rules
+    j = join([in_buf, t1])
+    t2 <= j.map {|b, t| [b.k1, b.k2, b.v1, t]}
+  end
+end
+
+class TestNestedTc < Test::Unit::TestCase
+  def setup
+    setup_bud
+    @t = make_bud
+  end
+
+  def teardown
+    cleanup_bud(@t)
+    @t = nil
+  end
+
+  def make_bud
+    TcNest.new(:tc_dir => BUD_DIR, :tc_truncate => true, :quiet => true)
+  end
+
+  def test_basic_nest
+    @t.run_bg
+
+    @t.sync_do {
+      @t.in_buf <+ [[10, 20, 30]]
+    }
+    @t.sync_do {
+      # We can store nested tuples inside TC tables, but we lose the ability to
+      # access named columns after deserialization.
+      assert_equal([10, 20, 30, [5, 10]], @t.t2.first)
+    }
+
+    @t.stop_bg
+  end
+end
