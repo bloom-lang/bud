@@ -262,6 +262,7 @@ module Bud
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
         self.schema = o.schema
       end
+      return self
     end
 
     superator "<+" do |o|
