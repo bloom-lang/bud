@@ -88,7 +88,7 @@ class TestRing < Test::Unit::TestCase
     ring.each_with_index do |r, i|
       # XXX: we need to do a final tick here to ensure that each Bud instance
       # applies pending <+ and <- derivations. See issue #50.
-      r.sync_do {}
+      r.sync_do
       r.stop_bg
       assert_equal(r.last_cnt.first, [30 + i])
     end
