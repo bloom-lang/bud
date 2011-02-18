@@ -449,6 +449,8 @@ module Bud
   def join(rels, *preds)
     BudJoin.new(rels, self, decomp_preds(*preds))
   end
+  
+  alias coincide join
 
   def natjoin(rels)
     # for all pairs of relations, add predicates on matching column names
@@ -465,10 +467,15 @@ module Bud
     join(rels, *preds)
   end
 
+  # ugly, but why not
+  alias natcoincide natjoin
+
   def leftjoin(rels, *preds)
     BudLeftJoin.new(rels, self, decomp_preds(*preds))
   end
 
+  # ugly, but why not
+  alias leftcoincide leftjoin
   ######## ids and timers
   def gen_id
     Time.new.to_i.to_s << rand.to_s
