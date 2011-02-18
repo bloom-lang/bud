@@ -7,7 +7,8 @@ require 'rubygems'
 require 'bud'
 require 'ping_protocol'
 
-class Ponger < Bud
+class Ponger
+  include Bud
   include PingProtocol
 
   def initialize(me, other)

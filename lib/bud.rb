@@ -86,6 +86,7 @@ module Bud
 
     @state_methods = lookup_state_methods
 
+    # Evaluate bootstrap block
     init_state
     bootstrap
 
@@ -123,7 +124,7 @@ module Bud
   def lookup_state_methods
     rv = []
 
-    # Note that we traverse the ancestor hierarchy from root => leaf. This helps
+    # We traverse the ancestor hierarchy from root => leaf. This helps to
     # support a common idiom: the schema of a table in a child module/class
     # might be defined in terms of an inherited schema.
     self.class.ancestors.reverse.each do |anc|
@@ -136,8 +137,6 @@ module Bud
   end
 
   ########### give empty defaults for these
-  def state
-  end
   def declaration
   end
   def bootstrap
@@ -356,12 +355,10 @@ module Bud
     table :t_cycle, [:predicate, :via, :neg, :temporal]
   end
 
+  # For every state declaration, either define a new collection instance (first
+  # time seen) or tick the collection to advance to the next time step.
   def init_state
-    # For every state declaration, either define a new collection instance
-    # (first time seen) or tick the collection to advance to the next time step.
     builtin_state
-    # XXX: old syntax
-    state
     @state_methods.each do |s|
       s.call
     end
@@ -381,7 +378,7 @@ module Bud
     @budtime += 1
   end
 
-  # handle any inbound tuples off the wire and then clear
+  # Handle any inbound tuples off the wire and then clear
   def receive_inbound
     @inbound.each do |msg|
 #      puts "dequeueing tuple #{msg[1].inspect} into #{msg[0]} @ #{ip_port}"

@@ -1,5 +1,7 @@
 module PingProtocol
-  def state
+  include BudModule
+
+  state do
     channel :flow, [:@otherloc, :me, :msg, :wall, :budtick]
   end
 end

@@ -5,13 +5,15 @@
 require 'rubygems'
 require 'bud'
 
-class SimpleReducer < Bud
+class SimpleReducer
+  include Bud
+
   def initialize(reducer, opts)
     @reducer = reducer
     super opts
   end
   
-  def state
+  state do
     channel     :reducers, [:@addr, :key, :value]
     table       :in_channel, [:addr, :key, :value]
     scratch     :near_final, [:key] => [:value]

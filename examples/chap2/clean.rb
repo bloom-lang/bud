@@ -2,8 +2,10 @@
 require 'rubygems'
 require 'bud'
 
-class Clean < Bud
-  def state
+class Clean
+  include Bud
+
+  state do
     file_reader :text, 'ulysses.txt'
     file_reader :carlin, 'carlin.txt'
     scratch :matches, [:lineno, :text, :word]

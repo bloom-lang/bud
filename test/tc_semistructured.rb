@@ -1,5 +1,4 @@
 require 'test_common'
-require 'bud'
 
 class Semi
     include Bud

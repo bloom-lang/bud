@@ -6,11 +6,11 @@ require 'rubygems'
 require 'bud'
 require 'chat_protocol'
 
-class ChatMaster < Bud
+class ChatMaster
+  include Bud
   include ChatProtocol
 
-  def state
-    super
+  state do
     table :nodelist, ['addr'], ['nick']    
   end
   

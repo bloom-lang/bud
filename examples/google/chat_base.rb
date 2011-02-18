@@ -7,7 +7,8 @@ require 'rubygems'
 require 'bud'
 require 'chat_protocol'
 
-class ChatClient < Bud
+class ChatClient
+  include Bud
   include ChatProtocol
 
   def initialize(me, master, opts)
@@ -16,8 +17,7 @@ class ChatClient < Bud
     super opts
   end
 
-  def state
-    super
+  state do
     table :status, [:master, :value]
   end
 
