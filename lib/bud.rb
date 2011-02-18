@@ -368,9 +368,6 @@ module Bud
     init_state
 
     receive_inbound
-    @tables.each do |name,coll|
-      coll.tick_deltas
-    end
 
     @strata.each { |strat| stratum_fixpoint(strat) }
     @viz.do_cards if @options[:visualize]
