@@ -24,13 +24,13 @@ end
 
 class TestCascade < Test::Unit::TestCase
   def test_casc
-    p = Cascade.new({:port=>54321})
+    p = Cascade.new
     assert_nothing_raised(RuntimeError) { p.run_bg }
     assert_nothing_raised(RuntimeError) { p.sync_do {
       p.sync <+ [['sync', 1]]
       p.defer1 <+ [['defer1', 1]]
       p.defer2 <+ [['defer2', 2]]
-      p.msg1 <+ [['localhost:54321', ['msg1', 3]]]
+      p.msg1 <+ [[p.ip_port, ['msg1', 3]]]
     }}
     sleep 1
     assert_nothing_raised(RuntimeError) { p.stop_bg }    

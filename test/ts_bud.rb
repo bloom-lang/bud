@@ -1,6 +1,7 @@
 require 'test_common'
 
 require 'tc_aggs'
+require 'tc_cascade'
 require 'tc_channel'
 require 'tc_collections'
 require 'tc_delta'
