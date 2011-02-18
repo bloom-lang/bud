@@ -86,6 +86,7 @@ module Bud
 
     @state_methods = lookup_state_methods
 
+    # Evaluate bootstrap block
     init_state
     bootstrap
 
@@ -123,7 +124,7 @@ module Bud
   def lookup_state_methods
     rv = []
 
-    # Note that we traverse the ancestor hierarchy from root => leaf. This helps
+    # We traverse the ancestor hierarchy from root => leaf. This helps to
     # support a common idiom: the schema of a table in a child module/class
     # might be defined in terms of an inherited schema.
     self.class.ancestors.reverse.each do |anc|
