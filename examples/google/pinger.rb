@@ -8,11 +8,11 @@ require 'rubygems'
 require 'bud'
 require 'ping_protocol'
 
-class Pinger < Bud
+class Pinger
+  include Bud
   include PingProtocol
 
-  def state
-    super
+  state do
     periodic :timer, ARGV[2]
   end
 

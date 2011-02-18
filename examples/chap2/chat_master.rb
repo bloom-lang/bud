@@ -7,11 +7,11 @@ require 'bud'
 require 'chat_protocol'
 require 'lib/2pc'
 
-class ChatMaster < Bud
+class ChatMaster
+  include Bud
   include ChatProtocol
 
-  def state
-    super
+  state do
     table :nodelist, [:addr] => [:nick]
   end
   
@@ -38,8 +38,7 @@ class GracefulStopChatMaster < ChatMaster
     @twopc.run_bg
   end
 
-  def state
-    super
+  state do
     scratch :shutdown_req, [:requestid]
     scratch :empty_echo, [:requestid]
   end

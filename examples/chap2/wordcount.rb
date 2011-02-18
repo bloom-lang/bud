@@ -2,8 +2,10 @@
 require 'rubygems'
 require 'bud'
 
-class WordCount < Bud
-  def state
+class WordCount
+  include Bud
+
+  state do
     file_reader :text, 'ulysses.txt'
     table :words, [:lineno, :wordno, :word]
     table :wc, [:word] => [:cnt]

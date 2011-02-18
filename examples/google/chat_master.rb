@@ -8,8 +8,7 @@ require 'chat_master_base'
 class SafeChatMaster < ChatMaster
   include TwoPCMaster
 
-  def state
-    super
+  state do
     scratch :halt, [:xid]
   end
 
