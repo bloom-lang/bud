@@ -1013,8 +1013,8 @@ module Bud
         raise BudError, "zookeeper gem is not installed: zktables cannot be used"
       end
 
-      schema = {[:key] => [:value]}
-      super(name, bud_instance, schema)
+      # schema = {[:key] => [:val]}
+      super(name, bud_instance, nil)
 
       zk_path = zk_path.chomp("/") unless zk_path == "/"
       @zk = Zookeeper.new(zk_addr)
