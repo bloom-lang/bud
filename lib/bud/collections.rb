@@ -20,6 +20,23 @@ module Bud
     attr_accessor :schema, :key_cols, :cols
     attr_reader :tabname, :bud_instance, :storage, :delta, :new_delta
 
+    # each collection is partitioned into 4:
+    # - pending holds tuples deferred til the next tick
+    # - storage holds the "normal" tuples
+    # - delta holds the delta for rhs's of rules during semi-naive
+    # - new_delta will hold the lhs tuples currently being produced during s-n
+    def initialize(name, bud_instance, user_schema=nil)
+      @tabname = name
+      user_schema ||= {[:key]=>[:val]}
+      @user_schema = user_schema
+      @schema, @key_cols = parse_schema(user_schema)
+      @bud_instance = bud_instance
+      init_storage
+      init_pending
+      init_deltas
+      setup_accessors
+    end
+
     # The user-specified schema might come in two forms: a hash of Array =>
     # Array (key_cols => remaining columns), or simply an Array of columns (if no
     # key_cols were specified). Return a pair: [list of columns in entire tuple,
@@ -45,23 +62,6 @@ module Bud
       end
 
       return [schema, key_cols]
-    end
-
-    # each collection is partitioned into 4:
-    # - pending holds tuples deferred til the next tick
-    # - storage holds the "normal" tuples
-    # - delta holds the delta for rhs's of rules during semi-naive
-    # - new_delta will hold the lhs tuples currently being produced during s-n
-    def initialize(name, bud_instance, user_schema=nil)
-      @tabname = name
-      user_schema ||= {[:key]=>[:val]}
-      @user_schema = user_schema
-      @schema, @key_cols = parse_schema(user_schema)
-      @bud_instance = bud_instance
-      init_storage
-      init_pending
-      init_deltas
-      setup_accessors
     end
 
     def clone_empty
