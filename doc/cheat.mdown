@@ -9,28 +9,28 @@ As in Ruby, backslash is used to escape a newline.<br>
 *lhs BudOp rhs*
 
 Left-hand-side (lhs) is a named BudCollection object.<br>
-Right-hand-side (rhs) is a Ruby expression producing a BudCollection.<br>
+Right-hand-side (rhs) is a Ruby expression producing a BudCollection or Array of Arrays.<br>
 BudOp is one of the 5 Bud Operators below.
 
 ## Bud Operators ##
 merges:
 
-* `left <= right` &nbsp;&nbsp;&nbsp; (*instantaneous*)
-* `left <+ right` &nbsp;&nbsp;&nbsp; (*deferred*)
-* `left <~ right` &nbsp;&nbsp;&nbsp; (*asynchronous*)
+* `left <= right` &nbsp;&nbsp;&nbsp;&nbsp; (*instantaneous*)
+* `left <+ right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
+* `left <~ right` &nbsp;&nbsp;&nbsp;&nbsp; (*asynchronous*)
 
 insert:
 
-* `left << [...]` &nbsp;&nbsp;&nbsp; (*instantaneous*)
+* `left << [...]` &nbsp;&nbsp;&nbsp;&nbsp; (*instantaneous*)
 
 delete:
 
-* `left <- right` &nbsp;&nbsp;&nbsp; (*deferred*)
+* `left <- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
 
-chaining:
+operators can be chained.  for example:
 
-* `channel <= table <= right` &nbsp;&nbsp;&nbsp;   (*store and forward*)
-* `left <- (channel <~ right)`&nbsp;&nbsp;&nbsp;   (*async delete*)
+* `chan <= tab <= right` &nbsp;&nbsp;&nbsp;&nbsp;   (*store and forward*)
+* `left <- (chan <~ right)`&nbsp;&nbsp;&nbsp; (*async delete*)
 
 ## State Declarations ##
 ### Typical Form ###
@@ -103,22 +103,52 @@ and optional TCP string (default: "localhost:2181")<br>
 
 
 ## Collection Methods ##
-Common Ruby Enumerable methods, used on a BudCollection `bc`:
+Standard Ruby methods used on a BudCollection `bc`:
 
-* `bc.map`: &nbsp;&nbsp;&nbsp;*useful for relational select/project*
-* `bc.flat_map`: &nbsp;&nbsp;&nbsp; *flexible unnesting of attributes*
-* `bc.reduce`, `bc.inject`: &nbsp;&nbsp;&nbsp; *custom accumulation/aggregations*
-* `bc.empty?`
-* `bc.include?`
-* `bc.keys`, `bc.values`, `bc.inspected`
+`map`:
 
-SQL-style grouping/aggregation (and then some):
+    t1 <= bc.map{|t| [t.col1 + 4, t.col2.chomp]} # formatting/projection
+    t2 <= bc.map{|t| t if t.col = 5}             #(*selection*)
 
-* `bc.group([:col1, :col2], min(:col3))`.  *akin to GROUP BY*
+`flat_map`:
+
+    require 'backports' # flat_map not included in Ruby 1.8 by default
+    
+    t3 <= bc.flat_map do |t| # unnest a collection-valued attribute
+      bc.col4.map { |sub| [t.col1, t.col2, t.col3, sub] }
+    end
+
+`bc.reduce`, `bc.inject`: 
+
+    t4 <= bc.reduce({}) do |memo, t|  # example: groupby col1 and count
+      memo[t.col1] ||= 0
+      memo[t.col1] += 1
+      memo
+    end
+   
+
+`bc.include?`:
+
+    t5 <= bc.map do |t| # like SQL's NOT IN
+        t unless t2.include?([t.col1, t.col2])
+    end 
+
+## BudCollection-Specific Methods ##
+`bc.keys`: projects `bc` to key columns<br>
+
+`bc.values`: projects `bc` to non-key columns<br>
+
+`bc.inspected`: shorthand for `bc.map{|t| [t.inspect]}`
+
+`chan.payloads`: shorthand for chan.map{|t| t.val}, only defined for channels
+
+## SQL-style grouping/aggregation (and then some) ##
+
+* `bc.group([:col1, :col2], min(:col3))`.  *akin to min(col3) GROUP BY (col1,col2)*
   * exemplary aggs: `min`, `max`, `choose`
   * summary aggs: `sum`, `avg`, `count`
   * structural aggs: `accum`
-* `bc.argmax([:col1], :col2)` &nbsp;&nbsp;&nbsp; *finds the bc tuple per col1 having max col2*
+* `bc.argmax([:col1], :col2)` &nbsp;&nbsp;&nbsp;&nbsp; *returns the bc tuple per col1 that has highest col2*
 * `bc.argmin([:col1], :col2)`
 
 ## Built-in Aggregates: ##

@@ -30,6 +30,8 @@ A "one-shot" shortest paths example:
 
 To run a "ping-pong" example, see instructions in examples/other/pingpong.rb
 
+Language cheatsheet in doc/cheat.mdown
+
 Optional Dependencies
 =====================
 
