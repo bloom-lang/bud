@@ -8,6 +8,7 @@ class TestErrorHandling < Test::Unit::TestCase
   def test_do_sync_error
     b = EmptyBud.new
     b.run_bg
+    assert_raise(Bud::BudError) { b.run }
     3.times {
       assert_raise(ZeroDivisionError) {
         b.sync_do {

@@ -181,9 +181,9 @@ module Bud
 
   # Shutdown a Bud instance running asynchronously. This method blocks until Bud
   # has been shutdown.
-  def stop_bg
+  def stop_bg(stop_em = false)
     schedule_and_wait do
-      do_shutdown
+      do_shutdown(stop_em)
     end
   end
 
@@ -214,6 +214,10 @@ module Bud
   # Schedule a block to be evaluated by EventMachine in the future, and
   # block until this has happened.
   def schedule_and_wait
+    # Try to defend against error situations in which EM has stopped, but we've
+    # been called nonetheless. This is racy, but better than nothing.
+    raise BudError, "EM not running" unless EventMachine::reactor_running?
+
     q = Queue.new
     EventMachine::schedule do
       ret = false
@@ -247,15 +251,20 @@ module Bud
     EventMachine::stop_event_loop if stop_em
   end
 
-  # Schedule a "graceful" shutdown for a future EM tick.
+  # Schedule a "graceful" shutdown for a future EM tick. If EM is not currently
+  # running, shutdown immediately.
   def schedule_shutdown(stop_em = false)
-    EventMachine::schedule do
+    if EventMachine::reactor_running?
+      EventMachine::schedule do
+        do_shutdown(stop_em)
+      end
+    else
       do_shutdown(stop_em)
     end
   end
 
   def start_bud
-    raise unless EventMachine::reactor_thread?
+    raise BudError unless EventMachine::reactor_thread?
 
     # If we get SIGINT or SIGTERM, shutdown gracefully
     Signal.trap("INT") do
@@ -286,7 +295,7 @@ module Bud
   # * Within each tick there may be multiple strata.
   # * Within each stratum we do multiple semi-naive iterations.
   def run
-    raise if EventMachine::reactor_running?
+    raise BudError if EventMachine::reactor_running?
 
     EventMachine::run {
       start_bud
