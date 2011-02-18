@@ -1,7 +1,9 @@
 require 'rubygems'
 require 'bud'
 
-class PriorityQ < Bud
+class PriorityQ
+  include Bud
+
   state {
     table :q, [:item] => [:priority]
     scratch :out, [:item] => [:priority]

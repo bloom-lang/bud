@@ -44,7 +44,7 @@ module BudModule
   end
 end
 
-class Bud
+module Bud
   attr_reader :strata, :budtime, :inbound, :options, :provides, :meta_parser, :viz, :server
   attr_accessor :connections
   attr_reader :tables, :ip, :port
@@ -86,8 +86,15 @@ class Bud
 
     @state_methods = lookup_state_methods
 
+    # Evaluate bootstrap block
     init_state
     bootstrap
+
+    # Make sure that new_delta tuples from bootstrap rules are transitioned into
+    # storage before first tick.
+    tables.each{|name,coll| coll.install_deltas}
+    # note that any tuples installed into a channel won't immediately be
+    # flushed; we need to wait for EM startup to do that
 
     # NB: Somewhat hacky. Dependency analysis and stratification are implemented
     # by Bud programs, so in order for those programs to parse, we need the
@@ -97,12 +104,6 @@ class Bud
     if @options[:visualize]
       @viz = VizOnline.new(self)
     end
-
-    # Make sure that new_delta tuples from bootstrap rules are transitioned into
-    # storage before first tick.
-    tables.each{|name,coll| coll.install_deltas}
-    # note that any tuples installed into a channel won't immediately be
-    # flushed; we need to wait for EM startup to do that
 
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
@@ -123,7 +124,7 @@ class Bud
   def lookup_state_methods
     rv = []
 
-    # Note that we traverse the ancestor hierarchy from root => leaf. This helps
+    # We traverse the ancestor hierarchy from root => leaf. This helps to
     # support a common idiom: the schema of a table in a child module/class
     # might be defined in terms of an inherited schema.
     self.class.ancestors.reverse.each do |anc|
@@ -136,8 +137,6 @@ class Bud
   end
 
   ########### give empty defaults for these
-  def state
-  end
   def declaration
   end
   def bootstrap
@@ -181,9 +180,9 @@ class Bud
 
   # Shutdown a Bud instance running asynchronously. This method blocks until Bud
   # has been shutdown.
-  def stop_bg
+  def stop_bg(stop_em = false)
     schedule_and_wait do
-      do_shutdown
+      do_shutdown(stop_em)
     end
   end
 
@@ -194,7 +193,7 @@ class Bud
   # async_do returns immediately; the callback is invoked at some future time.
   def async_do
     EventMachine::schedule do
-      yield
+      yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
       tick
     end
@@ -205,7 +204,7 @@ class Bud
   # Bud thread. Note that calls to sync_do and async_do respect FIFO order.
   def sync_do
     schedule_and_wait do
-      yield
+      yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
       tick
     end
@@ -214,6 +213,10 @@ class Bud
   # Schedule a block to be evaluated by EventMachine in the future, and
   # block until this has happened.
   def schedule_and_wait
+    # Try to defend against error situations in which EM has stopped, but we've
+    # been called nonetheless. This is racy, but better than nothing.
+    raise BudError, "EM not running" unless EventMachine::reactor_running?
+
     q = Queue.new
     EventMachine::schedule do
       ret = false
@@ -247,15 +250,20 @@ class Bud
     EventMachine::stop_event_loop if stop_em
   end
 
-  # Schedule a "graceful" shutdown for a future EM tick.
+  # Schedule a "graceful" shutdown for a future EM tick. If EM is not currently
+  # running, shutdown immediately.
   def schedule_shutdown(stop_em = false)
-    EventMachine::schedule do
+    if EventMachine::reactor_running?
+      EventMachine::schedule do
+        do_shutdown(stop_em)
+      end
+    else
       do_shutdown(stop_em)
     end
   end
 
   def start_bud
-    raise unless EventMachine::reactor_thread?
+    raise BudError unless EventMachine::reactor_thread?
 
     # If we get SIGINT or SIGTERM, shutdown gracefully
     Signal.trap("INT") do
@@ -286,7 +294,7 @@ class Bud
   # * Within each tick there may be multiple strata.
   # * Within each stratum we do multiple semi-naive iterations.
   def run
-    raise if EventMachine::reactor_running?
+    raise BudError if EventMachine::reactor_running?
 
     EventMachine::run {
       start_bud
@@ -347,12 +355,10 @@ class Bud
     table :t_cycle, [:predicate, :via, :neg, :temporal]
   end
 
+  # For every state declaration, either define a new collection instance (first
+  # time seen) or tick the collection to advance to the next time step.
   def init_state
-    # For every state declaration, either define a new collection instance
-    # (first time seen) or tick the collection to advance to the next time step.
     builtin_state
-    # XXX: old syntax
-    state
     @state_methods.each do |s|
       s.call
     end
@@ -372,7 +378,7 @@ class Bud
     @budtime += 1
   end
 
-  # handle any inbound tuples off the wire and then clear
+  # Handle any inbound tuples off the wire and then clear
   def receive_inbound
     @inbound.each do |msg|
 #      puts "dequeueing tuple #{msg[1].inspect} into #{msg[0]} @ #{ip_port}"
@@ -440,6 +446,8 @@ class Bud
   def join(rels, *preds)
     BudJoin.new(rels, self, decomp_preds(*preds))
   end
+  
+  alias coincide join
 
   def natjoin(rels)
     # for all pairs of relations, add predicates on matching column names
@@ -456,10 +464,15 @@ class Bud
     join(rels, *preds)
   end
 
+  # ugly, but why not
+  alias natcoincide natjoin
+
   def leftjoin(rels, *preds)
     BudLeftJoin.new(rels, self, decomp_preds(*preds))
   end
 
+  # ugly, but why not
+  alias leftcoincide leftjoin
   ######## ids and timers
   def gen_id
     Time.new.to_i.to_s << rand.to_s

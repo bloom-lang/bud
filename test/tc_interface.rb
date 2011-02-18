@@ -35,13 +35,14 @@ module SelectiveMembership
   end
 end
 
-class SimpleClient < Bud
+class SimpleClient
+  include Bud
   include SelectiveMembership
 end
 
 class InterfaceTest < Test::Unit::TestCase
   def test_basic
-    c = SimpleClient.new(:dump => true, :visualize => 3)
+    c = SimpleClient.new
     c.run_bg
 
     # Add a legal member

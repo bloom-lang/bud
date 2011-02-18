@@ -5,14 +5,16 @@ require 'rubygems'
 require 'bud'
 require 'zlib'
 
-class SimpleMapper < Bud
+class SimpleMapper
+  include Bud
+
   def initialize(ip, port, file, opts)
     @mapper = mapper
     @file = file
     super opts
   end
   
-  def state
+  state do
     file_reader :nodelist, 'mr_reducelist.txt'
     file_reader :inputs, @file
     scratch     :map_out, [:key, :uniq, :value]
@@ -41,8 +43,10 @@ class SimpleMapper < Bud
   end
 end
 
-class Splitter < Bud
-  def state
+class Splitter
+  include Bud
+
+  state do
     table :in_table, [:lineno] => [:text]
     table :out_table, [:word, :uniq] => [:cnt]
   end

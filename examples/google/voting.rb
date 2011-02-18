@@ -2,10 +2,10 @@ require 'rubygems'
 require 'bud'
 
 module VoteInterface
+  include BudModule
+
   # channels used by both ends of the voting protocol
-  # paa: TODO: figure out the right way to mix in state
-  def state
-    super if defined? super
+  state do
     channel :ballot, [:@peer, :master, :id] => [:content]
     channel :vote, [:@master, :peer, :id] => [:response]
     channel :tickler, [:@master]
@@ -13,13 +13,9 @@ module VoteInterface
 end
 
 module VotingMaster
-  # boilerplate
-  include Anise
   include VoteInterface
-  annotator :declare
 
-  def state
-    super if defined? super
+  state do
     # local interfaces    
     scratch :begin_vote, [:id, :content]
     scratch :victor, [:id, :content, :response]
@@ -78,12 +74,9 @@ end
 
 
 module VotingAgent
-  include Anise
-  annotator :declare
   include VoteInterface
 
-  def state
-    super if defined? super
+  state do
     table :waiting_ballots, [:id, :content, :master]
     scratch :cast_vote, [:id, :response]
   end
@@ -107,10 +100,8 @@ end
 
 
 module MajorityVotingMaster 
-  # boilerplate
-  include Anise
-  annotator :declare
   include VotingMaster
+
   declare
   def summary
     victor <= join([vote_status, member_cnt, vote_cnt], [vote_status.id, vote_cnt.id]).map do |s, m, v|

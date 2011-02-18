@@ -21,7 +21,7 @@ def bud_class_instance.safe_instance_eval(str)
 end
 
 bud_class_instance.instance_eval("def print_state\nend")
-bud_class_instance.instance_eval("def state\nend")
+bud_class_instance.instance_eval("state {}")
 
 table_names = []
 state_exprs = []
@@ -57,7 +57,7 @@ loop do
     end
 
     # add them back with new state
-    next if not bud_class_instance.safe_instance_eval("def state\n" + state_exprs.join("\n") + "\nend")
+    next if not bud_class_instance.safe_instance_eval("state do\n" + state_exprs.join("\n") + "\nend")
 
     def_print_state = "def print_state\n"
     table_names.each{|t| def_print_state += "puts \"" + t + ":\n\"\n" + t + ".each {|t| puts t.inspect}\n"}

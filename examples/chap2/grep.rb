@@ -2,13 +2,15 @@
 require 'rubygems'
 require 'bud'
 
-class Grep < Bud
+class Grep
+  include Bud
+
   def initialize(pattern)
     super()
     @pattern = pattern
   end
 
-  def state
+  state do
     file_reader :text, 'ulysses.txt'
     table :matches, [:lineno, :text]
   end

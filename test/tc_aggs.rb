@@ -1,6 +1,8 @@
 require 'test_common'
 
-class ShortestPaths < Bud
+class ShortestPaths
+  include Bud
+
   state {
     table :link, [:from, :to, :cost]
     table :path, [:from, :to, :next, :cost]
@@ -39,7 +41,9 @@ class ShortestPaths < Bud
   end
 end
 
-class PriorityQ < Bud
+class PriorityQ
+  include Bud
+
   state {
     table :q, [:item] => [:priority]
     scratch :out, [:item] => [:priority]
@@ -66,7 +70,9 @@ class PriorityQ < Bud
   end
 end
 
-class DupAggs < Bud
+class DupAggs
+  include Bud
+
   state {
     table :tab, [:i]
 #    scratch :out, [:s1, :s2]
@@ -84,7 +90,9 @@ class DupAggs < Bud
   end
 end
 
-class Rename < Bud
+class Rename
+  include Bud
+
   state {
     table :emp, [:ename, :dname] => [:sal]
     table :shoes, [:dname] => [:usualsal]
@@ -105,8 +113,8 @@ end
 class JoinAgg < Rename
   state {
     scratch :richsal, [:sal]
-    scratch :rich, emp.keys => emp.cols
-    scratch :argrich, emp.keys => emp.cols
+    scratch :rich, emp.key_cols => emp.cols
+    scratch :argrich, emp.key_cols => emp.cols
   }
 
   declare

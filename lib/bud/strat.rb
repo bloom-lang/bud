@@ -1,7 +1,9 @@
 require 'rubygems'
 require 'bud'
 
-class Stratification < Bud
+class Stratification
+  include Bud
+
   state {
     table :depends, [:rule, :head, :op, :body, :neg]
 

@@ -1,6 +1,8 @@
 require 'test_common'
 
-class Paths < Bud
+class Paths
+  include Bud
+
   # a naive transitive closure of an edge relation.
   attr_reader :cnt, :pcnt
   def initialize

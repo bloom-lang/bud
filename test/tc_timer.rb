@@ -1,6 +1,8 @@
 require 'test_common'
 
-class TemporalBudTest < Bud
+class TemporalBudTest
+  include Bud
+
   state {
     periodic :tik, 0.1
     table :log, [:ident, :time]

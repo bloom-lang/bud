@@ -36,7 +36,7 @@ class VizOnline
   end
 
   def new_tab(name, schema, instance)
-    ret = Bud::BudTcTable.new(name, schema, instance)
+    ret = Bud::BudTcTable.new(name, instance, schema)
     instance.tables[name] = ret
     return ret
   end

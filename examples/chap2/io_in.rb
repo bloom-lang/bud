@@ -7,14 +7,16 @@
 require 'rubygems'
 require 'bud'
 
-class IoIn < Bud
+class IoIn
+  include Bud
+
   def initialize(opts)
     super
     @me = ARGV[0]
     @other = ARGV[1]
   end
 
-  def state
+  state do
     channel :flow, [:@otherloc, :myloc, :msg, :wall, :budtick]
   end
 
