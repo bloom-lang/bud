@@ -1,6 +1,8 @@
 This is Bud, a.k.a. "Bloom Under Development".  It is an initial cut at
 providing a Bloom-like language, using Ruby as a basis.
 
+Language cheatsheet in doc/cheat.mdown
+
 This 0.0 version is not supported.  
 
 Main deficiencies at this point are:
@@ -29,8 +31,6 @@ A "one-shot" shortest paths example:
     % ruby examples/other/paths.rb
 
 To run a "ping-pong" example, see instructions in examples/other/pingpong.rb
-
-Language cheatsheet in doc/cheat.mdown
 
 Optional Dependencies
 =====================

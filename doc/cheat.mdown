@@ -75,6 +75,8 @@ given attributes: `[:key] => [:val]`<br>
 &nbsp;&nbsp;&nbsp;&nbsp; key is a unique ID, val is a Ruby Time converted to a string.<br>
 state declaration includes interval (in seconds)
 
+periodic can only be used on rhs of statement
+
     periodic :timer, 0.1
     
 ### stdio ###
@@ -82,7 +84,7 @@ built-in scratch collection mapped to Ruby's STDIN and STDOUT<br>
 given attributes: `[:line] => []`
 
 statements with stdio on lhs must use async merge (`<~`)<br>
-to capture STDIN on rhs, instantiate class with `:read_stdin` option.<br>
+to capture STDIN on rhs, instantiate Bud with `:read_stdin` option.<br>
 
 ### tctable ###
 table collection mapped to a [Tokyo Cabinet](http://fallabs.com/tokyocabinet/) store.<br>
@@ -108,7 +110,7 @@ Standard Ruby methods used on a BudCollection `bc`:
 `map`:
 
     t1 <= bc.map{|t| [t.col1 + 4, t.col2.chomp]} # formatting/projection
-    t2 <= bc.map{|t| t if t.col = 5}             #(*selection*)
+    t2 <= bc.map{|t| t if t.col = 5}             # selection
 
 `flat_map`:
 
@@ -138,9 +140,9 @@ Standard Ruby methods used on a BudCollection `bc`:
 
 `bc.values`: projects `bc` to non-key columns<br>
 
-`bc.inspected`: shorthand for `bc.map{|t| [t.inspect]}`
+`bc.inspected`: shorthand for `bc.map{|t| [t.inspect]}`, to merge into stdio
 
-`chan.payloads`: shorthand for chan.map{|t| t.val}, only defined for channels
+`chan.payloads`: shorthand for chan.map{|t| t.val}, only defined for channels, to unpack nested vals
 
 ## SQL-style grouping/aggregation (and then some) ##
 
