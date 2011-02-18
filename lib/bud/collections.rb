@@ -239,9 +239,6 @@ module Bud
           buf[keycols] = tuple_accessors(i)
         end
       end
-      if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
-        self.schema = o.schema
-      end
       return self
     end
 
@@ -249,9 +246,6 @@ module Bud
 
     def pending_merge(o)
       o.each {|i| do_insert(i, @pending)}
-      if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
-        self.schema = o.schema
-      end
       return self
     end
 
