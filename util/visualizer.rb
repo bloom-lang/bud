@@ -32,6 +32,7 @@ class VizHelper < Bud
   end
 
   def summarize(dir, schema)
+    puts "SUMMARIZE"
     table_io = {}
     timeseries = {}
     cardinalities.sort{|a, b| a[0] <=> b[0]}.each do |card|
@@ -59,7 +60,8 @@ class VizHelper < Bud
       #fout.close
       fn = v
       puts "GOT #{fn}"
-      ts2[k] = "#{ENV['PWD']}/#{fn}"
+      #ts2[k] = "#{ENV['PWD']}/#{fn}"
+      ts2[k] = v
     end
 
     sum = GraphGen.new(@t_strata, @t_tabinf, @t_cycle, "#{@dir}/summary", -1, 3, @dir, false, nil, ts2)
@@ -121,6 +123,7 @@ def deserialize_table(tab, strict)
     Marshal.load(v).each{|v| tup << v }
     ret << tup
   end
+  tab.close
   return ret
 end
 

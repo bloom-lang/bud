@@ -16,18 +16,22 @@ class VizOnline
     @table_schema = new_tab(:t_table_schema, [:tab_name, :col_name, :ord], @bud_instance)
 
     @logtab = {}
-
+    tmp_set = []
     @bud_instance.tables.each do |t|
       next if t[0].to_s =~ /_vizlog\z/
+      tmp_set << [t[0], t[1].schema.clone, t[1].class.to_s]
+    end
+
+    tmp_set.each do |t|
       news = [:c_bud_time]
-      @table_schema << [t[0], :c_bud_time, 0] #unless t[1].schema[0] == :bud_time
-      t[1].schema.each_with_index do |s, i|
+      @table_schema << [t[0], :c_bud_time, 0]
+      t[1].each_with_index do |s, i|
         news << s
         @table_schema << [t[0], s, i+1]
       end
       lt = "#{t[0]}_vizlog".to_sym
       @logtab[t[0]] = new_tab(lt, news, @bud_instance)
-      @table_info << [t[0], t[1].class.to_s]
+      @table_info << [t[0], t[2]]
     end
   end
 

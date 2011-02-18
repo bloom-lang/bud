@@ -124,9 +124,9 @@ class GraphGen
     if !@nodes[node]
       @nodes[node] = @graph.add_node(node)
       if @cards and @cards[node]
-        @nodes[node].label = node #+ "\n (#{@cards[node].to_s})"
+        @nodes[node].label = node +"\n (#{@cards[node].to_s})"
         puts "IMAGE IS #{@cards[node]}"
-        @nodes[node].image = @cards[node]
+        #@nodes[node].image = @cards[node]
       end
   
       #@nodes[node].URL = "#{output_dir}/#{node}_#{@budtime}.html" 
