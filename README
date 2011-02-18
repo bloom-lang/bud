@@ -8,14 +8,14 @@ Main deficiencies at this point are:
   available, the full power of Ruby is also available, including mutable state.
   This allows programmers to get outside the Bud framework and lose cleanliness.
 
-- Inefficient evaluation: Programs are run using naive evaluation strategies, no
+- Inefficient evaluation: Programs are run using (semi-)naive evaluation strategies, no
   query optimization has been implemented, and little effort has been spent in
   tuning.
 
 - No test harness.  Currently just Ruby's builtin test harness.  Need something
   better suited to Bud.
 
-- Compatibility: BUD only works with Ruby (MRI) 1.8. MRI 1.9 and other Ruby
+- Compatibility: Bud only works with Ruby (MRI) 1.8. MRI 1.9 and other Ruby
   implementations are currently not supported.
 
 To install:

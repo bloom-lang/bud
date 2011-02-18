@@ -1,8 +1,152 @@
 # Bud Cheat Sheet #
 
+## General Bud Syntax Rules ##
+Bud programs are sets of unordered statements, embedded in Ruby.<br>
+Statements are delimited by semicolons (;) or newlines. <br>
+As in Ruby, backslash is used to escape a newline.<br>
+
+## Bud Statements ##
+*lhs BudOp rhs*
+
+Left-hand-side (lhs) is a named BudCollection object.<br>
+Right-hand-side (rhs) is a Ruby expression producing a BudCollection.<br>
+BudOp is one of the 5 Bud Operators below.
+
+## Bud Operators ##
+merges:
+
+* `left <= right` &nbsp;&nbsp;&nbsp; (*instantaneous*)
+* `left <+ right` &nbsp;&nbsp;&nbsp; (*deferred*)
+* `left <~ right` &nbsp;&nbsp;&nbsp; (*asynchronous*)
+
+insert:
+
+* `left << [...]` &nbsp;&nbsp;&nbsp; (*instantaneous*)
+
+delete:
+
+* `left <- right` &nbsp;&nbsp;&nbsp; (*deferred*)
+
+chaining:
+
+* `channel <= table <= right` &nbsp;&nbsp;&nbsp;   (*store and forward*)
+* `left <- (channel <~ right)`&nbsp;&nbsp;&nbsp;   (*async delete*)
+
+## State Declarations ##
+### Typical Form ###
+*BudCollection :name, [keys] => [values]*
+
+### table ###
+contents persist in memory until deleted.<br>
+default attributes: `[:key] => [:val]`
+
+    table :keyvalue
+    table :composite, [:keyfield1, :keyfield2] => [:values]
+    table :dupsIgnored, [:field1, field2]
+
+### scratch ###
+contents emptied at start of each timestep<br>
+default attributes: `[:key] => [:val]`
+
+    scratch :stats
+
+### interface ###
+scratch collections, used as module interfaces<br>
+default attributes: `[:key] => [:val]`
+
+    interface input, :request
+    interface output, :response
+
+### channel ###
+network channel manifested as a scratch collection.  <br>
+address attribute prefixed with `@`.  <br>
+default attributes: `[:@address, :val] => []`
+
+Statements with channel on lhs must use async merge (`<~`).
+
+
+    channel :msgs      
+    channel :req_chan, [:@address, :cartnum, :storenum] => [:command, :params]
+
+
+### periodic ###
+system timer manifested as a scratch collection.<br>
+given attributes: `[:key] => [:val]`<br>
+&nbsp;&nbsp;&nbsp;&nbsp; key is a unique ID, val is a Ruby Time converted to a string.<br>
+state declaration includes interval (in seconds)
+
+    periodic :timer, 0.1
+    
+### stdio ###
+built-in scratch collection mapped to Ruby's STDIN and STDOUT<br>
+given attributes: `[:line] => []`
+
+statements with stdio on lhs must use async merge (`<~`)<br>
+to capture STDIN on rhs, instantiate class with `:read_stdin` option.<br>
+
+### tctable ###
+table collection mapped to a [Tokyo Cabinet](http://fallabs.com/tokyocabinet/) store.<br>
+default attributes: `[:key] => [:val]`
+
+    tctable :t1
+    tctable :t2, [:k1, :k2] => [:v1, :v2]
+    
+
+### zktable ###
+table collection mapped to an [Apache Zookeeper](http://hadoop.apache.org/zookeeper/) store.<br>
+given attributes: `[:key] => [:val]`<br>
+state declaration includes zookeeper path
+and optional TCP string (default: "localhost:2181")<br>
+
+    zktable :foo, "/bat"
+    zktable :bar, "/dat", "localhost:2182"
+
+
+## Collection Methods ##
+Common Ruby Enumerable methods, used on a BudCollection `bc`:
+
+* `bc.map`: &nbsp;&nbsp;&nbsp;*useful for relational select/project*
+* `bc.flat_map`: &nbsp;&nbsp;&nbsp; *flexible unnesting of attributes*
+* `bc.reduce`, `bc.inject`: &nbsp;&nbsp;&nbsp; *custom accumulation/aggregations*
+* `bc.empty?`
+* `bc.include?`
+* `bc.keys`, `bc.values`, `bc.inspected`
+
+SQL-style grouping/aggregation (and then some):
+
+* `bc.group([:col1, :col2], min(:col3))`.  *akin to GROUP BY*
+  * exemplary aggs: `min`, `max`, `choose`
+  * summary aggs: `sum`, `avg`, `count`
+  * structural aggs: `accum`
+* `bc.argmax([:col1], :col2)` &nbsp;&nbsp;&nbsp; *finds the bc tuple per col1 having max col2*
+* `bc.argmin([:col1], :col2)`
+
+## Built-in Aggregates: ##
+
+* Exemplary aggs: `min`, `max`, `choose`
+* Summary aggs: `count`, `sum`, `avg`
+* Structural aggs: `accum`
+
+## Relational Operators ###
+
+* `join([:t1, :t2], [t1.col1, t2.col2])`
+* `natjoin`
+* `leftjoin`
+* `outerjoin`
+
+## Interacting with Bud from Ruby ##
+* `run`
+* `run_bg`
+* `sync_do`
+* `async_do`
+* `BudCollection.dump`
+
+## Bud Code Visualizer ##
+
+
+
 ## Skeleton of a Bud Module ##
 
-    #!ruby
     require 'rubygems'
     require 'bud'
 
@@ -28,114 +172,3 @@
       end
     end
 
-## Collection Types ##
-
-### table ###
-contents persist in memory until deleted.<br>
-default attributes: `[:key] => [:val]`
-
-    table :keyvalue
-    table :composite, [:keyfield1, :keyfield2] => [:values]
-    table :dupsIgnored, [:field1, field2]
-
-### scratch ###
-contents are emptied at the beginning of each timestep
-default attributes: `[:key] => [:val]`
-
-    scratch :stats
-
-### interface ###
-scratch collections used as module interfaces
-
-    interface input, :request
-    interface output, :response
-
-### channel ###
-communication channel manifested as a scratch collection.  <br>
-address attribute prefixed with `@`.  <br>
-default attributes: `[:@address, :val] => []`
-
-    channel :msgs      
-    channel :req_chan, [:@address, :cartnum, :storenum] => [:command, :params]
-
-Only async merge (`<~`) allowed for channels on the left of Bud statements.
-
-### periodic ###
-system timer manifested as a scratch collection.  argument in seconds.
-attributes: `[:ident] => [:time]`
-
-    periodic :timer, 1
-    
-### stdio ###
-    stdio
-    
-
-### serializer ###
-
-### file_reader ###
-
-### tctable ###
-
-### zktable ###
-  
-## Bloom Operators ##
-
-### merges ###
-
-* `left <= right`  merge `right` into `left` *now* (**instantaneous**)
-* `left <+ right`  merge `right` into `left` at start of *next* timestep (**deferred**)
-* `left <~ right`  merge `right` into `left` *asynchronously* (**async**)
-
-### insert ###
-
-* `left << ['this', 
-            {:bloom => true, :ruby => true}, 
-            'works', 12]` (**instantaneous**)
-
-### delete ###
-* `left <- right`  (**deferred**)
-
-For remote/async delete, merge a request through an async channel:
-
-* `left <- (del_chan <~ right);`   (**async**)
-
-## Collection Methods ##
-Common Ruby Enumerable methods, used on a BudCollection `bc`:
-
-* `bc.map`: *useful for relational select/project*
-* `bc.flat_map`: *flexible unnesting of attributes*
-* `bc.reduce`, `bc.inject`: *custom accumulation/aggregations*
-* `bc.empty?`
-* `bc.include?`
-* `bc.keys`, `bc.values`, `bc.inspectables`
-
-SQL-style grouping/aggregation (and then some):
-
-* `bc.group([:col1, :col2], min(:col3))`.  *akin to GROUP BY*
-  * exemplary aggs: `min`, `max`, `choose`
-  * summary aggs: `sum`, `avg`, `count`
-  * structural aggs: `accum`
-* `bc.argmax([:col1], :col2)` *finds the bc tuple per col1 having max col2*
-* `bc.argmin([:col1], :col2)`
-
-### Relational operators over Bud Collections: ###
-
-* `join([:t1, :t2], [t1.col1, t2.col2])`
-* `natjoin`
-* `leftjoin`
-* `outerjoin`
-
-### Relational Aggregates: ###
-
-* Exemplary aggs: `min`, `max`, `choose`
-* Summary aggs: `count`, `sum`, `avg`
-* Structural aggs: `accum`
-
-## Interacting with Bud from Ruby ##
-* `run`
-* `run_bg`
-* `sync_do`
-* `async_do`
-* `BudCollection.dump`
-
-## Bud Code Visualizer ##
