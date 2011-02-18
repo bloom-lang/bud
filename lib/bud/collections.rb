@@ -253,11 +253,13 @@ module Bud
       pending_merge o
     end
 
+    # Called at the end of each time step: prepare the collection for the next
+    # timestep.
     def tick
       @storage = @pending
       @pending = {}
-      @delta = {}
-      @new_delta = {}
+      raise BudError unless @delta.empty?
+      raise BudError unless @new_delta.empty?
     end
 
     # move all deltas and new_deltas into storage
@@ -484,8 +486,7 @@ module Bud
 
     def tick
       @storage = {}
-      # never turn pending outbounds into real tuples
-      @pending = {}
+      raise BudError unless @pending.empty?
     end
 
     def establish_connection(l)
@@ -582,7 +583,7 @@ module Bud
 
     def tick
       @storage = {}
-      @pending = {}
+      raise BudError unless @pending.empty?
     end
 
     def merge(o)
