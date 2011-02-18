@@ -90,6 +90,12 @@ module Bud
     init_state
     bootstrap
 
+    # Make sure that new_delta tuples from bootstrap rules are transitioned into
+    # storage before first tick.
+    tables.each{|name,coll| coll.install_deltas}
+    # note that any tuples installed into a channel won't immediately be
+    # flushed; we need to wait for EM startup to do that
+
     # NB: Somewhat hacky. Dependency analysis and stratification are implemented
     # by Bud programs, so in order for those programs to parse, we need the
     # "Bud" class to have been defined first.
@@ -98,12 +104,6 @@ module Bud
     if @options[:visualize]
       @viz = VizOnline.new(self)
     end
-
-    # Make sure that new_delta tuples from bootstrap rules are transitioned into
-    # storage before first tick.
-    tables.each{|name,coll| coll.install_deltas}
-    # note that any tuples installed into a channel won't immediately be
-    # flushed; we need to wait for EM startup to do that
 
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
