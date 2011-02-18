@@ -1,9 +1,25 @@
 # Bud Cheat Sheet #
 
-## General Bud Syntax Rules ##
-Bud programs are sets of unordered statements, embedded in Ruby.<br>
+## General Bloom Syntax Rules ##
+Bloom programs are unordered sets of statements.<br>
 Statements are delimited by semicolons (;) or newlines. <br>
 As in Ruby, backslash is used to escape a newline.<br>
+
+## Embed Bud in a Ruby Class ##
+    require 'bud'
+    
+    class Foo
+        include BudModule
+        
+        state do
+          ...
+        end
+        
+        declare 
+        def budstatements1
+          ...
+        end
+    end
 
 ## Bud Statements ##
 *lhs BudOp rhs*
@@ -33,7 +49,9 @@ operators can be chained.  for example:
 * `left <- (chan <~ right)`&nbsp;&nbsp;&nbsp; (*async delete*)
 
 ## State Declarations ##
-### Typical Form ###
+Use `BudModule::state` to register a Ruby block of state declarations to be invoked during Bud bootstrapping.
+
+### Default Declaration Syntax ###
 *BudCollection :name, [keys] => [values]*
 
 ### table ###
@@ -159,12 +177,50 @@ Standard Ruby methods used on a BudCollection `bc`:
 * Summary aggs: `count`, `sum`, `avg`
 * Structural aggs: `accum`
 
-## Relational Operators ###
+## Join, Coincide ###
+`join` and `coincide` are synonyms.<br>
+First argument is always an array of collections to join.<br>
+Later arguments are arrays of columns to be matched (equijoin).
 
-* `join([:t1, :t2], [t1.col1, t2.col2])`
-* `natjoin`
-* `leftjoin`
-* `outerjoin`
+`join([`*tablelist*`]` *,[optional column matches], ...*`)`<br>
+`coincide([`*tablelist*`]` *,[optional column matches], ...*`)`<br>
+
+    # the following 3 Bloom statements are equivalent to this SQL
+    # SELECT r.a, s_tab.b, t.c
+    #   FROM r, s_tab, t
+    #  WHERE r.x = s_tab.x
+    #    AND s_tab.x = t.x;
+    
+    out <= join([r,s_tab,t], 
+                [r.x, s_tab.x], [s_tab.x, t.x]).map do |t1, t2, t3| 
+             [t1.a, t2.b, t3.c]
+           end
+           
+    out <= join([r,s_tab,t], [r.x, s_tab.x, t.x]).map do |t1, t2, t3|
+             [t1.a, t2.b, t3.c]
+           end
+
+    # but this last one will be very slow
+    out <= join([r,s_tab,t]).map do |t1, t2, t3|
+             [t1.a, t2.b, t3.c] if r.x == s_tab.x and s_tab.x = t.x
+           end
+           
+    # coincide is a more natural verb for timers and messages.
+    # here is a typical timeout/retry pattern for requests
+    request_chan <~ coincide([request_buf, timeout]).map{|r, t| r }
+    
+    
+
+    
+`natjoin([`*tablelist*`]`)<br>
+Natural join of tables.
+Implicitly includes matching of attributes across collections with the same name.<br>
+The following is equivalent to the above statements if `x` is the only attribute name in common:
+
+    out <= natjoin([r, s_tab, t]).map do {|t1, t2, t3| [t1.a, t2.b, t3.c]}
+
+`leftjoin([`*t1, t2*`]` *, [optional column matches], ...*`)`<br>
+Left Outer Join.  Objects in the first collection will be included in the output even if no match is found in the second collection.
 
 ## Interacting with Bud from Ruby ##
 * `run`
