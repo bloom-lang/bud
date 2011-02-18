@@ -115,7 +115,7 @@ SQL-style grouping/aggregation (and then some):
   * exemplary aggs: `min`, `max`, `choose`
   * summary aggs: `sum`, `avg`, `count`
   * structural aggs: `accum`
-* `bc.argmax([:col1], :col2) *finds the bc tuple per col1 having max col2*
+* `bc.argmax([:col1], :col2)` *finds the bc tuple per col1 having max col2*
 * `bc.argmin([:col1], :col2)`
 
 ### Relational operators over Bud Collections: ###
