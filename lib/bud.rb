@@ -378,7 +378,8 @@ module Bud
     @budtime += 1
   end
 
-  # Handle any inbound tuples off the wire and then clear
+  # Handle any inbound tuples off the wire and then clear. Received messages are
+  # placed directly into the storage of the appropriate local channel.
   def receive_inbound
     @inbound.each do |msg|
 #      puts "dequeueing tuple #{msg[1].inspect} into #{msg[0]} @ #{ip_port}"
