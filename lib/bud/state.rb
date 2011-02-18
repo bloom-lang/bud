@@ -65,8 +65,9 @@ module BudState
 
   def periodic(name, period=1)
     define_or_tick_collection(name)
-    schema = {[:ident] => [:time]}
-    @tables[name] ||= Bud::BudPeriodic.new(name, self, schema)
+    # stick with default [:key] => [:val]
+    # schema = {[:ident] => [:time]}
+    @tables[name] ||= Bud::BudPeriodic.new(name, self)
     unless @periodics.has_key? [name]
       retval = [name, gen_id, period]
       @periodics << retval

@@ -51,7 +51,7 @@ class ChatClient < Bud
     stdio <~ mcast.map do |m|
       [left_right_align(m.nick + ": " \
                         + (m.msg || ''),
-                        "(" + m.time + ")")]
+                        "(" + m.val + ")")]
     end
   end
 end

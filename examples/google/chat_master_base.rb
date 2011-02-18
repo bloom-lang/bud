@@ -23,7 +23,7 @@ class ChatMaster < Bud
   declare
   def multicast
     mcast <~ join([mcast, nodelist]).map do |m,n| 
-      [n.addr, ip_port, m.nick, m.time, m.msg]  unless n.addr == m.from
+      [n.addr, ip_port, m.nick, m.val, m.msg]  unless n.addr == m.from
     end
   end
 end

@@ -129,7 +129,7 @@ module Bud
       self.map{|t| (self.key_cols.length..self.schema.length-1).map{|i| t[i]}}
     end
     
-    def inspectables
+    def inspected
       self.map{|t| [t.inspect]}
     end
 

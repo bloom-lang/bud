@@ -40,7 +40,7 @@ class PingPong
     # whenever we get a timer event, send out the contents of pingbuf, and
     # delete them for the next tick
     j = join [timer, pingbuf]
-    pipe <~ j.map {|t,p| [@otherloc, @myloc, (p.msg == 'ping!') ? 'pong!' : 'ping!', t.time, budtime]}
+    pipe <~ j.map {|t,p| [@otherloc, @myloc, (p.msg == 'ping!') ? 'pong!' : 'ping!', t.val, budtime]}
     pingbuf <- j.map {|t,p| [p.otherloc, p.myloc, p.msg, p.wall, p.bud]}
   end
 end

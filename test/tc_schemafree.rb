@@ -14,7 +14,7 @@ class SchemaFree
   def program
     notes <= msgs.payloads
     msgs <~ send_me
-    # stdio <~ msgs.inspectables
+    # stdio <~ msgs.inspected
   end
 end
 

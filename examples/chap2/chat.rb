@@ -38,7 +38,7 @@ class ChatClient < Bud
     mcast <~ join([stdio, status]).map {|t,s| [@master, ip_port, @me, nice_time, t.line]}
     # pretty-print mcast msgs from master on stdio
     stdio <~ mcast.map do |m|
-      [left_right_align(m.nick + ": " + (m.msg || ''), "(" + m.time + ")")]
+      [left_right_align(m.nick + ": " + (m.msg || ''), "(" + m.val + ")")]
     end
   end
 end
