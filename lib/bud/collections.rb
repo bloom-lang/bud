@@ -72,13 +72,6 @@ module Bud
       schema - key_cols
     end
 
-    def tick
-      @storage = @pending
-      @pending = {}
-      @delta = {}
-      @new_delta = {}
-    end
-
     # define methods to turn 'table.col' into a [table,col] pair
     # e.g. to support something like
     #    j = join link, path, {link.to => path.from}
@@ -269,6 +262,13 @@ module Bud
 
     superator "<+" do |o|
       pending_merge o
+    end
+
+    def tick
+      @storage = @pending
+      @pending = {}
+      @delta = {}
+      @new_delta = {}
     end
 
     # move all deltas and new_deltas into storage

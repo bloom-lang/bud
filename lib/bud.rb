@@ -137,8 +137,6 @@ module Bud
   end
 
   ########### give empty defaults for these
-  def state
-  end
   def declaration
   end
   def bootstrap
@@ -357,12 +355,10 @@ module Bud
     table :t_cycle, [:predicate, :via, :neg, :temporal]
   end
 
+  # For every state declaration, either define a new collection instance (first
+  # time seen) or tick the collection to advance to the next time step.
   def init_state
-    # For every state declaration, either define a new collection instance
-    # (first time seen) or tick the collection to advance to the next time step.
     builtin_state
-    # XXX: old syntax
-    state
     @state_methods.each do |s|
       s.call
     end
@@ -382,7 +378,7 @@ module Bud
     @budtime += 1
   end
 
-  # handle any inbound tuples off the wire and then clear
+  # Handle any inbound tuples off the wire and then clear
   def receive_inbound
     @inbound.each do |msg|
 #      puts "dequeueing tuple #{msg[1].inspect} into #{msg[0]} @ #{ip_port}"
