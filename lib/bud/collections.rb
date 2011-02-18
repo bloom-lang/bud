@@ -225,11 +225,6 @@ module Bud
 
     alias << insert
 
-    def pending_insert(o)
-      # puts "pending_insert: #{o.inspect} into #{tabname}"
-      do_insert(o, @pending)
-    end
-
     def merge(o, buf=@new_delta)
       raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
       delta = o.map do |i|
@@ -253,7 +248,7 @@ module Bud
     alias <= merge
 
     def pending_merge(o)
-      delta = o.map {|i| self.pending_insert(i)}
+      o.each {|i| do_insert(i, @pending)}
       if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
         self.schema = o.schema
       end
