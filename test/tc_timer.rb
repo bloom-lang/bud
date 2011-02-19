@@ -1,10 +1,12 @@
 require 'test_common'
 
-class TemporalBudTest < Bud
-  def state
+class TemporalBudTest
+  include Bud
+
+  state {
     periodic :tik, 0.1
-    table :log, ['ident', 'time']
-  end
+    table :log, [:ident, :time]
+  }
 
   declare 
   def logic

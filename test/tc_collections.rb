@@ -1,11 +1,13 @@
 require 'test_common'
 
-class BabyBud < Bud
-  def state
-    scratch :scrtch, ['k1', 'k2'], ['v1', 'v2']
-    scratch :scrtch2, ['k1', 'k2']
-    table :tbl, ['k1', 'k2'], ['v1', 'v2']
-  end
+class BabyBud
+  include Bud
+
+  state {
+    scratch :scrtch, [:k1, :k2] => [:v1, :v2]
+    scratch :scrtch2, [:k1, :k2]
+    table :tbl, [:k1, :k2] => [:v1, :v2]
+  }
 
   def bootstrap
     scrtch <= [['a', 'b', 1, 2]]
@@ -23,10 +25,12 @@ class BabyBud < Bud
   end
 end
 
-class DupKeyBud < Bud
-  def state
-    scratch :tab, ['k'], ['name']
-  end
+class DupKeyBud
+  include Bud
+
+  state {
+    scratch :tab, [:k] => [:name]
+  }
 
   declare
   def program
@@ -35,20 +39,25 @@ class DupKeyBud < Bud
   end
 end
 
-class DupTableBud < Bud
-  def state
-    scratch :s, ['k']
-    scratch :s, ['l']
-  end
+class DupTableBud
+  include Bud
+
+  state {
+    scratch :s, [:k]
+    scratch :s, [:l]
+  }
 end
 
-class DupColBud < Bud
-  def state
-    scratch :silly, ['a', 'a']
-  end
+class DupColBud
+  include Bud
+
+  state {
+    scratch :silly, [:a, :a]
+  }
 end
 
-class Grep < Bud
+class Grep
+  include Bud
   attr_reader :pattern
 
   def initialize(pattern)
@@ -56,10 +65,10 @@ class Grep < Bud
     @pattern = pattern
   end
 
-  def state
+  state {
     file_reader :text, '../examples/chap2/ulysses.txt'
-    table :matches, ['lineno', 'text']
-  end
+    table :matches, [:lineno, :text]
+  }
 
   declare
   def program
@@ -67,12 +76,14 @@ class Grep < Bud
   end
 end
 
-class Union < Bud
-  def state
-    table :link, ['from', 'to', 'cost']
-    table :delta_link, ['from', 'to', 'cost']
-    table :union, ['from', 'to', 'cost']
-  end
+class Union
+  include Bud
+
+  state {
+    table :link, [:from, :to, :cost]
+    table :delta_link, [:from, :to, :cost]
+    table :union, [:from, :to, :cost]
+  }
 
   def bootstrap
     link <= [['a', 'b', 1]]
@@ -85,11 +96,13 @@ class Union < Bud
   end
 end
 
-class DeleteKey < Bud
-  def state
-    table :t1, ['k'], ['v']
-    table :del_buf, ['k', 'v']
-  end
+class DeleteKey
+  include Bud
+
+  state {
+    table :t1, [:k] => [:v]
+    table :del_buf, [:k, :v]
+  }
 
   def bootstrap
     t1 << [5, 10]
@@ -101,13 +114,15 @@ class DeleteKey < Bud
   end
 end
 
-class RowValueTest < Bud
-  def state
-    table :t1, ['k'], ['v']
-    table :t2, ['k'], ['v']
-    table :t3, ['k'], ['v']
-    table :t4, ['k'], ['v']
-  end
+class RowValueTest
+  include Bud
+
+  state {
+    table :t1, [:k] => [:v]
+    table :t2, [:k] => [:v]
+    table :t3, [:k] => [:v]
+    table :t4, [:k] => [:v]
+  }
 
   declare
   def rules

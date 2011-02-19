@@ -1,25 +1,27 @@
 require 'test_common'
 require 'fileutils'
 
-class TcTest < Bud
-  def state
-    tctable :t1, ['k1', 'k2'], ['v1', 'v2']
-    table :in_buf, ['k1', 'k2', 'v1', 'v2']
-    table :del_buf, ['k1', 'k2', 'v1', 'v2']
-    table :pending_buf, ['k1', 'k2'], ['v1', 'v2']
-    table :pending_buf2, ['k1', 'k2'], ['v1', 'v2']
+class TcTest
+  include Bud
 
-    scratch :t2, ['k'], ['v']
-    scratch :t3, ['k'], ['v']
-    scratch :t4, ['k'], ['v']
-    tctable :chain_start, ['k'], ['v']
-    tctable :chain_del, ['k'], ['v']
+  state {
+    tctable :t1, [:k1, :k2] => [:v1, :v2]
+    table :in_buf, [:k1, :k2, :v1, :v2]
+    table :del_buf, [:k1, :k2, :v1, :v2]
+    table :pending_buf, [:k1, :k2] => [:v1, :v2]
+    table :pending_buf2, [:k1, :k2] => [:v1, :v2]
 
-    tctable :join_t1, ['k'], ['v1', 'v2']
-    tctable :join_t2, ['k'], ['v1', 'v2']
-    scratch :cart_prod, ['k', 'v1', 'v2']
-    scratch :join_res, ['k'], ['v1', 'v2']
-  end
+    scratch :t2, [:k] => [:v]
+    scratch :t3, [:k] => [:v]
+    scratch :t4, [:k] => [:v]
+    tctable :chain_start, [:k] => [:v]
+    tctable :chain_del, [:k] => [:v]
+
+    tctable :join_t1, [:k] => [:v1, :v2]
+    tctable :join_t2, [:k] => [:v1, :v2]
+    scratch :cart_prod, [:k, :v1, :v2]
+    scratch :join_res, [:k] => [:v1, :v2]
+  }
 
   declare
   def logic
@@ -45,29 +47,37 @@ class TcTest < Bud
   end
 end
 
-class TestTc < Test::Unit::TestCase
-  BUD_DIR = "#{Dir.pwd}/bud_tmp"
+BUD_DIR = "#{Dir.pwd}/bud_tmp"
 
+def setup_bud
+  rm_bud_dir
+end
+
+def cleanup_bud(b)
+  unless b.nil?
+    b.close_tables
+  end
+  rm_bud_dir
+end
+
+def rm_bud_dir
+  return unless File.directory? BUD_DIR
+  FileUtils.rm_r(BUD_DIR)
+end
+
+class TestTc < Test::Unit::TestCase
   def setup
-    rm_bud_dir
+    setup_bud
     @t = make_bud(true)
   end
 
   def teardown
-    unless @t.nil?
-      @t.close_tables
-      @t = nil
-    end
-    rm_bud_dir
+    cleanup_bud(@t)
+    @t = nil
   end
 
   def make_bud(truncate)
     TcTest.new(:tc_dir => BUD_DIR, :tc_truncate => truncate, :quiet => true)
-  end
-
-  def rm_bud_dir
-    return unless File.directory? BUD_DIR
-    FileUtils.rm_r(BUD_DIR)
   end
 
   def test_basic_ins
@@ -211,5 +221,56 @@ class TestTc < Test::Unit::TestCase
     assert_nothing_raised(RuntimeError) {@t.tick}
 
     assert_equal(1, @t.join_res.length)
+  end
+end
+
+class TcNest
+  include Bud
+
+  state {
+    scratch :in_buf, [:k1, :k2] => [:v1]
+    table :t1, [:k1] => [:v1]
+    tctable :t2, [:k1, :k2] => [:v1, :v2]
+  }
+
+  def bootstrap
+    t1 << [5, 10]
+  end
+
+  declare
+  def rules
+    j = join([in_buf, t1])
+    t2 <= j.map {|b, t| [b.k1, b.k2, b.v1, t]}
+  end
+end
+
+class TestNestedTc < Test::Unit::TestCase
+  def setup
+    setup_bud
+    @t = make_bud
+  end
+
+  def teardown
+    cleanup_bud(@t)
+    @t = nil
+  end
+
+  def make_bud
+    TcNest.new(:tc_dir => BUD_DIR, :tc_truncate => true, :quiet => true)
+  end
+
+  def test_basic_nest
+    @t.run_bg
+
+    @t.sync_do {
+      @t.in_buf <+ [[10, 20, 30]]
+    }
+    @t.sync_do {
+      # We can store nested tuples inside TC tables, but we lose the ability to
+      # access named columns after deserialization.
+      assert_equal([10, 20, 30, [5, 10]], @t.t2.first)
+    }
+
+    @t.stop_bg
   end
 end

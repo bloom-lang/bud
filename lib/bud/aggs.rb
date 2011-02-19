@@ -1,4 +1,4 @@
-class Bud
+module Bud
   ######## Agg definitions
   class Agg
     def init(val)

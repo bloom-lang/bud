@@ -8,18 +8,18 @@ require 'rubygems'
 require 'bud'
 require 'ping_protocol'
 
-class Pinger < Bud
+class Pinger
+  include Bud
   include PingProtocol
 
-  def state
-    super
-    periodic :timer, ARGV[2], ['ident'], ['time']
+  state do
+    periodic :timer, ARGV[2]
   end
 
   declare
   def logic
     # whenever we get a timer event, send out a tuple
-    flow <~ timer.map {|t| [ARGV[1], ARGV[0], 'ping!', t.time, budtime]}      
+    flow <~ timer.map {|t| [ARGV[1], ARGV[0], 'ping!', t.val, budtime]}      
     stdio <~ flow.map {|f| [f.inspect]}
   end
 end

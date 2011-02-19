@@ -1,8 +1,10 @@
-# simple grep
+# simple word count
 require 'test_common'
 require 'backports'
 
-class WordCount2 < Bud
+class WordCount2
+  include Bud
+
   attr_reader :pattern
   
   def initialize(pattern)
@@ -10,11 +12,11 @@ class WordCount2 < Bud
     @pattern = pattern
   end
   
-  def state
+  state {
     file_reader :txt, '../examples/chap2/ulysses.txt'
-    scratch :words, ['lineno', 'wordno'], ['word']
-    scratch :wc, ['word'], ['cnt']
-  end
+    scratch :words, [:lineno, :wordno] => [:word]
+    scratch :wc, [:word] => [:cnt]
+  }
   
   declare 
   def program

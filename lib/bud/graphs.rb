@@ -4,7 +4,7 @@ require 'graphviz'
 
 class GraphGen
 
-  def initialize(mapping, tableinfo, cycle, name, bud_instance, pics_dir, collapse=false, depanalysis=nil, cardinalities={})
+  def initialize(mapping, tableinfo, cycle, name, budtime, vizlevel, pics_dir, collapse=false, depanalysis=nil, cardinalities={})
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85 )
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
     @graph.node[:fontname] = "Times-Roman"
@@ -16,9 +16,11 @@ class GraphGen
     @name = name
     @collapse = collapse
     @depanalysis = depanalysis
-    @bud_instance = bud_instance
+    @budtime = budtime
+    @vizlevel = vizlevel
     @pics_dir = pics_dir
-    @internals = {'count' => 1, 'localtick' => 1, 'stdio' => 1}
+    #@internals = {'count' => 1, 'localtick' => 1, 'stdio' => 1, 't_rules' => 1, 't_depends' => 1, 't_depends_tc' => 1, 't_provides' => 1, 't_cycle' => 1}
+    @internals = {'count' => 1, 'localtick' => 1, 'stdio' => 1} #, 't_rules' => 1, 't_depends' => 1, 't_depends_tc' => 1, 't_provides' => 1, 't_cycle' => 1}
 
     # map: table -> stratum
     @t2s = {}
@@ -85,7 +87,7 @@ class GraphGen
     if @redcycle[predicate] and @collapse
       via = @redcycle[predicate]
       bag = name_bag(predicate, {})
-      str = bag.keys.sort.join(", ")
+      str = bag.key_cols.sort.join(", ")
       return str
     else
       return predicate
@@ -118,16 +120,18 @@ class GraphGen
   end
 
   def addonce(node, negcluster)
+    #puts "ADD NODE #{node}"
     if !@nodes[node]
       @nodes[node] = @graph.add_node(node)
       if @cards and @cards[node]
-        #@nodes[node].label = node + "\n (<IMG SRC=\"" + @cards[node].to_s + "\">)"
-        @nodes[node].label = node + "\n (#{@cards[node].to_s})"
-        #@nodes[node].image = @cards[node].to_s 
-        @nodes[node].imagescale = "both"
+        @nodes[node].label = node +"\n (#{@cards[node].to_s})"
+        puts "IMAGE IS #{@cards[node]}"
+        #@nodes[node].image = @cards[node]
       end
   
-      @nodes[node].URL = "#{output_dir}/#{node}_#{@bud_instance.budtime}.html" 
+      #@nodes[node].URL = "#{output_dir}/#{node}_#{@budtime}.html" 
+      ###out = "#{output_dir}/#{node}_#{@budtime}.html"
+      @nodes[node].URL = "javascript:openWin(\"#{node}\", #{@budtime})"
     end
 
     if negcluster
@@ -148,7 +152,7 @@ class GraphGen
       @nodes[node].shape = "octagon"
       @nodes[node].penwidth = 3
       @nodes[node].URL = "file://#{ENV['PWD']}/#{@name}_expanded.svg"
-    elsif @tabinf[node] and (@tabinf[node].class == Bud::BudTable)
+    elsif @tabinf[node] and (@tabinf[node] == "Bud::BudTable")
       @nodes[node].shape = "rect"
     end
   end
@@ -194,11 +198,14 @@ class GraphGen
 
   def finish
     @labels.each_key do |k|
-      @edges[k].label = @labels[k].keys.join(" ")
+      @edges[k].label = @labels[k].key_cols.join(" ")
     end
 
     addonce("S", false)
     addonce("T", false)
+
+    @nodes["T"].URL = "javascript:advanceTo(#{@budtime+1})"
+    @nodes["S"].URL = "javascript:advanceTo(#{@budtime-1})"
 
     @nodes["S"].color = "blue"
     @nodes["T"].color = "blue"
@@ -209,7 +216,7 @@ class GraphGen
     @nodes["T"].penwidth = 3
 
     @tabinf.each_pair do |k, v|
-      unless @nodes[name_of(k.to_s)] or k.to_s =~ /_tbl/ or @internals[k.to_s]
+      unless @nodes[name_of(k.to_s)] or k.to_s =~ /_tbl/ or @internals[k.to_s] or (k.to_s =~ /^t_/ and @budtime != 0)
         addonce(k.to_s, false)
       end
     end
@@ -232,12 +239,21 @@ class GraphGen
     end
 
     suffix = @collapse ? "collapsed" : "expanded"
-    @graph.output(:svg => "#{@name}_#{suffix}.svg")
-    @graph.output(:dot => "#{@name}_#{suffix}.dot")
+    fn = "#{@name}_#{suffix}.svg"
+    puts "fn is #{fn}"
+    staging = "#{fn}_staging"
+    @graph.output(:svg => staging)
+    fin = File.open(staging, "r")
+    fout = File.open(fn, "w")
+    while line = fin.gets
+      fout.puts line.gsub("<title>G</title>", svg_javascript())
+    end
+    fin.close
+    fout.close
   end
 
   def output_base
-    if @bud_instance.options[:visualize] >= 3
+    if @vizlevel >= 3
       @pics_dir
     else
       "plotter_out"
@@ -327,3 +343,52 @@ pre.code span.symbol { color: #008B8B; }
 
   
 end
+
+  def svg_javascript
+    return "
+<script type='javascript'>
+  <![CDATA[
+
+var windows = new Array()
+var info = new Array()
+var dir = \"#{output_dir}\"
+
+function openWin(target, time) {
+  win = window.open(dir + \"/\" + target + \"_\" + time + \".html\", target, \"location=no,width=400,height=180,left=0,status=no\");
+  // hm, an associative array, how strange.
+  info[target] = 1
+}
+
+function advanceTo(time) {
+  arr = gup(\"wins\").split(\",\");
+  for (i=0; i < arr.length; i++) {
+    if (arr[i] != \"\") {
+      openWin(arr[i], time);
+    }
+  }
+  str = '';
+  // getting 'key_cols'
+  for (var i in info) {
+    str = str + ',' + i;
+  }
+  self.window.location.href = dir + 'tm_' + time + '_expanded.svg?wins=' + str;
+}
+
+// off the netz
+function gup( name )
+{
+  name = name.replace(/[\[]/,\"\\\[\").replace(/[\]]/,\"\\\]\");
+  var regexS = \"[\\?&]\"+name+\"=([^&#]*)\";
+  var regex = new RegExp( regexS );
+  var results = regex.exec( window.location.href );
+  if( results == null )
+    return \"\";
+  else
+    return results[1];
+}
+
+  ]]>
+</script>
+"
+  end
+

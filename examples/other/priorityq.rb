@@ -1,13 +1,15 @@
 require 'rubygems'
 require 'bud'
 
-class PriorityQ < Bud
-  def state
-    table :q, ['item'], ['priority']
-    scratch :out, ['item'], ['priority']
-    scratch :minny, ['priority']
-    scratch :out2, ['item'], ['priority']
-  end
+class PriorityQ
+  include Bud
+
+  state {
+    table :q, [:item] => [:priority]
+    scratch :out, [:item] => [:priority]
+    scratch :minny, [:priority]
+    scratch :out2, [:item] => [:priority]
+  }
 
   def bootstrap
     q << ['c', 2]
@@ -33,4 +35,3 @@ program = PriorityQ.new
   program.out.each {|o| puts "argmin: #{o.inspect}"}
   program.out2.each {|o| puts "joinmin: #{o.inspect}"}
 end
-

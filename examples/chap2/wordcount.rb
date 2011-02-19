@@ -2,17 +2,15 @@
 require 'rubygems'
 require 'bud'
 
-class WordCount < Bud
-  def initialize(ip, port)
-    super(ip, port)
-  end
+class WordCount
+  include Bud
 
-  def state
+  state do
     file_reader :text, 'ulysses.txt'
-    table :words, ['lineno', 'wordno', 'word']
-    table :wc, ['word'], ['cnt']
-    table :wc2, ['word'], ['cnt']
-    table :compare, ['word'], ['cnt', 'cnt2']
+    table :words, [:lineno, :wordno, :word]
+    table :wc, [:word] => [:cnt]
+    table :wc2, [:word] => [:cnt]
+    table :compare, [:word] => [:cnt, :cnt2]
   end
 
   def bootstrap
@@ -33,7 +31,7 @@ class WordCount < Bud
   end
 end
 
-program = WordCount.new('localhost', ARGV[0])
+program = WordCount.new(:ip => 'localhost', :port => ARGV[0])
 program.tick
 program.compare.each {|t| puts "mismatch: #{t.cnt} != #{t.cnt2}: #{t.inspect}" if t.cnt != t.cnt2}
 program.wc.sort{|x,y| x[1] <=> y[1] }.each {|t| puts t.inspect}

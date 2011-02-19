@@ -3,29 +3,59 @@ require 'anise'
 require 'eventmachine'
 require 'msgpack'
 require 'superators'
+
 require 'bud/aggs'
 require 'bud/bud_meta'
 require 'bud/collections'
 require 'bud/errors'
 require 'bud/server'
 require 'bud/state'
-require 'bud/strat'
 require 'bud/viz'
 
-class Bud
-  attr_reader :strata, :budtime, :inbound, :options, :time_pics_dir, :provides, :meta_parser, :viz, :server
+module BudModule
+  def self.included(o)
+    # Add support for the "declare" annotator to the specified module
+    o.send(:include, Anise)
+    o.send(:annotator, :declare)
+
+    # Transform "state" blocks (calls to a module module of that name) into
+    # instance methods with a special name.
+    def o.state(&block)
+      meth_name = "__#{self}__state".to_sym
+      define_method(meth_name, &block)
+    end
+
+    # NB: it would be easy to workaround this by creating an alias for the
+    # user's included method and then calling the alias from our replacement
+    # "included" method.
+    if o.singleton_methods.include? "included"
+      # XXX: If o is a subclass of Bud, it already has a definition of the
+      # included method, so avoid complaining or defining a duplicate.
+      # return if o < Bud
+      # raise "#{o} already defines 'included' singleton method!"
+      return
+    end
+
+    # If Module X includes BudModule and Y includes X, we want BudModule's
+    # "included" method to be invoked for both X and Y.
+    def o.included(other)
+      BudModule.included(other)
+    end
+  end
+end
+
+module Bud
+  attr_reader :strata, :budtime, :inbound, :options, :provides, :meta_parser, :viz, :server
   attr_accessor :connections
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
 
+  include BudModule
   include BudState
-  include Anise
-  annotator :declare
 
   def initialize(options={})
     @tables = {}
     @table_meta = []
-    @strata = []
     @rewritten_strata = []
     @provides = {}
     @channels = {}
@@ -44,36 +74,69 @@ class Bud
     @ip = @options[:ip]
     @options[:port] ||= 0
     @options[:port] = @options[:port].to_i
-
     # NB: If using an ephemeral port (specified by port = 0), the actual port
     # number may not be known until we start EM
 
     self.class.ancestors.each do |anc|
-      @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact if anc.methods.include? 'annotation'
+      if anc.methods.include? 'annotation'
+        @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact
+      end
     end
     @declarations.uniq!
 
+    @state_methods = lookup_state_methods
+
+    # Evaluate bootstrap block
     init_state
     bootstrap
-    @viz = Viz.new(self)
-    @viz.prepare_viz
 
-    # make sure that new_delta tuples from bootstrap rules are transitioned into
+    # Make sure that new_delta tuples from bootstrap rules are transitioned into
     # storage before first tick.
     tables.each{|name,coll| coll.install_deltas}
     # note that any tuples installed into a channel won't immediately be
     # flushed; we need to wait for EM startup to do that
 
+    # NB: Somewhat hacky. Dependency analysis and stratification are implemented
+    # by Bud programs, so in order for those programs to parse, we need the
+    # "Bud" class to have been defined first.
+    require 'bud/depanalysis'
+    require 'bud/strat'
+    if @options[:visualize]
+      @viz = VizOnline.new(self)
+    end
+
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
     unless self.class <= Stratification or self.class <= DepAnalysis
-      safe_rewrite
+      do_rewrite
+    end
+
+    # Load the rules as a closure (will contain persistent tuples and new inbounds)
+    # declaration is gathered from "declare def" blocks
+    @strata = []
+    declaration
+    @rewritten_strata.each_with_index do |rs, i|
+      block = eval "lambda { #{rs} }"
+      @strata << block
     end
   end
 
-  ########### give empty defaults for these
-  def state
+  def lookup_state_methods
+    rv = []
+
+    # We traverse the ancestor hierarchy from root => leaf. This helps to
+    # support a common idiom: the schema of a table in a child module/class
+    # might be defined in terms of an inherited schema.
+    self.class.ancestors.reverse.each do |anc|
+      meth_name = anc.instance_methods.find {|m| m == "__#{anc}__state"}
+      if meth_name
+        rv << self.method(meth_name.to_sym)
+      end
+    end
+    rv
   end
+
+  ########### give empty defaults for these
   def declaration
   end
   def bootstrap
@@ -85,20 +148,9 @@ class Bud
     class << self; self; end
   end
 
-  def safe_rewrite
-    if @options[:disable_rewrite]
-      puts "No rewriting performed"
-      return
-    end
-
+  def do_rewrite
     @meta_parser = BudMeta.new(self, @declarations)
-    begin
-      @rewritten_strata = @meta_parser.meta_rewrite
-    rescue Exception
-      raise if @options[:enforce_rewrite]
-      puts "Running original (#{self.class}) code: couldn't rewrite stratified ruby (#{$!})"
-    end
-    @viz.visualize(@meta_parser.strat_state, "#{self.class}_gvoutput", @meta_parser.rules, @meta_parser.depanalysis) if @options[:visualize]
+    @rewritten_strata = @meta_parser.meta_rewrite
   end
 
   ######## methods for controlling execution
@@ -128,9 +180,9 @@ class Bud
 
   # Shutdown a Bud instance running asynchronously. This method blocks until Bud
   # has been shutdown.
-  def stop_bg
+  def stop_bg(stop_em = false)
     schedule_and_wait do
-      do_shutdown
+      do_shutdown(stop_em)
     end
   end
 
@@ -141,7 +193,7 @@ class Bud
   # async_do returns immediately; the callback is invoked at some future time.
   def async_do
     EventMachine::schedule do
-      yield
+      yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
       tick
     end
@@ -152,7 +204,7 @@ class Bud
   # Bud thread. Note that calls to sync_do and async_do respect FIFO order.
   def sync_do
     schedule_and_wait do
-      yield
+      yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
       tick
     end
@@ -161,7 +213,10 @@ class Bud
   # Schedule a block to be evaluated by EventMachine in the future, and
   # block until this has happened.
   def schedule_and_wait
-    # Ruby doesn't provide semaphores (!), so we use thread-safe queues.
+    # Try to defend against error situations in which EM has stopped, but we've
+    # been called nonetheless. This is racy, but better than nothing.
+    raise BudError, "EM not running" unless EventMachine::reactor_running?
+
     q = Queue.new
     EventMachine::schedule do
       ret = false
@@ -195,15 +250,20 @@ class Bud
     EventMachine::stop_event_loop if stop_em
   end
 
-  # Schedule a "graceful" shutdown for a future EM tick.
+  # Schedule a "graceful" shutdown for a future EM tick. If EM is not currently
+  # running, shutdown immediately.
   def schedule_shutdown(stop_em = false)
-    EventMachine::schedule do
+    if EventMachine::reactor_running?
+      EventMachine::schedule do
+        do_shutdown(stop_em)
+      end
+    else
       do_shutdown(stop_em)
     end
   end
 
   def start_bud
-    raise unless EventMachine::reactor_thread?
+    raise BudError unless EventMachine::reactor_thread?
 
     # If we get SIGINT or SIGTERM, shutdown gracefully
     Signal.trap("INT") do
@@ -234,7 +294,7 @@ class Bud
   # * Within each tick there may be multiple strata.
   # * Within each stratum we do multiple semi-naive iterations.
   def run
-    raise if EventMachine::reactor_running?
+    raise BudError if EventMachine::reactor_running?
 
     EventMachine::run {
       start_bud
@@ -278,55 +338,45 @@ class Bud
     @tc_tables.each_value { |t| t.flush }
   end
 
+  # Builtin BUD state (predefined collections). We could define this using the
+  # standard "state" syntax, but we want to ensure that builtin state is
+  # initialized before user-defined state.
   def builtin_state
-    channel  :localtick, ['col1']
+    channel  :localtick, [:col1]
     terminal :stdio
-    @periodics = table :periodics_tbl, ['pername'], ['ident', 'period']
-    @vars = table :vars_tbl, ['varname'], ['value']
-    @tmpvars = scratch :tmpvars_tbl, ['tmpvarname'], ['value']
+    @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
+
+    # for BUD reflection
+    table :t_rules, [:rule_id] => [:lhs, :op, :src]
+    table :t_depends, [:rule_id, :lhs, :op, :body] => [:nm]
+    table :t_depends_tc, [:head, :body, :via, :neg, :temporal]
+    table :t_provides, [:interface] => [:input]
+    table :t_stratum, [:predicate] => [:stratum]
+    table :t_cycle, [:predicate, :via, :neg, :temporal]
   end
 
+  # For every state declaration, either define a new collection instance (first
+  # time seen) or tick the collection to advance to the next time step.
   def init_state
-    # For every state declaration, either define a new collection instance
-    # (first time seen) or tick the collection to advance to the next time step.
     builtin_state
-    state
+    @state_methods.each do |s|
+      s.call
+    end
   end
 
   def tick
     init_state
 
     receive_inbound
-    @tables.each do |name,coll|
-      coll.tick_deltas
-    end
 
-    # Load the rules as a closure (will contain persistent tuples and new inbounds)
-    # declaration is gathered from "declare def" blocks
-    # XXX: can we kill the old "declaration" code?
-    @strata = []
-    declaration
-    if @rewritten_strata.length > 0
-      @rewritten_strata.each_with_index do |rs, i|
-        # FIX: move to compilation
-        str = rs.nil? ? "" : rs
-        # eval once and put into block
-        block = eval "lambda { #{str} }"
-        @strata << block
-      end
-    elsif @declarations.length > 0
-      # the old way...
-      @declarations.each do |d|
-        @strata << self.method(d).to_proc
-      end
-    end
     @strata.each { |strat| stratum_fixpoint(strat) }
-    @viz.do_cards
+    @viz.do_cards if @options[:visualize]
     do_flush
     @budtime += 1
   end
 
-  # handle any inbound tuples off the wire and then clear
+  # Handle any inbound tuples off the wire and then clear. Received messages are
+  # placed directly into the storage of the appropriate local channel.
   def receive_inbound
     @inbound.each do |msg|
 #      puts "dequeueing tuple #{msg[1].inspect} into #{msg[0]} @ #{ip_port}"
@@ -338,31 +388,30 @@ class Bud
   def stratum_fixpoint(strat)
     # This routine uses semi-naive evaluation to compute
     # a fixpoint of the rules in strat.
-    # We *almost* have semi-naive evaluation working.
-    # at end of each iteration of this loop we transition:
-    # - delta tuples move into storage
-    # - new_delta moves to delta
-    # - new_delta is set to empty
-    # (see BudCollection for a description of the 4 partitions
-    #  of tuples within a collection.)
-    # This scheme does semi-naive eval for Join.map
-    # because the join.each code understands
-    # the diff between storage and delta.
-    # But calling map on a non-join collection goes through both
+    #
+    # As described in lib/collections.rb, each collection has three
+    # sub-collections of note here:
+    #   @storage: the "main" storage of tuples
+    #   @delta: tuples that should be used to drive derivation of new facts
+    #   @new_delta: a place to store newly-derived facts
+    #
+    # The first time through this loop we mark @stratum_first_iter=true,
+    # while tells the Join::each code to join up all its @storage subcollections
+    # to start. In subsequent iterations the join code uses some table's @delta
+    # to ensure that only new tuples are derived.
+    #
+    # Note that calling "each" on a non-Join collection will iterate through both
     # storage and delta.
-
-    # XXX
-    # To use deltas for all Collections (not just Join), we would
-    # need Collection.each to understand that on iteration 1 of a
-    # fixpoint, it should use storage for all predicates, but
-    # on iterations 2..n of a fixpoint, it should use
-    # deltas for predicates that appear in lhs in this stratum,
-    # and use storage for predicates that appear in lower strata.
-    # XXX
-    # another performance optimization would be to bypass the delta
-    # tables for any preds that don't participate in an rhs -- in that
-    # case the deltas just end up requiring pointless extra tuple movement
-
+    #
+    # At the end of each iteration of this loop we transition:
+    # - @delta tuples are merged into @storage
+    # - @new_delta tuples are moved into @delta
+    # - @new_delta is set to empty
+    #
+    # XXX as a performance optimization, it would be nice to bypass the delta
+    # tables for any preds that don't participate in a rhs Join -- in that
+    # case there's pointless extra tuple movement letting tuples "graduate" 
+    # through @new_delta and @delta.
 
     # In semi-naive, the first iteration should join up tables
     # on their storage fields; subsequent iterations do the
@@ -372,9 +421,9 @@ class Bud
     begin
       strat.call
       @stratum_first_iter = false
-      # this is overkill.
-      # should call tick_deltas only on predicates in this stratum
-      # and then should appropriately deal with deltas in subsequent strata.
+      # XXX this next line is inefficient.
+      # we could call tick_deltas only on predicates in this stratum.
+      # but it's not easy right now (??) to pull out tables in a given stratum
       @tables.each{|name,coll| coll.tick_deltas}
     end while not @tables.all?{|name,coll| coll.new_delta.empty? and coll.delta.empty?}
   end
@@ -395,6 +444,8 @@ class Bud
   def join(rels, *preds)
     BudJoin.new(rels, self, decomp_preds(*preds))
   end
+  
+  alias coincide join
 
   def natjoin(rels)
     # for all pairs of relations, add predicates on matching column names
@@ -411,10 +462,15 @@ class Bud
     join(rels, *preds)
   end
 
+  # ugly, but why not
+  alias natcoincide natjoin
+
   def leftjoin(rels, *preds)
     BudLeftJoin.new(rels, self, decomp_preds(*preds))
   end
 
+  # ugly, but why not
+  alias leftcoincide leftjoin
   ######## ids and timers
   def gen_id
     Time.new.to_i.to_s << rand.to_s
@@ -426,6 +482,4 @@ class Bud
       tick
     end
   end
-
-  alias rules lambda
 end

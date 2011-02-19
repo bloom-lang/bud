@@ -4,12 +4,11 @@ require 'bud/bud_module'
 require 'anise'
 
 module ChatProtocol 
-  include Anise
-  annotator :declare
+  include BudModule
   
-  def state
-    channel :mcast, ['@to', 'from', 'nick', 'time'], ['msg']
-    channel :ctrl, ['@to', 'from', 'cmd']
+  state do
+    channel :mcast, [:@to, :from, :nick, :time] => [:msg]
+    channel :ctrl, [:@to, :from, :cmd]
   end
 
   #declare   

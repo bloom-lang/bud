@@ -2,34 +2,29 @@ require 'rubygems'
 require 'bud'
 
 module VoteInterface
+  include BudModule
+
   # channels used by both ends of the voting protocol
-  # paa: TODO: figure out the right way to mix in state
-  def state
-    super if defined? super
-    channel :ballot, ['@peer', 'master', 'id'], ['content']
-    channel :vote, ['@master', 'peer', 'id'], ['response']
-    channel :tickler, ['@master']
+  state do
+    channel :ballot, [:@peer, :master, :id] => [:content]
+    channel :vote, [:@master, :peer, :id] => [:response]
+    channel :tickler, [:@master]
   end
 end
 
 module VotingMaster
-  # boilerplate
-  include Anise
   include VoteInterface
-  annotator :declare
 
-  def state
-    super if defined? super
+  state do
     # local interfaces    
-    scratch :begin_vote, ['id', 'content']
-    scratch :victor, ['id', 'content', 'response']
+    scratch :begin_vote, [:id, :content]
+    scratch :victor, [:id, :content, :response]
 
-    table :vote_status, 
-          ['id', 'content', 'response']
-    table :member, ['peer']
-    table :votes_rcvd, ['id', 'response', 'peer']
-    scratch :member_cnt, ['cnt']
-    scratch :vote_cnt, ['id', 'response', 'cnt']
+    table :vote_status, [:id, :content, :response]
+    table :member, [:peer]
+    table :votes_rcvd, [:id, :response, :peer]
+    scratch :member_cnt, [:cnt]
+    scratch :vote_cnt, [:id, :response, :cnt]
   end
 
   declare
@@ -79,20 +74,17 @@ end
 
 
 module VotingAgent
-  include Anise
-  annotator :declare
   include VoteInterface
 
-  def state
-    super if defined? super
-    table :waiting_ballots, ['id', 'content', 'master']
-    scratch :cast_vote, ['id', 'response']
+  state do
+    table :waiting_ballots, [:id, :content, :master]
+    scratch :cast_vote, [:id, :response]
   end
 
   # default for decide: always cast vote 'yes'.  expect subclasses to override.
   declare 
   def decide
-    cast_vote <= waiting_ballots.map{ |b| print "EMPTY cast\n" or [b.id, 'yes'] }
+    cast_vote <= waiting_ballots.map{ |b| puts "EMPTY cast" or [b.id, 'yes'] }
   end
   
   declare 
@@ -108,10 +100,8 @@ end
 
 
 module MajorityVotingMaster 
-  # boilerplate
-  include Anise
-  annotator :declare
   include VotingMaster
+
   declare
   def summary
     victor <= join([vote_status, member_cnt, vote_cnt], [vote_status.id, vote_cnt.id]).map do |s, m, v|
@@ -123,5 +113,4 @@ module MajorityVotingMaster
     vote_status <- victor.map{|v| [v.id, v.content, 'in flight'] }
     localtick <~ victor.map{|v| v}
   end
-
 end

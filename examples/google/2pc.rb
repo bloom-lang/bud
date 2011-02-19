@@ -1,15 +1,12 @@
 require 'voting'
 
 module TwoPCAgent
-  include Anise
-  annotator :declare
   include VotingAgent
   # 2pc is a specialization of voting:
   # * ballots describe transactions
   # * voting is Y/N.  A single N vote should cause abort.
-  def state
-    super
-    scratch :can_commit, ['xact', 'decision']
+  state do
+    scratch :can_commit, [:xact, :decision]
   end
 
   declare
@@ -20,9 +17,6 @@ end
 
 
 module TwoPCVotingMaster
-  # boilerplate
-  include Anise
-  annotator :declare
   include VotingMaster
   # override the default summary s.t. a single N vote
   # makes the vote_status = ABORT
@@ -43,18 +37,13 @@ end
 
 
 module TwoPCMaster
-  # boilerplate
-  include Anise
-  annotator :declare
   include TwoPCVotingMaster
   # 2pc is a specialization of voting:
   # * ballots describe transactions
   # * voting is Y/N.  A single N vote should cause abort.
-  def state
-    super
-
-    table :xact, ['xid', 'data'], ['status']
-    scratch :request_commit, ['xid'], ['data']
+  state do
+    table :xact, [:xid, :data] => [:status]
+    scratch :request_commit, [:xid] => [:data]
   end
 
   declare
@@ -82,26 +71,23 @@ module TwoPCMaster
 end
 
 module Monotonic2PCMaster
-  # boilerplate
-  include Anise
-  annotator :declare
   include VotingMaster
+
   def initialize(i, p, o)
     super(i, p, o)
     xact_order << ['prepare', 0]
     xact_order << ['commit', 1]
     xact_order << ['abort', 2]
   end
-  def state
-    super
 
+  state do
     # TODO
-    table :xact_order, ['status'], ['ordinal']
-    table :xact_final, ['xid', 'ordinal']
-    scratch :xact, ['xid', 'data', 'status']
-    table :xact_accum, ['xid', 'data', 'status']
-    scratch :request_commit, ['xid'], ['data']
-    scratch :sj, ['xid', 'data', 'status', 'ordinal']
+    table :xact_order, [:status] => [:ordinal]
+    table :xact_final, [:xid, :ordinal]
+    scratch :xact, [:xid, :data, :status]
+    table :xact_accum, [:xid, :data, :status]
+    scratch :request_commit, [:xid] => [:data]
+    scratch :sj, [:xid, :data, :status, :ordinal]
   end
 
   declare

@@ -1,25 +1,23 @@
 require 'test_common'
 
 module MemberProtocol
-  def state
-    super
-    interface input, :add_member, ['req_id'], ['name', 'addr']
-    interface output, :result, ['req_id'], ['success']
-    table :member, ['name'], ['addr']
-  end
+  include BudModule
+
+  state {
+    interface input, :add_member, [:req_id] => [:name, :addr]
+    interface output, :result, [:req_id] => [:success]
+    table :member, [:name] => [:addr]
+  }
 end
 
 # Don't allow members whose names appear in "bad_people"
 module SelectiveMembership
   include MemberProtocol
-  include Anise
-  annotator :declare
 
-  def state
-    super
-    table :bad_people, ['name']
-    scratch :good_add_reqs, ['req_id'], ['name', 'addr']
-  end
+  state {
+    table :bad_people, [:name]
+    scratch :good_add_reqs, [:req_id] => [:name, :addr]
+  }
 
   def bootstrap
     bad_people <= [['foo'], ['bar']]
@@ -37,7 +35,8 @@ module SelectiveMembership
   end
 end
 
-class SimpleClient < Bud
+class SimpleClient
+  include Bud
   include SelectiveMembership
 end
 

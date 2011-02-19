@@ -7,7 +7,9 @@
 require 'rubygems'
 require 'bud'
 
-class PingPong < Bud
+class PingPong
+  include Bud
+
   def initialize(opt)
     super
     @myloc = "#{opt[:ip]}:#{opt[:port]}"
@@ -16,11 +18,11 @@ class PingPong < Bud
     @otherloc = (@myloc == loc1) ? loc2 : loc1
   end
 
-  def state
-    channel :pipe, ['@otherloc', 'myloc', 'msg', 'wall', 'bud']
-    table   :pingbuf, ['otherloc', 'myloc', 'msg', 'wall', 'bud']
+  state {
+    channel :pipe, [:@otherloc, :myloc, :msg, :wall, :bud]
+    table   :pingbuf, [:otherloc, :myloc, :msg, :wall, :bud]
     periodic :timer, ARGV[1]
-  end
+  }
 
   def bootstrap
     if ARGV[2]
@@ -33,16 +35,15 @@ class PingPong < Bud
   def rules
     # whenever we get a message, store it in pingbuf and print it
     pingbuf <= pipe
-    stdio <~ pipe.map {|p| ["got message: " + p.msg]}
+    stdio <~ pipe.map {|p| ["got message: #{p.msg}"]}
 
     # whenever we get a timer event, send out the contents of pingbuf, and
     # delete them for the next tick
     j = join [timer, pingbuf]
-    pipe <~ j.map {|t,p| [@otherloc, @myloc, (p.msg == 'ping!') ? 'pong!' : 'ping!', t.time, budtime]}
+    pipe <~ j.map {|t,p| [@otherloc, @myloc, (p.msg == 'ping!') ? 'pong!' : 'ping!', t.val, budtime]}
     pingbuf <- j.map {|t,p| [p.otherloc, p.myloc, p.msg, p.wall, p.bud]}
   end
 end
 
 program = PingPong.new(:ip => "127.0.0.1", :port => ARGV[0])
 program.run
-
