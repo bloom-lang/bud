@@ -54,7 +54,7 @@ module BudState
 
     unless @tables[name]
       @tables[name] = Bud::BudChannel.new(name, self, schema)
-      @channels[name] = @tables[name].locspec
+      @channels[name] = @tables[name].locspec_idx
     end
   end
 
@@ -65,8 +65,7 @@ module BudState
 
   def periodic(name, period=1)
     define_or_tick_collection(name)
-    # stick with default [:key] => [:val]
-    # schema = {[:ident] => [:time]}
+    # stick with default schema -- [:key] => [:val]
     @tables[name] ||= Bud::BudPeriodic.new(name, self)
     unless @periodics.has_key? [name]
       retval = [name, gen_id, period]

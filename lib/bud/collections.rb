@@ -20,6 +20,23 @@ module Bud
     attr_accessor :schema, :key_cols, :cols
     attr_reader :tabname, :bud_instance, :storage, :delta, :new_delta
 
+    # each collection is partitioned into 4:
+    # - pending holds tuples deferred til the next tick
+    # - storage holds the "normal" tuples
+    # - delta holds the delta for rhs's of rules during semi-naive
+    # - new_delta will hold the lhs tuples currently being produced during s-n
+    def initialize(name, bud_instance, user_schema=nil)
+      @tabname = name
+      user_schema ||= {[:key]=>[:val]}
+      @user_schema = user_schema
+      @schema, @key_cols = parse_schema(user_schema)
+      @bud_instance = bud_instance
+      init_storage
+      init_pending
+      init_deltas
+      setup_accessors
+    end
+
     # The user-specified schema might come in two forms: a hash of Array =>
     # Array (key_cols => remaining columns), or simply an Array of columns (if no
     # key_cols were specified). Return a pair: [list of columns in entire tuple,
@@ -45,23 +62,6 @@ module Bud
       end
 
       return [schema, key_cols]
-    end
-
-    # each collection is partitioned into 4:
-    # - pending holds tuples deferred til the next tick
-    # - storage holds the "normal" tuples
-    # - delta holds the delta for rhs's of rules during semi-naive
-    # - new_delta will hold the lhs tuples currently being produced during s-n
-    def initialize(name, bud_instance, user_schema=nil)
-      @tabname = name
-      user_schema ||= {[:key]=>[:val]}
-      @user_schema = user_schema
-      @schema, @key_cols = parse_schema(user_schema)
-      @bud_instance = bud_instance
-      init_storage
-      init_pending
-      init_deltas
-      setup_accessors
     end
 
     def clone_empty
@@ -236,11 +236,6 @@ module Bud
 
     alias << insert
 
-    def pending_insert(o)
-      # puts "pending_insert: #{o.inspect} into #{tabname}"
-      do_insert(o, @pending)
-    end
-
     def merge(o, buf=@new_delta)
       raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
       delta = o.map do |i|
@@ -255,19 +250,13 @@ module Bud
           buf[keycols] = tuple_accessors(i)
         end
       end
-      if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
-        self.schema = o.schema
-      end
       return self
     end
 
     alias <= merge
 
     def pending_merge(o)
-      delta = o.map {|i| self.pending_insert(i)}
-      if self.schema.empty? and o.respond_to?(:schema) and not o.schema.empty?
-        self.schema = o.schema
-      end
+      o.each {|i| do_insert(i, @pending)}
       return self
     end
 
@@ -275,11 +264,13 @@ module Bud
       pending_merge o
     end
 
+    # Called at the end of each time step: prepare the collection for the next
+    # timestep.
     def tick
       @storage = @pending
       @pending = {}
-      @delta = {}
-      @new_delta = {}
+      raise BudError unless @delta.empty?
+      raise BudError unless @new_delta.empty?
     end
 
     # move all deltas and new_deltas into storage
@@ -455,7 +446,8 @@ module Bud
   end
 
   class BudChannel < BudCollection
-    attr_accessor :locspec, :connections, :locspec_ix
+    attr_accessor :connections
+    attr_reader :locspec_idx
 
     def initialize(name, bud_instance, user_schema=nil)
       user_schema ||= [:@address, :val]
@@ -467,9 +459,9 @@ module Bud
         key_cols = user_schema
         cols = []
       end
-      locspec = remove_at_sign!(key_cols)
-      locspec = remove_at_sign!(cols) if locspec.nil?
-      # If locspec is still nil, this is a loopback channel
+      @locspec_idx = remove_at_sign!(key_cols)
+      @locspec_idx = remove_at_sign!(cols) if @locspec_idx.nil?
+      # If @locspec_idx is still nil, this is a loopback channel
 
       # Note that we mutate the hash key above, so we need to recreate the hash
       # XXX: ugh, hacky
@@ -478,8 +470,6 @@ module Bud
       end
 
       super(name, bud_instance, user_schema)
-      @locspec = locspec
-      @locspec_ix = @schema.index(@locspec)
       @connections = {}
     end
 
@@ -499,15 +489,16 @@ module Bud
 
     def clone_empty
       retval = super
-      retval.locspec = locspec
+      retval.locspec_idx = @locspec_idx
       retval.connections = @connections.clone
       retval
     end
 
     def tick
       @storage = {}
-      # never turn pending outbounds into real tuples
-      @pending = {}
+      # Note that we do not clear @pending here: if the user inserted into the
+      # channel manually (e.g., via <~ from inside a sync_do block), we send the
+      # message at the end of the current tick.
     end
 
     def establish_connection(l)
@@ -522,16 +513,16 @@ module Bud
         ip = @bud_instance.ip
         port = @bud_instance.port
         each_pending do |t|
-          if @locspec.nil?
+          if @locspec_idx.nil?
             the_locspec = [ip, port.to_i]
           else
             begin
-              the_locspec = split_locspec(t[@locspec])
+              the_locspec = split_locspec(t[@locspec_idx])
             rescue
-              puts "bad locspec #{@locspec} for collection '#{@tabname}'"
+              puts "bad locspec #{@locspec_idx} for channel '#{@tabname}'"
             end
           end
-#          puts "#{@bud_instance.ip_port} => #{the_locspec.inspect}: #{[@tabname, t].inspect}"
+          # puts "#{@bud_instance.ip_port} => #{the_locspec.inspect}: #{[@tabname, t].inspect}"
           establish_connection(the_locspec) if @connections[the_locspec].nil?
           # if the connection failed, we silently ignore and let the tuples be cleared.
           # if we didn't clear them here, we'd be clearing them at end-of-tick anyhow
@@ -560,6 +551,10 @@ module Bud
     superator "<+" do |o|
       raise BudError, "Illegal use of <+ with channel '#{@tabname}' on left"
     end
+
+    def <=(o)
+      raise BudError, "Illegal use of <= with channel '#{@tabname}' on left"
+    end
   end
 
   class BudTerminal < BudCollection
@@ -574,7 +569,7 @@ module Bud
     def start_stdin_reader
       # XXX: Ugly hack. Rather than sending terminal data to EM via TCP,
       # we should add the terminal file descriptor to the EM event loop.
-      @reader = Thread.new() do
+      @reader = Thread.new do
         begin
           while true
             STDOUT.print("#{tabname} > ") if @prompt
@@ -604,7 +599,7 @@ module Bud
 
     def tick
       @storage = {}
-      @pending = {}
+      raise BudError unless @pending.empty?
     end
 
     def merge(o)

@@ -90,6 +90,12 @@ module Bud
     init_state
     bootstrap
 
+    # Make sure that new_delta tuples from bootstrap rules are transitioned into
+    # storage before first tick.
+    tables.each{|name,coll| coll.install_deltas}
+    # note that any tuples installed into a channel won't immediately be
+    # flushed; we need to wait for EM startup to do that
+
     # NB: Somewhat hacky. Dependency analysis and stratification are implemented
     # by Bud programs, so in order for those programs to parse, we need the
     # "Bud" class to have been defined first.
@@ -98,12 +104,6 @@ module Bud
     if @options[:visualize]
       @viz = VizOnline.new(self)
     end
-
-    # Make sure that new_delta tuples from bootstrap rules are transitioned into
-    # storage before first tick.
-    tables.each{|name,coll| coll.install_deltas}
-    # note that any tuples installed into a channel won't immediately be
-    # flushed; we need to wait for EM startup to do that
 
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
@@ -368,9 +368,6 @@ module Bud
     init_state
 
     receive_inbound
-    @tables.each do |name,coll|
-      coll.tick_deltas
-    end
 
     @strata.each { |strat| stratum_fixpoint(strat) }
     @viz.do_cards if @options[:visualize]
@@ -378,7 +375,8 @@ module Bud
     @budtime += 1
   end
 
-  # Handle any inbound tuples off the wire and then clear
+  # Handle any inbound tuples off the wire and then clear. Received messages are
+  # placed directly into the storage of the appropriate local channel.
   def receive_inbound
     @inbound.each do |msg|
 #      puts "dequeueing tuple #{msg[1].inspect} into #{msg[0]} @ #{ip_port}"

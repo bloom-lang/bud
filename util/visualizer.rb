@@ -34,13 +34,42 @@ class VizHelper
   end
 
   def summarize(dir, schema)
+    puts "SUMMARIZE"
     table_io = {}
-    cardinalities.each do |card|
+    timeseries = {}
+    cardinalities.sort{|a, b| a[0] <=> b[0]}.each do |card|
       table_io["#{card.table}_#{card.bud_time}"] = start_table(dir, card.table, card.bud_time, schema[card.table])
+      unless timeseries[card.table]
+        timeseries[card.table] = []
+      end
+      timeseries[card.table] << card.cnt
     end
     full_info.each do |info|
       write_table_content(table_io["#{info.table}_#{info.bud_time}"], info.row)
     end
+
+    ts2 = {}
+    timeseries.each_pair do |k, v|
+      #taburl = gchart.(:size => '100x100', :data => v, :axis_with_labels => 'x, y')
+      puts "TS[#{k}] = #{v.inspect}"
+      #taburl = gchart.line(:data => v, :axis_with_labels => 'x, y')
+      #url = URI::parse(taburl)
+      #puts "TABURL = #{taburl}"
+      #response = Net::HTTP.get_response(url)
+      #fn = "#{@dir}/#{k}_timeseries.png"
+      #fout = File.new(fn, "w")
+      #fout.write response.body
+      #fout.close
+      fn = v
+      puts "GOT #{fn}"
+      #ts2[k] = "#{ENV['PWD']}/#{fn}"
+      ts2[k] = v
+    end
+
+    sum = GraphGen.new(@t_strata, @t_tabinf, @t_cycle, "#{@dir}/summary", -1, 3, @dir, false, nil, ts2)
+    sum.process(@t_depends)
+    sum.dump(@t_rules)
+    sum.finish
 
     table_io.each_value do |tab|
       end_table(tab)
@@ -96,6 +125,7 @@ def deserialize_table(tab, strict)
     Marshal.load(v).each{|v| tup << v }
     ret << tup
   end
+  tab.close
   return ret
 end
 
