@@ -203,9 +203,20 @@ module Bud
       keycols = key_cols.map{|k| old[schema.index(k)]}
       raise KeyConstraintError, "Key conflict inserting #{old.inspect} into \"#{tabname}\": existing tuple #{new.inspect}, key_cols = #{keycols.inspect}"
     end
+    
+    def prep_tuple(o)
+      # if this tuple has more fields than usual, bundle up the 
+      # extras into an array
+      if o.length > schema.length then
+        o = (0..(schema.length - 1)).map{|c| o[c]} << (schema.length..(o.length - 1)).map{|c| o[c]}
+      end
+     return o
+    end
 
     def do_insert(o, store)
       return if o.nil? or o.empty?
+      
+      o = prep_tuple(o)
 
       keycols = key_cols.map{|k| o[schema.index(k)]}
       # XXX should this be self[keycols?]
@@ -214,7 +225,7 @@ module Bud
       # XXX please check in some key violation tests!!
       old = store[keycols]
       raise_pk_error(o, old) unless old.nil? or old == o
-
+      
       store[keycols] = tuple_accessors(o)
     end
 
@@ -234,13 +245,13 @@ module Bud
       raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
       delta = o.map do |i|
         next if i.nil? or i == []
+        i = prep_tuple(i)
         keycols = key_cols.map{|k| i[schema.index(k)]}
         if (old = self[keycols])
           raise_pk_error(i, old) if old != i
         elsif (oldnew = self.new_delta[keycols])
           raise_pk_error(i, oldnew) if oldnew != i
         else
-          # don't call do_insert, it will just recheck our tests for hash collision
           buf[keycols] = tuple_accessors(i)
         end
       end
