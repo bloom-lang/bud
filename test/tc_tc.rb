@@ -274,3 +274,46 @@ class TestNestedTc < Test::Unit::TestCase
     @t.stop_bg
   end
 end
+
+class TcBootstrap
+  include Bud
+
+  state do
+    tctable :t1
+  end
+
+  def bootstrap
+    t1 << [5, 10]
+    t1 << [10,15]
+  end
+end
+
+class TestTcBootstrap < Test::Unit::TestCase
+  def setup
+    setup_bud
+    @t = make_bud
+  end
+
+  def teardown
+    cleanup_bud(@t)
+    @t = nil
+  end
+
+  def make_bud
+    TcBootstrap.new(:tc_dir => BUD_DIR, :tc_truncate => false, :quiet => true)
+  end
+
+  def test_basic
+    def check_t
+      @t.run_bg
+      @t.sync_do {
+        assert_equal([[5, 10], [10, 15]], @t.t1.to_a.sort)
+      }
+      @t.stop_bg
+    end
+
+    check_t
+    @t = make_bud
+    check_t
+  end
+end
