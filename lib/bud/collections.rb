@@ -435,7 +435,8 @@ module Bud
   end
 
   class BudChannel < BudCollection
-    attr_accessor :locspec, :connections, :locspec_ix
+    attr_accessor :connections
+    attr_reader :locspec_idx
 
     def initialize(name, bud_instance, user_schema=nil)
       user_schema ||= [:@address, :val]
@@ -447,9 +448,9 @@ module Bud
         key_cols = user_schema
         cols = []
       end
-      locspec = remove_at_sign!(key_cols)
-      locspec = remove_at_sign!(cols) if locspec.nil?
-      # If locspec is still nil, this is a loopback channel
+      @locspec_idx = remove_at_sign!(key_cols)
+      @locspec_idx = remove_at_sign!(cols) if @locspec_idx.nil?
+      # If @locspec_idx is still nil, this is a loopback channel
 
       # Note that we mutate the hash key above, so we need to recreate the hash
       # XXX: ugh, hacky
@@ -458,8 +459,6 @@ module Bud
       end
 
       super(name, bud_instance, user_schema)
-      @locspec = locspec
-      @locspec_ix = @schema.index(@locspec)
       @connections = {}
     end
 
@@ -479,14 +478,16 @@ module Bud
 
     def clone_empty
       retval = super
-      retval.locspec = locspec
+      retval.locspec_idx = @locspec_idx
       retval.connections = @connections.clone
       retval
     end
 
     def tick
       @storage = {}
-      raise BudError unless @pending.empty?
+      # Note that we do not clear @pending here: if the user inserted into the
+      # channel manually (e.g., via <~ from inside a sync_do block), we send the
+      # message at the end of the current tick.
     end
 
     def establish_connection(l)
@@ -501,16 +502,16 @@ module Bud
         ip = @bud_instance.ip
         port = @bud_instance.port
         each_pending do |t|
-          if @locspec.nil?
+          if @locspec_idx.nil?
             the_locspec = [ip, port.to_i]
           else
             begin
-              the_locspec = split_locspec(t[@locspec])
+              the_locspec = split_locspec(t[@locspec_idx])
             rescue
-              puts "bad locspec #{@locspec} for collection '#{@tabname}'"
+              puts "bad locspec #{@locspec_idx} for channel '#{@tabname}'"
             end
           end
-#          puts "#{@bud_instance.ip_port} => #{the_locspec.inspect}: #{[@tabname, t].inspect}"
+          # puts "#{@bud_instance.ip_port} => #{the_locspec.inspect}: #{[@tabname, t].inspect}"
           establish_connection(the_locspec) if @connections[the_locspec].nil?
           # if the connection failed, we silently ignore and let the tuples be cleared.
           # if we didn't clear them here, we'd be clearing them at end-of-tick anyhow
@@ -539,6 +540,10 @@ module Bud
     superator "<+" do |o|
       raise BudError, "Illegal use of <+ with channel '#{@tabname}' on left"
     end
+
+    def <=(o)
+      raise BudError, "Illegal use of <= with channel '#{@tabname}' on left"
+    end
   end
 
   class BudTerminal < BudCollection
@@ -553,7 +558,7 @@ module Bud
     def start_stdin_reader
       # XXX: Ugly hack. Rather than sending terminal data to EM via TCP,
       # we should add the terminal file descriptor to the EM event loop.
-      @reader = Thread.new() do
+      @reader = Thread.new do
         begin
           while true
             STDOUT.print("#{tabname} > ") if @prompt

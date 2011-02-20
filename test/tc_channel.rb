@@ -90,7 +90,7 @@ class TestRing < Test::Unit::TestCase
       # applies pending <+ and <- derivations. See issue #50.
       r.sync_do
       r.stop_bg
-      assert_equal(r.last_cnt.first, [30 + i])
+      assert_equal([30 + i], r.last_cnt.first)
     end
   end
 end
@@ -99,14 +99,14 @@ class ChannelWithKey
   include Bud
 
   state {
-    channel :c, [:@addr] => [:v1, :v2]
+    channel :c, [:@addr, :k1] => [:v1]
     scratch :kickoff, [:addr, :v1, :v2]
     table :recv, c.key_cols => c.cols
   }
 
   declare
   def send_msg
-    c <= kickoff.map {|k| [k.addr, k.v1, k.v2]}
+    c <~ kickoff.map {|k| [k.addr, k.v1, k.v2]}
     recv <= c
   end
 end
@@ -122,12 +122,27 @@ class TestChannelWithKey < Test::Unit::TestCase
     target_addr = p2.ip_port
     p1.sync_do {
       p1.kickoff <+ [[target_addr, 10, 20]]
+      # Test that directly inserting into a channel also works
+      p1.c <~ [[target_addr, 50, 100]]
+    }
+    sleep 1
+    p2.sync_do {
+      assert_equal([[target_addr, 10, 20], [target_addr, 50, 100]], p2.recv.to_a.sort)
     }
 
-    sleep 1
+    # Check that inserting into a channel via <= is rejected
+    assert_raise(Bud::BudError) {
+      p1.sync_do {
+        p1.c <= [[target_addr, 60, 110]]
+      }
+    }
 
-    p2.sync_do {
-      assert_equal(p1.recv.first, [target_addr, 10, 20])
+    # Check that key constraints on channels are raised
+    assert_raise(Bud::KeyConstraintError) {
+      p1.sync_do {
+        p1.c <~ [[target_addr, 70, 120]]
+        p1.c <~ [[target_addr, 70, 130]]
+      }
     }
 
     p1.stop_bg
