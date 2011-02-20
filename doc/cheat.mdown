@@ -170,7 +170,7 @@ Standard Ruby methods used on a BudCollection `bc`:
     
 `bc.exists?`: test for non-empty collection.  Can optionally pass in a block.
 
-    stdio <~ [["tick"] if timer.exists?]
+    stdio <~ [["Wake Up!"] if timer.exists?]
     stdio <~ requests.map{|r| do
       [r.inspect] if msgs.exists?{|m| r.ident == m.ident}
     end
