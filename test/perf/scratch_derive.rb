@@ -1,10 +1,10 @@
 require "rubygems"
 require "bud"
 
+BENCH_LIMIT = 200
+
 class ScratchBench
   include Bud
-
-  BENCH_LIMIT = 200
 
   state do
     scratch :t1, [:key]
@@ -13,8 +13,8 @@ class ScratchBench
 
   declare
   def bench
-    t1 <= t1.map {|t| [t.key + 1] if t.key < ScratchBench::BENCH_LIMIT}
-    done <= t1.map {|t| t if t.key >= ScratchBench::BENCH_LIMIT}
+    t1 <= t1.map {|t| [t.key + 1] if t.key < BENCH_LIMIT}
+    done <= t1.map {|t| t if t.key >= BENCH_LIMIT}
   end
 end
 
