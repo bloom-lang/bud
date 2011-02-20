@@ -198,6 +198,16 @@ module Bud
 
       return false
     end
+    
+    def exists?(&block)
+      if length == 0
+        return false 
+      elsif block.nil?
+        return true
+      else
+        return ((detect{|t| yield t}).nil?) ? false : true
+      end
+    end
 
     def raise_pk_error(new, old)
       keycols = key_cols.map{|k| old[schema.index(k)]}
