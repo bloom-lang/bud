@@ -120,57 +120,67 @@ end
 
 
 class StateExtractor < Ruby2Ruby
-  attr_reader :tabs
+  attr_reader :tabs, :decls
 
   def initialize(context)
     @cxt = context
     @tabs = {}
     @ttype = nil
+    @decls = []
     super()
   end
 
-  def process_zsuper(exp)
-    # suppress superclass calls for this rewrite.
-    # but consider obsoleting such calls via rewriting!
-    exp.shift
+#  def process_zsuper(exp)
+#    # suppress superclass calls for this rewrite.
+#    # but consider obsoleting such calls via rewriting!
+#    exp.shift
+#    return ""
+#  end
+
+#  def process_block(exp)
+#    term  = exp.shift
+#    res = ""
+#    until term.nil?
+#      res += process(term) + "\n"
+#      term = exp.shift
+#    end
+#    return res
+#  end
+
+#  def process_defn(exp)
+#    if exp.first.to_s == "state"
+#      exp.shift
+#      ret = exp.shift
+#      process ret
+#    end
+#  end
+
+#  def process_vcall(exp)
+#    @ttype = exp.to_s
+#    super
+#  end
+
+#  def process_lit(exp)
+#    if exp.first.class == Symbol
+#      tab = exp.shift.to_s
+#      if @cxt.nil?
+#        res = tab
+#      else
+#        res =  @cxt.downcase + "_" + tab
+#      end
+#      @tabs[tab] = [res, @ttype]
+#      return ":" + res
+#    else
+#      super
+#    end
+#  end
+
+  def process_call(exp)
+    lhs = process exp[2]
+    foo = "#{exp[1]} #{lhs}"
+    @decls << ["#{lhs}"[/:.*?,/][1..-1].chop!, foo]
+    exp.shift while exp.length > 0
     return ""
   end
 
-  def process_block(exp)
-    term  = exp.shift
-    res = ""
-    until term.nil?
-      res += process(term) + "\n"
-      term = exp.shift
-    end
-    return res
-  end
-
-  def process_defn(exp)
-    if exp.first.to_s == "state"
-      exp.shift
-      ret = exp.shift
-      process ret
-    end
-  end
-
-  def process_vcall(exp)
-    @ttype = exp.to_s
-    super
-  end
-
-  def process_lit(exp)
-    if exp.first.class == Symbol
-      tab = exp.shift.to_s
-      if @cxt.nil?
-        res = tab
-      else
-        res =  @cxt.downcase + "_" + tab
-      end
-      @tabs[tab] = [res, @ttype]
-      return ":" + res
-    else
-      super
-    end
-  end
 end

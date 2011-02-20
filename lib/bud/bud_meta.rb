@@ -6,7 +6,7 @@ require 'parse_tree'
 
 class BudMeta
   include BudState
-  attr_reader :rules, :provides, :depanalysis, :depends
+  attr_reader :rules, :provides, :depanalysis, :depends, :decls
 
   def initialize(bud_instance, declarations)
     # need: provides, options, declarations, class, tables, self for viz
@@ -22,7 +22,8 @@ class BudMeta
     # N.B. -- parse_tree will not be supported in ruby 1.9.
     # however, we can still pass the "string" code of bud modules
     # to ruby_parse (but not the "live" class)
-    @defns = []
+
+    @decls = []
     shred_rules
     top = stratify
     smap = binaryrel2map(@bud_instance.t_stratum)
@@ -66,7 +67,7 @@ class BudMeta
   def dump_rewrite
     fout = File.new(@bud_instance.class.to_s + "_rewritten.txt", "w")
     fout.puts "Declarations:"
-    @defns.each do |d|
+    @decls.each do |d|
       fout.puts d
     end
     
@@ -117,16 +118,22 @@ class BudMeta
     stp = ParseTree.translate(anc, "state")
     return tabs if stp[0].nil?
     state_reader = StateExtractor.new(anc.to_s)
-    res = state_reader.process(stp)
+    u = Unifier.new
+    pt = u.process(stp)
+    res = state_reader.process(pt)
+    for d in state_reader.decls
+      @decls << d
+    end
     # create the state
     #puts "DEFN : #{res}"
-    @defns << res
-    eval(res)
-    state_reader.tabs.each_pair do |k, v| 
-      tabs[k] ||= []
-      tabs[k] << v 
-    end
-    return tabs
+    # not sure what this is doing, so i commented it out -wrm
+    #eval(res)
+    #state_reader.tabs.each_pair do |k, v| 
+    #  tabs[k] ||= []
+    #  tabs[k] << v 
+    #end
+    #return tabs
+    return []
   end
 
   def shred_rules
