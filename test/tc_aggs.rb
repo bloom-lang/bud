@@ -12,7 +12,7 @@ class ShortestPaths
     table :avrg2, [:from, :to] => [:ave, :some, :kount]
   }
 
-  def bootstrap
+  bootstrap do
     link << ['a', 'b', 1]
     link << ['a', 'b', 4]
     link << ['b', 'c', 1]
@@ -51,7 +51,7 @@ class PriorityQ
     scratch :out2, [:item] => [:priority]
   }
 
-  def bootstrap
+  bootstrap do
     q << ['c', 2]
     q << ['d', 3]
     q << ['a', 1]
@@ -78,7 +78,7 @@ class DupAggs
 #    scratch :out, [:s1, :s2]
   }
 
-  def bootstrap
+  bootstrap do
     tab << [1]
     tab << [2]
   end
@@ -98,7 +98,7 @@ class Rename
     table :shoes, [:dname] => [:usualsal]
   }
 
-  def bootstrap
+  bootstrap do
     emp << ['joe', 'shoe', 10]
     emp << ['joe', 'toy', 5]
     emp << ['bob', 'shoe', 11]

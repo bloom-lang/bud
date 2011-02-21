@@ -1,22 +1,22 @@
 require 'test_common'
 
 class Semi
-    include Bud
-    
-    state do
-      table :stuff
-      table :bigstuff, stuff.schema + [:extra1] + [:extra2]
-    end
-    
-    def bootstrap
-      bigstuff << [1,2,3,4]
-      bigstuff << [2, 'check', {:key => 'out'}, ['me', ['and', 'my'], 'nested'], 'ways']
-    end
-    
-    declare 
-    def whynot
-      stuff <= bigstuff
-    end
+  include Bud
+
+  state do
+    table :stuff
+    table :bigstuff, stuff.schema + [:extra1] + [:extra2]
+  end
+
+  bootstrap do
+    bigstuff << [1,2,3,4]
+    bigstuff << [2, 'check', {:key => 'out'}, ['me', ['and', 'my'], 'nested'], 'ways']
+  end
+
+  declare
+  def whynot
+    stuff <= bigstuff
+  end
 end
 
 class TestSemi < Test::Unit::TestCase

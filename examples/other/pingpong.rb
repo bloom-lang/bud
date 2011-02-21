@@ -24,7 +24,7 @@ class PingPong
     periodic :timer, ARGV[1]
   }
 
-  def bootstrap
+  bootstrap do
     if ARGV[2]
       stdio <~ [["injecting into pingbuf"]]
       pingbuf << [@otherloc, @myloc, 'pong!', Time.new.to_s, budtime]

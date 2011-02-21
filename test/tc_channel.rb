@@ -10,7 +10,7 @@ class TickleCount
     table   :mresult, [:nums]
   }
 
-  def bootstrap
+  bootstrap do
     loopback <~ [[0]]
   end
 

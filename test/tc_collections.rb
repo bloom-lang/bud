@@ -9,7 +9,7 @@ class BabyBud
     table :tbl, [:k1, :k2] => [:v1, :v2]
   }
 
-  def bootstrap
+  bootstrap do
     scrtch <= [['a', 'b', 1, 2]]
     scrtch <= [['a', 'c', 3, 4]]
     scrtch2 <= [['a', 'b']]
@@ -85,7 +85,7 @@ class Union
     table :union, [:from, :to, :cost]
   }
 
-  def bootstrap
+  bootstrap do
     link <= [['a', 'b', 1]]
     delta_link <= [['a', 'b', 4]]
   end
@@ -104,7 +104,7 @@ class DeleteKey
     table :del_buf, [:k, :v]
   }
 
-  def bootstrap
+  bootstrap do
     t1 << [5, 10]
   end
 
