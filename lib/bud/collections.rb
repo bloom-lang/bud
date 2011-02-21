@@ -235,9 +235,11 @@ module Bud
       # probably pk should be tested by the caller of this routing
       # XXX please check in some key violation tests!!
       old = store[keycols]
-      raise_pk_error(o, old) unless old.nil? or old == o
-      
-      store[keycols] = tuple_accessors(o)
+      if old.nil?
+        store[keycols] = tuple_accessors(o)
+      else
+        raise_pk_error(o, old) unless old == o
+      end
     end
 
     def insert(o)
