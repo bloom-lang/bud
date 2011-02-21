@@ -131,6 +131,45 @@ class RowValueTest
   end
 end
 
+class BendTypes
+  include Bud
+  
+  state {
+    table :t1
+  }
+  
+  def bootstrap
+    t1 <+ {1=>'a', 2=>'b'}
+  end
+end
+
+class NonEnumerable
+  include Bud
+  
+  state {
+    table :t1
+  }
+  
+  declare 
+  def rules
+    t1 <= true
+  end
+end
+
+class NonTuple
+  include Bud
+  
+  state {
+    table :t1
+  }
+  
+  declare 
+  def rules
+    t1 <= [1,2,3]
+  end
+end
+
+
 class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
@@ -220,4 +259,16 @@ class TestCollections < Test::Unit::TestCase
 
     rv.stop_bg
   end
+  
+  def test_types
+    p1 = BendTypes.new
+    assert_nothing_raised(RuntimeError) { p1.tick }
+    assert_equal(1, p1.t1.first.key)
+    p2 = NonEnumerable.new
+    assert_raise(Bud::BudTypeError) { p2.tick }
+    p3 = NonTuple.new
+    assert_raise(Bud::BudTypeError) { p3.tick }
+  end
+  
+  
 end

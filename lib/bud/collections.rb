@@ -202,7 +202,7 @@ module Bud
     def exists?(&block)
       if length == 0
         return false 
-      elsif block.nil?
+      elsif block_given?
         return true
       else
         return ((detect{|t| yield t}).nil?) ? false : true
@@ -215,6 +215,9 @@ module Bud
     end
     
     def prep_tuple(o)
+      unless o.respond_to?(:length) and o.respond_to?(:[])
+        raise BudTypeError, "non-indexable type inserted into BudCollection: #{o.inspect}"
+      end
       # if this tuple has more fields than usual, bundle up the 
       # extras into an array
       if o.length > schema.length then
@@ -245,8 +248,15 @@ module Bud
     end
 
     alias << insert
+    
+    def check_enumerable(o)
+      unless o.class < Enumerable
+        raise BudTypeError, "Attempt to merge non-enumerable type into BudCollection"
+      end
+    end
 
     def merge(o, buf=@new_delta)
+      check_enumerable(o)
       raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
       delta = o.map do |i|
         next if i.nil? or i == []
@@ -266,6 +276,7 @@ module Bud
     alias <= merge
 
     def pending_merge(o)
+      check_enumerable(o)
       o.each {|i| do_insert(i, @pending)}
       return self
     end
