@@ -14,8 +14,7 @@ class ShortestPaths
     table :mincnt, [:from, :to] => [:mincost, :cnt]
   }
 
-  def bootstrap
-    super
+  bootstrap do
     # EC2 stuff
     #max_count <= [[1]]
     #min_count <= [[1]]

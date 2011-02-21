@@ -28,8 +28,7 @@ module Deployer
   # rule killswitch + side-effect safety
   def idempotent(r) (dead.include? r) ? false : dead.insert(r) end
 
-  def bootstrap
-    super
+  bootstrap do
     # workaround for NAT issues
     #my_ip <= [[open("http://myip.dk") { |f| /([0-9]{1,3}\.){3}[0-9]{1,3}/.match(f.read)[0].to_a[0] }]]
     my_ip <= [["127.0.0.1"]]

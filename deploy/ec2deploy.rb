@@ -31,8 +31,7 @@ module EC2Deploy
     table :all_up, [:bool]
   }
 
-  def bootstrap
-    super
+  bootstrap do
     image_id <= [["ami-76f0061f"]]
     init_command <= [["sudo yum -y install rubygems ruby-devel gcc-c++ && sudo gem update --system --no-ri --no-rdoc && sudo gem install deploy/bud-0.0.1.gem --no-ri --no-rdoc" ]]
 
