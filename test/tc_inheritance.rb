@@ -1,12 +1,29 @@
 require 'test_common'
 
+module SimpleModule
+  include BudModule
+
+  state do
+    table :boot_tbl
+  end
+
+  bootstrap do
+    boot_tbl << [25, 50]
+  end
+end
+
 class ParentBud
   include Bud
+  include SimpleModule
 
   state {
     table :tbl
   }
-  
+
+  bootstrap do
+    boot_tbl << [5, 10]
+  end
+
   declare
   def bundle
     tbl << [2, 'a']
@@ -14,6 +31,10 @@ class ParentBud
 end
 
 class ChildBud < ParentBud
+  bootstrap do
+    boot_tbl << [10, 20]
+  end
+
   # Test overriding
   declare
   def bundle
@@ -27,7 +48,11 @@ class TestSubclass < Test::Unit::TestCase
     p2 = ChildBud.new
     assert_nothing_raised(RuntimeError) { p1.tick }
     assert_nothing_raised(RuntimeError) { p2.tick }
+
     assert_equal('a', p1.tbl[[2]].val)
     assert_equal('b', p2.tbl[[2]].val)
+
+    assert_equal([[5, 10], [25, 50]], p1.boot_tbl.to_a.sort)
+    assert_equal([[5, 10], [10, 20], [25, 50]], p2.boot_tbl.to_a.sort)
   end
 end

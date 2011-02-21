@@ -18,10 +18,14 @@ module BudModule
     o.send(:include, Anise)
     o.send(:annotator, :declare)
 
-    # Transform "state" blocks (calls to a module module of that name) into
-    # instance methods with a special name.
+    # Transform "state" and "bootstrap" blocks (calls to a module methods with
+    # that name) into instance methods with a special name.
     def o.state(&block)
       meth_name = "__#{self}__state".to_sym
+      define_method(meth_name, &block)
+    end
+    def o.bootstrap(&block)
+      meth_name = "__#{self}__bootstrap".to_sym
       define_method(meth_name, &block)
     end
 
@@ -86,15 +90,7 @@ module Bud
 
     @state_methods = lookup_state_methods
 
-    # Evaluate bootstrap block
-    init_state
-    bootstrap
-
-    # Make sure that new_delta tuples from bootstrap rules are transitioned into
-    # storage before first tick.
-    tables.each{|name,coll| coll.install_deltas}
-    # note that any tuples installed into a channel won't immediately be
-    # flushed; we need to wait for EM startup to do that
+    do_bootstrap
 
     # NB: Somewhat hacky. Dependency analysis and stratification are implemented
     # by Bud programs, so in order for those programs to parse, we need the
@@ -124,9 +120,9 @@ module Bud
   def lookup_state_methods
     rv = []
 
-    # We traverse the ancestor hierarchy from root => leaf. This helps to
-    # support a common idiom: the schema of a table in a child module/class
-    # might be defined in terms of an inherited schema.
+    # Traverse the ancestor hierarchy from root => leaf. This helps to support a
+    # common idiom: the schema of a table in a child module/class might
+    # reference the schema of an included module.
     self.class.ancestors.reverse.each do |anc|
       meth_name = anc.instance_methods.find {|m| m == "__#{anc}__state"}
       if meth_name
@@ -134,6 +130,25 @@ module Bud
       end
     end
     rv
+  end
+
+  # Evaluate all bootstrap blocks
+  def do_bootstrap
+    init_state
+
+    self.class.ancestors.reverse.each do |anc|
+      meth_name = anc.instance_methods.find {|m| m == "__#{anc}__bootstrap"}
+      if meth_name
+        self.method(meth_name.to_sym).call
+      end
+    end
+    bootstrap
+
+    # Make sure that new_delta tuples from bootstrap rules are transitioned into
+    # storage before first tick.
+    tables.each{|name,coll| coll.install_deltas}
+    # Note that any tuples installed into a channel won't immediately be
+    # flushed; we need to wait for EM startup to do that
   end
 
   ########### give empty defaults for these
