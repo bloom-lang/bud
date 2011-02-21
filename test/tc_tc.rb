@@ -233,7 +233,7 @@ class TcNest
     tctable :t2, [:k1, :k2] => [:v1, :v2]
   }
 
-  def bootstrap
+  bootstrap do
     t1 << [5, 10]
   end
 
@@ -282,7 +282,7 @@ class TcBootstrap
     tctable :t1
   end
 
-  def bootstrap
+  bootstrap do
     t1 << [5, 10]
     t1 << [10,15]
   end

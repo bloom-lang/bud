@@ -12,7 +12,7 @@ class HashJoinBench
     table :t2
   end
 
-  def bootstrap
+  bootstrap do
     # Only a single pair of tuples satisfy the join condition
     JOIN_INPUT_SIZE.times do |i|
       t1 << [i, i + 50000]

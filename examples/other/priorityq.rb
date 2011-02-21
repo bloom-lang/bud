@@ -11,7 +11,7 @@ class PriorityQ
     scratch :out2, [:item] => [:priority]
   }
 
-  def bootstrap
+  bootstrap do
     q << ['c', 2]
     q << ['d', 3]
     q << ['a', 1]
