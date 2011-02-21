@@ -30,6 +30,7 @@ module Bud
       user_schema ||= {[:key]=>[:val]}
       @user_schema = user_schema
       @schema, @key_cols = parse_schema(user_schema)
+      @key_colnums = key_cols.map {|k| schema.index(k)}
       @bud_instance = bud_instance
       init_storage
       init_pending
@@ -227,8 +228,8 @@ module Bud
       return if o.nil? or o.empty?
       
       o = prep_tuple(o)
+      keycols = @key_colnums.map{|i| o[i]}
 
-      keycols = key_cols.map{|k| o[schema.index(k)]}
       # XXX should this be self[keycols?]
       # but what about if we're not calling on store = @storage?
       # probably pk should be tested by the caller of this routing
@@ -251,13 +252,13 @@ module Bud
       delta = o.map do |i|
         next if i.nil? or i == []
         i = prep_tuple(i)
-        keycols = key_cols.map{|k| i[schema.index(k)]}
-        if (old = self[keycols])
+        key_vals = @key_colnums.map{|k| i[k]}
+        if (old = self[key_vals])
           raise_pk_error(i, old) if old != i
-        elsif (oldnew = self.new_delta[keycols])
+        elsif (oldnew = self.new_delta[key_vals])
           raise_pk_error(i, oldnew) if oldnew != i
         else
-          buf[keycols] = tuple_accessors(i)
+          buf[key_vals] = tuple_accessors(i)
         end
       end
       return self
@@ -636,7 +637,7 @@ module Bud
 
     def tick
       @to_delete.each do |tuple|
-        keycols = key_cols.map{|k| tuple[schema.index(k)]}
+        keycols = @key_colnums.map{|k| tuple[k]}
         if @storage[keycols] == tuple
           @storage.delete keycols
         end
@@ -913,15 +914,15 @@ module Bud
     end
 
     def include?(tuple)
-      key = key_cols.map{|k| tuple[schema.index(k)]}
+      key = @key_colnums.map{|k| tuple[k]}
       value = self[key]
       return (value == tuple)
     end
 
     def make_tuple(k_ary, v_ary)
       t = Array.new(k_ary.length + v_ary.length)
-      key_cols.each_with_index do |k,i|
-        t[schema.index(k)] = k_ary[i]
+      @key_colnums.each_with_index do |k,i|
+        t[k] = k_ary[i]
       end
       cols.each_with_index do |c,i|
         t[schema.index(c)] = v_ary[i]
@@ -988,7 +989,7 @@ module Bud
     end
 
     def insert(tuple)
-      key = key_cols.map{|k| tuple[schema.index(k)]}
+      key = @key_colnums.map{|k| tuple[k]}
       merge_tuple(key, tuple)
     end
 
@@ -997,7 +998,7 @@ module Bud
     # Remove to_delete and then add pending to HDB
     def tick
       @to_delete.each do |tuple|
-        k = key_cols.map{|c| tuple[schema.index(c)]}
+        k = @key_colnums.map{|c| tuple[c]}
         k_str = MessagePack.pack(k)
         cols_str = @hdb[k_str]
         unless cols_str.nil?
