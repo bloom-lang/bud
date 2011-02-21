@@ -1,13 +1,14 @@
 require "rubygems"
 require "bud"
+require "fileutils"
 
 BENCH_LIMIT = 200
 
-class ScratchBench
+class TcBench
   include Bud
 
   state do
-    scratch :t1, [:key]
+    tctable :t1, [:key]
     scratch :done
   end
 
@@ -18,9 +19,11 @@ class ScratchBench
   end
 end
 
-b = ScratchBench.new
+dir = File.dirname(__FILE__) + "/tc_tmp"
+b = TcBench.new(:tc_dir => dir, :truncate => true)
 b.run_bg
 b.sync_do {
   b.t1 <+ [[0]]
 }
 b.stop_bg
+FileUtils.rm_r(dir)

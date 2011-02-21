@@ -144,8 +144,7 @@ Standard Ruby methods used on a BudCollection `bc`:
       memo[t.col1] ||= 0
       memo[t.col1] += 1
       memo
-    end
-   
+    end  
 
 `bc.include?`:
 
@@ -158,9 +157,23 @@ Standard Ruby methods used on a BudCollection `bc`:
 
 `bc.values`: projects `bc` to non-key columns<br>
 
-`bc.inspected`: shorthand for `bc.map{|t| [t.inspect]}`, to merge into stdio
+`bc.inspected`: shorthand for `bc.map{|t| [t.inspect]}`
 
-`chan.payloads`: shorthand for chan.map{|t| t.val}, only defined for channels, to unpack nested vals
+    stdio <~ bc.inspected
+
+`chan.payloads`: shorthand for chan.map{|t| t.val}, only defined for channels
+
+    # at sender
+    msgs <~ requests.map{|r| "127.0.0.1:12345", r}
+    # at receiver
+    requests <= msgs.payloads
+    
+`bc.exists?`: test for non-empty collection.  Can optionally pass in a block.
+
+    stdio <~ [["Wake Up!"] if timer.exists?]
+    stdio <~ requests.map{|r| do
+      [r.inspect] if msgs.exists?{|m| r.ident == m.ident}
+    end
 
 ## SQL-style grouping/aggregation (and then some) ##
 
@@ -208,10 +221,7 @@ Later arguments are arrays of columns to be matched (equijoin).
     # coincide is a more natural verb for timers and messages.
     # here is a typical timeout/retry pattern for requests
     request_chan <~ coincide([request_buf, timeout]).map{|r, t| r }
-    
-    
-
-    
+        
 `natjoin([`*tablelist*`]`)<br>
 Natural join of tables.
 Implicitly includes matching of attributes across collections with the same name.<br>

@@ -19,7 +19,7 @@ module SelectiveMembership
     scratch :good_add_reqs, [:req_id] => [:name, :addr]
   }
 
-  def bootstrap
+  bootstrap do
     bad_people <= [['foo'], ['bar']]
   end
 

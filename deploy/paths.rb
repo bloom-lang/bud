@@ -22,8 +22,7 @@ class ShortestPaths
     table :mincnt, [:from, :to] => [:mincost, :cnt]
   }
 
-  def bootstrap
-    super
+  bootstrap do
     # which nodes do we want to distribute program to?
     node <= [[1, "127.0.0.1:54321"]]
     # EDB at each node

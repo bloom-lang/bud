@@ -9,7 +9,7 @@ class DeltaTest
     table :result, [:k1, :k2] => [:v1, :v2]
   }
 
-  def bootstrap
+  bootstrap do
     orig <= [['a', 'b', 1, 2]]
     orig <= [['a', 'c', 3, 4]]
   end
@@ -31,7 +31,7 @@ class DeltaJoinTest
     scratch :hashpath, [:from, :to]
   }
 
-  def bootstrap
+  bootstrap do
     orig <= [['a', 'b'], ['b', 'c'], ['c', 'd']]
   end
 
@@ -56,7 +56,7 @@ class Delta3JoinTest
     scratch :hashpath, [:from, :to]
   }
 
-  def bootstrap
+  bootstrap do
     orig <= [['a', 'b'], ['b', 'c'], ['c', 'd']]
     wanted <= [['a'], ['b'], ['c']]
   end

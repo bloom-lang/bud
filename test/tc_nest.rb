@@ -13,7 +13,7 @@ class Nesting
     scratch :np2, [:firstname, :lastname, :hobbies]
   }
 
-  def bootstrap
+  bootstrap do
     nested_people <= [[1, 'Nick', 'Machiavelli', ['scheming', 'books']]]
     nested_people <= [[2, 'Chris', 'Columbus', ['sailing', 'books']]]
     has_hobby <= [[1, 'scheming'], [1, 'books'], [2, 'sailing'], [2, 'books']]
@@ -48,12 +48,12 @@ class TestNest < Test::Unit::TestCase
                   [1, "Nick", "Machiavelli", "scheming"],
                   [2, "Chris", "Columbus", "books"],
                   [2, "Chris", "Columbus", "sailing"]].sort, 
-                 u.flat.map{|t| t}.sort)
+                 u.flat.to_a.sort)
     assert_equal([[1, "Nick", "Machiavelli", ["scheming", "books"]],
                   [2, "Chris", "Columbus", ["books", "sailing"]]].sort,
                  u.renested.map{|t| t}.sort)
     assert_equal([["Nick", "Machiavelli", ["scheming","books"]], 
                   ["Chris", "Columbus", ["sailing", "books"]]].sort, 
-                 u.np2.map{|t| t}.sort)
+                 u.np2.to_a.sort)
   end
 end

@@ -7,14 +7,14 @@ require 'bud'
 class ShortestPaths
   include Bud
 
-  state {
+  state do
     table :link, [:from, :to, :cost]
     table :path, [:from, :to, :next, :cost]
     table :shortest, [:from, :to] => [:next, :cost]
     table :mincnt, [:from, :to] => [:mincost, :cnt]
-  }
+  end
 
-  def bootstrap
+  bootstrap do
     link <= [['a', 'b', 1],
              ['a', 'b', 4],
              ['b', 'c', 1],

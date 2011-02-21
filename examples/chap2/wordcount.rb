@@ -13,7 +13,7 @@ class WordCount
     table :compare, [:word] => [:cnt, :cnt2]
   end
 
-  def bootstrap
+  bootstrap do
     text.each do |t|
       t.text.split.each_with_index {|w,i| words << [t.lineno, i, w]}
     end

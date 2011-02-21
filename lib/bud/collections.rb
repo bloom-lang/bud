@@ -30,6 +30,7 @@ module Bud
       user_schema ||= {[:key]=>[:val]}
       @user_schema = user_schema
       @schema, @key_cols = parse_schema(user_schema)
+      @key_colnums = key_cols.map {|k| schema.index(k)}
       @bud_instance = bud_instance
       init_storage
       init_pending
@@ -198,24 +199,47 @@ module Bud
 
       return false
     end
+    
+    def exists?(&block)
+      if length == 0
+        return false 
+      elsif block.nil?
+        return true
+      else
+        return ((detect{|t| yield t}).nil?) ? false : true
+      end
+    end
 
     def raise_pk_error(new, old)
       keycols = key_cols.map{|k| old[schema.index(k)]}
       raise KeyConstraintError, "Key conflict inserting #{old.inspect} into \"#{tabname}\": existing tuple #{new.inspect}, key_cols = #{keycols.inspect}"
     end
+    
+    def prep_tuple(o)
+      # if this tuple has more fields than usual, bundle up the 
+      # extras into an array
+      if o.length > schema.length then
+        o = (0..(schema.length - 1)).map{|c| o[c]} << (schema.length..(o.length - 1)).map{|c| o[c]}
+      end
+     return o
+    end
 
     def do_insert(o, store)
       return if o.nil? or o.empty?
+      
+      o = prep_tuple(o)
+      keycols = @key_colnums.map{|i| o[i]}
 
-      keycols = key_cols.map{|k| o[schema.index(k)]}
       # XXX should this be self[keycols?]
       # but what about if we're not calling on store = @storage?
       # probably pk should be tested by the caller of this routing
       # XXX please check in some key violation tests!!
       old = store[keycols]
-      raise_pk_error(o, old) unless old.nil? or old == o
-
-      store[keycols] = tuple_accessors(o)
+      if old.nil?
+        store[keycols] = tuple_accessors(o)
+      else
+        raise_pk_error(o, old) unless old == o
+      end
     end
 
     def insert(o)
@@ -229,14 +253,14 @@ module Bud
       raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
       delta = o.map do |i|
         next if i.nil? or i == []
-        keycols = key_cols.map{|k| i[schema.index(k)]}
-        if (old = self[keycols])
+        i = prep_tuple(i)
+        key_vals = @key_colnums.map{|k| i[k]}
+        if (old = self[key_vals])
           raise_pk_error(i, old) if old != i
-        elsif (oldnew = self.new_delta[keycols])
+        elsif (oldnew = self.new_delta[key_vals])
           raise_pk_error(i, oldnew) if oldnew != i
         else
-          # don't call do_insert, it will just recheck our tests for hash collision
-          buf[keycols] = tuple_accessors(i)
+          buf[key_vals] = tuple_accessors(i)
         end
       end
       return self
@@ -435,7 +459,8 @@ module Bud
   end
 
   class BudChannel < BudCollection
-    attr_accessor :locspec, :connections, :locspec_ix
+    attr_accessor :connections
+    attr_reader :locspec_idx
 
     def initialize(name, bud_instance, user_schema=nil)
       user_schema ||= [:@address, :val]
@@ -447,9 +472,9 @@ module Bud
         key_cols = user_schema
         cols = []
       end
-      locspec = remove_at_sign!(key_cols)
-      locspec = remove_at_sign!(cols) if locspec.nil?
-      # If locspec is still nil, this is a loopback channel
+      @locspec_idx = remove_at_sign!(key_cols)
+      @locspec_idx = remove_at_sign!(cols) if @locspec_idx.nil?
+      # If @locspec_idx is still nil, this is a loopback channel
 
       # Note that we mutate the hash key above, so we need to recreate the hash
       # XXX: ugh, hacky
@@ -458,8 +483,6 @@ module Bud
       end
 
       super(name, bud_instance, user_schema)
-      @locspec = locspec
-      @locspec_ix = @schema.index(@locspec)
       @connections = {}
     end
 
@@ -479,14 +502,16 @@ module Bud
 
     def clone_empty
       retval = super
-      retval.locspec = locspec
+      retval.locspec_idx = @locspec_idx
       retval.connections = @connections.clone
       retval
     end
 
     def tick
       @storage = {}
-      raise BudError unless @pending.empty?
+      # Note that we do not clear @pending here: if the user inserted into the
+      # channel manually (e.g., via <~ from inside a sync_do block), we send the
+      # message at the end of the current tick.
     end
 
     def establish_connection(l)
@@ -501,16 +526,16 @@ module Bud
         ip = @bud_instance.ip
         port = @bud_instance.port
         each_pending do |t|
-          if @locspec.nil?
+          if @locspec_idx.nil?
             the_locspec = [ip, port.to_i]
           else
             begin
-              the_locspec = split_locspec(t[@locspec])
+              the_locspec = split_locspec(t[@locspec_idx])
             rescue
-              puts "bad locspec #{@locspec} for collection '#{@tabname}'"
+              puts "bad locspec #{@locspec_idx} for channel '#{@tabname}'"
             end
           end
-#          puts "#{@bud_instance.ip_port} => #{the_locspec.inspect}: #{[@tabname, t].inspect}"
+          # puts "#{@bud_instance.ip_port} => #{the_locspec.inspect}: #{[@tabname, t].inspect}"
           establish_connection(the_locspec) if @connections[the_locspec].nil?
           # if the connection failed, we silently ignore and let the tuples be cleared.
           # if we didn't clear them here, we'd be clearing them at end-of-tick anyhow
@@ -539,6 +564,10 @@ module Bud
     superator "<+" do |o|
       raise BudError, "Illegal use of <+ with channel '#{@tabname}' on left"
     end
+
+    def <=(o)
+      raise BudError, "Illegal use of <= with channel '#{@tabname}' on left"
+    end
   end
 
   class BudTerminal < BudCollection
@@ -553,7 +582,7 @@ module Bud
     def start_stdin_reader
       # XXX: Ugly hack. Rather than sending terminal data to EM via TCP,
       # we should add the terminal file descriptor to the EM event loop.
-      @reader = Thread.new() do
+      @reader = Thread.new do
         begin
           while true
             STDOUT.print("#{tabname} > ") if @prompt
@@ -610,7 +639,7 @@ module Bud
 
     def tick
       @to_delete.each do |tuple|
-        keycols = key_cols.map{|k| tuple[schema.index(k)]}
+        keycols = @key_colnums.map{|k| tuple[k]}
         if @storage[keycols] == tuple
           @storage.delete keycols
         end
@@ -887,15 +916,15 @@ module Bud
     end
 
     def include?(tuple)
-      key = key_cols.map{|k| tuple[schema.index(k)]}
+      key = @key_colnums.map{|k| tuple[k]}
       value = self[key]
       return (value == tuple)
     end
 
     def make_tuple(k_ary, v_ary)
       t = Array.new(k_ary.length + v_ary.length)
-      key_cols.each_with_index do |k,i|
-        t[schema.index(k)] = k_ary[i]
+      @key_colnums.each_with_index do |k,i|
+        t[k] = k_ary[i]
       end
       cols.each_with_index do |c,i|
         t[schema.index(c)] = v_ary[i]
@@ -962,7 +991,7 @@ module Bud
     end
 
     def insert(tuple)
-      key = key_cols.map{|k| tuple[schema.index(k)]}
+      key = @key_colnums.map{|k| tuple[k]}
       merge_tuple(key, tuple)
     end
 
@@ -971,7 +1000,7 @@ module Bud
     # Remove to_delete and then add pending to HDB
     def tick
       @to_delete.each do |tuple|
-        k = key_cols.map{|c| tuple[schema.index(c)]}
+        k = @key_colnums.map{|c| tuple[c]}
         k_str = MessagePack.pack(k)
         cols_str = @hdb[k_str]
         unless cols_str.nil?
