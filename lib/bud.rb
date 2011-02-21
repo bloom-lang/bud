@@ -284,7 +284,6 @@ module Bud
     @periodics.each do |p|
       @timers << set_periodic_timer(p.pername, p.ident, p.period)
     end
-    tick
   end
 
   # Run Bud in the "foreground" -- this method typically doesn't return unless
