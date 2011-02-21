@@ -9,6 +9,28 @@ require 'open3'
 module EC2Deploy
   include BudModule
 
+  def state
+    table :max_count, [] => [:num]
+    table :min_count, [] => [:num]
+    table :access_key_id, [] => [:key]
+    table :secret_access_key, [] => [:key]
+    table :image_id, [] => [:img]
+    table :key_name, [] => [:name]
+    table :ec2_key_location, [] => [:loc]
+    table :ec2_conn, [] => [:conn]
+    table :ec2_insts, [] => [:insts]
+    table :reservation_id, [] => [:rid]
+    table :init_command, [] => [:cmd]
+    periodic :spinup_timer, 6
+    scratch :the_reservation, [] => [:reservation]
+    scratch :the_reservation_next, [] => [:reservation]
+    scratch :node_up, [:node] => [:bool]
+    table :node_ssh, [:node_tuple] => [:ssh]
+    table :init_dir, [] => [:dir]
+    table :temp_node, [:uid, :node, :localip]
+    table :all_up, [:bool]
+  end
+
   state {
     table :max_count, [] => [:num]
     table :min_count, [] => [:num]

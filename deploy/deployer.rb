@@ -5,6 +5,24 @@ require 'open-uri'
 module Deployer
   include BudModule
 
+  # hack cuz i'm not sure how to get ParseTree to recognize the state{} block
+  def state
+    channel :rule_chan, [:@loc, :sender, :array]
+    channel :decl_chan, [:@loc, :sender, :array]
+    channel :rule_ack, [:@loc, :sender]
+    channel :decl_ack, [:@loc, :sender]
+    table :persist_rule_ack, [:loc, :sender]
+    table :persist_decl_ack, [:loc, :sender]
+    table :node, [:uid] => [:node]
+    table :dead, [:dead]
+    table :ack, [:node]
+    scratch :not_all_in, [:bool]
+    table :initial_data, [:uid, :data]
+    channel :initial_data_chan, [:@node, :data]
+    scratch :dont_care, [:dont_care]
+    table :my_ip, [] => [:ip]
+  end
+
   state {
     channel :rule_chan, [:@loc, :sender, :array]
     channel :decl_chan, [:@loc, :sender, :array]
@@ -21,6 +39,11 @@ module Deployer
     scratch :dont_care, [:dont_care]
     table :my_ip, [] => [:ip]
   }
+
+  def initialize opt
+    super opt
+    @new_instance = nil
+  end
 
   # current node
   def me() my_ip.first.ip + ":" + @port.to_s end
@@ -64,11 +87,10 @@ module Deployer
 
   # add rules to the MetaRecv class
   def insert_rules rules
-    @declarations << :recv_rules # add a declare in front of recv_rules block
-    if safe_eval("def recv_rules\n" + rules.join("\n") + "\nend",
-                 lambda {|s| MetaRecv.class_eval(s)})
+    if safe_eval("declare\ndef recv_rules\n" + rules.join("\n") + "\nend",
+                 lambda {|s| GenericBud.class_eval(s)})
       begin
-        self.safe_rewrite
+        @new_instance = GenericBud.new()
       rescue Exception => exc
         puts "#{$!}"
         return false
@@ -85,7 +107,8 @@ module Deployer
   # when Peter's decl analysis actually does something; otherwise his analysis
   # won't pick these up
   def insert_decls decls
-    return safe_eval(decls.join("\n"), lambda {|s| self.instance_eval(s)})
+    return safe_eval("state{\n" + decls.join("\n") + "\n}",
+                     lambda {|s| GenericBud.class_eval(s)})
   end
 
   # read the program from the metamodel and send
@@ -102,8 +125,7 @@ module Deployer
 
     # send decls before rules
     decl_chan <~ node.map do |n|
-      (puts "the tuple:" + n.inspect + "from " + me) or
-        [n.node, me, decl] if idempotent [[n.node, decl]]
+      [n.node, me, decl] if idempotent [[n.node, decl]]
     end
     node_decl_ack = join([node, decl_ack], [node.node, decl_ack.sender])
     rule_chan <~ node_decl_ack.map do |n, r|
@@ -115,16 +137,14 @@ module Deployer
   declare
   def rule_recv
     rule_ack <~ rule_chan.map do |r|
-      (puts "sending rack to:" + r.sender.inspect) or
         [r.sender, me] if insert_rules r.array
     end
     decl_ack <~ decl_chan.map do |d|
-      (puts "sending dack to:" + d.sender.inspect) or
         [d.sender, me] if insert_decls d.array
     end
 
     persist_rule_ack <= rule_ack
-    persist_decl_ack <= decl_ack.map{|x| (puts "got decl ack: " + x.inspect) or x}
+    persist_decl_ack <= decl_ack
   end
 
   # check to make sure every node has received the package of rules and decls
@@ -155,10 +175,11 @@ module Deployer
 
     dont_care <= (initial_data_chan.each do |i|
                     puts "Received all initial data; beginning computation" or
-                      async_do {safe_eval(i.data.map {|j| j[0].to_s + " <= " +
-                                            j[1].inspect}.join("\n"),
-                                          lambda {|s| self.instance_eval(s)})} if idempotent i
+                      @new_instance.async_do {
+                      safe_eval(i.data.map {|j| j[0].to_s + " <= " +
+                                  j[1].inspect}.join("\n"),
+                                lambda {|s| @new_instance.instance_eval(s)})
+                    } if idempotent i
                   end and [nil])
   end
-
 end

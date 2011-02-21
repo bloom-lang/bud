@@ -7,6 +7,14 @@ class ShortestPaths
   # include the meta wrapper
   include Bud
   include Deployer
+
+  def state
+    table :link, [:from, :to, :cost]
+    table :path, [:from, :to, :next, :cost]
+    table :shortest, [:from, :to] => [:next, :cost]
+    table :mincnt, [:from, :to] => [:mincost, :cnt]
+  end
+
   state {
     table :link, [:from, :to, :cost]
     table :path, [:from, :to, :next, :cost]
@@ -16,14 +24,6 @@ class ShortestPaths
 
   def bootstrap
     super
-    # EC2 stuff
-    #max_count <= [[1]]
-    #min_count <= [[1]]
-    #access_key_id <= [["AKIAIBPKK4EH2FWFKOIA"]]
-    #secret_access_key <= [["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"]]
-    #key_name <= [["wrm"]]
-    #ec2_key_location <= [["~/.ssh/ec2"]]
-
     # which nodes do we want to distribute program to?
     node <= [[1, "127.0.0.1:54321"]]
     # EDB at each node
@@ -39,7 +39,7 @@ class ShortestPaths
 
   declare
   def make_paths
-    path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
+    path <= link.map{|e| (puts "bar") or [e.from, e.to, e.to, e.cost]}
     path <= join([link, path], [path.from, link.to]).map do |l,p|
       (puts "foo") or ($stdout.flush and [l.from, p.to, p.from, l.cost+p.cost])
     end

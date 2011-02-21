@@ -156,6 +156,7 @@ class BudMeta
     
     rulebag.each_pair do |k,v| 
       v.rules.each do |r|
+        @rules << r
         @bud_instance.t_rules << r
       end
       v.depends.each do |d|
