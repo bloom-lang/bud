@@ -373,8 +373,7 @@ module Bud
     table :t_cycle, [:predicate, :via, :neg, :temporal]
   end
 
-  # For every state declaration, either define a new collection instance (first
-  # time seen) or tick the collection to advance to the next time step.
+  # Invoke all the user-defined state blocks and init builtin state.
   def init_state
     builtin_state
     @state_methods.each do |s|
@@ -383,7 +382,9 @@ module Bud
   end
 
   def tick
-    init_state
+    @tables.each_value do |t|
+      t.tick
+    end
 
     receive_inbound
 

@@ -151,6 +151,15 @@ class RowValueTest
   end
 end
 
+class DupTableDef
+  include Bud
+
+  state do
+    table :t1
+    scratch :t1
+  end
+end
+
 class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
@@ -252,5 +261,9 @@ class TestCollections < Test::Unit::TestCase
     end
 
     b.stop_bg
+  end
+
+  def test_dup_table_def
+    assert_raise(Bud::BudError) { DupTableDef.new }
   end
 end
