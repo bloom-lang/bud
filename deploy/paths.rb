@@ -34,7 +34,6 @@ class ShortestPaths
                                 ['d', 'e', 1]]
                        ]]
                      ]]
-    async_do{} # XXX: not sure why this is necessary
   end
 
   declare
