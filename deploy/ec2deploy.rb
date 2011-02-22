@@ -93,9 +93,9 @@ module EC2Deploy
     # a "[0] or [nil]" at the end of this rule to peel off the extra level of
     # array
     temp_node <= join([all_up, the_reservation_next]).map do
-      ((puts  ((1..(the_reservation_next[[]].reservation["instancesSet"]["item"].size)).to_a.zip(the_reservation_next[[]].reservation["instancesSet"]["item"].map {|i| [i["ipAddress"], i["privateIpAddress"]] })).map {|n,ips| [n, ips[0] + ":54321", ips[1] + ":54321"]}.inspect) or 
-       ((1..(the_reservation_next[[]].reservation["instancesSet"]["item"].size)).to_a.zip(the_reservation_next[[]].reservation["instancesSet"]["item"].map {|i| [i["ipAddress"], i["privateIpAddress"]]})).map {|n,ips| [n, ips[0] + ":54321", ips[1] + ":54321"]})
-    end.first
+      break ((puts  ((1..(the_reservation_next[[]].reservation["instancesSet"]["item"].size)).to_a.zip(the_reservation_next[[]].reservation["instancesSet"]["item"].map {|i| [i["ipAddress"], i["privateIpAddress"]] })).map {|n,ips| [n, ips[0] + ":54321", ips[1] + ":54321"]}.inspect) or 
+             ((1..(the_reservation_next[[]].reservation["instancesSet"]["item"].size)).to_a.zip(the_reservation_next[[]].reservation["instancesSet"]["item"].map {|i| [i["ipAddress"], i["privateIpAddress"]]})).map {|n,ips| [n, ips[0] + ":54321", ips[1] + ":54321"]})
+    end
 
     # for each SSH connection, upload all the files in init_files, then
     # execute all the init_commands
