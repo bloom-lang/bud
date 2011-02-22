@@ -252,7 +252,7 @@ module Bud
     def merge(o, buf=@new_delta)
       raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
       delta = o.map do |i|
-        next if i.nil? or i == []
+        next if i.nil? or i.empty?
         i = prep_tuple(i)
         key_vals = @key_colnums.map{|k| i[k]}
         if (old = self[key_vals])
