@@ -6,12 +6,9 @@ require 'parse_tree'
 
 class BudMeta
   include BudState
-  attr_reader :rules, :provides, :depanalysis, :depends, :decls
+  attr_reader :rules, :depanalysis, :depends, :decls
 
   def initialize(bud_instance, declarations)
-    # need: provides, options, declarations, class, tables, self for viz
-    # meanwhile, viz needs:  class, object_id, options, tables, budtime
-    # meh.
     @bud_instance = bud_instance
     @declarations = declarations
     @rules = []
@@ -48,10 +45,10 @@ class BudMeta
     end
 
     @depanalysis = DepAnalysis.new
-    @bud_instance.t_depends_tc.each{|d| @depanalysis.depends_tc << d}
-    @bud_instance.t_provides.each{|p| @depanalysis.providing << p}
+    @bud_instance.t_depends_tc.each{ |d| @depanalysis.depends_tc << d }
+    @bud_instance.t_provides.each{ |p| @depanalysis.providing << p }
     3.times { @depanalysis.tick }
-    @depanalysis.underspecified.each{|u| puts "UNDERSPECIFIED: #{u.inspect}"}
+    @depanalysis.underspecified.each{ |u| puts "Warning: underspecified dataflow: #{u.inspect}" }
     dump_rewrite if @bud_instance.options[:dump]
     return @rewritten_strata
   end

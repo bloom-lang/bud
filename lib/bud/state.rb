@@ -25,7 +25,7 @@ module BudState
   end
 
   def interface(mode, name, schema=nil)
-    @provides[name.to_s] = mode
+    t_provides << [name.to_s, mode]
     scratch(name, schema)
   end
 

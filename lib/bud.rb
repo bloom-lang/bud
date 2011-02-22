@@ -49,7 +49,7 @@ module BudModule
 end
 
 module Bud
-  attr_reader :strata, :budtime, :inbound, :options, :provides, :meta_parser, :viz, :server
+  attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :server
   attr_accessor :connections
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
@@ -61,7 +61,6 @@ module Bud
     @tables = {}
     @table_meta = []
     @rewritten_strata = []
-    @provides = {}
     @channels = {}
     @tc_tables = {}
     @zk_tables = {}
