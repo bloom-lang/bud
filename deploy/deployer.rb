@@ -20,7 +20,6 @@ module Deployer
     table :initial_data, [:uid, :data]
     channel :initial_data_chan, [:@node, :data]
     scratch :dont_care, [:dont_care]
-    table :my_ip, [] => [:ip]
   end
 
   state {
@@ -37,25 +36,23 @@ module Deployer
     table :initial_data, [:uid, :data]
     channel :initial_data_chan, [:@node, :data]
     scratch :dont_care, [:dont_care]
-    table :my_ip, [] => [:ip]
   }
 
   def initialize opt
-    super opt
+    super
     @new_instance = nil
+    if opt[:nat]
+      @my_ip = open("http://myip.dk") { |f| /([0-9]{1,3}\.){3}[0-9]{1,3}/.match(f.read)[0].to_a[0] }
+    else
+      @my_ip = @ip
+    end
   end
 
   # current node
-  def me() my_ip.first.ip + ":" + @port.to_s end
+  def me() @my_ip + ":" + @port.to_s end
 
   # rule killswitch + side-effect safety
   def idempotent(r) (dead.include? r) ? false : dead.insert(r) end
-
-  bootstrap do
-    # workaround for NAT issues
-    #my_ip <= [[open("http://myip.dk") { |f| /([0-9]{1,3}\.){3}[0-9]{1,3}/.match(f.read)[0].to_a[0] }]]
-    my_ip <= [["127.0.0.1"]]
-  end
 
   # tables we don't want want to distribute rules or decls for
   #
@@ -64,7 +61,7 @@ module Deployer
   def bootstrap_tables
     ["rule_chan", "decl_chan", "rule_ack", "decl_ack", "persist_rule_ack",
      "persist_decl_ack", "node", "dead", "ack", "not_all_in", "initial_data",
-     "initial_data_chan", "dont_care", "rule", "decl", "node_decl_ack", "my_ip",
+     "initial_data_chan", "dont_care", "rule", "decl", "node_decl_ack",
      "max_count", "min_count", "access_key_id", "secret_access_key", "image_id",
      "key_name", "ec2_key_location", "ec2_conn", "ec2_insts", "reservation_id",
      "init_command", "spinup_timer", "the_reservation", "the_reservation_next",

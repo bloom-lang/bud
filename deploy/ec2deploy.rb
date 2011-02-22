@@ -128,7 +128,7 @@ module EC2Deploy
         (while not system 'ssh -t -o "StrictHostKeyChecking no" -i '+ ec2_key_location[[]].loc + ' ec2-user@' + t.node.split(":")[0] + ' "' + init_command[[]].cmd + '"'
            sleep 6
          end) or
-        (while not system 'ssh -f -o "StrictHostKeyChecking no" -i '+ ec2_key_location[[]].loc + ' ec2-user@' + t.node.split(":")[0] + ' "cd deploy; nohup ruby metarecv.rb ' + t.localip + ' > metarecv.out 2> metarecv.err < /dev/null"'
+        (while not system 'ssh -f -o "StrictHostKeyChecking no" -i '+ ec2_key_location[[]].loc + ' ec2-user@' + t.node.split(":")[0] + ' "cd deploy; nohup ruby metarecv-nat.rb ' + t.localip + ' > metarecv.out 2> metarecv.err < /dev/null"'
            sleep 6
          end) or
         ((puts "Done commands and upload:" + t.inspect) or ((sleep 6) and [t.uid, t.node])) if idempotent [:node]

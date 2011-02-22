@@ -2,11 +2,13 @@ require 'rubygems'
 require 'bud'
 # require the meta wrapper
 require 'deployer'
+require 'ec2deploy'
 
 class ShortestPaths
   # include the meta wrapper
   include Bud
   include Deployer
+  include EC2Deploy
 
   def state
     table :link, [:from, :to, :cost]
@@ -23,8 +25,14 @@ class ShortestPaths
   }
 
   bootstrap do
+    max_count <= [[1]]
+    min_count <= [[1]]
+    eval(IO.read('keys.rb'), binding)
+    key_name <= [["wrm"]]
+    ec2_key_location <= [["/home/wrm/.ssh/ec2"]]
+
     # which nodes do we want to distribute program to?
-    node <= [[1, "127.0.0.1:54321"]]
+    # node <= [[1, "127.0.0.1:54321"]]
     # EDB at each node
     initial_data <= [[1,
                       [[:link, [['a', 'b', 1],
@@ -34,7 +42,6 @@ class ShortestPaths
                                 ['d', 'e', 1]]
                        ]]
                      ]]
-    async_do{} # XXX: not sure why this is necessary
   end
 
   declare
@@ -55,5 +62,5 @@ end
 source = ARGV[0].split(':')
 ip = source[0]
 port = source[1]
-program = ShortestPaths.new(:scoping => true, :enforce_rewrite => true, :ip => ip, :port => port)
+program = ShortestPaths.new(:scoping => true, :enforce_rewrite => true, :ip => ip, :port => port, :nat => true)
 program.run
