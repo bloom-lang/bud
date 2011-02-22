@@ -87,7 +87,8 @@ class GraphGen
     if @redcycle[predicate] and @collapse
       via = @redcycle[predicate]
       bag = name_bag(predicate, {})
-      str = bag.key_cols.sort.join(", ")
+      #str = bag.key_cols.sort.join(", ")
+      str = bag.keys.sort.join(", ")
       return str
     else
       return predicate
@@ -198,7 +199,8 @@ class GraphGen
 
   def finish
     @labels.each_key do |k|
-      @edges[k].label = @labels[k].key_cols.join(" ")
+      #@edges[k].label = @labels[k].key_cols.join(" ")
+      @edges[k].label = @labels[k].keys.join(" ")
     end
 
     addonce("S", false)
@@ -250,6 +252,7 @@ class GraphGen
     end
     fin.close
     fout.close
+    File.delete(staging) 
   end
 
   def output_base
