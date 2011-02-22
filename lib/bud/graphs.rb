@@ -223,13 +223,16 @@ class GraphGen
       end
     end
 
-    unless @depanalysis.nil? or @depanalysis.underspecified.empty?
+    unless @depanalysis.nil? 
       @depanalysis.source.each {|s| addedge("S", s.pred, false, false, false) }
       @depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false) }
-      addonce("??", false)
-      @nodes["??"].color = "red"
-      @nodes["??"].shape = "diamond"
-      @nodes["??"].penwidth = 2
+
+      unless @depanalysis.underspecified.empty?
+        addonce("??", false)
+        @nodes["??"].color = "red"
+        @nodes["??"].shape = "diamond"
+        @nodes["??"].penwidth = 2
+      end
 
       @depanalysis.underspecified.each do |u|
         if u.input

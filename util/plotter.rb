@@ -26,7 +26,7 @@ def process(mods)
     tabinf[t[0].to_s] = t[1].class.to_s
   end
 
-  gv = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, mods.join("_") + "_output.svg", 0, 3, ".", false, d.meta_parser.depanalysis)
+  gv = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, mods.join("_") + "_viz", 0, 3, ".", false, d.meta_parser.depanalysis)
   gv.process(d.t_depends)
   gv.finish
 end
