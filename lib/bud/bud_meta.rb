@@ -115,7 +115,7 @@ class BudMeta
 
   def shred_state(anc, tabs)
     return {} unless @bud_instance.options[:scoping]
-    stp = ParseTree.translate(anc, "state")
+    stp = ParseTree.translate(anc, "__#{@bud_instance.class}__state")
     return tabs if stp[0].nil?
     state_reader = StateExtractor.new(anc.to_s)
     u = Unifier.new

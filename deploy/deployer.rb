@@ -5,23 +5,6 @@ require 'open-uri'
 module Deployer
   include BudModule
 
-  # hack cuz i'm not sure how to get ParseTree to recognize the state{} block
-  def state
-    channel :rule_chan, [:@loc, :sender, :array]
-    channel :decl_chan, [:@loc, :sender, :array]
-    channel :rule_ack, [:@loc, :sender]
-    channel :decl_ack, [:@loc, :sender]
-    table :persist_rule_ack, [:loc, :sender]
-    table :persist_decl_ack, [:loc, :sender]
-    table :node, [:uid] => [:node]
-    table :dead, [:dead]
-    table :ack, [:node]
-    scratch :not_all_in, [:bool]
-    table :initial_data, [:uid, :data]
-    channel :initial_data_chan, [:@node, :data]
-    scratch :dont_care, [:dont_care]
-  end
-
   state {
     channel :rule_chan, [:@loc, :sender, :array]
     channel :decl_chan, [:@loc, :sender, :array]

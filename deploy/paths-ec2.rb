@@ -10,13 +10,6 @@ class ShortestPaths
   include Deployer
   include EC2Deploy
 
-  def state
-    table :link, [:from, :to, :cost]
-    table :path, [:from, :to, :next, :cost]
-    table :shortest, [:from, :to] => [:next, :cost]
-    table :mincnt, [:from, :to] => [:mincost, :cnt]
-  end
-
   state {
     table :link, [:from, :to, :cost]
     table :path, [:from, :to, :next, :cost]
@@ -62,5 +55,5 @@ end
 source = ARGV[0].split(':')
 ip = source[0]
 port = source[1]
-program = ShortestPaths.new(:scoping => true, :enforce_rewrite => true, :ip => ip, :port => port, :nat => true)
+program = ShortestPaths.new(:scoping => true, :ip => ip, :port => port, :nat => true)
 program.run

@@ -9,28 +9,6 @@ require 'open3'
 module EC2Deploy
   include BudModule
 
-  def state
-    table :max_count, [] => [:num]
-    table :min_count, [] => [:num]
-    table :access_key_id, [] => [:key]
-    table :secret_access_key, [] => [:key]
-    table :image_id, [] => [:img]
-    table :key_name, [] => [:name]
-    table :ec2_key_location, [] => [:loc]
-    table :ec2_conn, [] => [:conn]
-    table :ec2_insts, [] => [:insts]
-    table :reservation_id, [] => [:rid]
-    table :init_command, [] => [:cmd]
-    periodic :spinup_timer, 6
-    scratch :the_reservation, [] => [:reservation]
-    scratch :the_reservation_next, [] => [:reservation]
-    scratch :node_up, [:node] => [:bool]
-    table :node_ssh, [:node_tuple] => [:ssh]
-    table :init_dir, [] => [:dir]
-    table :temp_node, [:uid, :node, :localip]
-    table :all_up, [:bool]
-  end
-
   state {
     table :max_count, [] => [:num]
     table :min_count, [] => [:num]
@@ -115,9 +93,9 @@ module EC2Deploy
     # a "[0] or [nil]" at the end of this rule to peel off the extra level of
     # array
     temp_node <= join([all_up, the_reservation_next]).map do
-      break ((puts  ((1..(the_reservation_next[[]].reservation["instancesSet"]["item"].size)).to_a.zip(the_reservation_next[[]].reservation["instancesSet"]["item"].map {|i| [i["ipAddress"], i["privateIpAddress"]] })).map {|n,ips| [n, ips[0] + ":54321", ips[1] + ":54321"]}.inspect) or 
-             ((1..(the_reservation_next[[]].reservation["instancesSet"]["item"].size)).to_a.zip(the_reservation_next[[]].reservation["instancesSet"]["item"].map {|i| [i["ipAddress"], i["privateIpAddress"]]})).map {|n,ips| [n, ips[0] + ":54321", ips[1] + ":54321"]})
-    end
+      ((puts  ((1..(the_reservation_next[[]].reservation["instancesSet"]["item"].size)).to_a.zip(the_reservation_next[[]].reservation["instancesSet"]["item"].map {|i| [i["ipAddress"], i["privateIpAddress"]] })).map {|n,ips| [n, ips[0] + ":54321", ips[1] + ":54321"]}.inspect) or 
+       ((1..(the_reservation_next[[]].reservation["instancesSet"]["item"].size)).to_a.zip(the_reservation_next[[]].reservation["instancesSet"]["item"].map {|i| [i["ipAddress"], i["privateIpAddress"]]})).map {|n,ips| [n, ips[0] + ":54321", ips[1] + ":54321"]})
+    end.first
 
     # for each SSH connection, upload all the files in init_files, then
     # execute all the init_commands
