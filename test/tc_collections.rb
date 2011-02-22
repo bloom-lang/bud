@@ -114,6 +114,26 @@ class DeleteKey
   end
 end
 
+class BootstrapDerive
+  include Bud
+
+  state do
+    table :t1
+    scratch :t2
+    scratch :t3
+  end
+
+  bootstrap do
+    t1 << [5,10]
+  end
+
+  declare
+  def rules
+    t2 <= t1.map{|t| [t.key + 1, t.val + 1]}
+    t3 <= t2.map{|t| [t.key + 1, t.val + 1]}
+  end
+end
+
 class RowValueTest
   include Bud
 
@@ -219,5 +239,18 @@ class TestCollections < Test::Unit::TestCase
     }
 
     rv.stop_bg
+  end
+
+  def test_bootstrap_derive
+    b = BootstrapDerive.new
+    b.run_bg
+    2.times do
+      b.sync_do {
+        assert_equal([[6, 11]], b.t2.to_a.sort)
+        assert_equal([[7, 12]], b.t3.to_a.sort)
+      }
+    end
+
+    b.stop_bg
   end
 end

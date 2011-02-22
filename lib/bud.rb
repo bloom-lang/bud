@@ -290,15 +290,19 @@ module Bud
 
     do_start_server
 
-    # flush any tuples installed into channels during bootstrap block
+    # Flush any tuples installed into channels during bootstrap block
     # XXX: doing this here is a kludge; we should do all of bootstrap
     # in one place
     do_flush
 
-    # initialize periodics
+    # Initialize periodics
     @periodics.each do |p|
       @timers << set_periodic_timer(p.pername, p.ident, p.period)
     end
+
+    # Compute a fixpoint. We do this so that transitive consequences of any
+    # bootstrap facts are computed.
+    tick
   end
 
   # Run Bud in the "foreground" -- this method typically doesn't return unless
