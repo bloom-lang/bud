@@ -127,9 +127,9 @@ module Bud
       self.map{|t| [t.inspect]}
     end
 
-    # by default, all tuples in any rhs are in storage or delta
-    # tuples in new_delta will get transitioned to delta in the next
-    # iteration of the evaluator (but within the current time tick)
+    # By default, all tuples in any rhs are in storage or delta. Tuples in
+    # new_delta will get transitioned to delta in the next iteration of the
+    # evaluator (but within the current time tick).
     def each(&block)
       each_from([@storage, @delta], &block)
     end
