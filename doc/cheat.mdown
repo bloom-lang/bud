@@ -1,7 +1,7 @@
 # Bud Cheat Sheet #
 
 ## General Bloom Syntax Rules ##
-Bloom programs are unordered sets of statements.<br>
+Bloom programs are unordered sets of statements (also known as "rules").<br>
 Statements are delimited by semicolons (;) or newlines. <br>
 As in Ruby, backslash is used to escape a newline.<br>
 
@@ -24,9 +24,9 @@ As in Ruby, backslash is used to escape a newline.<br>
 ## Bud Statements ##
 *lhs BudOp rhs*
 
-Left-hand-side (lhs) is a named BudCollection object.<br>
-Right-hand-side (rhs) is a Ruby expression producing a BudCollection or Array of Arrays.<br>
-BudOp is one of the 5 Bud Operators below.
+Left-hand-side (lhs) is a named `BudCollection` object.<br>
+Right-hand-side (rhs) is a Ruby expression producing a `BudCollection` or `Array` of `Arrays`.<br>
+BudOp is one of the 5 operators listed below.
 
 ## Bud Operators ##
 merges:
@@ -98,11 +98,11 @@ periodic can only be used on rhs of statement
     periodic :timer, 0.1
     
 ### stdio ###
-built-in scratch collection mapped to Ruby's STDIN and STDOUT<br>
+built-in scratch collection mapped to Ruby's `$stdin` and `$stdout`<br>
 given attributes: `[:line] => []`
 
 statements with stdio on lhs must use async merge (`<~`)<br>
-to capture STDIN on rhs, instantiate Bud with `:read_stdin` option.<br>
+to capture `$stdout` on rhs, instantiate Bud with `:read_stdin` option.<br>
 
 ### tctable ###
 table collection mapped to a [Tokyo Cabinet](http://fallabs.com/tokyocabinet/) store.<br>
@@ -110,7 +110,6 @@ default attributes: `[:key] => [:val]`
 
     tctable :t1
     tctable :t2, [:k1, :k2] => [:v1, :v2]
-    
 
 ### zktable ###
 table collection mapped to an [Apache Zookeeper](http://hadoop.apache.org/zookeeper/) store.<br>
@@ -161,7 +160,7 @@ Standard Ruby methods used on a BudCollection `bc`:
 
     stdio <~ bc.inspected
 
-`chan.payloads`: shorthand for chan.map{|t| t.val}, only defined for channels
+`chan.payloads`: shorthand for `chan.map{|t| t.val}`, only defined for channels
 
     # at sender
     msgs <~ requests.map{|r| "127.0.0.1:12345", r}
@@ -251,21 +250,21 @@ Left Outer Join.  Objects in the first collection will be included in the output
     module YourModule
       include BudModule
   
-      state {
+      state do
         ...
-      }
+      end
   
-      def bootstrap
+      bootstrap do
         ...
       end
   
       declare 
-      def SomeBudStmts
+      def some_rules
          ...
       end
 
       declare
-      def MoreBudStmts
+      def more_rules
         ...
       end
     end
