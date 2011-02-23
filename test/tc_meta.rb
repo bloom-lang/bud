@@ -83,7 +83,7 @@ class TestMeta < Test::Unit::TestCase
     dep = DepAnalysis.new
 
     program.t_depends_tc.each{|d| dep.depends_tc << d}
-    program.provides.each{|p| dep.providing << p}
+    program.t_provides.each{|p| dep.providing << p}
     dep.tick
   end
 end
