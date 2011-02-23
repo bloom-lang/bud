@@ -15,8 +15,8 @@ class LocalShortestPaths
 
   declare
   def program
-    link2 <= link.map{|l| l unless empty.include? [l.ident]}
-    path <= link2.map{|e| [e.from, e.to, e.to, e.cost]}
+    link2 <= link.map {|l| l unless empty.include? [l.ident]}
+    path <= link2.map {|e| [e.from, e.to, e.to, e.cost]}
     j = join([link2, path])
     path <= j.map do |l, p|
       [l.from, p.to, p.from, l.cost+p.cost] if l.to == p.from
@@ -55,7 +55,7 @@ class KTest2 < KTest
   declare
   def update
     mystate <= upd
-    mystate <- join([upd, mystate]).map{|i, s| s}
+    mystate <- join([upd, mystate]).map {|i, s| s}
   end
 end
 
@@ -63,7 +63,7 @@ end
 class KTest3 < KTest
   declare
   def update
-    mystate <= upd.map{|u| u unless mystate.include? u}
+    mystate <= upd.map {|u| u unless mystate.include? u}
   end
 end
 
@@ -75,15 +75,15 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_unstrat
-    assert_raise(RuntimeError) { program = KTest3.new(:dump => true, :visualize => false, :provenance => true) }
+    assert_raise(RuntimeError) { program = KTest3.new(:dump_rewrite => true, :provenance => true) }
   end
 
   def test_visualization
-    program = KTest2.new(:dump => true, :visualize => 3, :provenance => true)
+    program = KTest2.new(:dump_rewrite => true, :visualize => 3, :provenance => true)
     dep = DepAnalysis.new
 
-    program.t_depends_tc.each{|d| dep.depends_tc << d}
-    program.t_provides.each{|p| dep.providing << p}
+    program.t_depends_tc.each {|d| dep.depends_tc << d}
+    program.t_provides.each {|p| dep.providing << p}
     dep.tick
   end
 end

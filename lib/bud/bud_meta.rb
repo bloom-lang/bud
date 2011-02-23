@@ -25,13 +25,12 @@ class BudMeta
     smap = binaryrel2map(@bud_instance.t_stratum)
 
     done = {}
-    rewritten_strata = []
-    (0..top).each {|i| rewritten_strata[i] = ""}
+    rewritten_strata = Array.new(top + 1, "")
     @bud_instance.t_rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
-      # joins may have to be re-stated
-      belongs_in = smap[d.lhs]
-      belongs_in = 0 if belongs_in.nil?
       unless done[d.rule_id]
+        # joins may have to be re-stated
+        belongs_in = smap[d.lhs]
+        belongs_in ||= 0
         if d.op == "="
           (belongs_in..top).each do |i|
             rewritten_strata[i] += "\n" + d.src
@@ -51,7 +50,7 @@ class BudMeta
     @depanalysis.underspecified.each do |u|
       puts "Warning: underspecified dataflow: #{u.inspect}"
     end
-    dump_rewrite(rewritten_strata) if @bud_instance.options[:dump]
+    dump_rewrite(rewritten_strata) if @bud_instance.options[:dump_rewrite]
 
     return rewritten_strata
   end
@@ -72,16 +71,16 @@ class BudMeta
     end
 
     strata.each_with_index do |r, i|
-      fout.puts "R[#{i}] :\n #{r}"
+      fout.puts "R[#{i}]:\n #{r}"
     end
     fout.close
   end
 
   def rewrite(parse_tree, seed)
     unless parse_tree[0].nil?
-      rewriter = RW.new(seed)
       u = Unifier.new
       pt = u.process(parse_tree)
+      rewriter = RW.new(seed)
       rewriter.process(pt)
       #rewriter.rules.each {|r| puts "RW: #{r.inspect}" }
     end
