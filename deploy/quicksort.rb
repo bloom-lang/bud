@@ -31,14 +31,14 @@ class Quicksort
                         node.map do |n|
                           # send the first node the entire list
                           if n.uid == 1
-                            #puts "first " + node[[1]].node
-                            #puts "second " + node[[2]].node
+#                            #puts "first " + node[[1]].node
+#                            #puts "second " + node[[2]].node
                             [n.uid,
                              [[:master, [[me]]],
                               [:child, [[node[[n.uid+1]].node]]],
                               [:list_to_sort, [[input_list[[]].list]]]]
                             ]
-                            # don't send the last node a child
+#                            # don't send the last node a child
                           elsif n.uid == node_count[[]].num
                             #puts "last"
                             [n.uid,

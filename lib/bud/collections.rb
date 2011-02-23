@@ -250,7 +250,7 @@ module Bud
     alias << insert
 
     def merge(o, buf=@new_delta)
-      raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
+      raise BudError, "Attempt to merge non-enumerable type into BloomCollection #{tabname}: #{o.inspect}" unless o.respond_to? 'each'
       delta = o.map do |i|
         next if i.nil? or i.empty?
         i = prep_tuple(i)

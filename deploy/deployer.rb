@@ -170,7 +170,7 @@ module Deployer
                      if idempotent i
                        puts "Received all initial data; beginning computation"
                        @new_instance.async_do {
-                         safe_eval(i.data.map {|j| j[0].to_s + " <= " +
+                         safe_eval(i.data.map {|j| j[0].to_s + " <+ " +
                                      j[1].inspect}.join("\n"),
                                    lambda {|s| @new_instance.instance_eval(s)})
                        }
