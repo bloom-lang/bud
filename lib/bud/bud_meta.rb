@@ -27,13 +27,13 @@ class BudMeta
 
     done = {}
     @rewritten_strata = []
-    (0..top).each{ |i| @rewritten_strata[i] = "" } 
+    (0..top).each {|i| @rewritten_strata[i] = ""}
     @bud_instance.t_rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
       # joins may have to be re-stated
       belongs_in = smap[d.lhs]
       belongs_in = 0 if belongs_in.nil?
       unless done[d.rule_id]
-        if d.op == "=" 
+        if d.op == "="
           (belongs_in..top).each do |i|
             @rewritten_strata[i] += "\n" + d.src
           end
@@ -45,11 +45,15 @@ class BudMeta
     end
 
     @depanalysis = DepAnalysis.new
-    @bud_instance.t_depends_tc.each{ |d| @depanalysis.depends_tc << d }
-    @bud_instance.t_provides.each{ |p| @depanalysis.providing << p }
+    @bud_instance.t_depends_tc.each {|d| @depanalysis.depends_tc << d}
+    @bud_instance.t_provides.each {|p| @depanalysis.providing << p}
     3.times { @depanalysis.tick }
-    @depanalysis.underspecified.each{ |u| puts "Warning: underspecified dataflow: #{u.inspect}" }
+
+    @depanalysis.underspecified.each do |u|
+      puts "Warning: underspecified dataflow: #{u.inspect}"
+    end
     dump_rewrite if @bud_instance.options[:dump]
+
     return @rewritten_strata
   end
 
@@ -67,7 +71,7 @@ class BudMeta
     @decls.each do |d|
       fout.puts d
     end
-    
+
     @rewritten_strata.each_with_index do |r, i|
       fout.puts "R[#{i}] :\n #{r}"
     end
@@ -86,7 +90,7 @@ class BudMeta
   end
 
   def write_postamble(tabs, seed)
-    # rationale for the postamble: 
+    # rationale for the postamble:
     # for any module M, any table T declared within is internally named m_t.
     # if T is an input interface, we need to add a rule m_t <- t.
     # if T is an output interface, we need a rule t <- m_t.
@@ -94,7 +98,7 @@ class BudMeta
     postamble = "def foobar\n"
     tabs.each_pair do |k, v|
       last = v.last
-      if last[1] == "input"  
+      if last[1] == "input"
         postamble += "#{last[0]} <= #{k}.map{|t| puts \"INPUT POSTAMBLE\" or t }\n\n"
       elsif last[1] == "output"
         postamble += "#{k} <= #{last[0]}.map{|t| puts \"OUTPUT POSTAMBLE\" or t }\n\n"
@@ -105,7 +109,7 @@ class BudMeta
         postamble += "#{right}.map{|t| puts \"VISIBILITy POSTAMBLE #{right} :: \" + t.inspect or t }\n\n"
       end
     end
-    postamble += "\nend\n"   
+    postamble += "\nend\n"
 
     return rewrite(ParseTree.translate(postamble), {}, seed)
   end
@@ -125,9 +129,9 @@ class BudMeta
     #puts "DEFN : #{res}"
     # not sure what this is doing, so i commented it out -wrm
     #eval(res)
-    #state_reader.tabs.each_pair do |k, v| 
+    #state_reader.tabs.each_pair do |k, v|
     #  tabs[k] ||= []
-    #  tabs[k] << v 
+    #  tabs[k] << v
     #end
     #return tabs
     return []
@@ -144,14 +148,14 @@ class BudMeta
       tabs = shred_state(anc, tabs)
       @declarations.each do |meth_name|
         rw = rewrite(ParseTree.translate(anc, meth_name), tabs, seed)
-        unless rw.nil? 
+        unless rw.nil?
           seed = rw.rule_indx
           rulebag[meth_name] = rw
         end
       end
     end
-    
-    rulebag.each_pair do |k,v| 
+
+    rulebag.each_pair do |k,v|
       v.rules.each do |r|
         @rules << r
         @bud_instance.t_rules << r
@@ -175,25 +179,22 @@ class BudMeta
 
   def stratify
     strat = Stratification.new
-    strat.tick
     @bud_instance.tables.each do |t|
       strat.tab_info << [t[0].to_s, t[1].class, t[1].schema.length]
     end
-
     @bud_instance.t_depends.each do |d|
       strat.depends << d
     end
-
     strat.tick
-    strat.stratum.each do |s|
-      @bud_instance.t_stratum << s      
-    end
-    strat.depends_tc.each{|d| @bud_instance.t_depends_tc << d }
-    strat.cycle.each{|c| @bud_instance.t_cycle << c }
+
+    # Copy computed data back into Bud runtime
+    strat.stratum.each {|s| @bud_instance.t_stratum << s}
+    strat.depends_tc.each {|d| @bud_instance.t_depends_tc << d}
+    strat.cycle.each {|c| @bud_instance.t_cycle << c}
     if strat.top_strat.length > 0
       top = strat.top_strat.first.stratum
     else
-      top = 1 
+      top = 1
     end
     return top
   end

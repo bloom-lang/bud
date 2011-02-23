@@ -5,16 +5,16 @@ class Stratification
   include Bud
 
   state {
+    # Data inserted by client (Bud rewrite code)
+    table :tab_info, [:tab, :typecol, :columns]
     table :depends, [:rule, :head, :op, :body, :neg]
 
-    # adding a 'via' attribute for further analysis
+    # Transitive closure of "depends" relation
     table :depends_tc, [:head, :body, :via, :neg, :temporal]
     table :cycle, [:predicate, :via, :neg, :temporal]
     table :stratum_base, [:predicate, :stratum]
     table :stratum, [:predicate, :stratum]
     table :top_strat, [:stratum]
-
-    table :tab_info, [:tab, :typecol, :columns]
   }
 
   def declaration
