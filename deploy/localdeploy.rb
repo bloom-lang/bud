@@ -20,6 +20,7 @@ module LocalDeploy
         foo = nil
         eval 'foo = MetaRecv.new(:ip => "127.0.0.1")'
         # end ugly hack
+        puts "Starting up node"
         foo.run_bg
         [i, "127.0.0.1:" + foo.port.to_s]
       end

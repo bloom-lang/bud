@@ -135,7 +135,7 @@ module Deployer
     # insert the IP and port of the node into "node"
     node <= join([rule_ack, deploy_node],
                  [rule_ack.sender, deploy_node.node]).map do |r, d|
-      [d.uid, r.sender.split(':')[0] + r.port.to_s]
+      [d.uid, r.sender.split(':')[0] + ":" + r.port.to_s]
     end
     persist_decl_ack <= decl_ack
   end
@@ -163,7 +163,7 @@ module Deployer
   def distribute_data
     initial_data_chan <~ join([deploy_node, initial_data],
                               [deploy_node.uid, initial_data.uid]).map do |n, i|
-      [n.node, i.data] if not not_all_in.include? [true] and idempotent i
+      [n.node, i.data] if not not_all_in.include? [true] and idempotent [n,i]
     end
 
     dont_care <= ((initial_data_chan.each do |i|
