@@ -13,7 +13,6 @@ class RW < Ruby2Ruby
     @nm = 0
     @rule_indx = seed
     @collect = false
-    @delete = false
     @join_alias = {}
     @rules = []
     @depends = []
@@ -29,7 +28,7 @@ class RW < Ruby2Ruby
   end
 
   def process_lvar(exp)
-    lvar = exp[0].to_s
+    lvar = exp.first.to_s
     if @join_alias[lvar]
       @tabs[lvar] = @nm
       drain(exp)
@@ -108,10 +107,6 @@ class RW < Ruby2Ruby
     drain(exp)
   end
 
-  def each
-    @flat_state.each {|f| yield f}
-  end
-
   def drain(exp)
     exp.shift until exp.empty?
     return ""
@@ -134,7 +129,7 @@ class StateExtractor < Ruby2Ruby
     lhs = process exp[2]
     foo = "#{exp[1]} #{lhs}"
     @decls << ["#{lhs}"[/:.*?,/][1..-1].chop!, foo]
-    exp.shift while exp.length > 0
+    exp.shift until exp.empty?
     return ""
   end
 end
