@@ -118,11 +118,13 @@ def deserialize_table(tab, strict)
   # oy.  meta only
   ret = []
   tab.each_pair do |k, v|
-    key = Marshal.load(k)
+    #key = Marshal.load(k)
+    key = MessagePack.unpack(k)
     time = key.shift
     raise "non-zero budtime.  sure this is metadata?" if time != 0 and strict
     tup = key
-    Marshal.load(v).each{|v| tup << v }
+    #Marshal.load(v).each{|v| tup << v }
+    MessagePack.unpack(v).each{|val| tup << val }
     ret << tup
   end
   tab.close
@@ -185,11 +187,15 @@ vh = VizHelper.new(strata, tabinf, cycle, depends, rules, ARGV[0])
 @tables.each_pair do |name, contents|
   name = name.gsub("_vizlog.tch", "")
   contents.each_pair do |k, v|
-    key = Marshal.load(k)
+    key = MessagePack.unpack(k)
     time = key[0]
     row = key
-    Marshal.load(v).each{|val| row << val }
-    vh.full_info << [time, name, row]
+    MessagePack.unpack(v).each{ |val| row << val }
+    if name == "t_table_info.tch" or name == "t_table_schema.tch"
+      vh.full_info << [0, name, row]
+    else
+      vh.full_info << [time, name, row]
+    end
   end
 end
 
