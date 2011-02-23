@@ -2,11 +2,13 @@ require 'rubygems'
 require 'bud'
 require 'open-uri'
 
-class GenericBud
-  include Bud
-end
-
 module Deployer
+
+  class GenericBud
+    include Bud
+    include Deployer
+  end
+
   include BudModule
 
   state {
@@ -145,7 +147,7 @@ module Deployer
   def consensus
     ack <= join([persist_rule_ack, persist_decl_ack],
                 [persist_rule_ack.sender, persist_decl_ack.sender]).map do |r,d|
-      puts "#{r.sender} has received all rules and decls" or [r.sender]
+      ((puts r.sender + " has received all rules and decls") if idempotent [[:ack, r.sender]]) or [r.sender]
     end
 
     #i want to use this rule, but I can't
