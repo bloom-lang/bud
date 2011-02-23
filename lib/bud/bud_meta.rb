@@ -13,21 +13,20 @@ class BudMeta
     @declarations = declarations
     @rules = []
     @depends = []
+    @decls = []
   end
 
   def meta_rewrite
     # N.B. -- parse_tree will not be supported in ruby 1.9.
     # however, we can still pass the "string" code of bud modules
     # to ruby_parse (but not the "live" class)
-
-    @decls = []
     shred_rules
     top = stratify
     smap = binaryrel2map(@bud_instance.t_stratum)
 
     done = {}
-    @rewritten_strata = []
-    (0..top).each {|i| @rewritten_strata[i] = ""}
+    rewritten_strata = []
+    (0..top).each {|i| rewritten_strata[i] = ""}
     @bud_instance.t_rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
       # joins may have to be re-stated
       belongs_in = smap[d.lhs]
@@ -35,10 +34,10 @@ class BudMeta
       unless done[d.rule_id]
         if d.op == "="
           (belongs_in..top).each do |i|
-            @rewritten_strata[i] += "\n" + d.src
+            rewritten_strata[i] += "\n" + d.src
           end
         else
-          @rewritten_strata[belongs_in] += "\n" + d.src
+          rewritten_strata[belongs_in] += "\n" + d.src
         end
       end
       done[d.rule_id] = true
@@ -52,9 +51,9 @@ class BudMeta
     @depanalysis.underspecified.each do |u|
       puts "Warning: underspecified dataflow: #{u.inspect}"
     end
-    dump_rewrite if @bud_instance.options[:dump]
+    dump_rewrite(rewritten_strata) if @bud_instance.options[:dump]
 
-    return @rewritten_strata
+    return rewritten_strata
   end
 
   def binaryrel2map(rel)
@@ -65,14 +64,14 @@ class BudMeta
     return smap
   end
 
-  def dump_rewrite
+  def dump_rewrite(strata)
     fout = File.new("#{@bud_instance.class}_rewritten.txt", "w")
     fout.puts "Declarations:"
     @decls.each do |d|
       fout.puts d
     end
 
-    @rewritten_strata.each_with_index do |r, i|
+    strata.each_with_index do |r, i|
       fout.puts "R[#{i}] :\n #{r}"
     end
     fout.close
@@ -97,9 +96,7 @@ class BudMeta
     u = Unifier.new
     pt = u.process(stp)
     res = state_reader.process(pt)
-    for d in state_reader.decls
-      @decls << d
-    end
+    @decls += state_reader.decls
   end
 
   def shred_rules
@@ -120,7 +117,7 @@ class BudMeta
       end
     end
 
-    rulebag.each_pair do |k,v|
+    rulebag.each_value do |v|
       v.rules.each do |r|
         @rules << r
         @bud_instance.t_rules << r

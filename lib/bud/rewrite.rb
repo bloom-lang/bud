@@ -27,7 +27,7 @@ class RW < Ruby2Ruby
       super
     end
   end
-    
+
   def process_lvar(exp)
     lvar = exp[0].to_s
     if @join_alias[lvar]
@@ -50,12 +50,12 @@ class RW < Ruby2Ruby
         @nm = 1
       end
       if @temp_ops[exp[1]]
-          @temp_op = exp[1].to_s.gsub("@", "")
+        @temp_op = exp[1].to_s.gsub("@", "")
       end
       super
     end
   end
-  
+
   def collect_rhs(exp)
     @collect = true
     rhs = process exp
@@ -65,17 +65,17 @@ class RW < Ruby2Ruby
 
   def record_rule(lhs, op, rhs)
     rule_txt = "#{lhs} #{op} #{rhs}"
-    if op == :< 
+    if op == :<
       op = "<#{@temp_op}"
     else
       op = op.to_s
     end
 
     @rules << [@rule_indx, lhs, op, rule_txt]
-    @tabs.each_pair do |k, v| 
+    @tabs.each_pair do |k, v|
       @depends << [@rule_indx, lhs, op, k, v]
     end
-    
+
     @tabs = {}
     @nm = 0
     @temp_op = nil
@@ -109,7 +109,7 @@ class RW < Ruby2Ruby
   end
 
   def each
-    @flat_state.each {|f| yield f }
+    @flat_state.each {|f| yield f}
   end
 
   def drain(exp)
@@ -130,51 +130,6 @@ class StateExtractor < Ruby2Ruby
     super()
   end
 
-#  def process_zsuper(exp)
-#    # suppress superclass calls for this rewrite.
-#    # but consider obsoleting such calls via rewriting!
-#    exp.shift
-#    return ""
-#  end
-
-#  def process_block(exp)
-#    term  = exp.shift
-#    res = ""
-#    until term.nil?
-#      res += process(term) + "\n"
-#      term = exp.shift
-#    end
-#    return res
-#  end
-
-#  def process_defn(exp)
-#    if exp.first.to_s == "state"
-#      exp.shift
-#      ret = exp.shift
-#      process ret
-#    end
-#  end
-
-#  def process_vcall(exp)
-#    @ttype = exp.to_s
-#    super
-#  end
-
-#  def process_lit(exp)
-#    if exp.first.class == Symbol
-#      tab = exp.shift.to_s
-#      if @cxt.nil?
-#        res = tab
-#      else
-#        res =  @cxt.downcase + "_" + tab
-#      end
-#      @tabs[tab] = [res, @ttype]
-#      return ":" + res
-#    else
-#      super
-#    end
-#  end
-
   def process_call(exp)
     lhs = process exp[2]
     foo = "#{exp[1]} #{lhs}"
@@ -182,5 +137,4 @@ class StateExtractor < Ruby2Ruby
     exp.shift while exp.length > 0
     return ""
   end
-
 end
