@@ -2,13 +2,13 @@ require 'rubygems'
 require 'bud'
 # require the meta wrapper
 require 'deployer'
-require 'ec2deploy'
+require 'localdeploy'
 
 class ShortestPaths
   # include the meta wrapper
   include Bud
   include Deployer
-  include EC2Deploy
+  include LocalDeploy
 
   state {
     table :link, [:from, :to, :cost]
@@ -18,11 +18,8 @@ class ShortestPaths
   }
 
   bootstrap do
-    max_count <= [[1]]
-    min_count <= [[1]]
-    eval(IO.read('keys.rb'), binding)
-    key_name <= [["wrm"]]
-    ec2_key_location <= [["/home/wrm/.ssh/ec2"]]
+    # how many local nodes do we want?
+    node_count <= [[2]]
   end
 
   declare
@@ -60,8 +57,5 @@ class ShortestPaths
   end
 end
 
-source = ARGV[0].split(':')
-ip = source[0]
-port = source[1]
-program = ShortestPaths.new(:scoping => true, :ip => ip, :port => port, :nat => true)
+program = ShortestPaths.new(:scoping => true, :ip => "127.0.0.1", :port => 0, :dump => true)
 program.run

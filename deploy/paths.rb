@@ -17,7 +17,7 @@ class ShortestPaths
 
   bootstrap do
     # which nodes do we want to distribute program to?
-    node <= [[1, "127.0.0.1:54321"]]
+    deploy_node <= [[1, "127.0.0.1:54321"]]
     # EDB at each node
     initial_data <= [[1,
                       [[:link, [['a', 'b', 1],
@@ -30,10 +30,15 @@ class ShortestPaths
   end
 
   declare
+  def print
+    stdio <~ path.map{|p| ["#{@ip}:#{@port}: #{p.inspect}"]}
+  end
+
+  declare
   def make_paths
-    path <= link.map{|e| (puts "bar") or [e.from, e.to, e.to, e.cost]}
+    path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
     path <= join([link, path], [path.from, link.to]).map do |l,p|
-      (puts "foo") or ($stdout.flush and [l.from, p.to, p.from, l.cost+p.cost])
+      [l.from, p.to, p.from, l.cost+p.cost]
     end
   end
 

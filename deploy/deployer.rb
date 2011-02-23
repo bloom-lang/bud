@@ -2,17 +2,22 @@ require 'rubygems'
 require 'bud'
 require 'open-uri'
 
+class GenericBud
+  include Bud
+end
+
 module Deployer
   include BudModule
 
   state {
     channel :rule_chan, [:@loc, :sender, :array]
     channel :decl_chan, [:@loc, :sender, :array]
-    channel :rule_ack, [:@loc, :sender]
+    channel :rule_ack, [:@loc, :sender, :port]
     channel :decl_ack, [:@loc, :sender]
-    table :persist_rule_ack, [:loc, :sender]
+    table :persist_rule_ack, [:loc, :sender, :port]
     table :persist_decl_ack, [:loc, :sender]
-    table :node, [:uid] => [:node]
+    table :node, [:uid] => [:node] # nodes with running programs
+    table :deploy_node, [:uid] => [:node] # nodes to deploy onto
     table :dead, [:dead]
     table :ack, [:node]
     scratch :not_all_in, [:bool]
@@ -48,7 +53,8 @@ module Deployer
      "max_count", "min_count", "access_key_id", "secret_access_key", "image_id",
      "key_name", "ec2_key_location", "ec2_conn", "ec2_insts", "reservation_id",
      "init_command", "spinup_timer", "the_reservation", "the_reservation_next",
-     "node_up", "node_ssh", "init_dir", "temp_node", "all_up"]
+     "node_up", "node_ssh", "init_dir", "temp_node", "all_up", "deploy_node",
+     "node_count"]
   end
 
   # eval code in the bud instance
@@ -69,7 +75,8 @@ module Deployer
     if safe_eval("declare\ndef recv_rules\n" + rules.join("\n") + "\nend",
                  lambda {|s| GenericBud.class_eval(s)})
       begin
-        @new_instance = GenericBud.new()
+        @new_instance = GenericBud.new(:ip => "127.0.0.1")
+        @new_instance.run_bg
       rescue Exception => exc
         puts "#{$!}"
         return false
@@ -103,10 +110,11 @@ module Deployer
             end.map {|d| d[1]}]
 
     # send decls before rules
-    decl_chan <~ node.map do |n|
+    decl_chan <~ deploy_node.map do |n|
       [n.node, me, decl] if idempotent [[n.node, decl]]
     end
-    node_decl_ack = join([node, decl_ack], [node.node, decl_ack.sender])
+    node_decl_ack = join([deploy_node, decl_ack],
+                         [deploy_node.node, decl_ack.sender])
     rule_chan <~ node_decl_ack.map do |n, r|
       [n.node, me, rule] if idempotent [[n.node, rule]]
     end
@@ -116,13 +124,19 @@ module Deployer
   declare
   def rule_recv
     rule_ack <~ rule_chan.map do |r|
-        [r.sender, me] if insert_rules r.array
+      # XXX: hack to get around assignment problem
+      [r.sender, me, @new_instance.port] if insert_rules r.array
     end
     decl_ack <~ decl_chan.map do |d|
-        [d.sender, me] if insert_decls d.array
+      [d.sender, me] if insert_decls d.array
     end
 
     persist_rule_ack <= rule_ack
+    # insert the IP and port of the node into "node"
+    node <= join([rule_ack, deploy_node],
+                 [rule_ack.sender, deploy_node.node]).map do |r, d|
+      [d.uid, r.sender.split(':')[0] + r.port.to_s]
+    end
     persist_decl_ack <= decl_ack
   end
 
@@ -136,7 +150,7 @@ module Deployer
 
     #i want to use this rule, but I can't
     #all_in <= [true] if node.all? {|n| ack.include? n}
-    not_all_in <= node.map {|n| (ack.include? [n.node]) ? [nil] : [true]}
+    not_all_in <= deploy_node.map {|n| (ack.include? [n.node]) ? [nil] : [true]}
   end
 
   # distribute the EDB to each node
@@ -147,18 +161,26 @@ module Deployer
   # evaluated" before any messages can be sent
   declare
   def distribute_data
-    initial_data_chan <~ join([node, initial_data],
-                              [node.uid, initial_data.uid]).map do |n, i|
+    initial_data_chan <~ join([deploy_node, initial_data],
+                              [deploy_node.uid, initial_data.uid]).map do |n, i|
       [n.node, i.data] if not not_all_in.include? [true] and idempotent i
     end
 
-    dont_care <= (initial_data_chan.each do |i|
-                    puts "Received all initial data; beginning computation" or
-                      @new_instance.async_do {
-                      safe_eval(i.data.map {|j| j[0].to_s + " <= " +
-                                  j[1].inspect}.join("\n"),
-                                lambda {|s| @new_instance.instance_eval(s)})
-                    } if idempotent i
-                  end and [nil])
+    dont_care <= ((initial_data_chan.each do |i|
+                     if idempotent i
+                       puts "Received all initial data; beginning computation"
+                       @new_instance.async_do {
+                         safe_eval(i.data.map {|j| j[0].to_s + " <= " +
+                                     j[1].inspect}.join("\n"),
+                                   lambda {|s| @new_instance.instance_eval(s)})
+                       }
+                     end
+                   end) and [])
+
   end
+end
+
+class MetaRecv
+  include Bud
+  include Deployer
 end

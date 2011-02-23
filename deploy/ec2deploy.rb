@@ -99,7 +99,7 @@ module EC2Deploy
 
     # for each SSH connection, upload all the files in init_files, then
     # execute all the init_commands
-    node <= join([temp_node, init_dir, init_command]).map do |t, i, c|
+    deploy_node <= join([temp_node, init_dir, init_command]).map do |t, i, c|
       (while not system 'scp -r -o "StrictHostKeyChecking no" -i ' + ec2_key_location[[]].loc + ' ' + init_dir[[]].dir + ' ec2-user@' + t.node.split(":")[0] + ':/home/ec2-user'
          sleep 6
        end) or
