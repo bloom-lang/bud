@@ -16,7 +16,6 @@ class DepAnalysis
   def declaration
     strata[0] = lambda { 
       source <= providing.map do |p|
-        puts "CONSIDER #{p.inspect}"
         if p.input and !depends_tc.map{|d| d.head}.include? p.pred
           [p.pred]
         end
