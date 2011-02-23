@@ -66,7 +66,7 @@ class BudMeta
   end
 
   def dump_rewrite
-    fout = File.new(@bud_instance.class.to_s + "_rewritten.txt", "w")
+    fout = File.new("#{@bud_instance.class}_rewritten.txt", "w")
     fout.puts "Declarations:"
     @decls.each do |d|
       fout.puts d
@@ -78,7 +78,7 @@ class BudMeta
     fout.close
   end
 
-  def rewrite(parse_tree, tab_map, seed)
+  def rewrite(parse_tree, seed)
     unless parse_tree[0].nil?
       rewriter = RW.new(seed)
       u = Unifier.new
@@ -89,35 +89,10 @@ class BudMeta
     return rewriter
   end
 
-  def write_postamble(tabs, seed)
-    # rationale for the postamble:
-    # for any module M, any table T declared within is internally named m_t.
-    # if T is an input interface, we need to add a rule m_t <- t.
-    # if T is an output interface, we need a rule t <- m_t.
-
-    postamble = "def foobar\n"
-    tabs.each_pair do |k, v|
-      last = v.last
-      if last[1] == "input"
-        postamble += "#{last[0]} <= #{k}.map{|t| puts \"INPUT POSTAMBLE\" or t }\n\n"
-      elsif last[1] == "output"
-        postamble += "#{k} <= #{last[0]}.map{|t| puts \"OUTPUT POSTAMBLE\" or t }\n\n"
-      else
-        left = "#{k} <= #{last[0]}"
-        right = "#{last[0]} <= #{k}"
-        postamble += "#{left}.map{|t| puts \"VISIBILITy POSTAMBLE #{left} :: \" + t.inspect or t }\n\n"
-        postamble += "#{right}.map{|t| puts \"VISIBILITy POSTAMBLE #{right} :: \" + t.inspect or t }\n\n"
-      end
-    end
-    postamble += "\nend\n"
-
-    return rewrite(ParseTree.translate(postamble), {}, seed)
-  end
-
-  def shred_state(anc, tabs)
-    return {} unless @bud_instance.options[:scoping]
+  def shred_state(anc)
+    return unless @bud_instance.options[:scoping]
     stp = ParseTree.translate(anc, "__#{@bud_instance.class}__state")
-    return tabs if stp[0].nil?
+    return if stp[0].nil?
     state_reader = StateExtractor.new(anc.to_s)
     u = Unifier.new
     pt = u.process(stp)
@@ -125,16 +100,6 @@ class BudMeta
     for d in state_reader.decls
       @decls << d
     end
-    # create the state
-    #puts "DEFN : #{res}"
-    # not sure what this is doing, so i commented it out -wrm
-    #eval(res)
-    #state_reader.tabs.each_pair do |k, v|
-    #  tabs[k] ||= []
-    #  tabs[k] << v
-    #end
-    #return tabs
-    return []
   end
 
   def shred_rules
@@ -145,9 +110,9 @@ class BudMeta
     seed = 0
     rulebag = {}
     each_relevant_ancestor do |anc|
-      tabs = shred_state(anc, tabs)
+      shred_state(anc)
       @declarations.each do |meth_name|
-        rw = rewrite(ParseTree.translate(anc, meth_name), tabs, seed)
+        rw = rewrite(ParseTree.translate(anc, meth_name), seed)
         unless rw.nil?
           seed = rw.rule_indx
           rulebag[meth_name] = rw
