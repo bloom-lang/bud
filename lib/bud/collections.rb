@@ -282,8 +282,8 @@ module Bud
     def tick
       @storage = @pending
       @pending = {}
-      raise BudError unless @delta.empty?
-      raise BudError unless @new_delta.empty?
+      raise BudError, "orphaned tuples in @delta for #{@tabname}" unless @delta.empty?
+      raise BudError, "orphaned tuples in @new_delta for #{@tabname}" unless @new_delta.empty?
     end
 
     # move all deltas and new_deltas into storage
