@@ -20,7 +20,7 @@ class Stratification
   def declaration
     strata[0] = lambda {
       depends_tc <= depends.map do |d|
-        dneg = (d.neg == 1 or d.op.to_s =~ /<-/)
+        dneg = (d.neg or d.op.to_s =~ /<-/)
         if d.op.to_s =~ /<[\+\-\~]/
           [d.head, d.body, d.body, dneg, true]
         else
@@ -34,7 +34,7 @@ class Stratification
         if (b.op.to_s =~ /<[\+\-\~]/) or r.temporal
           temporal = true
         end
-        if (b.neg == 1 or b.op.to_s =~ /<-/) || r.neg
+        if (b.neg or b.op.to_s =~ /<-/) || r.neg
           # revert the computation of 'via' -- too slow
           # b.body -> nil
           [b.head, r.body, b.body, true, temporal]
@@ -61,7 +61,7 @@ class Stratification
 
     strata[1] = lambda {
       stratum_base <= join([depends, stratum_base], [depends.body, stratum_base.predicate]).map do |d, s|
-        if (d.neg == 1 or d.op.to_s == "<-") and !(cycle.map{|c| c.predicate}.include? d.body and cycle.map{|c| c.predicate}.include? d.head)
+        if (d.neg or d.op.to_s == "<-") and !(cycle.map{|c| c.predicate}.include? d.body and cycle.map{|c| c.predicate}.include? d.head)
           [d.head, s.stratum + 1]
         else
           [d.head, s.stratum]

@@ -191,7 +191,7 @@ class GraphGen
       @labels[ekey][' +/-'] = true
       @edges[ekey].arrowhead = 'veeodot'
     end
-    if nm == 1 and head != "T"
+    if nm and head != "T"
       # hm, nonmono
       @edges[ekey].arrowhead = 'veeodot'
     end

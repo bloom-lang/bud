@@ -9,8 +9,7 @@ class RW < Ruby2Ruby
     @nm_funcs = {:group => 1, :argagg => 1, :include? => 1, :-@ => 1}
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tabs = {}
-    # for upstream compatibility.  consider using a bool
-    @nm = 0
+    @nm = false
     @rule_indx = seed
     @collect = false
     @join_alias = {}
@@ -46,7 +45,7 @@ class RW < Ruby2Ruby
     else
       # basically not analyzed
       if @nm_funcs[exp[1]]
-        @nm = 1
+        @nm = true
       end
       if @temp_ops[exp[1]]
         @temp_op = exp[1].to_s.gsub("@", "")
@@ -76,7 +75,7 @@ class RW < Ruby2Ruby
     end
 
     @tabs = {}
-    @nm = 0
+    @nm = false
     @temp_op = nil
     @rule_indx += 1
   end
