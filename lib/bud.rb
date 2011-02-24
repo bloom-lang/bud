@@ -187,6 +187,11 @@ module Bud
   def start_reactor
     return if EventMachine::reactor_running?
 
+    EventMachine::error_handler do |e|
+      puts "Unexpected Bud error: #{e.inspect}"
+      raise e
+    end
+
     Thread.new do
       EventMachine.run
     end
