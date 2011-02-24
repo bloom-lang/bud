@@ -159,7 +159,7 @@ class Mergesort
     # outputs to stdout
     succ <= ((if not parent[[]]
                 (0..@merge_send_counter).map do |e|
-                  if e < @merge_send_counter
+                  if e < @merge_send_counter and elt_ord[[e]] and elt_ord[[e+1]]
                     [elt_ord[[e]].elt, elt_ord[[e+1]].elt]
                   end
                 end
