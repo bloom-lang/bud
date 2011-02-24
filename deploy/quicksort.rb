@@ -21,7 +21,8 @@ class Quicksort
 
   def deploystrap
     input_list << [[2,5,3,6,0,1,8,7,4,9]]
-    # building a full tree cuz i can't think of how to do this with fewer nodes
+    # building a full tree; could get same parallelism with half the nodes, but
+    # don't feel like complicating the code that much
     # 2^ceil(log_2(x)) levels (# of nodes is 2*|levels| - 1)
     node_count << [2**((Math.log(input_list[[]].list.size)/Math.log(2)).ceil + 1) - 1]
     # node i in the list has its children at 2i+1 and 2i+2
@@ -30,6 +31,9 @@ class Quicksort
 
   declare
   def partition
+    # XXX: by the way, this is a huge hack because i'm too lazy to write out
+    # the count aggregate; ".size" just seems more natural to me.  Hopefully
+    # we'll support this syntax eventually
     initial_data <= ((if node_count[[]] and input_list[[]] and
                           node.map {|n| n}.size == node_count[[]].num
                         node.map do |n|
@@ -56,16 +60,17 @@ class Quicksort
   declare
   def quicksort
     # pop elt_list into list_to_sort
-    stdio <~ list_to_sort.map {|l| [ip_port + " received list: " + l.inspect]}
+    #stdio <~ list_to_sort.map {|l| [ip_port + " received list: " + l.inspect]}
     list_to_sort <= [elt_list.map {|e| e.elt_list}]
 
     # pick a pivot (median in the list) (expected O(N) time alg)
+    # using median as pivot cuz i'm not sure how to build a "circular tree"
+    # fixed topology with O(N) nodes that can deal with arbitrary imbalances
     pivot <= ((list_to_sort[[]] and
                if idempotent [[:pivot, list_to_sort[[]].list]]
                  # XXX: elaborate hack to avoid assignment issue
                  ((def find_median(list, k, rand_elt, smaller)
                      return list[0] if list.size == 1
-                     #puts "find median called with list : " + list.inspect + " # " + k.to_s
                      eval "rand_elt = list[rand(list.size)]"
                      eval "smaller = list.find_all {|e| e < rand_elt}"
                      return rand_elt if smaller.size == k-1
@@ -79,7 +84,7 @@ class Quicksort
                end
                ) or [])
 
-    stdio <~ pivot.map{|p| [ip_port + " pivot: " + p.elt.to_s]}
+    #stdio <~ pivot.map{|p| [ip_port + " pivot: " + p.elt.to_s]}
 
     gt_pivot <= ((pivot[[]] and list_to_sort[[]] and
                   [[list_to_sort[[]].list.find_all do |e|
