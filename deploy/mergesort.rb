@@ -76,11 +76,10 @@ class Mergesort
   declare
   def mergesort_split
     # pop elt_list into list_to_sort
-    stdio <~ list_to_sort.map {|l| [ip_port + " received list: " + l.inspect]}
+    #stdio <~ list_to_sort.map {|l| [ip_port + " received list: " + l.inspect]}
     list_to_sort <= [elt_list.map {|e| e.elt_list}]
 
     gt_pivot <= ((list_to_sort[[]] and
-#(puts "gt pivot: " + list_to_sort[[]].list[list_to_sort[[]].list.size/2..-1].inspect) and
                   [[list_to_sort[[]].list[list_to_sort[[]].list.size/2..-1]]]) or [])
     lt_pivot <= ((list_to_sort[[]] and
                   [[list_to_sort[[]].list[0, list_to_sort[[]].list.size/2]]]) or [])
@@ -97,13 +96,12 @@ class Mergesort
 
   declare
   def mergesort_merge
-    stdio <~ elt_ord.map {|m| [ip_port + " elt_ord: " + m.inspect]}
-    stdio <~ merge_chan.map {|m| [ip_port + " merge_chan: " + m.inspect]}
-    stdio <~ max_chan.map {|m| [ip_port + " max_chan: " + m.inspect]}
+    #stdio <~ elt_ord.map {|m| [ip_port + " elt_ord: " + m.inspect]}
+    #stdio <~ merge_chan.map {|m| [ip_port + " merge_chan: " + m.inspect]}
+    #stdio <~ max_chan.map {|m| [ip_port + " max_chan: " + m.inspect]}
 
     # 1. node with a single size list_to_sort sends to its parent
     merge_chan <~ ((if list_to_sort[[]] and list_to_sort[[]].list.size == 1
-                      puts "sending to parent"
                       [[parent[[]].node, me, list_to_sort[[]].list[0], 0]]
                     end) or [])
     max_chan <~ ((if list_to_sort[[]] and list_to_sort[[]].list.size == 1
@@ -120,7 +118,6 @@ class Mergesort
                    if lp.sender == l.node and rp.sender == r.node
                      if lp.num == @merge_recv_left_counter and
                          rp.num == @merge_recv_right_counter
-                       puts "mach! left: " + @merge_recv_left_counter.to_s + " right : " + @merge_recv_right_counter.to_s
                        if lp.elt <= rp.elt
                          @merge_recv_left_counter += 1
                          [@merge_send_counter+=1, lp.elt]
@@ -132,14 +129,12 @@ class Mergesort
                          persist_max_chan[[r.node]] and
                          persist_max_chan[[r.node]].max_elt + 1 ==
                          @merge_recv_right_counter
-                       puts "right is done"
                        @merge_recv_left_counter += 1
                        [@merge_send_counter+=1, lp.elt]
                      elsif persist_max_chan[[l.node]] and
                          persist_max_chan[[l.node]].max_elt + 1 ==
                          @merge_recv_left_counter and
                          rp.num == @merge_recv_right_counter
-                       puts "left is done"
                        @merge_recv_right_counter +=1
                        [@merge_send_counter+=1, rp.elt]
                      end
@@ -149,7 +144,6 @@ class Mergesort
     # 2. node that receives two mergedlists merges them and outputs the elements
     # one-at-a-time to parent; sends max to parent when known
     merge_chan <~ ((parent[[]] and
-                    #puts parent[[]].node.to_s
                     elt_ord.map {|e| [parent[[]].node, me, e.elt, e.num]}) or [])
     max_chan <~ ((if left_child[[]] and right_child[[]] and parent[[]] and
                       persist_max_chan[[left_child[[]].node]] and
