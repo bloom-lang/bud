@@ -1,0 +1,5 @@
+# Make deployment have true parallelism
+# Eliminate some code duplication; integrate localdeploy and localdeploy-nonmeta
+# Figure out why localdeploy-nonmeta seems to be causing some things to be printed out twice
+# Finish mergesort
+# Finish performance benchmarking module
