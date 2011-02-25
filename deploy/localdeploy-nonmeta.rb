@@ -50,7 +50,7 @@ module LocalDeploy
           # processes write their port to a pipe
           write.puts foo.port.to_s
           # puts foo.port
-          foo.em_thread.join
+          EventMachine.reactor_thread.join
         end
       end
       # wait for all to be spun up
