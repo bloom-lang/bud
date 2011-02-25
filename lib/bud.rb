@@ -96,7 +96,7 @@ module Bud
     # by Bud programs, so in order for those programs to parse, we need the
     # "Bud" class to have been defined first.
     require 'bud/depanalysis'
-    require 'bud/strat'
+    require 'bud/stratify'
     if @options[:visualize]
       @viz = VizOnline.new(self)
     end
