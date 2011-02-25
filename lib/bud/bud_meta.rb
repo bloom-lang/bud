@@ -25,7 +25,7 @@ class BudMeta
 
     done = {}
     rewritten_strata = Array.new(top + 1, "")
-    @bud_instance.t_rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
+    @rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
       unless done[d.rule_id]
         # joins may have to be restated
         belongs_in = smap[d.lhs]
@@ -37,8 +37,8 @@ class BudMeta
         else
           rewritten_strata[belongs_in] += "\n" + d.src
         end
+        done[d.rule_id] = true
       end
-      done[d.rule_id] = true
     end
 
     @depanalysis = DepAnalysis.new
@@ -60,19 +60,6 @@ class BudMeta
       smap[s[0]] = s[1]
     end
     return smap
-  end
-
-  def dump_rewrite(strata)
-    fout = File.new("#{@bud_instance.class}_rewritten.txt", "w")
-    fout.puts "Declarations:"
-    @decls.each do |d|
-      fout.puts d
-    end
-
-    strata.each_with_index do |r, i|
-      fout.puts "R[#{i}]:\n #{r}"
-    end
-    fout.close
   end
 
   def rewrite(parse_tree, seed)
@@ -108,7 +95,7 @@ class BudMeta
       shred_state(anc)
       @declarations.each do |meth_name|
         rw = rewrite(ParseTree.translate(anc, meth_name), seed)
-        unless rw.nil?
+        if rw
           seed = rw.rule_indx
           rulebag[meth_name] = rw
         end
@@ -128,6 +115,7 @@ class BudMeta
   end
 
   # Quick sanity-check on rules
+  # Rule format: [rule_id, lhs, op, rule_txt]
   def check_rule(r)
     return if @bud_instance.options[:disable_sanity_check]
 
@@ -188,5 +176,18 @@ class BudMeta
     else
       return 3
     end
+  end
+
+  def dump_rewrite(strata)
+    fout = File.new("#{@bud_instance.class}_rewritten.txt", "w")
+    fout.puts "Declarations:"
+    @decls.each do |d|
+      fout.puts d
+    end
+
+    strata.each_with_index do |r, i|
+      fout.puts "R[#{i}]:\n #{r}"
+    end
+    fout.close
   end
 end
