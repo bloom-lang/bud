@@ -6,13 +6,12 @@ require 'parse_tree'
 
 class BudMeta
   include BudState
-  attr_reader :rules, :depanalysis, :depends, :decls
+  attr_reader :rules, :depanalysis, :decls
 
   def initialize(bud_instance, declarations)
     @bud_instance = bud_instance
     @declarations = declarations
     @rules = []
-    @depends = []
     @decls = []
   end
 
@@ -28,7 +27,7 @@ class BudMeta
     rewritten_strata = Array.new(top + 1, "")
     @bud_instance.t_rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
       unless done[d.rule_id]
-        # joins may have to be re-stated
+        # joins may have to be restated
         belongs_in = smap[d.lhs]
         belongs_in ||= 0
         if d.op == "="
