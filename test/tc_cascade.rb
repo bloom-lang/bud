@@ -24,7 +24,7 @@ end
 
 class TestCascade < Test::Unit::TestCase
   def test_casc
-    p = Cascade.new
+    p = Cascade.new(:disable_sanity_check => true)
     assert_nothing_raised(RuntimeError) { p.run_bg }
     assert_nothing_raised(RuntimeError) { p.sync_do {
       p.sync <+ [['sync', 1]]

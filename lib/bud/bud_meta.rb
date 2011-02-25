@@ -116,31 +116,32 @@ class BudMeta
       end
     end
 
-    # Quick sanity-check on rules
-    legal_ops = ["<<", "<+", "<-", "<~", "<=", "="]
     rulebag.each_value do |v|
       v.rules.each do |r|
-        lhs = r[1]
-        op = r[2]
-        unless legal_ops.include? op
-          puts "Warning: illegal operator '#{op}'"
-        end
-
-        # Allow new variables but only on the LHS of an equality operator ("=")
-        unless (@bud_instance.tables.has_key? lhs.to_sym or op == "=")
-          puts "Warning: unrecognized rule LHS '#{lhs}'"
-        end
-      end
-    end
-
-    rulebag.each_value do |v|
-      v.rules.each do |r|
+        check_rule(r)
         @rules << r
         @bud_instance.t_rules << r
       end
       v.depends.each do |d|
         @bud_instance.t_depends << d
       end
+    end
+  end
+
+  # Quick sanity-check on rules
+  def check_rule(r)
+    return if @bud_instance.options[:disable_sanity_check]
+
+    legal_ops = ["<<", "<+", "<-", "<~", "<=", "="]
+    lhs = r[1]
+    op = r[2]
+    unless legal_ops.include? op
+      raise Bud::CompileError, "Illegal operator '#{op}'"
+    end
+
+    # Allow new variables but only on the LHS of an equality operator ("=")
+    unless (@bud_instance.tables.has_key? lhs.to_sym or op == "=")
+      raise Bud::CompileError, "Unrecognized rule LHS '#{lhs}'"
     end
   end
 
