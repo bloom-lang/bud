@@ -56,15 +56,16 @@ class BudMeta
     return map
   end
 
-  def rewrite(parse_tree, seed)
-    unless parse_tree[0].nil?
-      u = Unifier.new
-      pt = u.process(parse_tree)
-      rewriter = RW.new(seed)
-      rewriter.process(pt)
-      #rewriter.rules.each {|r| puts "RW: #{r.inspect}"}
-      return rewriter
-    end
+  def rewrite_rule_block(klass, block_name, seed)
+    parse_tree = ParseTree.translate(klass, block_name)
+    return unless parse_tree.first
+
+    u = Unifier.new
+    pt = u.process(parse_tree)
+    rewriter = RuleRewriter.new(seed)
+    rewriter.process(pt)
+    #rewriter.rules.each {|r| puts "RW: #{r.inspect}"}
+    return rewriter
   end
 
   def shred_state(anc)
@@ -88,7 +89,7 @@ class BudMeta
     each_relevant_ancestor do |anc|
       shred_state(anc)
       @declarations.each do |meth_name|
-        rw = rewrite(ParseTree.translate(anc, meth_name), seed)
+        rw = rewrite_rule_block(anc, meth_name, seed)
         if rw
           seed = rw.rule_indx
           rulebag[meth_name] = rw
