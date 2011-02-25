@@ -83,8 +83,8 @@ class BudMeta
       rewriter = RW.new(seed)
       rewriter.process(pt)
       #rewriter.rules.each {|r| puts "RW: #{r.inspect}" }
+      return rewriter
     end
-    return rewriter
   end
 
   def shred_state(anc)
@@ -112,6 +112,23 @@ class BudMeta
         unless rw.nil?
           seed = rw.rule_indx
           rulebag[meth_name] = rw
+        end
+      end
+    end
+
+    # Quick sanity-check on rules
+    legal_ops = ["<<", "<+", "<-", "<~", "<=", "="]
+    rulebag.each_value do |v|
+      v.rules.each do |r|
+        lhs = r[1]
+        op = r[2]
+        unless legal_ops.include? op
+          puts "Warning: illegal operator '#{op}'"
+        end
+
+        # Allow new variables but only on the LHS of an equality operator ("=")
+        unless (@bud_instance.tables.has_key? lhs.to_sym or op == "=")
+          puts "Warning: unrecognized rule LHS '#{lhs}'"
         end
       end
     end

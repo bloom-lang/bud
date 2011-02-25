@@ -8,7 +8,7 @@ class RW < Ruby2Ruby
     @ops = {:<< => 1, :< => 1, :<= => 1}
     @nm_funcs = {:group => 1, :argagg => 1, :include? => 1, :-@ => 1}
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
-    @tabs = {}
+    @tables = {}
     @nm = false
     @rule_indx = seed
     @collect = false
@@ -29,7 +29,7 @@ class RW < Ruby2Ruby
   def process_lvar(exp)
     lvar = exp.first.to_s
     if @join_alias[lvar]
-      @tabs[lvar] = @nm
+      @tables[lvar] = @nm
       drain(exp)
       return lvar
     else
@@ -39,7 +39,7 @@ class RW < Ruby2Ruby
 
   def process_call(exp)
     if exp[0].nil? and exp[2] == s(:arglist) and @collect
-      do_tab(exp)
+      do_table(exp)
     elsif @ops[exp[1]] and self.context[1] == :block
       do_rule(exp)
     else
@@ -70,31 +70,31 @@ class RW < Ruby2Ruby
     end
 
     @rules << [@rule_indx, lhs, op, rule_txt]
-    @tabs.each_pair do |k, v|
+    @tables.each_pair do |k, v|
       @depends << [@rule_indx, lhs, op, k, v]
     end
 
-    @tabs = {}
+    @tables = {}
     @nm = false
     @temp_op = nil
     @rule_indx += 1
   end
 
-  def do_tab(exp)
-    tab = exp[1].to_s
-    @tabs[tab] = @nm
+  def do_table(exp)
+    t = exp[1].to_s
+    @tables[t] = @nm
     drain(exp)
-    return tab
+    return t
   end
 
   def do_join_alias(exp)
-    tab = exp[0].to_s
-    @join_alias[tab] = true
-    @tabs[tab] = @nm
+    t = exp[0].to_s
+    @join_alias[t] = true
+    @tables[t] = @nm
     @collect = true
     rhs = collect_rhs(exp[1])
     @collect = false
-    record_rule(tab, "=", rhs)
+    record_rule(t, "=", rhs)
     drain(exp)
   end
 
@@ -114,12 +114,10 @@ end
 
 
 class StateExtractor < Ruby2Ruby
-  attr_reader :tabs, :decls
+  attr_reader :decls
 
   def initialize(context)
     @cxt = context
-    @tabs = {}
-    @ttype = nil
     @decls = []
     super()
   end
