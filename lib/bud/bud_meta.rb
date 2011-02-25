@@ -22,21 +22,17 @@ class BudMeta
     top_stratum = stratify
     stratum_map = binaryrel2map(@bud_instance.t_stratum)
 
-    done = {}
     rewritten_strata = Array.new(top_stratum + 1, "")
     @bud_instance.t_rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
-      unless done[d.rule_id]
-        # joins may have to be restated
-        belongs_in = stratum_map[d.lhs]
-        belongs_in ||= 0
-        if d.op == "="
-          (belongs_in..top_stratum).each do |i|
-            rewritten_strata[i] += "\n" + d.src
-          end
-        else
-          rewritten_strata[belongs_in] += "\n" + d.src
+      # joins may have to be restated
+      belongs_in = stratum_map[d.lhs]
+      belongs_in ||= 0
+      if d.op == "="
+        (belongs_in..top_stratum).each do |i|
+          rewritten_strata[i] += "#{d.src}\n"
         end
-        done[d.rule_id] = true
+      else
+        rewritten_strata[belongs_in] += "#{d.src}\n"
       end
     end
 
