@@ -49,7 +49,7 @@ class Stratification
       cycle <= depends_tc.map do |d|
         if d.head == d.body
           if d.neg and !d.temporal
-            raise RuntimeError.new("unstratifiable program: #{d.inspect}")
+            raise Bud::CompileError, "unstratifiable program: #{d.inspect}"
           else
             # a special hack for scope rewriting; mod_p <- p and p <- mod_p
             [d.head, d.via, d.neg, d.temporal] unless d.head =~ /_#{d.via}/ or d.via =~ /_#{d.head}/
@@ -75,4 +75,3 @@ class Stratification
     }
   end
 end
-

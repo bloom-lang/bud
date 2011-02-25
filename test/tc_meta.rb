@@ -75,7 +75,7 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_unstrat
-    assert_raise(RuntimeError) { program = KTest3.new(:dump_rewrite => true, :provenance => true) }
+    assert_raise(Bud::CompileError) { KTest3.new(:provenance => true) }
   end
 
   def test_visualization
