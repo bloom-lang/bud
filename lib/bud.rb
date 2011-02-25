@@ -3,6 +3,7 @@ require 'anise'
 require 'eventmachine'
 require 'msgpack'
 require 'superators'
+require 'thread'
 
 require 'bud/aggs'
 require 'bud/bud_meta'
@@ -187,9 +188,18 @@ module Bud
   def start_reactor
     return if EventMachine::reactor_running?
 
-    Thread.new do
-      EventMachine.run
+    EventMachine::error_handler do |e|
+      puts "Unexpected Bud error: #{e.inspect}"
+      raise e
     end
+
+    q = Queue.new
+    Thread.new do
+        EventMachine.run do
+          q << true
+        end
+    end
+    q.pop
   end
 
   # Shutdown a Bud instance running asynchronously. This method blocks until Bud
