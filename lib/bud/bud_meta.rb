@@ -19,18 +19,18 @@ class BudMeta
     # however, we can still pass the "string" code of bud modules
     # to ruby_parse (but not the "live" class)
     shred_rules
-    top = stratify
-    smap = binaryrel2map(@bud_instance.t_stratum)
+    top_stratum = stratify
+    stratum_map = binaryrel2map(@bud_instance.t_stratum)
 
     done = {}
-    rewritten_strata = Array.new(top + 1, "")
+    rewritten_strata = Array.new(top_stratum + 1, "")
     @bud_instance.t_rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
       unless done[d.rule_id]
         # joins may have to be restated
-        belongs_in = smap[d.lhs]
+        belongs_in = stratum_map[d.lhs]
         belongs_in ||= 0
         if d.op == "="
-          (belongs_in..top).each do |i|
+          (belongs_in..top_stratum).each do |i|
             rewritten_strata[i] += "\n" + d.src
           end
         else
@@ -54,11 +54,12 @@ class BudMeta
   end
 
   def binaryrel2map(rel)
-    smap = {}
+    map = {}
     rel.each do |s|
-      smap[s[0]] = s[1]
+      raise Bud::BudError unless s.length == 2
+      map[s[0]] = s[1]
     end
-    return smap
+    return map
   end
 
   def rewrite(parse_tree, seed)
@@ -67,7 +68,7 @@ class BudMeta
       pt = u.process(parse_tree)
       rewriter = RW.new(seed)
       rewriter.process(pt)
-      #rewriter.rules.each {|r| puts "RW: #{r.inspect}" }
+      #rewriter.rules.each {|r| puts "RW: #{r.inspect}"}
       return rewriter
     end
   end
