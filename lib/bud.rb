@@ -3,6 +3,7 @@ require 'anise'
 require 'eventmachine'
 require 'msgpack'
 require 'superators'
+require 'thread'
 
 require 'bud/aggs'
 require 'bud/bud_meta'
@@ -49,7 +50,7 @@ module BudModule
 end
 
 module Bud
-  attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :server
+  attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :server, :em_thread
   attr_accessor :connections
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
@@ -70,6 +71,7 @@ module Bud
     @inbound = []
     @declarations = []
     @server = nil
+    @em_thread = nil
 
     # Setup options (named arguments), along with default values
     @options = options
@@ -192,9 +194,13 @@ module Bud
       raise e
     end
 
-    Thread.new do
-      EventMachine.run
+    q = Queue.new
+    @em_thread = Thread.new do
+        EventMachine.run do
+          q << true
+        end
     end
+    q.pop
   end
 
   # Shutdown a Bud instance running asynchronously. This method blocks until Bud

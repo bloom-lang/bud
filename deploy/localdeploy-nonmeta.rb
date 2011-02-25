@@ -19,6 +19,12 @@ module LocalDeploy
     scratch :dont_care, [:dont_care]
   }
 
+  # deal with SIGCHILD
+  trap("CLD") {
+    pid = Process.wait
+    puts "Child pid #{pid}: terminated"
+  }
+
   def initialize(opt)
     super
     if opt[:deploy]
@@ -29,6 +35,29 @@ module LocalDeploy
       @my_ip = open("http://myip.dk") { |f| /([0-9]{1,3}\.){3}[0-9]{1,3}/.match(f.read)[0].to_a[0] }
     else
       @my_ip = @ip
+    end
+  end
+
+  def deploystrap
+    read, write = IO.pipe
+    if node_count[[]] and idempotent [[:node]]
+      (0..node_count[[]].num-1).map do |i|
+        Process.fork do
+          puts (50000+i).to_s
+          foo = self.class.new(:ip => '127.0.0.1', :port => 50000+i)#, :deploy => false)
+          puts "Starting node " + i.to_s + "; pid " + Process.pid.to_s
+          foo.run_bg
+          # processes write their port to a pipe
+          write.puts foo.port.to_s
+          # puts foo.port
+          foo.em_thread.join
+        end
+      end
+      # wait for all to be spun up
+      (0..node_count[[]].num-1).map do |i|
+        node << [i, "127.0.0.1:" + read.readline]
+        puts "boom"
+      end
     end
   end
 
@@ -49,25 +78,6 @@ module LocalDeploy
   def me() @my_ip + ":" + @port.to_s end
 
   def idempotent(r) (dead.include? r) ? false : dead.insert(r) end
-
-  declare
-  def rules
-    node <= (if node_count[[]]
-               (0..node_count[[]].num-1).map do |i|
-                 if idempotent [[:node, i]]
-                   # XXX: ugly hack because assignment expressions pulled out
-                   foo = nil
-                   eval 'foo = self.class.new(:ip => "127.0.0.1")'
-                   # end ugly hack
-                   puts "Starting up node " + i.to_s
-                   foo.run_bg
-                   [i, "127.0.0.1:" + foo.port.to_s]
-                 end
-               end
-             else
-               []
-             end)
-  end
 
   # distribute the EDB to each node
   #

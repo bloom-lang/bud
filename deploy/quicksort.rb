@@ -20,12 +20,14 @@ class Quicksort
   }
 
   def deploystrap
-    input_list << [[2,5,3,6,0,1,8,7,4,9]]
+    #input_list << [[2,5,3,6,0,1,8,7,4,9]]
+    input_list << [[9,8,7,6]]
     # building a full tree; could get same parallelism with half the nodes, but
     # don't feel like complicating the code that much
     # 2^ceil(log_2(x)) levels (# of nodes is 2*|levels| - 1)
     node_count << [2**((Math.log(input_list[[]].list.size)/Math.log(2)).ceil + 1) - 1]
     # node i in the list has its children at 2i+1 and 2i+2
+    super
   end
 
 
@@ -34,6 +36,10 @@ class Quicksort
     # XXX: by the way, this is a huge hack because i'm too lazy to write out
     # the count aggregate; ".size" just seems more natural to me.  Hopefully
     # we'll support this syntax eventually
+    #stdio <~ [[Process.pid.to_s + " node size is " + node.map {|n| n}.size.to_s]]
+    #stdio <~ ((node_count[[]] and
+    #             [["node count is: " + node_count[[]].num.to_s]]) or [])
+
     initial_data <= ((if node_count[[]] and input_list[[]] and
                           node.map {|n| n}.size == node_count[[]].num
                         node.map do |n|
