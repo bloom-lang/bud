@@ -40,6 +40,7 @@ class Mergesort
     # 2^ceil(log_2(x)) levels (# of nodes is 2*|levels| - 1)
     node_count << [2**((Math.log(input_list[[]].list.size)/Math.log(2)).ceil + 1) - 1]
     # node i in the list has its children at 2i+1 and 2i+2
+    super
   end
 
 

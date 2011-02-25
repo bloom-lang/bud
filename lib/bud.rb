@@ -50,7 +50,7 @@ module BudModule
 end
 
 module Bud
-  attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :server, :em_thread
+  attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :server
   attr_accessor :connections
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
@@ -71,7 +71,6 @@ module Bud
     @inbound = []
     @declarations = []
     @server = nil
-    @em_thread = nil
 
     # Setup options (named arguments), along with default values
     @options = options
@@ -195,7 +194,7 @@ module Bud
     end
 
     q = Queue.new
-    @em_thread = Thread.new do
+    Thread.new do
         EventMachine.run do
           q << true
         end

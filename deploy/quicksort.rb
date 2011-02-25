@@ -20,8 +20,8 @@ class Quicksort
   }
 
   def deploystrap
-    #input_list << [[2,5,3,6,0,1,8,7,4,9]]
-    input_list << [[9,8,7,6]]
+    input_list << [[2,5,3,6,0,1,8,7,4,9]]
+    #input_list << [[9,8,7,6]]
     # building a full tree; could get same parallelism with half the nodes, but
     # don't feel like complicating the code that much
     # 2^ceil(log_2(x)) levels (# of nodes is 2*|levels| - 1)
