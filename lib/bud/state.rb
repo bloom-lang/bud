@@ -39,11 +39,6 @@ module BudState
     @tables[name] = Bud::BudScratch.new(name, self, schema)
   end
 
-  def serializer(name, schema=nil)
-    define_collection(name)
-    @tables[name] = Bud::BudSerializer.new(name, self, schema)
-  end
-
   def channel(name, schema=nil)
     define_collection(name)
     @tables[name] = Bud::BudChannel.new(name, self, schema)

@@ -437,27 +437,6 @@ module Bud
   class BudScratch < BudCollection
   end
 
-  class BudSerializer < BudCollection
-    def initialize(name, bud_instance, user_schema)
-      @dq = {}
-      super
-    end
-
-    def tick
-      @dq.each_key {|k| @storage.delete k}
-      super
-    end
-
-    def each
-      @storage.key_cols.sort.each do |k|
-        tup = (@storage[k] == true) ? k : @storage[k]
-        yield tup
-        @dq[k] = true
-        return
-      end
-    end
-  end
-
   class BudChannel < BudCollection
     attr_accessor :connections
     attr_reader :locspec_idx
