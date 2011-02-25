@@ -1,5 +1,6 @@
 require 'rubygems'
 require 'bud'
+require 'thread'
 
 # Starts up a bunch of Bud instances locally on 127.0.0.1, with ephemoral ports.
 # This is for the case where you just want to test stuff locally, but you don't
@@ -43,12 +44,13 @@ module LocalDeploy
     if node_count[[]] and idempotent [[:node]]
       (0..node_count[[]].num-1).map do |i|
         Process.fork do
-          puts (50000+i).to_s
-          foo = self.class.new(:ip => '127.0.0.1', :port => 50000+i)#, :deploy => false)
+          srand # don't want to inherit our parent's random stuff
+          foo = self.class.new(:ip => '127.0.0.1')
           puts "Starting node " + i.to_s + "; pid " + Process.pid.to_s
           foo.run_bg
           # processes write their port to a pipe
-          write.puts foo.port.to_s
+          # for some reason, puts isn't atomic?
+          write.print foo.port.to_s + "\n"
           # puts foo.port
           EventMachine.reactor_thread.join
         end
@@ -56,7 +58,6 @@ module LocalDeploy
       # wait for all to be spun up
       (0..node_count[[]].num-1).map do |i|
         node << [i, "127.0.0.1:" + read.readline]
-        puts "boom"
       end
     end
   end
