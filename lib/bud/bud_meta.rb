@@ -1,6 +1,4 @@
-require 'bud/provenance'
 require 'bud/rewrite'
-require 'bud/graphs'
 require 'bud/state'
 require 'parse_tree'
 

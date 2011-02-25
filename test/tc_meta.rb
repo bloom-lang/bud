@@ -75,11 +75,11 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_unstrat
-    assert_raise(Bud::CompileError) { KTest3.new(:provenance => true) }
+    assert_raise(Bud::CompileError) { KTest3.new }
   end
 
   def test_visualization
-    program = KTest2.new(:dump_rewrite => true, :visualize => 3, :provenance => true)
+    program = KTest2.new(:dump_rewrite => true, :visualize => 3)
     dep = DepAnalysis.new
 
     program.t_depends_tc.each {|d| dep.depends_tc << d}
