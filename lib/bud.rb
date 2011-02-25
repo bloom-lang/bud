@@ -393,7 +393,7 @@ module Bud
   # placed directly into the storage of the appropriate local channel.
   def receive_inbound
     @inbound.each do |msg|
-#      puts "dequeueing tuple #{msg[1].inspect} into #{msg[0]} @ #{ip_port}"
+      #      puts "dequeueing tuple #{msg[1].inspect} into #{msg[0]} @ #{ip_port}"
       tables[msg[0].to_sym] << msg[1]
     end
     @inbound = []
@@ -458,7 +458,7 @@ module Bud
   def join(rels, *preds)
     BudJoin.new(rels, self, decomp_preds(*preds))
   end
-  
+
   alias coincide join
 
   def natjoin(rels)

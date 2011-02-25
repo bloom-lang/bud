@@ -4,14 +4,14 @@ class DeltaTest
   include Bud
 
   state {
-    table :orig, [:k1, :k2] => [:v1, :v2]
-    scratch :scr, [:k1, :k2]
-    table :result, [:k1, :k2] => [:v1, :v2]
+    table :orig, [:k1, :k2] => []
+    scratch :scr, [:k1, :k2] => []
+    table :result, [:k1, :k2] => []
   }
 
   bootstrap do
-    orig <= [['a', 'b', 1, 2]]
-    orig <= [['a', 'c', 3, 4]]
+    orig <= [['a', 'b']]
+    orig <= [['a', 'c']]
   end
 
   declare

@@ -127,6 +127,10 @@ module Bud
       self.map{|t| [t.inspect]}
     end
 
+    def pending_inspected
+      @pending.map{|t| [t.inspect]}
+    end
+
     # by default, all tuples in any rhs are in storage or delta
     # tuples in new_delta will get transitioned to delta in the next
     # iteration of the evaluator (but within the current time tick)
@@ -203,10 +207,11 @@ module Bud
     def exists?(&block)
       if length == 0
         return false 
-      elsif block_given?
+      elsif not block_given?
         return true
       else
-        return ((detect{|t| yield t}).nil?) ? false : true
+        retval = ((detect{|t| yield t}).nil?) ? false : true
+        return retval
       end
     end
 
@@ -217,19 +222,25 @@ module Bud
     
     def prep_tuple(o)
       unless o.respond_to?(:length) and o.respond_to?(:[])
-        raise BudTypeError, "non-indexable type inserted into BudCollection: #{o.inspect}"
+        raise BudTypeError, "non-indexable type inserted into BudCollection #{self.tabname}: #{o.inspect}"
       end
-      # if this tuple has more fields than usual, bundle up the 
-      # extras into an array
-      if o.length > schema.length then
+
+      if o.length < schema.length then
+        # if this tuple has too few fields, pad with nil's
+        old = o.clone
+        (o.length..schema.length-1).each{|i| o << nil}
+        puts "converted #{old.inspect} to #{o.inspect}"
+      elsif o.length > schema.length then
+        # if this tuple has more fields than usual, bundle up the 
+        # extras into an array
         o = (0..(schema.length - 1)).map{|c| o[c]} << (schema.length..(o.length - 1)).map{|c| o[c]}
       end
      return o
     end
 
     def do_insert(o, store)
-      return if o.nil? or o.empty?
-      
+      # return if o.respond_to?(:empty?) and o.empty?
+      return if o.nil? # silently ignore nils resulting from map predicates failing
       o = prep_tuple(o)
       keycols = @key_colnums.map{|i| o[i]}
 
@@ -716,6 +727,21 @@ module Bud
     def do_insert(o, store)
       raise BudError, "no insertion into joins"
     end
+
+    def inspected
+      if @rels.length == 2 then
+        # fast common case
+        self.map{|r1, r2| ["\[ #{r1.inspect} #{r2.inspect} \]"]}
+      else
+        str = "self.map\{|"
+        (1..@rels.length-1).each{|i| str << "r#{i},"}
+        str << "r#{@rels.length}| \[\"\[ "
+        (1..@rels.length).each{|i| str << "\#\{r#{i}.inspect\} "}
+        str << "\]\"\]\}"
+        eval(str)
+      end
+    end
+    
 
     def each(mode=:both, &block)
       mode = :storage if @bud_instance.stratum_first_iter

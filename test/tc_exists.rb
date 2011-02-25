@@ -6,7 +6,7 @@ class ExistTest
   state {
     table :notes
     table :memories
-    table :dups
+    table :dups, [:str]
     periodic :timer, 0.5
     channel :msgs
   }

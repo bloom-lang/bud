@@ -19,8 +19,8 @@ class TcTest
 
     tctable :join_t1, [:k] => [:v1, :v2]
     tctable :join_t2, [:k] => [:v1, :v2]
-    scratch :cart_prod, [:k, :v1, :v2]
-    scratch :join_res, [:k] => [:v1, :v2]
+    scratch :cart_prod, [:k, :v1]
+    scratch :join_res, [:k, :v1]
   }
 
   declare
