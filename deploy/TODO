@@ -1,5 +1,4 @@
-# Make deployment have true parallelism
-# Eliminate some code duplication; integrate localdeploy and localdeploy-nonmeta
+# Add error handling to localdeploy-nonmeta, and ensure all child processes are terminated
+# Eliminate some code duplication
 # Figure out why localdeploy-nonmeta seems to be causing some things to be printed out twice
-# Finish mergesort
 # Finish performance benchmarking module

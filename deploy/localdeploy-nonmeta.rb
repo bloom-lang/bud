@@ -57,7 +57,7 @@ module LocalDeploy
       end
       # wait for all to be spun up
       (0..node_count[[]].num-1).map do |i|
-        node << [i, "127.0.0.1:" + read.readline]
+        node << [i, "127.0.0.1:" + read.readline.rstrip]
       end
     end
   end
