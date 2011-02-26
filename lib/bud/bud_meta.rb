@@ -97,6 +97,28 @@ class BudMeta
         raise Bud::CompileError unless lhs[0] == :call
         lhs_name = lhs[2]
         raise Bud::CompileError unless @bud_instance.tables.has_key? lhs_name.to_sym
+
+        # Check that op is a legal Bloom operator
+        raise Bud::CompileError unless [:<, :<=, :<<].include? op
+
+        # Check superator invocation. A superator that begins with "<" is parsed
+        # as a call to the binary :< operator. The right operand to :< is a
+        # :call node; the LHS of the :call is the actual rule body, the :call's
+        # oper is the rest of the superator (unary ~, -, +), and the RHS is
+        # empty.  Note that ParseTree encodes unary "-" and "+" as :-@ and :-+,
+        # respectively.
+        # XXX: Checking for illegal superators (e.g., "<--") is tricky, because
+        # they are encoded as a nested unary operator in the rule body.
+        if op == :<
+          raise Bud::CompileError unless rhs[0] == :arglist
+          body = rhs[1]
+          raise Bud::CompileError unless body[0] == :call
+          op_tail = body[2]
+          raise Bud::CompileError unless [:~, :-@, :+@].include? op_tail
+          rhs_args = body[3]
+          raise Bud::CompileError unless rhs_args[0] == :arglist
+          raise Bud::CompileError if rhs_args.length != 1
+        end
       elsif s[0] == :lasgn
         # Assignment format: lasgn tag, lhs, rhs
         raise Bud::CompileError unless s.length == 3
@@ -142,25 +164,11 @@ class BudMeta
 
     rulebag.each_value do |v|
       v.rules.each do |r|
-        check_rule(r)
         @bud_instance.t_rules << r
       end
       v.depends.each do |d|
         @bud_instance.t_depends << d
       end
-    end
-  end
-
-  # Quick sanity-check on rules
-  # Rule format: [rule_id, lhs, op, rule_txt]
-  def check_rule(r)
-    return if @bud_instance.options[:disable_sanity_check]
-
-    legal_ops = ["<<", "<+", "<-", "<~", "<=", "="]
-    lhs = r[1]
-    op = r[2]
-    unless legal_ops.include? op
-      raise Bud::CompileError, "Illegal operator '#{op}'"
     end
   end
 
