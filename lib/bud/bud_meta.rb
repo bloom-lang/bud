@@ -85,8 +85,28 @@ class BudMeta
     block.each_with_index do |s,i|
       if i == 0
         raise Bud::CompileError if s != :block
+        next
+      end
+
+      if s[0] == :call
+        # Rule format: call tag, lhs, op, rhs
+        raise Bud::CompileError unless s.length == 4
+        tag, lhs, op, rhs = s
+
+        # Check that LHS references a named collection
+        raise Bud::CompileError unless lhs[0] == :call
+        lhs_name = lhs[2]
+        raise Bud::CompileError unless @bud_instance.tables.has_key? lhs_name.to_sym
+      elsif s[0] == :lasgn
+        # Assignment format: lasgn tag, lhs, rhs
+        raise Bud::CompileError unless s.length == 3
+        tag, lhs, rhs = s
+
+        # Check that LHS does not reference a named collection (we expect
+        # assignment to introduce a new identifier)
+        raise Bud::CompileError if @bud_instance.tables.has_key? lhs
       else
-        raise Bud::CompileError unless [:call, :lasgn].include? s.first
+        raise Bud::CompileError
       end
     end
   end
@@ -141,11 +161,6 @@ class BudMeta
     op = r[2]
     unless legal_ops.include? op
       raise Bud::CompileError, "Illegal operator '#{op}'"
-    end
-
-    # Allow new variables but only on the LHS of an equality operator ("=")
-    unless (@bud_instance.tables.has_key? lhs.to_sym or op == "=")
-      raise Bud::CompileError, "Unrecognized rule LHS '#{lhs}'"
     end
   end
 

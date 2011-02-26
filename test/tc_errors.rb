@@ -74,4 +74,22 @@ class TestErrorHandling < Test::Unit::TestCase
   def test_precedence_error
     assert_raise(Bud::CompileError) { PrecedenceError.new }
   end
+
+  class VarShadowError
+    include Bud
+
+    state do
+      table :t1
+      table :t2
+    end
+
+    declare
+    def rules
+      t2 = join [t1, t1]
+    end
+  end
+
+  def test_var_shadow_error
+    assert_raise(Bud::CompileError) { VarShadowError.new }
+  end
 end
