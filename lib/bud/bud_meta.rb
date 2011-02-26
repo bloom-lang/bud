@@ -62,10 +62,33 @@ class BudMeta
 
     u = Unifier.new
     pt = u.process(parse_tree)
+    check_rule_ast(pt)
+
     rewriter = RuleRewriter.new(seed)
     rewriter.process(pt)
     #rewriter.rules.each {|r| puts "RW: #{r.inspect}"}
     return rewriter
+  end
+
+  # Perform some basic sanity checks on the AST of a rule block. We expect a
+  # rule block to consist of a :defn, a nested :scope, and then a sequence of
+  # statements. Each statement is either a :call or :lasgn node.
+  def check_rule_ast(pt)
+    return if @bud_instance.options[:disable_sanity_check]
+
+    # :defn format: node tag, block name, args, nested scope
+    raise Bud::CompileError if pt[0] != :defn
+    scope = pt[3]
+    raise Bud::CompileError if scope[0] != :scope
+    block = scope[1]
+
+    block.each_with_index do |s,i|
+      if i == 0
+        raise Bud::CompileError if s != :block
+      else
+        raise Bud::CompileError unless [:call, :lasgn].include? s.first
+      end
+    end
   end
 
   def shred_state(anc)

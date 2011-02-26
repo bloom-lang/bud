@@ -53,4 +53,25 @@ class TestErrorHandling < Test::Unit::TestCase
   def test_missing_table_error
     assert_raise(Bud::CompileError) { MissingTable.new }
   end
+
+  class PrecedenceError
+    include Bud
+
+    state do
+      table :foo
+      table :bar
+      table :baz
+    end
+
+    declare
+    def rules
+      foo <= baz
+      # Mistake: <= binds more tightly than "or"
+      foo <= (bar.first and baz.first) or []
+    end
+  end
+
+  def test_precedence_error
+    assert_raise(Bud::CompileError) { PrecedenceError.new }
+  end
 end
