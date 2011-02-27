@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'tokyocabinet'
 require 'bud'
+require 'bud/graphs'
 include TokyoCabinet
 
 # prototype offline viz
