@@ -3,7 +3,6 @@ require 'bud/state'
 require 'parse_tree'
 
 class BudMeta
-  include BudState
   attr_reader :depanalysis, :decls
 
   def initialize(bud_instance, declarations)
@@ -22,16 +21,9 @@ class BudMeta
 
     rewritten_strata = Array.new(top_stratum + 1, "")
     @bud_instance.t_rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
-      # joins may have to be restated
       belongs_in = stratum_map[d.lhs]
       belongs_in ||= 0
-      if d.op == "="
-        (belongs_in..top_stratum).each do |i|
-          rewritten_strata[i] += "#{d.src}\n"
-        end
-      else
-        rewritten_strata[belongs_in] += "#{d.src}\n"
-      end
+      rewritten_strata[belongs_in] += "#{d.src}\n"
     end
 
     @depanalysis = DepAnalysis.new
@@ -121,55 +113,71 @@ class BudMeta
     raise Bud::CompileError if scope[0] != :scope
     block = scope[1]
 
-    block.each_with_index do |s,i|
+    # First, remove any assignment statements (i.e., alias definitions) from the
+    # rule block's AST. Then macro-expand any references to the alias in the
+    # rest of the rule block.
+    # TODO: if a Bloom variable appears in the RHS of another bloom variable
+    # definition, we should do the substitution, provided the dependency graph
+    # between variables is acyclic.
+    assign_nodes, rest_nodes = block.partition {|b| b.class == Sexp && b[0] == :lasgn}
+    assign_vars = {}
+    assign_nodes.each do |n|
+      # Expected format: lasgn tag, lhs, rhs
+      raise Bud::CompileError unless n.length == 3
+      tag, lhs, rhs = n
+      lhs = lhs.to_sym
+
+      # Don't allow duplicate variable names within a block, nor variables that
+      # shadow the name of a collection
+      raise Bud::CompileError if assign_vars.has_key? lhs
+      raise Bud::CompileError if @bud_instance.tables.has_key? lhs
+      assign_vars[lhs] = rhs
+    end
+
+    rest_nodes.each_with_index do |n,i|
       if i == 0
-        raise Bud::CompileError if s != :block
+        raise Bud::CompileError if n != :block
         next
       end
 
-      if s[0] == :call
-        # Rule format: call tag, lhs, op, rhs
-        raise Bud::CompileError unless s.length == 4
-        tag, lhs, op, rhs = s
+      raise Bud::CompileError if n[0] != :call
+      # Rule format: call tag, lhs, op, rhs
+      raise Bud::CompileError unless n.length == 4
+      tag, lhs, op, rhs = n
 
-        # Check that LHS references a named collection
-        raise Bud::CompileError unless lhs[0] == :call
-        lhs_name = lhs[2]
-        raise Bud::CompileError unless @bud_instance.tables.has_key? lhs_name.to_sym
+      # Check that LHS references a named collection
+      raise Bud::CompileError unless lhs[0] == :call
+      lhs_name = lhs[2]
+      raise Bud::CompileError unless @bud_instance.tables.has_key? lhs_name.to_sym
 
-        # Check that op is a legal Bloom operator
-        raise Bud::CompileError unless [:<, :<=, :<<].include? op
+      # Check that op is a legal Bloom operator
+      raise Bud::CompileError unless [:<, :<=, :<<].include? op
 
-        # Check superator invocation. A superator that begins with "<" is parsed
-        # as a call to the binary :< operator. The right operand to :< is a
-        # :call node; the LHS of the :call is the actual rule body, the :call's
-        # oper is the rest of the superator (unary ~, -, +), and the RHS is
-        # empty.  Note that ParseTree encodes unary "-" and "+" as :-@ and :-+,
-        # respectively.
-        # XXX: Checking for illegal superators (e.g., "<--") is tricky, because
-        # they are encoded as a nested unary operator in the rule body.
-        if op == :<
-          raise Bud::CompileError unless rhs[0] == :arglist
-          body = rhs[1]
-          raise Bud::CompileError unless body[0] == :call
-          op_tail = body[2]
-          raise Bud::CompileError unless [:~, :-@, :+@].include? op_tail
-          rhs_args = body[3]
-          raise Bud::CompileError unless rhs_args[0] == :arglist
-          raise Bud::CompileError if rhs_args.length != 1
-        end
-      elsif s[0] == :lasgn
-        # Assignment format: lasgn tag, lhs, rhs
-        raise Bud::CompileError unless s.length == 3
-        tag, lhs, rhs = s
-
-        # Check that LHS does not reference a named collection (we expect
-        # assignment to introduce a new identifier)
-        raise Bud::CompileError if @bud_instance.tables.has_key? lhs
-      else
-        raise Bud::CompileError
+      # Check superator invocation. A superator that begins with "<" is parsed
+      # as a call to the binary :< operator. The right operand to :< is a :call
+      # node; the LHS of the :call is the actual rule body, the :call's oper is
+      # the rest of the superator (unary ~, -, +), and the RHS is empty.  Note
+      # that ParseTree encodes unary "-" and "+" as :-@ and :-+, respectively.
+      # XXX: Checking for illegal superators (e.g., "<--") is tricky, because
+      # they are encoded as a nested unary operator in the rule body.
+      if op == :<
+        raise Bud::CompileError unless rhs[0] == :arglist
+        body = rhs[1]
+        raise Bud::CompileError unless body[0] == :call
+        op_tail = body[2]
+        raise Bud::CompileError unless [:~, :-@, :+@].include? op_tail
+        rhs_args = body[3]
+        raise Bud::CompileError unless rhs_args[0] == :arglist
+        raise Bud::CompileError if rhs_args.length != 1
       end
+
+      # Rewrite RHS to macro-expand any references to alias variables
+      vr = VarRewriter.new(assign_vars)
+      n[3] = vr.process(rhs)
     end
+
+    # Replace old block with rewritten version
+    scope[1] = rest_nodes
   end
 
   def each_relevant_ancestor

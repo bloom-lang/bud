@@ -12,32 +12,9 @@ class RuleRewriter < Ruby2Ruby
     @nm = false
     @rule_indx = seed
     @collect = false
-    @join_alias = {}
     @rules = []
     @depends = []
     super()
-  end
-
-  def process_lasgn(exp)
-    # NB: Dubious hack. We only want to treat assignments as join aliases if
-    # they occur at the top level of a declare block. That happens to correspond
-    # to seeing four tags on the context stack (:defn, :scope, :block, :lasgn).
-    if exp.length == 2 and self.context.length == 4
-      do_join_alias(exp)
-    else
-      super
-    end
-  end
-
-  def process_lvar(exp)
-    lvar = exp.first.to_s
-    if @join_alias[lvar]
-      @tables[lvar] = @nm
-      drain(exp)
-      return lvar
-    else
-      super
-    end
   end
 
   def process_call(exp)
@@ -90,17 +67,6 @@ class RuleRewriter < Ruby2Ruby
     return t
   end
 
-  def do_join_alias(exp)
-    t = exp[0].to_s
-    @join_alias[t] = true
-    @tables[t] = @nm
-    @collect = true
-    rhs = collect_rhs(exp[1])
-    @collect = false
-    record_rule(t, "=", rhs)
-    drain(exp)
-  end
-
   def do_rule(exp)
     lhs = process exp[0]
     op = exp[1]
@@ -114,7 +80,6 @@ class RuleRewriter < Ruby2Ruby
     return ""
   end
 end
-
 
 class StateExtractor < Ruby2Ruby
   attr_reader :decls
@@ -131,5 +96,24 @@ class StateExtractor < Ruby2Ruby
     @decls << ["#{lhs}"[/:.*?,/][1..-1].chop!, foo]
     exp.shift until exp.empty?
     return ""
+  end
+end
+
+# TODO: if a code block introduces a nested variable that shadows a Bloom
+# variable, we currently do the wrong thing.
+class VarRewriter < SexpProcessor
+  def initialize(var_tbl)
+    super()
+    self.require_empty = false
+    @var_tbl = var_tbl
+  end
+
+  def process_lvar(exp)
+    var_name = exp[1]
+    if @var_tbl.has_key? var_name
+      return @var_tbl[var_name]
+    else
+      return exp
+    end
   end
 end
