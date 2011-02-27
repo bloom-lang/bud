@@ -2,14 +2,13 @@ require 'rubygems'
 require 'bud'
 require 'localdeploy-nonmeta'
 
-# XXX: figure out why things are being mass-duplicated
 class Mergesort
   include Bud
   include LocalDeploy
 
   state {
     channel :elt_list, [:@loc] => [:elt_list]
-    table :succ, [:elt1, :elt2]
+    scratch :succ, [:elt1, :elt2]
     table :master, [] => [:node]
     table :left_child, [] => [:node]
     table :right_child, [] => [:node]
@@ -144,8 +143,14 @@ class Mergesort
 
     # 2. node that receives two mergedlists merges them and outputs the elements
     # one-at-a-time to parent; sends max to parent when known
+    #
+    # XXX: use idempotent here because elt_ord is table-driven
     merge_chan <~ ((parent[[]] and
-                    elt_ord.map {|e| [parent[[]].node, me, e.elt, e.num]}) or [])
+                    elt_ord.map do |e|
+                      if idempotent [[parent[[]].node, me, e.elt, e.num]]
+                        [parent[[]].node, me, e.elt, e.num]
+                      end
+                    end) or [])
     max_chan <~ ((if left_child[[]] and right_child[[]] and parent[[]] and
                       persist_max_chan[[left_child[[]].node]] and
                       persist_max_chan[[right_child[[]].node]] and
@@ -166,9 +171,11 @@ class Mergesort
                 end
               end) or [])
 
-    # master prints out links as soon as they're known
+    # master prints out links as soon as they're known, idempotently
     stdio <~ succ.map do |s|
-      [ip_port + ": successor: [" + s.elt1.to_s + ", " + s.elt2.to_s + "]"]
+      if idempotent [s]
+        [ip_port + ": successor: [" + s.elt1.to_s + ", " + s.elt2.to_s + "]"]
+      end
     end
 
   end

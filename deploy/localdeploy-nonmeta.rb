@@ -93,17 +93,17 @@ module LocalDeploy
       [n.node, i.data] if idempotent [n,i]
     end
 
-    dont_care <= ((initial_data_chan.each do |i|
-                     if idempotent i
-                       puts "Received all initial data; beginning computation"
-                       async_do {
-                         safe_eval(i.data.map {|j| j[0].to_s + " <+ " +
-                                     j[1].inspect}.join("\n"),
-                                   lambda {|s| self.instance_eval(s)})
-                       }
-                     end
-                   end) and [])
+    dont_care <= (initial_data_chan.each do |i|
+                    if idempotent i
+                      puts "Received all initial data; beginning computation"
+                      # XXX: mega hack here
+                      i.data.map do |j|
+                        j[1].map do |e|
+                          eval j[0].to_s + ".insert(" + e.inspect + ")"
+                        end
+                      end
+                    end
+                  end)
 
   end
-
 end
