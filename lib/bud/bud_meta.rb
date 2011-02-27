@@ -3,7 +3,6 @@ require 'bud/state'
 require 'parse_tree'
 
 class BudMeta
-  include BudState
   attr_reader :depanalysis, :decls
 
   def initialize(bud_instance, declarations)
