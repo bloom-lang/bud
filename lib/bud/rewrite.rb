@@ -99,6 +99,7 @@ class StateExtractor < Ruby2Ruby
   end
 end
 
+# Perform macro expansion on a tree of Sexps.
 # TODO: if a code block introduces a nested variable that shadows a Bloom
 # variable, we currently do the wrong thing.
 class VarRewriter < SexpProcessor
