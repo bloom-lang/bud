@@ -79,7 +79,7 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_visualization
-    program = KTest2.new(:dump_rewrite => true, :visualize => 3)
+    program = KTest2.new(:dump_rewrite => true, :trace => true)
     dep = DepAnalysis.new
 
     program.t_depends_tc.each {|d| dep.depends_tc << d}

@@ -97,7 +97,7 @@ module Bud
     # "Bud" class to have been defined first.
     require 'bud/depanalysis'
     require 'bud/stratify'
-    if @options[:visualize]
+    if @options[:trace]
       @viz = VizOnline.new(self)
     end
 
@@ -345,7 +345,7 @@ module Bud
           next
         end
       end
-      raise "Failed to bind to local TCP port" unless success
+      raise "Failed to bind to local TCP port #{@port}" unless success
     else
       @port = @options[:port]
       @server = EventMachine::start_server(@ip, @port, BudServer, self)
@@ -398,7 +398,7 @@ module Bud
     receive_inbound
 
     @strata.each { |strat| stratum_fixpoint(strat) }
-    @viz.do_cards if @options[:visualize]
+    @viz.do_cards if @options[:trace]
     do_flush
     @budtime += 1
   end
