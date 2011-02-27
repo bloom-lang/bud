@@ -6,6 +6,7 @@ class LocalShortestPaths
   state {
     table :link, [:from, :to, :cost]
     table :link2, [:from, :to, :cost]
+    table :link3, [:from, :to, :cost]
     table :empty, [:ident]
     table :path, [:from, :to, :next, :cost]
     table :shortest, [:from, :to] => [:next, :cost]
@@ -26,6 +27,9 @@ class LocalShortestPaths
     minmaxsumcntavg <= path.group([path.from, path.to], min(path.cost), min(path.cost), sum(path.cost), count, avg(path.cost))
 
     minz <= shortest.group(nil, min(shortest.cost))
+
+    link3 <= path.map {|p| [p.from, p.to, p.cost]}
+    link3 <- join([link3, shortest], [link3.from, shortest.from], [link3.to, shortest.to]).map {|l, s| l }
   end
 end
 
@@ -72,6 +76,34 @@ class TestMeta < Test::Unit::TestCase
     program = LocalShortestPaths.new
     assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal(4, program.strata.length)
+
+    tally = 0
+    program.t_depends.each do |dep|
+      if dep.lhs == "shortest" and dep.body == "path"
+        assert(dep.nm, "NM rule")
+        tally += 1
+      elsif dep.lhs == "minz" and dep.body == "shortest"
+        assert(dep.nm, "NM rule")
+        tally += 1
+      elsif dep.lhs == "minmaxsumcntavg" and dep.body == "path"
+        assert(dep.nm, "NM rule")
+        tally += 1
+      elsif dep.lhs == "link2" and dep.body == "empty"
+        assert(dep.nm, "NM rule")
+        tally += 1
+      elsif dep.lhs == "link3" and dep.body == "shortest"
+        assert(dep.nm, "NM rule")
+        tally += 1
+      elsif dep.lhs == "link3" and dep.body == "link3"
+        assert(dep.nm, "NM rule")
+        tally += 1
+      elsif dep.body == "count"
+        # weird: count is now getting parsed as a table
+      else
+        assert(!dep.nm, "Monotonic rule marked NM: #{dep.inspect}")
+      end 
+    end
+    assert_equal(6, tally)
   end
 
   def test_unstrat

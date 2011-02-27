@@ -6,7 +6,7 @@ class RuleRewriter < Ruby2Ruby
 
   def initialize(seed)
     @ops = {:<< => 1, :< => 1, :<= => 1}
-    @nm_funcs = {:group => 1, :argagg => 1, :include? => 1, :-@ => 1}
+    @monotonic_whitelist = {:== => 1, :+ => 1, :- => 1, :<= => 1, :- => 1, :< => 1, :> => 1}
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
     @nm = false
@@ -23,9 +23,19 @@ class RuleRewriter < Ruby2Ruby
     elsif @ops[exp[1]] and self.context[1] == :block
       do_rule(exp)
     else
-      # basically not analyzed
-      if @nm_funcs[exp[1]]
-        @nm = true
+      if exp[0] and exp[0].class == Sexp
+        # ignore accessors of iterator variables
+        unless exp[0].first == :lvar
+          if exp[2].class == Sexp and exp[2].length == 1 and exp[2] == s(:arglist)
+            # check for delete op, but ignore top-level accessors and maps
+            @nm = true if exp[1] == :-@
+          else
+            unless @monotonic_whitelist[exp[1]]
+              # suspicious function: exp[1]
+              @nm = true
+            end
+          end
+        end
       end
       if @temp_ops[exp[1]]
         @temp_op = exp[1].to_s.gsub("@", "")
