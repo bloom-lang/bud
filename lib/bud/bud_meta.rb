@@ -1,6 +1,7 @@
 require 'bud/rewrite'
 require 'bud/state'
 require 'parse_tree'
+require 'pp'
 
 class BudMeta
   attr_reader :depanalysis, :decls
@@ -93,6 +94,7 @@ class BudMeta
 
     u = Unifier.new
     pt = u.process(parse_tree)
+    pp pt if @bud_instance.options[:dump_ast]
     check_rule_ast(pt)
 
     rewriter = RuleRewriter.new(seed)
@@ -108,18 +110,15 @@ class BudMeta
     return if @bud_instance.options[:disable_sanity_check]
 
     # :defn format: node tag, block name, args, nested scope
-    raise Bud::CompileError if pt[0] != :defn
+    raise Bud::CompileError if pt.sexp_type != :defn
     scope = pt[3]
-    raise Bud::CompileError if scope[0] != :scope
+    raise Bud::CompileError if scope.sexp_type != :scope
     block = scope[1]
 
     # First, remove any assignment statements (i.e., alias definitions) from the
     # rule block's AST. Then macro-expand any references to the alias in the
     # rest of the rule block.
-    # TODO: if a Bloom variable appears in the RHS of another bloom variable
-    # definition, we should do the substitution, provided the dependency graph
-    # between variables is acyclic.
-    assign_nodes, rest_nodes = block.partition {|b| b.class == Sexp && b[0] == :lasgn}
+    assign_nodes, rest_nodes = block.partition {|b| b.class == Sexp && b.sexp_type == :lasgn}
     assign_vars = {}
     assign_nodes.each do |n|
       # Expected format: lasgn tag, lhs, rhs
@@ -131,7 +130,13 @@ class BudMeta
       # shadow the name of a collection
       raise Bud::CompileError if assign_vars.has_key? lhs
       raise Bud::CompileError if @bud_instance.tables.has_key? lhs
-      assign_vars[lhs] = rhs
+
+      # Macro expand any references to variables in the RHS. Note that this
+      # means that a macro can only refer to previously-defined macros in the
+      # current rule. We could improve this (topological sort of the dependency
+      # graph between macros), but this is probably fine for now.
+      vr = VarRewriter.new(assign_vars)
+      assign_vars[lhs] = vr.process(rhs)
     end
 
     rest_nodes.each_with_index do |n,i|
@@ -140,13 +145,13 @@ class BudMeta
         next
       end
 
-      raise Bud::CompileError if n[0] != :call
+      raise Bud::CompileError if n.sexp_type != :call
       # Rule format: call tag, lhs, op, rhs
       raise Bud::CompileError unless n.length == 4
       tag, lhs, op, rhs = n
 
       # Check that LHS references a named collection
-      raise Bud::CompileError unless lhs[0] == :call
+      raise Bud::CompileError unless lhs.sexp_type == :call
       lhs_name = lhs[2]
       raise Bud::CompileError unless @bud_instance.tables.has_key? lhs_name.to_sym
 
@@ -161,13 +166,13 @@ class BudMeta
       # XXX: Checking for illegal superators (e.g., "<--") is tricky, because
       # they are encoded as a nested unary operator in the rule body.
       if op == :<
-        raise Bud::CompileError unless rhs[0] == :arglist
+        raise Bud::CompileError unless rhs.sexp_type == :arglist
         body = rhs[1]
-        raise Bud::CompileError unless body[0] == :call
+        raise Bud::CompileError unless body.sexp_type == :call
         op_tail = body[2]
         raise Bud::CompileError unless [:~, :-@, :+@].include? op_tail
         rhs_args = body[3]
-        raise Bud::CompileError unless rhs_args[0] == :arglist
+        raise Bud::CompileError unless rhs_args.sexp_type == :arglist
         raise Bud::CompileError if rhs_args.length != 1
       end
 

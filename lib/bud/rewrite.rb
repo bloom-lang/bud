@@ -112,7 +112,13 @@ class VarRewriter < SexpProcessor
   def process_lvar(exp)
     var_name = exp[1]
     if @var_tbl.has_key? var_name
-      return @var_tbl[var_name]
+      expansion = @var_tbl[var_name]
+      # XXX: We need to return a deep copy of the macro expansion. This is
+      # because subsequent sexp processing is destructive -- we don't want
+      # mutations performed to one expansion of a macro to effect other uses of
+      # the macro. Apparently this is the only sane way to do a deep copy in
+      # Ruby -- broken, I know.
+      return Marshal.load(Marshal.dump(expansion))
     else
       return exp
     end
