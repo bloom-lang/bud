@@ -19,7 +19,10 @@ class RuleRewriter < Ruby2Ruby
   end
 
   def process_lasgn(exp)
-    if exp.length == 2
+    # NB: Dubious hack. We only want to treat assignments as join aliases if
+    # they occur at the top level of a declare block. That happens to correspond
+    # to seeing four tags on the context stack (:defn, :scope, :block, :lasgn).
+    if exp.length == 2 and self.context.length == 4
       do_join_alias(exp)
     else
       super
