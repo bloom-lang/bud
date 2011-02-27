@@ -56,6 +56,45 @@ class BudMeta
     return map
   end
 
+  def shred_rules
+    # to completely characterize the rules of a bud class we must extract
+    # from all parent classes/modules
+    # after making this pass, we no longer care about the names of methods.
+    # we are shredding down to the granularity of rule heads.
+    seed = 0
+    rulebag = {}
+    each_relevant_ancestor do |anc|
+      shred_state(anc)
+      @declarations.each do |meth_name|
+        rw = rewrite_rule_block(anc, meth_name, seed)
+        if rw
+          seed = rw.rule_indx
+          rulebag[meth_name] = rw
+        end
+      end
+    end
+
+    rulebag.each_value do |v|
+      v.rules.each do |r|
+        @bud_instance.t_rules << r
+      end
+      v.depends.each do |d|
+        @bud_instance.t_depends << d
+      end
+    end
+  end
+
+  def shred_state(anc)
+    return unless @bud_instance.options[:scoping]
+    stp = ParseTree.translate(anc, "__#{@bud_instance.class}__state")
+    return if stp[0].nil?
+    state_reader = StateExtractor.new(anc.to_s)
+    u = Unifier.new
+    pt = u.process(stp)
+    res = state_reader.process(pt)
+    @decls += state_reader.decls
+  end
+
   def rewrite_rule_block(klass, block_name, seed)
     parse_tree = ParseTree.translate(klass, block_name)
     return unless parse_tree.first
@@ -129,45 +168,6 @@ class BudMeta
         raise Bud::CompileError if @bud_instance.tables.has_key? lhs
       else
         raise Bud::CompileError
-      end
-    end
-  end
-
-  def shred_state(anc)
-    return unless @bud_instance.options[:scoping]
-    stp = ParseTree.translate(anc, "__#{@bud_instance.class}__state")
-    return if stp[0].nil?
-    state_reader = StateExtractor.new(anc.to_s)
-    u = Unifier.new
-    pt = u.process(stp)
-    res = state_reader.process(pt)
-    @decls += state_reader.decls
-  end
-
-  def shred_rules
-    # to completely characterize the rules of a bud class we must extract
-    # from all parent classes/modules
-    # after making this pass, we no longer care about the names of methods.
-    # we are shredding down to the granularity of rule heads.
-    seed = 0
-    rulebag = {}
-    each_relevant_ancestor do |anc|
-      shred_state(anc)
-      @declarations.each do |meth_name|
-        rw = rewrite_rule_block(anc, meth_name, seed)
-        if rw
-          seed = rw.rule_indx
-          rulebag[meth_name] = rw
-        end
-      end
-    end
-
-    rulebag.each_value do |v|
-      v.rules.each do |r|
-        @bud_instance.t_rules << r
-      end
-      v.depends.each do |d|
-        @bud_instance.t_depends << d
       end
     end
   end
