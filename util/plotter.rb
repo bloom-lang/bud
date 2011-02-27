@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'bud'
 require 'bud/bud_meta'
+require 'bud/graphs'
 require 'bud/depanalysis'
 
 # args: N, files_n, classes_m
