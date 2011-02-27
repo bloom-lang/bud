@@ -44,7 +44,6 @@ class Quicksort
                           node.map {|n| n}.size == node_count[[]].num
                         node.map do |n|
                           to_send = []
-                          eval "to_send = []"
                           # send the master to everybody
                           eval "to_send << [:master, [[me]]]"
                           # send the first node the entire list
@@ -74,19 +73,20 @@ class Quicksort
     # fixed topology with O(N) nodes that can deal with arbitrary imbalances
     pivot <= ((list_to_sort[[]] and
                if idempotent [[:pivot, list_to_sort[[]].list]]
-                 # XXX: elaborate hack to avoid assignment issue
-                 ((def find_median(list, k, rand_elt, smaller)
+                 ((def find_median(list, k)
                      return list[0] if list.size == 1
-                     eval "rand_elt = list[rand(list.size)]"
-                     eval "smaller = list.find_all {|e| e < rand_elt}"
+                     rand_elt = list[rand(list.size)]
+                     smaller = list.find_all {|e| e < rand_elt}
                      return rand_elt if smaller.size == k-1
                      if smaller.size < k - 1
-                       find_median(list.find_all {|e| e > rand_elt}, k - 1 - smaller.size, nil, nil)
+                       find_median(list.find_all  {|e| e > rand_elt},
+                                   k - 1 - smaller.size)
                      else
-                       find_median(smaller, k, nil, nil)
+                       find_median(smaller, k)
                      end
                    end) or
-                  [[find_median(list_to_sort[[]].list, list_to_sort[[]].list.size/2, nil, nil)]])
+                  [[find_median(list_to_sort[[]].list,
+                                list_to_sort[[]].list.size/2)]])
                end
                ) or [])
 
@@ -124,5 +124,5 @@ class Quicksort
 
 end
 
-program = Quicksort.new(:scoping => true, :ip => "127.0.0.1", :port => 0, :dump => true, :deploy => true)
+program = Quicksort.new(:scoping => true, :ip => "127.0.0.1", :port => 0, :dump_rewrite => true, :deploy => true)
 program.run

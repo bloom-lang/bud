@@ -5,8 +5,6 @@ require 'thread'
 # Starts up a bunch of Bud instances locally on 127.0.0.1, with ephemoral ports.
 # This is for the case where you just want to test stuff locally, but you don't
 # really care about port numbers.
-
-# XXX: make Ruby use seperate processes to get true ||ism
 module LocalDeploy
 
   include BudModule
@@ -51,7 +49,6 @@ module LocalDeploy
           # processes write their port to a pipe
           # for some reason, puts isn't atomic?
           write.print foo.port.to_s + "\n"
-          # puts foo.port
           EventMachine.reactor_thread.join
         end
       end
@@ -93,17 +90,17 @@ module LocalDeploy
       [n.node, i.data] if idempotent [n,i]
     end
 
-    dont_care <= (initial_data_chan.each do |i|
-                    if idempotent i
-                      puts "Received all initial data; beginning computation"
-                      # XXX: mega hack here
-                      i.data.map do |j|
-                        j[1].map do |e|
-                          eval j[0].to_s + ".insert(" + e.inspect + ")"
-                        end
-                      end
-                    end
-                  end)
+    dont_care <= initial_data_chan.each do |i|
+      if idempotent i
+        puts "Received all initial data; beginning computation"
+        # XXX: mega hack here
+        i.data.map do |j|
+          j[1].map do |e|
+            eval j[0].to_s + ".insert(" + e.inspect + ")"
+          end
+        end
+      end
+    end
 
   end
 end

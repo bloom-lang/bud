@@ -52,7 +52,6 @@ class Mergesort
                           node.map {|n| n}.size == node_count[[]].num
                         node.map do |n|
                           to_send = []
-                          eval "to_send = []"
                           # send the master to everybody
                           eval "to_send << [:master, [[me]]]"
                           # send the first node the entire list
