@@ -21,16 +21,9 @@ class BudMeta
 
     rewritten_strata = Array.new(top_stratum + 1, "")
     @bud_instance.t_rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
-      # joins may have to be restated
       belongs_in = stratum_map[d.lhs]
       belongs_in ||= 0
-      if d.op == "="
-        (belongs_in..top_stratum).each do |i|
-          rewritten_strata[i] += "#{d.src}\n"
-        end
-      else
-        rewritten_strata[belongs_in] += "#{d.src}\n"
-      end
+      rewritten_strata[belongs_in] += "#{d.src}\n"
     end
 
     @depanalysis = DepAnalysis.new
@@ -123,12 +116,16 @@ class BudMeta
     # First, remove any assignment statements (i.e., alias definitions) from the
     # rule block's AST. Then macro-expand any references to the alias in the
     # rest of the rule block.
-    assign_nodes, rest_nodes = block.partition {|b| b[0] == :lasgn}
+    # TODO: if a Bloom variable appears in the RHS of another bloom variable
+    # definition, we should do the substitution, provided the dependency graph
+    # between variables is acyclic.
+    assign_nodes, rest_nodes = block.partition {|b| b.class == Sexp && b[0] == :lasgn}
     assign_vars = {}
     assign_nodes.each do |n|
       # Expected format: lasgn tag, lhs, rhs
       raise Bud::CompileError unless n.length == 3
       tag, lhs, rhs = n
+      lhs = lhs.to_sym
 
       # Don't allow duplicate variable names within a block, nor variables that
       # shadow the name of a collection
@@ -173,10 +170,14 @@ class BudMeta
         raise Bud::CompileError unless rhs_args[0] == :arglist
         raise Bud::CompileError if rhs_args.length != 1
       end
+
+      # Rewrite RHS to macro-expand any references to alias variables
+      vr = VarRewriter.new(assign_vars)
+      n[3] = vr.process(rhs)
     end
 
     # Replace old block with rewritten version
-    # scope[1] = rest_nodes
+    scope[1] = rest_nodes
   end
 
   def each_relevant_ancestor
