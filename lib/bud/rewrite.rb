@@ -6,7 +6,7 @@ class RuleRewriter < Ruby2Ruby
 
   def initialize(seed)
     @ops = {:<< => 1, :< => 1, :<= => 1}
-    @nm_funcs = {:group => 1, :argagg => 1, :include? => 1, :-@ => 1}
+    @monotonic_whitelist = {:== => 1, :+ => 1, :- => 1, :<= => 1, :- => 1, :< => 1, :> => 1}
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
     @nm = false
@@ -24,9 +24,24 @@ class RuleRewriter < Ruby2Ruby
       do_rule(exp)
     else
       # basically not analyzed
-      if @nm_funcs[exp[1]]
-        @nm = true
+      if exp[0].class == Sexp
+        # ignore accessors of iterator variables
+        unless exp[0].first == :lvar
+          if exp[2].class == Sexp and exp[2].length == 1 and exp[2] == s(:arglist)
+            # check for delete op, but ignore top-level accessors and maps
+            #puts "Another accessor: #{exp[1]} (lhs is #{exp[0].first}, I am type #{exp[1].class}, rhs is #{exp[2].inspect}, CXT #{self.context[0]}, #{self.context[1]}, #{self.context[2]}"
+            @nm = true if exp[1] == :-@
+          else
+            #puts "CALL #{exp.inspect} context #{self.context[1]}"
+            #puts "exp[0] type is #{exp[0].class} or #{exp[0]}"
+            unless @monotonic_whitelist[exp[1]]
+              puts "suspicious function: #{exp[1]}"
+              @nm = true
+            end
+          end
+        end
       end
+  
       if @temp_ops[exp[1]]
         @temp_op = exp[1].to_s.gsub("@", "")
       end
