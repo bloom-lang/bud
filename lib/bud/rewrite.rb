@@ -23,25 +23,20 @@ class RuleRewriter < Ruby2Ruby
     elsif @ops[exp[1]] and self.context[1] == :block
       do_rule(exp)
     else
-      # basically not analyzed
-      if exp[0].class == Sexp
+      if exp[0] and exp[0].class == Sexp
         # ignore accessors of iterator variables
         unless exp[0].first == :lvar
           if exp[2].class == Sexp and exp[2].length == 1 and exp[2] == s(:arglist)
             # check for delete op, but ignore top-level accessors and maps
-            #puts "Another accessor: #{exp[1]} (lhs is #{exp[0].first}, I am type #{exp[1].class}, rhs is #{exp[2].inspect}, CXT #{self.context[0]}, #{self.context[1]}, #{self.context[2]}"
             @nm = true if exp[1] == :-@
           else
-            #puts "CALL #{exp.inspect} context #{self.context[1]}"
-            #puts "exp[0] type is #{exp[0].class} or #{exp[0]}"
             unless @monotonic_whitelist[exp[1]]
-              puts "suspicious function: #{exp[1]}"
+              # suspicious function: exp[1]
               @nm = true
             end
           end
         end
       end
-  
       if @temp_ops[exp[1]]
         @temp_op = exp[1].to_s.gsub("@", "")
       end
