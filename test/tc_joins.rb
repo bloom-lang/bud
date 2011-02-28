@@ -53,6 +53,24 @@ class CombosBud
   end
 end
 
+# Check that assignment operators within nested blocks aren't confused for a
+# join alias -- Issue #82.
+class BlockAssign
+  include Bud
+
+  state do
+    table :num, [:num]
+  end
+
+  declare
+  def rules
+    num <= (1..5).map do |i|
+      foo = i
+      [foo]
+    end
+  end
+end
+
 class TestJoins < Test::Unit::TestCase
   def test_combos
     program = CombosBud.new
@@ -84,6 +102,12 @@ class TestJoins < Test::Unit::TestCase
     nat_outs = program.nat_out
     assert_equal(1, nat_outs.length)
     assert_equal(chain_outs, flip_outs)
+  end
+
+  def test_block_assign
+    program = BlockAssign.new
+    program.tick
+    assert_equal([1,2,3,4,5], program.num.to_a.sort.flatten)
   end
 
   # PAA: problems recognizing 'leftjoin()' ?

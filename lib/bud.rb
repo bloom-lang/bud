@@ -3,6 +3,7 @@ require 'anise'
 require 'eventmachine'
 require 'msgpack'
 require 'superators'
+require 'thread'
 
 require 'bud/aggs'
 require 'bud/bud_meta'
@@ -49,7 +50,7 @@ module BudModule
 end
 
 module Bud
-  attr_reader :strata, :budtime, :inbound, :options, :provides, :meta_parser, :viz, :server
+  attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :server
   attr_accessor :connections
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
@@ -61,7 +62,6 @@ module Bud
     @tables = {}
     @table_meta = []
     @rewritten_strata = []
-    @provides = {}
     @channels = {}
     @tc_tables = {}
     @zk_tables = {}
@@ -96,8 +96,8 @@ module Bud
     # by Bud programs, so in order for those programs to parse, we need the
     # "Bud" class to have been defined first.
     require 'bud/depanalysis'
-    require 'bud/strat'
-    if @options[:visualize]
+    require 'bud/stratify'
+    if @options[:trace]
       @viz = VizOnline.new(self)
     end
 
@@ -188,9 +188,18 @@ module Bud
   def start_reactor
     return if EventMachine::reactor_running?
 
-    Thread.new do
-      EventMachine.run
+    EventMachine::error_handler do |e|
+      puts "Unexpected Bud error: #{e.inspect}"
+      raise e
     end
+
+    q = Queue.new
+    Thread.new do
+        EventMachine.run do
+          q << true
+        end
+    end
+    q.pop
   end
 
   # Shutdown a Bud instance running asynchronously. This method blocks until Bud
@@ -290,15 +299,19 @@ module Bud
 
     do_start_server
 
-    # flush any tuples installed into channels during bootstrap block
+    # Flush any tuples installed into channels during bootstrap block
     # XXX: doing this here is a kludge; we should do all of bootstrap
     # in one place
     do_flush
 
-    # initialize periodics
+    # Initialize periodics
     @periodics.each do |p|
       @timers << set_periodic_timer(p.pername, p.ident, p.period)
     end
+
+    # Compute a fixpoint. We do this so that transitive consequences of any
+    # bootstrap facts are computed.
+    tick
   end
 
   # Run Bud in the "foreground" -- this method typically doesn't return unless
@@ -332,7 +345,7 @@ module Bud
           next
         end
       end
-      raise "Failed to bind to local TCP port" unless success
+      raise "Failed to bind to local TCP port #{@port}" unless success
     else
       @port = @options[:port]
       @server = EventMachine::start_server(@ip, @port, BudServer, self)
@@ -369,8 +382,7 @@ module Bud
     table :t_cycle, [:predicate, :via, :neg, :temporal]
   end
 
-  # For every state declaration, either define a new collection instance (first
-  # time seen) or tick the collection to advance to the next time step.
+  # Invoke all the user-defined state blocks and init builtin state.
   def init_state
     builtin_state
     @state_methods.each do |s|
@@ -379,12 +391,14 @@ module Bud
   end
 
   def tick
-    init_state
+    @tables.each_value do |t|
+      t.tick
+    end
 
     receive_inbound
 
     @strata.each { |strat| stratum_fixpoint(strat) }
-    @viz.do_cards if @options[:visualize]
+    @viz.do_cards if @options[:trace]
     do_flush
     @budtime += 1
   end

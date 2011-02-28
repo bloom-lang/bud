@@ -131,9 +131,9 @@ module Bud
       @pending.map{|t| [t.inspect]}
     end
 
-    # by default, all tuples in any rhs are in storage or delta
-    # tuples in new_delta will get transitioned to delta in the next
-    # iteration of the evaluator (but within the current time tick)
+    # By default, all tuples in any rhs are in storage or delta. Tuples in
+    # new_delta will get transitioned to delta in the next iteration of the
+    # evaluator (but within the current time tick).
     def each(&block)
       each_from([@storage, @delta], &block)
     end
@@ -229,7 +229,7 @@ module Bud
         # if this tuple has too few fields, pad with nil's
         old = o.clone
         (o.length..schema.length-1).each{|i| o << nil}
-        puts "converted #{old.inspect} to #{o.inspect}"
+        # puts "in #{@tabname}, converted #{old.inspect} to #{o.inspect}"
       elsif o.length > schema.length then
         # if this tuple has more fields than usual, bundle up the 
         # extras into an array
@@ -271,7 +271,7 @@ module Bud
 
     def merge(o, buf=@new_delta)
       check_enumerable(o)
-      raise BudError, "Attempt to merge non-enumerable type into BloomCollection: #{o.inspect}" unless o.respond_to? 'each'
+      raise BudError, "Attempt to merge non-enumerable type into BloomCollection #{tabname}: #{o.inspect}" unless o.respond_to? 'each'
       delta = o.map do |i|
         next if i.nil? or i == []
         i = prep_tuple(i)
@@ -304,8 +304,8 @@ module Bud
     def tick
       @storage = @pending
       @pending = {}
-      raise BudError unless @delta.empty?
-      raise BudError unless @new_delta.empty?
+      raise BudError, "orphaned tuples in @delta for #{@tabname}" unless @delta.empty?
+      raise BudError, "orphaned tuples in @new_delta for #{@tabname}" unless @new_delta.empty?
     end
 
     # move all deltas and new_deltas into storage
@@ -457,27 +457,6 @@ module Bud
   end
 
   class BudScratch < BudCollection
-  end
-
-  class BudSerializer < BudCollection
-    def initialize(name, bud_instance, user_schema)
-      @dq = {}
-      super
-    end
-
-    def tick
-      @dq.each_key {|k| @storage.delete k}
-      super
-    end
-
-    def each
-      @storage.key_cols.sort.each do |k|
-        tup = (@storage[k] == true) ? k : @storage[k]
-        yield tup
-        @dq[k] = true
-        return
-      end
-    end
   end
 
   class BudChannel < BudCollection

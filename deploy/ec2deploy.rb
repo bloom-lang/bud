@@ -31,8 +31,7 @@ module EC2Deploy
     table :all_up, [:bool]
   }
 
-  def bootstrap
-    super
+  bootstrap do
     image_id <= [["ami-76f0061f"]]
     init_command <= [["sudo yum -y install rubygems ruby-devel gcc-c++ && sudo gem update --system --no-ri --no-rdoc && sudo gem install deploy/bud-0.0.1.gem --no-ri --no-rdoc" ]]
 
@@ -100,14 +99,14 @@ module EC2Deploy
 
     # for each SSH connection, upload all the files in init_files, then
     # execute all the init_commands
-    node <= join([temp_node, init_dir, init_command]).map do |t, i, c|
+    deploy_node <= join([temp_node, init_dir, init_command]).map do |t, i, c|
       (while not system 'scp -r -o "StrictHostKeyChecking no" -i ' + ec2_key_location[[]].loc + ' ' + init_dir[[]].dir + ' ec2-user@' + t.node.split(":")[0] + ':/home/ec2-user'
          sleep 6
        end) or
         (while not system 'ssh -t -o "StrictHostKeyChecking no" -i '+ ec2_key_location[[]].loc + ' ec2-user@' + t.node.split(":")[0] + ' "' + init_command[[]].cmd + '"'
            sleep 6
          end) or
-        (while not system 'ssh -f -o "StrictHostKeyChecking no" -i '+ ec2_key_location[[]].loc + ' ec2-user@' + t.node.split(":")[0] + ' "cd deploy; nohup ruby metarecv.rb ' + t.localip + ' > metarecv.out 2> metarecv.err < /dev/null"'
+        (while not system 'ssh -f -o "StrictHostKeyChecking no" -i '+ ec2_key_location[[]].loc + ' ec2-user@' + t.node.split(":")[0] + ' "cd deploy; nohup ruby metarecv-nat.rb ' + t.localip + ' > metarecv.out 2> metarecv.err < /dev/null"'
            sleep 6
          end) or
         ((puts "Done commands and upload:" + t.inspect) or ((sleep 6) and [t.uid, t.node])) if idempotent [:node]

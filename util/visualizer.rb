@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'tokyocabinet'
 require 'bud'
+require 'bud/graphs'
 include TokyoCabinet
 
 # prototype offline viz
@@ -48,6 +49,10 @@ class VizHelper
       write_table_content(table_io["#{info.table}_#{info.bud_time}"], info.row)
     end
 
+    table_io.each_value do |tab|
+      end_table(tab)
+    end
+
     ts2 = {}
     timeseries.each_pair do |k, v|
       #taburl = gchart.(:size => '100x100', :data => v, :axis_with_labels => 'x, y')
@@ -71,9 +76,9 @@ class VizHelper
     sum.dump(@t_rules)
     sum.finish
 
-    table_io.each_value do |tab|
-      end_table(tab)
-    end
+    #table_io.each_value do |tab|
+    #  end_table(tab)
+    #end
 
     # fix: nested loops
     times.sort.each do |time|
@@ -94,23 +99,30 @@ class VizHelper
   end
 
   def start_table(dir, tab, time, schema)
-    fout = File.new("#{dir}/#{tab}_#{time}.html", "w")
+    str = "#{dir}/#{tab}_#{time}.html"
+    #fout = File.new("#{dir}/#{tab}_#{time}.html", "w")
+    fout = File.new(str, "w")
+
     #fout.puts "<h1>#{tab} #{time_node_header()}</h1>"
     fout.puts "<html><title>#{tab} @ #{time}</title>"
     fout.puts "<table border=1>"
     fout.puts "<tr>" + schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>"
-    return fout
+    fout.close
+    return str
   end
 
   def end_table(stream)
-    stream.puts "</table>"
-    stream.close
+    fp = File.open(stream, "a")
+    fp.puts "</table>"
+    fp.close
   end
 
-  def write_table_content(stream, row)
+  def write_table_content(fn, row)
+    stream = File.open(fn, "a")
     stream.puts "<tr>"
     stream.puts row.map{|c| "<td>#{c.to_s}</td>"}.join(" ")
     stream.puts "</tr>"
+    stream.close
   end
 end
 
@@ -118,11 +130,13 @@ def deserialize_table(tab, strict)
   # oy.  meta only
   ret = []
   tab.each_pair do |k, v|
-    key = Marshal.load(k)
+    #key = Marshal.load(k)
+    key = MessagePack.unpack(k)
     time = key.shift
     raise "non-zero budtime.  sure this is metadata?" if time != 0 and strict
     tup = key
-    Marshal.load(v).each{|v| tup << v }
+    #Marshal.load(v).each{|v| tup << v }
+    MessagePack.unpack(v).each{|val| tup << val }
     ret << tup
   end
   tab.close
@@ -168,6 +182,7 @@ rules = deserialize_table(@tables['t_rules_vizlog.tch'], true)
 
 schminf = {}
 tabscm.each do |ts|
+  puts "TABSCM: #{ts.inspect}"
   tab = ts[0].to_s
   unless schminf[tab]
     schminf[tab] = []
@@ -185,11 +200,15 @@ vh = VizHelper.new(strata, tabinf, cycle, depends, rules, ARGV[0])
 @tables.each_pair do |name, contents|
   name = name.gsub("_vizlog.tch", "")
   contents.each_pair do |k, v|
-    key = Marshal.load(k)
+    key = MessagePack.unpack(k)
     time = key[0]
     row = key
-    Marshal.load(v).each{|val| row << val }
-    vh.full_info << [time, name, row]
+    MessagePack.unpack(v).each{ |val| row << val }
+    if name == "t_table_info.tch" or name == "t_table_schema.tch"
+      #vh.full_info << [0, name, row]
+    else
+      vh.full_info << [time, name, row]
+    end
   end
 end
 

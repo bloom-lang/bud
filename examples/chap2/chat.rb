@@ -21,7 +21,7 @@ class ChatClient
     table :status, [:master, :value]
   end
   
-  def bootstrap
+  bootstrap do
     # send connection request to master
     ctrl <~ [[@master, ip_port, @me]]
   end

@@ -87,7 +87,8 @@ class GraphGen
     if @redcycle[predicate] and @collapse
       via = @redcycle[predicate]
       bag = name_bag(predicate, {})
-      str = bag.key_cols.sort.join(", ")
+      #str = bag.key_cols.sort.join(", ")
+      str = bag.keys.sort.join(", ")
       return str
     else
       return predicate
@@ -190,7 +191,7 @@ class GraphGen
       @labels[ekey][' +/-'] = true
       @edges[ekey].arrowhead = 'veeodot'
     end
-    if nm == 1 and head != "T"
+    if nm and head != "T"
       # hm, nonmono
       @edges[ekey].arrowhead = 'veeodot'
     end
@@ -198,7 +199,8 @@ class GraphGen
 
   def finish
     @labels.each_key do |k|
-      @edges[k].label = @labels[k].key_cols.join(" ")
+      #@edges[k].label = @labels[k].key_cols.join(" ")
+      @edges[k].label = @labels[k].keys.join(" ")
     end
 
     addonce("S", false)
@@ -221,13 +223,16 @@ class GraphGen
       end
     end
 
-    unless @depanalysis.nil? or @depanalysis.underspecified.empty?
+    unless @depanalysis.nil? 
       @depanalysis.source.each {|s| addedge("S", s.pred, false, false, false) }
       @depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false) }
-      addonce("??", false)
-      @nodes["??"].color = "red"
-      @nodes["??"].shape = "diamond"
-      @nodes["??"].penwidth = 2
+
+      unless @depanalysis.underspecified.empty?
+        addonce("??", false)
+        @nodes["??"].color = "red"
+        @nodes["??"].shape = "diamond"
+        @nodes["??"].penwidth = 2
+      end
 
       @depanalysis.underspecified.each do |u|
         if u.input
@@ -250,6 +255,7 @@ class GraphGen
     end
     fin.close
     fout.close
+    File.delete(staging) 
   end
 
   def output_base

@@ -6,6 +6,7 @@ class LocalShortestPaths
   state {
     table :link, [:from, :to, :cost]
     table :link2, [:from, :to, :cost]
+    table :link3, [:from, :to, :cost]
     table :empty, [:ident]
     table :path, [:from, :to, :next, :cost]
     table :shortest, [:from, :to] => [:next, :cost]
@@ -15,8 +16,8 @@ class LocalShortestPaths
 
   declare
   def program
-    link2 <= link.map{|l| l unless empty.include? [l.ident]}
-    path <= link2.map{|e| [e.from, e.to, e.to, e.cost]}
+    link2 <= link.map {|l| l unless empty.include? [l.ident]}
+    path <= link2.map {|e| [e.from, e.to, e.to, e.cost]}
     j = join([link2, path])
     path <= j.map do |l, p|
       [l.from, p.to, p.from, l.cost+p.cost] if l.to == p.from
@@ -26,6 +27,9 @@ class LocalShortestPaths
     minmaxsumcntavg <= path.group([path.from, path.to], min(path.cost), min(path.cost), sum(path.cost), count, avg(path.cost))
 
     minz <= shortest.group(nil, min(shortest.cost))
+
+    link3 <= path.map {|p| [p.from, p.to, p.cost]}
+    link3 <- join([link3, shortest], [link3.from, shortest.from], [link3.to, shortest.to]).map {|l, s| l }
   end
 end
 
@@ -55,7 +59,7 @@ class KTest2 < KTest
   declare
   def update
     mystate <= upd
-    mystate <- join([upd, mystate]).map{|i, s| s}
+    mystate <- join([upd, mystate]).map {|i, s| s}
   end
 end
 
@@ -63,7 +67,7 @@ end
 class KTest3 < KTest
   declare
   def update
-    mystate <= upd.map{|u| u unless mystate.include? u}
+    mystate <= upd.map {|u| u unless mystate.include? u}
   end
 end
 
@@ -72,18 +76,46 @@ class TestMeta < Test::Unit::TestCase
     program = LocalShortestPaths.new
     assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal(4, program.strata.length)
+
+    tally = 0
+    program.t_depends.each do |dep|
+      if dep.lhs == "shortest" and dep.body == "path"
+        assert(dep.nm, "NM rule")
+        tally += 1
+      elsif dep.lhs == "minz" and dep.body == "shortest"
+        assert(dep.nm, "NM rule")
+        tally += 1
+      elsif dep.lhs == "minmaxsumcntavg" and dep.body == "path"
+        assert(dep.nm, "NM rule")
+        tally += 1
+      elsif dep.lhs == "link2" and dep.body == "empty"
+        assert(dep.nm, "NM rule")
+        tally += 1
+      elsif dep.lhs == "link3" and dep.body == "shortest"
+        assert(dep.nm, "NM rule")
+        tally += 1
+      elsif dep.lhs == "link3" and dep.body == "link3"
+        assert(dep.nm, "NM rule")
+        tally += 1
+      elsif dep.body == "count"
+        # weird: count is now getting parsed as a table
+      else
+        assert(!dep.nm, "Monotonic rule marked NM: #{dep.inspect}")
+      end 
+    end
+    assert_equal(6, tally)
   end
 
   def test_unstrat
-    assert_raise(RuntimeError) { program = KTest3.new(:dump => true, :visualize => false, :provenance => true) }
+    assert_raise(Bud::CompileError) { KTest3.new }
   end
 
   def test_visualization
-    program = KTest2.new(:dump => true, :visualize => 3, :provenance => true)
+    program = KTest2.new(:dump_rewrite => true, :trace => true)
     dep = DepAnalysis.new
 
-    program.t_depends_tc.each{|d| dep.depends_tc << d}
-    program.provides.each{|p| dep.providing << p}
+    program.t_depends_tc.each {|d| dep.depends_tc << d}
+    program.t_provides.each {|p| dep.providing << p}
     dep.tick
   end
 end

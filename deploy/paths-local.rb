@@ -2,11 +2,13 @@ require 'rubygems'
 require 'bud'
 # require the meta wrapper
 require 'deployer'
+require 'localdeploy'
 
 class ShortestPaths
   # include the meta wrapper
   include Bud
   include Deployer
+  include LocalDeploy
 
   state {
     table :link, [:from, :to, :cost]
@@ -16,17 +18,23 @@ class ShortestPaths
   }
 
   bootstrap do
-    # which nodes do we want to distribute program to?
-    deploy_node <= [[1, "127.0.0.1:54321"]]
-    # EDB at each node
-    initial_data <= [[1,
-                      [[:link, [['a', 'b', 1],
-                                ['a', 'b', 4],
-                                ['b', 'c', 1],
-                                ['c', 'd', 1],
-                                ['d', 'e', 1]]
-                       ]]
-                     ]]
+    # how many local nodes do we want?
+    node_count <= [[2]]
+  end
+
+  declare
+  def partition
+    # same initial data at each node
+    initial_data <= node.map do |n|
+      [n.uid,
+       [[:link, [['a', 'b', 1],
+                 ['a', 'b', 4],
+                 ['b', 'c', 1],
+                 ['c', 'd', 1],
+                 ['d', 'e', 1]]
+        ]]
+      ]
+    end
   end
 
   declare
@@ -49,8 +57,5 @@ class ShortestPaths
   end
 end
 
-source = ARGV[0].split(':')
-ip = source[0]
-port = source[1]
-program = ShortestPaths.new(:scoping => true, :ip => ip, :port => port)
+program = ShortestPaths.new(:scoping => true, :ip => "127.0.0.1", :port => 0, :dump_rewrite => true)
 program.run
