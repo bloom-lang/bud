@@ -1,22 +1,22 @@
 require 'rubygems'
 require 'bud'
 require 'thread'
+require 'countatomicdelivery'
 
 # Starts up a bunch of Bud instances locally on 127.0.0.1, with ephemoral ports.
 # This is for the case where you just want to test stuff locally, but you don't
 # really care about port numbers.
 module LocalDeploy
-
   include BudModule
+  include CountAtomicDelivery
 
-  state {
+  state do
     table :node, [:uid] => [:node]
     table :node_count, [] => [:num]
-    table :initial_data, [:uid, :data]
-    channel :initial_data_chan, [:@node, :data]
+    table :initial_data, [:uid, :pred, :data]
     table :dead, [:dead]
-    scratch :dont_care, [:dont_care]
-  }
+    channel :dont_care, [:@loc] # XXX: hack to get around laziness
+  end
 
   # deal with SIGCHILD
   trap("CLD") {
@@ -31,7 +31,9 @@ module LocalDeploy
     end
 
     if opt[:nat]
-      @my_ip = open("http://myip.dk") { |f| /([0-9]{1,3}\.){3}[0-9]{1,3}/.match(f.read)[0].to_a[0] }
+      @my_ip = open("http://myip.dk") do |f|
+        /([0-9]{1,3}\.){3}[0-9]{1,3}/.match(f.read)[0].to_a[0]
+      end
     else
       @my_ip = @ip
     end
@@ -59,20 +61,6 @@ module LocalDeploy
     end
   end
 
-  # eval code in the bud instance
-  def safe_eval(str, lambda)
-    begin
-      puts "Safe evaling: " + str
-      $stdout.flush
-      lambda.call(str)
-    rescue Exception => exc
-      puts "#{$!}"
-      return false
-    end
-    return true
-  end
-
-
   def me() @my_ip + ":" + @port.to_s end
 
   def idempotent(r) (dead.include? r) ? false : dead.insert(r) end
@@ -85,20 +73,19 @@ module LocalDeploy
   # evaluated" before any messages can be sent
   declare
   def distribute_data
-    initial_data_chan <~ join([node, initial_data],
-                              [node.uid, initial_data.uid]).map do |n, i|
-      [n.node, i.data] if idempotent [n,i]
+    atomic_data_in <= join([node, initial_data],
+                           [node.uid, initial_data.uid]).map do |n, i|
+      [n.node, [i.pred, i.data]] if idempotent [[n.node, i.pred, i.data]]
     end
 
-    dont_care <= initial_data_chan.each do |i|
-      if idempotent i
-        puts "Received all initial data; beginning computation"
-        # XXX: mega hack here
-        i.data.map do |j|
-          j[1].map do |e|
-            eval j[0].to_s + ".insert(" + e.inspect + ")"
-          end
+
+    # add tuples all at once
+    dont_care <~ atomic_data_out.map do |a|
+      if idempotent a
+        a.tuple[1].map do |d|
+          eval a.tuple[0].to_s + " <+ [" + d.inspect + "]"
         end
+        [ip_port]
       end
     end
 
