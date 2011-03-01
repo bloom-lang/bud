@@ -477,7 +477,7 @@ module Bud
       @locspec_idx = remove_at_sign!(cols) if @locspec_idx.nil?
       # If @locspec_idx is still nil, this is a loopback channel
 
-      # Note that we mutate the hash key above, so we need to recreate the hash
+      # We mutate the hash key above, so we need to recreate the hash
       # XXX: ugh, hacky
       if user_schema.respond_to? :keys
         user_schema = {key_cols => cols}
