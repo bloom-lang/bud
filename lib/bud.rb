@@ -438,7 +438,7 @@ module Bud
     #
     # XXX as a performance optimization, it would be nice to bypass the delta
     # tables for any preds that don't participate in a rhs Join -- in that
-    # case there's pointless extra tuple movement letting tuples "graduate" 
+    # case there's pointless extra tuple movement letting tuples "graduate"
     # through @new_delta and @delta.
 
     # In semi-naive, the first iteration should join up tables

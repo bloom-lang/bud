@@ -114,15 +114,15 @@ module Bud
     def null_tuple
       tuple_accessors(Array.new(@schema.length))
     end
-    
+
     def keys
       self.map{|t| (0..self.key_cols.length-1).map{|i| t[i]}}
     end
-    
+
     def values
       self.map{|t| (self.key_cols.length..self.schema.length-1).map{|i| t[i]}}
     end
-    
+
     def inspected
       self.map{|t| [t.inspect]}
     end
@@ -203,10 +203,10 @@ module Bud
 
       return false
     end
-    
+
     def exists?(&block)
       if length == 0
-        return false 
+        return false
       elsif not block_given?
         return true
       else
@@ -219,7 +219,7 @@ module Bud
       keycols = key_cols.map{|k| old[schema.index(k)]}
       raise KeyConstraintError, "Key conflict inserting #{old.inspect} into \"#{tabname}\": existing tuple #{new.inspect}, key_cols = #{keycols.inspect}"
     end
-    
+
     def prep_tuple(o)
       unless o.respond_to?(:length) and o.respond_to?(:[])
         raise BudTypeError, "non-indexable type inserted into BudCollection #{self.tabname}: #{o.inspect}"
@@ -231,7 +231,7 @@ module Bud
         (o.length..schema.length-1).each{|i| o << nil}
         # puts "in #{@tabname}, converted #{old.inspect} to #{o.inspect}"
       elsif o.length > schema.length then
-        # if this tuple has more fields than usual, bundle up the 
+        # if this tuple has more fields than usual, bundle up the
         # extras into an array
         o = (0..(schema.length - 1)).map{|c| o[c]} << (schema.length..(o.length - 1)).map{|c| o[c]}
       end
@@ -262,7 +262,7 @@ module Bud
     end
 
     alias << insert
-    
+
     def check_enumerable(o)
       unless o.class < Enumerable
         raise BudTypeError, "Attempt to merge non-enumerable type into BudCollection"
@@ -553,7 +553,7 @@ module Bud
         c.close_connection
       end
     end
-    
+
     def payloads
       self.map{|t| t.val}
     end
@@ -720,7 +720,7 @@ module Bud
         eval(str)
       end
     end
-    
+
 
     def each(mode=:both, &block)
       mode = :storage if @bud_instance.stratum_first_iter

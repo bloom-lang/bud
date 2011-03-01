@@ -153,11 +153,11 @@ end
 
 class BendTypes
   include Bud
-  
+
   state {
     table :t1
   }
-  
+
   def bootstrap
     t1 <+ {1=>'a', 2=>'b'}
   end
@@ -165,12 +165,12 @@ end
 
 class NonEnumerable
   include Bud
-  
+
   state {
     table :t1
   }
-  
-  declare 
+
+  declare
   def rules
     t1 <= true
   end
@@ -178,12 +178,12 @@ end
 
 class NonTuple
   include Bud
-  
+
   state {
     table :t1
   }
-  
-  declare 
+
+  declare
   def rules
     t1 <= [1,2,3]
   end
@@ -288,7 +288,7 @@ class TestCollections < Test::Unit::TestCase
 
     rv.stop_bg
   end
-  
+
   def test_types
     p1 = BendTypes.new
     assert_nothing_raised(RuntimeError) { p1.tick }
@@ -298,8 +298,8 @@ class TestCollections < Test::Unit::TestCase
     p3 = NonTuple.new
     assert_raise(Bud::BudTypeError) { p3.tick }
   end
-  
-  
+
+
   def test_bootstrap_derive
     b = BootstrapDerive.new
     b.run_bg
