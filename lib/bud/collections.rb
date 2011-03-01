@@ -541,6 +541,7 @@ module Bud
           # if the connection failed, we silently ignore and let the tuples be cleared.
           # if we didn't clear them here, we'd be clearing them at end-of-tick anyhow
           unless @connections[the_locspec].nil?
+            @bud_instance.rtracer.send(@tabname.to_s, t) if @bud_instance.options[:rtrace]
             @connections[the_locspec].send_data [@tabname, t].to_msgpack
           end
         end

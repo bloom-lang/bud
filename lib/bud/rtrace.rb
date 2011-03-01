@@ -2,6 +2,8 @@ require 'rubygems'
 require 'bud/state'
 
 class RTrace
+  attr_reader :table_recv, :table_send, :table_sleep
+
   include BudState
 
   def initialize(bud_instance)
@@ -10,18 +12,18 @@ class RTrace
       @bud_instance.class == DepAnalysis
     @table_recv = Bud::BudTable.new(:t_recv_time, @bud_instance, [:pred, :tuple, :time])
     @table_send = Bud::BudTable.new(:t_send_time, @bud_instance, [:pred, :tuple, :time])
-    @table_sleep = Bud::BudTable.new(:t_slee_time, @bud_instance, [:time])
+    @table_sleep = Bud::BudTable.new(:t_sleep_time, @bud_instance, [:time])
   end
 
-  def send(pred, datum, time)
-    @table_send << [pred.to_s, datum, time]
+  def send(pred, datum)
+    @table_send << [pred.to_s, datum, Time.now.to_f]
   end
 
-  def recv(datum, time)
-    @table_recv << [datum[0].to_s, datum[1], time]
+  def recv(datum)
+    @table_recv << [datum[0].to_s, datum[1], Time.now.to_f]
   end
 
-  def sleep(time)
-    @table_sleep << [time]
+  def sleep
+    @table_sleep << [Time.now.to_f]
   end
 end

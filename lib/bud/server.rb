@@ -33,6 +33,8 @@ module Bud
       @pac.each do |obj|
         message_received(obj)
       end
+
+      @bud.rtracer.sleep if @bud.options[:rtrace]
     end
 
     def message_received(obj)
@@ -40,6 +42,8 @@ module Bud
       unless (obj.class <= Array and obj.length == 2 and not @bud.tables[obj[0].to_sym].nil? and obj[1].class <= Array)
         raise BudError, "Bad inbound message of class #{obj.class}: #{obj.inspect}"
       end
+
+      @bud.rtracer.recv(obj) if @bud.options[:rtrace]
 
       @bud.inbound << obj
       begin

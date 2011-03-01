@@ -12,6 +12,7 @@ require 'bud/errors'
 require 'bud/server'
 require 'bud/state'
 require 'bud/viz'
+require 'bud/rtrace'
 
 module BudModule
   def self.included(o)
@@ -50,7 +51,7 @@ module BudModule
 end
 
 module Bud
-  attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :server
+  attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :server, :rtracer
   attr_accessor :connections
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
@@ -99,6 +100,9 @@ module Bud
     require 'bud/stratify'
     if @options[:trace]
       @viz = VizOnline.new(self)
+    end
+    if @options[:rtrace]
+      @rtracer = RTrace.new(self)
     end
 
     # meta stuff.  parse the AST of the current (sub)class,
@@ -312,6 +316,8 @@ module Bud
     # Compute a fixpoint. We do this so that transitive consequences of any
     # bootstrap facts are computed.
     tick
+
+    @rtracer.sleep if options[:rtrace]
   end
 
   # Run Bud in the "foreground" -- this method typically doesn't return unless
