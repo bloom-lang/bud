@@ -14,6 +14,7 @@ def process(mods)
   d.t_rules.each {|s| puts "RULE: #{s.inspect}" }
   d.t_depends.each {|s| puts "DEP: #{s.inspect}" }
 
+
   da = d.meta_parser.depanalysis
 
   puts "MP info src=#{da.source.length}, snk=#{da.sink.length}, under=#{da.underspecified.length}"
@@ -22,14 +23,72 @@ def process(mods)
     puts "SRC: #{s}"
   end
 
-  tabinf = {}
-  d.tables.each do |t|
-    tabinf[t[0].to_s] = t[1].class.to_s
+
+  interfaces = {}
+  d.t_provides.each do |name, is_input|
+    interfaces[name] = is_input
   end
 
-  gv = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, mods.join("_") + "_viz", -1, 3, ".", true, d.meta_parser.depanalysis)
+  tabinf = {}
+  inp = []
+  outp = []
+  priv = []
+  d.tables.each do |t|
+    tab = t[0].to_s
+    tabinf[tab] = t[1].class.to_s
+    if interfaces[tab].nil?
+      priv << t
+    else
+      if interfaces[tab]
+        inp << t
+      else
+        outp << t
+      end
+    end
+  end
+
+  svg = "bud_doc/" + mods.join("_") + "_viz" 
+  write_index(inp, outp, priv, svg)
+  gv = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, svg, -1, 1, ".", true, d.meta_parser.depanalysis)
   gv.process(d.t_depends)
+  gv.dump(d.t_rules)
   gv.finish
+
+  gv2 = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, svg, -1, 1, ".", false, d.meta_parser.depanalysis)
+  gv2.process(d.t_depends)
+  #gv.dump(d.t_rules)
+  gv2.finish
+end
+
+def write_index(inp, outp, priv, svg)
+  f = File.open("bud_doc/index.html", "w")
+  f.puts "<html>"
+  f.puts "<embed src=\"#{ENV['PWD']}/#{svg}_collapsed.svg\" width=\"100%\" height=\"60%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
+
+  f.puts "<table border='1' valign='top' width = '100%'><tr valign='top'>"
+  f.puts "<td valign='top'>"
+  f.puts "<h2> Input Interfaces </h2>"
+  do_table(f, inp)
+  f.puts "</td><td>"
+  f.puts "<h2> Input Interfaces </h2>"
+  do_table(f, outp)
+  f.puts "</td><td>"
+  f.puts "<h2> Private State </h2>"
+  do_table(f, priv, true)
+  f.puts "</td>"
+  f.puts "</tr></table>"
+  f.puts "</html>"
+  f.close
+end
+
+def do_table(f, info, type=false)
+  info.each do |inf|
+    f.puts "<h3>#{inf[0]}</h3>"
+    f.puts  "&nbsp; (#{inf[1].class.to_s.gsub('Bud::Bud', '')})<br>" if type
+    f.puts "<table border='1'>"
+    f.puts "<tr>" + inf[1].schema.map{|i| "<td>#{i}</td>"}.join(" ") + "</tr>"
+    f.puts "</table>"
+  end
 end
 
 @shreddies = []
@@ -44,6 +103,8 @@ if ARGV.length < 2
   puts "USAGE:\nruby plotter.rb LIST_OF_FILES LIST_OF_MODULES"
   exit
 end
+
+`mkdir bud_doc`
 
 modules = []
 (0..ARGV.length-1).each do |i|

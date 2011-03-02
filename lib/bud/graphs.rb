@@ -130,8 +130,6 @@ class GraphGen
         #@nodes[node].image = @cards[node]
       end
   
-      #@nodes[node].URL = "#{output_dir}/#{node}_#{@budtime}.html" 
-      ###out = "#{output_dir}/#{node}_#{@budtime}.html"
       @nodes[node].URL = "javascript:openWin(\"#{node}\", #{@budtime})"
     end
 
@@ -262,7 +260,7 @@ class GraphGen
     if @vizlevel >= 3
       @pics_dir
     else
-      "plotter_out"
+      "bud_doc"
     end 
   end
 
