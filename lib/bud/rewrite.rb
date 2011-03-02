@@ -110,27 +110,74 @@ class StateExtractor < Ruby2Ruby
 end
 
 # Perform macro expansion on a tree of Sexps.
-# TODO: if a code block introduces a nested variable that shadows a Bloom
-# variable, we currently do the wrong thing.
 class VarRewriter < SexpProcessor
   def initialize(var_tbl)
     super()
     self.require_empty = false
+    self.expected = Sexp
     @var_tbl = var_tbl
+  end
+
+  # Return a list of all variables k such that k appears in a "s(:lasgn, :k)"
+  # node in the given Sexp tree.
+  def find_lasgn_vars(e)
+    return [] if e.nil?
+
+    if e.sexp_type == :lasgn
+      return [e.sexp_body.first]
+    end
+
+    rv = []
+    e.sexp_body.each do |s|
+      if Array === s
+        rv.concat(find_lasgn_vars s)
+      end
+    end
+    rv
+end
+
+  # Check whether any of the variables introduced in this block shadow a
+  # variable we are rewriting. If so, temporarily stop rewriting that variable,
+  # process the block, and then re-add the variable to the rewriting table.
+  def process_iter(exp)
+    tag, iter, args, body = exp
+
+    shadow_vars = {}
+    vars = find_lasgn_vars(args)
+    vars.each do |v|
+      if @var_tbl.has_key? v
+        shadow_vars[v] = @var_tbl.delete(v)
+      end
+    end
+
+    result = []
+    until exp.empty?
+      sub_exp = exp.shift
+      if Array === sub_exp
+        result << process(sub_exp)
+      else
+        result << sub_exp
+      end
+    end
+
+    # assert: no duplicate keys inserted after recursion
+    raise Bud::CompileError unless (@var_tbl.keys & shadow_vars.keys).empty?
+    @var_tbl.merge! shadow_vars
+
+    Sexp.from_array(result)
   end
 
   def process_lvar(exp)
     var_name = exp[1]
     if @var_tbl.has_key? var_name
       expansion = @var_tbl[var_name]
-      # XXX: We need to return a deep copy of the macro expansion. This is
+      # NB: We need to return a deep copy of the macro expansion. This is
       # because subsequent sexp processing is destructive -- we don't want
       # mutations performed to one expansion of a macro to effect other uses of
-      # the macro. Apparently this is the only sane way to do a deep copy in
-      # Ruby -- broken, I know.
+      # the macro. Apparently this is the best way to do a deep copy in Ruby.
       return Marshal.load(Marshal.dump(expansion))
-    else
-      return exp
     end
+
+    return exp
   end
 end

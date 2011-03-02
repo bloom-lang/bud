@@ -49,6 +49,29 @@ class MacroRefMacro
   end
 end
 
+class MacroShadow
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+  end
+
+  bootstrap do
+    t1 << [20,40]
+    t1 << [40,60]
+  end
+
+  declare
+  def rules
+    k = t1.map {|t| [t.key + 10, t.val + 20]}
+    t2 <= k
+    t2 <= t1.map {|k| [k.key, k.val]}
+    t3 <= join([t1, t2], [t1.key, t2.key]).map {|j,k| [j.key, k.val]}
+  end
+end
+
 class TestMacros < Test::Unit::TestCase
   def test_simple
     p = SimpleMacroTest.new
@@ -62,5 +85,12 @@ class TestMacros < Test::Unit::TestCase
     p = MacroRefMacro.new
     p.tick
     assert_equal([[80, 130]], p.t2.to_a.sort)
+  end
+
+  def test_macro_shadow
+    p = MacroShadow.new
+    p.tick
+    assert_equal([[20, 40], [30, 60], [40, 60], [50, 80]], p.t2.to_a.sort)
+    assert_equal([[20, 40], [40, 60]], p.t3.to_a.sort)
   end
 end
