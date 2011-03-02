@@ -56,6 +56,7 @@ class MacroShadow
     table :t1
     table :t2
     table :t3
+    table :t4
   end
 
   bootstrap do
@@ -68,7 +69,8 @@ class MacroShadow
     k = t1.map {|t| [t.key + 10, t.val + 20]}
     t2 <= k
     t2 <= t1.map {|k| [k.key, k.val]}
-    t3 <= join([t1, t2], [t1.key, t2.key]).map {|j,k| [j.key, k.val]}
+    t3 <= join([t1, t2], [t1.key, t2.key]).map {|j,k| [j.key + 20, k.val + 20]}
+    t4 <= t3.map {|t| [t.key, t.val] unless k.include? t}
   end
 end
 
@@ -91,6 +93,7 @@ class TestMacros < Test::Unit::TestCase
     p = MacroShadow.new
     p.tick
     assert_equal([[20, 40], [30, 60], [40, 60], [50, 80]], p.t2.to_a.sort)
-    assert_equal([[20, 40], [40, 60]], p.t3.to_a.sort)
+    assert_equal([[40, 60], [60, 80]], p.t3.to_a.sort)
+    assert_equal([[20, 40]], p.t4.to_a.sort)
   end
 end
