@@ -71,6 +71,23 @@ class BlockAssign
   end
 end
 
+# Check that "<<" within a nested block isn't confused for a Bloom op (#84).
+class BlockAppend
+  include Bud
+
+  state do
+    table :num, [:num]
+  end
+
+  declare
+  def rules
+    num <= (1..5).map do |i|
+      foo = []
+      foo << i
+    end
+  end
+end
+
 class TestJoins < Test::Unit::TestCase
   def test_combos
     program = CombosBud.new
@@ -106,6 +123,12 @@ class TestJoins < Test::Unit::TestCase
 
   def test_block_assign
     program = BlockAssign.new
+    program.tick
+    assert_equal([1,2,3,4,5], program.num.to_a.sort.flatten)
+  end
+
+  def test_block_append
+    program = BlockAppend.new
     program.tick
     assert_equal([1,2,3,4,5], program.num.to_a.sort.flatten)
   end

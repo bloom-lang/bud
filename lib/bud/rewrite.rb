@@ -20,7 +20,9 @@ class RuleRewriter < Ruby2Ruby
   def process_call(exp)
     if exp[0].nil? and exp[2] == s(:arglist) and @collect
       do_table(exp)
-    elsif @ops[exp[1]] and self.context[1] == :block
+    elsif @ops[exp[1]] and @context[1] == :block and @context.length == 4
+      # NB: context.length is 4 when see a method call at the top-level of a
+      # :defn block -- this is where we expect Bloom ops to appear
       do_rule(exp)
     else
       if exp[0] and exp[0].class == Sexp
