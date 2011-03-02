@@ -150,7 +150,8 @@ class GraphGen
       @nodes[node].color = "red"
       @nodes[node].shape = "octagon"
       @nodes[node].penwidth = 3
-      @nodes[node].URL = "file://#{ENV['PWD']}/#{@name}_expanded.svg"
+#      @nodes[node].URL = "file://#{ENV['PWD']}/#{@name}_expanded.svg"
+      @nodes[node].URL = "#{@name}_expanded.svg"
     elsif @tabinf[node] and (@tabinf[node] == "Bud::BudTable")
       @nodes[node].shape = "rect"
     end
@@ -168,7 +169,7 @@ class GraphGen
       @edges[ekey].arrowsize = 2
 
       #@edges[ekey].URL = "file://#{ENV['PWD']}/plotter_out/#{rule_id}.html" unless rule_id.nil?
-      @edges[ekey].URL = "#{output_dir}/#{rule_id}.html" unless rule_id.nil?
+      @edges[ekey].URL = "#{rule_id}.html" unless rule_id.nil?
       if head =~ /_msg\z/
         @edges[ekey].minlen = 2
       else
@@ -264,10 +265,6 @@ class GraphGen
     end 
   end
 
-  def output_dir
-    "file://#{ENV['PWD']}/#{output_base}/"
-  end
-
   def dump(shredded_rules)
     return if shredded_rules.nil?
 
@@ -350,15 +347,14 @@ end
 
   def svg_javascript
     return "
-<script type='javascript'>
+<script type='text/javascript'>
   <![CDATA[
 
 var windows = new Array()
 var info = new Array()
-var dir = \"#{output_dir}\"
 
 function openWin(target, time) {
-  win = window.open(dir + \"/\" + target + \"_\" + time + \".html\", target, \"location=no,width=400,height=180,left=0,status=no\");
+  win = window.open(target + \"_\" + time + \".html\", target, \"location=no,width=400,height=180,left=0,status=no\");
   // hm, an associative array, how strange.
   info[target] = 1
 }
@@ -375,7 +371,7 @@ function advanceTo(time) {
   for (var i in info) {
     str = str + ',' + i;
   }
-  self.window.location.href = dir + 'tm_' + time + '_expanded.svg?wins=' + str;
+  self.window.location.href = 'tm_' + time + '_expanded.svg?wins=' + str;
 }
 
 // off the netz
