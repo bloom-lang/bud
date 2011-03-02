@@ -164,8 +164,8 @@ class GraphGen
     return if negcluster and body == head
 
     ekey = body + head
-    if !@edges[ekey] 
-      @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head])
+    if !@edges[ekey]
+      @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head], :penwidth => 5)
       @edges[ekey].arrowsize = 2
 
       #@edges[ekey].URL = "file://#{ENV['PWD']}/plotter_out/#{rule_id}.html" unless rule_id.nil?
@@ -176,7 +176,7 @@ class GraphGen
         @edges[ekey].minlen = 1.5
       end
       @labels[ekey] = {}
-      
+
     end
 
     #@edges[ekey].minlen = 5 if negcluster and body == head
