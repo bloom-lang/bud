@@ -135,6 +135,7 @@ module Bud
     # new_delta will get transitioned to delta in the next iteration of the
     # evaluator (but within the current time tick).
     def each(&block)
+      # if @bud_instance.stratum_first_iter
       each_from([@storage, @delta], &block)
     end
 
@@ -145,21 +146,17 @@ module Bud
         end
       end
     end
-
-    def each_storage(&block)
-      each_from([@storage], &block)
-    end
-
-    def each_pending(&block)
-      each_from([@pending], &block)
-    end
-
-    def each_delta(&block)
-      each_from([@delta], &block)
-    end
-
-    def each_new_delta(&block)
-      each_from([@new_delta], &block)
+    
+    def each_from_sym(buf_syms, &block)
+      bufs = buf_syms.map do |s|
+        case s
+        when :storage then @storage
+        when :delta then @delta
+        when :new_delta then @new_delta
+        else raise BudError, "bad symbol passed into each_from_sym"
+        end
+      end
+      each_from(bufs, &block)
     end
 
     def init_storage
@@ -264,7 +261,7 @@ module Bud
     alias << insert
 
     def check_enumerable(o)
-      unless o.class < Enumerable
+      unless o.nil? or o.class < Enumerable
         raise BudTypeError, "Attempt to merge non-enumerable type into BudCollection"
       end
     end
@@ -526,7 +523,7 @@ module Bud
       else
         ip = @bud_instance.ip
         port = @bud_instance.port
-        each_pending do |t|
+        each_from([@pending]) do |t|
           if @locspec_idx.nil?
             the_locspec = [ip, port.to_i]
           else
@@ -744,15 +741,21 @@ module Bud
         end
       end
     end
-
-    def each_storage(&block)
-      each(:storage, &block)
+    
+    def each_from_sym(buf_syms, &block)
+      buf_syms.each do |s|
+        each(s, &block)
+      end
     end
 
-    # this needs to be made more efficient!
-    def each_delta(&block)
-      each(:delta, &block)
-    end
+    # def each_storage(&block)
+    #   each(:storage, &block)
+    # end
+    # 
+    # # this needs to be made more efficient!
+    # def each_delta(&block)
+    #   each(:delta, &block)
+    # end
 
     def test_locals(r, s, *skips)
       retval = true
@@ -771,8 +774,8 @@ module Bud
     end
 
     def nestloop_join(collection1, collection2, &block)
-      @rels[0].send(('each_' + collection1.to_s).to_sym) do |r|
-        @rels[1].send(('each_' + collection2.to_s).to_sym) do |s|
+      @rels[0].each_from_sym([collection1]) do |r|
+        @rels[1].each_from_sym([collection2]) do |s|
           s = [s] if origrels.length == 2
           yield([r] + s) if test_locals(r, s)
         end
@@ -805,7 +808,7 @@ module Bud
       probe_offset, build_tup, build_offset = join_offsets(@localpreds.first)
 
       # build the hashtable on s!
-      rels[1].send(('each_' + collection2.to_s).to_sym) do |s|
+      rels[1].each_from_sym([collection2]) do |s|
         s = [s] if origrels.length == 2
         attrval = s[build_tup][build_offset]
         ht[attrval] ||= []
@@ -813,7 +816,7 @@ module Bud
       end
 
       # probe the hashtable!
-      rels[0].send(('each_' + collection1.to_s).to_sym) do |r|
+      rels[0].each_from_sym([collection1]) do |r|
         next if ht[r[probe_offset]].nil?
         ht[r[probe_offset]].each do |s|
           retval = [r] + s
@@ -952,8 +955,20 @@ module Bud
     end
 
     def each(&block)
-      each_delta(&block)
+      each_from([@delta], &block)
       each_storage(&block)
+    end
+    
+    def each_from(bufs, &block)
+      bufs.each do |b|
+        if b == @storage then
+          each_storage(&block)
+        else
+          b.each_value do |v|
+            yield v
+          end
+        end
+      end
     end
 
     def each_storage(&block)
