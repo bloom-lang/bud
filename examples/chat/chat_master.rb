@@ -1,28 +1,30 @@
+# simple chat
+# run "ruby chat_master.rb 127.0.0.1:12345"
+# run "ruby chat.rb 127.0.0.1:12346 alice 127.0.0.1:12345"
+# run "ruby chat.rb 127.0.0.1:12347 bob 127.0.0.1:12345"
 require 'rubygems'
 require 'bud'
 require 'chat_protocol'
-require '2pc'
-require 'chat_master_base'
 
-# safe chat master extends chatmaster and mixes in 2pcmaster
-class SafeChatMaster < ChatMaster
-  include TwoPCMaster
+class ChatMaster
+  include Bud
+  include ChatProtocol
 
   state do
-    scratch :halt, [:xid]
-  end
-
-  declare
-  def shuffle
-    # add chatters to our 2pc member list
-    member <= ctrl.map {|c| [c.from] }
+    table :nodelist
   end
   
   declare
-  def shutdown
-    halt <+ xact.map do |x|
-      [x.xid] if x.status == "commit"
+  def accept
+    nodelist <= ctrl.map {|c| [c.from, c.cmd]}
+    ctrl <~ ctrl.map { |c| [c.from, ip_port, 'ack']}
+    stdio <~ ctrl.inspected
+  end
+  
+  declare
+  def multicast
+    mcast <~ join([mcast, nodelist]).map do |m,n| 
+      [n.key, ip_port, m.nick, m.time, m.msg]  unless n.key == m.from
     end
-    halt <+ halt.map {|h| exit}
   end
 end

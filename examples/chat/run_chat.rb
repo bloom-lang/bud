@@ -5,9 +5,7 @@
 # run "ruby run_chat.rb 127.0.0.1:12348 harvey 127.0.0.1:12345"
 require 'chat'
 
-source = ARGV[0].split(':')
-ip = source[0]
-port = source[1].to_i
+ip, port = ARGV[0].split(':')
 program = ChatClient.new(ARGV[1], ARGV[2],
-                         :ip => ip, :port => port, :visualize => 1, :read_stdin => true)
+                        {:ip => ip, :port => port.to_i, :read_stdin => true})
 program.run
