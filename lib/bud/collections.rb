@@ -539,7 +539,7 @@ module Bud
             end
           end
           # puts "#{@bud_instance.ip_port} => #{the_locspec.inspect}: #{[@tabname, t].inspect}"
-          establish_connection(the_locspec) if @connections[the_locspec].nil?
+          establish_connection(the_locspec) if @connections[the_locspec].nil? || @connections[the_locspec].error?
           # if the connection failed, we silently ignore and let the tuples be cleared.
           # if we didn't clear them here, we'd be clearing them at end-of-tick anyhow
           unless @connections[the_locspec].nil?
