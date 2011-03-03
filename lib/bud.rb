@@ -14,8 +14,20 @@ require 'bud/state'
 require 'bud/viz'
 require 'bud/rtrace'
 
+class Module
+  def import(spec)
+    puts "Module#import: #{spec.inspect}"
+    raise Bud::BudError unless (spec.class <= Hash and spec.length == 1)
+    mod, local_name = spec.first
+
+    rewritten_module = ModuleRewriter.do_import(mod, local_name)
+    include rewritten_module
+  end
+end
+
 module BudModule
   def self.included(o)
+    puts "BudModule#included: #{o.inspect}"
     # Add support for the "declare" annotator to the specified module
     o.send(:include, Anise)
     o.send(:annotator, :declare)
@@ -29,14 +41,6 @@ module BudModule
     def o.bootstrap(&block)
       meth_name = "__#{self}__bootstrap".to_sym
       define_method(meth_name, &block)
-    end
-
-    def o.import(spec)
-      raise Bud::BudError unless (spec.class <= Hash and spec.length == 1)
-      mod, local_name = spec.first
-
-      rewritten_module = ModuleWriter.do_import(mod, local_name)
-      include rewritten_module
     end
 
     # NB: it would be easy to workaround this by creating an alias for the
@@ -78,7 +82,6 @@ module Bud
     @budtime = 0
     @connections = {}
     @inbound = []
-    @declarations = []
     @server = nil
 
     # Setup options (named arguments), along with default values
@@ -90,13 +93,7 @@ module Bud
     # NB: If using an ephemeral port (specified by port = 0), the actual port
     # number may not be known until we start EM
 
-    self.class.ancestors.each do |anc|
-      if anc.methods.include? 'annotation'
-        @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact
-      end
-    end
-    @declarations.uniq!
-
+    @declarations = ModuleRewriter.get_rule_defs(self.class)
     @state_methods = lookup_state_methods
 
     do_bootstrap

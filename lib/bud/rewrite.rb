@@ -187,17 +187,36 @@ end
 module ModuleRewriter
   def self.do_import(mod, local_name)
     raise Bud::BudError unless (mod.class <= Module and local_name.class <= Symbol)
-    unless mod <= Bud::BudModule
+    unless mod <= BudModule
       raise Bud::BudError, "Imported modules must include BudModule"
     end
 
+    rule_defs = get_rule_defs(mod)
+    puts "rule blocks = #{rule_defs.inspect}"
+
     ast = get_module_ast(mod)
-    # ...
+    r2r = Ruby2Ruby.new
+    str = r2r.process(ast)
+
+#    puts str
     return mod
   end
 
-  def get_module_ast(mod)
+  def self.get_module_ast(mod)
     u = Unifier.new
     u.process(ParseTree.translate(mod))
+  end
+
+  # Return a list of symbols containing the names of def blocks containing Bloom
+  # rules in the given module and all of its ancestors.
+  def self.get_rule_defs(mod)
+    rv = []
+
+    mod.ancestors.each do |anc|
+      next unless anc.methods.include? "annotation"
+      rv += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}
+    end
+
+    rv.compact.uniq
   end
 end
