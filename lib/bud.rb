@@ -31,6 +31,14 @@ module BudModule
       define_method(meth_name, &block)
     end
 
+    def o.import(spec)
+      raise Bud::BudError unless (spec.class <= Hash and spec.length == 1)
+      mod, local_name = spec.first
+
+      rewritten_module = ModuleWriter.do_import(mod, local_name)
+      include rewritten_module
+    end
+
     # NB: it would be easy to workaround this by creating an alias for the
     # user's included method and then calling the alias from our replacement
     # "included" method.

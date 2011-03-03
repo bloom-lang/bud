@@ -183,3 +183,21 @@ end
     return exp
   end
 end
+
+module ModuleRewriter
+  def self.do_import(mod, local_name)
+    raise Bud::BudError unless (mod.class <= Module and local_name.class <= Symbol)
+    unless mod <= Bud::BudModule
+      raise Bud::BudError, "Imported modules must include BudModule"
+    end
+
+    ast = get_module_ast(mod)
+    # ...
+    return mod
+  end
+
+  def get_module_ast(mod)
+    u = Unifier.new
+    u.process(ParseTree.translate(mod))
+  end
+end
