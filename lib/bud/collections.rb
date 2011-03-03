@@ -532,8 +532,10 @@ module Bud
           else
             begin
               the_locspec = split_locspec(t[@locspec_idx])
+              raise BudError, "bad locspec" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
             rescue
-              puts "bad locspec #{@locspec_idx} for channel '#{@tabname}'"
+              puts "bad locspec '#{t[@locspec_idx]}', channel '#{@tabname}', skipping: #{t.inspect}" 
+              next
             end
           end
           # puts "#{@bud_instance.ip_port} => #{the_locspec.inspect}: #{[@tabname, t].inspect}"
