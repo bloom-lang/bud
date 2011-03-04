@@ -136,7 +136,7 @@ class VarRewriter < SexpProcessor
       end
     end
     rv
-end
+  end
 
   # Check whether any of the variables introduced in this block shadow a
   # variable we are rewriting. If so, temporarily stop rewriting that variable,
@@ -184,6 +184,35 @@ end
   end
 end
 
+# Given a table of renames from x => y, replace all calls to "x" with calls to
+# "y" instead. For now, we don't try to handle shadowing due to block variables:
+# if a block references a block variable that shadows an identifier in the
+# rename tbl, it should appear as an :lvar node rather than a :call, so we
+# should be okay (unlike VarRewriter above).
+class CallRewriter < SexpProcessor
+  def initialize(rename_tbl)
+    super()
+    self.require_empty = false
+    self.expected = Sexp
+    @rename_tbl = rename_tbl
+  end
+
+  def process_call(exp)
+#    pp exp
+    tag, recv, meth_name, args = exp
+
+    if @rename_tbl.has_key? meth_name
+      puts "REPLACING #{meth_name} with #{@rename_tbl[meth_name]}; expr = #{exp.inspect}"
+      meth_name = @rename_tbl[meth_name] # Don't need to deep copy Symbol
+    end
+
+    recv = process(recv)
+    args = process(args)
+
+    Sexp.from_array [tag, recv, meth_name, args]
+  end
+end
+
 module ModuleRewriter
   # Do the heavy-lifting to import the Bloom module "mod" into the class/module
   # "import_site", bound to "local_name" at the import site. We implement this
@@ -196,9 +225,6 @@ module ModuleRewriter
   # module into the import site.
   def self.do_import(import_site, mod, local_name)
     raise Bud::BudError unless (mod.class <= Module and local_name.class <= Symbol)
-    # unless mod <= BudModule
-    #   raise Bud::BudError, "Imported modules must include BudModule"
-    # end
 
     rule_defs = get_rule_defs(mod)
     puts "rule blocks = #{rule_defs.inspect}"
@@ -206,8 +232,8 @@ module ModuleRewriter
     ast = get_module_ast(mod)
 #    pp ast
     new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
-    ast_rename_state(ast, import_site, mod, local_name)
-    ast_update_refs(ast, import_site, mod, local_name)
+    rename_tbl = ast_rename_state(ast, import_site, mod, local_name)
+    ast = ast_update_refs(ast, rename_tbl)
 
     r2r = Ruby2Ruby.new
     str = r2r.process(ast)
@@ -240,7 +266,8 @@ module ModuleRewriter
     # Find all the state blocks in the AST
     raise Bud::BudError unless ast.sexp_type == :module
 
-    ast.sexp_body.each_with_index do |b,i|
+    rename_tbl = {}
+    ast.sexp_body.each do |b|
       next unless b.class <= Sexp
       next if b.sexp_type != :defn
 
@@ -254,16 +281,28 @@ module ModuleRewriter
       raise Bud::BudError unless state_block.sexp_type == :block
       next unless state_block.sexp_body
 
-      state_block.sexp_body.each_with_index do |e, i|
+      state_block.sexp_body.each do |e|
         raise Bud::BudError unless e.sexp_type == :call
 
         recv, meth_name, args = e.sexp_body
-        puts "#{i}: #{e.inspect}"
+        raise Bud::BudError unless args.sexp_type == :arglist
+        first_arg = args.sexp_body.first
+        raise Bud::BudError unless first_arg.sexp_type == :lit
+        tbl_name = first_arg.sexp_body.first
+
+        new_tbl_name = "#{local_name}__#{tbl_name}".to_sym
+        rename_tbl[tbl_name] = new_tbl_name
+
+        first_arg[1] = new_tbl_name
       end
     end
+
+    return rename_tbl
   end
 
-  def self.ast_update_refs(ast, importer, importee, local_name)
+  def self.ast_update_refs(ast, rename_tbl)
+    cr = CallRewriter.new(rename_tbl)
+    cr.process(ast)
   end
 
   def self.get_module_ast(mod)
