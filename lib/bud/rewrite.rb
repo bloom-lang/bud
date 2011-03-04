@@ -185,10 +185,10 @@ class VarRewriter < SexpProcessor
 end
 
 # Given a table of renames from x => y, replace all calls to "x" with calls to
-# "y" instead. For now, we don't try to handle shadowing due to block variables:
-# if a block references a block variable that shadows an identifier in the
-# rename tbl, it should appear as an :lvar node rather than a :call, so we
-# should be okay (unlike VarRewriter above).
+# "y" instead. Unlike VarRewriter, we don't try to handle shadowing due to block
+# variables: if a block references a block variable that shadows an identifier
+# in the rename tbl, it should appear as an :lvar node rather than a :call, so
+# we should be okay.
 class CallRewriter < SexpProcessor
   def initialize(rename_tbl)
     super()
@@ -198,12 +198,10 @@ class CallRewriter < SexpProcessor
   end
 
   def process_call(exp)
-#    pp exp
     tag, recv, meth_name, args = exp
 
     if @rename_tbl.has_key? meth_name
-      puts "REPLACING #{meth_name} with #{@rename_tbl[meth_name]}; expr = #{exp.inspect}"
-      meth_name = @rename_tbl[meth_name] # Don't need to deep copy Symbol
+      meth_name = @rename_tbl[meth_name] # No need to deep-copy Symbol
     end
 
     recv = process(recv)
@@ -220,17 +218,13 @@ module ModuleRewriter
   # so that (a) state defined by the module is mangled to include the local bind
   # name (b) statements in the module are rewritten to reference the mangled
   # names. We then convert the rewritten AST back into Ruby source text and
-  # eval() it, which defines a new module. We return the name of that
-  # newly-defined module; the caller can then use include to actually load the
-  # module into the import site.
+  # eval() it, which defines a new module. We return the name of that newly
+  # defined module; the caller can then use include to actually load the module
+  # into the import site.
   def self.do_import(import_site, mod, local_name)
     raise Bud::BudError unless (mod.class <= Module and local_name.class <= Symbol)
 
-    rule_defs = get_rule_defs(mod)
-    puts "rule blocks = #{rule_defs.inspect}"
-
     ast = get_module_ast(mod)
-#    pp ast
     new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     rename_tbl = ast_rename_state(ast, import_site, mod, local_name)
     ast = ast_update_refs(ast, rename_tbl)
