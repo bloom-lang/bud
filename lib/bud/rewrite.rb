@@ -204,7 +204,11 @@ module ModuleRewriter
     puts "rule blocks = #{rule_defs.inspect}"
 
     ast = get_module_ast(mod)
+#    pp ast
     new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
+    ast_rename_state(ast, import_site, mod, local_name)
+    ast_update_refs(ast, import_site, mod, local_name)
+
     r2r = Ruby2Ruby.new
     str = r2r.process(ast)
 
@@ -213,6 +217,8 @@ module ModuleRewriter
     return new_mod_name
   end
 
+  # Rename the given module's AST to be a mangle of import site, imported
+  # module, and local bind name.
   def self.ast_rename_module(ast, importer, importee, local_name)
     raise Bud::BudError unless ast.sexp_type == :module
 
@@ -226,6 +232,38 @@ module ModuleRewriter
     # XXX: it would be nice to return a Module, rather than a string containing
     # the Module's name. Unfortunately, I can't see how to do that.
     return new_name
+  end
+
+  # Mangle the names of all the collections defined in state blocks found in the
+  # given module's AST.
+  def self.ast_rename_state(ast, importer, importee, local_name)
+    # Find all the state blocks in the AST
+    raise Bud::BudError unless ast.sexp_type == :module
+
+    ast.sexp_body.each_with_index do |b,i|
+      next unless b.class <= Sexp
+      next if b.sexp_type != :defn
+
+      def_name, args, scope = b.sexp_body
+      puts "def_name: #{def_name}"
+      next unless /__.*?__state/.match def_name.to_s
+
+      pp scope
+      raise Bud::BudError unless scope.sexp_type == :scope
+      state_block = scope.sexp_body.first
+      raise Bud::BudError unless state_block.sexp_type == :block
+      next unless state_block.sexp_body
+
+      state_block.sexp_body.each_with_index do |e, i|
+        raise Bud::BudError unless e.sexp_type == :call
+
+        recv, meth_name, args = e.sexp_body
+        puts "#{i}: #{e.inspect}"
+      end
+    end
+  end
+
+  def self.ast_update_refs(ast, importer, importee, local_name)
   end
 
   def self.get_module_ast(mod)
