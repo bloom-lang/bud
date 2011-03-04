@@ -16,12 +16,12 @@ require 'bud/rtrace'
 
 class Module
   def import(spec)
-    puts "Module#import: #{spec.inspect}"
+    puts "Module#import: #{spec.inspect} (self = #{self})"
     raise Bud::BudError unless (spec.class <= Hash and spec.length == 1)
     mod, local_name = spec.first
 
-    rewritten_module = ModuleRewriter.do_import(mod, local_name)
-    include rewritten_module
+    rewritten_mod_name = ModuleRewriter.do_import(self, mod, local_name)
+    self.module_eval "include #{rewritten_mod_name}"
   end
 end
 

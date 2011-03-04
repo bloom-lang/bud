@@ -185,21 +185,47 @@ end
 end
 
 module ModuleRewriter
-  def self.do_import(mod, local_name)
+  # Do the heavy-lifting to import the Bloom module "mod" into the class/module
+  # "import_site", bound to "local_name" at the import site. We implement this
+  # by converting the importered module into an AST, and then rewriting the AST
+  # so that (a) state defined by the module is mangled to include the local bind
+  # name (b) statements in the module are rewritten to reference the mangled
+  # names. We then convert the rewritten AST back into Ruby source text and
+  # eval() it, which defines a new module. We return the name of that
+  # newly-defined module; the caller can then use include to actually load the
+  # module into the import site.
+  def self.do_import(import_site, mod, local_name)
     raise Bud::BudError unless (mod.class <= Module and local_name.class <= Symbol)
-    unless mod <= BudModule
-      raise Bud::BudError, "Imported modules must include BudModule"
-    end
+    # unless mod <= BudModule
+    #   raise Bud::BudError, "Imported modules must include BudModule"
+    # end
 
     rule_defs = get_rule_defs(mod)
     puts "rule blocks = #{rule_defs.inspect}"
 
     ast = get_module_ast(mod)
+    new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     r2r = Ruby2Ruby.new
     str = r2r.process(ast)
 
-#    puts str
-    return mod
+    rv = import_site.module_eval str
+    raise Bud::BudError unless rv.nil?
+    return new_mod_name
+  end
+
+  def self.ast_rename_module(ast, importer, importee, local_name)
+    raise Bud::BudError unless ast.sexp_type == :module
+
+    mod_name = ast.sexp_body.first
+    raise Bud::BudError if mod_name.to_s != importee.to_s
+
+    new_name = "#{importer}__#{importee}__#{local_name}"
+    puts "New module: #{new_name}"
+    ast[1] = new_name.to_sym
+
+    # XXX: it would be nice to return a Module, rather than a string containing
+    # the Module's name. Unfortunately, I can't see how to do that.
+    return new_name
   end
 
   def self.get_module_ast(mod)
