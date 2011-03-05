@@ -66,7 +66,7 @@ class Grep
   end
 
   state {
-    file_reader :text, '../examples/chap2/ulysses.txt'
+    file_reader :text, 'text/ulysses.txt'
     table :matches, [:lineno, :text]
   }
 

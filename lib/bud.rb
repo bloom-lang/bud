@@ -359,7 +359,8 @@ module Bud
   end
 
   def ip_port
-    "#{@ip}:#{@port}"
+    raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0
+    @port.nil? ? "#{@ip}:#{@options[:port]}" : "#{@ip}:#{@port}"
   end
 
   # "Flush" any tuples that need to be flushed. This does two things:

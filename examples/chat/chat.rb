@@ -14,11 +14,13 @@ class ChatClient
   def initialize(me, master, opts)
     @me = me
     @master = master
+    # @port = opts[:port]
+    # @ip = opts[:ip]
     super opts
   end
 
   state do
-    table :status, [:master, :value]
+    table :status
   end
 
   bootstrap do
@@ -42,6 +44,7 @@ class ChatClient
          [@master, 'live']
        end
      end
+     stdio <~ ctrl.inspected
 
     # send mcast requests to master if status is non-empty
     mcast <~ join([stdio, status]).map do |t,s|
@@ -51,7 +54,7 @@ class ChatClient
     stdio <~ mcast.map do |m|
       [left_right_align(m.nick + ": " \
                         + (m.msg || ''),
-                        "(" + m.val + ")")]
+                        "(" + m.time + ")")]
     end
   end
 end

@@ -13,7 +13,7 @@ class WordCount1
   end
   
   state {
-    file_reader :txt, '../examples/chap2/ulysses.txt'
+    file_reader :txt, 'text/ulysses.txt'
     # file_reader :txt, 'shaks12.txt'
     scratch :wc, [:word] => [:cnt]
   }

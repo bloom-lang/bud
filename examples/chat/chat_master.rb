@@ -11,19 +11,20 @@ class ChatMaster
   include ChatProtocol
 
   state do
-    table :nodelist, ['addr'], ['nick']    
+    table :nodelist
   end
   
   declare
   def accept
-    nodelist <= ctrl.map {|c| [c.from, c.cmd] }
+    nodelist <= ctrl.map {|c| [c.from, c.cmd]}
     ctrl <~ ctrl.map { |c| [c.from, ip_port, 'ack']}
+    stdio <~ ctrl.inspected
   end
   
   declare
   def multicast
     mcast <~ join([mcast, nodelist]).map do |m,n| 
-      [n.addr, ip_port, m.nick, m.val, m.msg]  unless n.addr == m.from
+      [n.key, ip_port, m.nick, m.time, m.msg]  unless n.key == m.from
     end
   end
 end
