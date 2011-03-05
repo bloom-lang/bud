@@ -189,6 +189,8 @@ end
 # variables: if a block references a block variable that shadows an identifier
 # in the rename tbl, it should appear as an :lvar node rather than a :call, so
 # we should be okay.
+# XXX: If this module imports a submodule :p and we see p.x, we shouldn't try to
+# rewrite x.
 class CallRewriter < SexpProcessor
   def initialize(rename_tbl)
     super()
@@ -217,10 +219,11 @@ module ModuleRewriter
   # by converting the importered module into an AST, and then rewriting the AST
   # so that (a) state defined by the module is mangled to include the local bind
   # name (b) statements in the module are rewritten to reference the mangled
-  # names. We then convert the rewritten AST back into Ruby source text and
-  # eval() it, which defines a new module. We return the name of that newly
-  # defined module; the caller can then use include to actually load the module
-  # into the import site.
+  # names (c) statements in the module that reference sub-modules are rewritten
+  # to reference the mangled name of the submodule. We then convert the
+  # rewritten AST back into Ruby source text and eval() it, which defines a new
+  # module. We return the name of that newly defined module; the caller can then
+  # use include to actually load the module into the import site.
   def self.do_import(import_site, mod, local_name)
     raise Bud::BudError unless (mod.class <= Module and local_name.class <= Symbol)
 
@@ -228,6 +231,7 @@ module ModuleRewriter
     new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     rename_tbl = ast_rename_state(ast, import_site, mod, local_name)
     ast = ast_update_refs(ast, rename_tbl)
+    ast = ast_flatten_nested_refs(ast)
 
     r2r = Ruby2Ruby.new
     str = r2r.process(ast)
@@ -235,6 +239,11 @@ module ModuleRewriter
     rv = import_site.module_eval str
     raise Bud::BudError unless rv.nil?
     return new_mod_name
+  end
+
+  def self.get_module_ast(mod)
+    u = Unifier.new
+    u.process(ParseTree.translate(mod))
   end
 
   # Rename the given module's AST to be a mangle of import site, imported
@@ -299,9 +308,9 @@ module ModuleRewriter
     cr.process(ast)
   end
 
-  def self.get_module_ast(mod)
-    u = Unifier.new
-    u.process(ParseTree.translate(mod))
+  # If this module imports a submodule and binds it to :x, references to x.t1
+  # need to be flattened to the mangled name of x.t1.
+  def self.ast_flatten_nested_refs(ast)
   end
 
   # Return a list of symbols containing the names of def blocks containing Bloom
