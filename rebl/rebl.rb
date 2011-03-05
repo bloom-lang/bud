@@ -19,7 +19,7 @@ def reinstantiate
 
   if not @rules.empty?
     @rebl_class.class_eval("declare\ndef rebl_rules\n" +
-                           @rules.values.join("\n") + "\nend")
+                           @rules.sort.map {|_,r| r}.join("\n") + "\nend")
   end
 
   if not @state.empty?
