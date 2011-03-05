@@ -65,21 +65,6 @@ end
 reinstantiate
 setup_history
 
-begin
-  histfile = File::expand_path(HISTFILE)
-  if File::exists?(histfile)
-    lines = IO::readlines(histfile).collect { |line| line.chomp }
-    Readline::HISTORY.push(*lines)
-  end
-  Kernel::at_exit do
-    lines = Readline::HISTORY.to_a.reverse.uniq.reverse
-    lines = lines[-MAXHISTSIZE, MAXHISTSIZE] if lines.nitems > MAXHISTSIZE
-    File::open(histfile, File::WRONLY|File::CREAT|File::TRUNC) { |io| io.puts lines.join("\n") }
-  end
-rescue Exception
-  puts "Error when configuring permanent history: #{$!}"
-end
-
 loop do
   begin
     line = Readline::readline('rebl> ').lstrip.rstrip
