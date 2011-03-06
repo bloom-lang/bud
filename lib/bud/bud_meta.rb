@@ -151,7 +151,7 @@ class BudMeta
       tag, lhs, op, rhs = n
 
       # Check that LHS references a named collection
-      raise Bud::CompileError unless lhs.sexp_type == :call
+      raise Bud::CompileError if lhs.nil? or lhs.sexp_type != :call
       lhs_name = lhs[2]
       raise Bud::CompileError unless @bud_instance.tables.has_key? lhs_name.to_sym
 
