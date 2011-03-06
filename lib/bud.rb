@@ -20,6 +20,23 @@ class Module
     raise Bud::BudError unless (spec.class <= Hash and spec.length == 1)
     mod, local_name = spec.first
 
+    if mod.const_defined? :IMPORT_TABLE
+      child_import_tbl = mod.const_get(:IMPORT_TABLE)
+    else
+      child_import_tbl = {}
+    end
+    # Record that the current module imported a sub-module and bound it to
+    # local_name. We also record that the sub-module has its own nested import
+    # table.
+    unless self.const_defined? :IMPORT_TABLE
+      self.const_set(:IMPORT_TABLE, {})
+    end
+    import_tbl = self.const_get :IMPORT_TABLE
+    raise Bud::BudError if import_tbl.has_key? local_name
+    import_tbl[local_name] = child_import_tbl.clone # XXX: clone needed?
+
+    # Note that the nested import table of the imported module is removed by
+    # ModuleRewriter.
     rewritten_mod_name = ModuleRewriter.do_import(self, mod, local_name)
     self.module_eval "include #{rewritten_mod_name}"
   end
