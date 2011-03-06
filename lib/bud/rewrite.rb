@@ -87,12 +87,12 @@ class RuleRewriter < Ruby2Ruby
     drain(exp)
   end
 
-  # look for top-level map on a base-table on rhs, and rewrite to semi_map
+  # look for top-level map on a base-table on rhs, and rewrite to pro
   def map2smap(exp)
     if exp[1] and exp[1][0] and exp[1][0] == :iter \
        and exp[1][1] and exp[1][1][1] == :call \
        and exp[1][1][2] == :map
-      exp[1][1][2] = :semi_map 
+      exp[1][1][2] = :pro 
     end
     exp
   end

@@ -28,7 +28,7 @@ class AllMapsAreOne
   def rules
     out <= inski {|i| [i.val]}
     snout <= inski.map {|i| [i.val]}
-    clout <= inski.semi_map {|i| [i.val]}
+    clout <= inski.pro {|i| [i.val]}
   end
 end
 

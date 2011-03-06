@@ -131,7 +131,7 @@ module Bud
       @pending.map{|t| [t.inspect]}
     end
     
-    def semi_map(&blk)
+    def pro(&blk)
       # to be filled in later for single-node semi-naive iteration
       return map(&blk)
     end

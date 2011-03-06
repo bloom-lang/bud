@@ -13,7 +13,7 @@ module BudState
     end
     self.singleton_class.send(:define_method, name) do |*args, &blk|
 	    unless blk.nil? then
-        return @tables[name].semi_map(&blk)
+        return @tables[name].pro(&blk)
 	    else
         return @tables[name]
       end
