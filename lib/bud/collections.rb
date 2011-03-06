@@ -130,6 +130,11 @@ module Bud
     def pending_inspected
       @pending.map{|t| [t.inspect]}
     end
+    
+    def semi_map(&blk)
+      # to be filled in later for single-node semi-naive iteration
+      return map(&blk)
+    end
 
     # By default, all tuples in any rhs are in storage or delta. Tuples in
     # new_delta will get transitioned to delta in the next iteration of the

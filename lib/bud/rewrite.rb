@@ -82,9 +82,19 @@ class RuleRewriter < Ruby2Ruby
   def do_rule(exp)
     lhs = process exp[0]
     op = exp[1]
-    rhs = collect_rhs(exp[2])
+    rhs = collect_rhs(map2smap(exp[2]))
     record_rule(lhs, op, rhs)
     drain(exp)
+  end
+
+  # look for top-level map on a base-table on rhs, and rewrite to semi_map
+  def map2smap(exp)
+    if exp[1] and exp[1][0] and exp[1][0] == :iter \
+       and exp[1][1] and exp[1][1][1] == :call \
+       and exp[1][1][2] == :map
+      exp[1][1][2] = :semi_map 
+    end
+    exp
   end
 
   def drain(exp)

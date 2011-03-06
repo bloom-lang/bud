@@ -476,13 +476,22 @@ module Bud
     newpreds
   end
 
-  def join(rels, *preds)
-    BudJoin.new(rels, self, decomp_preds(*preds))
+  def wrap_map(j, &blk)
+    if blk.nil?
+      return j
+    else
+      return j.map(&blk)
+    end
+  end
+  
+  def join(rels, *preds, &blk)
+    j = BudJoin.new(rels, self, decomp_preds(*preds))
+    wrap_map(j, &blk)
   end
 
   alias coincide join
 
-  def natjoin(rels)
+  def natjoin(rels, &blk)
     # for all pairs of relations, add predicates on matching column names
     preds = []
     rels.each do |r|
@@ -494,14 +503,16 @@ module Bud
       end
     end
     preds.uniq!
-    join(rels, *preds)
+    j = join(rels, *preds)
+    wrap_map(j, &blk)
   end
 
   # ugly, but why not
   alias natcoincide natjoin
 
-  def leftjoin(rels, *preds)
-    BudLeftJoin.new(rels, self, decomp_preds(*preds))
+  def leftjoin(rels, *preds, &blk)
+    j = BudLeftJoin.new(rels, self, decomp_preds(*preds))
+    wrap_map(j, &blk)
   end
 
   # ugly, but why not

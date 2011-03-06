@@ -1,6 +1,6 @@
 module BudState
   ######## methods for registering collection types
-  def define_collection(name)
+  def define_collection(name, &block)
     # don't allow duplicate table definitions
     if @tables.has_key? name
       raise Bud::BudError, "collection already exists: #{name}"
@@ -11,8 +11,33 @@ module BudState
       # first time registering table, check for method name reserved
       raise Bud::BudError, "symbol :#{name} reserved, cannot be used as table name"
     end
-    self.singleton_class.send(:define_method, name) do
-      @tables[name]
+    self.singleton_class.send(:define_method, name) do |*args, &blk|
+	    unless blk.nil? then
+        return @tables[name].semi_map(&blk)
+	    else
+        return @tables[name]
+      end
+    end
+  end
+  
+  def tmp(var, coll)
+    self.singleton_class.send(:define_method, var) do |*args, &blk|
+      unless blk.nil? then
+        return coll.map(&blk)
+      else
+        return coll
+      end
+    end
+  end
+  
+  
+  def wrap_collection(c)
+    return lambda do |&blk|
+      unless blk.nil? then
+        return c.map(&blk)
+      else
+        return c
+      end
     end
   end
   
