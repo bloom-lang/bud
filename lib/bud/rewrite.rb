@@ -136,7 +136,7 @@ class VarRewriter < SexpProcessor
       end
     end
     rv
-end
+  end
 
   # Check whether any of the variables introduced in this block shadow a
   # variable we are rewriting. If so, temporarily stop rewriting that variable,
