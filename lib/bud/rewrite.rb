@@ -229,7 +229,6 @@ module ModuleRewriter
 
     ast = get_module_ast(mod)
     new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
-    ast_remove_import_tbl(ast)
     rename_tbl = ast_rename_state(ast, import_site, mod, local_name)
     ast = ast_update_refs(ast, rename_tbl)
     ast = ast_flatten_nested_refs(ast)
@@ -262,12 +261,6 @@ module ModuleRewriter
     # XXX: it would be nice to return a Module, rather than a string containing
     # the Module's name. Unfortunately, I can't see how to do that.
     return new_name
-  end
-
-  # When the rewritten module is included, we don't want the module's import
-  # table to overwrite the import site's table, so we remove the module's table.
-  def self.ast_remove_import_tbl(ast)
-    pp ast
   end
 
   # Mangle the names of all the collections defined in state blocks found in the
