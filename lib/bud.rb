@@ -35,10 +35,6 @@ class Module
     @bud_import_tbl ||= {}
     @bud_import_tbl
   end
-
-  def print_import_table
-    puts @bud_import_tbl.inspect
-  end
 end
 
 module BudModule

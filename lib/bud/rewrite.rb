@@ -213,6 +213,69 @@ class CallRewriter < SexpProcessor
   end
 end
 
+class NestedRefRewriter < SexpProcessor
+  def initialize(import_tbl)
+    super()
+    self.require_empty = false
+    self.expected = Sexp
+    @import_tbl = import_tbl
+  end
+
+  def make_recv_stack(r)
+    rv = []
+
+    while true
+      break if r.nil?
+      return [false, []] unless r.sexp_type == :call
+
+      tag, recv, meth_name, args = r.sexp_body
+      if args.sexp_type != :arglist or args.sexp_body != []
+        return [false, []]
+      end
+
+      rv.shift meth_name
+      r = recv
+    end
+
+    return [true, rv]
+  end
+
+  def process_call(exp)
+    tag, recv, meth_name, args = exp
+
+    # Recognize a qualified reference to an imported module. In the AST, such a
+    # call looks like a tree of :call nodes -- for example, a.b.c looks like:
+    #
+    #   (:call, (:call, (:call, nil, :a, args), :b, args), :c, args)
+    #
+    # If the import table contains [a][b], we want to rewrite this into a single
+    # call to a__b__c, which matches how the corresponding Bloom collection will
+    # be name-mangled.
+    do_lookup, recv_stack = make_recv_stack(recv)
+
+    if do_lookup
+      lookup_tbl = @import_tbl
+      do_rewrite = true
+      until recv_stack.empty?
+        m = recv_stack.pop
+
+        unless lookup_tbl.has_key? m
+          do_rewrite = false
+          break
+        end
+
+        meth_name += "#{m}__"
+        lookup_tbl = lookup_tbl[m]
+      end
+
+      puts "meth_name = #{meth_name}"
+    end
+
+    args = process(args)
+
+    Sexp.from_array [tag, recv, meth_name, args]
+end
+
 module ModuleRewriter
   # Do the heavy-lifting to import the Bloom module "mod" into the class/module
   # "import_site", bound to "local_name" at the import site. We implement this
@@ -228,10 +291,11 @@ module ModuleRewriter
     raise Bud::BudError unless (mod.class <= Module and local_name.class <= Symbol)
 
     ast = get_module_ast(mod)
+    pp ast
     new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     rename_tbl = ast_rename_state(ast, import_site, mod, local_name)
     ast = ast_update_refs(ast, rename_tbl)
-    ast = ast_flatten_nested_refs(ast)
+    ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
 
     r2r = Ruby2Ruby.new
     str = r2r.process(ast)
@@ -310,8 +374,9 @@ module ModuleRewriter
 
   # If this module imports a submodule and binds it to :x, references to x.t1
   # need to be flattened to the mangled name of x.t1.
-  def self.ast_flatten_nested_refs(ast)
-    ast
+  def self.ast_flatten_nested_refs(ast, import_tbl)
+    nr = NestedRefRewriter.new(import_tbl)
+    nr.process(ast)
   end
 
   # Return a list of symbols containing the names of def blocks containing Bloom
