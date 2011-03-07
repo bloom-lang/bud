@@ -39,7 +39,7 @@ class ChatClient
   declare
   def chatter
     # add "live" status on ack
-     status <= ctrl.map do |c|
+     status <= ctrl do |c|
        if @master == c.from and c.cmd == 'ack'
          [@master, 'live']
        end
@@ -47,11 +47,11 @@ class ChatClient
      stdio <~ ctrl.inspected
 
     # send mcast requests to master if status is non-empty
-    mcast <~ join([stdio, status]).map do |t,s|
+    mcast <~ join([stdio, status]) do |t,s|
       [@master, ip_port, @me, nice_time, t.line]
     end
     # pretty-print mcast msgs from master on terminal
-    stdio <~ mcast.map do |m|
+    stdio <~ mcast do |m|
       [left_right_align(m.nick + ": " \
                         + (m.msg || ''),
                         "(" + m.time + ")")]

@@ -17,7 +17,7 @@ module Bud
   class BudCollection
     include Enumerable
 
-    attr_accessor :schema, :key_cols, :cols
+    attr_accessor :schema, :key_cols, :val_cols
     attr_reader :tabname, :bud_instance, :storage, :delta, :new_delta
 
     # each collection is partitioned into 4:
@@ -46,13 +46,13 @@ module Bud
       if user_schema.respond_to? :keys
         raise BudError, "invalid schema for #{tabname}" if user_schema.length != 1
         key_cols = user_schema.keys.first
-        cols = user_schema.values.first
+        val_cols = user_schema.values.first
       else
         key_cols = user_schema
-        cols = []
+        val_cols = []
       end
 
-      schema = key_cols + cols
+      schema = key_cols + val_cols
       schema.each do |s|
         if s.class != Symbol
           raise BudError, "Invalid schema element \"#{s}\", type \"#{s.class}\""
@@ -69,7 +69,7 @@ module Bud
       self.class.new(tabname, bud_instance, @user_schema)
     end
 
-    def cols
+    def val_cols
       schema - key_cols
     end
 
@@ -450,8 +450,8 @@ module Bud
     def dump
       puts '(empty)' if @storage.empty?
       @storage.sort.each do |t|
-        puts t.inspect unless cols.empty?
-        puts t[0].inspect if cols.empty?
+        puts t.inspect unless val_cols.empty?
+        puts t[0].inspect if val_cols.empty?
       end
     end
 
@@ -470,19 +470,19 @@ module Bud
       # First, find column with @ sign and remove it
       if user_schema.respond_to? :keys
         key_cols = user_schema.keys.first
-        cols = user_schema.values.first
+        val_cols = user_schema.values.first
       else
         key_cols = user_schema
-        cols = []
+        val_cols = []
       end
       @locspec_idx = remove_at_sign!(key_cols)
-      @locspec_idx = remove_at_sign!(cols) if @locspec_idx.nil?
+      @locspec_idx = remove_at_sign!(val_cols) if @locspec_idx.nil?
       # If @locspec_idx is still nil, this is a loopback channel
 
       # We mutate the hash key above, so we need to recreate the hash
       # XXX: ugh, hacky
       if user_schema.respond_to? :keys
-        user_schema = {key_cols => cols}
+        user_schema = {key_cols => val_cols}
       end
 
       super(name, bud_instance, user_schema)
@@ -953,7 +953,7 @@ module Bud
       @key_colnums.each_with_index do |k,i|
         t[k] = k_ary[i]
       end
-      cols.each_with_index do |c,i|
+      val_cols.each_with_index do |c,i|
         t[schema.index(c)] = v_ary[i]
       end
       tuple_accessors(t)
@@ -999,7 +999,7 @@ module Bud
     end
 
     def merge_tuple(key, tuple)
-      val = cols.map{|c| tuple[schema.index(c)]}
+      val = val_cols.map{|c| tuple[schema.index(c)]}
       key_s = MessagePack.pack(key)
       val_s = MessagePack.pack(val)
       if @hdb.putkeep(key_s, val_s) == false
@@ -1044,7 +1044,7 @@ module Bud
         cols_str = @hdb[k_str]
         unless cols_str.nil?
           hdb_cols = MessagePack.unpack(cols_str)
-          delete_cols = cols.map{|c| tuple[schema.index(c)]}
+          delete_cols = val_cols.map{|c| tuple[schema.index(c)]}
           if hdb_cols == delete_cols
             @hdb.delete k_str
           end

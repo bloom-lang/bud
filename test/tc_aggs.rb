@@ -113,8 +113,8 @@ end
 class JoinAgg < Rename
   state {
     scratch :richsal, [:sal]
-    scratch :rich, emp.key_cols => emp.cols
-    scratch :argrich, emp.key_cols => emp.cols
+    scratch :rich, emp.key_cols => emp.val_cols
+    scratch :argrich, emp.key_cols => emp.val_cols
   }
 
   declare

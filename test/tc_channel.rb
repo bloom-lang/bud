@@ -16,11 +16,11 @@ class TickleCount
 
   declare
   def count_to_5
-    loopback <~ loopback.map{|l| [l.cnt + 1] if l.cnt < 6}
-    result <= loopback.map{|l| [l.cnt] if l.cnt == 5}
+    loopback <~ loopback {|l| [l.cnt + 1] if l.cnt < 6}
+    result <= loopback {|l| [l.cnt] if l.cnt == 5}
 
-    mcast <~ loopback.map{|l| [ip_port, l.cnt] if l.cnt < 6}
-    mresult <= mcast.map{|m| [m.cnt] if m.cnt == 5}
+    mcast <~ loopback {|l| [ip_port, l.cnt] if l.cnt < 6}
+    mresult <= mcast {|m| [m.cnt] if m.cnt == 5}
   end
 end
 
@@ -47,13 +47,13 @@ class RingMember
 
   declare
   def ring_msg
-    pipe <~ kickoff.map {|k| [ip_port, k.cnt.to_i]}
+    pipe <~ kickoff {|k| [ip_port, k.cnt.to_i]}
     pipe <~ join([pipe, next_guy]).map {|p,n| [n.addr, p.cnt.to_i + 1] if p.cnt.to_i < 39}
   end
 
   declare
   def update_log
-    last_cnt <+ pipe.map {|p| [p.cnt]}
+    last_cnt <+ pipe {|p| [p.cnt]}
     last_cnt <- join([pipe, last_cnt]).map {|p, lc| [lc.cnt]}
   end
 end
@@ -101,12 +101,12 @@ class ChannelWithKey
   state {
     channel :c, [:@addr, :k1] => [:v1]
     scratch :kickoff, [:addr, :v1, :v2]
-    table :recv, c.key_cols => c.cols
+    table :recv, c.key_cols => c.val_cols
   }
 
   declare
   def send_msg
-    c <~ kickoff.map {|k| [k.addr, k.v1, k.v2]}
+    c <~ kickoff {|k| [k.addr, k.v1, k.v2]}
     recv <= c
   end
 end

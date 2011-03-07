@@ -16,14 +16,14 @@ class ChatMaster
   
   declare
   def accept
-    nodelist <= ctrl.map {|c| [c.from, c.cmd]}
-    ctrl <~ ctrl.map { |c| [c.from, ip_port, 'ack']}
+    nodelist <= ctrl {|c| [c.from, c.cmd]}
+    ctrl <~ ctrl { |c| [c.from, ip_port, 'ack']}
     stdio <~ ctrl.inspected
   end
   
   declare
   def multicast
-    mcast <~ join([mcast, nodelist]).map do |m,n| 
+    mcast <~ join([mcast, nodelist]) do |m,n| 
       [n.key, ip_port, m.nick, m.time, m.msg]  unless n.key == m.from
     end
   end
