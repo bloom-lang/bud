@@ -470,7 +470,7 @@ module Bud
       the_schema, the_key_cols = parse_schema(user_schema)
       the_val_cols = the_schema - the_key_cols
       @locspec_idx = remove_at_sign!(the_key_cols)
-      @locspec_idx = remove_at_sign!(the_schema - the_key_cols) if @locspec_idx.nil?
+      @locspec_idx = remove_at_sign!(the_schema) if @locspec_idx.nil?
       # If @locspec_idx is still nil, this is a loopback channel
 
       # We mutate the hash key above, so we need to recreate the hash

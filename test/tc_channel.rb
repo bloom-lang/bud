@@ -111,6 +111,22 @@ class ChannelWithKey
   end
 end
 
+class ChannelAddrInVal
+  include Bud
+
+  state {
+    channel :c, [:k1] => [:@addr, :v1]
+    scratch :kickoff, [:v1, :addr, :v2]
+    table :recv, c.key_cols => c.val_cols
+  }
+
+  declare
+  def send_msg
+    c <~ kickoff {|k| [k.v1, k.addr, k.v2]}
+    recv <= c
+  end
+end
+
 class TestChannelWithKey < Test::Unit::TestCase
   def test_basic
     p1 = ChannelWithKey.new
@@ -143,6 +159,30 @@ class TestChannelWithKey < Test::Unit::TestCase
         p1.c <~ [[target_addr, 70, 120]]
         p1.c <~ [[target_addr, 70, 130]]
       }
+    }
+
+    p1.stop_bg
+    p2.stop_bg
+  end
+end
+
+class TestChannelAddrInVal < Test::Unit::TestCase
+  def test_addr_in_val
+    p1 = ChannelAddrInVal.new
+    p2 = ChannelAddrInVal.new
+
+    p1.run_bg
+    p2.run_bg
+
+    target_addr = p2.ip_port
+    p1.sync_do {
+      p1.kickoff <+ [[10, target_addr, 20]]
+      # Test that directly inserting into a channel also works
+      p1.c <~ [[50, target_addr, 100]]
+    }
+    sleep 1
+    p2.sync_do {
+      assert_equal([[10, target_addr, 20], [50, target_addr, 100]], p2.recv.to_a.sort)
     }
 
     p1.stop_bg
