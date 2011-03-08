@@ -338,7 +338,7 @@ module Bud
   def do_start_server
     if @options[:port] == 0
       @server = EventMachine.start_server(@ip, 0, BudServer, self)
-      @port = Socket.unpack_sockaddr_in( EventMachine.get_sockname( @server))[0]
+      @port = Socket.unpack_sockaddr_in(EventMachine.get_sockname(@server))[0]
     else
       @port = @options[:port]
       @server = EventMachine::start_server(@ip, @port, BudServer, self)
