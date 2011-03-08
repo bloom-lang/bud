@@ -2,6 +2,7 @@ require 'rubygems'
 require 'anise'
 require 'eventmachine'
 require 'msgpack'
+require 'socket'
 require 'superators'
 require 'thread'
 
@@ -335,23 +336,9 @@ module Bud
   end
 
   def do_start_server
-    # XXX: EM doesn't really support binding to an ephemeral port at the moment
-    # (it provides no way to determine which port number was chosen), so for now
-    # we emulate this by attempting to bind to randomly-chosen ports until we
-    # find a free one.
     if @options[:port] == 0
-      success = false
-      15.times do
-        @port = 5000 + rand(20000)
-        begin
-          @server = EventMachine::start_server(@ip, @port, BudServer, self)
-          success = true
-          break
-        rescue Exception
-          next
-        end
-      end
-      raise "Failed to bind to local TCP port #{@port}" unless success
+      @server = EventMachine.start_server(@ip, 0, BudServer, self)
+      @port = Socket.unpack_sockaddr_in( EventMachine.get_sockname( @server))[0]
     else
       @port = @options[:port]
       @server = EventMachine::start_server(@ip, @port, BudServer, self)
