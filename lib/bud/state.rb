@@ -12,14 +12,14 @@ module BudState
       raise Bud::BudError, "symbol :#{name} reserved, cannot be used as table name"
     end
     self.singleton_class.send(:define_method, name) do |*args, &blk|
-	    unless blk.nil? then
+        unless blk.nil? then
         return @tables[name].pro(&blk)
-	    else
+        else
         return @tables[name]
       end
     end
   end
-  
+
   def tmp(var, coll)
     self.singleton_class.send(:define_method, var) do |*args, &blk|
       unless blk.nil? then
@@ -29,8 +29,7 @@ module BudState
       end
     end
   end
-  
-  
+
   def wrap_collection(c)
     return lambda do |&blk|
       unless blk.nil? then
@@ -40,7 +39,7 @@ module BudState
       end
     end
   end
-  
+
   def input
     true
   end
@@ -63,12 +62,11 @@ module BudState
     define_collection(name)
     @tables[name] = Bud::BudScratch.new(name, self, schema)
   end
-  
+
   def temp(name, schema=nil)
     raise Bud::BudError, "temp table #{name} reused" unless @tables[name].nil?
     scratch(name, schema)
   end
-  
 
   def channel(name, schema=nil)
     define_collection(name)

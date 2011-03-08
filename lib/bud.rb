@@ -10,10 +10,10 @@ require 'bud/aggs'
 require 'bud/bud_meta'
 require 'bud/collections'
 require 'bud/errors'
+require 'bud/rtrace'
 require 'bud/server'
 require 'bud/state'
 require 'bud/viz'
-require 'bud/rtrace'
 
 module BudModule
   def self.included(o)
@@ -51,6 +51,26 @@ module BudModule
   end
 end
 
+# The root Bud module. To run a Bud instance, there are three main options:
+#
+# 1. Synchronously. To do this, instanciate your program and then call tick()
+#    one or more times; each call evaluates a single Bud timestep. Note that in
+#    this mode, network communication (channels) and timers cannot be used. This
+#    is mostly intended for "one-shot" programs that compute a single result and
+#    then terminate.
+# 2. In a separate thread in the foreground. To do this, instanciate your
+#    program and then call run(). The Bud interpreter will then run, handling
+#    network events and evaluating new timesteps as appropriate. The run()
+#    method will not return unless an error occurs.
+# 3. In a separate thread in the background. To do this, instanciate your
+#    program and then call run_bg(). The Bud interpreter will run
+#    asynchronously. To interact with Bud (e.g., insert additional data or
+#    inspect the state of a Bud collection), use the sync_do and async_do
+#    methods. To shutdown the Bud interpreter, use stop_bg().
+#
+# Most programs should use method #3.
+#
+# :main: Bud
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :server, :rtracer
   attr_accessor :connections
@@ -122,6 +142,8 @@ module Bud
     end
   end
 
+  private
+
   def lookup_state_methods
     rv = []
 
@@ -156,6 +178,13 @@ module Bud
     # flushed; we need to wait for EM startup to do that
   end
 
+  def do_rewrite
+    @meta_parser = BudMeta.new(self, @declarations)
+    @rewritten_strata = @meta_parser.meta_rewrite
+  end
+
+  public
+
   ########### give empty defaults for these
   def declaration
   end
@@ -166,11 +195,6 @@ module Bud
   # helper to define instance methods
   def singleton_class
     class << self; self; end
-  end
-
-  def do_rewrite
-    @meta_parser = BudMeta.new(self, @declarations)
-    @rewritten_strata = @meta_parser.meta_rewrite
   end
 
   ######## methods for controlling execution
@@ -190,26 +214,29 @@ module Bud
     end
   end
 
-  def start_reactor
-    return if EventMachine::reactor_running?
+  # Run Bud in the "foreground" -- the caller's thread will be used to run the
+  # Bud interpreter. This means this method won't return unless an error
+  # occurs. It is often more useful to run Bud asynchronously -- see run_bg.
+  #
+  # Note that run cannot be invoked if run_bg has already been called in the
+  # same Ruby process.
+  #
+  # Execution proceeds in time ticks, a la Dedalus.
+  # * Within each tick there may be multiple strata.
+  # * Within each stratum we do multiple semi-naive iterations.
+  def run
+    raise BudError if EventMachine::reactor_running?
 
-    EventMachine::error_handler do |e|
-      puts "Unexpected Bud error: #{e.inspect}"
-      raise e
-    end
-
-    q = Queue.new
-    Thread.new do
-        EventMachine.run do
-          q << true
-        end
-    end
-    q.pop
+    EventMachine::run {
+      start_bud
+    }
   end
 
   # Shutdown a Bud instance running asynchronously. This method blocks until Bud
-  # has been shutdown.
-  def stop_bg(stop_em = false)
+  # has been shutdown. If _stop_em_ is true, the EventMachine event loop is also
+  # shutdown; this will interfere with the execution of any other Bud instances
+  # in the same process (as well as anything else that happens to use EM).
+  def stop_bg(stop_em=false)
     schedule_and_wait do
       do_shutdown(stop_em)
     end
@@ -239,6 +266,32 @@ module Bud
     end
   end
 
+  def close_tables
+    @tables.each_value do |t|
+      t.close
+    end
+  end
+
+  private
+
+  def start_reactor
+    return if EventMachine::reactor_running?
+
+    EventMachine::error_handler do |e|
+      puts "Unexpected Bud error: #{e.inspect}"
+      raise e
+    end
+
+    # Block until EM has successfully started up.
+    q = Queue.new
+    Thread.new do
+      EventMachine.run do
+        q << true
+      end
+    end
+    q.pop
+  end
+
   # Schedule a block to be evaluated by EventMachine in the future, and
   # block until this has happened.
   def schedule_and_wait
@@ -261,13 +314,7 @@ module Bud
     raise resp if resp
   end
 
-  def close_tables
-    @tables.each_value do |t|
-      t.close
-    end
-  end
-
-  def do_shutdown(stop_em = false)
+  def do_shutdown(stop_em=false)
     @timers.each do |t|
       t.cancel
     end
@@ -281,7 +328,7 @@ module Bud
 
   # Schedule a "graceful" shutdown for a future EM tick. If EM is not currently
   # running, shutdown immediately.
-  def schedule_shutdown(stop_em = false)
+  def schedule_shutdown(stop_em=false)
     if EventMachine::reactor_running?
       EventMachine::schedule do
         do_shutdown(stop_em)
@@ -321,20 +368,6 @@ module Bud
     @rtracer.sleep if options[:rtrace]
   end
 
-  # Run Bud in the "foreground" -- this method typically doesn't return unless
-  # an error occurs.
-  #
-  # We proceed in time ticks, a la Dedalus.
-  # * Within each tick there may be multiple strata.
-  # * Within each stratum we do multiple semi-naive iterations.
-  def run
-    raise BudError if EventMachine::reactor_running?
-
-    EventMachine::run {
-      start_bud
-    }
-  end
-
   def do_start_server
     if @options[:port] == 0
       @server = EventMachine.start_server(@ip, 0, BudServer, self)
@@ -345,19 +378,27 @@ module Bud
     end
   end
 
+  public
+
   def ip_port
     raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0
     @port.nil? ? "#{@ip}:#{@options[:port]}" : "#{@ip}:#{@port}"
   end
 
-  # "Flush" any tuples that need to be flushed. This does two things:
-  # 1. Emit outgoing tuples in channels and ZK tables.
-  # 2. Commit to disk any changes made to on-disk tables.
-  def do_flush
-    @channels.each { |c| @tables[c[0]].flush }
-    @zk_tables.each_value { |t| t.flush }
-    @tc_tables.each_value { |t| t.flush }
+  def tick
+    @tables.each_value do |t|
+      t.tick
+    end
+
+    receive_inbound
+
+    @strata.each { |strat| stratum_fixpoint(strat) }
+    @viz.do_cards if @options[:trace]
+    do_flush
+    @budtime += 1
   end
+
+  private
 
   # Builtin BUD state (predefined collections). We could define this using the
   # standard "state" syntax, but we want to ensure that builtin state is
@@ -384,19 +425,6 @@ module Bud
     end
   end
 
-  def tick
-    @tables.each_value do |t|
-      t.tick
-    end
-
-    receive_inbound
-
-    @strata.each { |strat| stratum_fixpoint(strat) }
-    @viz.do_cards if @options[:trace]
-    do_flush
-    @budtime += 1
-  end
-
   # Handle any inbound tuples off the wire and then clear. Received messages are
   # placed directly into the storage of the appropriate local channel.
   def receive_inbound
@@ -405,6 +433,15 @@ module Bud
       tables[msg[0].to_sym] << msg[1]
     end
     @inbound = []
+  end
+
+  # "Flush" any tuples that need to be flushed. This does two things:
+  # 1. Emit outgoing tuples in channels and ZK tables.
+  # 2. Commit to disk any changes made to on-disk tables.
+  def do_flush
+    @channels.each { |c| @tables[c[0]].flush }
+    @zk_tables.each_value { |t| t.flush }
+    @tc_tables.each_value { |t| t.flush }
   end
 
   def stratum_fixpoint(strat)
@@ -450,8 +487,8 @@ module Bud
     end while not @tables.all?{|name,coll| coll.new_delta.empty? and coll.delta.empty?}
   end
 
-
   ####### Joins
+  private
   def decomp_preds(*preds)
     # decompose each pred into a binary pred
     newpreds = []
@@ -470,7 +507,8 @@ module Bud
       return j.map(&blk)
     end
   end
-  
+
+  public
   def join(rels, *preds, &blk)
     j = BudJoin.new(rels, self, decomp_preds(*preds))
     wrap_map(j, &blk)
@@ -504,6 +542,9 @@ module Bud
 
   # ugly, but why not
   alias leftcoincide leftjoin
+
+  private
+
   ######## ids and timers
   def gen_id
     Time.new.to_i.to_s << rand.to_s
