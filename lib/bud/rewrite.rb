@@ -2,9 +2,10 @@ require 'rubygems'
 require 'ruby2ruby'
 
 class RuleRewriter < Ruby2Ruby
-  attr_accessor :rule_indx, :rules, :depends
+  attr_accessor :rule_indx, :rules, :depends, :bud_instance
 
-  def initialize(seed)
+  def initialize(seed, bud_instance)
+    @bud_instance = bud_instance
     @ops = {:<< => 1, :< => 1, :<= => 1}
     @monotonic_whitelist = {:== => 1, :+ => 1, :- => 1, :<= => 1, :- => 1, :< => 1, :> => 1}
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
@@ -52,7 +53,7 @@ class RuleRewriter < Ruby2Ruby
     @collect = false
     return rhs
   end
-
+  
   def record_rule(lhs, op, rhs)
     rule_txt = "#{lhs} #{op} #{rhs}"
     if op == :<
@@ -80,11 +81,20 @@ class RuleRewriter < Ruby2Ruby
   end
 
   def do_rule(exp)
-    lhs = process exp[0]
+    lhs = process handle_temp(exp[0])
     op = exp[1]
     rhs = collect_rhs(map2smap(exp[2]))
     record_rule(lhs, op, rhs)
     drain(exp)
+  end
+
+  def handle_temp(lhs)
+    if lhs[2] == :temp
+      bud_instance.temp lhs[3][1][2]
+      return lhs[3][1]
+    else
+      lhs
+    end
   end
 
   # look for top-level map on a base-table on rhs, and rewrite to pro

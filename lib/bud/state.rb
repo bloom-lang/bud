@@ -63,6 +63,12 @@ module BudState
     define_collection(name)
     @tables[name] = Bud::BudScratch.new(name, self, schema)
   end
+  
+  def temp(name, schema=nil)
+    raise Bud::BudError, "temp table #{name} reused" unless @tables[name].nil?
+    scratch(name, schema)
+  end
+  
 
   def channel(name, schema=nil)
     define_collection(name)

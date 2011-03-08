@@ -47,6 +47,27 @@ class StillAnnoying
   end
 end
 
+class LessAnnoying < StillAnnoying
+  include Bud
+  
+  declare 
+  def rules
+    temp(tmpy) <= inski
+    out <= tmpy {|t| [t.val]}
+  end
+end
+
+class DupTemp < StillAnnoying
+  include Bud
+  
+  declare
+  def rules
+    temp(tmpy) <= inski
+    temp(tmpy) <= inski
+    out <= tmpy {|t| [t.val]}
+  end
+end
+
 class TestJoins < Test::Unit::TestCase
   def test_leave_map_alone
     program = LeaveMapAlone.new
@@ -66,5 +87,17 @@ class TestJoins < Test::Unit::TestCase
   def test_still_annoying
     p = StillAnnoying.new
     assert_raise(LocalJumpError, p.tick)
+  end
+  def test_less_annoying
+    p = LessAnnoying.new
+    p.inski <+ [[1,1],
+                [2,2],
+                [3,3]]
+    p.tick
+    assert_equal(3, p.out.length)
+    assert_equal([[1], [2], [3]], p.out.map{|o| [o.val]}.sort)
+  end
+  def test_dup_tmp
+    assert_raise(Bud::BudError) {DupTemp.new}
   end
 end
