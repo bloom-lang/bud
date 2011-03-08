@@ -97,6 +97,16 @@ class TestJoins < Test::Unit::TestCase
     assert_equal(3, p.out.length)
     assert_equal([[1], [2], [3]], p.out.map{|o| [o.val]}.sort)
   end
+  def test_retemp
+    p = LessAnnoying.new
+    p.run_bg
+    p.sync_do{p.inski <+ [[1,1],
+                [2,2],
+                [3,3]]}
+    p.stop_bg
+    assert_equal(3, p.out.length)
+    assert_equal([[1], [2], [3]], p.out.map{|o| [o.val]}.sort)
+  end
   def test_dup_tmp
     assert_raise(Bud::BudError) {DupTemp.new}
   end
