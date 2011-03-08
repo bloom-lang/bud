@@ -467,22 +467,16 @@ module Bud
 
     def initialize(name, bud_instance, user_schema=nil)
       user_schema ||= [:@address, :val]
-      # First, find column with @ sign and remove it
-      if user_schema.respond_to? :keys
-        key_cols = user_schema.keys.first
-        val_cols = user_schema.values.first
-      else
-        key_cols = user_schema
-        val_cols = []
-      end
-      @locspec_idx = remove_at_sign!(key_cols)
-      @locspec_idx = remove_at_sign!(val_cols) if @locspec_idx.nil?
+      the_schema, the_key_cols = parse_schema(user_schema)
+      the_val_cols = the_schema - the_key_cols
+      @locspec_idx = remove_at_sign!(the_key_cols)
+      @locspec_idx = remove_at_sign!(the_schema) if @locspec_idx.nil?
       # If @locspec_idx is still nil, this is a loopback channel
 
       # We mutate the hash key above, so we need to recreate the hash
       # XXX: ugh, hacky
       if user_schema.respond_to? :keys
-        user_schema = {key_cols => val_cols}
+        user_schema = {the_key_cols => the_val_cols}
       end
 
       super(name, bud_instance, user_schema)
