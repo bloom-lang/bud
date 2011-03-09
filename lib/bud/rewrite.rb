@@ -221,25 +221,6 @@ class NestedRefRewriter < SexpProcessor
     @import_tbl = import_tbl
   end
 
-  def make_recv_stack(r)
-    rv = []
-
-    while true
-      break if r.nil?
-      return [false, []] unless r.sexp_type == :call
-
-      tag, recv, meth_name, args = r.sexp_body
-      if args.sexp_type != :arglist or args.sexp_body != []
-        return [false, []]
-      end
-
-      rv.shift meth_name
-      r = recv
-    end
-
-    return [true, rv]
-  end
-
   def process_call(exp)
     tag, recv, meth_name, args = exp
 
@@ -250,10 +231,11 @@ class NestedRefRewriter < SexpProcessor
     #
     # If the import table contains [a][b], we want to rewrite this into a single
     # call to a__b__c, which matches how the corresponding Bloom collection will
-    # be name-mangled.
+    # be name-mangled. Note that we don't currently check that a__b__c (or
+    # a.b.c) corresponds to an extant Bloom collection.
     do_lookup, recv_stack = make_recv_stack(recv)
 
-    if do_lookup
+    if do_lookup and recv_stack.length > 0
       lookup_tbl = @import_tbl
       do_rewrite = true
       until recv_stack.empty?
@@ -268,12 +250,37 @@ class NestedRefRewriter < SexpProcessor
         lookup_tbl = lookup_tbl[m]
       end
 
-      puts "meth_name = #{meth_name}"
+      if do_rewrite
+        puts "FOUND REWRITE! meth_name = #{meth_name}"
+        pp exp
+      end
     end
 
+    recv = process(recv)
     args = process(args)
 
     Sexp.from_array [tag, recv, meth_name, args]
+  end
+
+  def make_recv_stack(r)
+    rv = []
+
+    while true
+      break if r.nil?
+      # We can exit early if we see something unexpected
+      return [false, []] unless r.sexp_type == :call
+
+      recv, meth_name, args = r.sexp_body
+      unless args.sexp_type == :arglist and args.sexp_body.length == 0
+        return [false, []]
+      end
+
+      rv.shift meth_name
+      r = recv
+    end
+
+    return [true, rv]
+  end
 end
 
 module ModuleRewriter
@@ -291,7 +298,6 @@ module ModuleRewriter
     raise Bud::BudError unless (mod.class <= Module and local_name.class <= Symbol)
 
     ast = get_module_ast(mod)
-    pp ast
     new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     rename_tbl = ast_rename_state(ast, import_site, mod, local_name)
     ast = ast_update_refs(ast, rename_tbl)
@@ -339,10 +345,8 @@ module ModuleRewriter
       next if b.sexp_type != :defn
 
       def_name, args, scope = b.sexp_body
-      puts "def_name: #{def_name}"
-      next unless /__.*?__state/.match def_name.to_s
+      next unless /__.*?__state$/.match def_name.to_s
 
-      pp scope
       raise Bud::BudError unless scope.sexp_type == :scope
       state_block = scope.sexp_body.first
       raise Bud::BudError unless state_block.sexp_type == :block
