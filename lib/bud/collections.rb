@@ -274,20 +274,22 @@ module Bud
     alias << insert
 
     def check_enumerable(o)
-      unless o.nil? or o.class < Enumerable
+      unless (o.nil? or o.class < Enumerable) and o.respond_to? 'each'
         raise BudTypeError, "Attempt to merge non-enumerable type into BudCollection"
       end
     end
-
-    def merge(o, buf=@new_delta)
-      check_enumerable(o)
-      raise BudError, "Attempt to merge non-enumerable type into BloomCollection #{tabname}: #{o.inspect}" unless o.respond_to? 'each'
-
+    
+    def setup_deferred_schema(o)
       if @schema.nil? then
         # must have been initialized with defer_schema==true.  take schema from rhs
         raise BudError, "Cannot merge schemaless collection without schema for lhs." if o.schema.nil?
         init_schema(o.schema)
       end
+    end
+
+    def merge(o, buf=@new_delta)
+      check_enumerable(o)
+      setup_deferred_schema(o)
 
       delta = o.map do |i|
         next if i.nil? or i == []
@@ -308,6 +310,8 @@ module Bud
 
     def pending_merge(o)
       check_enumerable(o)
+      setup_deferred_schema(o)
+      
       o.each {|i| do_insert(i, @pending)}
       return self
     end
