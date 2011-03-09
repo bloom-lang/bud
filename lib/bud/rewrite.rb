@@ -221,38 +221,45 @@ class NestedRefRewriter < SexpProcessor
     @import_tbl = import_tbl
   end
 
+  # Recognize a qualified reference to an imported module. In the AST, such a
+  # call looks like a tree of :call nodes -- for example, a.b.c looks like:
+  #
+  #   (:call, (:call, (:call, nil, :a, args), :b, args), :c, args)
+  #
+  # If the import table contains [a][b], we want to rewrite this into a single
+  # call to a__b__c, which matches how the corresponding Bloom collection will
+  # be name-mangled. Note that we don't currently check that a__b__c (or a.b.c)
+  # corresponds to an extant Bloom collection.
   def process_call(exp)
     tag, recv, meth_name, args = exp
 
-    # Recognize a qualified reference to an imported module. In the AST, such a
-    # call looks like a tree of :call nodes -- for example, a.b.c looks like:
-    #
-    #   (:call, (:call, (:call, nil, :a, args), :b, args), :c, args)
-    #
-    # If the import table contains [a][b], we want to rewrite this into a single
-    # call to a__b__c, which matches how the corresponding Bloom collection will
-    # be name-mangled. Note that we don't currently check that a__b__c (or
-    # a.b.c) corresponds to an extant Bloom collection.
     do_lookup, recv_stack = make_recv_stack(recv)
 
     if do_lookup and recv_stack.length > 0
       lookup_tbl = @import_tbl
       do_rewrite = true
+      new_meth_name = ""
+      tmp_stack = Marshal.load(Marshal.dump(recv_stack))
       until recv_stack.empty?
         m = recv_stack.pop
 
         unless lookup_tbl.has_key? m
+          puts "Skipping: m = #{m.inspect}, stack = #{tmp_stack.inspect}"
+          pp exp
           do_rewrite = false
           break
         end
 
-        meth_name += "#{m}__"
+        new_meth_name += "#{m}__"
         lookup_tbl = lookup_tbl[m]
       end
 
       if do_rewrite
-        puts "FOUND REWRITE! meth_name = #{meth_name}"
+        new_meth_name += meth_name.to_s
+        puts "FOUND REWRITE! old = #{meth_name}, meth_name = #{new_meth_name}, stack = #{tmp_stack.inspect}"
         pp exp
+        recv = nil
+        meth_name = new_meth_name.to_sym
       end
     end
 
@@ -275,7 +282,7 @@ class NestedRefRewriter < SexpProcessor
         return [false, []]
       end
 
-      rv.shift meth_name
+      rv << meth_name
       r = recv
     end
 
