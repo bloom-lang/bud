@@ -65,7 +65,9 @@ module BudState
 
   def temp(name, schema=nil)
     raise Bud::BudError, "temp table #{name} reused" unless @tables[name].nil?
-    scratch(name, schema)
+    # defer schema definition until merge
+    define_collection(name)
+    @tables[name] = Bud::BudTemp.new(name, self, schema, true)
   end
 
   def channel(name, schema=nil)

@@ -25,16 +25,24 @@ module Bud
     # - storage holds the "normal" tuples
     # - delta holds the delta for rhs's of rules during semi-naive
     # - new_delta will hold the lhs tuples currently being produced during s-n
-    def initialize(name, bud_instance, user_schema=nil)
+    def initialize(name, bud_instance, given_schema=nil, defer_schema=false)
       @tabname = name
-      user_schema ||= {[:key]=>[:val]}
-      @user_schema = user_schema
-      @schema, @key_cols = parse_schema(user_schema)
-      @key_colnums = key_cols.map {|k| schema.index(k)}
       @bud_instance = bud_instance
+      init_schema(given_schema) unless given_schema.nil? and defer_schema
+      init_buffers
+    end
+    
+    def init_buffers
       init_storage
       init_pending
       init_deltas
+    end
+    
+    def init_schema(given_schema)
+      given_schema ||= {[:key]=>[:val]}
+      @given_schema = given_schema
+      @schema, @key_cols = parse_schema(given_schema)
+      @key_colnums = key_cols.map {|k| schema.index(k)}
       setup_accessors
     end
 
@@ -42,13 +50,13 @@ module Bud
     # Array (key_cols => remaining columns), or simply an Array of columns (if no
     # key_cols were specified). Return a pair: [list of columns in entire tuple,
     # list of key columns]
-    def parse_schema(user_schema)
-      if user_schema.respond_to? :keys
-        raise BudError, "invalid schema for #{tabname}" if user_schema.length != 1
-        key_cols = user_schema.keys.first
-        val_cols = user_schema.values.first
+    def parse_schema(given_schema)
+      if given_schema.respond_to? :keys
+        raise BudError, "invalid schema for #{tabname}" if given_schema.length != 1
+        key_cols = given_schema.keys.first
+        val_cols = given_schema.values.first
       else
-        key_cols = user_schema
+        key_cols = given_schema
         val_cols = []
       end
 
@@ -66,7 +74,7 @@ module Bud
     end
 
     def clone_empty
-      self.class.new(tabname, bud_instance, @user_schema)
+      self.class.new(tabname, bud_instance, @given_schema)
     end
 
     def val_cols
@@ -274,6 +282,13 @@ module Bud
     def merge(o, buf=@new_delta)
       check_enumerable(o)
       raise BudError, "Attempt to merge non-enumerable type into BloomCollection #{tabname}: #{o.inspect}" unless o.respond_to? 'each'
+
+      if @schema.nil? then
+        # must have been initialized with defer_schema==true.  take schema from rhs
+        raise BudError, "Cannot merge schemaless collection without schema for lhs." if o.schema.nil?
+        init_schema(o.schema)
+      end
+      
       delta = o.map do |i|
         next if i.nil? or i == []
         i = prep_tuple(i)
@@ -377,7 +392,7 @@ module Bud
       else
         # merge directly into retval.storage, so that the temp tuples get picked up
         # by the lhs of the rule
-        retval = BudScratch.new('argagg_temp', bud_instance, @user_schema)
+        retval = BudScratch.new('argagg_temp', bud_instance, @given_schema)
         retval.merge(finals, retval.storage)
       end
     end
@@ -460,14 +475,17 @@ module Bud
 
   class BudScratch < BudCollection
   end
+  
+  class BudTemp < BudCollection
+  end
 
   class BudChannel < BudCollection
     attr_accessor :connections
     attr_reader :locspec_idx
 
-    def initialize(name, bud_instance, user_schema=nil)
-      user_schema ||= [:@address, :val]
-      the_schema, the_key_cols = parse_schema(user_schema)
+    def initialize(name, bud_instance, given_schema=nil)
+      given_schema ||= [:@address, :val]
+      the_schema, the_key_cols = parse_schema(given_schema)
       the_val_cols = the_schema - the_key_cols
       @locspec_idx = remove_at_sign!(the_key_cols)
       @locspec_idx = remove_at_sign!(the_schema) if @locspec_idx.nil?
@@ -475,11 +493,11 @@ module Bud
 
       # We mutate the hash key above, so we need to recreate the hash
       # XXX: ugh, hacky
-      if user_schema.respond_to? :keys
-        user_schema = {the_key_cols => the_val_cols}
+      if given_schema.respond_to? :keys
+        given_schema = {the_key_cols => the_val_cols}
       end
 
-      super(name, bud_instance, user_schema)
+      super(name, bud_instance, given_schema)
       @connections = {}
     end
 
@@ -571,8 +589,8 @@ module Bud
   end
 
   class BudTerminal < BudCollection
-    def initialize(name, user_schema, bud_instance, prompt=false)
-      super(name, bud_instance, user_schema)
+    def initialize(name, given_schema, bud_instance, prompt=false)
+      super(name, bud_instance, given_schema)
       @connection = nil
       @prompt = prompt
 
@@ -632,8 +650,8 @@ module Bud
   end
 
   class BudTable < BudCollection
-    def initialize(name, bud_instance, user_schema)
-      super(name, bud_instance, user_schema)
+    def initialize(name, bud_instance, given_schema)
+      super(name, bud_instance, given_schema)
       @to_delete = []
     end
 
@@ -881,7 +899,7 @@ module Bud
 
   # Persistent table implementation based on TokyoCabinet.
   class BudTcTable < BudCollection
-    def initialize(name, bud_instance, user_schema)
+    def initialize(name, bud_instance, given_schema)
       unless defined? HAVE_TOKYO_CABINET
         raise BudError, "tokyocabinet gem is not available: tctable cannot be used"
       end
@@ -899,7 +917,7 @@ module Bud
         puts "Created directory: #{dirname}" unless bud_instance.options[:quiet]
       end
 
-      super(name, bud_instance, user_schema)
+      super(name, bud_instance, given_schema)
       @to_delete = []
 
       @hdb = TokyoCabinet::HDB.new
