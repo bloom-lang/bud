@@ -282,7 +282,9 @@ module Bud
     def setup_deferred_schema(o)
       if @schema.nil? then
         # must have been initialized with defer_schema==true.  take schema from rhs
-        raise BudError, "Cannot merge schemaless collection without schema for lhs." if o.schema.nil?
+        unless o.class <= Bud::BudCollection and not o.schema.nil?
+          raise BudError, "Cannot merge schemaless collection into schemaless collection." 
+        end
         init_schema(o.schema)
       end
     end

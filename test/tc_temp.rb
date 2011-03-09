@@ -16,8 +16,6 @@ class BasicTemp
 end
 
 class DupTemp < BasicTemp
-  include Bud
-  
   declare
   def rules
     temp(tmpy) <= inski
@@ -40,6 +38,15 @@ class TempNext
     temp(waity) <+ wait
     out <= tmpy
     out <= waity
+  end
+end
+
+class TempNoSchema
+  include Bud
+  
+  declare
+  def logic
+    temp(out) <= [[1,2], [3, 4]]
   end
 end
 
@@ -80,5 +87,9 @@ class TestTemps < Test::Unit::TestCase
   end
   def test_dup_tmp
     assert_raise(Bud::BudError) {DupTemp.new}
+  end
+  def test_no_schema
+    p = TempNoSchema.new
+    assert_raise(Bud::BudError) {p.tick}
   end
 end
