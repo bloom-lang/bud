@@ -10,9 +10,12 @@ require 'bud/aggs'
 require 'bud/bud_meta'
 require 'bud/collections'
 require 'bud/errors'
+require 'bud/joins'
 require 'bud/rtrace'
 require 'bud/server'
 require 'bud/state'
+require 'bud/storage/tokyocabinet'
+require 'bud/storage/zookeeper'
 require 'bud/viz'
 
 module BudModule

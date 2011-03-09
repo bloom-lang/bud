@@ -68,6 +68,20 @@ class DupTemp < StillAnnoying
   end
 end
 
+class TempSchema 
+  include Bud
+  state do
+    scratch :inski, [:c1, :c2] => [:c3, :c4]
+    scratch :out, [:c1, :c2] => [:c3, :c4]
+  end
+  
+  declare 
+  def populate
+    temp(tmpy) <= inski
+    out <= tmpy
+  end
+end
+
 class TestJoins < Test::Unit::TestCase
   def test_leave_map_alone
     program = LeaveMapAlone.new
@@ -106,6 +120,13 @@ class TestJoins < Test::Unit::TestCase
     p.stop_bg
     assert_equal(3, p.out.length)
     assert_equal([[1], [2], [3]], p.out.map{|o| [o.val]}.sort)
+  end
+  def test_temp_schema
+    p = TempSchema.new
+    p.inski <+ [[1,1,2,2],
+                [2,2,3,3],
+                [3,3,4,4]]
+    p.tick
   end
   def test_dup_tmp
     assert_raise(Bud::BudError) {DupTemp.new}
