@@ -282,7 +282,7 @@ class GraphGen
       fout.puts "<h1>Rule #{s[0]}</h1><br>"
 
       c = convertor.convert(s[3])
-      c.sub!(/^<pre>/, "<pre class=\"code\">\n")
+      c.sub!(/^<pre>/, "<pre class=\"code\" style='font-size:20px'>\n")
       fout.puts c
       rules[s[0]] = [s[1], s[3]]
       fout.close

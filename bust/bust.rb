@@ -12,7 +12,20 @@ HTTP_VERBS = ["GET", "POST"] #, "DELETE"]
 module Bust
   include Bud
 
+  # allow state to be queried easily
+  state do
+    table :t_table_info, [:tab_name, :tab_type]
+    table :t_table_schema, [:tab_name, :scheme]
+  end
+
   bootstrap do
+    # copied from peter's code; this should probably be in the Bud runtime or in
+    # some meta module
+    @tables.each do |t|
+      t_table_schema << [t[0], t[1].schema.clone]
+      t_table_info << [t[0], t[1].class.to_s]
+    end
+
     Thread.start(self) do |bud|
       BustClass.new(bud)
     end
@@ -42,8 +55,10 @@ module Bust
         uri_params = {}
         uri_params = CGI.parse(uri.query) if uri.query
         table_name = uri.path[1..-1]
-        success = "HTTP/1.1 200/OK\r\nServer: Bud\r\nContent-type: application/json\r\n\r\n"
-        failure = "HTTP/1.1 404/Object Not Found\r\nServer: Bud\r\n\r\n"
+        # "Access-Control-Allow-Origin: *" disables same-origin policy to allow
+        # XMLHttpRequests from any origin
+        success = "HTTP/1.1 200 OK\r\nServer: Bud\r\nContent-type: application/json\r\nAccess-Control-Allow-Origin: *\r\n\r\n"
+        failure = "HTTP/1.1 404 Object Not Found\r\nServer: Bud\r\nAccess-Control-Allow-Origin: *\r\n\r\n"
 
         begin
           if @request =~ /GET .* HTTP*/
@@ -79,7 +94,8 @@ module Bust
     end
 
     def initialize(bud)
-      server = TCPServer.new(bud.ip, 8080)
+      # allow user-configurable port
+      server = TCPServer.new(bud.ip, (bud.options[:bust_port] or 8080))
 
       loop do
         session = server.accept
