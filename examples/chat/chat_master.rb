@@ -1,7 +1,4 @@
 # simple chat
-# run "ruby chat_master.rb 127.0.0.1:12345"
-# run "ruby chat.rb 127.0.0.1:12346 alice 127.0.0.1:12345"
-# run "ruby chat.rb 127.0.0.1:12347 bob 127.0.0.1:12345"
 require 'rubygems'
 require 'bud'
 require 'chat_protocol'
@@ -10,6 +7,14 @@ class ChatMaster
   include Bud
   include ChatProtocol
 
+<<<<<<< HEAD
+  state { table :nodelist }
+
+  declare
+  def master_logic
+    nodelist <= signup.payloads
+    mcast <~ join([mcast, nodelist]).map do |m,n| 
+=======
   state do
     table :nodelist
   end
@@ -24,6 +29,7 @@ class ChatMaster
   declare
   def multicast
     mcast <~ join([mcast, nodelist]) do |m,n| 
+>>>>>>> c62257d60591cf3adaf514299eddf45a5d1b90b8
       [n.key, ip_port, m.nick, m.time, m.msg]  unless n.key == m.from
     end
   end

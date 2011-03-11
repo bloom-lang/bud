@@ -3,6 +3,6 @@ module ChatProtocol
 
   state do
     channel :mcast, [:@to, :from, :nick, :time, :msg]
-    channel :ctrl, [:@to, :from, :cmd]
+    channel :signup
   end
 end
