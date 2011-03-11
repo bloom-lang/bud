@@ -115,6 +115,7 @@ module Bud
 
     @state_methods = lookup_state_methods
 
+    init_state
     do_bootstrap
 
     # NB: Somewhat hacky. Dependency analysis and stratification are implemented
@@ -164,8 +165,6 @@ module Bud
 
   # Evaluate all bootstrap blocks
   def do_bootstrap
-    init_state
-
     self.class.ancestors.reverse.each do |anc|
       meth_name = anc.instance_methods.find {|m| m == "__#{anc}__bootstrap"}
       if meth_name

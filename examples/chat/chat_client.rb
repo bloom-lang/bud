@@ -15,10 +15,6 @@ class ChatClient
 
   state { table :status }
 
-  # XXX It's kludgy to require clients to conjure up their own port.
-  # But bootstrap will fail on a dynamic port.
-  # ??
-
   # send connection request to master
   bootstrap do
     signup <~ [[@master, [ip_port, @nick]]]
