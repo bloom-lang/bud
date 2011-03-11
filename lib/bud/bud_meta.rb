@@ -4,7 +4,7 @@ require 'parse_tree'
 require 'pp'
 
 class BudMeta
-  attr_reader :depanalysis, :decls
+  attr_reader :depanalysis, :decls, :bud_instance
 
   def initialize(bud_instance, declarations)
     @bud_instance = bud_instance
@@ -97,7 +97,7 @@ class BudMeta
     pp pt if @bud_instance.options[:dump_ast]
     check_rule_ast(pt)
 
-    rewriter = RuleRewriter.new(seed)
+    rewriter = RuleRewriter.new(seed, bud_instance)
     rewriter.process(pt)
     #rewriter.rules.each {|r| puts "RW: #{r.inspect}"}
     return rewriter
@@ -150,10 +150,10 @@ class BudMeta
       raise Bud::CompileError unless n.length == 4
       tag, lhs, op, rhs = n
 
-      # Check that LHS references a named collection
+      # Check that LHS references a named collection or is a temp expression
       raise Bud::CompileError if lhs.nil? or lhs.sexp_type != :call
       lhs_name = lhs[2]
-      raise Bud::CompileError unless @bud_instance.tables.has_key? lhs_name.to_sym
+      raise Bud::CompileError unless lhs_name == :temp or @bud_instance.tables.has_key? lhs_name.to_sym
 
       # Check that op is a legal Bloom operator
       raise Bud::CompileError unless [:<, :<=, :<<].include? op
@@ -199,7 +199,7 @@ class BudMeta
   def stratify
     strat = Stratification.new
     @bud_instance.tables.each do |t|
-      strat.tab_info << [t[0].to_s, t[1].class, t[1].schema.length]
+      strat.tab_info << [t[0].to_s, t[1].class, (t[1].schema.nil? ? 0 : t[1].schema.length)]
     end
     @bud_instance.t_depends.each do |d|
       strat.depends << d

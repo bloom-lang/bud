@@ -10,11 +10,11 @@ class BabyBud
   }
 
   bootstrap do
-    scrtch <= [['a', 'b', 1, 2]]
-    scrtch <= [['a', 'c', 3, 4]]
-    scrtch2 <= [['a', 'b']]
-    tbl <= [['a', 'b', 1, 2]]
-    tbl <= [['z', 'y', 9, 8]]
+    scrtch <+ [['a', 'b', 1, 2]]
+    scrtch <+ [['a', 'c', 3, 4]]
+    scrtch2 <+ [['a', 'b']]
+    tbl <+ [['a', 'b', 1, 2]]
+    tbl <+ [['z', 'y', 9, 8]]
   end
 
   declare
@@ -202,6 +202,7 @@ end
 class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
+    assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal(2, program.scrtch.length)
     assert_equal(1, program.scrtch2.length)
     assert_nothing_raised(RuntimeError) { program.tick }
@@ -211,6 +212,7 @@ class TestCollections < Test::Unit::TestCase
 
   def test_tuple_accessors
     program = BabyBud.new
+    assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal(1, program.scrtch[['a','b']].v1)
     assert_equal(2, program.scrtch[['a','b']].v2)
   end

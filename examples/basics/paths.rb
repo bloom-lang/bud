@@ -13,16 +13,6 @@ class ShortestPaths
     table :shortest, [:from, :to] => [:next, :cost]
   end
 
-  bootstrap do
-    # populate our little example.  we put two links between 'a' and 'b'
-    # to see whether our shortest-paths code does the right thing.
-    link <= [['a', 'b', 1],
-             ['a', 'b', 4],
-             ['b', 'c', 1],
-             ['c', 'd', 1],
-             ['d', 'e', 1]]
-  end
-
   # recursive rules to define all paths from links
   declare
   def make_paths
@@ -30,7 +20,7 @@ class ShortestPaths
     path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
     
     # inductive case: make path of length n+1 by connecting a link to a path of length n
-    j = join [link, path], [path.from, link.to]
+    temp(j) <= join([link, path], [path.from, link.to])
     path <= j.map do |l,p|
       [l.from, p.to, p.from, l.cost+p.cost]
     end
@@ -45,12 +35,21 @@ end
 
 # compute shortest paths.
 program = ShortestPaths.new
+
+# populate our little example.  we put two links between 'a' and 'b'
+# to see whether our shortest-paths code does the right thing.
+program.link <= [['a', 'b', 1],
+                 ['a', 'b', 4],
+                 ['b', 'c', 1],
+                 ['c', 'd', 1],
+                 ['d', 'e', 1]]
+
 program.tick # one timestamp is enough for this simple program
 program.shortest.sort.each {|t| puts t.inspect}
 
 puts "----"
 
-# now lets add an extra link and recomput
+# now lets add an extra link and recompute
 program.link << ['e', 'f', 1]
 program.tick
 program.shortest.sort.each {|t| puts t.inspect}

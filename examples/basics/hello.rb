@@ -11,4 +11,3 @@ class HelloWorld
 end
 
 HelloWorld.new.tick
-  

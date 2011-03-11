@@ -47,7 +47,17 @@ class StillAnnoying
   end
 end
 
-class TestJoins < Test::Unit::TestCase
+class LessAnnoying < StillAnnoying
+  include Bud
+  
+  declare 
+  def rules
+    temp(tmpy) <= inski
+    out <= tmpy {|t| [t.val]}
+  end
+end
+
+class TestMapVariants < Test::Unit::TestCase
   def test_leave_map_alone
     program = LeaveMapAlone.new
     program.tick
