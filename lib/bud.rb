@@ -53,7 +53,7 @@ end
 
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :server, :rtracer
-  attr_accessor :connections
+  attr_accessor :connections, :dsock
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
 
@@ -183,7 +183,6 @@ module Bud
   # This instance of Bud will continue to run until stop_bg is called.
   def run_bg
     start_reactor
-
     # Wait for Bud to start up before returning
     schedule_and_wait do
       start_bud
@@ -213,6 +212,8 @@ module Bud
     schedule_and_wait do
       do_shutdown(stop_em)
     end
+    @dsock.close_connection
+    @server.close_connection
   end
 
   # Given a block, evaluate that block inside the background Ruby thread at some
@@ -275,7 +276,6 @@ module Bud
       c.close_connection
     end
     close_tables
-    EventMachine::stop_server @server
     EventMachine::stop_event_loop if stop_em
   end
 
@@ -336,12 +336,13 @@ module Bud
   end
 
   def do_start_server
+    @dsock = EventMachine::open_datagram_socket("127.0.0.1", 0, nil)
     if @options[:port] == 0
-      @server = EventMachine.start_server(@ip, 0, BudServer, self)
-      @port = Socket.unpack_sockaddr_in( EventMachine.get_sockname( @server))[0]
+      @server = EventMachine::open_datagram_socket(@ip, 0, BudServer, self)
+      @port = Socket.unpack_sockaddr_in( @server.get_sockname)[0]
     else
       @port = @options[:port]
-      @server = EventMachine::start_server(@ip, @port, BudServer, self)
+      @server = EventMachine::open_datagram_socket(@ip, @port, BudServer, self)
     end
   end
 

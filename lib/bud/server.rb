@@ -11,19 +11,6 @@ module Bud
       puts "An error occurred initializing BudServer: #{$!}"
     end
 
-    def post_init
-      pname = get_peername
-      if pname
-        @port, @ip = Socket.unpack_sockaddr_in(pname) 
-#        puts "-- server inbound connection from #{@ip}:#{@port}"
-      else
-        @port, @ip = Socket.unpack_sockaddr_in(get_sockname)
-#        puts "-- server connection to #{@ip}:#{@port}"
-      end
-      @bud.connections[[@ip, @port]] = self
-    rescue
-      puts "An error occurred post_init on BudServer: #{$!}"
-    end
 
     def receive_data(data)
       # Feed the received data to the deserializer

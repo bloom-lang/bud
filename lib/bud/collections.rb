@@ -517,32 +517,21 @@ module Bud
     end
 
     def flush
-      if @bud_instance.server.nil? and @pending.length > 0
-        puts "warning: server not started, dropping outbound packets on channel '#{@tabname}'"
-      else
-        ip = @bud_instance.ip
-        port = @bud_instance.port
-        each_from([@pending]) do |t|
-          if @locspec_idx.nil?
-            the_locspec = [ip, port.to_i]
-          else
-            begin
-              the_locspec = split_locspec(t[@locspec_idx])
-              raise BudError, "bad locspec" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
-            rescue
-              puts "bad locspec '#{t[@locspec_idx]}', channel '#{@tabname}', skipping: #{t.inspect}" 
-              next
-            end
-          end
-          # puts "#{@bud_instance.ip_port} => #{the_locspec.inspect}: #{[@tabname, t].inspect}"
-          establish_connection(the_locspec) if @connections[the_locspec].nil? || @connections[the_locspec].error?
-          # if the connection failed, we silently ignore and let the tuples be cleared.
-          # if we didn't clear them here, we'd be clearing them at end-of-tick anyhow
-          unless @connections[the_locspec].nil?
-            @bud_instance.rtracer.send(@tabname.to_s, t) if @bud_instance.options[:rtrace]
-            @connections[the_locspec].send_data [@tabname, t].to_msgpack
+      ip = @bud_instance.ip
+      port = @bud_instance.port
+      each_from([@pending]) do |t|
+        if @locspec_idx.nil?
+          the_locspec = [ip, port.to_i]
+        else
+          begin
+            the_locspec = split_locspec(t[@locspec_idx])
+            raise BudError, "bad locspec" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
+          rescue
+            puts "bad locspec '#{t[@locspec_idx]}', channel '#{@tabname}', skipping: #{t.inspect}" 
+            next
           end
         end
+        @bud_instance.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
       end
       @pending.clear
     end
