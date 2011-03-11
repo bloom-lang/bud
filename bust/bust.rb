@@ -54,7 +54,7 @@ module Bust
         uri = URI.parse(reqstr)
         uri_params = {}
         uri_params = CGI.parse(uri.query) if uri.query
-        table_name = uri.path[1..-1]
+        table_name = uri.path[1..-1].split(".")[0] # hack; we always return JSON
         # "Access-Control-Allow-Origin: *" disables same-origin policy to allow
         # XMLHttpRequests from any origin
         success = "HTTP/1.1 200 OK\r\nServer: Bud\r\nContent-type: application/json\r\nAccess-Control-Allow-Origin: *\r\n\r\n"
