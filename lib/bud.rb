@@ -122,12 +122,9 @@ module Bud
     # "Bud" class to have been defined first.
     require 'bud/depanalysis'
     require 'bud/stratify'
-    if @options[:trace]
-      @viz = VizOnline.new(self)
-    end
-    if @options[:rtrace]
-      @rtracer = RTrace.new(self)
-    end
+
+    @viz = VizOnline.new(self) if @options[:trace]
+    @rtracer = RTrace.new(self) if @options[:rtrace]
 
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
@@ -135,8 +132,7 @@ module Bud
       do_rewrite
     end
 
-    # Load the rules as a closure (will contain persistent tuples and new inbounds)
-    # declaration is gathered from "declare def" blocks
+    # Load the rules as a closure.
     @strata = []
     declaration
     @rewritten_strata.each_with_index do |rs, i|
