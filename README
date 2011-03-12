@@ -25,9 +25,10 @@ To run the regression tests:
     % cd test; ruby ts_bud.rb
 
 A "one-shot" shortest paths example:
-    % ruby examples/other/paths.rb
+    % ruby examples/basics/paths.rb
 
-To run a "ping-pong" example, see instructions in examples/other/pingpong.rb
+A simple chat example program can be found in examples/chat. A much larger set
+of example programs and libraries can be found in the bud-sandbox repo.
 
 Optional Dependencies
 =====================
