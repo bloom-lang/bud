@@ -321,6 +321,8 @@ module Bud
     close_tables
     @dsock.close_connection
     @server.close_connection
+    # Note that this affects anyone else in the same process who happens to be
+    # using EventMachine!
     EventMachine::stop_event_loop if stop_em
   end
 
