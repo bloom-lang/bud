@@ -75,8 +75,8 @@ end
 #
 # :main: Bud
 module Bud
-  attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :server, :rtracer
-  attr_accessor :dsock
+  attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
+  attr_reader :server, :dsock
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
 
