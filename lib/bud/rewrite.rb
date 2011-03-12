@@ -189,8 +189,8 @@ end
 # variables: if a block references a block variable that shadows an identifier
 # in the rename tbl, it should appear as an :lvar node rather than a :call, so
 # we should be okay.
-# XXX: If this module imports a submodule :p and we see p.x, we shouldn't try to
-# rewrite x.
+# XXX: If this module imports a submodule :p and we see a call to p.x, we
+# shouldn't try to rewrite x.
 class CallRewriter < SexpProcessor
   def initialize(rename_tbl)
     super()
@@ -213,6 +213,15 @@ class CallRewriter < SexpProcessor
   end
 end
 
+# Rewrite qualified references to collections defined by an imported module. In
+# the AST, this looks like a tree of :call nodes. For example, a.b.c looks like:
+#
+#   (:call, (:call, (:call, nil, :a, args), :b, args), :c, args)
+#
+# If the import table contains [a][b], we want to rewrite this into a single
+# call to a__b__c, which matches how the corresponding Bloom collection will
+# be name-mangled. Note that we don't currently check that a__b__c (or a.b.c)
+# corresponds to an extant Bloom collection.
 class NestedRefRewriter < SexpProcessor
   def initialize(import_tbl)
     super()
@@ -221,19 +230,11 @@ class NestedRefRewriter < SexpProcessor
     @import_tbl = import_tbl
   end
 
-  # Recognize a qualified reference to an imported module. In the AST, such a
-  # call looks like a tree of :call nodes -- for example, a.b.c looks like:
-  #
-  #   (:call, (:call, (:call, nil, :a, args), :b, args), :c, args)
-  #
-  # If the import table contains [a][b], we want to rewrite this into a single
-  # call to a__b__c, which matches how the corresponding Bloom collection will
-  # be name-mangled. Note that we don't currently check that a__b__c (or a.b.c)
-  # corresponds to an extant Bloom collection.
   def process_call(exp)
     tag, recv, meth_name, args = exp
 
     do_lookup, recv_stack = make_recv_stack(recv)
+    did_rewrite = false
 
     if do_lookup and recv_stack.length > 0
       lookup_tbl = @import_tbl
@@ -244,8 +245,6 @@ class NestedRefRewriter < SexpProcessor
         m = recv_stack.pop
 
         unless lookup_tbl.has_key? m
-          puts "Skipping: m = #{m.inspect}, stack = #{tmp_stack.inspect}"
-          pp exp
           do_rewrite = false
           break
         end
@@ -260,13 +259,19 @@ class NestedRefRewriter < SexpProcessor
         pp exp
         recv = nil
         meth_name = new_meth_name.to_sym
+        did_rewrite = true
       end
     end
 
     recv = process(recv)
     args = process(args)
 
-    Sexp.from_array [tag, recv, meth_name, args]
+    r = Sexp.from_array [tag, recv, meth_name, args]
+    if did_rewrite
+      puts "JJJJJJJJJJJJJJJJJJJ"
+      pp r
+    end
+    r
   end
 
   def make_recv_stack(r)
@@ -290,6 +295,30 @@ class NestedRefRewriter < SexpProcessor
   end
 end
 
+class DefnRenamer < SexpProcessor
+  def initialize(old_mod_name, new_mod_name)
+    super()
+    self.require_empty = false
+    self.expected = Sexp
+    @old_mod_name = old_mod_name
+    @new_mod_name = new_mod_name
+  end
+
+  def process_defn(exp)
+    tag, name, args, scope = exp
+
+    if name.to_s == "__#{@old_mod_name}__bootstrap"
+      name = "__#{@new_mod_name}__bootstrap".to_sym
+    elsif name.to_s == "__#{@old_mod_name}__state"
+      name = "__#{@new_mod_name}__state".to_sym
+    end
+
+    # Note that we don't bother to recurse further into the AST: we're only
+    # interested in top-level :defn nodes, anyway.
+    Sexp.from_array [tag, name, args, scope]
+  end
+end
+
 module ModuleRewriter
   # Do the heavy-lifting to import the Bloom module "mod" into the class/module
   # "import_site", bound to "local_name" at the import site. We implement this
@@ -305,7 +334,7 @@ module ModuleRewriter
     raise Bud::BudError unless (mod.class <= Module and local_name.class <= Symbol)
 
     ast = get_module_ast(mod)
-    new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
+    ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     rename_tbl = ast_rename_state(ast, import_site, mod, local_name)
     ast = ast_update_refs(ast, rename_tbl)
     ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
@@ -313,7 +342,9 @@ module ModuleRewriter
     r2r = Ruby2Ruby.new
     str = r2r.process(ast)
 
-    rv = import_site.module_eval str
+    puts str
+
+    rv = eval str
     raise Bud::BudError unless rv.nil?
     return new_mod_name
   end
@@ -324,7 +355,9 @@ module ModuleRewriter
   end
 
   # Rename the given module's AST to be a mangle of import site, imported
-  # module, and local bind name.
+  # module, and local bind name. We also need to rename special methods whose
+  # name contains the name of the module: the (metaprogrammed) state and
+  # bootstrap instance methods.
   def self.ast_rename_module(ast, importer, importee, local_name)
     raise Bud::BudError unless ast.sexp_type == :module
 
@@ -335,9 +368,12 @@ module ModuleRewriter
     puts "New module: #{new_name}"
     ast[1] = new_name.to_sym
 
+    dr = DefnRenamer.new(mod_name, new_name)
+    new_ast = dr.process(ast)
+
     # XXX: it would be nice to return a Module, rather than a string containing
     # the Module's name. Unfortunately, I can't see how to do that.
-    return new_name
+    return [new_ast, new_name]
   end
 
   # Mangle the names of all the collections defined in state blocks found in the
