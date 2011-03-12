@@ -103,7 +103,7 @@ module Bud
     @options[:port] ||= 0
     @options[:port] = @options[:port].to_i
     # NB: If using an ephemeral port (specified by port = 0), the actual port
-    # number may not be known until we start EM
+    # number won't be known until we start EM
 
     self.class.ancestors.each do |anc|
       if anc.methods.include? 'annotation'
@@ -262,6 +262,10 @@ module Bud
     end
   end
 
+  # Shutdown any persistent tables used by the current Bud instance. If you are
+  # running Bud via tick() and using `tctable` collections, you should call this
+  # after you're finished using Bud. Programs that use Bud via run() or run_bg()
+  # don't need to call this manually.
   def close_tables
     @tables.each_value do |t|
       t.close
