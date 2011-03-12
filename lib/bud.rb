@@ -76,7 +76,7 @@ end
 # :main: Bud
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :server, :rtracer
-  attr_accessor :connections, :dsock
+  attr_accessor :dsock
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
 
@@ -92,7 +92,6 @@ module Bud
     @zk_tables = {}
     @timers = []
     @budtime = 0
-    @connections = {}
     @inbound = []
     @declarations = []
     @server = nil
@@ -241,8 +240,6 @@ module Bud
     schedule_and_wait do
       do_shutdown(stop_em)
     end
-    @dsock.close_connection
-    @server.close_connection
   end
 
   # Given a block, evaluate that block inside the background Ruby thread at some
@@ -321,10 +318,9 @@ module Bud
     @timers.each do |t|
       t.cancel
     end
-    @connections.each_value do |c|
-      c.close_connection
-    end
     close_tables
+    @dsock.close_connection
+    @server.close_connection
     EventMachine::stop_event_loop if stop_em
   end
 
@@ -374,7 +370,7 @@ module Bud
     @dsock = EventMachine::open_datagram_socket("127.0.0.1", 0, nil)
     if @options[:port] == 0
       @server = EventMachine::open_datagram_socket(@ip, 0, BudServer, self)
-      @port = Socket.unpack_sockaddr_in( @server.get_sockname)[0]
+      @port = Socket.unpack_sockaddr_in(@server.get_sockname)[0]
     else
       @port = @options[:port]
       @server = EventMachine::open_datagram_socket(@ip, @port, BudServer, self)

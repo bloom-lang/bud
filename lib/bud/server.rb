@@ -1,16 +1,12 @@
 require 'socket'
 
 module Bud
-  ######## the EventMachine server for handling network and timers
   class BudServer < EM::Connection
     def initialize(bud)
       @pac = MessagePack::Unpacker.new
       @bud = bud
       super
-    rescue
-      puts "An error occurred initializing BudServer: #{$!}"
     end
-
 
     def receive_data(data)
       # Feed the received data to the deserializer
@@ -25,7 +21,7 @@ module Bud
     end
 
     def message_received(obj)
-#      puts "#{@bud.ip_port} <= #{obj.inspect}"
+      # puts "#{@bud.ip_port} <= #{obj.inspect}"
       unless (obj.class <= Array and obj.length == 2 and not @bud.tables[obj[0].to_sym].nil? and obj[1].class <= Array)
         raise BudError, "Bad inbound message of class #{obj.class}: #{obj.inspect}"
       end
@@ -41,11 +37,6 @@ module Bud
         # error isn't best though -- we should do better (#74).
         puts "Exception handling network message (channel '#{obj[0]}'): #{$!}"
       end
-    end
-
-    def unbind
-#      puts "-- connection ended from #{@ip}:#{@port}"
-      @bud.connections.delete [@ip, @port]
     end
   end
 end

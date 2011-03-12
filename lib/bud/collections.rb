@@ -486,7 +486,6 @@ module Bud
   end
 
   class BudChannel < BudCollection
-    attr_accessor :connections
     attr_reader :locspec_idx
 
     def initialize(name, bud_instance, given_schema=nil)
@@ -504,7 +503,6 @@ module Bud
       end
 
       super(name, bud_instance, given_schema)
-      @connections = {}
     end
 
     def remove_at_sign!(cols)
@@ -524,7 +522,6 @@ module Bud
     def clone_empty
       retval = super
       retval.locspec_idx = @locspec_idx
-      retval.connections = @connections.clone
       retval
     end
 
@@ -533,11 +530,6 @@ module Bud
       # Note that we do not clear @pending here: if the user inserted into the
       # channel manually (e.g., via <~ from inside a sync_do block), we send the
       # message at the end of the current tick.
-    end
-
-    def establish_connection(l)
-      @connections[l] = EventMachine::connect l[0], l[1], BudServer, @bud_instance
-      @connections.delete(l) if @connections[l].error?
     end
 
     def flush
@@ -558,12 +550,6 @@ module Bud
         @bud_instance.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
       end
       @pending.clear
-    end
-
-    def close
-      @connections.each_value do |c|
-        c.close_connection
-      end
     end
 
     def payloads
