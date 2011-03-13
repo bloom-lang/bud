@@ -75,8 +75,8 @@ end
 #
 # :main: Bud
 module Bud
-  attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :server, :rtracer
-  attr_accessor :connections, :dsock
+  attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
+  attr_reader :server, :dsock
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
 
@@ -92,7 +92,6 @@ module Bud
     @zk_tables = {}
     @timers = []
     @budtime = 0
-    @connections = {}
     @inbound = []
     @declarations = []
     @server = nil
@@ -104,7 +103,7 @@ module Bud
     @options[:port] ||= 0
     @options[:port] = @options[:port].to_i
     # NB: If using an ephemeral port (specified by port = 0), the actual port
-    # number may not be known until we start EM
+    # number won't be known until we start EM
 
     self.class.ancestors.each do |anc|
       if anc.methods.include? 'annotation'
@@ -123,12 +122,9 @@ module Bud
     # "Bud" class to have been defined first.
     require 'bud/depanalysis'
     require 'bud/stratify'
-    if @options[:trace]
-      @viz = VizOnline.new(self)
-    end
-    if @options[:rtrace]
-      @rtracer = RTrace.new(self)
-    end
+
+    @viz = VizOnline.new(self) if @options[:trace]
+    @rtracer = RTrace.new(self) if @options[:rtrace]
 
     # meta stuff.  parse the AST of the current (sub)class,
     # get dependency info, and determine stratification order.
@@ -136,8 +132,7 @@ module Bud
       do_rewrite
     end
 
-    # Load the rules as a closure (will contain persistent tuples and new inbounds)
-    # declaration is gathered from "declare def" blocks
+    # Load the rules as a closure.
     @strata = []
     declaration
     @rewritten_strata.each_with_index do |rs, i|
@@ -241,8 +236,6 @@ module Bud
     schedule_and_wait do
       do_shutdown(stop_em)
     end
-    @dsock.close_connection
-    @server.close_connection
   end
 
   # Given a block, evaluate that block inside the background Ruby thread at some
@@ -269,6 +262,10 @@ module Bud
     end
   end
 
+  # Shutdown any persistent tables used by the current Bud instance. If you are
+  # running Bud via tick() and using `tctable` collections, you should call this
+  # after you're finished using Bud. Programs that use Bud via run() or run_bg()
+  # don't need to call this manually.
   def close_tables
     @tables.each_value do |t|
       t.close
@@ -321,10 +318,11 @@ module Bud
     @timers.each do |t|
       t.cancel
     end
-    @connections.each_value do |c|
-      c.close_connection
-    end
     close_tables
+    @dsock.close_connection
+    @server.close_connection
+    # Note that this affects anyone else in the same process who happens to be
+    # using EventMachine!
     EventMachine::stop_event_loop if stop_em
   end
 
@@ -374,7 +372,7 @@ module Bud
     @dsock = EventMachine::open_datagram_socket("127.0.0.1", 0, nil)
     if @options[:port] == 0
       @server = EventMachine::open_datagram_socket(@ip, 0, BudServer, self)
-      @port = Socket.unpack_sockaddr_in( @server.get_sockname)[0]
+      @port = Socket.unpack_sockaddr_in(@server.get_sockname)[0]
     else
       @port = @options[:port]
       @server = EventMachine::open_datagram_socket(@ip, @port, BudServer, self)

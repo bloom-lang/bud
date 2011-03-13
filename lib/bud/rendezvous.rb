@@ -14,7 +14,7 @@ module GlueServer
   def receive_data(data)
     pac = MessagePack::Unpacker.new
     pac.feed data
-    pac.each{|p| q.push p[1][1] }
+    pac.each {|p| q.push p[1][1]}
   end
 end
 
@@ -29,7 +29,7 @@ class Rendezvous
     @server = EventMachine::open_datagram_socket("localhost", 0, GlueServer) do |con|
       con.q = @q
     end
-    @conn = Socket.unpack_sockaddr_in( @server.get_sockname)[0]
+    @conn = Socket.unpack_sockaddr_in(@server.get_sockname)[0]
     my_addr = "localhost:#{@conn}"
     # install a handler
     instance.sync_do do
