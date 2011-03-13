@@ -115,7 +115,6 @@ module Bud
     @state_methods = lookup_state_methods
 
     init_state
-    do_bootstrap
 
     # NB: Somewhat hacky. Dependency analysis and stratification are implemented
     # by Bud programs, so in order for those programs to parse, we need the
@@ -387,6 +386,7 @@ module Bud
   end
 
   def tick
+    do_bootstrap if @budtime == 0
     @tables.each_value do |t|
       t.tick
     end
