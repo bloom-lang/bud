@@ -43,7 +43,6 @@ class Rendezvous
       end
     end
     @instance = instance
-    @indx = indx
   end
   
   def block_on(timeout=nil)
