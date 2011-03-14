@@ -12,4 +12,7 @@ module Bud
   # Raised when the input program fails to compile (e.g., due to illegal
   # syntax).
   class CompileError < BudError; end
+  
+  # Raised when both rhs and lhs lack a schema
+  class SchemaError < BudError; end
 end

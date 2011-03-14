@@ -279,21 +279,39 @@ module Bud
       end
     end
     
-    def setup_deferred_schema(o)
-      if @schema.nil? then
+    # Assign self a schema, by hook or by crook.  If o is schemaless *and* empty, will 
+    # leave @schema as is.
+    def establish_schema(o)
+      # use o's schema if available
+      deduce_schema(o) if @schema.nil?
+      # else use arity of first tuple of o
+      fit_schema(o.first.size) if @schema.nil? and not o.first.nil?
+      return @schema
+    end
+
+    # Copy over the schema from o if available
+    def deduce_schema(o)
+      if @schema.nil? and o.class <= Bud::BudCollection and not o.schema.nil?
         # must have been initialized with defer_schema==true.  take schema from rhs
-        unless o.class <= Bud::BudCollection and not o.schema.nil?
-          raise BudError, "Cannot merge schemaless collection into schemaless collection." 
-        end
         init_schema(o.schema)
       end
+      return @schema
     end
+    
+    # manufacture of the form [:c0, :c1, ...] with width = arity
+    def fit_schema(arity)
+      # rhs is schemaless.  create schema from first tuple merged
+      init_schema((0..arity-1).map{|indx| ("c"+indx.to_s).to_sym})    
+      return @schema  
+    end
+    
 
     def merge(o, buf=@new_delta)
       check_enumerable(o)
-      setup_deferred_schema(o)
-
+      establish_schema(o) if @schema.nil?
+      
       delta = o.map do |i|
+        
         next if i.nil? or i == []
         i = prep_tuple(i)
         key_vals = @key_colnums.map{|k| i[k]}
@@ -312,7 +330,7 @@ module Bud
 
     def pending_merge(o)
       check_enumerable(o)
-      setup_deferred_schema(o)
+      deduce_schema(o)
       
       o.each {|i| do_insert(i, @pending)}
       return self

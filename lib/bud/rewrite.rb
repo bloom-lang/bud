@@ -17,7 +17,7 @@ class RuleRewriter < Ruby2Ruby
     @depends = []
     super()
   end
-
+    
   def process_call(exp)
     if exp[0].nil? and exp[2] == s(:arglist) and @collect
       do_table(exp)
@@ -28,15 +28,19 @@ class RuleRewriter < Ruby2Ruby
     else
       if exp[0] and exp[0].class == Sexp
         # ignore accessors of iterator variables
-        unless exp[0].first == :lvar
+        if exp[0].first != :lvar or @bud_instance.tables.include? exp[0][1]
           if exp[2].class == Sexp and exp[2].length == 1 and exp[2] == s(:arglist)
-            # check for delete op, but ignore top-level accessors and maps
-            @nm = true if exp[1] == :-@
+            # check for delete ops and predicate methods (ending in "?"), 
+            # but ignore top-level accessors and maps
+            @nm = true if exp[1] == :-@ or exp[1].to_s[-1..-1] == '?'
           else
             unless @monotonic_whitelist[exp[1]]
               # suspicious function: exp[1]
               @nm = true
             end
+          end
+          if exp[0].first == :lvar and @bud_instance.tables.include? exp[0][1]
+            @tables[exp[0][1]] = @nm
           end
         end
       end
@@ -81,7 +85,13 @@ class RuleRewriter < Ruby2Ruby
   end
 
   def do_rule(exp)
-    lhs = process handle_temp(exp[0])
+    if exp[0][2] == :temp
+      temp = true
+      lhs = handle_temp(exp[0])
+    else
+      lhs = exp[0]
+    end
+    lhs = process lhs
     op = exp[1]
     rhs = collect_rhs(map2pro(exp[2]))
     record_rule(lhs, op, rhs)
@@ -89,12 +99,8 @@ class RuleRewriter < Ruby2Ruby
   end
 
   def handle_temp(lhs)
-    if lhs[2] == :temp
-      bud_instance.temp lhs[3][1][2]
-      return lhs[3][1]
-    else
-      lhs
-    end
+    bud_instance.temp lhs[3][1][2]
+    return lhs[3][1]
   end
 
   # look for top-level map on a base-table on rhs, and rewrite to pro
@@ -200,6 +206,7 @@ class VarRewriter < SexpProcessor
   end
   
   def process_lvar(exp)
+    return exp
     var_name = exp[1]
     if @var_tbl.has_key? var_name
       return marshall_expansion(var_name)
@@ -208,14 +215,14 @@ class VarRewriter < SexpProcessor
     return exp
   end
   
-  def process_call(exp)
-    the_method = exp[2]
-    if @var_tbl.has_key? the_method
-      the_method = marshall_expansion(the_method)
-      return the_method
-    end
-    retval = s(:call, process(exp[1]), the_method, process(exp[3]))
-    return retval
-  end
+  # def process_call(exp)
+  #   the_method = exp[2]
+  #   if @var_tbl.has_key? the_method
+  #     the_method = marshall_expansion(the_method)
+  #     return the_method
+  #   end
+  #   retval = s(:call, process(exp[1]), the_method, process(exp[3]))
+  #   return retval
+  # end
   
 end

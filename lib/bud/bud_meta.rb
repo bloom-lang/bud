@@ -102,6 +102,23 @@ class BudMeta
     #rewriter.rules.each {|r| puts "RW: #{r.inspect}"}
     return rewriter
   end
+  
+  def rhs_collection(rhs)
+    # table.map {}
+    if rhs[1] and rhs[1][1] and rhs[1][1][2] and bud_instance.tables.include? rhs[1][1][2]
+      name = rhs[1][1][2]
+    # variable.map {}
+    elsif rhs[1] and rhs[1][1] and rhs[1][1][2] and bud_instance.tables.include? rhs[1][1][1]
+      name = rhs[1][1][1]
+    # table {}
+    elsif rhs[1] and rhs[1][2] and bud_instance.tables.include? rhs[1][2]
+      name = rhs[1][2]
+    # variable {}
+    elsif rhs[1] and rhs[1][1] and bud_instance.tables.include? rhs[1][1]
+      name = rhs[1][1]
+    end
+    retval = defined?(name) ? bud_instance.tables[name] : nil
+  end
 
   # Perform some basic sanity checks on the AST of a rule block. We expect a
   # rule block to consist of a :defn, a nested :scope, and then a sequence of
@@ -120,16 +137,34 @@ class BudMeta
     # rest of the rule block.
     assign_nodes, rest_nodes = block.partition {|b| b.class == Sexp && b.sexp_type == :lasgn}
     assign_vars = {}
+    temp_rules = []
+    pending_temps = []
     assign_nodes.each do |n|
       # Expected format: lasgn tag, lhs, rhs
       raise Bud::CompileError unless n.length == 3
       tag, lhs, rhs = n
       lhs = lhs.to_sym
+      bud_instance.temp lhs
 
-      # Don't allow duplicate variable names within a block, nor variables that
-      # shadow the name of a collection
-      raise Bud::CompileError if assign_vars.has_key? lhs
-      raise Bud::CompileError if @bud_instance.tables.has_key? lhs
+      temp_rules << s(:call, s(:call, nil, lhs, s(:arglist)), :<=, s(:arglist, rhs))
+               
+      # if rhs is a table, propagate schema leftward
+      source = rhs_collection(rhs)
+      if defined?(source)
+        begin
+          bud_instance.tables[lhs].deduce_schema(source)
+        rescue Bud::SchemaError
+          # rhs not defined yet; defer til later
+          pending_temps << [lhs, source]
+        end
+      end
+      next
+
+      ## XXX THIS IS COVERED BY INSERTION OF BudTemps INTO @tables
+      # # Don't allow duplicate variable names within a block, nor variables that
+      # # shadow the name of a collection
+      # raise Bud::CompileError if assign_vars.has_key? lhs
+      # raise Bud::CompileError if @bud_instance.tables.has_key? lhs
 
       # Macro expand any references to variables in the RHS. Note that this
       # means that a macro can only refer to previously-defined macros in the
@@ -139,7 +174,25 @@ class BudMeta
       assign_vars[lhs] = vr.process(rhs)
     end
 
-    rest_nodes.each_with_index do |n,i|
+    # deal with pending_temps.  Should top-sort then make one pass, but we'll be lazy and
+    # just iterate to fixpoint.   max number of iterations has to be pending_temps.length,
+    # and if we go that many times something is undefined.
+    (0..pending_temps.size).each do
+      pending_temps.each do |p|
+        begin
+          if bud_instance.tables[p[0]].deduce_schema(p[1])
+            pending_temps.delete!([p])
+          end
+        rescue Bud::SchemaError
+        end
+      end
+      break if pending_temps.empty?
+    end
+
+    # anything that remains after that loop will get a schema assigned dynamically 
+    # by BudCollection::fix_schema on first non-empty merge
+
+    (rest_nodes+temp_rules).each_with_index do |n,i|
       if i == 0
         raise Bud::CompileError if n != :block
         next
@@ -176,13 +229,13 @@ class BudMeta
         raise Bud::CompileError if rhs_args.length != 1
       end
 
-      # Rewrite RHS to macro-expand any references to alias variables
+      # # Rewrite RHS to macro-expand any references to alias variables
       vr = VarRewriter.new(assign_vars)
       n[3] = vr.process(rhs)
     end
 
     # Replace old block with rewritten version
-    scope[1] = rest_nodes
+    scope[1] = rest_nodes + temp_rules
   end
 
   def each_relevant_ancestor
