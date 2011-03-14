@@ -124,8 +124,6 @@ class BudMeta
   # rule block to consist of a :defn, a nested :scope, and then a sequence of
   # statements. Each statement is either a :call or :lasgn node.
   def check_rule_ast(pt)
-    return if @bud_instance.options[:disable_sanity_check]
-
     # :defn format: node tag, block name, args, nested scope
     raise Bud::CompileError if pt.sexp_type != :defn
     scope = pt[3]
