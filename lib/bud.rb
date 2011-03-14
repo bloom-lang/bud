@@ -94,6 +94,7 @@ module Bud
     @budtime = 0
     @inbound = []
     @declarations = []
+    @done_bootstrap = false
     @server = nil
 
     # Setup options (named arguments), along with default values
@@ -168,10 +169,9 @@ module Bud
     bootstrap
 
     # Make sure that new_delta tuples from bootstrap rules are transitioned into
-    # storage before first tick.
+    # storage.
     tables.each{|name,coll| coll.install_deltas}
-    # Note that any tuples installed into a channel won't immediately be
-    # flushed; we need to wait for EM startup to do that
+    @done_bootstrap = true
   end
 
   def do_rewrite
@@ -350,18 +350,12 @@ module Bud
 
     do_start_server
 
-    # Flush any tuples installed into channels during bootstrap block
-    # XXX: doing this here is a kludge; we should do all of bootstrap
-    # in one place
-    do_flush
-
     # Initialize periodics
     @periodics.each do |p|
       @timers << set_periodic_timer(p.pername, p.ident, p.period)
     end
 
-    # Compute a fixpoint. We do this so that transitive consequences of any
-    # bootstrap facts are computed.
+    # Compute a fixpoint; this will also invoke any bootstrap blocks.
     tick
 
     @rtracer.sleep if options[:rtrace]
@@ -386,7 +380,7 @@ module Bud
   end
 
   def tick
-    do_bootstrap if @budtime == 0
+    do_bootstrap unless @done_bootstrap
     @tables.each_value do |t|
       t.tick
     end
@@ -418,7 +412,7 @@ module Bud
     table :t_cycle, [:predicate, :via, :neg, :temporal]
   end
 
-  # Invoke all the user-defined state blocks and init builtin state.
+  # Invoke all the user-defined state blocks and initialize builtin state.
   def init_state
     builtin_state
     @state_methods.each do |s|
