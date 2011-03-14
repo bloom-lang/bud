@@ -242,6 +242,13 @@ module Bud
   # state can be safely examined inside the block. Naturally, this method can
   # only be used when Bud is running in the background. Note that calling
   # async_do returns immediately; the callback is invoked at some future time.
+  #
+  # Note that the callback is invoked after one Bud timestep has ended but
+  # before the next timestep begins. Hence, synchronous accumulation (<=) into a
+  # Bud scratch collection in a callback will not have any effect: when the next
+  # tick begins, the content of any scratch collections will be empted, which
+  # includes anything inserted in a async_do callback via <=. To avoid this
+  # behavior, insert into scratches using <+.
   def async_do
     EventMachine::schedule do
       yield if block_given?
