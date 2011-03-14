@@ -238,30 +238,31 @@ module Bud
   end
 
   # Given a block, evaluate that block inside the background Ruby thread at some
-  # point in the future. Because the background Ruby thread is blocked, Bud
-  # state can be safely examined inside the block. Naturally, this method can
-  # only be used when Bud is running in the background. Note that calling
-  # async_do returns immediately; the callback is invoked at some future time.
+  # point in the future. Because the callback is invoked inside the background
+  # Ruby thread, Bud state can be safely examined inside the block. Naturally,
+  # this method can only be used when Bud is running in the background. Note
+  # that calling sync_do blocks the caller's thread until the block has been
+  # evaluated by the Bud thread; for a non-blocking version, see async_do.
   #
   # Note that the callback is invoked after one Bud timestep has ended but
   # before the next timestep begins. Hence, synchronous accumulation (<=) into a
-  # Bud scratch collection in a callback will not have any effect: when the next
+  # Bud scratch collection in a callback is typically not useful: when the next
   # tick begins, the content of any scratch collections will be empted, which
-  # includes anything inserted in a async_do callback via <=. To avoid this
+  # includes anything inserted by a sync_do block using <=. To avoid this
   # behavior, insert into scratches using <+.
-  def async_do
-    EventMachine::schedule do
+  def sync_do
+    schedule_and_wait do
       yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
       tick
     end
   end
 
-  # Like async_do, but provides syntax sugar for a common case: the calling
-  # thread is blocked until the supplied block has been evaluated by the
-  # Bud thread. Note that calls to sync_do and async_do respect FIFO order.
-  def sync_do
-    schedule_and_wait do
+  # Like sync_do, but does not block the caller's thread: the given callback
+  # will be invoked at some future time. Note that calls to async_do respect
+  # FIFO order.
+  def async_do
+    EventMachine::schedule do
       yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
       tick
