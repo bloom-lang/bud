@@ -83,7 +83,7 @@ class RuleRewriter < Ruby2Ruby
   def do_rule(exp)
     lhs = process handle_temp(exp[0])
     op = exp[1]
-    rhs = collect_rhs(map2smap(exp[2]))
+    rhs = collect_rhs(map2pro(exp[2]))
     record_rule(lhs, op, rhs)
     drain(exp)
   end
@@ -98,7 +98,7 @@ class RuleRewriter < Ruby2Ruby
   end
 
   # look for top-level map on a base-table on rhs, and rewrite to pro
-  def map2smap(exp)
+  def map2pro(exp)
     if exp[1] and exp[1][0] and exp[1][0] == :iter \
        and exp[1][1] and exp[1][1][1] == :call \
        and exp[1][1][2] == :map
@@ -163,7 +163,8 @@ class VarRewriter < SexpProcessor
   # process the block, and then re-add the variable to the rewriting table.
   def process_iter(exp)
     tag, iter, args, body = exp
-
+    old_exp = Marshal.load(Marshal.dump(exp))
+    
     shadow_vars = {}
     vars = find_lasgn_vars(args)
     vars.each do |v|
@@ -189,17 +190,32 @@ class VarRewriter < SexpProcessor
     Sexp.from_array(result)
   end
 
+  def marshall_expansion(var_name)
+    expansion = @var_tbl[var_name]
+    # NB: We need to return a deep copy of the macro expansion. This is
+    # because subsequent sexp processing is destructive -- we don't want
+    # mutations performed to one expansion of a macro to effect other uses of
+    # the macro. Apparently this is the best way to do a deep copy in Ruby.
+    return Marshal.load(Marshal.dump(expansion))
+  end
+  
   def process_lvar(exp)
     var_name = exp[1]
     if @var_tbl.has_key? var_name
-      expansion = @var_tbl[var_name]
-      # NB: We need to return a deep copy of the macro expansion. This is
-      # because subsequent sexp processing is destructive -- we don't want
-      # mutations performed to one expansion of a macro to effect other uses of
-      # the macro. Apparently this is the best way to do a deep copy in Ruby.
-      return Marshal.load(Marshal.dump(expansion))
+      return marshall_expansion(var_name)
     end
 
     return exp
   end
+  
+  def process_call(exp)
+    the_method = exp[2]
+    if @var_tbl.has_key? the_method
+      the_method = marshall_expansion(the_method)
+      return the_method
+    end
+    retval = s(:call, process(exp[1]), the_method, process(exp[3]))
+    return retval
+  end
+  
 end
