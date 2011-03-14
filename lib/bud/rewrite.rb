@@ -163,7 +163,6 @@ class VarRewriter < SexpProcessor
   # process the block, and then re-add the variable to the rewriting table.
   def process_iter(exp)
     tag, iter, args, body = exp
-    old_exp = Marshal.load(Marshal.dump(exp))
     
     shadow_vars = {}
     vars = find_lasgn_vars(args)
