@@ -43,11 +43,6 @@ delete:
 
 * `left <- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
 
-operators can be chained.  for example:
-
-* `chan <= tab <= right` &nbsp;&nbsp;&nbsp;&nbsp;   (*store and forward*)
-* `left <- (chan <~ right)`&nbsp;&nbsp;&nbsp; (*async delete*)
-
 ## State Declarations ##
 Use `BudModule::state` to register a Ruby block of state declarations to be invoked during Bud bootstrapping.
 
