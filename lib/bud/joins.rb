@@ -48,7 +48,7 @@ module Bud
     def do_insert(o, store)
       raise BudError, "no insertion into joins"
     end
-    
+
     def inspected
       if @rels.length == 2 then
         # fast common case

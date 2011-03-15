@@ -295,10 +295,11 @@ module Bud
         # must have been initialized with defer_schema==true.  take schema from rhs
         init_schema(o.schema)
       end
+      # returns old state of @schema (nil) if nothing available
       return @schema
     end
     
-    # manufacture of the form [:c0, :c1, ...] with width = arity
+    # manufacture schema of the form [:c0, :c1, ...] with width = arity
     def fit_schema(arity)
       # rhs is schemaless.  create schema from first tuple merged
       init_schema((0..arity-1).map{|indx| ("c"+indx.to_s).to_sym})    
