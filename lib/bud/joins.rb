@@ -29,20 +29,35 @@ module Bud
       @rels = [rellist[0]]
       @rels << (rellist.length == 2 ? rellist[1] : BudJoin.new(rellist[1..rellist.length-1], @bud_instance, otherpreds))
 
-      # now derive schema: combo of rels[0] and rels[1]
-      if @rels[0].schema.empty? or @rels[1].schema.empty?
-        @schema = []
-      else
-        dups = @rels[0].schema & @rels[1].schema
-        bothschema = @rels[0].schema + @rels[1].schema
-        @schema = bothschema.to_enum(:each_with_index).map do |c,i|
-          if dups.include?(c)
-            "#{c}_#{i}".to_sym
-          else
-            c
-          end
+      # derive schema: one column for each table.
+      # unnamed inputs become "t_i" for position i
+      # duplicated inputs get distinguishing numeral
+      @schema = []
+      index = 0
+      rellist.reduce({}) do |memo, r|
+        index += 1
+        if !r.respond_to?(:tabname)
+          @schema << "t_#{index}".to_sym
+        else
+          memo[r.tabname.to_s] ||= 0
+          @schema << (r.tabname.to_s + (memo[r.tabname.to_s] > 0 ? "_" + memo[r.tabname.to_s].to_s : "")).to_sym
+          memo[r.tabname.to_s] += 1
         end
+        memo
       end
+    end
+
+    def flatten
+      flat_schema = @rels.map{|r| r.schema}.flatten(1)
+      dupfree_schema = []
+      flat_schema.reduce({}) do |memo, r|
+        memo[r] ||= 0
+        dupfree_schema << (r.to_s + (memo[r] > 0 ? "_" + memo[r].to_s : "")).to_sym
+        memo[r] += 1
+        memo
+      end
+      retval = BudScratch.new('temp_flatten', bud_instance, dupfree_schema)
+      retval.merge(self.map{|r,s| r+s}, retval.storage)
     end
 
     def do_insert(o, store)

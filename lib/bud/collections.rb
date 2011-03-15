@@ -482,7 +482,7 @@ module Bud
         else
           schema = { keynames => aggcols }
         end
-        retval = BudScratch.new('temp', bud_instance, schema)
+        retval = BudScratch.new('temp_group', bud_instance, schema)
         retval.merge(result, retval.storage)
       end
     end
