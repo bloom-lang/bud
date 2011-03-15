@@ -660,7 +660,7 @@ module Bud
 
     superator "<-" do |o|
       o.each do |tuple|
-        @to_delete << tuple
+        @to_delete << tuple unless tuple.nil?
       end
     end
   end
