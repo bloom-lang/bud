@@ -102,13 +102,31 @@ class BudMeta
     #rewriter.rules.each {|r| puts "RW: #{r.inspect}"}
     return rewriter
   end
+  
+  # find the BudCollection on the rhs of a rule
+  # we have to consider tables defined in the state block AND temp variables from "="
+  # we also have to consider implicit and explicit maps on the rhs
+  def rhs_collection(rhs)
+    # table.map {}
+    if rhs[1] and rhs[1][1] and rhs[1][1][2] and bud_instance.tables.include? rhs[1][1][2]
+      name = rhs[1][1][2]
+    # variable.map {}
+    elsif rhs[1] and rhs[1][1] and rhs[1][1][2] and bud_instance.tables.include? rhs[1][1][1]
+      name = rhs[1][1][1]
+    # table {}
+    elsif rhs[1] and rhs[1][2] and bud_instance.tables.include? rhs[1][2]
+      name = rhs[1][2]
+    # variable {}
+    elsif rhs[1] and rhs[1][1] and bud_instance.tables.include? rhs[1][1]
+      name = rhs[1][1]
+    end
+    retval = defined?(name) ? bud_instance.tables[name] : nil
+  end
 
   # Perform some basic sanity checks on the AST of a rule block. We expect a
   # rule block to consist of a :defn, a nested :scope, and then a sequence of
   # statements. Each statement is either a :call or :lasgn node.
   def check_rule_ast(pt)
-    return if @bud_instance.options[:disable_sanity_check]
-
     # :defn format: node tag, block name, args, nested scope
     raise Bud::CompileError if pt.sexp_type != :defn
     scope = pt[3]
@@ -116,29 +134,44 @@ class BudMeta
     block = scope[1]
 
     # First, remove any assignment statements (i.e., alias definitions) from the
-    # rule block's AST. Then macro-expand any references to the alias in the
-    # rest of the rule block.
+    # rule block's AST. Then convert them to temp rules so we can add them back in.
     assign_nodes, rest_nodes = block.partition {|b| b.class == Sexp && b.sexp_type == :lasgn}
     assign_vars = {}
+    temp_rules = []     # equality statements rewritten as temp rules
+    pending_temps = []  # temps with schemas to be resolved
     assign_nodes.each do |n|
       # Expected format: lasgn tag, lhs, rhs
       raise Bud::CompileError unless n.length == 3
       tag, lhs, rhs = n
       lhs = lhs.to_sym
+      bud_instance.temp lhs
 
-      # Don't allow duplicate variable names within a block, nor variables that
-      # shadow the name of a collection
-      raise Bud::CompileError if assign_vars.has_key? lhs
-      raise Bud::CompileError if @bud_instance.tables.has_key? lhs
-
-      # Macro expand any references to variables in the RHS. Note that this
-      # means that a macro can only refer to previously-defined macros in the
-      # current rule. We could improve this (topological sort of the dependency
-      # graph between macros), but this is probably fine for now.
-      vr = VarRewriter.new(assign_vars)
-      assign_vars[lhs] = vr.process(rhs)
+      temp_rules << s(:call, s(:call, nil, lhs, s(:arglist)), :<=, s(:arglist, rhs))
+               
+      # if rhs is a BudCollection, propagate schema leftward
+      source = rhs_collection(rhs)
+      if defined?(source)
+        bud_instance.tables[lhs].deduce_schema(source)
+        pending_temps << [lhs, source] if bud_instance.tables[lhs].schema.nil?
+      end
     end
 
+    rest_nodes += temp_rules
+
+    # deal with pending_temps.  Should top-sort then make one pass, but we'll be lazy and
+    # just iterate to fixpoint.   worst-case number of iterations is pending_temps.size;
+    # if we go that many times something is undefined.
+    (0..pending_temps.size).each do
+      pending_temps.each do |p|
+        if bud_instance.tables[p[0]].deduce_schema(p[1])
+          pending_temps.delete!([p])
+        end
+      end
+      break if pending_temps.empty?
+    end
+    # anything that remains in pending_temps after that loop will get 
+    # a schema assigned dynamically by BudCollection::fix_schema on first non-empty merge    
+    
     rest_nodes.each_with_index do |n,i|
       if i == 0
         raise Bud::CompileError if n != :block
@@ -175,10 +208,6 @@ class BudMeta
         raise Bud::CompileError unless rhs_args.sexp_type == :arglist
         raise Bud::CompileError if rhs_args.length != 1
       end
-
-      # Rewrite RHS to macro-expand any references to alias variables
-      vr = VarRewriter.new(assign_vars)
-      n[3] = vr.process(rhs)
     end
 
     # Replace old block with rewritten version

@@ -125,6 +125,27 @@ class JoinAgg < Rename
   end
 end
 
+class AggJoin
+  include Bud
+  state do
+    table :shoes, [:dname] => [:usualsal]
+    table :emp, [:ename, :dname] => [:sal]
+    scratch :funny, [:dname] => [:max_sal, :usual_sal]
+  end
+  
+  bootstrap do
+    emp << ['joe', 'shoe', 10]
+    emp << ['joe', 'toy', 5]
+    emp << ['bob', 'shoe', 11]
+    shoes << ['shoe', 9]
+  end
+
+  declare
+  def rules
+    funny <= natjoin([emp, shoes]).flatten.group([:dname], max(:sal), max(:usualsal))
+  end
+end
+
 class TestAggs < Test::Unit::TestCase
   def test_paths
     program = ShortestPaths.new
@@ -182,5 +203,11 @@ class TestAggs < Test::Unit::TestCase
     assert_equal(['bob', 'shoe', 11], rich)
     argrich = program.argrich.first
     assert_equal(['bob', 'shoe', 11], argrich)
+  end
+
+  def test_agg_join
+    p = AggJoin.new
+    assert_nothing_raised (RuntimeError) { p.tick }
+    assert_equal([['shoe', 11, 9]], p.funny.to_a  )
   end
 end

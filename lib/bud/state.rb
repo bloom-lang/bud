@@ -64,7 +64,7 @@ module BudState
   end
 
   def temp(name, schema=nil)
-    raise Bud::BudError, "temp table #{name} reused" unless @tables[name].nil?
+    raise Bud::CompileError, "temp table #{name} reused" unless @tables[name].nil?
     # defer schema definition until merge
     define_collection(name)
     @tables[name] = Bud::BudTemp.new(name, self, schema, true)

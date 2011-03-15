@@ -189,3 +189,43 @@ class TestChannelAddrInVal < Test::Unit::TestCase
     p2.stop_bg
   end
 end
+
+class ChannelBootstrap
+  include Bud
+
+  state do
+    channel :loopback, [:foo]
+    table :t1
+    table :t2, [:foo]
+  end
+
+  bootstrap do
+    loopback <~ [[1000]]
+    t1 <= [[@ip, @port]]
+  end
+
+  declare
+  def rules
+    t2 <= loopback
+  end
+end
+
+class TestChannelBootstrap < Test::Unit::TestCase
+  def test_bootstrap
+    c = ChannelBootstrap.new
+    c.run_bg
+    c.sync_do {
+      t = c.t1.to_a
+      assert_equal(1, t.length)
+      v = t.first
+      assert(v[1] > 1024)
+      assert_equal(v[0], "localhost")
+    }
+    sleep 1
+    c.sync_do {
+      assert_equal([[1000]], c.t2.to_a.sort)
+    }
+    c.stop_bg
+  end
+end
+

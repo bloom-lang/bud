@@ -10,11 +10,11 @@ class BabyBud
   }
 
   bootstrap do
-    scrtch <+ [['a', 'b', 1, 2]]
-    scrtch <+ [['a', 'c', 3, 4]]
-    scrtch2 <+ [['a', 'b']]
-    tbl <+ [['a', 'b', 1, 2]]
-    tbl <+ [['z', 'y', 9, 8]]
+    scrtch <= [['a', 'b', 1, 2]]
+    scrtch <= [['a', 'c', 3, 4]]
+    scrtch2 <= [['a', 'b']]
+    tbl <= [['a', 'b', 1, 2]]
+    tbl <= [['z', 'y', 9, 8]]
   end
 
   declare
@@ -159,7 +159,7 @@ class BendTypes
   }
 
   def bootstrap
-    t1 <+ {1=>'a', 2=>'b'}
+    t1 <= {1=>'a', 2=>'b'}
   end
 end
 

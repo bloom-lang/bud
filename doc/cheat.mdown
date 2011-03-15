@@ -43,11 +43,6 @@ delete:
 
 * `left <- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
 
-operators can be chained.  for example:
-
-* `chan <= tab <= right` &nbsp;&nbsp;&nbsp;&nbsp;   (*store and forward*)
-* `left <- (chan <~ right)`&nbsp;&nbsp;&nbsp; (*async delete*)
-
 ## State Declarations ##
 Use `BudModule::state` to register a Ruby block of state declarations to be invoked during Bud bootstrapping.
 
@@ -231,6 +226,22 @@ The following is equivalent to the above statements if `x` is the only attribute
 `leftjoin([`*t1, t2*`]` *, [optional column matches], ...*`)`<br>
 Left Outer Join.  Objects in the first collection will be included in the output even if no match is found in the second collection.
 
+### Join methods ###
+`join([`*tablelist*`]` *,[optional column matches], ...*`).flatten`<br>
+`flatten` is a bit like SQL's `SELECT *`: it produces a collection of concatenated objects, with a schema that is the concatenation of the schemas in tablelist (with duplicate names disambiguated.) Useful for chaining to operators that expect input collections with schemas, e.g. group:
+
+    out <= natjoin([r,s]).flatten.group([:rcol], max(:scol))
+
+## Temp/Equality rules ##
+`temp`<br>
+temp collections are scratches defined within a declare block.  Two equivalent ways to define a temp:
+
+    temp(my_scratch1) <= foo
+    my_scratch2 = foo
+  
+temp collections get their schema from the rhs; if the rhs has no schema, a simple one is manufactured to suit: [c0, c1, ...].
+
+    
 ## Interacting with Bud from Ruby ##
 * `run`
 * `run_bg`

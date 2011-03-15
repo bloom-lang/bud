@@ -15,19 +15,19 @@ class ChatClient
 
   state { table :status }
 
-  # send connection request to master
+  # send connection request to master on startup
   bootstrap do
     signup <~ [[@master, [ip_port, @nick]]]
   end
 
-  # formatting received chat messages on the right of the screen
+  # format chat messages with timestamp on the right of the screen
   def left_right_align(x, y)
     return x + " "*[66 - x.length,2].max + y
   end
 
   declare
   def chatter
-    # send mcast requests to master if status is non-empty
+    # send mcast requests to master
     mcast <~ stdio.map do |s|
       [@master, ip_port, @nick, Time.new.strftime("%I:%M.%S"), s.line]
     end
