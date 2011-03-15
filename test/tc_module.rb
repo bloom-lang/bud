@@ -42,14 +42,17 @@ end
 class ImportGrandParent
   include Bud
   import ChildModule => :c
+  import ParentModule => :p
 
   state do
     table :t2
+    table :t3
   end
 
   declare
   def rules
     t2 <= c.p.boot_t
+    t3 <= p.boot_t.map {|p| [p.key + 10, p.val + 20]}
   end
 end
 
@@ -65,5 +68,6 @@ class TestModules < Test::Unit::TestCase
     c = ImportGrandParent.new
     c.tick
     assert_equal([[5, 10], [20, 30]], c.t2.to_a.sort)
+    assert_equal([[15, 30], [30, 50]], c.t3.to_a.sort)
   end
 end
