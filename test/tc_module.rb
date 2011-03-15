@@ -5,11 +5,17 @@ module ParentModule
 
   state do
     table :boot_t
+    table :p
   end
 
   bootstrap do
     boot_t << [5, 10]
     boot_t << [20, 30]
+  end
+
+  declare
+  def parent_rules
+    p <= boot_t.map {|x| [x.key + 10, x.val + 20]}
   end
 end
 
@@ -21,12 +27,14 @@ class ImportParent
   state do
     table :t2
     table :t3
+    table :t4
   end
 
   declare
   def rules
     t2 <= p.boot_t.map {|t| [t.key + 1, t.val + 1]}
     t3 <= q.boot_t.map {|t| [t.key + 1, t.val + 1]}
+    t4 <= p.p
   end
 end
 
@@ -62,6 +70,8 @@ class TestModules < Test::Unit::TestCase
     c.tick
     assert_equal([[6, 11], [21, 31]], c.t2.to_a.sort)
     assert_equal(c.t2.to_a.sort, c.t2.to_a.sort)
+    # XXX: wrong
+    assert_equal([], c.t4.to_a.sort)
   end
 
   def test_nested_import

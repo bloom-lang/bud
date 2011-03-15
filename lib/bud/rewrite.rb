@@ -319,9 +319,9 @@ module ModuleRewriter
   # name (b) statements in the module are rewritten to reference the mangled
   # names (c) statements in the module that reference sub-modules are rewritten
   # to reference the mangled name of the submodule. We then convert the
-  # rewritten AST back into Ruby source text and eval() it, which defines a new
-  # module. We return the name of that newly defined module; the caller can then
-  # use include to actually load the module into the import site.
+  # rewritten AST back into Ruby source text using Ruby2Ruby and eval() it, to
+  # define a new module. We return the name of that newly defined module; the
+  # caller can then use "include" to load the module into the import site.
   def self.do_import(import_site, mod, local_name)
     raise Bud::BudError unless (mod.class <= Module and local_name.class <= Symbol)
 
