@@ -149,7 +149,6 @@ module Bud
     self.class.ancestors.reverse.each do |anc|
       anc.instance_methods(false).each do |m|
         if /__.+?__state/.match m
-          puts "State meth: #{m}"
           rv << self.method(m.to_sym)
         end
       end
