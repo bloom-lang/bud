@@ -59,7 +59,8 @@ class KTest2 < KTest
   declare
   def update
     mystate <= upd
-    mystate <- join([upd, mystate]).map {|i, s| s}
+    j = join([upd, mystate])
+    mystate <- j.map {|i, s| s}
   end
 end
 
