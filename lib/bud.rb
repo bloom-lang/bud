@@ -16,7 +16,6 @@ require 'bud/rtrace'
 
 class Module
   def import(spec)
-    puts "Module#import: #{spec.inspect} (self = #{self})"
     raise Bud::BudError unless (spec.class <= Hash and spec.length == 1)
     mod, local_name = spec.first
 
@@ -35,11 +34,14 @@ class Module
     @bud_import_tbl ||= {}
     @bud_import_tbl
   end
+
+  def print_import_table
+    puts self.bud_import_table.inspect
+  end
 end
 
 module BudModule
   def self.included(o)
-    puts "BudModule#included: #{o.inspect}"
     # Add support for the "declare" annotator to the specified module
     o.send(:include, Anise)
     o.send(:annotator, :declare)
@@ -145,14 +147,11 @@ module Bud
     # common idiom: the schema of a table in a child module/class might
     # reference the schema of an included module.
     self.class.ancestors.reverse.each do |anc|
-      if anc.name.include? "::"
-        anc_name = anc.name.split("::").last
-      else
-        anc_name = anc
-      end
-      meth_name = anc.instance_methods.find {|m| m == "__#{anc_name}__state"}
-      if meth_name
-        rv << self.method(meth_name.to_sym)
+      anc.instance_methods(false).each do |m|
+        if /__.+?__state/.match m
+          puts "State meth: #{m}"
+          rv << self.method(m.to_sym)
+        end
       end
     end
     rv
@@ -163,14 +162,10 @@ module Bud
     init_state
 
     self.class.ancestors.reverse.each do |anc|
-      if anc.name.include? "::"
-        anc_name = anc.name.split("::").last
-      else
-        anc_name = anc
-      end
-      meth_name = anc.instance_methods.find {|m| m == "__#{anc_name}__bootstrap"}
-      if meth_name
-        self.method(meth_name.to_sym).call
+      anc.instance_methods(false).each do |m|
+        if /__.+?__bootstrap/.match m
+          self.method(m.to_sym).call
+        end
       end
     end
     bootstrap

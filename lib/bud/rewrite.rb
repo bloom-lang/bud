@@ -240,7 +240,6 @@ class NestedRefRewriter < SexpProcessor
       lookup_tbl = @import_tbl
       do_rewrite = true
       new_meth_name = ""
-      tmp_stack = Marshal.load(Marshal.dump(recv_stack))
       until recv_stack.empty?
         m = recv_stack.pop
 
@@ -255,7 +254,6 @@ class NestedRefRewriter < SexpProcessor
 
       if do_rewrite
         new_meth_name += meth_name.to_s
-        pp exp
         recv = nil
         meth_name = new_meth_name.to_sym
         did_rewrite = true
@@ -265,11 +263,7 @@ class NestedRefRewriter < SexpProcessor
     recv = process(recv)
     args = process(args)
 
-    r = Sexp.from_array [tag, recv, meth_name, args]
-    if did_rewrite
-      pp r
-    end
-    r
+    Sexp.from_array [tag, recv, meth_name, args]
   end
 
   def make_recv_stack(r)
@@ -383,7 +377,7 @@ module ModuleRewriter
       next if b.sexp_type != :defn
 
       def_name, args, scope = b.sexp_body
-      next unless /__.*?__state$/.match def_name.to_s
+      next unless /__.+?__state$/.match def_name.to_s
 
       raise Bud::BudError unless scope.sexp_type == :scope
       state_block = scope.sexp_body.first
