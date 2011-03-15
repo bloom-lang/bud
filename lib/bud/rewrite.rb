@@ -64,7 +64,7 @@ class RuleRewriter < Ruby2Ruby
   end
   
   def record_rule(lhs, op, rhs)
-    rule_txt = "#{lhs} #{op} #{rhs}"
+    rule_txt = "#{lhs} #{op} (#{rhs})"
     if op == :<
       op = "<#{@temp_op}"
     else
