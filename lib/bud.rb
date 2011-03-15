@@ -76,7 +76,7 @@ end
 # :main: Bud
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
-  attr_reader :server, :dsock
+  attr_reader :dsock
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
 
@@ -95,7 +95,6 @@ module Bud
     @inbound = []
     @declarations = []
     @done_bootstrap = false
-    @server = nil
 
     # Setup options (named arguments), along with default values
     @options = options
@@ -324,7 +323,6 @@ module Bud
     end
     close_tables
     @dsock.close_connection
-    @server.close_connection
     # Note that this affects anyone else in the same process who happens to be
     # using EventMachine!
     EventMachine::stop_event_loop if stop_em
@@ -367,13 +365,12 @@ module Bud
   end
 
   def do_start_server
-    @dsock = EventMachine::open_datagram_socket("127.0.0.1", 0, nil)
     if @options[:port] == 0
-      @server = EventMachine::open_datagram_socket(@ip, 0, BudServer, self)
-      @port = Socket.unpack_sockaddr_in(@server.get_sockname)[0]
+      @dsock = EventMachine::open_datagram_socket(@ip, 0, BudServer, self)
+      @port = Socket.unpack_sockaddr_in(@dsock.get_sockname)[0]
     else
       @port = @options[:port]
-      @server = EventMachine::open_datagram_socket(@ip, @port, BudServer, self)
+      @dsock = EventMachine::open_datagram_socket(@ip, @port, BudServer, self)
     end
   end
 
