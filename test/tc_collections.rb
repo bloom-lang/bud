@@ -199,6 +199,24 @@ class DupTableDef
   end
 end
 
+class DelBug
+  include Bud
+
+  state do
+    scratch :start
+    table :buffer
+    periodic :tic, 1
+  end
+
+  declare
+  def logos
+    buffer <= start
+    buffer <- join([tic, buffer]) do |t, h|
+      h if h.key == 'foo'
+    end
+  end
+end
+
 class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
@@ -317,5 +335,15 @@ class TestCollections < Test::Unit::TestCase
 
   def test_dup_table_def
     assert_raise(Bud::BudError) { DupTableDef.new }
+  end
+
+  def test_filter_and_delete
+    th = DelBug.new(:port => 12345)
+    th.run_bg
+    assert_nothing_raised do
+      th.sync_do {th.start <+ [['foo','bar'], ['baz','bam']]}
+      sleep 2
+    end
+    
   end
 end
