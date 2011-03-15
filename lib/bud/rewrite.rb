@@ -255,7 +255,6 @@ class NestedRefRewriter < SexpProcessor
 
       if do_rewrite
         new_meth_name += meth_name.to_s
-        puts "FOUND REWRITE! old = #{meth_name}, meth_name = #{new_meth_name}, stack = #{tmp_stack.inspect}"
         pp exp
         recv = nil
         meth_name = new_meth_name.to_sym
@@ -268,7 +267,6 @@ class NestedRefRewriter < SexpProcessor
 
     r = Sexp.from_array [tag, recv, meth_name, args]
     if did_rewrite
-      puts "JJJJJJJJJJJJJJJJJJJ"
       pp r
     end
     r
@@ -342,9 +340,7 @@ module ModuleRewriter
     r2r = Ruby2Ruby.new
     str = r2r.process(ast)
 
-    puts str
-
-    rv = eval str
+    rv = import_site.module_eval str
     raise Bud::BudError unless rv.nil?
     return new_mod_name
   end
@@ -365,7 +361,6 @@ module ModuleRewriter
     raise Bud::BudError if mod_name.to_s != importee.to_s
 
     new_name = "#{importer}__#{importee}__#{local_name}"
-    puts "New module: #{new_name}"
     ast[1] = new_name.to_sym
 
     dr = DefnRenamer.new(mod_name, new_name)

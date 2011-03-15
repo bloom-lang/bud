@@ -145,7 +145,12 @@ module Bud
     # common idiom: the schema of a table in a child module/class might
     # reference the schema of an included module.
     self.class.ancestors.reverse.each do |anc|
-      meth_name = anc.instance_methods.find {|m| m == "__#{anc}__state"}
+      if anc.name.include? "::"
+        anc_name = anc.name.split("::").last
+      else
+        anc_name = anc
+      end
+      meth_name = anc.instance_methods.find {|m| m == "__#{anc_name}__state"}
       if meth_name
         rv << self.method(meth_name.to_sym)
       end
@@ -158,7 +163,12 @@ module Bud
     init_state
 
     self.class.ancestors.reverse.each do |anc|
-      meth_name = anc.instance_methods.find {|m| m == "__#{anc}__bootstrap"}
+      if anc.name.include? "::"
+        anc_name = anc.name.split("::").last
+      else
+        anc_name = anc
+      end
+      meth_name = anc.instance_methods.find {|m| m == "__#{anc_name}__bootstrap"}
       if meth_name
         self.method(meth_name.to_sym).call
       end
