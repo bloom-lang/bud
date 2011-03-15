@@ -282,6 +282,7 @@ module Bud
 
     EventMachine::error_handler do |e|
       puts "Unexpected Bud error: #{e.inspect}"
+      puts e.backtrace.join("\n")
       raise e
     end
 
