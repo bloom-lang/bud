@@ -76,7 +76,7 @@ end
 # :main: Bud
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
-  attr_reader :server, :dsock
+  attr_reader :dsock
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
 
@@ -95,7 +95,6 @@ module Bud
     @inbound = []
     @declarations = []
     @done_bootstrap = false
-    @server = nil
 
     # Setup options (named arguments), along with default values
     @options = options
@@ -168,9 +167,6 @@ module Bud
     end
     bootstrap
 
-    # Make sure that new_delta tuples from bootstrap rules are transitioned into
-    # storage.
-    tables.each{|name,coll| coll.install_deltas}
     @done_bootstrap = true
   end
 
@@ -238,23 +234,31 @@ module Bud
   end
 
   # Given a block, evaluate that block inside the background Ruby thread at some
-  # point in the future. Because the background Ruby thread is blocked, Bud
-  # state can be safely examined inside the block. Naturally, this method can
-  # only be used when Bud is running in the background. Note that calling
-  # async_do returns immediately; the callback is invoked at some future time.
-  def async_do
-    EventMachine::schedule do
+  # point in the future. Because the callback is invoked inside the background
+  # Ruby thread, Bud state can be safely examined inside the block. Naturally,
+  # this method can only be used when Bud is running in the background. Note
+  # that calling sync_do blocks the caller's thread until the block has been
+  # evaluated by the Bud thread; for a non-blocking version, see async_do.
+  #
+  # Note that the callback is invoked after one Bud timestep has ended but
+  # before the next timestep begins. Hence, synchronous accumulation (<=) into a
+  # Bud scratch collection in a callback is typically not useful: when the next
+  # tick begins, the content of any scratch collections will be empted, which
+  # includes anything inserted by a sync_do block using <=. To avoid this
+  # behavior, insert into scratches using <+.
+  def sync_do
+    schedule_and_wait do
       yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
       tick
     end
   end
 
-  # Like async_do, but provides syntax sugar for a common case: the calling
-  # thread is blocked until the supplied block has been evaluated by the
-  # Bud thread. Note that calls to sync_do and async_do respect FIFO order.
-  def sync_do
-    schedule_and_wait do
+  # Like sync_do, but does not block the caller's thread: the given callback
+  # will be invoked at some future time. Note that calls to async_do respect
+  # FIFO order.
+  def async_do
+    EventMachine::schedule do
       yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
       tick
@@ -319,7 +323,6 @@ module Bud
     end
     close_tables
     @dsock.close_connection
-    @server.close_connection
     # Note that this affects anyone else in the same process who happens to be
     # using EventMachine!
     EventMachine::stop_event_loop if stop_em
@@ -362,13 +365,12 @@ module Bud
   end
 
   def do_start_server
-    @dsock = EventMachine::open_datagram_socket("127.0.0.1", 0, nil)
     if @options[:port] == 0
-      @server = EventMachine::open_datagram_socket(@ip, 0, BudServer, self)
-      @port = Socket.unpack_sockaddr_in(@server.get_sockname)[0]
+      @dsock = EventMachine::open_datagram_socket(@ip, 0, BudServer, self)
+      @port = Socket.unpack_sockaddr_in(@dsock.get_sockname)[0]
     else
       @port = @options[:port]
-      @server = EventMachine::open_datagram_socket(@ip, @port, BudServer, self)
+      @dsock = EventMachine::open_datagram_socket(@ip, @port, BudServer, self)
     end
   end
 
@@ -380,11 +382,11 @@ module Bud
   end
 
   def tick
-    do_bootstrap unless @done_bootstrap
     @tables.each_value do |t|
       t.tick
     end
 
+    do_bootstrap unless @done_bootstrap
     receive_inbound
 
     @strata.each { |strat| stratum_fixpoint(strat) }

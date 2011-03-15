@@ -350,15 +350,6 @@ module Bud
       raise BudError, "orphaned tuples in @new_delta for #{@tabname}" unless @new_delta.empty?
     end
 
-    # move all deltas and new_deltas into storage
-    def install_deltas
-      # assertion: intersect(@storage, @delta, @new_delta) == nil
-      @storage.merge!(@delta)
-      @storage.merge!(@new_delta)
-      @delta = {}
-      @new_delta = {}
-    end
-
     # move deltas to storage, and new_deltas to deltas.
     def tick_deltas
       # assertion: intersect(@storage, @delta) == nil
