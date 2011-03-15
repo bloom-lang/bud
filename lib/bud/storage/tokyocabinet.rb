@@ -122,14 +122,6 @@ module Bud
       end
     end
 
-    # move all deltas and new_deltas to TC
-    def install_deltas
-      merge_to_hdb(@delta)
-      merge_to_hdb(@new_delta)
-      @delta = {}
-      @new_delta = {}
-    end
-
     # move deltas to TC, and new_deltas to deltas
     def tick_deltas
       merge_to_hdb(@delta)

@@ -168,9 +168,6 @@ module Bud
     end
     bootstrap
 
-    # Make sure that new_delta tuples from bootstrap rules are transitioned into
-    # storage.
-    tables.each{|name,coll| coll.install_deltas}
     @done_bootstrap = true
   end
 
@@ -388,11 +385,11 @@ module Bud
   end
 
   def tick
-    do_bootstrap unless @done_bootstrap
     @tables.each_value do |t|
       t.tick
     end
 
+    do_bootstrap unless @done_bootstrap
     receive_inbound
 
     @strata.each { |strat| stratum_fixpoint(strat) }
