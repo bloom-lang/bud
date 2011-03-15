@@ -27,11 +27,14 @@ class RuleRewriter < Ruby2Ruby
       do_rule(exp)
     else
       if exp[0] and exp[0].class == Sexp
-        # ignore accessors of iterator variables
+        # ignore accessors of iterator variables, 
+        # but do analyze variables from equality rules that got turned into temps!
         if exp[0].first != :lvar or @bud_instance.tables.include? exp[0][1]
           if exp[2].class == Sexp and exp[2].length == 1 and exp[2] == s(:arglist)
-            # check for delete ops and predicate methods (ending in "?"), 
+            # check for delete ops and predicate methods (ending in "?" like "empty?"), 
             # but ignore top-level accessors and maps
+            # XXX we should be more methodical about white/black-listing unary Enumerator 
+            # methods, as this will silently fail to notice non-monotonicity if we're wrong.
             @nm = true if exp[1] == :-@ or exp[1].to_s[-1..-1] == '?'
           else
             unless @monotonic_whitelist[exp[1]]
@@ -39,8 +42,10 @@ class RuleRewriter < Ruby2Ruby
               @nm = true
             end
           end
+          # now check for variables from equality rules that we converted into temps
+          # and register in @tables for dependency checking
           if exp[0].first == :lvar and @bud_instance.tables.include? exp[0][1]
-            @tables[exp[0][1]] = @nm
+            @tables[exp[0][1].to_s] = @nm
           end
         end
       end
@@ -203,16 +208,18 @@ class VarRewriter < SexpProcessor
     # the macro. Apparently this is the best way to do a deep copy in Ruby.
     return Marshal.load(Marshal.dump(expansion))
   end
-  
-  def process_lvar(exp)
-    return exp
-    var_name = exp[1]
-    if @var_tbl.has_key? var_name
-      return marshall_expansion(var_name)
-    end
 
-    return exp
-  end
+  ##   THIS CODE IS DEAD: used to macro-expand variables from equality rules.
+  ##   we now handle this by rewriting into deductive rules.
+  # def process_lvar(exp)
+  #   return exp
+  #   var_name = exp[1]
+  #   if @var_tbl.has_key? var_name
+  #     return marshall_expansion(var_name)
+  #   end
+  # 
+  #   return exp
+  # end
   
   # def process_call(exp)
   #   the_method = exp[2]
