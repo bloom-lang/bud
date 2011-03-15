@@ -189,6 +189,18 @@ class NonTuple
   end
 end
 
+class NonTupleDelete
+  include Bud
+
+  state do
+    table :t1
+  end
+
+  declare
+  def rules
+    t1 <- [1,2]
+  end
+end
 
 class DupTableDef
   include Bud
@@ -317,8 +329,9 @@ class TestCollections < Test::Unit::TestCase
     assert_raise(Bud::BudTypeError) { p2.tick }
     p3 = NonTuple.new
     assert_raise(Bud::BudTypeError) { p3.tick }
+    p4 = NonTupleDelete.new
+    assert_raise(Bud::BudTypeError) { p4.tick }
   end
-
 
   def test_bootstrap_derive
     b = BootstrapDerive.new
