@@ -154,12 +154,31 @@ end
 class BendTypes
   include Bud
 
-  state {
+  state do
     table :t1
-  }
+  end
 
-  def bootstrap
+  bootstrap do
     t1 <= {1=>'a', 2=>'b'}
+  end
+end
+
+class BendTypesDelete
+  include Bud
+
+  state do
+    table :t1, [:k1, :k2]
+    table :t2, [:k1, :k2]
+  end
+
+  bootstrap do
+    t1 << [5, nil]
+    t1 << [5, 10]
+  end
+
+  declare
+  def rules
+    t1 <- t2.map {|t| [t.k1]}
   end
 end
 
@@ -333,6 +352,20 @@ class TestCollections < Test::Unit::TestCase
     assert_raise(Bud::BudTypeError) { p4.tick }
   end
 
+  def test_types_delete
+    p = BendTypesDelete.new
+    p.run_bg
+    p.sync_do {
+      assert_equal(2, p.t1.length)
+      p.t2 <+ [[5, 100]]
+    }
+    p.sync_do
+    p.sync_do {
+      assert_equal([[5, 10]], p.t1.to_a.sort)
+    }
+    p.stop_bg
+  end
+
   def test_bootstrap_derive
     b = BootstrapDerive.new
     b.run_bg
@@ -357,6 +390,5 @@ class TestCollections < Test::Unit::TestCase
       th.sync_do {th.start <+ [['foo','bar'], ['baz','bam']]}
       sleep 2
     end
-    
   end
 end
