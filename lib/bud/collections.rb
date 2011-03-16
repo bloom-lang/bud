@@ -200,6 +200,7 @@ module Bud
     end
 
     def include?(tuple)
+      return true if key_cols.nil? or (key_cols.empty? and length > 0)
       return false if tuple.nil? or tuple.empty?
       key = key_cols.map{|k| tuple[schema.index(k)]}
       return (tuple == self[key])

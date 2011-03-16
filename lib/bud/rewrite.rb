@@ -104,8 +104,10 @@ class RuleRewriter < Ruby2Ruby
   end
 
   def handle_temp(lhs)
-    bud_instance.temp lhs[3][1][2]
-    return lhs[3][1]
+    raise Bud::CompileError,  "lhs of temp rule not a symbol" unless lhs[3][1][0] == :lit
+    temp_name = lhs[3][1][1]
+    bud_instance.temp temp_name
+    return s(:call, nil, temp_name, s(:arglist))
   end
 
   # look for top-level map on a base-table on rhs, and rewrite to pro

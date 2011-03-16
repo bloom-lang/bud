@@ -236,7 +236,7 @@ Left Outer Join.  Objects in the first collection will be included in the output
 `temp`<br>
 temp collections are scratches defined within a declare block.  Two equivalent ways to define a temp:
 
-    temp(my_scratch1) <= foo
+    temp :my_scratch1 <= foo
     my_scratch2 = foo
   
 temp collections get their schema from the rhs; if the rhs has no schema, a simple one is manufactured to suit: [c0, c1, ...].

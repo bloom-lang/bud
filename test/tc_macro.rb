@@ -168,7 +168,7 @@ class SimpleTempTest
 
   declare
   def rules
-    temp(j) <= join([t1, t2])
+    temp(:j) <= join([t1, t2])
     t3 <= j.map {|a, b| [a.key + b.key, a.val + b.val]}
     t4 <= j.map {|a, b| [a.key + b.key, a.val + b.val]}
     t5 <= j.map {|a, b| a if b.val > 100}
@@ -189,10 +189,10 @@ class TempRefTemp
 
   declare
   def rules
-    temp(a) <= t1.map {|t| [t.key + 10, t.val + 10]}
-    temp(b) <= a.map {|t| [t[0] + 20, t[1] + 20]}
-    temp(c) <= b.map {|t| [t[0] - 50, t[1] - 100]}
-    temp(d) <= b.map {|t| [t[0] - 50, t[1] - 100]} # unreferenced
+    temp(:a) <= t1.map {|t| [t.key + 10, t.val + 10]}
+    temp :b <= a.map {|t| [t[0] + 20, t[1] + 20]}
+    temp(:c) <= b.map {|t| [t[0] - 50, t[1] - 100]}
+    temp :d <= b.map {|t| [t[0] - 50, t[1] - 100]} # unreferenced
     t2 <= c
   end
 end
@@ -214,7 +214,7 @@ class TempShadow
 
   declare
   def rules
-    temp(k) <= t1.map {|t| [t.key + 10, t.val + 20]}
+    temp(:k) <= t1.map {|t| [t.key + 10, t.val + 20]}
     t2 <= k
     t2 <= t1.map {|k| [k.key, k.val]}
     t3 <= join([t1, t2], [t1.key, t2.key]).map {|j,k| [j.key + 20, k.val + 20]}
@@ -242,7 +242,7 @@ class SimpleTempNoMapTest
 
   declare
   def rules
-    temp(j) <= join([t1, t2])
+    temp(:j) <= join([t1, t2])
     t3 <= j {|a, b| [a.key + b.key, a.val + b.val]}
     t4 <= j {|a, b| [a.key + b.key, a.val + b.val]}
     t5 <= j {|a, b| a if b.val > 100}
@@ -263,10 +263,10 @@ class TempNoMapRefTempNoMap
 
   declare
   def rules
-    temp(a) <= t1 {|t| [t.key + 10, t.val + 10]}
-    temp(b) <= a {|t| [t[0] + 20, t[1] + 20]}
-    temp(c) <= b {|t| [t[0] - 50, t[1] - 100]}
-    temp(d) <= b {|t| [t[0] - 50, t[1] - 100]} # unreferenced
+    temp(:a) <= t1 {|t| [t.key + 10, t.val + 10]}
+    temp(:b) <= a {|t| [t[0] + 20, t[1] + 20]}
+    temp(:c) <= b {|t| [t[0] - 50, t[1] - 100]}
+    temp(:d) <= b {|t| [t[0] - 50, t[1] - 100]} # unreferenced
     t2 <= c
   end
 end
@@ -288,7 +288,7 @@ class TempNoMapShadow
 
   declare
   def rules
-    temp(k) <= t1 {|t| [t.key + 10, t.val + 20]}
+    temp :k <= t1 {|t| [t.key + 10, t.val + 20]}
     t2 <= k
     t2 <= t1 {|k| [k.key, k.val]}
     t3 <= join([t1, t2], [t1.key, t2.key]) {|j,k| [j.key + 20, k.val + 20]}
