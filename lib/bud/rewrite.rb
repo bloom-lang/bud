@@ -230,11 +230,11 @@ class NestedRefRewriter < SexpProcessor
     @import_tbl = import_tbl
   end
 
+  # XXX: cleanup control flow w/ throw and catch.
   def process_call(exp)
     tag, recv, meth_name, args = exp
 
     do_lookup, recv_stack = make_recv_stack(recv)
-    did_rewrite = false
 
     if do_lookup and recv_stack.length > 0
       lookup_tbl = @import_tbl
@@ -256,7 +256,6 @@ class NestedRefRewriter < SexpProcessor
         new_meth_name += meth_name.to_s
         recv = nil
         meth_name = new_meth_name.to_sym
-        did_rewrite = true
       end
     end
 
@@ -314,8 +313,8 @@ end
 module ModuleRewriter
   # Do the heavy-lifting to import the Bloom module "mod" into the class/module
   # "import_site", bound to "local_name" at the import site. We implement this
-  # by converting the importered module into an AST, and then rewriting the AST
-  # so that (a) state defined by the module is mangled to include the local bind
+  # by converting the imported module into an AST, and then rewriting the AST so
+  # that (a) state defined by the module is mangled to include the local bind
   # name (b) statements in the module are rewritten to reference the mangled
   # names (c) statements in the module that reference sub-modules are rewritten
   # to reference the mangled name of the submodule. We then convert the
@@ -366,7 +365,7 @@ module ModuleRewriter
   end
 
   # Mangle the names of all the collections defined in state blocks found in the
-  # given module's AST.
+  # given module's AST. Returns a table mapping old => new names.
   def self.ast_rename_state(ast, importer, importee, local_name)
     # Find all the state blocks in the AST
     raise Bud::BudError unless ast.sexp_type == :module
@@ -384,6 +383,7 @@ module ModuleRewriter
       raise Bud::BudError unless state_block.sexp_type == :block
       next unless state_block.sexp_body
 
+      # Look for collection definition statements inside the block
       state_block.sexp_body.each do |e|
         raise Bud::BudError unless e.sexp_type == :call
 
