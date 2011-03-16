@@ -24,6 +24,14 @@ class DupTemp < BasicTemp
   end
 end
 
+class ReuseTemp < BasicTemp
+  declare
+  def rules
+    temp :hemp <= inski
+    hemp <= [[1,2]]
+  end
+end
+
 class TempNext 
   include Bud
   state do
@@ -348,29 +356,6 @@ class TempNoMapShadow
 end
 
 class TestTemps < Test::Unit::TestCase
-  def test_simple_temp
-    p = SimpleTempTest.new
-    p.tick
-    assert_equal([[55, 110], [60, 120], [80, 135], [85, 145]], p.t3.to_a.sort)
-    assert_equal([[55, 110], [60, 120], [80, 135], [85, 145]], p.t4.to_a.sort)
-    assert_equal([[5, 10], [10, 20]], p.t5.to_a.sort)
-  end
-
-  def test_temp_in_temp
-    p = TempRefTemp.new
-    p.tick
-    assert_equal([[80, 130]], p.t2.to_a.sort)
-  end
-
-  def test_temp_shadow
-    p = TempShadow.new
-    p.tick
-    assert_equal([[30, 60], [50, 80]], p.k.to_a.sort)
-    assert_equal([[20, 40], [30, 60], [40, 60], [50, 80]], p.t2.to_a.sort)
-    assert_equal([[40, 60], [60, 80]], p.t3.to_a.sort)
-    assert_equal(p.t3.to_a.sort, p.t4.to_a.sort)
-  end
-  
   def test_basic_temp
     p = BasicTemp.new
     p.inski <+ [[1,1],
@@ -408,9 +393,36 @@ class TestTemps < Test::Unit::TestCase
   def test_dup_tmp
     assert_raise(Bud::CompileError) {DupTemp.new}
   end
+  def test_reuse_tmp
+    p = ReuseTemp.new
+    assert_nothing_raised {p.tick}
+    assert_equal(1, p.hemp.length)
+  end
   def test_no_schema
     p = TempNoSchema.new
     assert_nothing_raised {p.tick}
+  end
+  def test_simple_temp
+    p = SimpleTempTest.new
+    p.tick
+    assert_equal([[55, 110], [60, 120], [80, 135], [85, 145]], p.t3.to_a.sort)
+    assert_equal([[55, 110], [60, 120], [80, 135], [85, 145]], p.t4.to_a.sort)
+    assert_equal([[5, 10], [10, 20]], p.t5.to_a.sort)
+  end
+
+  def test_temp_in_temp
+    p = TempRefTemp.new
+    p.tick
+    assert_equal([[80, 130]], p.t2.to_a.sort)
+  end
+
+  def test_temp_shadow
+    p = TempShadow.new
+    p.tick
+    assert_equal([[30, 60], [50, 80]], p.k.to_a.sort)
+    assert_equal([[20, 40], [30, 60], [40, 60], [50, 80]], p.t2.to_a.sort)
+    assert_equal([[40, 60], [60, 80]], p.t3.to_a.sort)
+    assert_equal(p.t3.to_a.sort, p.t4.to_a.sort)
   end
 end
 
