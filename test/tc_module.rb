@@ -81,3 +81,10 @@ class TestModules < Test::Unit::TestCase
     assert_equal([[15, 30], [30, 50]], c.t3.to_a.sort)
   end
 end
+
+# Testing TODO:
+# * GrandChild (class), state ref c.p.boot_t
+# * ChildModule, state ref p.boot_t
+# * Module table on LHS of class
+# * Module table on LHS of module
+# * Rule blocks in modules
