@@ -115,7 +115,7 @@ class BudMeta
     rhs = n[3][1][3]
     bud_instance.temp n[3][1][1][1]
     
-    return s(:call, lhs, op, s(:arglist, rhs))
+    return s(:call, lhs, op, rhs)
   end    
 
   # Perform some basic sanity checks on the AST of a rule block. We expect a
