@@ -154,12 +154,31 @@ end
 class BendTypes
   include Bud
 
-  state {
+  state do
     table :t1
-  }
+  end
 
-  def bootstrap
+  bootstrap do
     t1 <= {1=>'a', 2=>'b'}
+  end
+end
+
+class BendTypesDelete
+  include Bud
+
+  state do
+    table :t1, [:k1, :k2]
+    table :t2, [:k1, :k2]
+  end
+
+  bootstrap do
+    t1 << [5, nil]
+    t1 << [5, 10]
+  end
+
+  declare
+  def rules
+    t1 <- t2.map {|t| [t.k1]}
   end
 end
 
@@ -189,6 +208,18 @@ class NonTuple
   end
 end
 
+class NonTupleDelete
+  include Bud
+
+  state do
+    table :t1
+  end
+
+  declare
+  def rules
+    t1 <- [1,2]
+  end
+end
 
 class DupTableDef
   include Bud
@@ -196,6 +227,24 @@ class DupTableDef
   state do
     table :t1
     scratch :t1
+  end
+end
+
+class DelBug
+  include Bud
+
+  state do
+    scratch :start
+    table :buffer
+    periodic :tic, 1
+  end
+
+  declare
+  def logos
+    buffer <= start
+    buffer <- join([tic, buffer]) do |t, h|
+      h if h.key == 'foo'
+    end
   end
 end
 
@@ -299,8 +348,23 @@ class TestCollections < Test::Unit::TestCase
     assert_raise(Bud::BudTypeError) { p2.tick }
     p3 = NonTuple.new
     assert_raise(Bud::BudTypeError) { p3.tick }
+    p4 = NonTupleDelete.new
+    assert_raise(Bud::BudTypeError) { p4.tick }
   end
 
+  def test_types_delete
+    p = BendTypesDelete.new
+    p.run_bg
+    p.sync_do {
+      assert_equal(2, p.t1.length)
+      p.t2 <+ [[5, 100]]
+    }
+    p.sync_do
+    p.sync_do {
+      assert_equal([[5, 10]], p.t1.to_a.sort)
+    }
+    p.stop_bg
+  end
 
   def test_bootstrap_derive
     b = BootstrapDerive.new
@@ -317,5 +381,14 @@ class TestCollections < Test::Unit::TestCase
 
   def test_dup_table_def
     assert_raise(Bud::BudError) { DupTableDef.new }
+  end
+
+  def test_filter_and_delete
+    th = DelBug.new(:port => 12345)
+    th.run_bg
+    assert_nothing_raised do
+      th.sync_do {th.start <+ [['foo','bar'], ['baz','bam']]}
+      sleep 2
+    end
   end
 end

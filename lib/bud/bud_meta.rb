@@ -165,10 +165,14 @@ class BudMeta
       # Check that LHS references a named collection or is a temp expression
       raise Bud::CompileError if lhs.nil? or lhs.sexp_type != :call
       lhs_name = lhs[2]
-      raise Bud::CompileError unless lhs_name == :temp or @bud_instance.tables.has_key? lhs_name.to_sym
+      unless lhs_name == :temp or @bud_instance.tables.has_key? lhs_name.to_sym
+        raise Bud::CompileError, "Table does not exist: '#{lhs_name}'"
+      end
 
       # Check that op is a legal Bloom operator
-      raise Bud::CompileError unless [:<, :<=, :<<].include? op
+      unless [:<, :<=, :<<].include? op
+        raise Bud::CompileError, "Illegal operator: '#{op}'"
+      end
 
       # Check superator invocation. A superator that begins with "<" is parsed
       # as a call to the binary :< operator. The right operand to :< is a :call
