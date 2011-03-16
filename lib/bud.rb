@@ -18,6 +18,32 @@ require 'bud/storage/tokyocabinet'
 require 'bud/storage/zookeeper'
 require 'bud/viz'
 
+class Module
+  def import(spec)
+    raise Bud::BudError unless (spec.class <= Hash and spec.length == 1)
+    mod, local_name = spec.first
+
+    # Record that the current module imported a sub-module. We also record that
+    # the sub-module has its own nested import table.
+    @bud_import_tbl ||= {}
+    child_tbl = mod.bud_import_table
+    raise Bud::BudError if @bud_import_tbl.has_key? local_name
+    @bud_import_tbl[local_name] = child_tbl.clone # XXX: clone needed?
+
+    rewritten_mod_name = ModuleRewriter.do_import(self, mod, local_name)
+    self.module_eval "include #{rewritten_mod_name}"
+  end
+
+  def bud_import_table
+    @bud_import_tbl ||= {}
+    @bud_import_tbl
+  end
+
+  def print_import_table
+    puts self.bud_import_table.inspect
+  end
+end
+
 module BudModule
   def self.included(o)
     # Add support for the "declare" annotator to the specified module
@@ -93,7 +119,6 @@ module Bud
     @timers = []
     @budtime = 0
     @inbound = []
-    @declarations = []
     @done_bootstrap = false
 
     # Setup options (named arguments), along with default values
@@ -105,13 +130,7 @@ module Bud
     # NB: If using an ephemeral port (specified by port = 0), the actual port
     # number won't be known until we start EM
 
-    self.class.ancestors.each do |anc|
-      if anc.methods.include? 'annotation'
-        @declarations += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}.compact
-      end
-    end
-    @declarations.uniq!
-
+    @declarations = ModuleRewriter.get_rule_defs(self.class)
     @state_methods = lookup_state_methods
 
     init_state
@@ -149,9 +168,10 @@ module Bud
     # common idiom: the schema of a table in a child module/class might
     # reference the schema of an included module.
     self.class.ancestors.reverse.each do |anc|
-      meth_name = anc.instance_methods.find {|m| m == "__#{anc}__state"}
-      if meth_name
-        rv << self.method(meth_name.to_sym)
+      anc.instance_methods(false).each do |m|
+        if /__.+?__state/.match m
+          rv << self.method(m.to_sym)
+        end
       end
     end
     rv
@@ -160,9 +180,10 @@ module Bud
   # Evaluate all bootstrap blocks
   def do_bootstrap
     self.class.ancestors.reverse.each do |anc|
-      meth_name = anc.instance_methods.find {|m| m == "__#{anc}__bootstrap"}
-      if meth_name
-        self.method(meth_name.to_sym).call
+      anc.instance_methods(false).each do |m|
+        if /__.+?__bootstrap/.match m
+          self.method(m.to_sym).call
+        end
       end
     end
     bootstrap
