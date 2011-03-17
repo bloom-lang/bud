@@ -3,13 +3,12 @@ require 'test_common'
 class TemporalBudTest
   include Bud
 
-  state {
+  state do
     periodic :tik, 0.1
     table :log, [:ident, :time]
-  }
+  end
 
-  declare 
-  def logic
+  bloom do
     log <= tik 
   end
 end

@@ -3,19 +3,18 @@ require 'test_common'
 class DeltaTest
   include Bud
 
-  state {
+  state do
     table :orig, [:k1, :k2] => []
     scratch :scr, [:k1, :k2] => []
     table :result, [:k1, :k2] => []
-  }
+  end
 
   bootstrap do
     orig <= [['a', 'b']]
     orig <= [['a', 'c']]
   end
 
-  declare
-  def rules
+  bloom do
     scr <= orig
     result <= scr
   end
@@ -24,19 +23,18 @@ end
 class DeltaJoinTest
   include Bud
 
-  state {
+  state do
     table :orig, [:from, :to]
     scratch :link, [:from, :to]
     scratch :path, [:from, :to]
     scratch :hashpath, [:from, :to]
-  }
+  end
 
   bootstrap do
     orig <= [['a', 'b'], ['b', 'c'], ['c', 'd']]
   end
 
-  declare
-  def paths
+  bloom :paths do
     link <= orig
     path <= link
     path <= join([link, path]).map {|l,p| [l.from, p.to] if l.to == p.from}
@@ -48,21 +46,20 @@ end
 class Delta3JoinTest
   include Bud
 
-  state {
+  state do
     table :orig, [:from, :to]
     table :wanted, [:node]
     scratch :link, [:from, :to]
     scratch :path, [:from, :to]
     scratch :hashpath, [:from, :to]
-  }
+  end
 
   bootstrap do
     orig <= [['a', 'b'], ['b', 'c'], ['c', 'd']]
     wanted <= [['a'], ['b'], ['c']]
   end
 
-  declare
-  def paths
+  bloom :paths do
     link <= orig
     path <= link
     path <= join([link, path, wanted]).map{|l,p,w| [l.from, p.to] if l.to == p.from and l.from == w.node}

@@ -8,16 +8,14 @@ class BasicTemp
     scratch :inski
   end
 
-  declare
-  def rules
+  bloom :rules do
     temp :tmpy <= inski
     out <= tmpy {|t| [t.val]}
   end
 end
 
 class DupTemp < BasicTemp
-  declare
-  def rules
+  bloom :rules do
     temp :tmpy <= inski
     temp :tmpy <= inski
     out <= tmpy {|t| [t.val]}
@@ -25,8 +23,7 @@ class DupTemp < BasicTemp
 end
 
 class ReuseTemp < BasicTemp
-  declare
-  def rules
+  bloom :rules do
     temp :hemp <= inski
     hemp <= [[1,2]]
   end
@@ -34,14 +31,14 @@ end
 
 class TempNext
   include Bud
+
   state do
     scratch :inski, [:c1, :c2] => [:c3, :c4]
     scratch :wait, [:c1, :c2] => [:c3, :c4]
     scratch :out, [:c1, :c2] => [:c3, :c4]
   end
 
-  declare
-  def populate
+  bloom do
     temp :tmpy <= inski
     temp :waity <+ wait
     out <= tmpy
@@ -52,8 +49,7 @@ end
 class TempNoSchema
   include Bud
 
-  declare
-  def logic
+  bloom do
     temp :out <= [[1,2], [3, 4]]
   end
 end
@@ -77,8 +73,7 @@ class SimpleMacroTest
     t2 << [75, 125]
   end
 
-  declare
-  def rules
+  bloom do
     j = join [t1, t2]
     t3 <= j.map {|a, b| [a.key + b.key, a.val + b.val]}
     t4 <= j.map {|a, b| [a.key + b.key, a.val + b.val]}
@@ -98,8 +93,7 @@ class MacroRefMacro
     t1 << [100, 200]
   end
 
-  declare
-  def rules
+  bloom do
     a = t1.map {|t| [t.key + 10, t.val + 10]}
     b = a.map {|t| [t[0] + 20, t[1] + 20]}
     c = b.map {|t| [t[0] - 50, t[1] - 100]}
@@ -123,8 +117,7 @@ class MacroShadow
     t1 << [40,60]
   end
 
-  declare
-  def rules
+  bloom do
     k = t1.map {|t| [t.key + 10, t.val + 20]}
     t2 <= k
     t2 <= t1.map {|k| [k.key, k.val]}
@@ -151,8 +144,7 @@ class SimpleMacroNoMapTest
     t2 << [75, 125]
   end
 
-  declare
-  def rules
+  bloom do
     j = join [t1, t2]
     t3 <= j {|a, b| [a.key + b.key, a.val + b.val]}
     t4 <= j {|a, b| [a.key + b.key, a.val + b.val]}
@@ -172,8 +164,7 @@ class MacroNoMapRefMacroNoMap
     t1 << [100, 200]
   end
 
-  declare
-  def rules
+  bloom do
     a = t1 {|t| [t.key + 10, t.val + 10]}
     b = a {|t| [t[0] + 20, t[1] + 20]}
     c = b {|t| [t[0] - 50, t[1] - 100]}
@@ -197,8 +188,7 @@ class MacroNoMapShadow
     t1 << [40,60]
   end
 
-  declare
-  def rules
+  bloom do
     k = t1 {|t| [t.key + 10, t.val + 20]}
     t2 <= k
     t2 <= t1 {|k| [k.key, k.val]}
@@ -225,8 +215,7 @@ class SimpleTempTest
     t2 << [75, 125]
   end
 
-  declare
-  def rules
+  bloom do
     temp(:j) <= join([t1, t2])
     t3 <= j.map {|a, b| [a.key + b.key, a.val + b.val]}
     t4 <= j.map {|a, b| [a.key + b.key, a.val + b.val]}
@@ -246,8 +235,7 @@ class TempRefTemp
     t1 << [100, 200]
   end
 
-  declare
-  def rules
+  bloom do
     temp(:a) <= t1.map {|t| [t.key + 10, t.val + 10]}
     temp :b <= a.map {|t| [t[0] + 20, t[1] + 20]}
     temp(:c) <= b.map {|t| [t[0] - 50, t[1] - 100]}
@@ -271,8 +259,7 @@ class TempShadow
     t1 << [40,60]
   end
 
-  declare
-  def rules
+  bloom do
     temp(:k) <= t1.map {|t| [t.key + 10, t.val + 20]}
     t2 <= k
     t2 <= t1.map {|k| [k.key, k.val]}
@@ -299,8 +286,7 @@ class SimpleTempNoMapTest
     t2 << [75, 125]
   end
 
-  declare
-  def rules
+  bloom do
     temp(:j) <= join([t1, t2])
     t3 <= j {|a, b| [a.key + b.key, a.val + b.val]}
     t4 <= j {|a, b| [a.key + b.key, a.val + b.val]}
@@ -320,8 +306,7 @@ class TempNoMapRefTempNoMap
     t1 << [100, 200]
   end
 
-  declare
-  def rules
+  bloom do
     temp(:a) <= t1 {|t| [t.key + 10, t.val + 10]}
     temp(:b) <= a {|t| [t[0] + 20, t[1] + 20]}
     temp(:c) <= b {|t| [t[0] - 50, t[1] - 100]}
@@ -345,8 +330,7 @@ class TempNoMapShadow
     t1 << [40,60]
   end
 
-  declare
-  def rules
+  bloom do
     temp :k <= t1 {|t| [t.key + 10, t.val + 20]}
     t2 <= k
     t2 <= t1 {|k| [k.key, k.val]}

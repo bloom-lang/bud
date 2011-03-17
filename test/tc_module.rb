@@ -30,8 +30,7 @@ class ImportParent
     table :t4
   end
 
-  declare
-  def rules
+  bloom do
     t2 <= p.boot_t.map {|t| [t.key + 1, t.val + 1]}
     t3 <= q.boot_t.map {|t| [t.key + 1, t.val + 1]}
     t4 <= p.p
@@ -57,8 +56,7 @@ class ImportGrandParent
     table :t3
   end
 
-  declare
-  def rules
+  bloom do
     t2 <= c.p.boot_t
     t3 <= p.boot_t.map {|p| [p.key + 10, p.val + 20]}
   end

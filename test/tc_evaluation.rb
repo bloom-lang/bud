@@ -10,13 +10,12 @@ class Paths
     super()
   end
 
-  state {
+  state do
     table :link, ['from', 'to']
     table :path, ['from', 'to']
-  }
+  end
 
-  declare
-  def program
+  bloom :program do
     # this is the program a user might write.
     path <= link.map{|e| (@cnt = @cnt + 1) and [e.from, e.to] }
 
@@ -37,10 +36,10 @@ class PathsDelta < Paths
     super()
   end
 
-  state {
+  state do
     scratch :d_link, ['from', 'to']
     scratch :d_path, ['from', 'to']
-  }
+  end
 
   declare
   def program
