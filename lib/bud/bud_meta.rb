@@ -81,10 +81,10 @@ class BudMeta
     return unless @bud_instance.options[:scoping]
     stp = ParseTree.translate(anc, "__#{@bud_instance.class}__state")
     return if stp[0].nil?
-    state_reader = StateExtractor.new(anc.to_s)
     u = Unifier.new
     pt = u.process(stp)
-    res = state_reader.process(pt)
+    state_reader = StateExtractor.new(anc.to_s)
+    state_reader.process(pt)
     @decls += state_reader.decls
   end
 
@@ -96,6 +96,10 @@ class BudMeta
     pt = u.process(parse_tree)
     pp pt if @bud_instance.options[:dump_ast]
     check_rule_ast(pt)
+
+    # Expand references to imported modules
+    ref_expand = NestedRefRewriter.new(@bud_instance.class.bud_import_table)
+    pt = ref_expand.process(pt)
 
     rewriter = RuleRewriter.new(seed, bud_instance)
     rewriter.process(pt)
