@@ -431,10 +431,16 @@ module Bud
   def ip_port
     raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0 and not @options[:ext_port]
 
-    ip = options[:ext_ip] ? "#{options[:ext_ip]}" : "#{@ip}"
-    port = options[:ext_port] ? "#{options[:ext_port]}" :
+    ip = options[:ext_ip] ? "#{@options[:ext_ip]}" : "#{@ip}"
+    port = options[:ext_port] ? "#{@options[:ext_port]}" :
       (@port.nil? ? "#{@options[:port]}" : "#{@port}")
     ip + ":" + port
+  end
+
+  # Returns the internal IP and port
+  def int_ip_port
+    raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0
+    @port.nil? ? "#{@ip}:#{@options[:port]}" : "#{@ip}:#{@port}"
   end
 
   def tick
