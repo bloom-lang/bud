@@ -20,8 +20,7 @@ class ShortestPaths
     link << ['d', 'e', 1]
   end
 
-  declare
-  def program
+  bloom do
     path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
 
     j = join [link, path], [path.from, link.to]
@@ -44,12 +43,12 @@ end
 class PriorityQ
   include Bud
 
-  state {
+  state do
     table :q, [:item] => [:priority]
     scratch :out, [:item] => [:priority]
     scratch :minny, [:priority]
     scratch :out2, [:item] => [:priority]
-  }
+  end
 
   bootstrap do
     q << ['c', 2]
@@ -58,8 +57,7 @@ class PriorityQ
     q << ['b', 2]
   end
 
-  declare
-  def program
+  bloom do
     # second stratum
     out <= q.argagg(:min, [], q.priority)
     minny <= q.group(nil, min(q.priority))
@@ -73,18 +71,17 @@ end
 class DupAggs
   include Bud
 
-  state {
+  state do
     table :tab, [:i]
 #    scratch :out, [:s1, :s2]
-  }
+  end
 
   bootstrap do
     tab << [1]
     tab << [2]
   end
 
-  declare
-  def prog
+  bloom do
     out = tab.group(nil, sum(tab.i), sum(tab.i))
     p out.inspect
   end
@@ -93,10 +90,10 @@ end
 class Rename
   include Bud
 
-  state {
+  state do
     table :emp, [:ename, :dname] => [:sal]
     table :shoes, [:dname] => [:usualsal]
-  }
+  end
 
   bootstrap do
     emp << ['joe', 'shoe', 10]
@@ -104,21 +101,19 @@ class Rename
     emp << ['bob', 'shoe', 11]
   end
 
-  declare
-  def rules
+  bloom do
     shoes <= emp.group([:dname], avg(:sal)).rename([:dept] => [:avgsal]).map{|t| t if t.dept == 'shoe'}
   end
 end
 
 class JoinAgg < Rename
-  state {
+  state do
     scratch :richsal, [:sal]
     scratch :rich, emp.key_cols => emp.val_cols
     scratch :argrich, emp.key_cols => emp.val_cols
-  }
+  end
 
-  declare
-  def rules
+  bloom do
     richsal <= emp.group([], max(:sal))
     rich <= natjoin([richsal, emp]).map{|r,e| e}
     argrich <= emp.argmax([], emp.sal)
@@ -127,6 +122,7 @@ end
 
 class AggJoin
   include Bud
+
   state do
     table :shoes, [:dname] => [:usualsal]
     table :emp, [:ename, :dname] => [:sal]
@@ -140,8 +136,7 @@ class AggJoin
     shoes << ['shoe', 9]
   end
 
-  declare
-  def rules
+  bloom do
     funny <= natjoin([emp, shoes]).flatten.group([:dname], max(:sal), max(:usualsal))
   end
 end
