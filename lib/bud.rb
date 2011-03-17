@@ -422,7 +422,23 @@ module Bud
 
   public
 
+  # Returns the ip and port of the Bud instance.  In addition to the local IP
+  # and port, the user may define an external IP and/or port. the external
+  # version of each is returned if available.  If not, the local version is
+  # returned.  There are use cases for mixing and matching local and external.
+  # local_ip:external_port would be if you have local port forwarding, and
+  # external_ip:local_port would be if you're in a DMZ, for example
   def ip_port
+    raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0 and not @options[:ext_port]
+
+    ip = options[:ext_ip] ? "#{@options[:ext_ip]}" : "#{@ip}"
+    port = options[:ext_port] ? "#{@options[:ext_port]}" :
+      (@port.nil? ? "#{@options[:port]}" : "#{@port}")
+    ip + ":" + port
+  end
+
+  # Returns the internal IP and port
+  def int_ip_port
     raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0
     @port.nil? ? "#{@ip}:#{@options[:port]}" : "#{@ip}:#{@port}"
   end

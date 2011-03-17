@@ -236,15 +236,32 @@ class DelBug
   end
 end
 
+class BadDeclaration1
+  include Bud
+  state do
+    scratch 0
+  end
+end
+
+class BadDeclaration2
+  include Bud
+  state do
+    scratch :id
+  end
+end
+
 class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
     assert_nothing_raised(RuntimeError) { program.tick }
-    assert_equal(2, program.scrtch.length)
+    assert_equal([["[\"c\", \"d\", 5, 6]"]], program.scrtch.pending_inspected)
     assert_equal(1, program.scrtch2.length)
     assert_nothing_raised(RuntimeError) { program.tick }
+    assert_equal([["[\"c\", \"d\", 5, 6]"]], program.scrtch.inspected)
     assert_equal(0, program.scrtch2.length)
     assert_equal(2, program.tbl.length)
+    assert_equal([["c", "d"], ["z", "y"]].sort, program.tbl.keys.sort)
+    assert_equal([[5,6], [9,8]].sort, program.tbl.values.sort)
   end
 
   def test_tuple_accessors
@@ -378,5 +395,10 @@ class TestCollections < Test::Unit::TestCase
       th.sync_do {th.start <+ [['foo','bar'], ['baz','bam']]}
       sleep 2
     end
+  end
+  
+  def test_bad_declarations
+    assert_raise(Bud::BudError) { BadDeclaration1.new }
+    assert_raise(Bud::BudError) { BadDeclaration2.new }
   end
 end

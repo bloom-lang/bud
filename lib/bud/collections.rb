@@ -136,7 +136,7 @@ module Bud
     end
 
     def pending_inspected
-      @pending.map{|t| [t.inspect]}
+      @pending.map{|t| [t[1].inspect]}
     end
 
     def pro(&blk)
@@ -204,15 +204,6 @@ module Bud
       return false if tuple.nil? or tuple.empty?
       key = key_cols.map{|k| tuple[schema.index(k)]}
       return (tuple == self[key])
-
-      @storage.each_value do |t|
-        return true if t == o
-      end
-      @delta.each_value do |t|
-        return true if t == o
-      end
-
-      return false
     end
 
     def exists?(&block)
@@ -402,14 +393,10 @@ module Bud
         end
       end
 
-      if block_given?
-        finals.map{|r| yield r}
-      else
-        # merge directly into retval.storage, so that the temp tuples get picked up
-        # by the lhs of the rule
-        retval = BudScratch.new('argagg_temp', bud_instance, @given_schema)
-        retval.merge(finals, retval.storage)
-      end
+      # merge directly into retval.storage, so that the temp tuples get picked up
+      # by the lhs of the rule
+      retval = BudScratch.new('argagg_temp', bud_instance, @given_schema)
+      retval.merge(finals, retval.storage)
     end
 
     def argmin(gbkey_cols, col)
@@ -426,8 +413,10 @@ module Bud
       keynames = key_cols.map do |k|
         if k.class == Symbol
           k
+        elsif k[2] and k[2].class == Symbol
+          k[2]
         else
-          k[2].to_sym
+          raise Bud::CompileError, "Invalid grouping key"
         end
       end
       aggcolsdups = aggpairs.map{|ap| ap[0].class.name.split("::").last}

@@ -40,6 +40,32 @@ class ShortestPaths
   end
 end
 
+class TiedPaths
+  include Bud
+
+  state {
+    table :link, [:from, :to, :cost]
+    table :path, [:from, :to, :next, :cost]
+    table :shortest, [:from, :to] => [:next, :cost]
+  }
+
+  bootstrap do
+    link << ['a', 'b', 1]
+    link << ['a', 'b', 4]
+    link << ['b', 'c', 1]
+    link << ['a', 'c', 2]
+  end
+
+  declare
+  def program
+    path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
+    path <= join ([link, path], [path.from, link.to]).map do |l,p|
+      [l.from, p.to, p.from, l.cost+p.cost] # if l.to == p.from
+    end
+    shortest <= path.argmin([path.from, path.to], path.cost).argagg(:max, [:from, :to], :next)
+  end
+end
+
 class PriorityQ
   include Bud
 
@@ -141,6 +167,21 @@ class AggJoin
   end
 end
 
+class ChoiceAgg
+  include Bud
+  
+  state do
+    scratch :t1
+    scratch :t2
+  end
+  
+  declare
+  def rules
+    t1 <= [[1,1],[2,1]]
+    t2 <= t1.argagg(:choose, [], :key)    
+  end
+end
+
 class TestAggs < Test::Unit::TestCase
   def test_paths
     program = ShortestPaths.new
@@ -164,8 +205,11 @@ class TestAggs < Test::Unit::TestCase
     costs = program.minmaxsumcntavg.map {|c| [c.from, c.to, c.mincost]}
     assert_equal([], shorts - costs)
   end
-
-  def test_dup_aggs
+  
+  def test_tied_paths
+    program = TiedPaths.new
+    assert_nothing_raised(RuntimeError) { program.tick }
+    assert_equal([["a", "c", "c", 2], ["b", "c", "c", 1], ["a", "b", "b", 1]].sort, program.shortest.to_a.sort)
   end
 
   def test_non_exemplary
@@ -204,5 +248,11 @@ class TestAggs < Test::Unit::TestCase
     p = AggJoin.new
     assert_nothing_raised (RuntimeError) { p.tick }
     assert_equal([['shoe', 11, 9]], p.funny.to_a  )
+  end
+  
+  def test_choice_agg
+    p = ChoiceAgg.new
+    assert_nothing_raised {p.tick}
+    assert(([[1,1]]) == p.t2.to_a || ([[2,1]]) == p.t2.to_a)
   end
 end
