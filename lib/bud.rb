@@ -50,8 +50,8 @@ module BudModule
     o.send(:include, Anise)
     o.send(:annotator, :declare)
 
-    # Transform "state" and "bootstrap" blocks (calls to a module methods with
-    # that name) into instance methods with a special name.
+    # Transform "state", "bootstrap" and "bloom" blocks (calls to a module
+    # methods with that name) into instance methods with a special name.
     def o.state(&block)
       meth_name = "__#{self}__state".to_sym
       define_method(meth_name, &block)
@@ -59,6 +59,30 @@ module BudModule
     def o.bootstrap(&block)
       meth_name = "__#{self}__bootstrap".to_sym
       define_method(meth_name, &block)
+    end
+    def o.bloom(block_name=nil, &block)
+      # If no block name was specified, generate a unique name
+      if block_name.nil?
+        @block_id ||= 0
+        block_name = @block_id.to_s
+        @block_id += 1
+      else
+        unless block_name.class <= Symbol
+          raise Bud::BudError, "Bloom block names must be a symbol: #{block_name}"
+        end
+      end
+
+      # Note that we don't encode the module name ("self") into the name of the
+      # method. This allows named blocks to be overridden (via inheritance or
+      # mixin) in the same way as normal Ruby methods.
+      meth_name = "__bloom__#{block_name}"
+
+      # Don't allow duplicate named bloom blocks to be defined within a single
+      # module; this indicates a likely programmer error.
+      if instance_methods(false).include? meth_name
+        raise Bud::BudError, "Duplicate named bloom block: '#{block_name}' in #{self}"
+      end
+      define_method(meth_name.to_sym, &block)
     end
 
     # NB: it would be easy to workaround this by creating an alias for the

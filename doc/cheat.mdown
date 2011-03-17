@@ -7,16 +7,15 @@ As in Ruby, backslash is used to escape a newline.<br>
 
 ## Embed Bud in a Ruby Class ##
     require 'bud'
-    
+
     class Foo
         include BudModule
-        
+
         state do
           ...
         end
-        
-        declare 
-        def budstatements1
+
+        bloom do
           ...
         end
     end
@@ -78,7 +77,7 @@ default attributes: `[:@address, :val] => []`
 Statements with channel on lhs must use async merge (`<~`).
 
 
-    channel :msgs      
+    channel :msgs
     channel :req_chan, [:@address, :cartnum, :storenum] => [:command, :params]
 
 
@@ -91,7 +90,7 @@ state declaration includes interval (in seconds)
 periodic can only be used on rhs of statement
 
     periodic :timer, 0.1
-    
+
 ### stdio ###
 built-in scratch collection mapped to Ruby's `$stdin` and `$stdout`<br>
 given attributes: `[:line] => []`
@@ -127,24 +126,24 @@ Standard Ruby methods used on a BudCollection `bc`:
 `flat_map`:
 
     require 'backports' # flat_map not included in Ruby 1.8 by default
-    
+
     t3 <= bc.flat_map do |t| # unnest a collection-valued attribute
       bc.col4.map { |sub| [t.col1, t.col2, t.col3, sub] }
     end
 
-`bc.reduce`, `bc.inject`: 
+`bc.reduce`, `bc.inject`:
 
     t4 <= bc.reduce({}) do |memo, t|  # example: groupby col1 and count
       memo[t.col1] ||= 0
       memo[t.col1] += 1
       memo
-    end  
+    end
 
 `bc.include?`:
 
     t5 <= bc.map do |t| # like SQL's NOT IN
         t unless t2.include?([t.col1, t.col2])
-    end 
+    end
 
 ## BudCollection-Specific Methods ##
 `bc.keys`: projects `bc` to key columns<br>
@@ -161,7 +160,7 @@ Standard Ruby methods used on a BudCollection `bc`:
     msgs <~ requests.map{|r| "127.0.0.1:12345", r}
     # at receiver
     requests <= msgs.payloads
-    
+
 `bc.exists?`: test for non-empty collection.  Can optionally pass in a block.
 
     stdio <~ [["Wake Up!"] if timer.exists?]
@@ -197,12 +196,12 @@ Later arguments are arrays of columns to be matched (equijoin).
     #   FROM r, s_tab, t
     #  WHERE r.x = s_tab.x
     #    AND s_tab.x = t.x;
-    
-    out <= join([r,s_tab,t], 
-                [r.x, s_tab.x], [s_tab.x, t.x]).map do |t1, t2, t3| 
+
+    out <= join([r,s_tab,t],
+                [r.x, s_tab.x], [s_tab.x, t.x]).map do |t1, t2, t3|
              [t1.a, t2.b, t3.c]
            end
-           
+
     out <= join([r,s_tab,t], [r.x, s_tab.x, t.x]).map do |t1, t2, t3|
              [t1.a, t2.b, t3.c]
            end
@@ -211,11 +210,11 @@ Later arguments are arrays of columns to be matched (equijoin).
     out <= join([r,s_tab,t]).map do |t1, t2, t3|
              [t1.a, t2.b, t3.c] if r.x == s_tab.x and s_tab.x = t.x
            end
-           
+
     # coincide is a more natural verb for timers and messages.
     # here is a typical timeout/retry pattern for requests
     request_chan <~ coincide([request_buf, timeout]).map{|r, t| r }
-        
+
 `natjoin([`*tablelist*`]`)<br>
 Natural join of tables.
 Implicitly includes matching of attributes across collections with the same name.<br>
@@ -234,14 +233,14 @@ Left Outer Join.  Objects in the first collection will be included in the output
 
 ## Temp/Equality rules ##
 `temp`<br>
-temp collections are scratches defined within a declare block.  Two equivalent ways to define a temp:
+temp collections are scratches defined within a Bloom block.  Two equivalent ways to define a temp:
 
     temp :my_scratch1 <= foo
     my_scratch2 = foo
-  
+
 temp collections get their schema from the rhs; if the rhs has no schema, a simple one is manufactured to suit: [c0, c1, ...].
 
-    
+
 ## Interacting with Bud from Ruby ##
 * `run`
 * `run_bg`
@@ -260,22 +259,20 @@ temp collections get their schema from the rhs; if the rhs has no schema, a simp
 
     module YourModule
       include BudModule
-  
+
       state do
         ...
       end
-  
+
       bootstrap do
         ...
       end
-  
-      declare 
-      def some_rules
-         ...
+
+      bloom :some_rules do
+        ...
       end
 
-      declare
-      def more_rules
+      bloom :more_rules do
         ...
       end
     end
