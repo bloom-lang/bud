@@ -25,8 +25,7 @@ class ChatClient
     return x + " "*[66 - x.length,2].max + y
   end
 
-  declare
-  def chatter
+  bloom :chatter do
     # send mcast requests to master
     mcast <~ stdio.map do |s|
       [@master, ip_port, @nick, Time.new.strftime("%I:%M.%S"), s.line]

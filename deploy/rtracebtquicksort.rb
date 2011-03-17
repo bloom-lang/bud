@@ -14,9 +14,7 @@ module RTraceBTQuicksort
     table :total_succ_communication_delay, [:elt1, :elt2] => [:time]
   end
 
-  declare
-  def compute_transitive_delays
-
+  bloom :compute_transitive_delays do
     # base case is the delay of succ_chan
     tc_succ_computation_delays <= base_computation_delay.map do |b|
       if b.pred == "succ_chan"

@@ -11,8 +11,7 @@ class ScratchBench
     scratch :done
   end
 
-  declare
-  def bench
+  bloom do
     t1 <= t1.map {|t| [t.key + 1] if t.key < BENCH_LIMIT}
     done <= t1.map {|t| t if t.key >= BENCH_LIMIT}
   end

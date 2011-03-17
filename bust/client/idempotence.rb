@@ -9,5 +9,4 @@ module Idempotence
   end
 
   def idempotent(r) (dead.include? r) ? false : dead.insert(r) end
-
 end

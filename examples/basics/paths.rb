@@ -14,8 +14,7 @@ class ShortestPaths
   end
 
   # recursive rules to define all paths from links
-  declare
-  def make_paths
+  bloom :make_paths do
     # base case: every link is a path
     path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
     
@@ -27,8 +26,7 @@ class ShortestPaths
   end
 
   # find the shortest path between each connected pair of nodes
-  declare
-  def find_shortest
+  bloom :find_shortest do
     shortest <= path.argmin([path.from, path.to], path.cost)
   end
 end

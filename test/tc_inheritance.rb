@@ -24,8 +24,7 @@ class ParentBud
     boot_tbl << [5, 10]
   end
 
-  declare
-  def bundle
+  bloom :bundle do
     tbl << [2, 'a']
   end
 end
@@ -36,8 +35,7 @@ class ChildBud < ParentBud
   end
 
   # Test overriding
-  declare
-  def bundle
+  bloom :bundle do
     tbl << [2, 'b']
   end
 end

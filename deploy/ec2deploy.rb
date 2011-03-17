@@ -9,7 +9,7 @@ require 'open3'
 module EC2Deploy
   include BudModule
 
-  state {
+  state do
     table :max_count, [] => [:num]
     table :min_count, [] => [:num]
     table :access_key_id, [] => [:key]
@@ -29,7 +29,7 @@ module EC2Deploy
     table :init_dir, [] => [:dir]
     table :temp_node, [:uid, :node, :localip]
     table :all_up, [:bool]
-  }
+  end
 
   bootstrap do
     image_id <= [["ami-76f0061f"]]
@@ -41,9 +41,7 @@ module EC2Deploy
     init_dir <= [["/home/wrm/devel/bud/deploy"]]
   end
 
-  declare
-  def spinup
-
+  bloom :spinup do
     # HACK HACK: join & map functions shouldn't be required
     ec2_conn <= join([access_key_id, secret_access_key]).map do
       (puts "Creating EC2 connection") or

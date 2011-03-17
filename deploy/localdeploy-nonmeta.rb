@@ -71,8 +71,7 @@ module LocalDeploy
   # before any messages are received.  In order to fix this, we would probably
   # need to globally synchronize to ensure that "timestamp 0" gets "fully
   # evaluated" before any messages can be sent
-  declare
-  def distribute_data
+  bloom :distribute_data do
     atomic_data_in <= join([node, initial_data],
                            [node.uid, initial_data.uid]).map do |n, i|
       [n.node, [i.pred, i.data]] if idempotent [[n.node, i.pred, i.data]]

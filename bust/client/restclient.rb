@@ -17,8 +17,7 @@ module RestClient
     scratch :rest_req_thread, [:thread]
   end
 
-  declare
-  def rest_client
+  bloom :rest_client do
     rest_req_thread <= rest_req.map do |req|
       # start up a new thread to deal with the response
       [Thread.start(req, self) do |r, bud|

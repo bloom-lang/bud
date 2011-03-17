@@ -9,8 +9,7 @@ class ChatMaster
 
   state { table :nodelist }
 
-  declare
-  def master_logic
+  bloom :master_logic do
     nodelist <= signup.payloads
     mcast <~ join([mcast, nodelist]).map do |m,n| 
       [n.key, ip_port, m.nick, m.time, m.msg]  unless n.key == m.from

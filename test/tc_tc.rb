@@ -234,8 +234,7 @@ class TcNest
     t1 << [5, 10]
   end
 
-  declare
-  def rules
+  bloom do
     j = join([in_buf, t1])
     t2 <= j.map {|b, t| [b.k1, b.k2, b.v1, t]}
   end

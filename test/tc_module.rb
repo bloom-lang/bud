@@ -13,8 +13,7 @@ module ParentModule
     boot_t << [20, 30]
   end
 
-  declare
-  def parent_rules
+  bloom :parent_rules do
     p <= boot_t.map {|x| [x.key + 10, x.val + 20]}
   end
 end

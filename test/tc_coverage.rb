@@ -8,8 +8,7 @@ class Nada
     table :num, [:num]
   end
 
-  declare
-  def rules
+  bloom do
     num <= (1..5).map{|i| [i]}
   end
 end

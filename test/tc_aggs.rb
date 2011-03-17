@@ -3,14 +3,14 @@ require 'test_common'
 class ShortestPaths
   include Bud
 
-  state {
+  state do
     table :link, [:from, :to, :cost]
     table :path, [:from, :to, :next, :cost]
     table :shortest, [:from, :to] => [:next, :cost]
     table :minmaxsumcntavg, [:from, :to] => [:mincost, :maxcost, :sumcost, :cnt, :avgcost]
     table :avrg, [:from, :to] => [:ave, :some, :kount]
     table :avrg2, [:from, :to] => [:ave, :some, :kount]
-  }
+  end
 
   bootstrap do
     link << ['a', 'b', 1]
@@ -43,11 +43,11 @@ end
 class TiedPaths
   include Bud
 
-  state {
+  state do
     table :link, [:from, :to, :cost]
     table :path, [:from, :to, :next, :cost]
     table :shortest, [:from, :to] => [:next, :cost]
-  }
+  end
 
   bootstrap do
     link << ['a', 'b', 1]
@@ -56,10 +56,9 @@ class TiedPaths
     link << ['a', 'c', 2]
   end
 
-  declare
-  def program
+  bloom do
     path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
-    path <= join ([link, path], [path.from, link.to]).map do |l,p|
+    path <= join([link, path], [path.from, link.to]).map do |l,p|
       [l.from, p.to, p.from, l.cost+p.cost] # if l.to == p.from
     end
     shortest <= path.argmin([path.from, path.to], path.cost).argagg(:max, [:from, :to], :next)
@@ -154,7 +153,7 @@ class AggJoin
     table :emp, [:ename, :dname] => [:sal]
     scratch :funny, [:dname] => [:max_sal, :usual_sal]
   end
-  
+
   bootstrap do
     emp << ['joe', 'shoe', 10]
     emp << ['joe', 'toy', 5]
@@ -169,16 +168,15 @@ end
 
 class ChoiceAgg
   include Bud
-  
+
   state do
     scratch :t1
     scratch :t2
   end
-  
-  declare
-  def rules
+
+  bloom do
     t1 <= [[1,1],[2,1]]
-    t2 <= t1.argagg(:choose, [], :key)    
+    t2 <= t1.argagg(:choose, [], :key)
   end
 end
 
@@ -205,7 +203,7 @@ class TestAggs < Test::Unit::TestCase
     costs = program.minmaxsumcntavg.map {|c| [c.from, c.to, c.mincost]}
     assert_equal([], shorts - costs)
   end
-  
+
   def test_tied_paths
     program = TiedPaths.new
     assert_nothing_raised(RuntimeError) { program.tick }
@@ -249,7 +247,7 @@ class TestAggs < Test::Unit::TestCase
     assert_nothing_raised (RuntimeError) { p.tick }
     assert_equal([['shoe', 11, 9]], p.funny.to_a  )
   end
-  
+
   def test_choice_agg
     p = ChoiceAgg.new
     assert_nothing_raised {p.tick}
