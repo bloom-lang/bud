@@ -136,7 +136,7 @@ module Bud
     end
 
     def pending_inspected
-      @pending.map{|t| [t.inspect]}
+      @pending.map{|t| [t[1].inspect]}
     end
 
     def pro(&blk)
