@@ -16,8 +16,7 @@ class CombosBud
     scratch :loj_out, [:x1, :x2, :y1, :y2]
   }
 
-  declare
-  def program
+  bloom do
     r << ['a', 1]
     r << ['b', 1]
     r << ['b', 2]
@@ -62,8 +61,7 @@ class BlockAssign
     table :num, [:num]
   end
 
-  declare
-  def rules
+  bloom do
     num <= (1..5).map do |i|
       foo = i
       [foo]
@@ -79,8 +77,7 @@ class BlockAppend
     table :num, [:num]
   end
 
-  declare
-  def rules
+  bloom do
     num <= (1..5).map do |i|
       foo = []
       foo << i
