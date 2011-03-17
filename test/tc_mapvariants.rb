@@ -8,24 +8,22 @@ class LeaveMapAlone
     table :num, [:num]
   end
 
-  declare
-  def rules
+  bloom do
     num <= (1..5).map{|i| [i]}
   end
 end
 
 class AllMapsAreOne
   include Bud
-  
+
   state do
     scratch :out, [:val]
     scratch :snout, [:val]
     scratch :clout, [:val]
     scratch :inski
   end
-  
-  declare
-  def rules
+
+  bloom do
     out <= inski {|i| [i.val]}
     snout <= inski.map {|i| [i.val]}
     clout <= inski.pro {|i| [i.val]}
@@ -34,14 +32,13 @@ end
 
 class StillAnnoying
   include Bud
-  
+
   state do
     scratch :out, [:val]
     scratch :inski
   end
-  
-  declare
-  def rules
+
+  bloom :rules do
     j = inski
     out <= j.map {|t| [t.val]}
   end
@@ -49,9 +46,8 @@ end
 
 class LessAnnoying < StillAnnoying
   include Bud
-  
-  declare 
-  def rules
+
+  bloom :rules do
     temp(tmpy) <= inski
     out <= tmpy {|t| [t.val]}
   end

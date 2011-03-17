@@ -380,11 +380,17 @@ module ModuleRewriter
   def self.get_rule_defs(mod)
     rv = []
 
+    # Old-style syntax (Anise)
     mod.ancestors.each do |anc|
       next unless anc.methods.include? "annotation"
       rv += anc.annotation.map{|a| a[0] if a[1].keys.include? :declare}
     end
 
-    rv.compact.uniq
+    # New-style syntax
+    mod.instance_methods.each do |m|
+      rv << m if m =~ /__bloom__/
+    end
+
+    return rv.compact.uniq
   end
 end
