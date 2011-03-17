@@ -2,13 +2,13 @@ require 'test_common'
 
 class BasicTemp
   include Bud
-  
+
   state do
     scratch :out, [:val]
     scratch :inski
   end
-  
-  declare 
+
+  declare
   def rules
     temp :tmpy <= inski
     out <= tmpy {|t| [t.val]}
@@ -32,15 +32,15 @@ class ReuseTemp < BasicTemp
   end
 end
 
-class TempNext 
+class TempNext
   include Bud
   state do
     scratch :inski, [:c1, :c2] => [:c3, :c4]
     scratch :wait, [:c1, :c2] => [:c3, :c4]
     scratch :out, [:c1, :c2] => [:c3, :c4]
   end
-  
-  declare 
+
+  declare
   def populate
     temp :tmpy <= inski
     temp :waity <+ wait
@@ -51,7 +51,7 @@ end
 
 class TempNoSchema
   include Bud
-  
+
   declare
   def logic
     temp :out <= [[1,2], [3, 4]]
