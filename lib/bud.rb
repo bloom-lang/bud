@@ -80,9 +80,6 @@ class Module
   end
 end
 
-module BudModule
-end
-
 # The root Bud module. To run a Bud instance, there are three main options:
 #
 # 1. Synchronously. To do this, instanciate your program and then call tick()
