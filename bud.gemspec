@@ -11,6 +11,9 @@ Gem::Specification.new do |s|
   s.has_rdoc = true
 
   s.files = Dir.glob("lib/**/*") + %w[README LICENSE]
+  s.executables = ['rebl', 'budplot', 'budvis']
+  s.default_executable = 'rebl'
+  
 
   s.add_dependency 'backports'
   s.add_dependency 'eventmachine'
