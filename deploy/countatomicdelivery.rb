@@ -5,8 +5,6 @@ require 'bud'
 # aspect-oriented programming here, or allow users to extend the definitions of
 # existing table types
 module CountAtomicDelivery
-  include BudModule
-
   state do
     scratch :atomic_data_in, [:loc, :tuple]
     channel :atomic_data_chan, [:@loc, :tuple]

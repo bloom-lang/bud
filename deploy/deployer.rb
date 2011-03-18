@@ -9,8 +9,6 @@ module Deployer
     include Deployer
   end
 
-  include BudModule
-
   state do
     channel :rule_chan, [:@loc, :sender, :array]
     channel :decl_chan, [:@loc, :sender, :array]

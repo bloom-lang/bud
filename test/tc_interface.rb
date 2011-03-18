@@ -1,8 +1,6 @@
 require 'test_common'
 
 module MemberProtocol
-  include BudModule
-
   state do
     interface input, :add_member, [:req_id] => [:name, :addr]
     interface output, :result, [:req_id] => [:success]

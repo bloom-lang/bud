@@ -1,8 +1,6 @@
 require 'test_common'
 
 module SimpleModule
-  include BudModule
-
   state do
     table :boot_tbl
   end

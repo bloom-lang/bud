@@ -1,8 +1,6 @@
 require 'test_common'
 
 module ParentModule
-  include BudModule
-
   state do
     table :boot_t
     table :p
@@ -37,7 +35,6 @@ class ImportParent
 end
 
 module ChildModule
-  include BudModule
   import ParentModule => :p
 
   state do

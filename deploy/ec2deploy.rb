@@ -7,8 +7,6 @@ require 'bud'
 require 'open3'
 
 module EC2Deploy
-  include BudModule
-
   state do
     table :max_count, [] => [:num]
     table :min_count, [] => [:num]

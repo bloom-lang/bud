@@ -109,7 +109,6 @@ module Bud
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
 
-  include BudModule
   include BudState
 
   def initialize(options={})

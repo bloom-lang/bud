@@ -4,7 +4,6 @@ require 'masterrtrace'
 
 # Adds tracing to btquicksort
 module RTraceBTQuicksort
-  include BudModule
   include MasterRTrace
 
   state do

@@ -10,8 +10,6 @@ require 'socket'
 require 'timeout'
 
 module LogicThatTakesTime 
-  include BudModule
-
   state do
     interface input, :start
     channel :one

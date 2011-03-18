@@ -4,7 +4,6 @@ require 'localdeploy-nonmeta'
 
 # Distributes initial data to nodes 
 module BinaryTreePartition
-  include BudModule
   include LocalDeploy # XXX
 
   state do

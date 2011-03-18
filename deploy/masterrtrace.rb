@@ -3,7 +3,6 @@ require 'bud'
 require 'countatomicdelivery'
 
 module MasterRTrace
-  include BudModule
   include CountAtomicDelivery
 
   state do

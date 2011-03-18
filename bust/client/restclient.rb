@@ -4,7 +4,6 @@ require 'nestful'
 require 'idempotence'
 
 module RestClient
-  include BudModule
   include Idempotence
 
   state do

@@ -2,8 +2,6 @@ require 'rubygems'
 require 'bud'
 
 module Idempotence
-  include BudModule
-
   state do
     table :dead, [:dead]
   end
