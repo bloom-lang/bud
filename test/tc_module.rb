@@ -23,6 +23,11 @@ class ChildClass
     table :t3, p.t2.key_cols => p.t2.val_cols
   end
 
+  bootstrap do
+    p.t2 << [200, 400]
+    p.t1 <= [[500, 1000]]
+  end
+
   bloom do
     t3 <= p.t2
   end
@@ -32,7 +37,7 @@ class TestModules < Test::Unit::TestCase
   def test_simple
     c = ChildClass.new
     c.tick
-    assert_equal([[5,10]], c.t3.to_a.sort)
+    assert_equal([[5,10], [200, 400], [500, 1000]], c.t3.to_a.sort)
   end
 end
 
@@ -41,4 +46,3 @@ end
 # * ChildModule, state ref p.boot_t
 # * Module table on LHS of class
 # * Module table on LHS of module
-# * Rule blocks in modules
