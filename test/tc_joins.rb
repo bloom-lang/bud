@@ -16,8 +16,7 @@ class CombosBud
     scratch :loj_out, [:x1, :x2, :y1, :y2]
   }
 
-  declare
-  def program
+  bloom do
     r << ['a', 1]
     r << ['b', 1]
     r << ['b', 2]
@@ -48,8 +47,8 @@ class CombosBud
     n = natjoin [r,s_tab,t]
     nat_out <= n.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
-    #loj = leftjoin [mismatches,s_tab], [mismatches.x, s_tab.x]
-    #loj_out <= loj.map { |t1, t2| [t1.x, t2.x, t1.y1, t2.y1] }
+    loj = leftjoin [mismatches,s_tab], [mismatches.x, s_tab.x]
+    loj_out <= loj.map { |t1, t2| [t1.x, t2.x, t1.y1, t2.y1] }
   end
 end
 
@@ -62,8 +61,7 @@ class BlockAssign
     table :num, [:num]
   end
 
-  declare
-  def rules
+  bloom do
     num <= (1..5).map do |i|
       foo = i
       [foo]
@@ -79,8 +77,7 @@ class BlockAppend
     table :num, [:num]
   end
 
-  declare
-  def rules
+  bloom do
     num <= (1..5).map do |i|
       foo = []
       foo << i
@@ -133,13 +130,11 @@ class TestJoins < Test::Unit::TestCase
     assert_equal([1,2,3,4,5], program.num.to_a.sort.flatten)
   end
 
-  # PAA: problems recognizing 'leftjoin()' ?
-  # fix.
-  def ntest_left_outer_join
+  def test_left_outer_join
     program = CombosBud.new
     assert_nothing_raised(RuntimeError) { program.tick }
     loj_outs = program.loj_out
     assert_equal(3, loj_outs.length)
-    assert_equal(loj_outs.inspect, '[["z", nil, 1, nil], ["v", nil, 1, nil], ["a", "a", 1, 1]]')
+    assert_equal(loj_outs.to_a.sort, [["a", "a", 1, 1], ["v", nil, 1, nil], ["z", nil, 1, nil]])
   end
 end

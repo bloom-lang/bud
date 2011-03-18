@@ -3,15 +3,14 @@ require 'test_common'
 class SchemaFree
   include Bud
 
-  state {
+  state do
     table :notes
     scratch :stats
     interface input, :send_me
     channel :msgs
-  }
+  end
 
-  declare
-  def program
+  bloom do
     notes <= msgs.payloads
     msgs <~ send_me
     # stdio <~ msgs.inspected

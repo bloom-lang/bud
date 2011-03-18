@@ -36,8 +36,7 @@ class ChatClient
     return x + " "*[66 - x.length,2].max + y
   end
 
-  declare
-  def chatter
+  bloom :chatter do
     # add "live" status on ack
      status <= ctrl do |c|
        if @master == c.from and c.cmd == 'ack'

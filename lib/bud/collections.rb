@@ -136,7 +136,7 @@ module Bud
     end
 
     def pending_inspected
-      @pending.map{|t| [t.inspect]}
+      @pending.map{|t| [t[1].inspect]}
     end
 
     def pro(&blk)
@@ -200,18 +200,10 @@ module Bud
     end
 
     def include?(tuple)
+      return true if key_cols.nil? or (key_cols.empty? and length > 0)
       return false if tuple.nil? or tuple.empty?
       key = key_cols.map{|k| tuple[schema.index(k)]}
       return (tuple == self[key])
-
-      @storage.each_value do |t|
-        return true if t == o
-      end
-      @delta.each_value do |t|
-        return true if t == o
-      end
-
-      return false
     end
 
     def exists?(&block)
@@ -278,8 +270,8 @@ module Bud
         raise BudTypeError, "Attempt to merge non-enumerable type into BudCollection"
       end
     end
-    
-    # Assign self a schema, by hook or by crook.  If o is schemaless *and* empty, will 
+
+    # Assign self a schema, by hook or by crook.  If o is schemaless *and* empty, will
     # leave @schema as is.
     def establish_schema(o)
       # use o's schema if available
@@ -298,21 +290,19 @@ module Bud
       # returns old state of @schema (nil) if nothing available
       return @schema
     end
-    
+
     # manufacture schema of the form [:c0, :c1, ...] with width = arity
     def fit_schema(arity)
       # rhs is schemaless.  create schema from first tuple merged
-      init_schema((0..arity-1).map{|indx| ("c"+indx.to_s).to_sym})    
-      return @schema  
+      init_schema((0..arity-1).map{|indx| ("c"+indx.to_s).to_sym})
+      return @schema
     end
-    
 
     def merge(o, buf=@new_delta)
       check_enumerable(o)
       establish_schema(o) if @schema.nil?
-      
+
       delta = o.map do |i|
-        
         next if i.nil? or i == []
         i = prep_tuple(i)
         key_vals = @key_colnums.map{|k| i[k]}
@@ -332,7 +322,7 @@ module Bud
     def pending_merge(o)
       check_enumerable(o)
       deduce_schema(o)
-      
+
       o.each {|i| do_insert(i, @pending)}
       return self
     end
@@ -403,14 +393,10 @@ module Bud
         end
       end
 
-      if block_given?
-        finals.map{|r| yield r}
-      else
-        # merge directly into retval.storage, so that the temp tuples get picked up
-        # by the lhs of the rule
-        retval = BudScratch.new('argagg_temp', bud_instance, @given_schema)
-        retval.merge(finals, retval.storage)
-      end
+      # merge directly into retval.storage, so that the temp tuples get picked up
+      # by the lhs of the rule
+      retval = BudScratch.new('argagg_temp', bud_instance, @given_schema)
+      retval.merge(finals, retval.storage)
     end
 
     def argmin(gbkey_cols, col)
@@ -427,8 +413,10 @@ module Bud
       keynames = key_cols.map do |k|
         if k.class == Symbol
           k
+        elsif k[2] and k[2].class == Symbol
+          k[2]
         else
-          k[2].to_sym
+          raise Bud::CompileError, "Invalid grouping key"
         end
       end
       aggcolsdups = aggpairs.map{|ap| ap[0].class.name.split("::").last}
@@ -553,7 +541,7 @@ module Bud
             the_locspec = split_locspec(t[@locspec_idx])
             raise BudError, "bad locspec" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
           rescue
-            puts "bad locspec '#{t[@locspec_idx]}', channel '#{@tabname}', skipping: #{t.inspect}" 
+            puts "bad locspec '#{t[@locspec_idx]}', channel '#{@tabname}', skipping: #{t.inspect}"
             next
           end
         end
@@ -660,7 +648,9 @@ module Bud
 
     superator "<-" do |o|
       o.each do |tuple|
-        @to_delete << tuple unless tuple.nil?
+        next if tuple.nil?
+        tuple = prep_tuple(tuple)
+        @to_delete << tuple
       end
     end
   end

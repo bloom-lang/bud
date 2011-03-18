@@ -12,8 +12,7 @@ class TwitterExample
                   'http://api.twitter.com/1/statuses/public_timeline']]
   end
 
-  declare
-  def print_recent_tweets
+  bloom :print_recent_tweets do
     # print the tweets with user screen names
     stdio <~ rest_response.map do |r|
       [r.resp.map {|s| s["user"]["screen_name"] + ": " + s["text"]}] if r.rid==1

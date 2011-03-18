@@ -3,16 +3,15 @@ require 'test_common'
 class ExistTest
   include Bud
 
-  state {
+  state do
     table :notes
     table :memories
     table :dups, [:str]
     periodic :timer, 0.5
     channel :msgs
-  }
+  end
 
-  declare
-  def program
+  bloom do
     msgs <~ notes.map{|n| ["localhost:54321", n] if timer.exists?}
     memories <= msgs.payloads
     dups <= memories.map{|n| [n.inspect] if msgs.exists?{|m| n.val == m.val[1]}}

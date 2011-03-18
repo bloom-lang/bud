@@ -6,7 +6,7 @@ class Mergesort
   include Bud
   include LocalDeploy
 
-  state {
+  state do
     channel :elt_list, [:@loc] => [:elt_list]
     scratch :succ, [:elt1, :elt2]
     table :master, [] => [:node]
@@ -22,7 +22,7 @@ class Mergesort
     table :elt_ord, [:num] => [:elt]
     channel :max_chan, [:@loc, :sender, :max_elt]
     table :persist_max_chan, [:sender] => [:max_elt]
-  }
+  end
 
   def initialize(opt)
     super
@@ -42,9 +42,7 @@ class Mergesort
     super
   end
 
-
-  declare
-  def partition
+  bloom :partition do
     # XXX: by the way, this is a huge hack because i'm too lazy to write out
     # the count aggregate; ".size" just seems more natural to me.  Hopefully
     # we'll support this syntax eventually
@@ -72,8 +70,7 @@ class Mergesort
                       end) or [])
   end
 
-  declare
-  def mergesort_split
+  bloom :mergesort_split do
     # pop elt_list into list_to_sort
     #stdio <~ list_to_sort.map {|l| [ip_port + " received list: " + l.inspect]}
     list_to_sort <= [elt_list.map {|e| e.elt_list}]
@@ -93,8 +90,7 @@ class Mergesort
                   [[right_child[[]].node, lt_pivot[[]].list]]) or [])
   end
 
-  declare
-  def mergesort_merge
+  bloom :mergesort_merge do
     #stdio <~ elt_ord.map {|m| [ip_port + " elt_ord: " + m.inspect]}
     #stdio <~ merge_chan.map {|m| [ip_port + " merge_chan: " + m.inspect]}
     #stdio <~ max_chan.map {|m| [ip_port + " max_chan: " + m.inspect]}

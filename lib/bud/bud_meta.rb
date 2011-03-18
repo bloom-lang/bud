@@ -81,10 +81,10 @@ class BudMeta
     return unless @bud_instance.options[:scoping]
     stp = ParseTree.translate(anc, "__#{@bud_instance.class}__state")
     return if stp[0].nil?
-    state_reader = StateExtractor.new(anc.to_s)
     u = Unifier.new
     pt = u.process(stp)
-    res = state_reader.process(pt)
+    state_reader = StateExtractor.new(anc.to_s)
+    state_reader.process(pt)
     @decls += state_reader.decls
   end
 
@@ -97,31 +97,30 @@ class BudMeta
     pp pt if @bud_instance.options[:dump_ast]
     check_rule_ast(pt)
 
+    # Expand references to imported modules
+    ref_expand = NestedRefRewriter.new(@bud_instance.class.bud_import_table)
+    pt = ref_expand.process(pt)
+
     rewriter = RuleRewriter.new(seed, bud_instance)
     rewriter.process(pt)
     #rewriter.rules.each {|r| puts "RW: #{r.inspect}"}
     return rewriter
   end
   
-  # find the BudCollection on the rhs of a rule
-  # we have to consider tables defined in the state block AND temp variables from "="
-  # we also have to consider implicit and explicit maps on the rhs
-  def rhs_collection(rhs)
-    # table.map {}
-    if rhs[1] and rhs[1][1] and rhs[1][1][2] and bud_instance.tables.include? rhs[1][1][2]
-      name = rhs[1][1][2]
-    # variable.map {}
-    elsif rhs[1] and rhs[1][1] and rhs[1][1][2] and bud_instance.tables.include? rhs[1][1][1]
-      name = rhs[1][1][1]
-    # table {}
-    elsif rhs[1] and rhs[1][2] and bud_instance.tables.include? rhs[1][2]
-      name = rhs[1][2]
-    # variable {}
-    elsif rhs[1] and rhs[1][1] and bud_instance.tables.include? rhs[1][1]
-      name = rhs[1][1]
-    end
-    retval = defined?(name) ? bud_instance.tables[name] : nil
-  end
+  # given a rule of the form "temp <lhs> <op> <rhs>"
+  # this is actually a call to "temp" with args "[<lhs> <op> <rhs>]" which 
+  # isn't what we mean.
+  # So register the temp, and return a rule of the form "<lhs> <op> <rhs>".
+  def declare_and_unwrap_temp(n)
+    raise Bud::CompileError, "lhs of temp rule not a symbol" if n[3][1][1][0] != :lit
+    # temp rules w/o parens on lhs are nested one level down, nil, temp, (call tag, lhs, op, rhs)
+    lhs = s(:call, nil, n[3][1][1][1], s(:arglist))
+    op = n[3][1][2]
+    rhs = n[3][1][3]
+    bud_instance.temp n[3][1][1][1]
+    
+    return s(:call, lhs, op, rhs)
+  end    
 
   # Perform some basic sanity checks on the AST of a rule block. We expect a
   # rule block to consist of a :defn, a nested :scope, and then a sequence of
@@ -133,12 +132,11 @@ class BudMeta
     raise Bud::CompileError if scope.sexp_type != :scope
     block = scope[1]
 
-    # First, remove any assignment statements (i.e., alias definitions) from the
+    # First, remove any equality statements (i.e., alias definitions) from the
     # rule block's AST. Then convert them to temp rules so we can add them back in.
     assign_nodes, rest_nodes = block.partition {|b| b.class == Sexp && b.sexp_type == :lasgn}
     assign_vars = {}
-    temp_rules = []     # equality statements rewritten as temp rules
-    pending_temps = []  # temps with schemas to be resolved
+    equi_rules = []     # equality statements rewritten as temp rules
     assign_nodes.each do |n|
       # Expected format: lasgn tag, lhs, rhs
       raise Bud::CompileError unless n.length == 3
@@ -146,32 +144,11 @@ class BudMeta
       lhs = lhs.to_sym
       bud_instance.temp lhs
 
-      temp_rules << s(:call, s(:call, nil, lhs, s(:arglist)), :<=, s(:arglist, rhs))
-               
-      # if rhs is a BudCollection, propagate schema leftward
-      source = rhs_collection(rhs)
-      if defined?(source)
-        bud_instance.tables[lhs].deduce_schema(source)
-        pending_temps << [lhs, source] if bud_instance.tables[lhs].schema.nil?
-      end
+      equi_rules << s(:call, s(:call, nil, lhs, s(:arglist)), :<=, s(:arglist, rhs))               
     end
 
-    rest_nodes += temp_rules
+    rest_nodes += equi_rules
 
-    # deal with pending_temps.  Should top-sort then make one pass, but we'll be lazy and
-    # just iterate to fixpoint.   worst-case number of iterations is pending_temps.size;
-    # if we go that many times something is undefined.
-    (0..pending_temps.size).each do
-      pending_temps.each do |p|
-        if bud_instance.tables[p[0]].deduce_schema(p[1])
-          pending_temps.delete!([p])
-        end
-      end
-      break if pending_temps.empty?
-    end
-    # anything that remains in pending_temps after that loop will get 
-    # a schema assigned dynamically by BudCollection::fix_schema on first non-empty merge    
-    
     rest_nodes.each_with_index do |n,i|
       if i == 0
         raise Bud::CompileError if n != :block
@@ -179,8 +156,14 @@ class BudMeta
       end
 
       raise Bud::CompileError if n.sexp_type != :call
-      # Rule format: call tag, lhs, op, rhs
       raise Bud::CompileError unless n.length == 4
+
+      if n[2] == :temp 
+        n = declare_and_unwrap_temp(n)
+        rest_nodes[i] = n
+      end
+
+      # Rule format: call tag, lhs, op, rhs
       tag, lhs, op, rhs = n
 
       # Check that LHS references a named collection or is a temp expression

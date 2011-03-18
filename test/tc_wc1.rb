@@ -6,20 +6,19 @@ class WordCount1
   include Bud
 
   attr_reader :pattern
-  
+
   def initialize(pattern)
     super()
     @pattern = pattern
   end
-  
-  state {
+
+  state do
     file_reader :txt, 'text/ulysses.txt'
     # file_reader :txt, 'shaks12.txt'
     scratch :wc, [:word] => [:cnt]
-  }
-  
-  declare 
-  def program
+  end
+
+  bloom do
     wc <= txt.flat_map do |t|
             t.text.split.enum_for(:each_with_index).map {|w, i| [t.lineno, i, w]}
           end.rename([:lineno, :wordno, :word]).group([:word], count)

@@ -9,9 +9,7 @@ module Deployer
     include Deployer
   end
 
-  include BudModule
-
-  state {
+  state do
     channel :rule_chan, [:@loc, :sender, :array]
     channel :decl_chan, [:@loc, :sender, :array]
     channel :rule_ack, [:@loc, :sender, :port]
@@ -26,7 +24,7 @@ module Deployer
     table :initial_data, [:uid, :data]
     channel :initial_data_chan, [:@node, :data]
     scratch :dont_care, [:dont_care]
-  }
+  end
 
   def initialize opt
     super
@@ -74,7 +72,7 @@ module Deployer
 
   # add rules to the MetaRecv class
   def insert_rules rules
-    if safe_eval("declare\ndef recv_rules\n" + rules.join("\n") + "\nend",
+    if safe_eval("bloom :recv_rules do\n" + rules.join("\n") + "\nend",
                  lambda {|s| GenericBud.class_eval(s)})
       begin
         @new_instance = GenericBud.new(:ip => "127.0.0.1")
@@ -102,8 +100,7 @@ module Deployer
   # read the program from the metamodel and send
   #
   # XXX: won't transfer any non-rule code
-  declare
-  def rule_send
+  bloom :rule_send do
     rule = [@meta_parser.rules.find_all do |r|
               not bootstrap_tables.include? r[1]
             end.map {|r| r[3]}]
@@ -123,8 +120,7 @@ module Deployer
   end
 
   # reify the program, and send back an ack if the rule adding was successful
-  declare
-  def rule_recv
+  bloom :rule_recv do
     rule_ack <~ rule_chan.map do |r|
       # XXX: hack to get around assignment problem
       [r.sender, me, @new_instance.port] if insert_rules r.array
@@ -143,8 +139,7 @@ module Deployer
   end
 
   # check to make sure every node has received the package of rules and decls
-  declare
-  def consensus
+  bloom :consensus do
     ack <= join([persist_rule_ack, persist_decl_ack],
                 [persist_rule_ack.sender, persist_decl_ack.sender]).map do |r,d|
       ((puts r.sender + " has received all rules and decls") if idempotent [[:ack, r.sender]]) or [r.sender]
@@ -161,8 +156,7 @@ module Deployer
   # before any messages are received.  In order to fix this, we would probably
   # need to globally synchronize to ensure that "timestamp 0" gets "fully
   # evaluated" before any messages can be sent
-  declare
-  def distribute_data
+  bloom :distribute_data do
     initial_data_chan <~ join([deploy_node, initial_data],
                               [deploy_node.uid, initial_data.uid]).map do |n, i|
       [n.node, i.data] if not not_all_in.include? [true] and idempotent [n,i]

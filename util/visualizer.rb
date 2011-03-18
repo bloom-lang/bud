@@ -12,11 +12,11 @@ BUD_TC_DIR = "#{ARGV[0]}/bud_"
 class VizHelper
   include Bud
 
-  state {
+  state do
     table :full_info, [:bud_time, :table, :row]
     scratch :cardinalities, [:bud_time, :table] => [:cnt]
     scratch :times, [:bud_time]
-  }
+  end
 
   def initialize(strata, tabinf, cycle, depends, rules, dir)
     @t_strata = strata
@@ -28,8 +28,7 @@ class VizHelper
     super()
   end
 
-  declare
-  def counting
+  bloom :counting do
     cardinalities <= full_info.group([full_info.bud_time, full_info.table], count)
     times <= full_info.map{|f| [f.bud_time]}
   end

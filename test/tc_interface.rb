@@ -1,30 +1,27 @@
 require 'test_common'
 
 module MemberProtocol
-  include BudModule
-
-  state {
+  state do
     interface input, :add_member, [:req_id] => [:name, :addr]
     interface output, :result, [:req_id] => [:success]
     table :member, [:name] => [:addr]
-  }
+  end
 end
 
 # Don't allow members whose names appear in "bad_people"
 module SelectiveMembership
   include MemberProtocol
 
-  state {
+  state do
     table :bad_people, [:name]
     scratch :good_add_reqs, [:req_id] => [:name, :addr]
-  }
+  end
 
   bootstrap do
     bad_people <= [['foo'], ['bar']]
   end
 
-  declare
-  def logic
+  bloom do
     good_add_reqs <= add_member.map do |m|
       m unless bad_people.include? [m.name]
     end

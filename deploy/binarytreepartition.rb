@@ -4,7 +4,6 @@ require 'localdeploy-nonmeta'
 
 # Distributes initial data to nodes 
 module BinaryTreePartition
-  include BudModule
   include LocalDeploy # XXX
 
   state do
@@ -24,8 +23,7 @@ module BinaryTreePartition
     super
   end
 
-  declare
-  def tree_data
+  bloom :tree_data do
     tree_parent <= node.map do |n|
       if n.uid != 0
         [n.uid, node[[(n.uid/2.0).ceil-1]].uid]

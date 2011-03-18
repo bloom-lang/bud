@@ -4,7 +4,7 @@ require 'fileutils'
 class TcTest
   include Bud
 
-  state {
+  state do
     tctable :t1, [:k1, :k2] => [:v1, :v2]
     table :in_buf, [:k1, :k2, :v1, :v2]
     table :del_buf, [:k1, :k2, :v1, :v2]
@@ -21,26 +21,23 @@ class TcTest
     tctable :join_t2, [:k] => [:v1, :v2]
     scratch :cart_prod, [:k, :v1]
     scratch :join_res, [:k, :v1]
-  }
+  end
 
-  declare
-  def logic
+  bloom do
     t1 <= in_buf
     t1 <- del_buf
     t1 <+ pending_buf
     t1 <+ pending_buf2
   end
 
-  declare
-  def do_chain
+  bloom :do_chain do
     t2 <= chain_start.map{|c| [c.k, c.v + 1]}
     t3 <= t2.map{|c| [c.k, c.v + 1]}
     t4 <= t3.map{|c| [c.k, c.v + 1]}
     chain_start <- chain_del
   end
 
-  declare
-  def do_join
+  bloom :do_join do
     j = join [join_t1, join_t2], [join_t1.k, join_t2.k]
     join_res <= j
     cart_prod <= join([join_t1, join_t2])
@@ -237,8 +234,7 @@ class TcNest
     t1 << [5, 10]
   end
 
-  declare
-  def rules
+  bloom do
     j = join([in_buf, t1])
     t2 <= j.map {|b, t| [b.k1, b.k2, b.v1, t]}
   end

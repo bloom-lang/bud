@@ -13,8 +13,7 @@ class Semi
     bigstuff << [2, 'check', {:key => 'out'}, ['me', ['and', 'my'], 'nested'], 'ways']
   end
 
-  declare
-  def whynot
+  bloom do
     stuff <= bigstuff
   end
 end

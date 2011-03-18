@@ -3,14 +3,14 @@ require 'test_common'
 class ShortestPaths
   include Bud
 
-  state {
+  state do
     table :link, [:from, :to, :cost]
     table :path, [:from, :to, :next, :cost]
     table :shortest, [:from, :to] => [:next, :cost]
     table :minmaxsumcntavg, [:from, :to] => [:mincost, :maxcost, :sumcost, :cnt, :avgcost]
     table :avrg, [:from, :to] => [:ave, :some, :kount]
     table :avrg2, [:from, :to] => [:ave, :some, :kount]
-  }
+  end
 
   bootstrap do
     link << ['a', 'b', 1]
@@ -20,8 +20,7 @@ class ShortestPaths
     link << ['d', 'e', 1]
   end
 
-  declare
-  def program
+  bloom do
     path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
 
     j = join [link, path], [path.from, link.to]
@@ -41,15 +40,40 @@ class ShortestPaths
   end
 end
 
+class TiedPaths
+  include Bud
+
+  state do
+    table :link, [:from, :to, :cost]
+    table :path, [:from, :to, :next, :cost]
+    table :shortest, [:from, :to] => [:next, :cost]
+  end
+
+  bootstrap do
+    link << ['a', 'b', 1]
+    link << ['a', 'b', 4]
+    link << ['b', 'c', 1]
+    link << ['a', 'c', 2]
+  end
+
+  bloom do
+    path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
+    path <= join([link, path], [path.from, link.to]).map do |l,p|
+      [l.from, p.to, p.from, l.cost+p.cost] # if l.to == p.from
+    end
+    shortest <= path.argmin([path.from, path.to], path.cost).argagg(:max, [:from, :to], :next)
+  end
+end
+
 class PriorityQ
   include Bud
 
-  state {
+  state do
     table :q, [:item] => [:priority]
     scratch :out, [:item] => [:priority]
     scratch :minny, [:priority]
     scratch :out2, [:item] => [:priority]
-  }
+  end
 
   bootstrap do
     q << ['c', 2]
@@ -58,8 +82,7 @@ class PriorityQ
     q << ['b', 2]
   end
 
-  declare
-  def program
+  bloom do
     # second stratum
     out <= q.argagg(:min, [], q.priority)
     minny <= q.group(nil, min(q.priority))
@@ -73,18 +96,17 @@ end
 class DupAggs
   include Bud
 
-  state {
+  state do
     table :tab, [:i]
 #    scratch :out, [:s1, :s2]
-  }
+  end
 
   bootstrap do
     tab << [1]
     tab << [2]
   end
 
-  declare
-  def prog
+  bloom do
     out = tab.group(nil, sum(tab.i), sum(tab.i))
     p out.inspect
   end
@@ -93,10 +115,10 @@ end
 class Rename
   include Bud
 
-  state {
+  state do
     table :emp, [:ename, :dname] => [:sal]
     table :shoes, [:dname] => [:usualsal]
-  }
+  end
 
   bootstrap do
     emp << ['joe', 'shoe', 10]
@@ -104,21 +126,19 @@ class Rename
     emp << ['bob', 'shoe', 11]
   end
 
-  declare
-  def rules
+  bloom do
     shoes <= emp.group([:dname], avg(:sal)).rename([:dept] => [:avgsal]).map{|t| t if t.dept == 'shoe'}
   end
 end
 
 class JoinAgg < Rename
-  state {
+  state do
     scratch :richsal, [:sal]
     scratch :rich, emp.key_cols => emp.val_cols
     scratch :argrich, emp.key_cols => emp.val_cols
-  }
+  end
 
-  declare
-  def rules
+  bloom do
     richsal <= emp.group([], max(:sal))
     rich <= natjoin([richsal, emp]).map{|r,e| e}
     argrich <= emp.argmax([], emp.sal)
@@ -127,12 +147,13 @@ end
 
 class AggJoin
   include Bud
+
   state do
     table :shoes, [:dname] => [:usualsal]
     table :emp, [:ename, :dname] => [:sal]
     scratch :funny, [:dname] => [:max_sal, :usual_sal]
   end
-  
+
   bootstrap do
     emp << ['joe', 'shoe', 10]
     emp << ['joe', 'toy', 5]
@@ -140,9 +161,22 @@ class AggJoin
     shoes << ['shoe', 9]
   end
 
-  declare
-  def rules
+  bloom do
     funny <= natjoin([emp, shoes]).flatten.group([:dname], max(:sal), max(:usualsal))
+  end
+end
+
+class ChoiceAgg
+  include Bud
+
+  state do
+    scratch :t1
+    scratch :t2
+  end
+
+  bloom do
+    t1 <= [[1,1],[2,1]]
+    t2 <= t1.argagg(:choose, [], :key)
   end
 end
 
@@ -170,7 +204,10 @@ class TestAggs < Test::Unit::TestCase
     assert_equal([], shorts - costs)
   end
 
-  def test_dup_aggs
+  def test_tied_paths
+    program = TiedPaths.new
+    assert_nothing_raised(RuntimeError) { program.tick }
+    assert_equal([["a", "c", "c", 2], ["b", "c", "c", 1], ["a", "b", "b", 1]].sort, program.shortest.to_a.sort)
   end
 
   def test_non_exemplary
@@ -209,5 +246,11 @@ class TestAggs < Test::Unit::TestCase
     p = AggJoin.new
     assert_nothing_raised (RuntimeError) { p.tick }
     assert_equal([['shoe', 11, 9]], p.funny.to_a  )
+  end
+
+  def test_choice_agg
+    p = ChoiceAgg.new
+    assert_nothing_raised {p.tick}
+    assert(([[1,1]]) == p.t2.to_a || ([[2,1]]) == p.t2.to_a)
   end
 end

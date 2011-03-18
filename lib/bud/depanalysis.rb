@@ -4,14 +4,14 @@ require 'bud'
 class DepAnalysis
   include Bud
 
-  state {
+  state do
     table :providing, [:pred, :input]
     table :depends_tc, [:head, :body, :via, :neg, :temporal]
     table :underspecified, [:pred, :input]
 
     table :source, [:pred]
     table :sink, [:pred]
-  }
+  end
 
   def declaration
     strata[0] = lambda { 

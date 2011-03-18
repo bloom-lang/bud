@@ -10,8 +10,7 @@ class BustExample
     table :foo, [:bar, :baz, :qux]
   end
 
-  declare
-  def rules
+  bloom do
     stdio <~ foo.map {|t| [t.inspect]}
   end
 end

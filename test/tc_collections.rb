@@ -3,11 +3,11 @@ require 'test_common'
 class BabyBud
   include Bud
 
-  state {
+  state do
     scratch :scrtch, [:k1, :k2] => [:v1, :v2]
     scratch :scrtch2, [:k1, :k2]
     table :tbl, [:k1, :k2] => [:v1, :v2]
-  }
+  end
 
   bootstrap do
     scrtch <= [['a', 'b', 1, 2]]
@@ -17,8 +17,7 @@ class BabyBud
     tbl <= [['z', 'y', 9, 8]]
   end
 
-  declare
-  def rules
+  bloom do
     scrtch <+ [['c', 'd', 5, 6]]
     tbl <+ [['c', 'd', 5, 6]]
     tbl <- [['a', 'b', 1, 2]]
@@ -28,12 +27,11 @@ end
 class DupKeyBud
   include Bud
 
-  state {
+  state do
     scratch :tab, [:k] => [:name]
-  }
+  end
 
-  declare
-  def program
+  bloom do
     tab <= [[2000, 'bush']]
     tab <= [[2000, 'gore']]
   end
@@ -42,18 +40,18 @@ end
 class DupTableBud
   include Bud
 
-  state {
+  state do
     scratch :s, [:k]
     scratch :s, [:l]
-  }
+  end
 end
 
 class DupColBud
   include Bud
 
-  state {
+  state do
     scratch :silly, [:a, :a]
-  }
+  end
 end
 
 class Grep
@@ -65,13 +63,12 @@ class Grep
     @pattern = pattern
   end
 
-  state {
+  state do
     file_reader :text, 'text/ulysses.txt'
     table :matches, [:lineno, :text]
-  }
+  end
 
-  declare
-  def program
+  bloom do
     matches <= text.map{|t| t if t.text =~ pattern}
   end
 end
@@ -79,19 +76,18 @@ end
 class Union
   include Bud
 
-  state {
+  state do
     table :link, [:from, :to, :cost]
     table :delta_link, [:from, :to, :cost]
     table :union, [:from, :to, :cost]
-  }
+  end
 
   bootstrap do
     link <= [['a', 'b', 1]]
     delta_link <= [['a', 'b', 4]]
   end
 
-  declare
-  def prog
+  bloom do
     union <= (delta_link <= link)
   end
 end
@@ -99,17 +95,16 @@ end
 class DeleteKey
   include Bud
 
-  state {
+  state do
     table :t1, [:k] => [:v]
     table :del_buf, [:k, :v]
-  }
+  end
 
   bootstrap do
     t1 << [5, 10]
   end
 
-  declare
-  def rules
+  bloom do
     t1 <- del_buf
   end
 end
@@ -127,8 +122,7 @@ class BootstrapDerive
     t1 << [5,10]
   end
 
-  declare
-  def rules
+  bloom do
     t2 <= t1.map{|t| [t.key + 1, t.val + 1]}
     t3 <= t2.map{|t| [t.key + 1, t.val + 1]}
   end
@@ -137,15 +131,14 @@ end
 class RowValueTest
   include Bud
 
-  state {
+  state do
     table :t1, [:k] => [:v]
     table :t2, [:k] => [:v]
     table :t3, [:k] => [:v]
     table :t4, [:k] => [:v]
-  }
+  end
 
-  declare
-  def rules
+  bloom do
     t3 <= t1.map {|t| t if t2.include? t}
     t4 <= t1.map {|t| t if t2.has_key? [t.k]}
   end
@@ -154,24 +147,41 @@ end
 class BendTypes
   include Bud
 
-  state {
+  state do
     table :t1
-  }
+  end
 
-  def bootstrap
+  bootstrap do
     t1 <= {1=>'a', 2=>'b'}
+  end
+end
+
+class BendTypesDelete
+  include Bud
+
+  state do
+    table :t1, [:k1, :k2]
+    table :t2, [:k1, :k2]
+  end
+
+  bootstrap do
+    t1 << [5, nil]
+    t1 << [5, 10]
+  end
+
+  bloom do
+    t1 <- t2.map {|t| [t.k1]}
   end
 end
 
 class NonEnumerable
   include Bud
 
-  state {
+  state do
     table :t1
-  }
+  end
 
-  declare
-  def rules
+  bloom do
     t1 <= true
   end
 end
@@ -179,16 +189,26 @@ end
 class NonTuple
   include Bud
 
-  state {
+  state do
     table :t1
-  }
+  end
 
-  declare
-  def rules
+  bloom do
     t1 <= [1,2,3]
   end
 end
 
+class NonTupleDelete
+  include Bud
+
+  state do
+    table :t1
+  end
+
+  bloom do
+    t1 <- [1,2]
+  end
+end
 
 class DupTableDef
   include Bud
@@ -208,8 +228,7 @@ class DelBug
     periodic :tic, 1
   end
 
-  declare
-  def logos
+  bloom do
     buffer <= start
     buffer <- join([tic, buffer]) do |t, h|
       h if h.key == 'foo'
@@ -217,15 +236,32 @@ class DelBug
   end
 end
 
+class BadDeclaration1
+  include Bud
+  state do
+    scratch 0
+  end
+end
+
+class BadDeclaration2
+  include Bud
+  state do
+    scratch :id
+  end
+end
+
 class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
     assert_nothing_raised(RuntimeError) { program.tick }
-    assert_equal(2, program.scrtch.length)
+    assert_equal([["[\"c\", \"d\", 5, 6]"]], program.scrtch.pending_inspected)
     assert_equal(1, program.scrtch2.length)
     assert_nothing_raised(RuntimeError) { program.tick }
+    assert_equal([["[\"c\", \"d\", 5, 6]"]], program.scrtch.inspected)
     assert_equal(0, program.scrtch2.length)
     assert_equal(2, program.tbl.length)
+    assert_equal([["c", "d"], ["z", "y"]].sort, program.tbl.keys.sort)
+    assert_equal([[5,6], [9,8]].sort, program.tbl.values.sort)
   end
 
   def test_tuple_accessors
@@ -317,8 +353,23 @@ class TestCollections < Test::Unit::TestCase
     assert_raise(Bud::BudTypeError) { p2.tick }
     p3 = NonTuple.new
     assert_raise(Bud::BudTypeError) { p3.tick }
+    p4 = NonTupleDelete.new
+    assert_raise(Bud::BudTypeError) { p4.tick }
   end
 
+  def test_types_delete
+    p = BendTypesDelete.new
+    p.run_bg
+    p.sync_do {
+      assert_equal(2, p.t1.length)
+      p.t2 <+ [[5, 100]]
+    }
+    p.sync_do
+    p.sync_do {
+      assert_equal([[5, 10]], p.t1.to_a.sort)
+    }
+    p.stop_bg
+  end
 
   def test_bootstrap_derive
     b = BootstrapDerive.new
@@ -344,6 +395,10 @@ class TestCollections < Test::Unit::TestCase
       th.sync_do {th.start <+ [['foo','bar'], ['baz','bam']]}
       sleep 2
     end
-    
+  end
+  
+  def test_bad_declarations
+    assert_raise(Bud::BudError) { BadDeclaration1.new }
+    assert_raise(Bud::BudError) { BadDeclaration2.new }
   end
 end

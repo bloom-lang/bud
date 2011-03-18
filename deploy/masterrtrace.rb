@@ -3,7 +3,6 @@ require 'bud'
 require 'countatomicdelivery'
 
 module MasterRTrace
-  include BudModule
   include CountAtomicDelivery
 
   state do
@@ -22,9 +21,7 @@ module MasterRTrace
 
   # aggregate all of the tracing information at a central location so we can
   # operate on it
-  declare
-  def rtrace_send_to_master
-
+  bloom :rtrace_send_to_master do
     atomic_data_in <= @rtracer and @rtracer.table_budtime_realtime_begin.map do |r|
       if rtrace_master[[]]
         [rtrace_master[[]].node, "budtime_realtime_begin", [me, r.budtime, r.realtime]]
@@ -71,9 +68,7 @@ module MasterRTrace
   # separate aspect to deal with the inductive cases, since we don't want to be
   # tracking all the provenance information, and the user might not care about
   # all of this info anyway...
-  declare
-  def compute_base_delays
-
+  bloom :compute_base_delays do
     # the base case of message computation delay: when it was sent minus when
     # the timestamp it was sent from began
     base_computation_delay <= join([bud_realtime_begin, send_time],

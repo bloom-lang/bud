@@ -4,8 +4,6 @@ require 'bud'
 # Balanced quicksort protocol that uses an expected O(N) time median-finding
 # algorithm to select the pivot.
 module Quicksort
-  include BudModule
-
   state do
     scratch :succ, [:elt1, :elt2]
     scratch :pivot, [] => [:elt]
@@ -14,8 +12,7 @@ module Quicksort
     scratch :list_to_sort, [] => [:list]
   end
 
-  declare
-  def quicksort
+  bloom :quicksort do
     # pick a pivot (median in the list) (expected O(N) time alg)
     pivot <= ((list_to_sort[[]] and
                if idempotent [[:pivot, list_to_sort[[]].list]]
@@ -52,5 +49,4 @@ module Quicksort
       [ip_port + ": successor: [" + s.elt1.to_s + ", " + s.elt2.to_s + "]"]
     end
   end
-
 end

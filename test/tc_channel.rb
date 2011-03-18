@@ -3,19 +3,18 @@ require 'test_common'
 class TickleCount
   include Bud
 
-  state {
+  state do
     channel :loopback, [:cnt]
     channel :mcast, [:@addr, :cnt]
     table   :result, [:nums]
     table   :mresult, [:nums]
-  }
+  end
 
   bootstrap do
     loopback <~ [[0]]
   end
 
-  declare
-  def count_to_5
+  bloom :count_to_5 do
     loopback <~ loopback {|l| [l.cnt + 1] if l.cnt < 6}
     result <= loopback {|l| [l.cnt] if l.cnt == 5}
 
@@ -38,21 +37,19 @@ end
 class RingMember
   include Bud
 
-  state {
+  state do
     channel :pipe, [:@addr, :cnt]
     scratch :kickoff, [:cnt]
     table :next_guy, [:addr]
     table :last_cnt, [:cnt]
-  }
+  end
 
-  declare
-  def ring_msg
+  bloom :ring_msg do
     pipe <~ kickoff {|k| [ip_port, k.cnt.to_i]}
     pipe <~ join([pipe, next_guy]).map {|p,n| [n.addr, p.cnt.to_i + 1] if p.cnt.to_i < 39}
   end
 
-  declare
-  def update_log
+  bloom :update_log do
     last_cnt <+ pipe {|p| [p.cnt]}
     last_cnt <- join([pipe, last_cnt]).map {|p, lc| [lc.cnt]}
   end
@@ -98,14 +95,13 @@ end
 class ChannelWithKey
   include Bud
 
-  state {
+  state do
     channel :c, [:@addr, :k1] => [:v1]
     scratch :kickoff, [:addr, :v1, :v2]
     table :recv, c.key_cols => c.val_cols
-  }
+  end
 
-  declare
-  def send_msg
+  bloom do
     c <~ kickoff {|k| [k.addr, k.v1, k.v2]}
     recv <= c
   end
@@ -114,14 +110,13 @@ end
 class ChannelAddrInVal
   include Bud
 
-  state {
+  state do
     channel :c, [:k1] => [:@addr, :v1]
     scratch :kickoff, [:v1, :addr, :v2]
     table :recv, c.key_cols => c.val_cols
-  }
+  end
 
-  declare
-  def send_msg
+  bloom do
     c <~ kickoff {|k| [k.v1, k.addr, k.v2]}
     recv <= c
   end
@@ -204,8 +199,7 @@ class ChannelBootstrap
     t1 <= [[@ip, @port]]
   end
 
-  declare
-  def rules
+  bloom do
     t2 <= loopback
   end
 end
