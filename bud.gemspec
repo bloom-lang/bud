@@ -12,7 +12,6 @@ Gem::Specification.new do |s|
 
   s.files = Dir.glob("lib/**/*") + %w[README LICENSE]
 
-  s.add_dependency 'anise'
   s.add_dependency 'backports'
   s.add_dependency 'eventmachine'
   s.add_dependency 'gchart'

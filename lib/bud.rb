@@ -1,5 +1,4 @@
 require 'rubygems'
-require 'anise'
 require 'eventmachine'
 require 'msgpack'
 require 'socket'
@@ -46,10 +45,6 @@ end
 
 module BudModule
   def self.included(o)
-    # Add support for the "declare" annotator to the specified module
-    o.send(:include, Anise)
-    o.send(:annotator, :declare)
-
     # Transform "state", "bootstrap" and "bloom" blocks (calls to a module
     # methods with that name) into instance methods with a special name.
     def o.state(&block)
