@@ -35,7 +35,6 @@ class VizHelper
   end
 
   def summarize(dir, schema)
-    puts "SUMMARIZE"
     table_io = {}
     timeseries = {}
     cardinalities.sort{|a, b| a[0] <=> b[0]}.each do |card|
@@ -55,16 +54,6 @@ class VizHelper
 
     ts2 = {}
     timeseries.each_pair do |k, v|
-      #taburl = gchart.(:size => '100x100', :data => v, :axis_with_labels => 'x, y')
-      puts "TS[#{k}] = #{v.inspect}"
-      #taburl = gchart.line(:data => v, :axis_with_labels => 'x, y')
-      #url = URI::parse(taburl)
-      #puts "TABURL = #{taburl}"
-      #response = Net::HTTP.get_response(url)
-      #fn = "#{@dir}/#{k}_timeseries.png"
-      #fout = File.new(fn, "w")
-      #fout.write response.body
-      #fout.close
       fn = v
       puts "GOT #{fn}"
       #ts2[k] = "#{ENV['PWD']}/#{fn}"
@@ -75,10 +64,6 @@ class VizHelper
     sum.process(@t_depends)
     sum.dump(@t_rules)
     sum.finish
-
-    #table_io.each_value do |tab|
-    #  end_table(tab)
-    #end
 
     # fix: nested loops
     times.sort.each do |time|

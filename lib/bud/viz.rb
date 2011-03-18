@@ -47,6 +47,7 @@ class VizOnline
       tab = t[0]
       next if tab.to_s =~ /_vizlog\z/
       next if @meta_tables[tab.to_s] and @bud_instance.budtime > 0
+      next unless @logtab[tab]
       t[1].each do |row|
         newrow = [@bud_instance.budtime]
         row.each{ |r| newrow << r }
