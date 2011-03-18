@@ -20,7 +20,7 @@ class ChildClass
   import ParentModule => :p
 
   state do
-    table :t3
+    table :t3, p.t2.key_cols => p.t2.val_cols
   end
 
   bloom do
