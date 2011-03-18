@@ -17,13 +17,17 @@ require 'bud/storage/tokyocabinet'
 require 'bud/storage/zookeeper'
 require 'bud/viz'
 
+# We monkeypatch Module to add support for four new module methods: import,
+# state, bootstrap, and bloom.
 class Module
   def import(spec)
     raise Bud::BudError unless (spec.class <= Hash and spec.length == 1)
     mod, local_name = spec.first
 
-    # Record that the current module imported a sub-module. We also record that
-    # the sub-module has its own nested import table.
+    # To correctly expand references qualified references to an imported module,
+    # we keep a table with the local bind names of all the modules imported by
+    # this module. To handle nested references (a.b.c.d etc.), the import table
+    # for module X points to X's own nested import table.
     @bud_import_tbl ||= {}
     child_tbl = mod.bud_import_table
     raise Bud::BudError if @bud_import_tbl.has_key? local_name
