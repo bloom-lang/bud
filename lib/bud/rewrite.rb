@@ -290,17 +290,15 @@ module ModuleRewriter
     ast = ast_update_refs(ast, rename_tbl)
     ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
 
-    r2r = Ruby2Ruby.new
-    str = r2r.process(ast)
-
+    str = Ruby2Ruby.new.process(ast)
     rv = import_site.module_eval str
     raise Bud::BudError unless rv.nil?
+
     return new_mod_name
   end
 
   def self.get_module_ast(mod)
-    u = Unifier.new
-    u.process(ParseTree.translate(mod))
+    Unifier.new.process(ParseTree.translate(mod))
   end
 
   # Rename the given module's AST to be a mangle of import site, imported

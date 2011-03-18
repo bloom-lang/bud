@@ -176,7 +176,7 @@ module Bud
       ast = expander.process(ast)
 
       new_source = Ruby2Ruby.new.process(ast)
-      self.instance_eval new_source # Replace previous method definition
+      self.class.module_eval new_source # Replace previous method definition
     end
   end
 

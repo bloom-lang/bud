@@ -97,10 +97,6 @@ class BudMeta
     pp pt if @bud_instance.options[:dump_ast]
     check_rule_ast(pt)
 
-    # Expand references to imported modules
-    ref_expand = NestedRefRewriter.new(@bud_instance.class.bud_import_table)
-    pt = ref_expand.process(pt)
-
     rewriter = RuleRewriter.new(seed, bud_instance)
     rewriter.process(pt)
     #rewriter.rules.each {|r| puts "RW: #{r.inspect}"}

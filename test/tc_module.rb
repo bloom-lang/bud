@@ -7,7 +7,7 @@ module ParentModule
   end
 
   bootstrap do
-    t1 << [5,10]
+    t1 << [5, 10]
   end
 
   bloom :parent_rules do
@@ -46,3 +46,4 @@ end
 # * ChildModule, state ref p.boot_t
 # * Module table on LHS of class
 # * Module table on LHS of module
+# * Temp collections in modules (+ in classes)
