@@ -18,7 +18,7 @@ def reinstantiate
   @rebl_class = Class.new(ReblClass)
 
   if not @rules.empty?
-    @rebl_class.class_eval("declare\ndef rebl_rules\n" +
+    @rebl_class.class_eval("bloom :rebl_rules do\n" +
                            @rules.sort.map {|_,r| r}.join("\n") + "\nend")
   end
 

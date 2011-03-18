@@ -74,7 +74,7 @@ module Deployer
 
   # add rules to the MetaRecv class
   def insert_rules rules
-    if safe_eval("declare\ndef recv_rules\n" + rules.join("\n") + "\nend",
+    if safe_eval("bloom :recv_rules do\n" + rules.join("\n") + "\nend",
                  lambda {|s| GenericBud.class_eval(s)})
       begin
         @new_instance = GenericBud.new(:ip => "127.0.0.1")
