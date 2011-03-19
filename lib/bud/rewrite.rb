@@ -247,21 +247,25 @@ class NestedRefRewriter < SexpProcessor
 end
 
 class DefnRenamer < SexpProcessor
-  def initialize(old_mod_name, new_mod_name)
+  def initialize(old_mod_name, new_mod_name, local_name)
     super()
     self.require_empty = false
     self.expected = Sexp
     @old_mod_name = old_mod_name
     @new_mod_name = new_mod_name
+    @local_name = local_name
   end
 
   def process_defn(exp)
     tag, name, args, scope = exp
+    name_s = name.to_s
 
-    if name.to_s == "__#{@old_mod_name}__bootstrap"
+    if name_s == "__#{@old_mod_name}__bootstrap"
       name = "__#{@new_mod_name}__bootstrap".to_sym
-    elsif name.to_s == "__#{@old_mod_name}__state"
+    elsif name_s == "__#{@old_mod_name}__state"
       name = "__#{@new_mod_name}__state".to_sym
+    elsif name_s =~ /__bloom__.+$/
+      name = name_s.sub(/(__bloom__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
     end
 
     # Note that we don't bother to recurse further into the AST: we're only
@@ -273,14 +277,20 @@ end
 module ModuleRewriter
   # Do the heavy-lifting to import the Bloom module "mod" into the class/module
   # "import_site", bound to "local_name" at the import site. We implement this
-  # by converting the imported module into an AST, and then rewriting the AST so
-  # that (a) state defined by the module is mangled to include the local bind
-  # name (b) statements in the module are rewritten to reference the mangled
-  # names (c) statements in the module that reference sub-modules are rewritten
-  # to reference the mangled name of the submodule. We then convert the
-  # rewritten AST back into Ruby source text using Ruby2Ruby and eval() it, to
-  # define a new module. We return the name of that newly defined module; the
-  # caller can then use "include" to load the module into the import site.
+  # by converting the imported module into an AST and rewriting the AST like so:
+  #
+  #   (a) the module name is mangled to include the local bind name and the
+  #       importer
+  #   (b) instance method names are mangled to include the local bind name
+  #   (c) state defined by the module is mangled to include the local bind name
+  #   (d) statements in the module are rewritten to reference the mangled names
+  #   (e) statements in the module that reference sub-modules are rewritten to
+  #       reference the mangled name of the submodule.
+  #
+  # We then convert the rewritten AST back into Ruby source code using Ruby2Ruby
+  # and eval() it to define a new module. We return the name of that newly
+  # defined module; the caller can then use "include" to load the module into
+  # the import site.
   def self.do_import(import_site, mod, local_name)
     raise Bud::BudError unless (mod.class <= Module and local_name.class <= Symbol)
 
@@ -302,9 +312,9 @@ module ModuleRewriter
   end
 
   # Rename the given module's AST to be a mangle of import site, imported
-  # module, and local bind name. We also need to rename special methods whose
-  # name contains the name of the module: the (metaprogrammed) state and
-  # bootstrap instance methods.
+  # module, and local bind name. We also need to rename special "state" and
+  # "bootstrap" methods. We also rename "bloom" methods, but we can just mangle
+  # with the local bind name for those.
   def self.ast_rename_module(ast, importer, importee, local_name)
     raise Bud::BudError unless ast.sexp_type == :module
 
@@ -314,7 +324,7 @@ module ModuleRewriter
     new_name = "#{importer}__#{importee}__#{local_name}"
     ast[1] = new_name.to_sym
 
-    dr = DefnRenamer.new(mod_name, new_name)
+    dr = DefnRenamer.new(mod_name, new_name, local_name)
     new_ast = dr.process(ast)
 
     # XXX: it would be nice to return a Module, rather than a string containing

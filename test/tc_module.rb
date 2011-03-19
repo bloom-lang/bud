@@ -33,11 +33,34 @@ class ChildClass
   end
 end
 
+class ChildImportTwice
+  include Bud
+  import ParentModule => :x
+  import ParentModule => :y
+
+  state do
+    table :t4, x.t1.key_cols => x.t2.val_cols
+    table :t5, x.t1.key_cols => x.t2.val_cols
+  end
+
+  bloom do
+    t4 <= y.t2
+    t5 <= x.t2
+  end
+end
+
 class TestModules < Test::Unit::TestCase
   def test_simple
     c = ChildClass.new
     c.tick
-    assert_equal([[5,10], [200, 400], [500, 1000]], c.t3.to_a.sort)
+    assert_equal([[5, 10], [200, 400], [500, 1000]], c.t3.to_a.sort)
+  end
+
+  def test_import_twice
+    c = ChildImportTwice.new
+    c.tick
+    assert_equal([[5, 10]], c.t4.to_a.sort)
+    assert_equal([[5, 10]], c.t5.to_a.sort)
   end
 end
 
@@ -47,3 +70,4 @@ end
 # * Module table on LHS of class
 # * Module table on LHS of module
 # * Temp collections in modules (+ in classes)
+# * Qualified names in (a)sync_do
