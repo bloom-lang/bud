@@ -43,8 +43,12 @@ class ChildImportTwice
     table :t5, x.t1.key_cols => x.t2.val_cols
   end
 
+  bootstrap do
+    y.t1 << [50,100]
+  end
+
   bloom do
-    t4 <= y.t2
+    t4 <= y.t2.map {|t| [t.key + 10, t.val + 10]}
     t5 <= x.t2
   end
 end
@@ -59,7 +63,7 @@ class TestModules < Test::Unit::TestCase
   def test_import_twice
     c = ChildImportTwice.new
     c.tick
-    assert_equal([[5, 10]], c.t4.to_a.sort)
+    assert_equal([[15, 20], [60, 110]], c.t4.to_a.sort)
     assert_equal([[5, 10]], c.t5.to_a.sort)
   end
 end
