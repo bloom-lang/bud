@@ -34,9 +34,9 @@ class ChildClass
 end
 
 class ChildImportTwice
-  include Bud
   import ParentModule => :x
   import ParentModule => :y
+  include Bud
 
   state do
     table :t4, x.t1.key_cols => x.t2.val_cols

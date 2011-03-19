@@ -56,7 +56,7 @@ class BudMeta
     # we are shredding down to the granularity of rule heads.
     seed = 0
     rulebag = {}
-    each_relevant_ancestor do |anc|
+    @bud_instance.class.ancestors.reverse.each do |anc|
       shred_state(anc)
       @declarations.each do |meth_name|
         rw = rewrite_rule_block(anc, meth_name, seed)
@@ -195,17 +195,6 @@ class BudMeta
 
     # Replace old block with rewritten version
     scope[1] = rest_nodes
-  end
-
-  def each_relevant_ancestor
-    on = false
-    @bud_instance.class.ancestors.reverse.each do |anc|
-      if on
-        yield anc
-      elsif anc == Bud
-        on = true
-      end
-    end
   end
 
   def stratify
