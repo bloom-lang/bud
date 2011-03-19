@@ -40,12 +40,12 @@ class Module
   # Transform "state", "bootstrap" and "bloom" blocks (calls to a module
   # methods with that name) into instance methods with a special name.
   def state(&block)
-    meth_name = "__#{self}__state".to_sym
+    meth_name = "__#{Module.get_class_name(self)}__state".to_sym
     define_method(meth_name, &block)
   end
 
   def bootstrap(&block)
-    meth_name = "__#{self}__bootstrap".to_sym
+    meth_name = "__#{Module.get_class_name(self)}__bootstrap".to_sym
     define_method(meth_name, &block)
   end
 
@@ -81,6 +81,15 @@ class Module
 
   def print_import_table
     puts self.bud_import_table.inspect
+  end
+
+  private
+  # Return a string with a version of the class name appropriate for embedding
+  # into a method name. Annoyingly, if you define class X nested inside
+  # class/module Y, X's class name is the string "Y::X". We don't want to define
+  # method names with semicolons in them, so just return "X" instead.
+  def self.get_class_name(klass)
+    klass.name.split("::").last
   end
 end
 
