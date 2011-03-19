@@ -64,6 +64,19 @@ end
 
 module ChildModule
   import ParentModule => :p
+
+  state do
+    table :t1
+    table :t2
+  end
+
+  bootstrap do
+    t1 << [1000, 2000]
+  end
+
+  bloom do
+    t2 <= t1.map {|t| [t.key + 7, t.val + 7]}
+  end
 end
 
 class GrandChildClass
@@ -74,11 +87,17 @@ class GrandChildClass
   state do
     table :t6, c.p.t1.key_cols => c.p.t2.val_cols
     table :t7
+    table :t8
+  end
+
+  bootstrap do
+    c.t2 << [0, 0]
   end
 
   bloom do
     t6 <= c.p.t1
     t7 <= p.t2.map {|p| [p.key + 20, p.val + 20]}
+    t8 <= c.t2
   end
 end
 
@@ -102,13 +121,11 @@ class TestModules < Test::Unit::TestCase
     c.tick
     assert_equal([[5, 10]], c.t6.to_a.sort)
     assert_equal([[25, 30]], c.t7.to_a.sort)
+    assert_equal([[0, 0], [1007, 2007]], c.t8.to_a.sort)
   end
 end
 
 # Testing TODO:
-# * GrandChild (class), state ref c.p.boot_t
-# * ChildModule, state ref p.boot_t
-# * Module table on LHS of module
 # * Temp collections in modules (+ in classes)
 # * Qualified names in (a)sync_do
 # * Rename instance variables in modules?
