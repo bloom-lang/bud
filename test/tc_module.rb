@@ -54,6 +54,26 @@ class ChildImportTwice
   end
 end
 
+module ChildModule
+  import ParentModule => :p
+end
+
+class GrandChildClass
+  include Bud
+  import ChildModule => :c
+  import ParentModule => :p
+
+  state do
+    table :t6, c.p.t1.key_cols => c.p.t2.val_cols
+    table :t7
+  end
+
+  bloom do
+    t6 <= c.p.t1
+    t7 <= p.t2.map {|p| [p.key + 20, p.val + 20]}
+  end
+end
+
 class TestModules < Test::Unit::TestCase
   def test_simple
     c = ChildClass.new
@@ -67,6 +87,13 @@ class TestModules < Test::Unit::TestCase
     assert_equal([[15, 20], [60, 110]], c.t4.to_a.sort)
     assert_equal([[5, 10]], c.t5.to_a.sort)
   end
+
+  def test_nested_import
+    c = GrandChildClass.new
+    c.tick
+    assert_equal([[5, 10]], c.t6.to_a.sort)
+    assert_equal([[25, 30]], c.t7.to_a.sort)
+  end
 end
 
 # Testing TODO:
@@ -75,3 +102,4 @@ end
 # * Module table on LHS of module
 # * Temp collections in modules (+ in classes)
 # * Qualified names in (a)sync_do
+# * Support arbitrary methods in modules
