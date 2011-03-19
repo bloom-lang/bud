@@ -79,10 +79,6 @@ class Module
     @bud_import_tbl
   end
 
-  def print_import_table
-    puts self.bud_import_table.inspect
-  end
-
   private
   # Return a string with a version of the class name appropriate for embedding
   # into a method name. Annoyingly, if you define class X nested inside
