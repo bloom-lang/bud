@@ -570,9 +570,7 @@ module Bud
   class BudTerminal < BudCollection
     def initialize(name, given_schema, bud_instance, prompt=false)
       super(name, bud_instance, given_schema)
-      @connection = nil
       @prompt = prompt
-
       start_stdin_reader if bud_instance.options[:read_stdin]
     end
 
@@ -589,8 +587,8 @@ module Bud
 
             ip = @bud_instance.ip
             port = @bud_instance.port
-            @connection ||= EventMachine::connect ip, port, BudServer, @bud_instance
-            @connection.send_data [tabname, tup].to_msgpack
+            socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
+            socket.send_datagram([tabname, tup].to_msgpack, ip, port)
           end
         rescue
           puts "terminal reader thread failed: #{$!}"
