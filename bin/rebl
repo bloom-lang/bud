@@ -1,3 +1,4 @@
+#!/usr/bin/env ruby
 require 'readline'
 require 'rubygems'
 require 'bud'

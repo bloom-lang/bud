@@ -2,77 +2,42 @@ require 'test_common'
 
 module ParentModule
   state do
-    table :boot_t
-    table :p
+    table :t1
+    table :t2
   end
 
   bootstrap do
-    boot_t << [5, 10]
-    boot_t << [20, 30]
+    t1 << [5, 10]
   end
 
   bloom :parent_rules do
-    p <= boot_t.map {|x| [x.key + 10, x.val + 20]}
+    t2 <= t1
   end
 end
 
-class ImportParent
+class ChildClass
   include Bud
   import ParentModule => :p
-  import ParentModule => :q
 
   state do
-    table :t2
-    table :t3
-    table :t4
+    table :t3, p.t2.key_cols => p.t2.val_cols
+  end
+
+  bootstrap do
+    p.t2 << [200, 400]
+    p.t1 <= [[500, 1000]]
   end
 
   bloom do
-    t2 <= p.boot_t.map {|t| [t.key + 1, t.val + 1]}
-    t3 <= q.boot_t.map {|t| [t.key + 1, t.val + 1]}
-    t4 <= p.p
-  end
-end
-
-module ChildModule
-  import ParentModule => :p
-
-  state do
-    table :t1
-  end
-end
-
-class ImportGrandParent
-  include Bud
-  import ChildModule => :c
-  import ParentModule => :p
-
-  state do
-    table :t2
-    table :t3
-  end
-
-  bloom do
-    t2 <= c.p.boot_t
-    t3 <= p.boot_t.map {|p| [p.key + 10, p.val + 20]}
+    t3 <= p.t2
   end
 end
 
 class TestModules < Test::Unit::TestCase
-  def test_simple_bootstrap
-    c = ImportParent.new
+  def test_simple
+    c = ChildClass.new
     c.tick
-    assert_equal([[6, 11], [21, 31]], c.t2.to_a.sort)
-    assert_equal(c.t2.to_a.sort, c.t2.to_a.sort)
-    # XXX: wrong
-    assert_equal([], c.t4.to_a.sort)
-  end
-
-  def test_nested_import
-    c = ImportGrandParent.new
-    c.tick
-    assert_equal([[5, 10], [20, 30]], c.t2.to_a.sort)
-    assert_equal([[15, 30], [30, 50]], c.t3.to_a.sort)
+    assert_equal([[5,10], [200, 400], [500, 1000]], c.t3.to_a.sort)
   end
 end
 
@@ -81,4 +46,4 @@ end
 # * ChildModule, state ref p.boot_t
 # * Module table on LHS of class
 # * Module table on LHS of module
-# * Rule blocks in modules
+# * Temp collections in modules (+ in classes)

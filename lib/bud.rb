@@ -17,13 +17,17 @@ require 'bud/storage/tokyocabinet'
 require 'bud/storage/zookeeper'
 require 'bud/viz'
 
+# We monkeypatch Module to add support for four new module methods: import,
+# state, bootstrap, and bloom.
 class Module
   def import(spec)
     raise Bud::BudError unless (spec.class <= Hash and spec.length == 1)
     mod, local_name = spec.first
 
-    # Record that the current module imported a sub-module. We also record that
-    # the sub-module has its own nested import table.
+    # To correctly expand references qualified references to an imported module,
+    # we keep a table with the local bind names of all the modules imported by
+    # this module. To handle nested references (a.b.c.d etc.), the import table
+    # for module X points to X's own nested import table.
     @bud_import_tbl ||= {}
     child_tbl = mod.bud_import_table
     raise Bud::BudError if @bud_import_tbl.has_key? local_name
@@ -36,12 +40,12 @@ class Module
   # Transform "state", "bootstrap" and "bloom" blocks (calls to a module
   # methods with that name) into instance methods with a special name.
   def state(&block)
-    meth_name = "__#{self}__state".to_sym
+    meth_name = "__#{Module.get_class_name(self)}__state".to_sym
     define_method(meth_name, &block)
   end
 
   def bootstrap(&block)
-    meth_name = "__#{self}__bootstrap".to_sym
+    meth_name = "__#{Module.get_class_name(self)}__bootstrap".to_sym
     define_method(meth_name, &block)
   end
 
@@ -77,6 +81,15 @@ class Module
 
   def print_import_table
     puts self.bud_import_table.inspect
+  end
+
+  private
+  # Return a string with a version of the class name appropriate for embedding
+  # into a method name. Annoyingly, if you define class X nested inside
+  # class/module Y, X's class name is the string "Y::X". We don't want to define
+  # method names with semicolons in them, so just return "X" instead.
+  def self.get_class_name(klass)
+    klass.name.split("::").last
   end
 end
 
@@ -129,8 +142,9 @@ module Bud
     # NB: If using an ephemeral port (specified by port = 0), the actual port
     # number won't be known until we start EM
 
+    rewrite_local_methods
+
     @declarations = ModuleRewriter.get_rule_defs(self.class)
-    @state_methods = lookup_state_methods
 
     init_state
 
@@ -160,20 +174,37 @@ module Bud
 
   private
 
-  def lookup_state_methods
-    rv = []
+  # Rewrite methods defined in the main Bud class to expand module
+  # references. Imported modules are rewritten during the import process.
+  def rewrite_local_methods
+    self.class.instance_methods(false).each do |m|
+      ast = ParseTree.translate(self.class, m)
+      ast = Unifier.new.process(ast)
 
+      expander = NestedRefRewriter.new(self.class.bud_import_table)
+      ast = expander.process(ast)
+
+      new_source = Ruby2Ruby.new.process(ast)
+      self.class.module_eval new_source # Replace previous method definition
+    end
+  end
+
+  # Invoke all the user-defined state blocks and initialize builtin state.
+  def init_state
+    builtin_state
+    call_state_methods
+  end
+
+  def call_state_methods
     # Traverse the ancestor hierarchy from root => leaf. This helps to support a
     # common idiom: the schema of a table in a child module/class might
     # reference the schema of an included module.
     self.class.ancestors.reverse.each do |anc|
       anc.instance_methods(false).each do |m|
-        if /__.+?__state/.match m
-          rv << self.method(m.to_sym)
-        end
+        next unless /__.+?__state/.match m
+        self.method(m).call
       end
     end
-    rv
   end
 
   # Evaluate all bootstrap blocks
@@ -449,14 +480,6 @@ module Bud
     table :t_provides, [:interface] => [:input]
     table :t_stratum, [:predicate] => [:stratum]
     table :t_cycle, [:predicate, :via, :neg, :temporal]
-  end
-
-  # Invoke all the user-defined state blocks and initialize builtin state.
-  def init_state
-    builtin_state
-    @state_methods.each do |s|
-      s.call
-    end
   end
 
   # Handle any inbound tuples off the wire and then clear. Received messages are
