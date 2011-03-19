@@ -410,6 +410,10 @@ module Bud
       @timers << set_periodic_timer(p.pername, p.ident, p.period)
     end
 
+    # Surface stdin to Bud if enabled. Note that we can't do this earlier
+    # because we need to wait for EventMachine startup.
+    @stdio.start_stdin_reader if @options[:read_stdin]
+
     # Compute a fixpoint; this will also invoke any bootstrap blocks.
     tick
 
@@ -470,7 +474,7 @@ module Bud
   # initialized before user-defined state.
   def builtin_state
     channel  :localtick, [:col1]
-    terminal :stdio
+    @stdio = terminal :stdio
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
 
     # for BUD reflection

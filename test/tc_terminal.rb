@@ -14,22 +14,16 @@ class TerminalTester
 end
 
 class TestTerminal < Test::Unit::TestCase
-  def XXXtest_stdin
-    # I fail
+  def test_stdin
+    $stdin = StringIO.new("I am input from stdin\n")
     t = TerminalTester.new(:read_stdin => true)
     t.run_bg
-    $stdin = StringIO.new("I am input from stdin")
-    t.sync_do{}
-    assert_equal(1, t.saw_input.length)
-    t.stop_bg
-  end
-  
-  def test_typing
-    # I pass if the user actually hits return
-    t = TerminalTester.new(:read_stdin => true)
-    t.run_bg
-    puts "please hit a key then press return in the next 3 seconds" 
-    sleep 3
+    # XXX: kludge. We're waiting for the stdin reader thread to send data to the
+    # main Bud thread via UDP on the loopback interface; in the absence of
+    # proper callbacks, just spin a few times.
+    10.times do
+      t.sync_do
+    end
     assert_equal(1, t.saw_input.length)
     t.stop_bg
   end
