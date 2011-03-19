@@ -40,12 +40,12 @@ class Module
   # Transform "state", "bootstrap" and "bloom" blocks (calls to a module
   # methods with that name) into instance methods with a special name.
   def state(&block)
-    meth_name = "__#{Module.get_class_name(self)}__state".to_sym
+    meth_name = "__state__#{Module.get_class_name(self)}".to_sym
     define_method(meth_name, &block)
   end
 
   def bootstrap(&block)
-    meth_name = "__#{Module.get_class_name(self)}__bootstrap".to_sym
+    meth_name = "__bootstrap__#{Module.get_class_name(self)}".to_sym
     define_method(meth_name, &block)
   end
 
@@ -201,7 +201,7 @@ module Bud
     # reference the schema of an included module.
     self.class.ancestors.reverse.each do |anc|
       anc.instance_methods(false).each do |m|
-        next unless /__.+?__state/.match m
+        next unless /^__state__/.match m
         self.method(m).call
       end
     end
@@ -211,7 +211,7 @@ module Bud
   def do_bootstrap
     self.class.ancestors.reverse.each do |anc|
       anc.instance_methods(false).each do |m|
-        if /__.+?__bootstrap/.match m
+        if /^__bootstrap__/.match m
           self.method(m.to_sym).call
         end
       end

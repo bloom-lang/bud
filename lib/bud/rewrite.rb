@@ -260,12 +260,14 @@ class DefnRenamer < SexpProcessor
     tag, name, args, scope = exp
     name_s = name.to_s
 
-    if name_s == "__#{@old_mod_name}__bootstrap"
-      name = "__#{@new_mod_name}__bootstrap".to_sym
-    elsif name_s == "__#{@old_mod_name}__state"
-      name = "__#{@new_mod_name}__state".to_sym
+    if name_s =~ /^__bootstrap__.+$/
+      name = name_s.sub(/^(__bootstrap__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
+    elsif name_s =~ /^__state__.+$/
+      name = name_s.sub(/^(__state__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
     elsif name_s =~ /^__bloom__.+$/
       name = name_s.sub(/^(__bloom__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
+    else
+      name = "#{@local_name}__#{name_s}".to_sym
     end
 
     # Note that we don't bother to recurse further into the AST: we're only
@@ -311,7 +313,7 @@ module ModuleRewriter
     Unifier.new.process(ParseTree.translate(mod))
   end
 
-  # Rename the given module's AST to be a mangle of import site, imported
+  # Rename the given module's name to be a mangle of import site, imported
   # module, and local bind name. We also need to rename special "state" and
   # "bootstrap" methods. We also rename "bloom" methods, but we can just mangle
   # with the local bind name for those.
@@ -344,7 +346,7 @@ module ModuleRewriter
       next if b.sexp_type != :defn
 
       def_name, args, scope = b.sexp_body
-      next unless /__.+?__state$/.match def_name.to_s
+      next unless /^__state__.+$/.match def_name.to_s
 
       raise Bud::BudError unless scope.sexp_type == :scope
       state_block = scope.sexp_body.first

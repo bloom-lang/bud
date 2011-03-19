@@ -13,6 +13,10 @@ module ParentModule
   bloom :parent_rules do
     t2 <= t1
   end
+
+  def t1_val_sum
+    t1.values.flatten.reduce(:+)
+  end
 end
 
 class ChildClass
@@ -31,6 +35,10 @@ class ChildClass
   # Shouldn't override the named block declared in ParentModule
   bloom :parent_rules do
     t3 <= p.t2
+  end
+
+  def get_sum
+    p.t1_val_sum
   end
 end
 
@@ -79,6 +87,7 @@ class TestModules < Test::Unit::TestCase
     c = ChildClass.new
     c.tick
     assert_equal([[5, 10], [200, 400], [500, 1000]], c.t3.to_a.sort)
+    assert_equal(1010, c.get_sum)
   end
 
   def test_import_twice
@@ -102,4 +111,4 @@ end
 # * Module table on LHS of module
 # * Temp collections in modules (+ in classes)
 # * Qualified names in (a)sync_do
-# * Support arbitrary methods in modules
+# * Rename instance variables in modules?
