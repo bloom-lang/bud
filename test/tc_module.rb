@@ -28,7 +28,8 @@ class ChildClass
     p.t1 <= [[500, 1000]]
   end
 
-  bloom do
+  # Shouldn't override the named block declared in ParentModule
+  bloom :parent_rules do
     t3 <= p.t2
   end
 end
@@ -39,8 +40,8 @@ class ChildImportTwice
   include Bud
 
   state do
-    table :t4, x.t1.key_cols => x.t2.val_cols
-    table :t5, x.t1.key_cols => x.t2.val_cols
+    table :t4, x.t1.key_cols => y.t2.val_cols
+    table :t5, y.t1.key_cols => x.t2.val_cols
   end
 
   bootstrap do
@@ -71,7 +72,6 @@ end
 # Testing TODO:
 # * GrandChild (class), state ref c.p.boot_t
 # * ChildModule, state ref p.boot_t
-# * Module table on LHS of class
 # * Module table on LHS of module
 # * Temp collections in modules (+ in classes)
 # * Qualified names in (a)sync_do
