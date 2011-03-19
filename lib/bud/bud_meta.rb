@@ -79,6 +79,7 @@ class BudMeta
 
   def shred_state(anc)
     return unless @bud_instance.options[:scoping]
+    # XXX: this is wrong!
     stp = ParseTree.translate(anc, "__#{@bud_instance.class}__state")
     return if stp[0].nil?
     u = Unifier.new
@@ -92,8 +93,7 @@ class BudMeta
     parse_tree = ParseTree.translate(klass, block_name)
     return unless parse_tree.first
 
-    u = Unifier.new
-    pt = u.process(parse_tree)
+    pt = Unifier.new.process(parse_tree)
     pp pt if @bud_instance.options[:dump_ast]
     check_rule_ast(pt)
 
