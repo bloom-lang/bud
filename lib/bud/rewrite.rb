@@ -264,8 +264,8 @@ class DefnRenamer < SexpProcessor
       name = "__#{@new_mod_name}__bootstrap".to_sym
     elsif name_s == "__#{@old_mod_name}__state"
       name = "__#{@new_mod_name}__state".to_sym
-    elsif name_s =~ /__bloom__.+$/
-      name = name_s.sub(/(__bloom__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
+    elsif name_s =~ /^__bloom__.+$/
+      name = name_s.sub(/^(__bloom__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
     end
 
     # Note that we don't bother to recurse further into the AST: we're only
@@ -389,7 +389,7 @@ module ModuleRewriter
     rv = []
 
     mod.instance_methods.each do |m|
-      rv << m if m =~ /__bloom__/
+      rv << m if m =~ /^__bloom__.+$/
     end
 
     return rv.compact.uniq
