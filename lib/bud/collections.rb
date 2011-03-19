@@ -571,24 +571,26 @@ module Bud
     def initialize(name, given_schema, bud_instance, prompt=false)
       super(name, bud_instance, given_schema)
       @prompt = prompt
-      start_stdin_reader if bud_instance.options[:read_stdin]
     end
 
     def start_stdin_reader
-      # XXX: Ugly hack. Rather than sending terminal data to EM via TCP,
+      # XXX: Ugly hack. Rather than sending terminal data to EM via UDP,
       # we should add the terminal file descriptor to the EM event loop.
       @reader = Thread.new do
         begin
           while true
-            STDOUT.print("#{tabname} > ") if @prompt
-            s = STDIN.gets
+            $stdout.print("#{tabname} > ") if @prompt
+            s = $stdin.gets
+            break if s.nil? # Hit EOF
             s = s.chomp if s
             tup = tuple_accessors([s])
 
             ip = @bud_instance.ip
             port = @bud_instance.port
-            socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
-            socket.send_datagram([tabname, tup].to_msgpack, ip, port)
+            EventMachine::schedule do
+              socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
+              socket.send_datagram([tabname, tup].to_msgpack, ip, port)
+            end
           end
         rescue
           puts "terminal reader thread failed: #{$!}"
@@ -600,7 +602,7 @@ module Bud
 
     def flush
       @pending.each do |p|
-        STDOUT.puts p[0]
+        $stdout.puts p[0]
       end
       @pending = {}
     end
