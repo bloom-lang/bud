@@ -190,33 +190,27 @@ class NestedRefRewriter < SexpProcessor
     @import_tbl = import_tbl
   end
 
-  # XXX: cleanup control flow w/ throw and catch.
   def process_call(exp)
     tag, recv, meth_name, args = exp
 
-    do_lookup, recv_stack = make_recv_stack(recv)
+    catch :skip do
+      recv_stack = make_recv_stack(recv)
+      throw :skip unless recv_stack.length > 0
 
-    if do_lookup and recv_stack.length > 0
       lookup_tbl = @import_tbl
-      do_rewrite = true
       new_meth_name = ""
       until recv_stack.empty?
         m = recv_stack.pop
-
-        unless lookup_tbl.has_key? m
-          do_rewrite = false
-          break
-        end
+        throw :skip unless lookup_tbl.has_key? m
 
         new_meth_name += "#{m}__"
         lookup_tbl = lookup_tbl[m]
       end
 
-      if do_rewrite
-        new_meth_name += meth_name.to_s
-        recv = nil
-        meth_name = new_meth_name.to_sym
-      end
+      # Okay, apply the rewrite
+      new_meth_name += meth_name.to_s
+      recv = nil
+      meth_name = new_meth_name.to_sym
     end
 
     recv = process(recv)
@@ -231,18 +225,18 @@ class NestedRefRewriter < SexpProcessor
     while true
       break if r.nil?
       # We can exit early if we see something unexpected
-      return [false, []] unless r.sexp_type == :call
+      throw :skip unless r.sexp_type == :call
 
       recv, meth_name, args = r.sexp_body
       unless args.sexp_type == :arglist and args.sexp_body.length == 0
-        return [false, []]
+        throw :skip
       end
 
       rv << meth_name
       r = recv
     end
 
-    return [true, rv]
+    return rv
   end
 end
 
