@@ -91,7 +91,6 @@ class RuleRewriter < Ruby2Ruby
 
   def do_rule(exp)
     if exp[0][2] == :temp
-      temp = true
       lhs = handle_temp(exp[0])
     else
       lhs = exp[0]
@@ -265,7 +264,7 @@ class DefnRenamer < SexpProcessor
     end
 
     # Note that we don't bother to recurse further into the AST: we're only
-    # interested in top-level :defn nodes, anyway.
+    # interested in top-level :defn nodes.
     Sexp.from_array [tag, name, args, scope]
   end
 end
