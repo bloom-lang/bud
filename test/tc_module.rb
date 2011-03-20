@@ -101,6 +101,34 @@ class GrandChildClass
   end
 end
 
+module InterfaceMod
+  state do
+    interface input, :iin
+    interface output, :iout
+  end
+
+  bloom do
+    iout <= iin
+  end
+end
+
+class InterfaceModUser
+  include Bud
+  import InterfaceMod => :m
+
+  state do
+    table :t1
+  end
+
+  bootstrap do
+    m.iin <= [[35, 45]]
+  end
+
+  bloom do
+    t1 <= m.iout
+  end
+end
+
 class TestModules < Test::Unit::TestCase
   def test_simple
     c = ChildClass.new
@@ -124,6 +152,12 @@ class TestModules < Test::Unit::TestCase
     assert_equal([[0, 0], [1007, 2007]], c.t8.to_a.sort)
   end
 
+  def test_interface_module
+    c = InterfaceModUser.new
+    c.tick
+    assert_equal([[35, 45]], c.t1.to_a.sort)
+  end
+
   def test_duplicate_import
     assert_raise(Bud::CompileError) do
       eval "
@@ -131,6 +165,17 @@ class TestModules < Test::Unit::TestCase
         include Bud
         import ParentModule => :p
         import ParentModule => :p
+      end"
+    end
+  end
+
+  def xtest_import_class
+    assert_raise(Bud::BudError) do
+      eval "
+      class DummyClass; end
+      class DummyImporter
+        include Bud
+        import DummyClass => :c
       end"
     end
   end

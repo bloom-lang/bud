@@ -311,7 +311,9 @@ module ModuleRewriter
   # "bootstrap" methods. We also rename "bloom" methods, but we can just mangle
   # with the local bind name for those.
   def self.ast_rename_module(ast, importer, importee, local_name)
-    raise Bud::BudError unless ast.sexp_type == :module
+    unless ast.sexp_type == :module
+      raise Bud::BudError, "import must be used with a Module"
+    end
 
     mod_name = ast.sexp_body.first
     raise Bud::BudError if mod_name.to_s != importee.to_s
@@ -352,14 +354,20 @@ module ModuleRewriter
 
         recv, meth_name, args = e.sexp_body
         raise Bud::BudError unless args.sexp_type == :arglist
-        first_arg = args.sexp_body.first
-        raise Bud::BudError unless first_arg.sexp_type == :lit
-        tbl_name = first_arg.sexp_body.first
+
+        if meth_name == :interface
+          tbl_name_node = args.sexp_body[1]
+        else
+          tbl_name_node = args.sexp_body[0]
+        end
+
+        raise Bud::BudError unless tbl_name_node.sexp_type == :lit
+        tbl_name = tbl_name_node.sexp_body.first
 
         new_tbl_name = "#{local_name}__#{tbl_name}".to_sym
         rename_tbl[tbl_name] = new_tbl_name
 
-        first_arg[1] = new_tbl_name
+        tbl_name_node[1] = new_tbl_name
       end
     end
 
