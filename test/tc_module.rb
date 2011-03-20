@@ -101,6 +101,7 @@ class GrandChildClass
   end
 end
 
+# Issue #109
 module InterfaceMod
   state do
     interface input, :iin
@@ -126,6 +127,39 @@ class InterfaceModUser
 
   bloom do
     t1 <= m.iout
+  end
+end
+
+# Issue #110
+module ModuleA
+  state do
+    table :t1
+    table :t2
+  end
+
+  bloom do
+    t1 <= t2
+  end
+end
+
+module ModuleB
+  state do
+    table :t3
+  end
+
+  bloom do
+    t1 <= t3
+  end
+end
+
+class Issue110
+  include Bud
+  include ModuleA
+  include ModuleB
+
+  bootstrap do
+    t2 << [400, 500]
+    t3 << [100, 200]
   end
 end
 
@@ -156,6 +190,12 @@ class TestModules < Test::Unit::TestCase
     c = InterfaceModUser.new
     c.tick
     assert_equal([[35, 45]], c.t1.to_a.sort)
+  end
+
+  def test_issue110
+    c = Issue110.new
+    c.tick
+    assert_equal([[100, 200], [400, 500]], c.t1.to_a.sort)
   end
 
   def test_duplicate_import

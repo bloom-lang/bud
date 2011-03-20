@@ -53,7 +53,7 @@ class Module
     # If no block name was specified, generate a unique name
     if block_name.nil?
       @block_id ||= 0
-      block_name = @block_id.to_s
+      block_name = "#{Module.get_class_name(self)}__#{@block_id.to_s}"
       @block_id += 1
     else
       unless block_name.class <= Symbol
