@@ -15,8 +15,6 @@ module GlueServer
 end
 
 class Rendezvous
-  @@stashed_cons = []
-
   # Ruby-Bud glue.
   def initialize(instance, interface)
     @q = Queue.new
