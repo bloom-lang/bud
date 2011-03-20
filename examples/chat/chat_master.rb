@@ -11,7 +11,7 @@ class ChatMaster
 
   bloom :master_logic do
     nodelist <= signup.payloads
-    mcast <~ join([mcast, nodelist]).map do |m,n| 
+    mcast <~ join([mcast, nodelist]) do |m,n| 
       [n.key, m.val] unless n.key == m.val[0]
     end
   end
