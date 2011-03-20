@@ -6,8 +6,8 @@ class TickleCount
   state do
     channel :loopback, [:cnt]
     channel :mcast, [:@addr, :cnt]
-    table   :result, [:nums]
-    table   :mresult, [:nums]
+    callback :loopback_done, [:nums]
+    callback :mcast_done, [:nums]
   end
 
   bootstrap do
@@ -16,21 +16,29 @@ class TickleCount
 
   bloom :count_to_5 do
     loopback <~ loopback {|l| [l.cnt + 1] if l.cnt < 6}
-    result <= loopback {|l| [l.cnt] if l.cnt == 5}
+    loopback_done <= loopback {|l| [l.cnt] if l.cnt == 5}
 
     mcast <~ loopback {|l| [ip_port, l.cnt] if l.cnt < 6}
-    mresult <= mcast {|m| [m.cnt] if m.cnt == 5}
+    mcast_done <= mcast {|m| [m.cnt] if m.cnt == 5}
   end
 end
 
 class TestTickle < Test::Unit::TestCase
   def test_tickle_count
     c = TickleCount.new
+    q = Queue.new
+    c.register_callback(:loopback_done) do |t|
+      assert_equal([5], t.to_a.flatten)
+      q.push(true)
+    end
+    c.register_callback(:mcast_done) do |t|
+      assert_equal([5], t.to_a.flatten)
+      q.push(true)
+    end
+
     c.run_bg
-    sleep 1
+    q.pop ; q.pop
     c.stop_bg
-    assert_equal([[5]], c.result.to_a)
-    assert_equal([[5]], c.mresult.to_a)
   end
 end
 
