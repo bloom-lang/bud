@@ -27,11 +27,11 @@ class ChatClient
 
   bloom :chatter do
     # send mcast requests to master
-    mcast <~ stdio.map do |s|
+    mcast <~ stdio do |s|
       [@master, [ip_port, @nick, Time.new.strftime("%I:%M.%S"), s.line]]
     end
     # pretty-print mcast msgs from master on terminal
-    stdio <~ mcast.map do |m|
+    stdio <~ mcast do |m|
       [left_right_align(m.val[1].to_s + ": " \
                         + (m.val[3].to_s || ''),
                         "(" + m.val[2].to_s + ")")]
