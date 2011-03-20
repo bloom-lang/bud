@@ -200,6 +200,7 @@ class ChannelBootstrap
     channel :loopback, [:foo]
     table :t1
     table :t2, [:foo]
+    callback :got_msg, loopback.schema
   end
 
   bootstrap do
@@ -209,13 +210,19 @@ class ChannelBootstrap
 
   bloom do
     t2 <= loopback
+    got_msg <= loopback
   end
 end
 
 class TestChannelBootstrap < Test::Unit::TestCase
   def test_bootstrap
     c = ChannelBootstrap.new
+    q = Queue.new
+    c.register_callback(:got_msg) do
+      q.push(true)
+    end
     c.run_bg
+
     c.sync_do {
       t = c.t1.to_a
       assert_equal(1, t.length)
@@ -223,7 +230,7 @@ class TestChannelBootstrap < Test::Unit::TestCase
       assert(v[1] > 1024)
       assert_equal(v[0], "localhost")
     }
-    sleep 1
+    q.pop
     c.sync_do {
       assert_equal([[1000]], c.t2.to_a.sort)
     }
