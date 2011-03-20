@@ -32,9 +32,9 @@ class ChatClient
     end
     # pretty-print mcast msgs from master on terminal
     stdio <~ mcast.map do |m|
-      [left_right_align(m.val[1] + ": " \
-                        + (m.val[3] || ''),
-                        "(" + m.val[2] + ")")]
+      [left_right_align(m.val[1].to_s + ": " \
+                        + (m.val[3].to_s || ''),
+                        "(" + m.val[2].to_s + ")")]
     end
   end
 end
