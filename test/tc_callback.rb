@@ -13,6 +13,19 @@ class SimpleCb
   end
 end
 
+class CallbackAtNext
+  include Bud
+
+  state do
+    scratch :t1
+    callback :c1
+  end
+
+  bloom do
+    c1 <+ t1
+  end
+end
+
 class CallbackTest < Test::Unit::TestCase
   class Counter
     attr_reader :cnt
@@ -51,6 +64,24 @@ class CallbackTest < Test::Unit::TestCase
     }
     assert_equal(2, call_tick.cnt)
     assert_equal(3, tuple_tick.cnt)
+    c.stop_bg
+  end
+
+  def test_cb_at_next
+    c = CallbackAtNext.new
+    c.run_bg
+    tick = Counter.new
+    c.register_callback(:c1) do |t|
+      tick.bump
+    end
+
+    c.sync_do {
+      c.t1 <+ [[20, 30]]
+    }
+    assert_equal(0, tick.cnt)
+    c.sync_do
+    assert_equal(1, tick.cnt)
+
     c.stop_bg
   end
 end

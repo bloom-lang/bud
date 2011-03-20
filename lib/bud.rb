@@ -323,13 +323,25 @@ module Bud
     end
   end
 
+  # Register a new callback block. Given the name of a Bud callback collection,
+  # this method arranges for the given block to be invoked at the end of any
+  # tick in which any tuples have been inserted into the specified callback
+  # collection. The code block is passed the callback collection as an argument;
+  # that provides a convenient way to examine the tuples inserted during that
+  # fixpoint.
   def register_callback(name, &block)
-    unless @callbacks.has_key? name
-      raise Bud::BudError, "No such callback table: #{name}"
-    end
+    # We allow callbacks to be added before or after EM has been started. To
+    # simplify matters, we just start EM if it hasn't been started yet.
+    start_reactor
 
-    cb_tbl = @callbacks[name]
-    cb_tbl.add_callback block
+    schedule_and_wait do
+      unless @callbacks.has_key? name
+        raise Bud::BudError, "No such callback table: #{name}"
+      end
+
+      cb_tbl = @callbacks[name]
+      cb_tbl.add_callback block
+    end
   end
 
   private
