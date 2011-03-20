@@ -21,7 +21,7 @@ require 'bud/viz'
 # state, bootstrap, and bloom.
 class Module
   def import(spec)
-    raise Bud::BudError unless (spec.class <= Hash and spec.length == 1)
+    raise Bud::CompileError unless (spec.class <= Hash and spec.length == 1)
     mod, local_name = spec.first
 
     # To correctly expand references qualified references to an imported module,
@@ -30,7 +30,7 @@ class Module
     # for module X points to X's own nested import table.
     @bud_import_tbl ||= {}
     child_tbl = mod.bud_import_table
-    raise Bud::BudError if @bud_import_tbl.has_key? local_name
+    raise Bud::CompileError if @bud_import_tbl.has_key? local_name
     @bud_import_tbl[local_name] = child_tbl.clone # XXX: clone needed?
 
     rewritten_mod_name = ModuleRewriter.do_import(self, mod, local_name)
@@ -57,7 +57,7 @@ class Module
       @block_id += 1
     else
       unless block_name.class <= Symbol
-        raise Bud::BudError, "Bloom block names must be a symbol: #{block_name}"
+        raise Bud::CompileError, "Bloom block names must be a symbol: #{block_name}"
       end
     end
 
@@ -69,7 +69,7 @@ class Module
     # Don't allow duplicate named bloom blocks to be defined within a single
     # module; this indicates a likely programmer error.
     if instance_methods(false).include? meth_name
-      raise Bud::BudError, "Duplicate named bloom block: '#{block_name}' in #{self}"
+      raise Bud::CompileError, "Duplicate named bloom block: '#{block_name}' in #{self}"
     end
     define_method(meth_name.to_sym, &block)
   end

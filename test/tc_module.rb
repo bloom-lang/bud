@@ -123,6 +123,17 @@ class TestModules < Test::Unit::TestCase
     assert_equal([[25, 30]], c.t7.to_a.sort)
     assert_equal([[0, 0], [1007, 2007]], c.t8.to_a.sort)
   end
+
+  def test_duplicate_import
+    assert_raise(Bud::CompileError) do
+      eval "
+      class DupImport
+        include Bud
+        import ParentModule => :p
+        import ParentModule => :p
+      end"
+    end
+  end
 end
 
 # Testing TODO:
