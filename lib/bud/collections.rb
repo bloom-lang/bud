@@ -535,7 +535,7 @@ module Bud
       port = @bud_instance.port
       each_from([@pending]) do |t|
         if @locspec_idx.nil?
-          the_locspec = [ip, port.to_i]
+          the_locspec = [ip, port]
         else
           begin
             the_locspec = split_locspec(t[@locspec_idx])
@@ -602,7 +602,7 @@ module Bud
             s = $stdin.gets
             break if s.nil? # Hit EOF
             s = s.chomp if s
-            tup = tuple_accessors([s])
+            tup = [s]
 
             ip = @bud_instance.ip
             port = @bud_instance.port
