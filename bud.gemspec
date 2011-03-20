@@ -23,7 +23,6 @@ Gem::Specification.new do |s|
   s.add_dependency 'ruby-graphviz'
   s.add_dependency 'ruby2ruby'
   s.add_dependency 'sexp_path'
-  s.add_dependency 'sourcify'
   s.add_dependency 'superators'
   s.add_dependency 'syntax'
   s.add_dependency 'uuid'
