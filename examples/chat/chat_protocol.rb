@@ -1,6 +1,6 @@
 module ChatProtocol
   state do
-    channel :mcast, [:@to, :from, :nick, :time, :msg]
+    channel :mcast
     channel :signup
   end
 end

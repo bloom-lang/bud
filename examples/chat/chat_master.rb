@@ -12,7 +12,7 @@ class ChatMaster
   bloom :master_logic do
     nodelist <= signup.payloads
     mcast <~ join([mcast, nodelist]).map do |m,n| 
-      [n.key, ip_port, m.nick, m.time, m.msg]  unless n.key == m.from
+      [n.key] + m.val unless n.key == m.val[0]
     end
   end
 end
