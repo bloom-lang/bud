@@ -124,6 +124,7 @@ module Bud
     @channels = {}
     @tc_tables = {}
     @zk_tables = {}
+    @callbacks = {}
     @timers = []
     @budtime = 0
     @inbound = []
@@ -322,6 +323,15 @@ module Bud
     end
   end
 
+  def register_callback(name, &block)
+    unless @callbacks.has_key? name
+      raise Bud::BudError, "No such callback table: #{name}"
+    end
+
+    cb_tbl = @callbacks[name]
+    cb_tbl.add_callback block
+  end
+
   private
 
   def start_reactor
@@ -460,6 +470,7 @@ module Bud
     @strata.each { |strat| stratum_fixpoint(strat) }
     @viz.do_cards if @options[:trace]
     do_flush
+    @callbacks.each_value { |c| c.invoke }
     @budtime += 1
   end
 
