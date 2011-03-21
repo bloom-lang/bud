@@ -289,7 +289,7 @@ module ModuleRewriter
   def self.do_import(import_site, mod, local_name)
     ast = get_module_ast(mod)
     ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
-    rename_tbl = ast_rename_state(ast, import_site, mod, local_name)
+    rename_tbl = ast_rename_state(ast, local_name)
     ast = ast_update_refs(ast, rename_tbl)
     ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
 
@@ -323,7 +323,11 @@ module ModuleRewriter
     mod_name = ast.sexp_body.first
     raise Bud::BudError if mod_name.to_s != importee.to_s
 
-    new_name = "#{importer}__#{importee}__#{local_name}"
+    # If the importer or importee modules are nested inside an outer module,
+    # strip off the outer module name before using for name mangling purposes
+    importer_name = Module.get_class_name(importer)
+    importee_name = Module.get_class_name(importee)
+    new_name = "#{importer_name}__#{importee_name}__#{local_name}"
     ast[1] = new_name.to_sym
 
     dr = DefnRenamer.new(mod_name, new_name, local_name)
@@ -336,7 +340,7 @@ module ModuleRewriter
 
   # Mangle the names of all the collections defined in state blocks found in the
   # given module's AST. Returns a table mapping old => new names.
-  def self.ast_rename_state(ast, importer, importee, local_name)
+  def self.ast_rename_state(ast, local_name)
     # Find all the state blocks in the AST
     raise Bud::BudError unless ast.sexp_type == :module
 

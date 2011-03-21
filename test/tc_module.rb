@@ -163,18 +163,6 @@ class Issue110
   end
 end
 
-# ParseTree failed for methods defined in "grandparent" modules.
-module ModuleC
-  def foo; puts "hello, world"; end
-  def bar; puts "baz"; end
-end
-module ModuleD
-  include ModuleC
-end
-module ModuleE
-  include ModuleD
-end
-
 class TestModules < Test::Unit::TestCase
   def test_simple
     c = ChildClass.new
@@ -210,6 +198,40 @@ class TestModules < Test::Unit::TestCase
     assert_equal([[100, 200], [400, 500]], c.t1.to_a.sort)
   end
 
+  module OuterModule
+    module NestedModule
+      state do
+        table :x
+        table :y
+      end
+
+      bootstrap do
+        x << [30, 40]
+        y << [50, 60]
+      end
+    end
+  end
+
+  class NestedModuleUser
+    include Bud
+    import OuterModule::NestedModule => :nm
+
+    state do
+      table :z
+    end
+
+    bloom do
+      z <= nm.x
+      z <= nm.y
+    end
+  end
+
+  def test_nested_module_import
+    c = NestedModuleUser.new
+    c.tick
+    assert_equal([[30, 40], [50, 60]], c.z.to_a.sort)
+  end
+
   def test_duplicate_import
     assert_raise(Bud::CompileError) do
       eval "
@@ -219,6 +241,18 @@ class TestModules < Test::Unit::TestCase
         import ParentModule => :p
       end"
     end
+  end
+
+  # ParseTree failed for methods defined in "grandparent" modules.
+  module ModuleC
+    def foo; puts "hello, world"; end
+    def bar; puts "baz"; end
+  end
+  module ModuleD
+    include ModuleC
+  end
+  module ModuleE
+    include ModuleD
   end
 
   def test_parsetree_bug
