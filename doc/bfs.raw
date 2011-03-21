@@ -18,6 +18,15 @@ That way, it will be possible later to choose a different implementation of the 
 ==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|12-20
 
 We create an input interface for each of the operations, and a single output interface for the return for any operation: given a request id, __status__ is a boolean
-indicating whether the request succeeded, and __data__ may contain return values (e.g., _fsls_ should return an array containing the array contents.
+indicating whether the request succeeded, and __data__ may contain return values (e.g., _fsls_ should return an array containing the array contents).
+
+We already have a library that provides an updateable flat namespace: the key-value store.  We can easily implement the tree structure of a filesystem over a key-value store
+in the following way:
+ 1. keys are paths
+ 2. directories have arrays containing child entries (base names)
+ 3. files values are their contents
+
+Note that (3) will cease to apply when we implement chunked storage later.  So we begin our implementation of a KVS-backed metadata system in the following way:
 
 
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|33-36
