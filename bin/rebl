@@ -15,14 +15,17 @@ class ReblClass
   include Bud
   attr_accessor :commands
   
-  @@commands = {"tick" => ["@rebl_class_inst.tick", "/tick: 	execute a timestep"],
-               "lsrules" =>["puts @rules.inspect", "/lsrules: 	list rules"],
-               "rmrule" => ["@rules.delete(Integer(split_line[1]));reinstantiate", "/rmrule x: 	remove rule number x"], 
-               "lscollections" => ["puts @rebl_class_inst.tables.keys.find_all{ |tn| not BUILTIN_TABLES.include? tn}.inspect", "/lscollections: 	list collections"],
-               "dump" => ['@rebl_class_inst.instance_eval("#{split_line[1]}.dump")', "/dump c: 	dump contents of collection c"],
-               "exit" => ["ReblClass::do_exit", "/exit: 	exit rebl"],
-               "quit" => ["ReblClass::do_exit", "/quit: 	exit rebl"],
-               "help" => ["ReblClass::pretty_help", "/help: 	print this help message"] }
+  @@escape_char = '/'
+  def self.escape_char; @@escape_char; end
+
+  @@commands = {"tick" => ["@rebl_class_inst.tick", ReblClass::escape_char+"tick: 	execute a timestep"],
+               "lsrules" =>["@rules.each{|k,v| puts k.to_s + ':  ' + v}", ReblClass::escape_char+"lsrules: 	list rules"],
+               "rmrule" => ["@rules.delete(Integer(split_line[1]));reinstantiate", ReblClass::escape_char+"rmrule x: 	remove rule number x"], 
+               "lscollections" => ["puts @rebl_class_inst.tables.keys.find_all{ |tn| not BUILTIN_TABLES.include? tn}.inspect", ReblClass::escape_char+"lscollections: 	list collections"],
+               "dump" => ['@rebl_class_inst.instance_eval("#{split_line[1]}.dump")', ReblClass::escape_char+"dump c: 	dump contents of collection c"],
+               "exit" => ["ReblClass::do_exit", ReblClass::escape_char+"exit: 	exit rebl"],
+               "quit" => ["ReblClass::do_exit", ReblClass::escape_char+"quit: 	exit rebl"],
+               "help" => ["ReblClass::pretty_help", ReblClass::escape_char+"help: 	print this help message"] }
 
 	@@abbrevs = @@commands.keys.abbrev
   @@exit_message = "Rebellion quashed."
@@ -34,12 +37,24 @@ class ReblClass
   end            
   
   def self.pretty_help
+	  puts "rebl commands are prefixed by '#{ReblClass::escape_char}'"
+	  puts "other input is interpreted as Bloom code."
+	  puts
+	  puts "rebl commands:"
     maxlen = @@commands.keys.sort{|a,b| b.size - a.size}.first.size
     @@commands.values.each do |v|
       puts v[1].gsub( /\t/, " "*(maxlen + 3 - v[1].split(':')[0].size))
     end
   end
   
+  def self.welcome
+	  puts "Welcome to rebl, the interactive Bloom terminal."
+		puts
+		puts "Type: " + ReblClass::escape_char + "h for help"
+		puts "      " + ReblClass::escape_char + "q to quit"
+		puts
+	end
+	
   def self.do_exit
     puts "\n" + @@exit_message
     exit!
@@ -50,15 +65,23 @@ def reinstantiate
   # new anonymous subclass
   @rebl_class = Class.new(ReblClass)
 
-  if not @rules.empty?
-    @rebl_class.class_eval("bloom :rebl_rules do\n" +
-                           @rules.sort.map {|_,r| r}.join("\n") + "\nend")
-  end
+	begin
+	  if not @rules.empty?
+	    @rebl_class.class_eval("bloom :rebl_rules do\n" +
+	                           @rules.sort.map {|_,r| r}.join("\n") + "\nend")
+	  end
+	rescue
+		raise
+	end
 
-  if not @state.empty?
-    @rebl_class.class_eval("state do\n" + @state.values.join("\n") + "\nend")
-  end
-
+	begin
+	  if not @state.empty?
+	    @rebl_class.class_eval("state do\n" + @state.values.join("\n") + "\nend")
+	  end
+	rescue 
+		raise
+	end
+	
   # instantiate it
   @old_inst = @rebl_class_inst
   @rebl_class_inst = @rebl_class.new
@@ -98,10 +121,12 @@ end
 reinstantiate
 setup_history
 
-comp = proc { |s| ReblClass::commands.keys.map{|c| "/"+c}.grep( /^#{Regexp.escape(s)}/ ) }
+comp = proc { |s| ReblClass::commands.keys.map{|c| ReblClass::escape_char+c}.grep( /^#{Regexp.escape(s)}/ ) }
 
 Readline.completion_append_character = ' '
 Readline.completion_proc = comp
+
+ReblClass.welcome
 
 loop do
   begin
@@ -112,7 +137,7 @@ loop do
     split_line = line.split(" ")
 
     # command
-    if line[0..0] == "/" then
+    if line[0..0] == ReblClass::escape_char then
       split_line[0].slice! 0
       if ReblClass::command split_line[0]
         eval ReblClass::command split_line[0]
