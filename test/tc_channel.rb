@@ -53,8 +53,8 @@ class RingMember
   end
 
   bloom :ring_msg do
-    pipe <~ kickoff {|k| [ip_port, k.cnt.to_i]}
-    pipe <~ join([pipe, next_guy]).map {|p,n| [n.addr, p.cnt.to_i + 1] if p.cnt.to_i < 39}
+    pipe <~ kickoff {|k| [ip_port, k.cnt]}
+    pipe <~ join([pipe, next_guy]).map {|p,n| [n.addr, p.cnt + 1] if p.cnt < 39}
   end
 
   bloom :update_log do
@@ -68,7 +68,7 @@ class TestRing < Test::Unit::TestCase
 
   def test_basic
     ring = []
-    0.upto(RING_SIZE - 1) do |i|
+    RING_SIZE.times do |i|
       ring[i] = RingMember.new
       ring[i].run_bg
     end
