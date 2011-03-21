@@ -247,6 +247,8 @@ class GraphGen
     puts "fn is #{fn}"
     staging = "#{fn}_staging"
     @graph.output(:svg => staging)
+    @graph.output(:dot => "#{fn}.dot")
+    @graph.output(:png => "#{fn}.png")
     fin = File.open(staging, "r")
     fout = File.open(fn, "w")
     while line = fin.gets

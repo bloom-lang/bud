@@ -53,8 +53,13 @@ class KTest
 end
 
 class KTest2 < KTest
+  state do
+    # make sure :node isn't reserved
+    scratch :node
+  end
   bloom :update do
     mystate <= upd
+    node <= upd
     j = join([upd, mystate])
     mystate <- j.map {|i, s| s}
   end
@@ -109,6 +114,11 @@ class TestMeta < Test::Unit::TestCase
   def test_visualization
     program = KTest2.new(:dump_rewrite => true, :trace => true)
     dep = DepAnalysis.new
+
+    program.run_bg
+    program.sync_do{}
+    program.sync_do{}
+    program.sync_do{}
 
     program.t_depends_tc.each {|d| dep.depends_tc << d}
     program.t_provides.each {|p| dep.providing << p}
