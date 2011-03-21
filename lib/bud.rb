@@ -23,11 +23,12 @@ class Module
   def import(spec)
     raise Bud::CompileError unless (spec.class <= Hash and spec.length == 1)
     mod, local_name = spec.first
+    raise Bud::CompileError unless (mod.class <= Module and local_name.class <= Symbol)
 
-    # To correctly expand references qualified references to an imported module,
-    # we keep a table with the local bind names of all the modules imported by
-    # this module. To handle nested references (a.b.c.d etc.), the import table
-    # for module X points to X's own nested import table.
+    # To correctly expand qualified references to an imported module, we keep a
+    # table with the local bind names of all the modules imported by this
+    # module. To handle nested references (a.b.c.d etc.), the import table for
+    # module X points to X's own nested import table.
     @bud_import_tbl ||= {}
     child_tbl = mod.bud_import_table
     raise Bud::CompileError if @bud_import_tbl.has_key? local_name
@@ -91,16 +92,16 @@ end
 
 # The root Bud module. To run a Bud instance, there are three main options:
 #
-# 1. Synchronously. To do this, instanciate your program and then call tick()
+# 1. Synchronously. To do this, instantiate your program and then call tick()
 #    one or more times; each call evaluates a single Bud timestep. Note that in
 #    this mode, network communication (channels) and timers cannot be used. This
 #    is mostly intended for "one-shot" programs that compute a single result and
 #    then terminate.
-# 2. In a separate thread in the foreground. To do this, instanciate your
+# 2. In a separate thread in the foreground. To do this, instantiate your
 #    program and then call run(). The Bud interpreter will then run, handling
 #    network events and evaluating new timesteps as appropriate. The run()
 #    method will not return unless an error occurs.
-# 3. In a separate thread in the background. To do this, instanciate your
+# 3. In a separate thread in the background. To do this, instantiate your
 #    program and then call run_bg(). The Bud interpreter will run
 #    asynchronously. To interact with Bud (e.g., insert additional data or
 #    inspect the state of a Bud collection), use the sync_do and async_do
@@ -271,10 +272,11 @@ module Bud
     }
   end
 
-  # Shutdown a Bud instance running asynchronously. This method blocks until Bud
-  # has been shutdown. If _stop_em_ is true, the EventMachine event loop is also
-  # shutdown; this will interfere with the execution of any other Bud instances
-  # in the same process (as well as anything else that happens to use EM).
+  # Shutdown a Bud instance that is running asynchronously. This method blocks
+  # until Bud has been shutdown. If _stop_em_ is true, the EventMachine event
+  # loop is also shutdown; this will interfere with the execution of any other
+  # Bud instances in the same process (as well as anything else that happens to
+  # use EventMachine).
   def stop_bg(stop_em=false)
     schedule_and_wait do
       do_shutdown(stop_em)
@@ -282,7 +284,7 @@ module Bud
   end
 
   # Given a block, evaluate that block inside the background Ruby thread at some
-  # point in the future. Because the callback is invoked inside the background
+  # time in the future. Because the callback is invoked inside the background
   # Ruby thread, Bud state can be safely examined inside the block. Naturally,
   # this method can only be used when Bud is running in the background. Note
   # that calling sync_do blocks the caller's thread until the block has been
@@ -291,7 +293,7 @@ module Bud
   # Note that the callback is invoked after one Bud timestep has ended but
   # before the next timestep begins. Hence, synchronous accumulation (<=) into a
   # Bud scratch collection in a callback is typically not useful: when the next
-  # tick begins, the content of any scratch collections will be empted, which
+  # tick begins, the content of any scratch collections will be emptied, which
   # includes anything inserted by a sync_do block using <=. To avoid this
   # behavior, insert into scratches using <+.
   def sync_do
@@ -428,8 +430,8 @@ module Bud
       @timers << set_periodic_timer(p.pername, p.ident, p.period)
     end
 
-    # Surface stdin to Bud if enabled. Note that we can't do this earlier
-    # because we need to wait for EventMachine startup.
+    # Arrange for Bud to read from stdin if enabled. Note that we can't do this
+    # earlier because we need to wait for EventMachine startup.
     @stdio.start_stdin_reader if @options[:read_stdin]
 
     # Compute a fixpoint; this will also invoke any bootstrap blocks.

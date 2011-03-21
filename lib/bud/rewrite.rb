@@ -287,8 +287,6 @@ module ModuleRewriter
   # defined module; the caller can then use "include" to load the module into
   # the import site.
   def self.do_import(import_site, mod, local_name)
-    raise Bud::BudError unless (mod.class <= Module and local_name.class <= Symbol)
-
     ast = get_module_ast(mod)
     ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     rename_tbl = ast_rename_state(ast, import_site, mod, local_name)
