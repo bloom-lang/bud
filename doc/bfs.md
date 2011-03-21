@@ -186,14 +186,14 @@ by the given (existent) file:
 If it was a __fsaddchunk__ request,  we need to generate a unique id for a new chunk and return a list of target datanodes.  We reuse __TimestepNonce__ to do the former, and join a relation
 called __available__ that is exported by __HBMaster__ (described in the next section) for the latter:
 
-              <li><a href="/training">Training</a></li>
-              <li><a href="http://jobs.github.com/">Job Board</a></li>
-              <li><a href="http://shop.github.com">Shop</a></li>
-              <li><a href="/contact">Contact</a></li>
-              <li><a href="http://develop.github.com">API</a></li>
-              <li><a href="http://status.github.com">Status</a></li>
-            </ul>
-            <ul class="sosueme">
+        minted_chunk = join([kvget_response, fsaddchunk, available, nonce], [kvget_response.reqid, fsaddchunk.reqid])
+        chunk <= minted_chunk.map{ |r, a, v, n| [n.ident, a.file, 0] }
+        fsret <= minted_chunk.map{ |r, a, v, n| [r.reqid, true, [n.ident, v.pref_list.slice(0, (REP_FACTOR + 2))]] }
+        fsret <= join([kvget_response, fsaddchunk], [kvget_response.reqid, fsaddchunk.reqid]).map do |r, a|
+          if available.empty? or available.first.pref_list.length < REP_FACTOR
+            [r.reqid, false, "datanode set cannot satisfy REP_FACTOR = #{REP_FACTOR} with [#{available.first.nil? ? "NIL" : available.first.pref_list.inspect}]"]
+          end
+        end
 
 Finally, it was a __fschunklocations__ request, we have another possible error scenario, because the nodes associated with chunks are a part of our soft state.  Even if the file
 exists, it may not be the case that we have fresh information in our cache about what datanodes own a replica of the given chunk:
@@ -219,7 +219,11 @@ Otherwise, __chunk_cache__ has information about the given chunk, which we may r
 A datanode runs both BUD code (to support the heartbeat and control protocols) and pure ruby (to support the data transfer protocol).  A datanode's main job is keeping the master 
 aware of it existence and its state, and participating when necessary in data pipelines to read or write chunk data to and from its local storage.
 
-https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|9-13
+    module BFSDatanode
+      include HeartbeatAgent
+      include StaticMembership
+      include TimestepNonce
+      include BFSHBProtocol
 
 By mixing in HeartbeatAgent, the datanode includes the machinery necessary to regularly send status messages to the master.  __HeartbeatAgent__ provides an input interface
 called __payload__ that allows an agent to optionally include additional information in heartbeat messages: in our case, we wish to include state deltas which ensure that
@@ -227,23 +231,30 @@ the master has an accurate view of the set of chunks owned by the datanode.
 
 When a datanode is constructed, it takes a port at which the embedded data protocol server will listen, and starts the server in the background:
 
-https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|53-53
+        @dp_server = DataProtocolServer.new(dataport)
 
 At regular intervals, a datanode polls its local chunk directory (which is independently written to by the data protocol):
 
-https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|24-29
+        dir_contents <= hb_timer.flat_map do |t|
+          dir = Dir.new("#{DATADIR}/#{@data_port}")
+          files = dir.to_a.map{|d| d.to_i unless d =~ /^\./}.uniq!
+          dir.close
+          files.map {|f| [f, Time.parse(t.val).to_f]}
+        end
 
 We update the payload that we send to the master if our recent poll found files that we don't believe the master knows about:
 
 
-https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|31-35
+        to_payload <= join([dir_contents, nonce]).map do |c, n|
+          unless server_knows.map{|s| s.file}.include? c.file
+            [n.ident, c.file, c.time]
+          end
+        end
 
 
 
 
 
-
-https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|31-35
 
 ## BFS Client
 
