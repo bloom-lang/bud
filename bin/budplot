@@ -83,11 +83,14 @@ def write_index(inp, outp, priv, svg)
 end
 
 def do_table(f, info, type=false)
+  next if info.nil?
   info.each do |inf|
     f.puts "<h3>#{inf[0]}</h3>"
     f.puts  "&nbsp; (#{inf[1].class.to_s.gsub('Bud::Bud', '')})<br>" if type
     f.puts "<table border='1'>"
-    f.puts "<tr>" + inf[1].schema.map{|i| "<td>#{i}</td>"}.join(" ") + "</tr>"
+    unless inf[1].schema.nil?
+      f.puts "<tr>" + inf[1].schema.map{|i| "<td>#{i}</td>"}.join(" ") + "</tr>"
+    end
     f.puts "</table>"
   end
 end
@@ -101,7 +104,7 @@ files = []
 classes = []
 
 if ARGV.length < 2
-  puts "USAGE:\nruby plotter.rb LIST_OF_FILES LIST_OF_MODULES"
+  puts "len #{ARGV.length} USAGE:\nruby plotter.rb LIST_OF_FILES LIST_OF_MODULES"
   exit
 end
 

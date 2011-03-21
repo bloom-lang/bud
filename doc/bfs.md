@@ -5,4 +5,4 @@ The libraries that ship with BUD provide many of the building blocks we'll need 
 ``chunked'' filesystem in the style of the Google Filesystem(GFS):
 a key-value store, nonce generation, and a heartbeat protocol.
 
-gist: 880009
+[[gist: 880009]]
