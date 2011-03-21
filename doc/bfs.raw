@@ -24,7 +24,7 @@ other storage nodes.  As in BFS, the communication protocols and the data
 channel used for communication between clients and datanodes and between
 datanodes is written outside Bloom (in Ruby).
 
-## Basic Filesystem
+## [Basic Filesystem](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/fs_master.rb)
 
 Before we worry about any of the details of distribution, we need to implement the basic filesystem metadata operations: _create_, _remove_, _mkdir_ and _ls_.
 There are many choices for how to implement these operations, and it makes sense to keep them separate from the (largely orthogonal) distributed filesystem logic.
@@ -83,7 +83,7 @@ for one of our kvs operations, we need a fresh, unique request id for the second
 an identifier that is unique to this timestep.
 
 
-## File Chunking
+## [File Chunking](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/chunking.rb)
 
 Now that we have a module providing a basic filesystem, we can extend it to support chunked storage of file contents.  The metadata master will contain, in addition to the KVS
 structure for directory information, a relation mapping a set of chunk identifiers to each file
@@ -159,15 +159,15 @@ We update the payload that we send to the master if our recent poll found files 
 
 Our view of what the master ``knows'' about reflects our local cache of acknowledgement messages from the master.  This logic is defined in __HBMaster__.
 
-### Heartbeat master logic
+### [Heartbeat master logic](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/hb_master.rb)
 
 
 
 
-## BFS Client
+## [BFS Client](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/bfs_client.rb)
 
-## Data transfer protocol
+## [Data transfer protocol](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/data_protocol.rb)
 
-## Master background process
+## [Master background process](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/background.rb)
 
 
