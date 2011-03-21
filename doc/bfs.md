@@ -11,6 +11,19 @@ In this document we'll use what we've learned to build a piece of systems softwa
 
 ![Alt text](https://github.com/bloom-lang/bud/raw/master/doc/bfs_arch.png)
 
+BFS implements a chunked, distributed filesystem (mostly) in the Bloom
+language.  BFS is architecturally based on BOOMFS, which is itself based on
+the Google Filesystem (GFS).  As in GFS, a single master node manages
+filesystem metadata, while data blocks are replicated and stored on a large
+number of storage nodes.  Writing or reading data involves a multi-step
+protocol in which clients interact with the master, retrieving metadata and
+possibly changing state, then interact with storage nodes to read or write
+chunks.  Background jobs running on the master will contact storage nodes to
+orchestrate chunk migrations, during which storage nodes communicate with
+other storage nodes.  As in BFS, the communication protocols and the data
+channel used for communication between clients and datanodes and between
+datanodes is written outside Bloom (in Ruby).
+
 ## Basic Filesystem
 
 Before we worry about any of the details of distribution, we need to implement the basic filesystem metadata operations: _create_, _remove_, _mkdir_ and _ls_.
