@@ -245,3 +245,6 @@ The next block in the class is our first Bloom `bootstrap` block.  This is a set
 After that comes a normal Bloom block, with the name `:chatter`.  It contains two statements: one to send stdio input out via mcast, and another to receive mcasts and place them on stdio output.  The first statement has the built-in `stdio` scratch on the rhs: this includes any lines of terminal input that arrived since the last timestep.  For each line of terminal input, the `do...end` block formats an `mcast` message destined to the address in the instance variable `@server`, with an array as the payload.  The rhs of the second statement takes `mcast` messages that arrived since the last timestep.  For each message `m`, the `m.val` expression in the block returns the message payload; the call to the Ruby instance method `left_right_align` formats the message so it will look nice on-screen.  These formatted strings are placed (asynchronously, as before) into `stdio` on the left.
 
 The remaining two lines are Ruby driver code to instantiate and run the ChatClient class (which includes the `Bud` module) using arguments from the command line.
+
+# The Big Picture: Bloom Concepts #
+*now we're ready to present/review Bloom semantics more carefully, starting with the single-node timestep model, the operator types, and the collection types.*
