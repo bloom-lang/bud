@@ -112,9 +112,9 @@ In these brief examples we learned about a few simple but important things:
 * The `inspected` method of collections, which prepares them for display on the terminal.
 
 ## Chat, World! ##
-Now that we've seen a bit of Bloom, we're ready to write our first interesting program that embeds Bloom code in Ruby.  We'll implement a simple client-server "chat" program. All the code for this program is in the `examples/chat` directory of the Bud distribution.
+Now that we've seen a bit of Bloom, we're ready to write our first interesting program that embeds Bloom code in Ruby.  We'll implement a simple client-server "chat" program. All the code for this program is in the `examples/chat` directory of the Bud distribution.  Note that Bloom isn't specifically designed for client/server designs--many examples in the [bud-sandbox](http://github.com/bloom-lang/bud-sandbox) repository are symmetric ("peer-to-peer", "agent-based") designs, and they often work out as neatly as this one or moreso.
 
-The basic idea of this program is that clients will connect to a chatserver process across the Internet.  When a client first connects to the server, the server will remember its address and nickname.  The server will also accept messages from clients, and relay them to other clients.
+**Basic idea**: The basic idea of this program is that clients will connect to a chatserver process across the Internet.  When a client first connects to the server, the server will remember its address and nickname.  The server will also accept messages from clients, and relay them to other clients.
 
 Even though we're getting ahead of ourselves, have a peek at the Bloom statements that implement the server in `examples/chat/chatserver.rb`:
 
@@ -125,7 +125,9 @@ Even though we're getting ahead of ourselves, have a peek at the Bloom statement
 
 That's it!  There is one statement for each of the two sentences describing the behavior of the "basic idea" above.  We'll go through them in more detail shortly, but it's nice to see right away how concise a Bloom program can be, and how naturally it fits the way we tend to describe distributed systems.
 
-Now that we've satisfied our need to peek, let's take this a bit more methodicaly.  First we need declarations for the various Bloom collections we'll be using.  Look at the file `examples/chat/chat_protocol.rb`:
+### The Server Side ###
+
+Now that we've satisfied our need to peek, let's take this a bit more methodically.  First we need declarations for the various Bloom collections we'll be using.  Look at the file `examples/chat/chat_protocol.rb`:
 
     module ChatProtocol
       state do
@@ -167,9 +169,79 @@ Given this protocol, we're now ready to examine `examples/chat/chatserver.rb` in
     program = ChatServer.new({:ip => ip, :port => port.to_i})
     program.run
     
-The first few lines get the appropriate Ruby classes and modules loaded, and declare the ChatServer class which mixes in the `Bud` module, and the and `ChatProtocol` module we defined above.  We have another `state` block that declares one additional collection, the `nodelist` table.  
+The first few lines get the appropriate Ruby classes and modules loaded via `require`, and then define the ChatServer class which mixes in the `Bud` module and the `ChatProtocol` module we looked at above.  Then we have another `state` block that declares one additional collection, the `nodelist` table.  By now we know what that means.  
 
-Then we have our first `bloom` block: this is the way we embed Bloom statements into Ruby.  By giving the bloom block a name (`:server_logic` in this case) we can override that block of statements in subclass of `ChatServer` later if desired.
+Finally we have our first `bloom` block!  This is the way we embed Bloom statements into Ruby.  By giving the bloom block a name (`:server_logic` in this case) we can override that block of statements in subclass of `ChatServer` later if desired.  (The name is optional though.)
 
-Now its time to examine the two Bloom statements that make up our server.  The first is quite intuitive: whenever messages arrive on the channel named `connect`, this statement merges the payloads into the table nodelist, which will store them persistently.  (Note that nodelist has a "key/value" pair structure, so we expect the payloads will have that structure as well.)
+Now its time to examine the two Bloom statements that make up our server.  The first is quite intuitive: 
 
+     nodelist <= connect.payloads
+
+This says that whenever messages arrive on the channel named `connect`, their payloads (i.e. their second field) should be instantaneously merged into the table nodelist, which will store them persistently.  (Note that nodelist has a "key/value" pair structure, so we expect the payloads will have that structure as well.)
+
+The next Bloom statement is more complex.  Remember the description in the "basic idea" at the beginning of this section: the server needs to accept inbound chat messages from clients and forward them to other clients.  
+
+    mcast <~ join([mcast, nodelist]) do |m,n| 
+      [n.key, m.val] unless n.key == m.val[0]
+    end
+    
+The first thing to note is the lhs and operator: we are merging items (asynchronously, of course!) into the mcast channel, where they will be sent to their eventual destination.  The rhs requires us to understand the Bloom `join` method.  The argument to join is a list of collections -- in this case, the `mcast` channel and `nodelist` table.  What join does is form all pairs of items from those two collections, and pass each pair into the Ruby `do...end` block via the block arguments `m` and `n`.  
+
+So what is happening in that block?  For each pair of an inbound mcast message and a node, we create an item to merge into mcast in the outbound direction.  The item's address is `n.key`: the address of a node that has "connected" at some point via the previous rule.  The item's payload is `m.val`: the payload of the inbound mcast message.  In short, this statement *forwards a copy of each mcast payload to each address in the nodelist.*
+
+The remaining two lines are Ruby driver code to instantiate and run the ChatServer class (which includes the `Bud` module) running at an ip and port given on the command line.
+
+### The client side ###
+Given our understanding of the server, the client should be pretty simple.  It needs to send an appropriately-formatted message on the connect channel to the server, send/receive messages on the mcast channel, and print the messages it receives to the screen.
+
+And here's the code:
+
+    # simple chat
+    require 'rubygems'
+    require 'bud'
+    require 'chat_protocol'
+
+    class ChatClient
+      include Bud
+      include ChatProtocol
+
+      def initialize(nick, server, opts)
+        @nick = nick
+        @server = server
+        super opts
+      end
+
+      # send connection request to server on startup
+      bootstrap do
+        connect <~ [[@server, [ip_port, @nick]]]
+      end
+
+      bloom :chatter do
+        # send mcast requests to server
+        mcast <~ stdio do |s|
+          [@server, [ip_port, @nick, Time.new.strftime("%I:%M.%S"), s.line]]
+        end
+        # pretty-print mcast msgs from server on terminal
+        stdio <~ mcast do |m|
+          [left_right_align(m.val[1].to_s + ": " \
+                            + (m.val[3].to_s || ''),
+                            "(" + m.val[2].to_s + ")")]
+        end
+      end
+
+      # format chat messages with timestamp on the right of the screen
+      def left_right_align(x, y)
+        return x + " "*[66 - x.length,2].max + y
+      end
+    end
+
+    program = ChatClient.new(ARGV[0], ARGV[1], {:read_stdin => true})
+    program.run
+
+The ChatClient class has a typical Ruby `initialize` method that sets up some local instance variables for this client's nickname and the IP:port for the server.  It then calls the initializer of the Bud superclass with a hash of options.
+
+The next block in the class is our first Bloom `bootstrap` block.  This is a set of Bloom statements that are only evaluated once, just before the first "regular" timestep of the system.  In this case, we bootstrap the client by sending a properly-formatted message to the server registering the client's address (via the built-in Bud instance method `ip_port`) and chosen nickname.  
+
+After that comes a normal Bloom block, with the name `:chatter`.  It contains two statements: one to send stdio input out via mcast, and another to receive mcasts and place them on stdio output.  The first statement has the built-in `stdio` scratch on the rhs: this includes any lines of terminal input that arrived since the last timestep.  For each line of terminal input, the `do...end` block formats an `mcast` message destined to the address in the instance variable `@server`, with an array as the payload.  The rhs of the second statement takes `mcast` messages that arrived since the last timestep.  For each message `m`, the `m.val` expression in the block returns the message payload; the call to the Ruby instance method `left_right_align` formats the message so it will look nice on-screen.  These formatted strings are placed (asynchronously, as before) into `stdio` on the left.
+
+The remaining two lines are Ruby driver code to instantiate and run the ChatClient class (which includes the `Bud` module) using arguments from the command line.

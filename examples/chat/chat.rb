@@ -7,35 +7,33 @@ class ChatClient
   include Bud
   include ChatProtocol
 
-  def initialize(nick, master, opts)
+  def initialize(nick, server, opts)
     @nick = nick
-    @master = master
+    @server = server
     super opts
   end
 
-  state { table :status }
-
-  # send connection request to master on startup
+  # send connection request to server on startup
   bootstrap do
-    connect <~ [[@master, [ip_port, @nick]]]
-  end
-
-  # format chat messages with timestamp on the right of the screen
-  def left_right_align(x, y)
-    return x + " "*[66 - x.length,2].max + y
+    connect <~ [[@server, [ip_port, @nick]]]
   end
 
   bloom :chatter do
-    # send mcast requests to master
+    # send mcast requests to server
     mcast <~ stdio do |s|
-      [@master, [ip_port, @nick, Time.new.strftime("%I:%M.%S"), s.line]]
+      [@server, [ip_port, @nick, Time.new.strftime("%I:%M.%S"), s.line]]
     end
-    # pretty-print mcast msgs from master on terminal
+    # pretty-print mcast msgs from server on terminal
     stdio <~ mcast do |m|
       [left_right_align(m.val[1].to_s + ": " \
                         + (m.val[3].to_s || ''),
                         "(" + m.val[2].to_s + ")")]
     end
+  end
+
+  # format chat messages with timestamp on the right of the screen
+  def left_right_align(x, y)
+    return x + " "*[66 - x.length,2].max + y
   end
 end
 
