@@ -24,10 +24,10 @@ class Module
     raise Bud::CompileError unless (spec.class <= Hash and spec.length == 1)
     mod, local_name = spec.first
 
-    # To correctly expand references qualified references to an imported module,
-    # we keep a table with the local bind names of all the modules imported by
-    # this module. To handle nested references (a.b.c.d etc.), the import table
-    # for module X points to X's own nested import table.
+    # To correctly expand qualified references to an imported module, we keep a
+    # table with the local bind names of all the modules imported by this
+    # module. To handle nested references (a.b.c.d etc.), the import table for
+    # module X points to X's own nested import table.
     @bud_import_tbl ||= {}
     child_tbl = mod.bud_import_table
     raise Bud::CompileError if @bud_import_tbl.has_key? local_name
