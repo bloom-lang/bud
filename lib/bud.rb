@@ -23,6 +23,7 @@ class Module
   def import(spec)
     raise Bud::CompileError unless (spec.class <= Hash and spec.length == 1)
     mod, local_name = spec.first
+    raise Bud::CompileError unless (mod.class <= Module and local_name.class <= Symbol)
 
     # To correctly expand qualified references to an imported module, we keep a
     # table with the local bind names of all the modules imported by this
