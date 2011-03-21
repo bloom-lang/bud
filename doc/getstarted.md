@@ -9,7 +9,7 @@ You know the drill!
 This installs four things:
 
 * The `Bud` module, to embed Bloom code in Ruby.
-* The rebl executable: an interactive shell for Bloom statements.
+* The `rebl` executable: an interactive shell for Bloom statements.
 * The `budplot` and `budvis` executables: graphical tools for visualizing and debugging Bloom programs.
 
 ## First Blooms ##
