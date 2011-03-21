@@ -17,6 +17,8 @@ Before we worry about any of the details of distribution, we need to implement t
 There are many choices for how to implement these operations, and it makes sense to keep them separate from the (largely orthogonal) distributed filesystem logic.
 That way, it will be possible later to choose a different implementation of the metadata operations without impacting the rest of the system.
 
+### Protocol
+
     module FSProtocol
       state do
         interface input, :fsls, [:reqid, :path]
@@ -29,6 +31,7 @@ That way, it will be possible later to choose a different implementation of the 
 
 We create an input interface for each of the operations, and a single output interface for the return for any operation: given a request id, __status__ is a boolean
 indicating whether the request succeeded, and __data__ may contain return values (e.g., _fsls_ should return an array containing the array contents).
+
 
 We already have a library that provides an updateable flat namespace: the key-value store.  We can easily implement the tree structure of a filesystem over a key-value store
 in the following way:
@@ -43,8 +46,12 @@ Note that (3) will cease to apply when we implement chunked storage later.  So w
     module KVSFS
       include FSProtocol
       include BasicKVS
+      include TimestepNonce
 
 If we wanted to replicate the metadata master, we could consider mixing in a replicated KVS implementation instead of __BasicKVS__ -- but more on that later.
+
+### Directory Listing 
+
 The directory listing operation is very simple:
 
       bloom :elles do
@@ -60,6 +67,9 @@ The directory listing operation is very simple:
 If we get a __fsls__ request, probe the key-value store for the requested by projecting _reqid_, _path_ from the __fsls__ tuple into __kvget__.  If the given path
 is a key, __kvget_response__ will contain a tuple with the same _reqid_, and the join on the second line will succeed.  In this case, we insert the value
 associated with that key into __fsret__.  Otherwise, the third rule will fire, inserting a failure tuple into __fsret__.
+
+
+### Mutation
 
 The logic for file and directory creation and deletion follow a similar logic with regard to the parent directory.  Unlike a directory listing, these operations change
 the state of the filesystem.  In general, any state change will invove carrying out two mutating operations to the key-value store atomically:
@@ -105,6 +115,10 @@ the state of the filesystem.  In general, any state change will invove carrying 
               [ip_port, terminate_with_slash(c.path) + c.name, c.reqid, "LEAF"]
           end
         end
+
+Recall that we mixed in __TimestepNonce__, one of the nonce libraries.  While we were able to use the _reqid_ field from the input operation as a unique identifier
+for one of our kvs operations, we need a fresh, unique request id for the second kvs operation in the atomic pair described above.  By joining __nonce__, we get
+an identifier that is unique to this timestep.
 
 
 ## File Chunking
