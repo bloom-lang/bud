@@ -8,3 +8,4 @@ a key-value store, nonce generation, and a heartbeat protocol.
 [[gist: 880009]]
 
 <script src="https://gist.github.com/880009.js"> </script>
+[[<script src="https://gist.github.com/880009.js"> </script>]]
