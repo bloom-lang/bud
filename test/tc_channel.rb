@@ -50,11 +50,13 @@ class RingMember
     scratch :kickoff, [:cnt]
     table :next_guy, [:addr]
     table :last_cnt, [:cnt]
+    callback :done, [:cnt]
   end
 
   bloom :ring_msg do
     pipe <~ kickoff {|k| [ip_port, k.cnt]}
     pipe <~ join([pipe, next_guy]).map {|p,n| [n.addr, p.cnt + 1] if p.cnt < 39}
+    done <= pipe.map {|p| [p.cnt] if p.cnt == 39}
   end
 
   bloom :update_log do
@@ -73,6 +75,11 @@ class TestRing < Test::Unit::TestCase
       ring[i].run_bg
     end
 
+    q = Queue.new
+    ring.last.register_callback(:done) do
+      q.push(true)
+    end
+
     ring.each_with_index do |r, i|
       next_idx = i + 1
       next_idx = 0 if next_idx == RING_SIZE
@@ -88,7 +95,8 @@ class TestRing < Test::Unit::TestCase
       first.kickoff <+ [[0]]
     }
 
-    sleep 3
+    # Wait for the "done" callback from the last member of the ring.
+    q.pop
 
     ring.each_with_index do |r, i|
       # XXX: we need to do a final tick here to ensure that each Bud instance
@@ -107,11 +115,13 @@ class ChannelWithKey
     channel :c, [:@addr, :k1] => [:v1]
     scratch :kickoff, [:addr, :v1, :v2]
     table :recv, c.key_cols => c.val_cols
+    callback :got_msg, recv.schema
   end
 
   bloom do
     c <~ kickoff {|k| [k.addr, k.v1, k.v2]}
     recv <= c
+    got_msg <= recv
   end
 end
 
@@ -122,11 +132,13 @@ class ChannelAddrInVal
     channel :c, [:k1] => [:@addr, :v1]
     scratch :kickoff, [:v1, :addr, :v2]
     table :recv, c.key_cols => c.val_cols
+    callback :got_msg, recv.schema
   end
 
   bloom do
     c <~ kickoff {|k| [k.v1, k.addr, k.v2]}
     recv <= c
+    got_msg <= recv
   end
 end
 
@@ -134,6 +146,11 @@ class TestChannelWithKey < Test::Unit::TestCase
   def test_basic
     p1 = ChannelWithKey.new
     p2 = ChannelWithKey.new
+
+    q = Queue.new
+    p2.register_callback(:got_msg) do
+      q.push(true)
+    end
 
     p1.run_bg
     p2.run_bg
@@ -144,7 +161,10 @@ class TestChannelWithKey < Test::Unit::TestCase
       # Test that directly inserting into a channel also works
       p1.c <~ [[target_addr, 50, 100]]
     }
-    sleep 1
+
+    # Wait for p2 to receive message
+    q.pop
+
     p2.sync_do {
       assert_equal([[target_addr, 10, 20], [target_addr, 50, 100]], p2.recv.to_a.sort)
     }
@@ -174,6 +194,11 @@ class TestChannelAddrInVal < Test::Unit::TestCase
     p1 = ChannelAddrInVal.new
     p2 = ChannelAddrInVal.new
 
+    q = Queue.new
+    p2.register_callback(:got_msg) do
+      q.push(true)
+    end
+
     p1.run_bg
     p2.run_bg
 
@@ -183,7 +208,10 @@ class TestChannelAddrInVal < Test::Unit::TestCase
       # Test that directly inserting into a channel also works
       p1.c <~ [[50, target_addr, 100]]
     }
-    sleep 1
+
+    # Wait for p2 to receive message
+    q.pop
+
     p2.sync_do {
       assert_equal([[10, target_addr, 20], [50, target_addr, 100]], p2.recv.to_a.sort)
     }
