@@ -1,14 +1,13 @@
-# Welcome to *Bud*: Bloom in Ruby #
-Thanks for stopping by!
+# *Bud*: Ruby <~ Bloom #
 
-Bud is a Ruby-based prototype of the [*Bloom*](http://bloom.cs.berkeley.edu) language for distributed programming.  "Bud" stands for *Bloom under development*, and it's just that: an early prototype of Bloom.  
+Bud is a prototype of the [*Bloom*](http://bloom-lang.org) language for distributed programming, embedded in Ruby.  "Bud" stands for *Bloom under development*.  Bud is currently in alpha; we intend to keep developing Bloom aggressively in the short term, before a firmer beta design.
 
 ## Blooming Distributed Code ##
 The goal of Bloom is to make distributed programming far easier than it has been traditionally.  The key features of Bloom are:
 
-1. *Disorderly Programming*:  Unlike most languages, Bloom makes no assumptions about order of operations. Instead, you write "disorderly" programs: unordered collections of statements on unordered collections of data.   Distributed systems don't respect the order of operations; why code them as if they do?
+1. *Disorderly Programming*: Traditional languages like Java and C are based on the [von Neumann model](http://en.wikipedia.org/wiki/Von_Neumann_architecture), where a program counter steps through individual instructions in order. Distributed systems don’t work like that. Much of the pain in traditional distributed programming comes from this mismatch:  programmers are expected to bridge from an ordered programming model into a disorderly reality that executes their code.  Bloom was designed to match–and exploit–the disorderly reality of distributed systems.   Bloom programmers write code made of unordered collections of statements, and use explicit constructs to impose order when needed.
 
-2. *A Collected Approach*: The standard data structures in Bloom are disorderly collections, rather than scalar variables and structures.  Bloom provides simple, familiar syntax for manipulating the state of your program.  In the Bud prototype, much of this syntax comes straight from Ruby (with a taste of MapReduce and SQL).
+2. *A Collected Approach*: Taking a cue from successfully-parallelized models like MapReduce and SQL, the standard data structures in Bloom are *disorderly collections*, rather than scalar variables and structures. These data structures reflect the realities of non-deterministic ordering inherent in distributed systems. Bloom provides simple, familiar syntax for manipulating these structures. In Bud, much of this syntax comes straight from Ruby, with a taste of MapReduce and SQL.
 
 3. *CALM Consistency*: Bloom enables powerful compiler analysis techniques based on the [CALM principle](http://db.cs.berkeley.edu/papers/cidr11-bloom.pdf) to reason about the consistency of your distributed code.  Bud includes program analysis tools that can point out precise *points of order* in your program: lines of code where a coordination library should be plugged in to ensure distributed consistency.
 
@@ -23,6 +22,6 @@ To get to that point, we're offering Bud as a pre-alpha "friends and family" edi
 ## Getting Started ##
 We're shipping Bud with a suite of libraries and example applications for distributed systems.  These both illustrate the language and how it can be used, and can serve as mixins for new code you might want to write.  You may be surprised at how short the provided Bud code is, but don't be fooled.
 
-To help newcomers learn the language, we've provided an annotated *cheat sheet* to overview the language, a *tutorial* that walks through some of the provided examples, and a simple *language reference*.  Like Bud itself, these documents are an early alpha, and we welcome both constructive criticism and the (hopefully occasional) smoke-out-your-ears, hair-tearing shouts of frustration.
+To help newcomers learn the language, we've provided an annotated [cheat sheet](cheat.mdown) to overview the language, a *tutorial* that walks through some of the provided examples, and a simple *language reference*.  Like Bud itself, these documents are an early alpha, and we welcome both constructive criticism and (occasional) smoke-out-your-ears, hair-tearing shouts of frustration.
 
 We also provide instructions and tools for launching Bud code on Amazon's EC2 cloud, and instrumenting what it's doing up there.

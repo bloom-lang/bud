@@ -1,49 +1,27 @@
 # Bud Cheat Sheet #
 
 ## General Bloom Syntax Rules ##
-Bloom programs are unordered sets of statements (also known as "rules").<br>
+Bloom programs are unordered sets of statements.<br>
 Statements are delimited by semicolons (;) or newlines. <br>
 As in Ruby, backslash is used to escape a newline.<br>
 
-## Embed Bud in a Ruby Class ##
+## Simple embedding of Bud in a Ruby Class ##
     require 'bud'
 
     class Foo
-        include BudModule
-
+        include Bud
+        
         state do
           ...
         end
-
+        
         bloom do
           ...
         end
     end
-
-## Bud Statements ##
-*lhs BudOp rhs*
-
-Left-hand-side (lhs) is a named `BudCollection` object.<br>
-Right-hand-side (rhs) is a Ruby expression producing a `BudCollection` or `Array` of `Arrays`.<br>
-BudOp is one of the 5 operators listed below.
-
-## Bud Operators ##
-merges:
-
-* `left <= right` &nbsp;&nbsp;&nbsp;&nbsp; (*instantaneous*)
-* `left <+ right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
-* `left <~ right` &nbsp;&nbsp;&nbsp;&nbsp; (*asynchronous*)
-
-insert:
-
-* `left << [...]` &nbsp;&nbsp;&nbsp;&nbsp; (*instantaneous*)
-
-delete:
-
-* `left <- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
-
+    
 ## State Declarations ##
-Use `BudModule::state` to register a Ruby block of state declarations to be invoked during Bud bootstrapping.
+Use `state` to register a Ruby block of state declarations to be invoked during Bud bootstrapping.
 
 ### Default Declaration Syntax ###
 *BudCollection :name, [keys] => [values]*
@@ -54,7 +32,7 @@ default attributes: `[:key] => [:val]`
 
     table :keyvalue
     table :composite, [:keyfield1, :keyfield2] => [:values]
-    table :dupsIgnored, [:field1, field2]
+    table :noDups, [:field1, field2]
 
 ### scratch ###
 contents emptied at start of each timestep<br>
@@ -74,7 +52,7 @@ network channel manifested as a scratch collection.  <br>
 address attribute prefixed with `@`.  <br>
 default attributes: `[:@address, :val] => []`
 
-Statements with channel on lhs must use async merge (`<~`).
+(bloom statements with channel on lhs must use async merge (`<~`).)
 
 
     channel :msgs
@@ -83,20 +61,20 @@ Statements with channel on lhs must use async merge (`<~`).
 
 ### periodic ###
 system timer manifested as a scratch collection.<br>
-given attributes: `[:key] => [:val]`<br>
-&nbsp;&nbsp;&nbsp;&nbsp; key is a unique ID, val is a Ruby Time converted to a string.<br>
+system-provided attributes: `[:key] => [:val]`<br>
+&nbsp;&nbsp;&nbsp;&nbsp; (key is a unique ID, val is a Ruby Time converted to a string.)<br>
 state declaration includes interval (in seconds)
 
-periodic can only be used on rhs of statement
+(periodic can only be used on rhs of a bloom statement)
 
     periodic :timer, 0.1
 
 ### stdio ###
 built-in scratch collection mapped to Ruby's `$stdin` and `$stdout`<br>
-given attributes: `[:line] => []`
+system-provided attributes: `[:line] => []`
 
-statements with stdio on lhs must use async merge (`<~`)<br>
-to capture `$stdin` on rhs, instantiate Bud with `:read_stdin` option.<br>
+(statements with stdio on lhs must use async merge (`<~`)<br>
+to capture `$stdin` on rhs, instantiate Bud with `:read_stdin` option.)<br>
 
 ### callback ###
 scratch collection for Bud-generated callbacks. This can be used by code running
@@ -119,14 +97,38 @@ and optional TCP string (default: "localhost:2181")<br>
     zktable :bar, "/dat", "localhost:2182"
 
 
+## Bloom Statements ##
+*lhs BloomOp rhs*
+
+Left-hand-side (lhs) is a named `BudCollection` object.<br>
+Right-hand-side (rhs) is a Ruby expression producing a `BudCollection` or `Array` of `Arrays`.<br>
+BloomOp is one of the 5 operators listed below.
+
+## Bloom Operators ##
+merges:
+
+* `left <= right` &nbsp;&nbsp;&nbsp;&nbsp; (*instantaneous*)
+* `left <+ right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
+* `left <~ right` &nbsp;&nbsp;&nbsp;&nbsp; (*asynchronous*)
+
+delete:
+
+* `left <- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
+
+insert:<br>
+unlike merge/delete, insert expects a singly-nested array on the rhs
+
+* `left << [...]` &nbsp;&nbsp;&nbsp;&nbsp; (*instantaneous*)
+
+
 ## Collection Methods ##
 Standard Ruby methods used on a BudCollection `bc`:
 
-`map`:
+implicit map:
 
-    t1 <= bc.map{|t| [t.col1 + 4, t.col2.chomp]} # formatting/projection
-    t2 <= bc.map{|t| t if t.col = 5}             # selection
-
+    t1 <= bc {|t| [t.col1 + 4, t.col2.chomp]} # formatting/projection
+    t2 <= bc {|t| t if t.col = 5}             # selection
+    
 `flat_map`:
 
     require 'backports' # flat_map not included in Ruby 1.8 by default
@@ -145,7 +147,7 @@ Standard Ruby methods used on a BudCollection `bc`:
 
 `bc.include?`:
 
-    t5 <= bc.map do |t| # like SQL's NOT IN
+    t5 <= bc do |t| # like SQL's NOT IN
         t unless t2.include?([t.col1, t.col2])
     end
 
@@ -154,21 +156,21 @@ Standard Ruby methods used on a BudCollection `bc`:
 
 `bc.values`: projects `bc` to non-key columns<br>
 
-`bc.inspected`: shorthand for `bc.map{|t| [t.inspect]}`
+`bc.inspected`: shorthand for `bc {|t| [t.inspect]}`
 
     stdio <~ bc.inspected
 
-`chan.payloads`: shorthand for `chan.map{|t| t.val}`, only defined for channels
+`chan.payloads`: shorthand for `chan {|t| t.val}`, only defined for channels
 
     # at sender
-    msgs <~ requests.map{|r| "127.0.0.1:12345", r}
+    msgs <~ requests {|r| "127.0.0.1:12345", r}
     # at receiver
     requests <= msgs.payloads
 
 `bc.exists?`: test for non-empty collection.  Can optionally pass in a block.
 
     stdio <~ [["Wake Up!"] if timer.exists?]
-    stdio <~ requests.map{|r| do
+    stdio <~ requests do |r|
       [r.inspect] if msgs.exists?{|m| r.ident == m.ident}
     end
 
@@ -201,30 +203,32 @@ Later arguments are arrays of columns to be matched (equijoin).
     #  WHERE r.x = s_tab.x
     #    AND s_tab.x = t.x;
 
+    # multiple column matches
     out <= join([r,s_tab,t],
-                [r.x, s_tab.x], [s_tab.x, t.x]).map do |t1, t2, t3|
+                [r.x, s_tab.x], [s_tab.x, t.x]) do |t1, t2, t3|
              [t1.a, t2.b, t3.c]
            end
 
-    out <= join([r,s_tab,t], [r.x, s_tab.x, t.x]).map do |t1, t2, t3|
+    # a single 3-way column match
+    out <= join([r,s_tab,t], [r.x, s_tab.x, t.x]) do |t1, t2, t3|
              [t1.a, t2.b, t3.c]
            end
 
-    # but this last one will be very slow
-    out <= join([r,s_tab,t]).map do |t1, t2, t3|
+    # column matching done per pair: this will be very slow
+    out <= join([r,s_tab,t]) do |t1, t2, t3|
              [t1.a, t2.b, t3.c] if r.x == s_tab.x and s_tab.x = t.x
            end
 
     # coincide is a more natural verb for timers and messages.
     # here is a typical timeout/retry pattern for requests
-    request_chan <~ coincide([request_buf, timeout]).map{|r, t| r }
+    request_chan <~ coincide([request_buf, timeout]) {|r, t| r }
 
 `natjoin([`*tablelist*`]`)<br>
 Natural join of tables.
 Implicitly includes matching of attributes across collections with the same name.<br>
 The following is equivalent to the above statements if `x` is the only attribute name in common:
 
-    out <= natjoin([r, s_tab, t]).map do {|t1, t2, t3| [t1.a, t2.b, t3.c]}
+    out <= natjoin([r, s_tab, t]) do {|t1, t2, t3| [t1.a, t2.b, t3.c]}
 
 `leftjoin([`*t1, t2*`]` *, [optional column matches], ...*`)`<br>
 Left Outer Join.  Objects in the first collection will be included in the output even if no match is found in the second collection.
@@ -233,16 +237,15 @@ Left Outer Join.  Objects in the first collection will be included in the output
 `join([`*tablelist*`]` *,[optional column matches], ...*`).flatten`<br>
 `flatten` is a bit like SQL's `SELECT *`: it produces a collection of concatenated objects, with a schema that is the concatenation of the schemas in tablelist (with duplicate names disambiguated.) Useful for chaining to operators that expect input collections with schemas, e.g. group:
 
-    out <= natjoin([r,s]).flatten.group([:rcol], max(:scol))
+    out <= natjoin([r,s]).flatten.group([:a], max(:b))
 
-## Temp/Equality rules ##
+## Temp/Equality statements ##
 `temp`<br>
-temp collections are scratches defined within a Bloom block.  Two equivalent ways to define a temp:
+temp collections are scratches defined within a Bloom block:
 
     temp :my_scratch1 <= foo
-    my_scratch2 = foo
 
-temp collections get their schema from the rhs; if the rhs has no schema, a simple one is manufactured to suit: [c0, c1, ...].
+The schema of a temp collection in inherited from the rhs; if the rhs has no schema, a simple one is manufactured to suit the data in the rhs at runtime: [c0, c1, ...].
 
 
 ## Interacting with Bud from Ruby ##
@@ -250,7 +253,7 @@ temp collections get their schema from the rhs; if the rhs has no schema, a simp
 * `run_bg`
 * `sync_do`
 * `async_do`
-* `BudCollection.dump`
+* callbacks
 
 ## Bud Code Visualizer ##
 
@@ -262,7 +265,7 @@ temp collections get their schema from the rhs; if the rhs has no schema, a simp
     require 'bud'
 
     module YourModule
-      include BudModule
+      include Bud
 
       state do
         ...
@@ -272,11 +275,11 @@ temp collections get their schema from the rhs; if the rhs has no schema, a simp
         ...
       end
 
-      bloom :some_rules do
+      bloom :some_stmts do
         ...
       end
 
-      bloom :more_rules do
+      bloom :more_stmts do
         ...
       end
     end
