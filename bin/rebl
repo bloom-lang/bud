@@ -2,6 +2,7 @@
 require 'readline'
 require 'rubygems'
 require 'bud'
+require 'abbrev'
 
 TABLE_TYPES = ["table", "scratch"]
 BUILTIN_TABLES = [:stdio, :t_depends, :periodics_tbl, :t_cycle, :localtick,
@@ -12,6 +13,37 @@ MAXHISTSIZE = 100
 # set up everything
 class ReblClass
   include Bud
+  attr_accessor :commands
+  
+  @@commands = {"tick" => ["@rebl_class_inst.tick", "/tick: 	execute a timestep"],
+               "lsrules" =>["puts @rules.inspect", "/lsrules: 	list rules"],
+               "rmrule" => ["@rules.delete(Integer(split_line[1]));reinstantiate", "/rmrule x: 	remove rule number x"], 
+               "lscollections" => ["puts @rebl_class_inst.tables.keys.find_all{ |tn| not BUILTIN_TABLES.include? tn}.inspect", "/lscollections: 	list collections"],
+               "dump" => ['@rebl_class_inst.instance_eval("#{split_line[1]}.dump")', "/dump c: 	dump contents of collection c"],
+               "exit" => ["ReblClass::do_exit", "/exit: 	exit rebl"],
+               "quit" => ["ReblClass::do_exit", "/quit: 	exit rebl"],
+               "help" => ["ReblClass::pretty_help", "/help: 	print this help message"] }
+
+	@@abbrevs = @@commands.keys.abbrev
+  @@exit_message = "Rebellion quashed."
+   
+  def self.commands; @@commands; end
+  
+  def self.command(c)
+    return @@abbrevs[c].nil? ? nil : @@commands[@@abbrevs[c]][0]
+  end            
+  
+  def self.pretty_help
+    maxlen = @@commands.keys.sort{|a,b| b.size - a.size}.first.size
+    @@commands.values.each do |v|
+      puts v[1].gsub( /\t/, " "*(maxlen + 3 - v[1].split(':')[0].size))
+    end
+  end
+  
+  def self.do_exit
+    puts "\n" + @@exit_message
+    exit!
+  end
 end
 
 def reinstantiate
@@ -66,25 +98,26 @@ end
 reinstantiate
 setup_history
 
+comp = proc { |s| ReblClass::commands.keys.map{|c| "/"+c}.grep( /^#{Regexp.escape(s)}/ ) }
+
+Readline.completion_append_character = ' '
+Readline.completion_proc = comp
+
 loop do
   begin
-    line = Readline::readline('rebl> ').lstrip.rstrip
+    line = Readline::readline('rebl> ')
+		ReblClass::do_exit if line.nil?
+		line = line.lstrip.rstrip
     Readline::HISTORY.push(line)
     split_line = line.split(" ")
 
     # command
     if line[0..0] == "/" then
       split_line[0].slice! 0
-      case split_line[0]
-      when "tick" then @rebl_class_inst.tick
-      when "lsrules" then puts @rules.inspect
-      when "rmrule"
-        @rules.delete(Integer(split_line[1]))
-        reinstantiate
-      when "lscollections"
-        puts @rebl_class_inst.tables.keys.find_all{ |tn| not BUILTIN_TABLES.include? tn}.inspect
-      when "dump" then @rebl_class_inst.instance_eval("#{split_line[1]}.dump")
-      else puts "invalid command"
+      if ReblClass::command split_line[0]
+        eval ReblClass::command split_line[0]
+      else
+        puts "invalid command or ambiguous command prefix"
       end
       next
     end
@@ -109,8 +142,8 @@ loop do
     end
     next
 
-  rescue SystemExit, Interrupt
-    abort("\nrebellion quashed")
+  rescue Interrupt
+    abort(ReblClass::do_exit)
   rescue Exception
     puts "exception: #{$!}"
   end
