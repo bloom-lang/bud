@@ -3,13 +3,13 @@
 In this document we'll use what we've learned to build a piece of systems software using Bloom.  
 The libraries that ship with BUD provide many of the building blocks we'll need to create a distributed,
 ``chunked'' filesystem in the style of the Google Filesystem(GFS):
-a key-value store([https://github.com/bloom-lang/bud-sandbox/blob/master/kvs/kvs.rb]), nonce generation, and a heartbeat protocol.
+a [key-value store](https://github.com/bloom-lang/bud-sandbox/blob/master/kvs/kvs.rb), [nonce generation](https://github.com/bloom-lang/bud-sandbox/blob/master/ordering/nonce.rb), and a [heartbeat protocol](https://github.com/bloom-lang/bud-sandbox/blob/master/heartbeat/heartbeat.rb).
 
 [code](gist: 880009)
 
 <script src="https://gist.github.com/880009.js"> </script>
 
-[code](<script src="https://gist.github.com/880009.js"> </script>)
+(<script src="https://gist.github.com/880009.js"> </script>)
 
 [git://gist.github.com/880009.git]
 
