@@ -17,7 +17,7 @@ class ChatClient
 
   # send connection request to master on startup
   bootstrap do
-    signup <~ [[@master, [ip_port, @nick]]]
+    connect <~ [[@master, [ip_port, @nick]]]
   end
 
   # format chat messages with timestamp on the right of the screen

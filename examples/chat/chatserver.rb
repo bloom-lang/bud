@@ -9,8 +9,8 @@ class ChatServer
 
   state { table :nodelist }
 
-  bloom :master_logic do
-    nodelist <= signup.payloads
+  bloom :server_logic do
+    nodelist <= connect.payloads
     mcast <~ join([mcast, nodelist]) do |m,n| 
       [n.key, m.val] unless n.key == m.val[0]
     end
