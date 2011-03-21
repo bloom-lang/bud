@@ -123,8 +123,11 @@ an identifier that is unique to this timestep.
 
 ## File Chunking
 
-Now that we have a module providing a basic filesystem, we can extend it to support chunked storage of file contents.  To do this, we add a few metadata operations
-to those already defined by FSProtocol:
+Now that we have a module providing a basic filesystem, we can extend it to support chunked storage of file contents.  The metadata master will contain, in addition to the KVS
+structure for directory information, relations mapping a set of chunk identifiers to each file, and relations associating a chunk with a set of datanodes that host a replica
+of the chunk.  The latter are soft-state, kept up to data by heartbeat messages from datanodes (described in the next section).
+
+To support chunked storage, we add a few metadata operations to those already defined by FSProtocol:
 
     module ChunkedFSProtocol
       include FSProtocol
