@@ -223,16 +223,17 @@ class DelBug
   include Bud
 
   state do
-    scratch :start
     table :buffer
-    periodic :tic, 1
+    table :to_delete
+  end
+
+  bootstrap do
+    buffer <= [[1,2], [3,4]]
+    to_delete <= [[3,4], [5,6]]
   end
 
   bloom do
-    buffer <= start
-    buffer <- join([tic, buffer]) do |t, h|
-      h if h.key == 'foo'
-    end
+    buffer <- to_delete.map {|t| t if t.val != 4}
   end
 end
 
@@ -390,13 +391,14 @@ class TestCollections < Test::Unit::TestCase
 
   def test_filter_and_delete
     b = DelBug.new
-    b.run_bg
-    assert_nothing_raised do
-      b.sync_do {
-        b.start <+ [['foo','bar'], ['baz','bam']]
-      }
-      sleep 2
-    end
+
+    b.tick
+    assert_equal([[1,2], [3,4]], b.buffer.to_a.sort)
+
+    b.to_delete << [1,2]
+    b.tick
+    b.tick
+    assert_equal([[3,4]], b.buffer.to_a.sort)
   end
   
   def test_bad_declarations
