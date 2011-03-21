@@ -9,7 +9,7 @@ In this document we'll use what we've learned to build a piece of systems softwa
 
 ## High-level architecture
 
-
+![Alt text](bfs_arch.png)
 
 ## Basic Filesystem
 
