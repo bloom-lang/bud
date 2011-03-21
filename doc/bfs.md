@@ -140,10 +140,49 @@ to those already defined by FSProtocol:
 
  * __fschunklist__ returns the set of chunks belonging to a given file.  
  * __fschunklocations__ returns the set of datanodes in possession of a given chunk.
- * __fsaddchunk__ returns a new chunkid for appending to an existing file, guaranteed to be higher than any existing chunkids for that file.
+ * __fsaddchunk__ returns a new chunkid for appending to an existing file, guaranteed to be higher than any existing chunkids for that file, and a list of candidate datanodes that can store a replica of the new chunk.
 
 We continue to use __fsret__ for return values.
 
+### Lookups
+
+Lines 34-44 are a similar pattern to what we saw in the basic FS: whenever we get a __fschunklist__ or __fsaddchunk__ request, we must first ensure that the given file
+exists, and error out if not.  If it does, and the operation was __fschunklist__, we join the metadata relation __chunk__ and return the set of chunks owned
+by the given (existent) file:
+
+        chunk_buffer <= join([fschunklist, kvget_response, chunk], [fschunklist.reqid, kvget_response.reqid], [fschunklist.file, chunk.file]).map{ |l, r, c| [l.reqid, c.chunkid] }
+        chunk_buffer2 <= chunk_buffer.group([chunk_buffer.reqid], accum(chunk_buffer.chunkid))
+        fsret <= chunk_buffer2.map{ |c| [c.reqid, true, c.chunklist] }
+
+### Add chunk
+
+If it was a __fsaddchunk__ request,  we need to generate a unique id for a new chunk and return a list of target datanodes.  We reuse __TimestepNonce__ to do the former, and join a relation
+called __available__ that is exported by __HBMaster__ (described in the next section) for the latter:
+
+        minted_chunk = join([kvget_response, fsaddchunk, available, nonce], [kvget_response.reqid, fsaddchunk.reqid])
+        chunk <= minted_chunk.map{ |r, a, v, n| [n.ident, a.file, 0] }
+        fsret <= minted_chunk.map{ |r, a, v, n| [r.reqid, true, [n.ident, v.pref_list.slice(0, (REP_FACTOR + 2))]] }
+        fsret <= join([kvget_response, fsaddchunk], [kvget_response.reqid, fsaddchunk.reqid]).map do |r, a|
+          if available.empty? or available.first.pref_list.length < REP_FACTOR
+            [r.reqid, false, "datanode set cannot satisfy REP_FACTOR = #{REP_FACTOR} with [#{available.first.nil? ? "NIL" : available.first.pref_list.inspect}]"]
+          end
+        end
+
+Finally, it was a __fschunklocations__ request, we have another possible error scenario, because the nodes associated with chunks are a part of our soft state.  Even if the file
+exists, it may not be the case that we have fresh information in our cache about what datanodes own a replica of the given chunk:
+
+        fsret <= fschunklocations.map do |l|
+          unless chunk_cache.map{|c| c.chunkid}.include? l.chunkid
+            [l.reqid, false, "no datanodes found for #{l.chunkid} in cc, now #{chunk_cache.length}"]
+          end
+        end
+
+Otherwise, __chunk_cache__ has information about the given chunk, which we may return to the client:
+
+        chunkjoin = join [fschunklocations, chunk_cache], [fschunklocations.chunkid, chunk_cache.chunkid]
+        host_buffer <= chunkjoin.map{|l, c| [l.reqid, c.node] }
+        host_buffer2 <= host_buffer.group([host_buffer.reqid], accum(host_buffer.host))
+        fsret <= host_buffer2.map{|c| [c.reqid, true, c.hostlist] }
 
 
 ## Datanodes and Heartbeats
