@@ -9,3 +9,4 @@ a key-value store, nonce generation, and a heartbeat protocol.
 
 <script src="https://gist.github.com/880009.js"> </script>
 [[<script src="https://gist.github.com/880009.js"> </script>]]
+[[git://gist.github.com/880009.git]]
