@@ -163,6 +163,18 @@ class Issue110
   end
 end
 
+# ParseTree failed for methods defined in "grandparent" modules.
+module ModuleC
+  def foo; puts "hello, world"; end
+  def bar; puts "baz"; end
+end
+module ModuleD
+  include ModuleC
+end
+module ModuleE
+  include ModuleD
+end
+
 class TestModules < Test::Unit::TestCase
   def test_simple
     c = ChildClass.new
@@ -209,7 +221,18 @@ class TestModules < Test::Unit::TestCase
     end
   end
 
-  def xtest_import_class
+  def test_parsetree_bug
+    assert_nothing_raised do
+      eval "
+      class DescendentClass
+        import ModuleE => :e
+        include Bud
+      end
+      "
+    end
+  end
+
+  def test_import_class
     assert_raise(Bud::BudError) do
       eval "
       class DummyClass; end

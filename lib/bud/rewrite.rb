@@ -301,7 +301,18 @@ module ModuleRewriter
   end
 
   def self.get_module_ast(mod)
-    Unifier.new.process(ParseTree.translate(mod))
+    raw_ast = ParseTree.translate(mod)
+    unless raw_ast.first == :module
+      raise Bud::BudError, "import must be used with a Module"
+    end
+
+    # XXX: Kludgy workaround for a ParseTree <= 3.0.7 bug. Methods defined in a
+    # "grandparent" module result in an invalid Sexp tree, containing "[nil]"
+    # for each such method in the body of the :module node.
+    # Upstream bug: http://rubyforge.org/tracker/index.php?func=detail&aid=29095&group_id=439&atid=1778
+    raw_ast.delete_if {|n| n == [nil]}
+
+    return Unifier.new.process(raw_ast)
   end
 
   # Rename the given module's name to be a mangle of import site, imported
@@ -309,10 +320,6 @@ module ModuleRewriter
   # "bootstrap" methods. We also rename "bloom" methods, but we can just mangle
   # with the local bind name for those.
   def self.ast_rename_module(ast, importer, importee, local_name)
-    unless ast.sexp_type == :module
-      raise Bud::BudError, "import must be used with a Module"
-    end
-
     mod_name = ast.sexp_body.first
     raise Bud::BudError if mod_name.to_s != importee.to_s
 
