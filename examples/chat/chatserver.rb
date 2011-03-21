@@ -3,7 +3,7 @@ require 'rubygems'
 require 'bud'
 require 'chat_protocol'
 
-class ChatMaster
+class ChatServer
   include Bud
   include ChatProtocol
 
@@ -16,3 +16,7 @@ class ChatMaster
     end
   end
 end
+
+ip, port = ARGV[0].split(':')
+program = ChatServer.new({:ip => ip, :port => port.to_i})
+program.run
