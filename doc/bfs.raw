@@ -48,9 +48,26 @@ the state of the filesystem.  In general, any state change will invove carrying 
  2. update the key-value pair associated with the object in question (a file or directory being created or destroyed).
 
 
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|74-74
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|74-110
 
 
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|93-110
+## File Chunking
 
-## Heartbeat collection and summary
+Now that we have a module providing a basic filesystem, we can extend it to support chunked storage of file contents.  To do this, we add a few metadata operations
+to those already defined by FSProtocol:
+
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/chunking.rb|6-16
+
+ * __fschunklist__ returns the set of chunks belonging to a given file.  
+ * __fschunklocations__ returns the set of datanodes in possession of a given chunk.
+ * __fsaddchunk__ returns a new chunkid for appending to an existing file, guaranteed to be higher than any existing chunkids for that file.
+
+We continue to use __fsret__ for return values.
+
+
+
+## Datanodes and Heartbeats
+
+
+
+
