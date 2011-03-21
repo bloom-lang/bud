@@ -389,10 +389,12 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_filter_and_delete
-    th = DelBug.new(:port => 12345)
-    th.run_bg
+    b = DelBug.new
+    b.run_bg
     assert_nothing_raised do
-      th.sync_do {th.start <+ [['foo','bar'], ['baz','bam']]}
+      b.sync_do {
+        b.start <+ [['foo','bar'], ['baz','bam']]
+      }
       sleep 2
     end
   end
