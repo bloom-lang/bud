@@ -15,19 +15,15 @@ Before we worry about any of the details of distribution, we need to implement t
 There are many choices for how to implement these operations, and it makes sense to keep them separate from the (largely orthogonal) distributed filesystem logic.
 That way, it will be possible later to choose a different implementation of the metadata operations without impacting the rest of the system.
 
-
-```
-module FSProtocol
-  state do
-    interface input, :fsls, [:reqid, :path]
-    interface input, :fscreate, [] => [:reqid, :name, :path, :data]
-    interface input, :fsmkdir, [] => [:reqid, :name, :path]
-    interface input, :fsrm, [] => [:reqid, :name, :path]
-    interface output, :fsret, [:reqid, :status, :data]
-  end
-end
-
-```
+    module FSProtocol
+      state do
+        interface input, :fsls, [:reqid, :path]
+        interface input, :fscreate, [] => [:reqid, :name, :path, :data]
+        interface input, :fsmkdir, [] => [:reqid, :name, :path]
+        interface input, :fsrm, [] => [:reqid, :name, :path]
+        interface output, :fsret, [:reqid, :status, :data]
+      end
+    end
 
 We create an input interface for each of the operations, and a single output interface for the return for any operation: given a request id, __status__ is a boolean
 indicating whether the request succeeded, and __data__ may contain return values (e.g., _fsls_ should return an array containing the array contents.
