@@ -30,6 +30,6 @@ class TestSFree < Test::Unit::TestCase
     p.stop_bg
     assert_equal(2, p.notes.length)
     assert_equal(123, p.notes.first.key[0])
-    assert_equal('what a lovely day', p.notes.first.val)    
+    assert_equal('what a lovely day', p.notes.first.val)
   end
 end

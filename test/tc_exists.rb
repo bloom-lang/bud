@@ -21,17 +21,17 @@ end
 class TestExists < Test::Unit::TestCase
   def test_conv
     p = ExistTest.new
-    assert_nothing_raised(RuntimeError) { p.run_bg }
-    assert_nothing_raised(RuntimeError) { p.sync_do {
+    p.run_bg
+    p.sync_do {
       p.notes <+ [[1, 'what a lovely day']]
-    }}
-    assert_nothing_raised(RuntimeError) { p.sync_do {
+    }
+    p.sync_do {
       p.notes <+ [[2, "I think I'll go for a walk"]]
-    }}
+    }
     sleep 1
-    assert_nothing_raised(RuntimeError) { p.stop_bg }    
+    p.stop_bg
     assert_equal(2, p.memories.length)
-    assert_equal('what a lovely day', p.memories.first.val)    
+    assert_equal('what a lovely day', p.memories.first.val)
     assert_equal(2, p.dups.length)
   end
 end
