@@ -1,5 +1,5 @@
 # Getting Started with Bud #
-In this document we'll do a hands-on tour of Bud and its Bloom DSL for Ruby.  We'll start with some examples, an introduce concepts as we go.
+In this document we'll do a hands-on tour of Bud and its Bloom DSL for Ruby.  We'll start with some examples, and introduce concepts as we go.
 
 ## Installation ##
 You know the drill!
@@ -9,7 +9,7 @@ You know the drill!
 This installs four things:
 
 * The `Bud` module, to embed Bloom code in Ruby.
-* The rebl executable: an interactive shell for Bloom statements.
+* The `rebl` executable: an interactive shell for Bloom statements.
 * The `budplot` and `budvis` executables: graphical tools for visualizing and debugging Bloom programs.
 
 ## First Blooms ##
