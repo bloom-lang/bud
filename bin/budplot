@@ -13,17 +13,15 @@ def process(mods)
   d = eval(classdef)
 
   d.t_rules.each {|s| puts "RULE: #{s.inspect}" }
-  d.t_depends.each {|s| puts "DEP: #{s.inspect}" }
-
+  #d.t_depends.each {|s| puts "DEP: #{s.inspect}" }
 
   da = d.meta_parser.depanalysis
 
-  puts "MP info src=#{da.source.length}, snk=#{da.sink.length}, under=#{da.underspecified.length}"
+  #puts "MP info src=#{da.source.length}, snk=#{da.sink.length}, under=#{da.underspecified.length}"
 
-  d.meta_parser.depanalysis.source.each do |s|
-    puts "SRC: #{s}"
-  end
-
+  #d.meta_parser.depanalysis.source.each do |s|
+  #  puts "SRC: #{s}"
+  #end
 
   interfaces = {}
   d.t_provides.each do |name, is_input|
@@ -132,4 +130,3 @@ end
 
 process(modules)
 
-###work

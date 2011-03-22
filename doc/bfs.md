@@ -9,7 +9,7 @@ In this document we'll use what we've learned to build a piece of systems softwa
 
 ## High-level architecture
 
-![Alt text](https://github.com/bloom-lang/bud/raw/master/doc/bfs_arch.png)
+![BFS Architecture](https://github.com/bloom-lang/bud/raw/master/doc/bfs_arch.png)
 
 BFS implements a chunked, distributed filesystem (mostly) in the Bloom
 language.  BFS is architecturally based on BOOMFS, which is itself based on
@@ -21,7 +21,7 @@ possibly changing state, then interact with storage nodes to read or write
 chunks.  Background jobs running on the master will contact storage nodes to
 orchestrate chunk migrations, during which storage nodes communicate with
 other storage nodes.  As in BFS, the communication protocols and the data
-channel used for communication between clients and datanodes and between
+channel used for bulk data transfer between clients and datanodes and between
 datanodes is written outside Bloom (in Ruby).
 
 ## [Basic Filesystem](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/fs_master.rb)
@@ -29,6 +29,8 @@ datanodes is written outside Bloom (in Ruby).
 Before we worry about any of the details of distribution, we need to implement the basic filesystem metadata operations: _create_, _remove_, _mkdir_ and _ls_.
 There are many choices for how to implement these operations, and it makes sense to keep them separate from the (largely orthogonal) distributed filesystem logic.
 That way, it will be possible later to choose a different implementation of the metadata operations without impacting the rest of the system.
+Another obvious benefit of modularizing the metadata logic is that it can be independently tested and debugged.  We want to get the core of the filesystem
+working correctly before we even send a whisper over the network, let alone snap on any complex features.
 
 ### Protocol
 
@@ -54,7 +56,12 @@ in the following way:
  2. directories have arrays containing child entries (base names)
  3. files values are their contents
 
-Note that (3) will cease to apply when we implement chunked storage later.  So we begin our implementation of a KVS-backed metadata system in the following way:
+<!--- (**JMH**: I find it a bit confusing how you toggle from the discussion above to this naive file-storage design here.  Can you warn us a bit more clearly that this is a starting point focused on metadata, with (3) being a strawman for data storage that is intended to be overriden later?)
+--->
+Note that (3) is a strawman: it will cease to apply when we implement chunked storage later.  It is tempting, however, to support (3) so that the resulting program is a working
+standalone filesystem.
+
+We begin our implementation of a KVS-backed metadata system in the following way:
 
 
     module KVSFS
@@ -62,11 +69,11 @@ Note that (3) will cease to apply when we implement chunked storage later.  So w
       include BasicKVS
       include TimestepNonce
 
-If we wanted to replicate the metadata master, we could consider mixing in a replicated KVS implementation instead of __BasicKVS__ -- but more on that later.
+If we wanted to replicate the master node's metadata we could consider mixing in a replicated KVS implementation instead of __BasicKVS__ -- but more on that later.
 
 ### Directory Listing 
 
-The directory listing operation is very simple:
+The directory listing operation is implemented by a simple block of Bloom statements:
 
       bloom :elles do
         kvget <= fsls.map{ |l| [l.reqid, l.path] }
@@ -91,6 +98,7 @@ the state of the filesystem.  In general, any state change will invove carrying 
  1. update the value (child array) associated with the parent directory entry
  2. update the key-value pair associated with the object in question (a file or directory being created or destroyed).
 
+(**JMH**: Transition: "The following Bloom code carries this out for ...")
 
         dir_exists = join [check_parent_exists, kvget_response, nonce], [check_parent_exists.reqid, kvget_response.reqid]
     
@@ -130,6 +138,7 @@ the state of the filesystem.  In general, any state change will invove carrying 
           end
         end
 
+(**JMH**: This next sounds awkward.  You *do* take care: by using <= and understanding the atomicity of timesteps in Bloom.  I think what you mean to say is that Bloom's atomic timestep model makes this easy compared to ... something.)
 Note that we need not take any particular care to ensure that the two inserts into __kvput__ occur together atomically.  Because both statements use the synchronous 
 collection operator (<=) we know that they will occur together in the same fixpoint computation or not at all.
 
@@ -149,7 +158,8 @@ and relations associating a chunk with a set of datanodes that host a replica of
 
         table :chunk_cache, [:node, :chunkid, :time]
 
-These latter (defined in __HBMaster__) are soft-state, kept up to data by heartbeat messages from datanodes (described in the next section).
+(**JMH**: ambiguous reference ahead "these latter")
+The latter (defined in __HBMaster__) is soft-state, kept up to data by heartbeat messages from datanodes (described in the next section).
 
 To support chunked storage, we add a few metadata operations to those already defined by FSProtocol:
 

@@ -219,8 +219,13 @@ class GraphGen
     @nodes["T"].penwidth = 3
 
     @tabinf.each_pair do |k, v|
+
       unless @nodes[name_of(k.to_s)] or k.to_s =~ /_tbl/ or @internals[k.to_s] or (k.to_s =~ /^t_/ and @budtime != 0)
         addonce(k.to_s, false)
+      end
+      if v == "Bud::BudPeriodic"
+        puts "adding edge S -> #{@nodes[k.to_s]}"
+        addedge("S", k.to_s, false, false, false)
       end
     end
 
