@@ -7,7 +7,9 @@ class ChatServer
   include Bud
   include ChatProtocol
 
-  state { table :nodelist }
+  state do
+    table :nodelist
+  end
 
   bloom :server_logic do
     nodelist <= connect.payloads
@@ -18,5 +20,5 @@ class ChatServer
 end
 
 ip, port = ARGV[0].split(':')
-program = ChatServer.new({:ip => ip, :port => port.to_i})
+program = ChatServer.new(:ip => ip, :port => port.to_i)
 program.run

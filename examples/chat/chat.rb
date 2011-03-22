@@ -7,7 +7,7 @@ class ChatClient
   include Bud
   include ChatProtocol
 
-  def initialize(nick, server, opts)
+  def initialize(nick, server, opts={})
     @nick = nick
     @server = server
     super opts
@@ -18,12 +18,12 @@ class ChatClient
     connect <~ [[@server, [ip_port, @nick]]]
   end
 
-  bloom :chatter do
-    # send mcast requests to server
+  bloom do
+    # send terminal input to the server to be broadcast
     mcast <~ stdio do |s|
       [@server, [ip_port, @nick, Time.new.strftime("%I:%M.%S"), s.line]]
     end
-    # pretty-print mcast msgs from server on terminal
+    # pretty-print mcast messages from server on terminal
     stdio <~ mcast do |m|
       [left_right_align(m.val[1].to_s + ": " \
                         + (m.val[3].to_s || ''),
@@ -37,5 +37,5 @@ class ChatClient
   end
 end
 
-program = ChatClient.new(ARGV[0], ARGV[1], {:read_stdin => true})
+program = ChatClient.new(ARGV[0], ARGV[1], :read_stdin => true)
 program.run
