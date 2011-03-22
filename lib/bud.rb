@@ -93,9 +93,9 @@ class Module
   # ensure that we can rediscover the possible dependencies between these blocks
   # after module import (see Bud#call_state_methods).
   def self.make_state_meth_name(klass)
-    @@state_meth_id ||= 0
-    r = "__state#{@@state_meth_id}__#{Module.get_class_name(klass)}".to_sym
-    @@state_meth_id += 1
+    @state_meth_id ||= 0
+    r = "__state#{@state_meth_id}__#{Module.get_class_name(klass)}".to_sym
+    @state_meth_id += 1
     return r
   end
 end
@@ -203,27 +203,26 @@ module Bud
     call_state_methods
   end
 
+  # If module Y is a parent module of X, X's state block might reference state
+  # defined in Y. Hence, we want to invoke Y's state block first.  However, when
+  # "import" and "include" are combined, we can't use the inheritance hierarchy
+  # to do this. When a module Z is imported, the import process inlines all the
+  # modules Z includes into a single module. Hence, we can no longer rely on the
+  # inheritance hierarchy to respect dependencies between modules. To fix this,
+  # we add an increasing ID to each state block's method name (assigned
+  # according to the order in which the state blocks are defined); we then sort
+  # by this order before invoking the state blocks.
   def call_state_methods
-    # Traverse the ancestor hierarchy from root => leaf. This helps to support a
-    # common idiom: the schema of a table in a child module/class might
-    # reference the schema of an included module.
-    self.class.ancestors.reverse.each do |anc|
-      # When "import" and "include" are combined, this gets more complex. When a
-      # module X is imported, the import process inlines all the modules X
-      # includes into a single module. Hence, we can no longer rely on the
-      # inheritance hierarchy to respect dependencies between modules. To fix
-      # this, we add an increasing ID to each state block's method name
-      # (assigned according to the order in which the state blocks are defined);
-      # we then sort by this order before invoking the state blocks.
+    meth_map = {} # map from ID => [Method]
+    self.class.instance_methods.each do |m|
+      next unless m =~ /^__state(\d+)__.+$/
+      id = Regexp.last_match.captures.first.to_i
+      meth_map[id] ||= []
+      meth_map[id] << self.method(m)
+    end
 
-      meth_map = {} # map from ID => Method
-      anc.instance_methods(false).each do |m|
-        next unless m =~ /^__state(\d+)__.+$/
-        id = Regexp.last_match.captures.first
-        meth_map[id.to_i] = self.method(m)
-      end
-
-      meth_map.keys.sort.each {|i| meth_map[i].call}
+    meth_map.keys.sort.each do |i|
+      meth_map[i].each {|m| m.call}
     end
   end
 
