@@ -285,7 +285,9 @@ module ModuleRewriter
   # We then convert the rewritten AST back into Ruby source code using Ruby2Ruby
   # and eval() it to define a new module. We return the name of that newly
   # defined module; the caller can then use "include" to load the module into
-  # the import site.
+  # the import site. Note that additional rewrites are needed to ensure that
+  # code in the import site that accesses module contents does the right thing;
+  # see Bud#rewrite_local_methods.
   def self.do_import(import_site, mod, local_name)
     ast = get_module_ast(mod)
     ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
