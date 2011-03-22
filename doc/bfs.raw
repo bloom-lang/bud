@@ -236,4 +236,14 @@ Because it is _plain old ruby_ it is not as interesting as the other modules. It
 
 ## [Master background process](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/background.rb)
 
+So far, we have implemented the BFS master as a strictly reactive system: when clients make requests, it queries and possibly updates local state.
+To maintain the durability requirement that REP_FACTOR copies of every chunk are stored on distinct nodes, the master must be an active system
+that maintains a near-consistent view of global state, and takes steps to correct violated requirements.  
 
+__chunk_cache__ is the master's view of datanode state, maintained as described by collecting and pruning heartbeat messages.  
+
+https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/background.rb|24-27
+
+After defining some helper aggregates (__chunk_cnts_chunk__ or replica count by chunk, and __chunk_cnt_host__ or datanode fill factor), 
+
+https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/background.rb|29-36
