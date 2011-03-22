@@ -57,7 +57,7 @@ def process(mods)
 
   gv2 = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, svg, -1, 1, ".", false, d.meta_parser.depanalysis)
   gv2.process(d.t_depends)
-  #gv.dump(d.t_rules)
+  gv2.dump(d.t_rules)
   gv2.finish
 end
 
@@ -84,15 +84,15 @@ end
 
 def do_table(f, info, type=false)
   next if info.nil?
-  info.each do |inf|
-    f.puts "<h3>#{inf[0]}</h3>"
-    f.puts  "&nbsp; (#{inf[1].class.to_s.gsub('Bud::Bud', '')})<br>" if type
-    f.puts "<table border='1'>"
+  f.puts "<table border='1'>"
+  info.sort{|a, b| a[0].to_s <=> b[0].to_s}.each do |inf|
+    #f.puts "<h3>#{inf[0]}</h3>"
+    #f.puts  "&nbsp; (#{inf[1].class.to_s.gsub('Bud::Bud', '')})<br>" if type
     unless inf[1].schema.nil?
-      f.puts "<tr>" + inf[1].schema.map{|i| "<td>#{i}</td>"}.join(" ") + "</tr>"
+      f.puts "<tr><td><b>#{inf[0]}</b></td>" + inf[1].schema.map{|i| "<td>#{i}</td>"}.join(" ") + "</tr>"
     end
-    f.puts "</table>"
   end
+  f.puts "</table>"
 end
 
 @shreddies = []
