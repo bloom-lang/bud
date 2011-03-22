@@ -400,12 +400,6 @@ module ModuleRewriter
   # Return a list of symbols containing the names of def blocks containing Bloom
   # rules in the given module and all of its ancestors.
   def self.get_rule_defs(mod)
-    rv = []
-
-    mod.instance_methods.each do |m|
-      rv << m if m =~ /^__bloom__.+$/
-    end
-
-    return rv.compact.uniq
+    mod.instance_methods.select {|m| m =~ /^__bloom__.+$/}
   end
 end
