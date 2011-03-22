@@ -163,6 +163,40 @@ class Issue110
   end
 end
 
+# Check that ordering dependencies (implied by the inheritance hierarchy between
+# modules) are respected after module import.
+module ModuleA1
+  state do
+    table :t1
+  end
+end
+module ModuleA2
+  state do
+    table :t2
+  end
+end
+module ModuleB1
+  include ModuleA1
+
+  state do
+    table :t3, t1.schema
+  end
+end
+module ModuleC1
+  include ModuleB1
+  include ModuleA2
+
+  state do
+    table :t4, t2.schema
+    table :t5, t1.schema
+  end
+end
+
+class ModuleStateOrdering
+  include Bud
+  import ModuleC1 => :m
+end
+
 class TestModules < Test::Unit::TestCase
   def test_simple
     c = ChildClass.new
@@ -196,6 +230,11 @@ class TestModules < Test::Unit::TestCase
     c = Issue110.new
     c.tick
     assert_equal([[100, 200], [400, 500]], c.t1.to_a.sort)
+  end
+
+  def test_module_import_state_order
+    c = ModuleStateOrdering.new
+    c.tick
   end
 
   module OuterModule

@@ -38,10 +38,10 @@ class Module
     self.module_eval "include #{rewritten_mod_name}"
   end
 
-  # Transform "state", "bootstrap" and "bloom" blocks (calls to a module
-  # methods with that name) into instance methods with a special name.
+  # Transform "state", "bootstrap" and "bloom" blocks (calls to module methods
+  # with that name) into instance methods with a special name.
   def state(&block)
-    meth_name = "__state__#{Module.get_class_name(self)}".to_sym
+    meth_name = Module.make_state_meth_name(self)
     define_method(meth_name, &block)
   end
 
@@ -87,6 +87,16 @@ class Module
   # method names with semicolons in them, so just return "X" instead.
   def self.get_class_name(klass)
     klass.name.split("::").last
+  end
+
+  # State method blocks are named using an auto-incrementing counter. This is to
+  # ensure that we can rediscover the possible dependencies between these blocks
+  # after module import (see Bud#call_state_methods).
+  def self.make_state_meth_name(klass)
+    @@state_meth_id ||= 0
+    r = "__state#{@@state_meth_id}__#{Module.get_class_name(klass)}".to_sym
+    @@state_meth_id += 1
+    return r
   end
 end
 
@@ -198,10 +208,22 @@ module Bud
     # common idiom: the schema of a table in a child module/class might
     # reference the schema of an included module.
     self.class.ancestors.reverse.each do |anc|
+      # When "import" and "include" are combined, this gets more complex. When a
+      # module X is imported, the import process inlines all the modules X
+      # includes into a single module. Hence, we can no longer rely on the
+      # inheritance hierarchy to respect dependencies between modules. To fix
+      # this, we add an increasing ID to each state block's method name
+      # (assigned according to the order in which the state blocks are defined);
+      # we then sort by this order before invoking the state blocks.
+
+      meth_map = {} # map from ID => Method
       anc.instance_methods(false).each do |m|
-        next unless /^__state__/.match m
-        self.method(m).call
+        next unless m =~ /^__state(\d+)__.+$/
+        id = Regexp.last_match.captures.first
+        meth_map[id.to_i] = self.method(m)
       end
+
+      meth_map.keys.sort.each {|i| meth_map[i].call}
     end
   end
 

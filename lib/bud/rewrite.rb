@@ -255,8 +255,8 @@ class DefnRenamer < SexpProcessor
 
     if name_s =~ /^__bootstrap__.+$/
       name = name_s.sub(/^(__bootstrap__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
-    elsif name_s =~ /^__state__.+$/
-      name = name_s.sub(/^(__state__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
+    elsif name_s =~ /^__state\d+__.+$/
+      name = name_s.sub(/^(__state\d+__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
     elsif name_s =~ /^__bloom__.+$/
       name = name_s.sub(/^(__bloom__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
     else
@@ -352,7 +352,7 @@ module ModuleRewriter
       next if b.sexp_type != :defn
 
       def_name, args, scope = b.sexp_body
-      next unless /^__state__.+$/.match def_name.to_s
+      next unless /^__state\d+__.+$/.match def_name.to_s
 
       raise Bud::BudError unless scope.sexp_type == :scope
       state_block = scope.sexp_body.first
