@@ -336,6 +336,7 @@ We won't spend too much time on the details of the client code, as it is nearly 
 
 The data transfer protocol comprises a set of support functions for the bulk data transfer protocol whose use is described in the previous section.
 Because it is _plain old ruby_ it is not as interesting as the other modules. It provides:
+
   * The TCP server code that runs at each datanode, which parses headers and writes stream data to the local FS (these files are later detected by the directory poll).
   * Client API calls to connect to datanodes and stream data.  Datanodes also use this protocol to pipeline chunks to downstream datanodes.
   * Master API code invoked by a background process to replicate chunks from datanodes to other datanodes, when the replication factor for a chunk is too low.
