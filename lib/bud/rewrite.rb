@@ -255,8 +255,8 @@ class DefnRenamer < SexpProcessor
 
     if name_s =~ /^__bootstrap__.+$/
       name = name_s.sub(/^(__bootstrap__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
-    elsif name_s =~ /^__state__.+$/
-      name = name_s.sub(/^(__state__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
+    elsif name_s =~ /^__state\d+__.+$/
+      name = name_s.sub(/^(__state\d+__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
     elsif name_s =~ /^__bloom__.+$/
       name = name_s.sub(/^(__bloom__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
     else
@@ -285,7 +285,9 @@ module ModuleRewriter
   # We then convert the rewritten AST back into Ruby source code using Ruby2Ruby
   # and eval() it to define a new module. We return the name of that newly
   # defined module; the caller can then use "include" to load the module into
-  # the import site.
+  # the import site. Note that additional rewrites are needed to ensure that
+  # code in the import site that accesses module contents does the right thing;
+  # see Bud#rewrite_local_methods.
   def self.do_import(import_site, mod, local_name)
     ast = get_module_ast(mod)
     ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
@@ -350,7 +352,7 @@ module ModuleRewriter
       next if b.sexp_type != :defn
 
       def_name, args, scope = b.sexp_body
-      next unless /^__state__.+$/.match def_name.to_s
+      next unless /^__state\d+__.+$/.match def_name.to_s
 
       raise Bud::BudError unless scope.sexp_type == :scope
       state_block = scope.sexp_body.first
