@@ -210,18 +210,18 @@ path of file transfers.  The client therefore needs to pick up this work.
 We won't spend too much time on the details of the client code, as it is nearly all _plain old ruby_.  The basic idea is:
 
  1. Pure metadata operations 
-  * _mkdir_, _create_, _ls_, _rm_
-  * Send the request to the master and inform the caller of the status.
-  * If _ls_, return the directory listing to the caller.
+   * _mkdir_, _create_, _ls_, _rm_
+   * Send the request to the master and inform the caller of the status.
+   * If _ls_, return the directory listing to the caller.
  2. Append
-  * Send a __fsaddchunk__ request to the master, which should return a new chunkid and a list of datanodes.
-  * Read a chunk worth of data from the input stream.  
-  * Connect to the first datanode in the list.  Send a header containing the chunkid and the remaining datanodes.
-  * Stream the file contents.  The target datanode will then ``play client'' and continue the pipeline to the next datanode, and so on.
+   * Send a __fsaddchunk__ request to the master, which should return a new chunkid and a list of datanodes.
+   * Read a chunk worth of data from the input stream.  
+   * Connect to the first datanode in the list.  Send a header containing the chunkid and the remaining datanodes.
+   * Stream the file contents.  The target datanode will then ``play client'' and continue the pipeline to the next datanode, and so on.
  2. Read
-  * Send a __getchunks__ request to the master for the given file.  It should return the list of chunks owned by the file.
-  * For each chunk,
-   * Send a __fschunklocations__ request to the master, which should return a list of datanodes in possession of the chunk.
+   * Send a __getchunks__ request to the master for the given file.  It should return the list of chunks owned by the file.
+   * For each chunk,
+     * Send a __fschunklocations__ request to the master, which should return a list of datanodes in possession of the chunk.
 
 
 ## [Data transfer protocol](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/data_protocol.rb)
