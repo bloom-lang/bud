@@ -551,7 +551,18 @@ module Bud
     end
 
     def payloads
-      self.map{|t| t.val}
+			if schema.size > 2
+				# need to bundle up each tuple's non-locspec fields into an array
+	    	retval = case @locspec_idx
+					when 0 then self.map{|t| t[1..(t.size-1)]}
+					when (t.size - 1) then self.map{|t| t[0..(t.size-2)]}
+					else self.map{|t| t[0..(@locspec_idx-1)] + t[@locspec_idx+1..(t.size-1)]}
+				end
+			else
+				# just return each tuple's non-locspec field value
+				retval = self.pro{|t| t[(@locspec_idx == 0) ? 1 : 0]}
+			end
+			return retval
     end
 
     superator "<~" do |o|
