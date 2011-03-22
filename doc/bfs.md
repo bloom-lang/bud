@@ -92,33 +92,28 @@ associated with that key into __fsret__.  Otherwise, the third rule will fire, i
 
 ### Mutation
 
-The logic for file and directory creation and deletion follow a similar logic with regard to the parent directory.  Unlike a directory listing, these operations change
-the state of the filesystem.  In general, any state change will invove carrying out two mutating operations to the key-value store atomically:
+The logic for file and directory creation and deletion follow a similar logic with regard to the parent directory:
+
+        check_parent_exists <= fscreate.map{ |c| [c.reqid, c.name, c.path, :create, c.data] }
+        check_parent_exists <= fsmkdir.map{ |m| [m.reqid, m.name, m.path, :mkdir, nil] }
+        check_parent_exists <= fsrm.map{ |m| [m.reqid, m.name, m.path, :rm, nil] }
+    
+        kvget <= check_parent_exists.map{ |c| [c.reqid, c.path] }
+        fsret <= check_parent_exists.map do |c|
+          unless kvget_response.map{ |r| r.reqid}.include? c.reqid
+            puts "not found #{c.path}" or [c.reqid, false, "parent path #{c.path} for #{c.name} does not exist"]
+          end
+        end
+
+Unlike a directory listing, however, these operations change the state of the filesystem.  In general, any state change will invove 
+carrying out two mutating operations to the key-value store atomically:
 
  1. update the value (child array) associated with the parent directory entry
  2. update the key-value pair associated with the object in question (a file or directory being created or destroyed).
 
-(**JMH**: Transition: "The following Bloom code carries this out for ...")
+The following Bloom code carries this out:
 
         dir_exists = join [check_parent_exists, kvget_response, nonce], [check_parent_exists.reqid, kvget_response.reqid]
-    
-        check_is_empty <= join([fsrm, nonce]).map{|m, n| [n.ident, m.reqid, terminate_with_slash(m.path) + m.name] }
-        kvget <= check_is_empty.map{|c| [c.reqid, c.name] }
-        can_remove <= join([kvget_response, check_is_empty], [kvget_response.reqid, check_is_empty.reqid]).map do |r, c|
-          [c.reqid, c.orig_reqid, c.name] if r.value.length == 0
-        end
-    
-        fsret <= dir_exists.map do |c, r, n|
-          if c.mtype == :rm
-            unless can_remove.map{|can| can.orig_reqid}.include? c.reqid
-              [c.reqid, false, "directory #{} not empty"]
-            end
-          end
-        end
-    
-        # update dir entry
-        # note that it is unnecessary to ensure that a file is created before its corresponding
-        # directory entry, as both inserts into :kvput below will co-occur in the same timestep.
         kvput <= dir_exists.map do |c, r, n|
           if c.mtype == :rm
             if can_remove.map{|can| can.orig_reqid}.include? c.reqid
@@ -138,11 +133,33 @@ the state of the filesystem.  In general, any state change will invove carrying 
           end
         end
 
-(**JMH**: This next sounds awkward.  You *do* take care: by using <= and understanding the atomicity of timesteps in Bloom.  I think what you mean to say is that Bloom's atomic timestep model makes this easy compared to ... something.)
-Note that we need not take any particular care to ensure that the two inserts into __kvput__ occur together atomically.  Because both statements use the synchronous 
-collection operator (<=) we know that they will occur together in the same fixpoint computation or not at all.
 
-Recall that we mixed in __TimestepNonce__, one of the nonce libraries.  While we were able to use the _reqid_ field from the input operation as a unique identifier
+<!--- (**JMH**: This next sounds awkward.  You *do* take care: by using <= and understanding the atomicity of timesteps in Bloom.  I think what you mean to say is that Bloom's atomic timestep model makes this easy compared to ... something.)
+Note that we need not take any particular care to ensure that the two inserts into __kvput__ occur together atomically.  Because both statements use the synchronous 
+-->
+Note that because both inserts into the __kvput__ collection use the synchronous operator (<=), we know that they will occur together in the same fixpoint computation or not at all.
+Therefore we need not be concerned with explicitly sequencing the operations (e.g., ensuring that the directory entries is created AFTER the file entry) to deal with concurrency:
+there can be no visible state of the database in which only one of the operations has succeeded.
+
+If the request is a deletion, we need some additional logic to enforce the constraint that only an empty directory may be removed:
+
+
+        check_is_empty <= join([fsrm, nonce]).map{|m, n| [n.ident, m.reqid, terminate_with_slash(m.path) + m.name] }
+        kvget <= check_is_empty.map{|c| [c.reqid, c.name] }
+        can_remove <= join([kvget_response, check_is_empty], [kvget_response.reqid, check_is_empty.reqid]).map do |r, c|
+          [c.reqid, c.orig_reqid, c.name] if r.value.length == 0
+        end
+    
+        fsret <= dir_exists.map do |c, r, n|
+          if c.mtype == :rm
+            unless can_remove.map{|can| can.orig_reqid}.include? c.reqid
+              [c.reqid, false, "directory #{} not empty"]
+            end
+          end
+        end
+
+
+Recall that when we created KVSFS we mixed in __TimestepNonce__, one of the nonce libraries.  While we were able to use the _reqid_ field from the input operation as a unique identifier
 for one of our kvs operations, we need a fresh, unique request id for the second kvs operation in the atomic pair described above.  By joining __nonce__, we get
 an identifier that is unique to this timestep.
 

@@ -73,21 +73,36 @@ associated with that key into __fsret__.  Otherwise, the third rule will fire, i
 
 ### Mutation
 
-The logic for file and directory creation and deletion follow a similar logic with regard to the parent directory.  Unlike a directory listing, these operations change
-the state of the filesystem.  In general, any state change will invove carrying out two mutating operations to the key-value store atomically:
+The logic for file and directory creation and deletion follow a similar logic with regard to the parent directory:
+
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|62-71
+
+Unlike a directory listing, however, these operations change the state of the filesystem.  In general, any state change will invove 
+carrying out two mutating operations to the key-value store atomically:
 
  1. update the value (child array) associated with the parent directory entry
  2. update the key-value pair associated with the object in question (a file or directory being created or destroyed).
 
-(**JMH**: Transition: "The following Bloom code carries this out for ...")
+The following Bloom code carries this out:
 
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|74-110
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|74-74
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|93-110
 
-(**JMH**: This next sounds awkward.  You *do* take care: by using <= and understanding the atomicity of timesteps in Bloom.  I think what you mean to say is that Bloom's atomic timestep model makes this easy compared to ... something.)
+
+<!--- (**JMH**: This next sounds awkward.  You *do* take care: by using <= and understanding the atomicity of timesteps in Bloom.  I think what you mean to say is that Bloom's atomic timestep model makes this easy compared to ... something.)
 Note that we need not take any particular care to ensure that the two inserts into __kvput__ occur together atomically.  Because both statements use the synchronous 
-collection operator (<=) we know that they will occur together in the same fixpoint computation or not at all.
+-->
+Note that because both inserts into the __kvput__ collection use the synchronous operator (<=), we know that they will occur together in the same fixpoint computation or not at all.
+Therefore we need not be concerned with explicitly sequencing the operations (e.g., ensuring that the directory entries is created AFTER the file entry) to deal with concurrency:
+there can be no visible state of the database in which only one of the operations has succeeded.
 
-Recall that we mixed in __TimestepNonce__, one of the nonce libraries.  While we were able to use the _reqid_ field from the input operation as a unique identifier
+If the request is a deletion, we need some additional logic to enforce the constraint that only an empty directory may be removed:
+
+
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|76-88
+
+
+Recall that when we created KVSFS we mixed in __TimestepNonce__, one of the nonce libraries.  While we were able to use the _reqid_ field from the input operation as a unique identifier
 for one of our kvs operations, we need a fresh, unique request id for the second kvs operation in the atomic pair described above.  By joining __nonce__, we get
 an identifier that is unique to this timestep.
 
