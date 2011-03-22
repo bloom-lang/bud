@@ -19,6 +19,13 @@ class ChatServer
   end
 end
 
-ip, port = ARGV[0].split(':')
+if ARGV.first
+  addr = ARGV.first
+else
+  addr = ChatProtocol::DEFAULT_ADDR
+end
+
+ip, port = addr.split(":")
+puts "Server address: #{ip}:#{port}"
 program = ChatServer.new(:ip => ip, :port => port.to_i)
 program.run

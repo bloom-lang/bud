@@ -37,5 +37,12 @@ class ChatClient
   end
 end
 
-program = ChatClient.new(ARGV[0], ARGV[1], :read_stdin => true)
+if ARGV.length == 2
+  server = ARGV[1]
+else
+  server = ChatProtocol::DEFAULT_ADDR
+end
+
+puts "Server address: #{server}"
+program = ChatClient.new(ARGV[0], server, :read_stdin => true)
 program.run
