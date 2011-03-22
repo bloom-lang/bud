@@ -115,6 +115,7 @@ class ChannelWithKey
     channel :c, [:@addr, :k1] => [:v1]
     scratch :kickoff, [:addr, :v1, :v2]
     table :recv, c.key_cols => c.val_cols
+		table :ploads
     callback :got_msg, recv.schema
   end
 
@@ -122,6 +123,7 @@ class ChannelWithKey
     c <~ kickoff {|k| [k.addr, k.v1, k.v2]}
     recv <= c
     got_msg <= recv
+		ploads <= c.payloads
   end
 end
 
@@ -167,6 +169,7 @@ class TestChannelWithKey < Test::Unit::TestCase
 
     p2.sync_do {
       assert_equal([[target_addr, 10, 20], [target_addr, 50, 100]], p2.recv.to_a.sort)
+      assert_equal([[10, 20], [50, 100]], p2.ploads.to_a.sort)
     }
 
     # Check that inserting into a channel via <= is rejected
