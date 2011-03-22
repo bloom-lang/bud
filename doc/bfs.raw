@@ -243,8 +243,8 @@ that maintains a near-consistent view of global state, and takes steps to correc
 
 __chunk_cache__ is the master's view of datanode state, maintained as described by collecting and pruning heartbeat messages.  
 
-https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/background.rb|24-27
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/background.rb|24-27
 
 After defining some helper aggregates (__chunk_cnts_chunk__ or replica count by chunk, and __chunk_cnt_host__ or datanode fill factor), 
 
-https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/background.rb|29-36
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/background.rb|29-36
