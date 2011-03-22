@@ -189,21 +189,39 @@ Our view of what the master ``knows'' about reflects our local cache of acknowle
 On the master side of heartbeats, we always send an ack when we get a heartbeat, so that the datanode doesn't need to keep resending its
 payload of local chunks:
 
-https://github.com/bloom-lang/bud-sandbox/raw/5c7734912e900c28087e39b3424a1e0191e13704/bfs/hb_master.rb|30-32
+==https://github.com/bloom-lang/bud-sandbox/raw/5c7734912e900c28087e39b3424a1e0191e13704/bfs/hb_master.rb|30-32
 
 At the same time, we use the ruby _flatmap_ function to flatten the array of chunks in the heartbeat payload into a set of tuples, which we
 associate with the heartbeating datanode and the time of receipt in __chunk_cache__:
 
-https://github.com/bloom-lang/bud-sandbox/raw/5c7734912e900c28087e39b3424a1e0191e13704/bfs/hb_master.rb|22-28
+==https://github.com/bloom-lang/bud-sandbox/raw/5c7734912e900c28087e39b3424a1e0191e13704/bfs/hb_master.rb|22-28
 
 We periodically garbage-collect this cached, removing entries for datanodes from whom we have not received a heartbeat in a configurable amount of time.
 __last_heartbeat__ is an output interface provided by the __HeartbeatAgent__ module, and contains the most recent, non-stale heartbeat contents:
 
-https://github.com/bloom-lang/bud-sandbox/raw/5c7734912e900c28087e39b3424a1e0191e13704/bfs/hb_master.rb|34-36
+==https://github.com/bloom-lang/bud-sandbox/raw/5c7734912e900c28087e39b3424a1e0191e13704/bfs/hb_master.rb|34-36
 
 
 ## [BFS Client](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/bfs_client.rb)
 
+One of the most complicated parts of the basic GFS design is the client component.  To minimize load on the centralized master, we take it off the critical 
+path of file transfers.  The client therefore needs to pick up this work.
+
+We won't spend too much time on the details of the client code, as it is nearly all _plain old ruby_.  The basic idea is:
+
+ 1. Pure metadata operations 
+  * _mkdir_, _create_, _ls_, _rm_
+  * Send the request to the master and inform the caller of the status.
+  * If _ls_, return the directory listing to the caller.
+ 2. Append
+  * Send a __fsaddchunk__ request to the master, which should return a new chunkid and a list of datanodes.
+  * Read a chunk worth of data from the input stream.  
+  * Connect to the first datanode in the list.  Send a header containing the chunkid and the remaining datanodes.
+  * Stream the file contents.  The target datanode will then ``play client'' and continue the pipeline to the next datanode, and so on.
+ 2. Read
+  * Send a __getchunks__ request to the master for the given file.  It should return the list of chunks owned by the file.
+  * For each chunk,
+   * Send a __fschunklocations__ request to the master, which should return a list of datanodes in possession of the chunk.
 
 
 ## [Data transfer protocol](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/data_protocol.rb)
