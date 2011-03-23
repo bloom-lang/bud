@@ -363,7 +363,7 @@ module Bud
     # We allow callbacks to be added before or after EM has been started. To
     # simplify matters, we start EM if it hasn't been started yet.
     start_reactor
-
+    cb_id = nil
     schedule_and_wait do
       unless @tables.has_key? tbl_name
         raise Bud::BudError, "No such table: #{tbl_name}"
@@ -371,8 +371,10 @@ module Bud
 
       raise Bud::BudError if @callbacks.has_key? @callback_id
       @callbacks[@callback_id] = [tbl_name, block]
+      cb_id = @callback_id
       @callback_id += 1
     end
+    return cb_id
   end
 
   # Unregister the callback that has the given ID.
