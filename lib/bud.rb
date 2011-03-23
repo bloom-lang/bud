@@ -375,6 +375,14 @@ module Bud
     end
   end
 
+  # Unregister the callback that has the given ID.
+  def unregister_callback(id)
+    schedule_and_wait do
+      raise Bud::BudError unless @callbacks.has_key? id
+      @callbacks.delete(id)
+    end
+  end
+
   private
 
   def invoke_callbacks
