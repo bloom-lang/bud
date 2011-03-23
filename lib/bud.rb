@@ -215,7 +215,7 @@ module Bud
   def call_state_methods
     meth_map = {} # map from ID => [Method]
     self.class.instance_methods.each do |m|
-      next unless m =~ /^__state(\d+)__.+$/
+      next unless m =~ /^__state(\d+)__/
       id = Regexp.last_match.captures.first.to_i
       meth_map[id] ||= []
       meth_map[id] << self.method(m)

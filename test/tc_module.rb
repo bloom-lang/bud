@@ -271,6 +271,30 @@ class TestModules < Test::Unit::TestCase
     assert_equal([[30, 40], [50, 60]], c.z.to_a.sort)
   end
 
+  def test_anon_class
+    k = Class.new do
+      include Bud
+
+      state do
+        table :t1
+        scratch :s1
+      end
+
+      bloom do
+        t1 <= s1
+      end
+    end
+    c = k.new
+    c.run_bg
+    c.sync_do {
+      c.s1 <+ [[5, 10]]
+    }
+    c.sync_do {
+      assert_equal([[5, 10]], c.t1.to_a.sort)
+    }
+    c.stop_bg
+  end
+
   def test_duplicate_import
     assert_raise(Bud::CompileError) do
       eval "
