@@ -6,8 +6,8 @@ class TickleCount
   state do
     channel :loopback, [:cnt]
     channel :mcast, [:@addr, :cnt]
-    callback :loopback_done, [:nums]
-    callback :mcast_done, [:nums]
+    scratch :loopback_done, [:nums]
+    scratch :mcast_done, [:nums]
   end
 
   bootstrap do
@@ -50,7 +50,7 @@ class RingMember
     scratch :kickoff, [:cnt]
     table :next_guy, [:addr]
     table :last_cnt, [:cnt]
-    callback :done, [:cnt]
+    scratch :done, [:cnt]
   end
 
   bloom :ring_msg do
@@ -115,15 +115,13 @@ class ChannelWithKey
     channel :c, [:@addr, :k1] => [:v1]
     scratch :kickoff, [:addr, :v1, :v2]
     table :recv, c.key_cols => c.val_cols
-		table :ploads
-    callback :got_msg, recv.schema
+    table :ploads
   end
 
   bloom do
     c <~ kickoff {|k| [k.addr, k.v1, k.v2]}
     recv <= c
-    got_msg <= recv
-		ploads <= c.payloads
+    ploads <= c.payloads
   end
 end
 
@@ -134,13 +132,11 @@ class ChannelAddrInVal
     channel :c, [:k1] => [:@addr, :v1]
     scratch :kickoff, [:v1, :addr, :v2]
     table :recv, c.key_cols => c.val_cols
-    callback :got_msg, recv.schema
   end
 
   bloom do
     c <~ kickoff {|k| [k.v1, k.addr, k.v2]}
     recv <= c
-    got_msg <= recv
   end
 end
 
@@ -150,7 +146,7 @@ class TestChannelWithKey < Test::Unit::TestCase
     p2 = ChannelWithKey.new
 
     q = Queue.new
-    p2.register_callback(:got_msg) do
+    p2.register_callback(:recv) do
       q.push(true)
     end
 
@@ -198,7 +194,7 @@ class TestChannelAddrInVal < Test::Unit::TestCase
     p2 = ChannelAddrInVal.new
 
     q = Queue.new
-    p2.register_callback(:got_msg) do
+    p2.register_callback(:recv) do
       q.push(true)
     end
 
@@ -231,7 +227,6 @@ class ChannelBootstrap
     channel :loopback, [:foo]
     table :t1
     table :t2, [:foo]
-    callback :got_msg, loopback.schema
   end
 
   bootstrap do
@@ -241,7 +236,6 @@ class ChannelBootstrap
 
   bloom do
     t2 <= loopback
-    got_msg <= loopback
   end
 end
 
@@ -249,7 +243,7 @@ class TestChannelBootstrap < Test::Unit::TestCase
   def test_bootstrap
     c = ChannelBootstrap.new
     q = Queue.new
-    c.register_callback(:got_msg) do
+    c.register_callback(:loopback) do
       q.push(true)
     end
     c.run_bg

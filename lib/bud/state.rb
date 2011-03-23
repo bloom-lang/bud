@@ -76,12 +76,6 @@ module BudState
     @channels[name] = @tables[name].locspec_idx
   end
 
-  def callback(name, schema=nil)
-    define_collection(name)
-    @tables[name] = Bud::BudCallback.new(name, self, schema)
-    @callbacks[name] = @tables[name]
-  end
-
   def file_reader(name, filename, delimiter='\n')
     define_collection(name)
     @tables[name] = Bud::BudFileReader.new(name, filename, delimiter, self)

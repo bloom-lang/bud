@@ -5,13 +5,11 @@ class TemporalBudTest
 
   state do
     periodic :tik, 0.1
-    callback :got_tik, tik.schema
     table :log, tik.schema
   end
 
   bloom do
     log <= tik
-    got_tik <= tik
   end
 end
 
@@ -20,7 +18,7 @@ class TestTimer < Test::Unit::TestCase
   def test_timer
     b = TemporalBudTest.new
     q = Queue.new
-    b.register_callback(:got_tik) do |t|
+    b.register_callback(:tik) do |t|
       raise if t.length != 1
       q.push(t.to_a.first)
     end

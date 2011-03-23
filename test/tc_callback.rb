@@ -5,7 +5,7 @@ class SimpleCb
 
   state do
     scratch :t1
-    callback :c1
+    scratch :c1
   end
 
   bloom do
@@ -18,7 +18,7 @@ class CallbackAtNext
 
   state do
     scratch :t1
-    callback :c1
+    scratch :c1
   end
 
   bloom do

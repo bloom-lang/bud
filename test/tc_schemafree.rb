@@ -8,13 +8,11 @@ class SchemaFree
     scratch :stats
     interface input, :send_me
     channel :msgs
-    callback :got_msg
   end
 
   bloom do
     notes <= msgs.payloads
     msgs <~ send_me
-    got_msg <= msgs
   end
 end
 
@@ -24,7 +22,7 @@ class TestSFree < Test::Unit::TestCase
     p.run_bg
 
     q = Queue.new
-    p.register_callback(:got_msg) do
+    p.register_callback(:msgs) do
       q.push(true)
     end
 
