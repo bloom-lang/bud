@@ -95,7 +95,7 @@ def reinstantiate
 end
 
 def setup_history
-  # permament history; code lifted from irb
+  # permanent history; code lifted from irb
   begin
     histfile = File::expand_path(HISTFILE)
     if File::exists?(histfile)
