@@ -1,4 +1,3 @@
-# simple chat
 require 'rubygems'
 require 'bud'
 require 'chat_protocol'
@@ -7,15 +6,11 @@ class ChatServer
   include Bud
   include ChatProtocol
 
-  state do
-    table :nodelist
-  end
+  state { table :nodelist }
 
-  bloom :server_logic do
+  bloom do
     nodelist <= connect.payloads
-    mcast <~ join([mcast, nodelist]) do |m,n| 
-      [n.key, m.val] unless n.key == m.val[0]
-    end
+    mcast <~ (mcast*nodelist).pairs { |m,n| [n.key, m.val] }
   end
 end
 

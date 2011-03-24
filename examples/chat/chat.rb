@@ -1,4 +1,3 @@
-# simple chat
 require 'rubygems'
 require 'bud'
 require 'chat_protocol'
