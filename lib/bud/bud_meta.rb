@@ -13,9 +13,6 @@ class BudMeta
   end
 
   def meta_rewrite
-    # N.B. -- parse_tree will not be supported in ruby 1.9.
-    # however, we can still pass the "string" code of bud modules
-    # to ruby_parse (but not the "live" class)
     shred_rules
     top_stratum = stratify
     stratum_map = binaryrel2map(@bud_instance.t_stratum)
