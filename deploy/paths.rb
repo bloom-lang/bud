@@ -49,5 +49,5 @@ end
 source = ARGV[0].split(':')
 ip = source[0]
 port = source[1]
-program = ShortestPaths.new(:scoping => true, :ip => ip, :port => port)
+program = ShortestPaths.new(:ip => ip, :port => port)
 program.run
