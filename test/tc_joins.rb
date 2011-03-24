@@ -33,9 +33,9 @@ class StarJoin
 		r6 <= join([r1,r2], [r1.val,r2.key]) {|r,s| [r.key, s.vat]}
 		r7 <= (r1*r2).matches {|r,s| [r.key, s.vat]}
 		r8 <= natjoin([r1,r2]) {|r,s| [r.key, s.vat]}
-		r9 <= (r1*r2).lefts([[r1.val,r2.key]])
+		r9 <= (r1*r2).lefts(:val => :key)
 		r10 <= join([r1,r2], [r1.val,r2.key]) {|r,s| r}
-		r11 <= (r1*r2).rights([[r1.val,r2.key]])
+		r11 <= (r1*r2).rights(:val => :key)
 		r12 <= join([r1,r2], [r1.val,r2.key]) {|r,s| s}
 	end
 end
@@ -127,6 +127,9 @@ class CombosBud
     n = natjoin [r,s_tab,t]
     nat_out <= n.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
+		temp :newtab <= (((r*s_tab).flatten(:x => :x)) * t).flatten(:x_1 => :x)
+		temp :newtab_out <= newtab { |n| [n.x, n.x_1, n.x_2, n.y1, n.y1_1, n.y1_2] }	
+
     loj = leftjoin [mismatches,s_tab], [mismatches.x, s_tab.x]
     loj_out <= loj.map { |t1, t2| [t1.x, t2.x, t1.y1, t2.y1] }
   end
@@ -196,6 +199,7 @@ class TestJoins < Test::Unit::TestCase
     nat_outs = program.nat_out
     assert_equal(1, nat_outs.length)
     assert_equal(chain_outs, flip_outs)
+		assert_equal(chain_outs, program.newtab_out.to_a)
   end
 
   def test_block_assign

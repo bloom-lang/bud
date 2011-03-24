@@ -8,6 +8,7 @@ module Bud
       @origrels = rellist
       @bud_instance = bud_instance
       @localpreds = nil
+			@tabname = :temp_join
 			
 			preds = decomp_preds(*preds)
 
@@ -37,7 +38,8 @@ module Bud
           @schema << "t_#{index}".to_sym
         else
           memo[r.tabname.to_s] ||= 0
-          @schema << (r.tabname.to_s + (memo[r.tabname.to_s] > 0 ? "_" + memo[r.tabname.to_s].to_s : "")).to_sym
+					newstr = r.tabname.to_s + ((memo[r.tabname.to_s] > 0) ? ("_" + memo[r.tabname.to_s].to_s) : "")
+          @schema << newstr.to_sym
           memo[r.tabname.to_s] += 1
         end
         memo
@@ -64,44 +66,81 @@ module Bud
 		#          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
 		def pairs(*preds, &blk)
 			unless preds.nil?
-				if preds.size == 1 and preds[0].class <= Hash
-					predarray = preds[0].map do |k,v|
-						if k.class != v.class
-            	raise Bud::CompileError, "inconsistent attribute ref style #{k.inspect} => #{v.inspect}"
-						elsif k.class <= Array
-							[k,v]
-						elsif k.class <= Symbol
-							begin
-								[@rels[0].send(k), @rels[1].send(v)]
-							rescue
-								raise Bud::CompileError, "unknown attribute ref in #{k.inspect} => #{v.inspect}"
-					    end
-					  else
-							raise Bud::CompileError, "invalid attribute ref in #{k.inspect} => #{v.inspect}"
-						end
-					end
-					@localpreds = decomp_preds(*predarray)
-				else
-					@localpreds = decomp_preds(*preds)
-				end
+				@localpreds = disambiguate_preds(preds)
 				canonicalize_localpreds(@rels)
 			end
-			map(&blk)
-		end
+			blk.nil? ? self : map(&blk)
+		end		
+	
+    def flatten(*preds)
+			unless preds.nil? or preds.size == 0
+				@localpreds = disambiguate_preds(preds)
+				canonicalize_localpreds(@rels)
+			end
+      flat_schema = @rels.map{|r| r.schema}.flatten(1)
+      dupfree_schema = []
+			# while loop here (inefficiently) ensures no collisions
+			while dupfree_schema == [] or dupfree_schema.uniq.length < dupfree_schema.length
+				dupfree_schema = []
+	      flat_schema.reduce({}) do |memo, r|
+					if r.to_s.include?("_") and ((r.to_s.rpartition("_")[2] =~ /^\d+$/) == 0)
+						r = r.to_s.rpartition("_")[0].to_sym
+					end
+	        memo[r] ||= 0
+					if memo[r] == 0
+						dupfree_schema << r.to_s.to_sym
+					else
+						dupfree_schema << (r.to_s + "_" + (memo[r]).to_s).to_sym
+					end
+	        memo[r] += 1
+	        memo
+	      end
+				flat_schema = dupfree_schema
+			end
+      retval = BudScratch.new('temp_flatten', bud_instance, dupfree_schema)
+      retval.merge(self.map{|r,s| r + s}, retval.storage)
+    end
 		
+		alias concat flatten
+
 		def matches(&blk)
 			preds = BudJoin::natural_preds(@bud_instance, @rels)
 			pairs(*preds, &blk)
 		end
 			
-		def lefts(preds, &blk)
-			pairs(*preds) {|l, r| l}
+		def lefts(*preds)
+			@localpreds = disambiguate_preds(preds)
+			map{ |l,r| l }
 		end
 
-		def rights(preds, &blk)
-			pairs(*preds) {|l, r| r}
+		def rights(*preds)
+			@localpreds = disambiguate_preds(preds)
+			map{ |l,r| r }
 		end
 
+		def disambiguate_preds(preds)
+			if preds.size == 1 and preds[0].class <= Hash
+				predarray = preds[0].map do |k,v|
+					if k.class != v.class
+           	raise Bud::CompileError, "inconsistent attribute ref style #{k.inspect} => #{v.inspect}"
+					elsif k.class <= Array
+						[k,v]
+					elsif k.class <= Symbol
+						begin
+							[@rels[0].send(k), @rels[1].send(v)]
+						rescue
+							raise Bud::CompileError, "unknown attribute ref in #{k.inspect} => #{v.inspect}"
+				    end
+				  else
+						raise Bud::CompileError, "invalid attribute ref in #{k.inspect} => #{v.inspect}"
+					end
+				end
+				return decomp_preds(*predarray)
+			else
+				return decomp_preds(*preds)
+			end
+		end
+		
 	  def decomp_preds(*preds)
 	    # decompose each pred into a binary pred
 		  return nil if preds.nil? or preds.empty? or preds == [nil]
@@ -123,19 +162,6 @@ module Bud
         end
       end
 		end
-
-    def flatten
-      flat_schema = @rels.map{|r| r.schema}.flatten(1)
-      dupfree_schema = []
-      flat_schema.reduce({}) do |memo, r|
-        memo[r] ||= 0
-        dupfree_schema << (r.to_s + (memo[r] > 0 ? "_" + memo[r].to_s : "")).to_sym
-        memo[r] += 1
-        memo
-      end
-      retval = BudScratch.new('temp_flatten', bud_instance, dupfree_schema)
-      retval.merge(self.map{|r,s| r+s}, retval.storage)
-    end
 
     def do_insert(o, store)
       raise BudError, "no insertion into joins"

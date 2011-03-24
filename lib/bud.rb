@@ -638,8 +638,7 @@ module Bud
   def natjoin(rels, &blk)
     # for all pairs of relations, add predicates on matching column names
 		preds = BudJoin::natural_preds(self, rels)
-    j = join(rels, *preds)
-    wrap_map(j, &blk)
+    j = join(rels, *preds, &blk)
   end
 
   # ugly, but why not
