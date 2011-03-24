@@ -294,9 +294,9 @@ module ModuleRewriter
   def self.do_import(import_site, mod, local_name)
     ast = get_module_ast(mod)
     ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
+    ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
     rename_tbl = ast_rename_state(ast, local_name)
     ast = ast_update_refs(ast, rename_tbl)
-    ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
 
     str = Ruby2Ruby.new.process(ast)
     rv = import_site.module_eval str
@@ -306,18 +306,64 @@ module ModuleRewriter
   end
 
   def self.get_module_ast(mod)
-    raw_ast = ParseTree.translate(mod)
+    raw_ast = get_raw_parse_tree(mod)
     unless raw_ast.first == :module
       raise Bud::BudError, "import must be used with a Module"
     end
 
-    # XXX: Kludgy workaround for a ParseTree <= 3.0.7 bug. Methods defined in a
-    # "grandparent" module result in an invalid Sexp tree, containing "[nil]"
-    # for each such method in the body of the :module node.
-    # Upstream bug: http://rubyforge.org/tracker/index.php?func=detail&aid=29095&group_id=439&atid=1778
-    raw_ast.delete_if {|n| n == [nil]}
-
     return Unifier.new.process(raw_ast)
+  end
+
+  # Returns the AST for the given module (as a tree of Sexps). ParseTree
+  # provides native support for doing this, but we choose to do it ourselves. In
+  # ParseTree <= 3.0.7, the support is buggy; in later versions of ParseTree,
+  # the AST is returned in a different format than we expect. In particular, we
+  # expect that the methods from any modules included in the target module will
+  # be "inlined" into the dumped AST; ParseTree > 3.0.7 adds an "include"
+  # statement to the AST instead. In the long run we should adapt the module
+  # rewrite system to work with ParseTree > 3.0.7 and get rid of this code, but
+  # that will require further changes.
+  def self.get_raw_parse_tree(klass)
+    pt = RawParseTree.new(false)
+    klassname = klass.name
+    klassname = klassname.to_sym
+
+    code = if Class === klass then
+             sc = klass.superclass
+             sc_name = ((sc.nil? or sc.name.empty?) ? "nil" : sc.name).intern
+             [:class, klassname, [:const, sc_name]]
+           else
+             [:module, klassname]
+           end
+
+    method_names = klass.private_instance_methods false
+    # protected methods are included in instance_methods, go figure!
+
+    # Get the set of classes/modules that define instance methods we want to
+    # include in the result
+    relatives = klass.modules + [klass]
+    relatives.each do |r|
+      method_names += r.instance_methods false
+    end
+
+    # For each distinct method name, use the implementation that appears the
+    # furthest down in the inheritance hierarchy.
+    relatives = relatives.reverse
+    method_names.uniq.sort.each do |m|
+      relatives.each do |r|
+        t = pt.parse_tree_for_method(r, m.to_sym)
+        if t != [nil]
+          code << t
+          break
+        end
+      end
+    end
+
+    klass.singleton_methods(false).sort.each do |m|
+      code << pt.parse_tree_for_method(klass, m.to_sym, true)
+    end
+
+    return code
   end
 
   # Rename the given module's name to be a mangle of import site, imported

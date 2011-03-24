@@ -197,6 +197,42 @@ class ModuleStateOrdering
   import ModuleC1 => :m
 end
 
+module BaseInsertT2
+  state do
+    table :t1
+    table :t2
+    table :t3
+  end
+
+  bootstrap do
+    t1 <= [[10, 20], [40, 50]]
+  end
+
+  bloom :foo do
+    t2 <= t1
+  end
+end
+
+module DoInsertT3
+  include BaseInsertT2
+
+  bloom :foo do
+    t3 <= t1
+  end
+end
+
+class ModuleMethodOverride
+  include Bud
+  import DoInsertT3 => :m
+
+  def do_check
+    sync_do {
+      raise unless m.t2.empty?
+      raise unless m.t3.to_a.sort == [[10, 20], [40, 50]]
+    }
+  end
+end
+
 class TestModules < Test::Unit::TestCase
   def test_simple
     c = ChildClass.new
@@ -292,6 +328,14 @@ class TestModules < Test::Unit::TestCase
     c.sync_do {
       assert_equal([[5, 10]], c.t1.to_a.sort)
     }
+    c.stop_bg
+  end
+
+  def test_module_method_override
+    c = ModuleMethodOverride.new
+    c.run_bg
+    c.sync_do
+    c.do_check
     c.stop_bg
   end
 
