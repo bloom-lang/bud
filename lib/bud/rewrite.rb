@@ -311,12 +311,6 @@ module ModuleRewriter
       raise Bud::BudError, "import must be used with a Module"
     end
 
-    # XXX: Kludgy workaround for a ParseTree <= 3.0.7 bug. Methods defined in a
-    # "grandparent" module result in an invalid Sexp tree, containing "[nil]"
-    # for each such method in the body of the :module node.
-    # Upstream bug: http://rubyforge.org/tracker/index.php?func=detail&aid=29095&group_id=439&atid=1778
-    raw_ast.delete_if {|n| n == [nil]}
-
     return Unifier.new.process(raw_ast)
   end
 
@@ -342,20 +336,26 @@ module ModuleRewriter
              [:module, klassname]
            end
 
-    method_names = []
-    method_names += klass.instance_methods false
-    method_names += klass.private_instance_methods false
+    method_names = klass.private_instance_methods false
     # protected methods are included in instance_methods, go figure!
 
-    method_names.sort.each do |m|
-      r = pt.parse_tree_for_method(klass, m.to_sym)
-      code << r
+    # Get the set of classes/modules that define instance methods we want to
+    # include in the result
+    relatives = klass.modules + [klass]
+    relatives.each do |r|
+      method_names += r.instance_methods false
     end
 
-    klass.modules.each do |mod| # TODO: add a test for this damnit
-      mod.instance_methods.each do |m|
-        r = pt.parse_tree_for_method(mod, m.to_sym)
-        code << r
+    # For each distinct method name, use the implementation that appears the
+    # furthest down in the inheritance hierarchy.
+    relatives = relatives.reverse
+    method_names.uniq.sort.each do |m|
+      relatives.each do |r|
+        t = pt.parse_tree_for_method(r, m.to_sym)
+        if t != [nil]
+          code << t
+          break
+        end
       end
     end
 
