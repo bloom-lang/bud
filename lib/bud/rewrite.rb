@@ -7,7 +7,10 @@ class RuleRewriter < Ruby2Ruby
   def initialize(seed, bud_instance)
     @bud_instance = bud_instance
     @ops = {:<< => 1, :< => 1, :<= => 1}
-    @monotonic_whitelist = {:== => 1, :+ => 1, :- => 1, :<= => 1, :- => 1, :< => 1, :> => 1}
+    @monotonic_whitelist = {
+	      :== => 1, :+ => 1, :- => 1, :<= => 1, :- => 1, :< => 1, :> => 1, 
+	      :* => 1, :pairs => 1, :matches => 1, :flatten => 1, :lefts => 1, :rights => 1
+	  }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
     @nm = false
