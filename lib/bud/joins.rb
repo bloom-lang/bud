@@ -1,14 +1,27 @@
 module Bud
   class BudJoin < BudCollection
-    attr_accessor :rels, :origrels
+    attr_accessor :rels, :origrels, :origpreds
 
     def initialize(rellist, bud_instance, preds=nil)
       @schema = []
       otherpreds = nil
-      @origrels = rellist
+			@origpreds = preds
       @bud_instance = bud_instance
       @localpreds = nil
 			@tabname = :temp_join
+			
+			# if any elements on rellist are BudJoins, suck up their contents
+			tmprels = []
+			rellist.each do |r|
+				if r.class <= BudJoin
+					tmprels += r.origrels
+					preds += r.origpreds
+				else
+					tmprels << r
+				end
+			end
+			rellist = tmprels
+		  @origrels = rellist	
 			
 			preds = decomp_preds(*preds)
 
@@ -26,13 +39,12 @@ module Bud
       # recurse to form a tree of binary BudJoins
       @rels = [rellist[0]]
       @rels << (rellist.length == 2 ? rellist[1] : BudJoin.new(rellist[1..rellist.length-1], @bud_instance, otherpreds))
-
       # derive schema: one column for each table.
       # unnamed inputs become "t_i" for position i
       # duplicated inputs get distinguishing numeral
       @schema = []
       index = 0
-      rellist.reduce({}) do |memo, r|
+      retval = rellist.reduce({}) do |memo, r|
         index += 1
         if !r.respond_to?(:tabname)
           @schema << "t_#{index}".to_sym
@@ -44,6 +56,7 @@ module Bud
         end
         memo
       end
+			self
     end
 
 		def self.natural_preds(bud_instance, rels)
@@ -70,7 +83,10 @@ module Bud
 				canonicalize_localpreds(@rels)
 			end
 			blk.nil? ? self : map(&blk)
-		end		
+		end	
+		
+		alias combos pairs
+				
 	
     def flatten(*preds)
 			unless preds.nil? or preds.size == 0
@@ -126,11 +142,11 @@ module Bud
 					elsif k.class <= Array
 						[k,v]
 					elsif k.class <= Symbol
-						begin
-							[@rels[0].send(k), @rels[1].send(v)]
-						rescue
-							raise Bud::CompileError, "unknown attribute ref in #{k.inspect} => #{v.inspect}"
-				    end
+						if @origrels.length == 2
+							[find_attr_match(k,@origrels[0]), find_attr_match(v,@origrels[1])]
+						else
+							[find_attr_match(k), find_attr_match(v)]
+						end
 				  else
 						raise Bud::CompileError, "invalid attribute ref in #{k.inspect} => #{v.inspect}"
 					end
@@ -139,6 +155,25 @@ module Bud
 			else
 				return decomp_preds(*preds)
 			end
+		end
+		
+		# find element in @origrels that contains this aname method
+		# if 2nd arg is non-nil, only check that collection.
+		# after found, return the result of invoking aname from chosen collection
+		
+		def find_attr_match(aname, rel=nil)
+			dorels = (rel.nil? ? @origrels : [rel])
+			match = nil
+			dorels.each do |r|
+				match ||= r if r.respond_to?(aname)
+				if r.respond_to?(aname) and match != r
+					raise Bud::CompileError, "ambiguous attribute :#{aname} in both #{match.tabname} and #{r.tabname}"
+				end
+			end
+			if match.nil?
+				raise Bud::CompileError, "attribute :#{aname} not found in any of #{dorels.map{|t| t.tabname}.inspect}"
+			end
+			match.send(aname)
 		end
 		
 	  def decomp_preds(*preds)

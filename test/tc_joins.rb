@@ -40,7 +40,36 @@ class StarJoin
 	end
 end
 
-class BadStarJoin1
+class StarJoin3
+  include Bud
+
+  state do
+		table :t1
+		table :t2
+		table :t3
+		table :r1, [:k4] => [:v4]
+		table :r2, [:k5] => [:v5]
+		table :r3, [:k6] => [:v6]
+		table :t4, [:k1,:v1,:k2,:v2,:k3,:v3]
+		table :t5, [:k1,:v1,:k2,:v2,:k3,:v3]
+  end
+
+  bootstrap do
+    t1 <= [['A', 'B']]
+    t2 <= [[3,4]]
+		t3 <= [['A', 'Y']]
+    r1 <= [['A', 'B']]
+    r2 <= [[3,4]]
+		r3 <= [['A', 'Y']]		
+  end
+
+  bloom do
+    t4 <= (r1 * r2 * r3).pairs(:k4 => :k6) {|r,s,t| r+s+t}
+		t5 <= join([t1,t2,t3],[t1.key,t3.key]).map{|r,s,t| r+s+t}
+  end
+end
+
+class MixedAttrRefs
 	include Bud
 	state do
 		table :r1
@@ -53,7 +82,7 @@ class BadStarJoin1
 	end
 end
 
-class BadStarJoin2
+class MissingAttrRefs
 	include Bud
 	state do
 		table :r1
@@ -66,7 +95,7 @@ class BadStarJoin2
 	end
 end
 
-class BadStarJoin3
+class IllegalAttrRefs
 	include Bud
 	state do
 		table :r1
@@ -76,6 +105,19 @@ class BadStarJoin3
 	
 	bloom do
 		r3 <= (r1*r2).pairs("key" => "val")
+	end
+end
+
+class AmbiguousAttrRefs
+	include Bud
+	state do
+		table :r1
+		table :r2
+		table :r3
+	end
+	
+	bloom do
+		temp :r4 <= (r1*r2*r3).pairs(:key => :val)
 	end
 end
 
@@ -127,8 +169,8 @@ class CombosBud
     n = natjoin [r,s_tab,t]
     nat_out <= n.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
-		temp :newtab <= (((r*s_tab).flatten(:x => :x)) * t).flatten(:x_1 => :x)
-		temp :newtab_out <= newtab { |n| [n.x, n.x_1, n.x_2, n.y1, n.y1_1, n.y1_2] }	
+		temp :newtab <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x)
+		temp :newtab_out <= newtab { |a,b,c| [a.x, b.x, c.x, a.y1, b.y1, c.y1] }	
 
     loj = leftjoin [mismatches,s_tab], [mismatches.x, s_tab.x]
     loj_out <= loj.map { |t1, t2| [t1.x, t2.x, t1.y1, t2.y1] }
@@ -239,12 +281,21 @@ class TestJoins < Test::Unit::TestCase
 		assert_equal(program.r11.to_a.sort, program.r12.to_a.sort)
 	end
 	
+	def test_star_join3
+    program = StarJoin3.new
+    assert_nothing_raised(RuntimeError) {program.tick}
+    assert_equal([['A','B',3,4,'A','Y']], program.t4.to_a)
+    assert_equal(program.t4.to_a, program.t5.to_a)
+  end
+	
 	def test_bad_star_joins
-		p1 = BadStarJoin1.new
-		p2 = BadStarJoin2.new
-		p3 = BadStarJoin3.new
+		p1 = MixedAttrRefs.new
+		p2 = MissingAttrRefs.new
+		p3 = IllegalAttrRefs.new
+		p4 = AmbiguousAttrRefs.new
 		assert_raise(Bud::CompileError) {p1.tick}
 		assert_raise(Bud::CompileError) {p2.tick}
 		assert_raise(Bud::CompileError) {p3.tick}
+		assert_raise(Bud::CompileError) {p4.tick}
 	end
 end
