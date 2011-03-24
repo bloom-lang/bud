@@ -141,7 +141,7 @@ module Bud
     @budtime = 0
     @inbound = []
     @done_bootstrap = false
-    @stopped = Queue.new
+    @em_stopped = Queue.new
 
     # Setup options (named arguments), along with default values
     @options = options
@@ -296,17 +296,15 @@ module Bud
   end
 
   # Shutdown a Bud instance that is running asynchronously. This method blocks
-  # until Bud has been shutdown. If _stop_em_ is true, the EventMachine event
+  # until Bud has been shutdown. If +stop_em+ is true, the EventMachine event
   # loop is also shutdown; this will interfere with the execution of any other
   # Bud instances in the same process (as well as anything else that happens to
   # use EventMachine).
   def stop_bg(stop_em=false)
-    # Note that EventMachine::stop_event_loop (called by do_shutdown) is a
-    # non-blocking call, so we need to employ a different approach for blocking
-    # shutdown if we want the event loop to stop.
     if stop_em
       schedule_shutdown(true)
-      @stopped.pop
+      # Wait until EM has completely shutdown before we return.
+      @em_stopped.pop
     else
       schedule_and_wait do
         do_shutdown(false)
@@ -424,7 +422,7 @@ module Bud
         q << true
       end
       # Executed only after EventMachine::stop_event_loop is done
-      @stopped << true
+      @em_stopped << true
     end
     # Block waiting for EM's event loop to start up.
     q.pop
@@ -459,8 +457,8 @@ module Bud
     close_tables
     @dsock.close_connection
     # Note that this affects anyone else in the same process who happens to be
-    # using EventMachine!
-    # This is a non-blocking call.
+    # using EventMachine! This is also a non-blocking call; to block until EM
+    # has completely shutdown, we use the @stopped queue.
     EventMachine::stop_event_loop if stop_em
   end
 

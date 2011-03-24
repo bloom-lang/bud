@@ -2,10 +2,10 @@ require 'socket'
 
 module Bud
   class BudServer < EM::Connection
-    def initialize(bud,lazy=false)
-      @pac = MessagePack::Unpacker.new
+    def initialize(bud, lazy=false)
       @bud = bud
       @lazy = lazy
+      @pac = MessagePack::Unpacker.new
       super
     end
 
