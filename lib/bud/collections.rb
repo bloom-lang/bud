@@ -582,25 +582,6 @@ module Bud
     end
   end
 
-  class BudCallback < BudCollection
-    def initialize(name, bud_instance, given_schema=nil)
-      super(name, bud_instance, given_schema)
-      @callbacks = []
-    end
-
-    def invoke
-      return if @storage.empty?
-
-      @callbacks.each do |c|
-        c.call(self)
-      end
-    end
-
-    def add_callback(block)
-      @callbacks << block
-    end
-  end
-
   class BudTerminal < BudCollection
     def initialize(name, given_schema, bud_instance, prompt=false)
       super(name, bud_instance, given_schema)

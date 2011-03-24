@@ -136,6 +136,7 @@ module Bud
     @tc_tables = {}
     @zk_tables = {}
     @callbacks = {}
+    @callback_id = 0
     @timers = []
     @budtime = 0
     @inbound = []
@@ -215,7 +216,7 @@ module Bud
   def call_state_methods
     meth_map = {} # map from ID => [Method]
     self.class.instance_methods.each do |m|
-      next unless m =~ /^__state(\d+)__.+$/
+      next unless m =~ /^__state(\d+)__/
       id = Regexp.last_match.captures.first.to_i
       meth_map[id] ||= []
       meth_map[id] << self.method(m)
@@ -346,28 +347,55 @@ module Bud
     end
   end
 
-  # Register a new callback block. Given the name of a Bud callback collection,
-  # this method arranges for the given block to be invoked at the end of any
-  # tick in which any tuples have been inserted into the specified callback
-  # collection. The code block is passed the callback collection as an argument;
-  # that provides a convenient way to examine the tuples inserted during that
-  # fixpoint.
-  def register_callback(name, &block)
+  # Register a new callback. Given the name of a Bud collection, this method
+  # arranges for the given block to be invoked at the end of any tick in which
+  # any tuples have been inserted into the specified collection. The code block
+  # is passed the collection as an argument; this provides a convenient way to
+  # examine the tuples inserted during that fixpoint. (Note that because the Bud
+  # runtime is blocked while the callback is invoked, it can also examine any
+  # other Bud state freely.)
+  #
+  # Note that registering callbacks on persistent collections (e.g., tables and
+  # tctables) is probably not a wise thing to do: as long as any tuples are
+  # stored in the collection, the callback will be invoked at the end of every
+  # tick.
+  def register_callback(tbl_name, &block)
     # We allow callbacks to be added before or after EM has been started. To
-    # simplify matters, we just start EM if it hasn't been started yet.
+    # simplify matters, we start EM if it hasn't been started yet.
     start_reactor
-
+    cb_id = nil
     schedule_and_wait do
-      unless @callbacks.has_key? name
-        raise Bud::BudError, "No such callback table: #{name}"
+      unless @tables.has_key? tbl_name
+        raise Bud::BudError, "No such table: #{tbl_name}"
       end
 
-      cb_tbl = @callbacks[name]
-      cb_tbl.add_callback block
+      raise Bud::BudError if @callbacks.has_key? @callback_id
+      @callbacks[@callback_id] = [tbl_name, block]
+      cb_id = @callback_id
+      @callback_id += 1
+    end
+    return cb_id
+  end
+
+  # Unregister the callback that has the given ID.
+  def unregister_callback(id)
+    schedule_and_wait do
+      raise Bud::BudError unless @callbacks.has_key? id
+      @callbacks.delete(id)
     end
   end
 
   private
+
+  def invoke_callbacks
+    @callbacks.each_value do |cb|
+      tbl_name, block = cb
+      tbl = @tables[tbl_name]
+      unless tbl.empty?
+        block.call(tbl)
+      end
+    end
+  end
 
   def start_reactor
     return if EventMachine::reactor_running?
@@ -505,7 +533,7 @@ module Bud
     @strata.each { |strat| stratum_fixpoint(strat) }
     @viz.do_cards if @options[:trace]
     do_flush
-    @callbacks.each_value { |c| c.invoke }
+    invoke_callbacks
     @budtime += 1
   end
 

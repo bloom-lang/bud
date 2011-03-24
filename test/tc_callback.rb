@@ -5,7 +5,7 @@ class SimpleCb
 
   state do
     scratch :t1
-    callback :c1
+    scratch :c1
   end
 
   bloom do
@@ -18,7 +18,7 @@ class CallbackAtNext
 
   state do
     scratch :t1
-    callback :c1
+    scratch :c1
   end
 
   bloom do
@@ -82,6 +82,43 @@ class CallbackTest < Test::Unit::TestCase
     c.sync_do
     assert_equal(1, tick.cnt)
 
+    c.stop_bg
+  end
+
+  def test_missing_cb_error
+    c = SimpleCb.new
+    assert_raise(Bud::BudError) do
+      c.register_callback(:crazy) do
+        raise RuntimeError
+      end
+    end
+  end
+
+  def add_cb(b)
+    tick = Counter.new
+    id = b.register_callback(:c1) do
+      tick.bump
+    end
+    return [tick, id]
+  end
+
+  def test_unregister_cb
+    c = SimpleCb.new
+    tick1, id1 = add_cb(c)
+    tick2, id2 = add_cb(c)
+
+    c.run_bg
+    c.sync_do {
+      c.t1 <+ [[100, 200]]
+    }
+    assert_equal(1, tick1.cnt)
+    assert_equal(1, tick2.cnt)
+    c.unregister_callback(id1)
+    c.sync_do {
+      c.t1 <+ [[200, 400]]
+    }
+    assert_equal(1, tick1.cnt)
+    assert_equal(2, tick2.cnt)
     c.stop_bg
   end
 end

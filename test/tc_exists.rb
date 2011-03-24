@@ -9,14 +9,12 @@ class ExistTest
     table :dups, [:str]
     periodic :timer, 0.5
     channel :msgs
-    callback :got_msg
   end
 
   bloom do
     msgs <~ notes.map{|n| [ip_port, n] if timer.exists?}
     memories <= msgs.payloads
     dups <= memories.map{|n| [n.inspect] if msgs.exists?{|m| n.val == m.val[1]}}
-    got_msg <= msgs
   end
 end
 
@@ -26,7 +24,7 @@ class TestExists < Test::Unit::TestCase
     p.run_bg
 
     q = Queue.new
-    p.register_callback(:got_msg) do
+    p.register_callback(:msgs) do
       q.push(true)
     end
 

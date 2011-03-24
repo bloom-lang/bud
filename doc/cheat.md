@@ -76,10 +76,6 @@ system-provided attributes: `[:line] => []`
 (statements with stdio on lhs must use async merge (`<~`)<br>
 to capture `$stdin` on rhs, instantiate Bud with `:read_stdin` option.)<br>
 
-### callback ###
-scratch collection for Bud-generated callbacks. This can be used by code running
-outside Bud to register interest in changes to Bud state.
-
 ### tctable ###
 table collection mapped to a [Tokyo Cabinet](http://fallabs.com/tokyocabinet/) store.<br>
 default attributes: `[:key] => [:val]`
