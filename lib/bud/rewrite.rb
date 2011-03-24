@@ -294,9 +294,9 @@ module ModuleRewriter
   def self.do_import(import_site, mod, local_name)
     ast = get_module_ast(mod)
     ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
+    ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
     rename_tbl = ast_rename_state(ast, local_name)
     ast = ast_update_refs(ast, rename_tbl)
-    ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
 
     str = Ruby2Ruby.new.process(ast)
     rv = import_site.module_eval str
