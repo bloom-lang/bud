@@ -306,7 +306,7 @@ module ModuleRewriter
   end
 
   def self.get_module_ast(mod)
-    raw_ast = ParseTree.translate(mod)
+    raw_ast = get_raw_parse_tree(mod)
     unless raw_ast.first == :module
       raise Bud::BudError, "import must be used with a Module"
     end
@@ -318,6 +318,52 @@ module ModuleRewriter
     raw_ast.delete_if {|n| n == [nil]}
 
     return Unifier.new.process(raw_ast)
+  end
+
+  # Returns the AST for the given module (as a tree of Sexps). ParseTree
+  # provides native support for doing this, but we choose to do it ourselves. In
+  # ParseTree <= 3.0.7, the support is buggy; in later versions of ParseTree,
+  # the AST is returned in a different format than we expect. In particular, we
+  # expect that the methods from any modules included in the target module will
+  # be "inlined" into the dumped AST; ParseTree > 3.0.7 adds an "include"
+  # statement to the AST instead. In the long run we should adapt the module
+  # rewrite system to work with ParseTree > 3.0.7 and get rid of this code, but
+  # that will require further changes.
+  def self.get_raw_parse_tree(klass)
+    pt = RawParseTree.new(false)
+    klassname = klass.name
+    klassname = klassname.to_sym
+
+    code = if Class === klass then
+             sc = klass.superclass
+             sc_name = ((sc.nil? or sc.name.empty?) ? "nil" : sc.name).intern
+             [:class, klassname, [:const, sc_name]]
+           else
+             [:module, klassname]
+           end
+
+    method_names = []
+    method_names += klass.instance_methods false
+    method_names += klass.private_instance_methods false
+    # protected methods are included in instance_methods, go figure!
+
+    method_names.sort.each do |m|
+      r = pt.parse_tree_for_method(klass, m.to_sym)
+      code << r
+    end
+
+    klass.modules.each do |mod| # TODO: add a test for this damnit
+      mod.instance_methods.each do |m|
+        r = pt.parse_tree_for_method(mod, m.to_sym)
+        code << r
+      end
+    end
+
+    klass.singleton_methods(false).sort.each do |m|
+      code << pt.parse_tree_for_method(klass, m.to_sym, true)
+    end
+
+    return code
   end
 
   # Rename the given module's name to be a mangle of import site, imported
