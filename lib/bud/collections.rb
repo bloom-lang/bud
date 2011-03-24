@@ -17,8 +17,8 @@ module Bud
   class BudCollection
     include Enumerable
 
-    attr_accessor :schema, :key_cols, :val_cols
-    attr_reader :tabname, :bud_instance, :storage, :delta, :new_delta
+    attr_accessor :schema, :key_cols, :val_cols, :bud_instance
+    attr_reader :tabname, :storage, :delta, :new_delta
 
     # each collection is partitioned into 4:
     # - pending holds tuples deferred til the next tick
