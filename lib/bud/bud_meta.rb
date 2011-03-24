@@ -54,7 +54,6 @@ class BudMeta
     seed = 0
     rulebag = {}
     @bud_instance.class.ancestors.reverse.each do |anc|
-      shred_state(anc)
       @declarations.each do |meth_name|
         rw = rewrite_rule_block(anc, meth_name, seed)
         if rw
@@ -72,18 +71,6 @@ class BudMeta
         @bud_instance.t_depends << d
       end
     end
-  end
-
-  def shred_state(anc)
-    return unless @bud_instance.options[:scoping]
-    # XXX: this is wrong!
-    stp = ParseTree.translate(anc, "__state__#{@bud_instance.class}")
-    return if stp[0].nil?
-    u = Unifier.new
-    pt = u.process(stp)
-    state_reader = StateExtractor.new(anc.to_s)
-    state_reader.process(pt)
-    @decls += state_reader.decls
   end
 
   def rewrite_rule_block(klass, block_name, seed)
