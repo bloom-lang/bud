@@ -8,16 +8,13 @@ module Bud
       @origrels = rellist
       @bud_instance = bud_instance
       @localpreds = nil
+			
+			preds = decomp_preds(*preds)
 
       # extract predicates on rellist[0] and let the rest recurse
       unless preds.nil?
         @localpreds = preds.reject { |p| p[0][0] != rellist[0].tabname and p[1][0] != rellist[0].tabname }
-        @localpreds.each do |p|
-          if p[1][0] == rellist[0].tabname
-            @localpreds.delete(p)
-            @localpreds << [p[1], p[0]]
-          end
-        end
+				canonicalize_localpreds(rellist)
         otherpreds = preds.reject { |p| p[0][0] == rellist[0].tabname or p[1][0] == rellist[0].tabname}
         otherpreds = nil if otherpreds.empty?
       end
@@ -46,6 +43,86 @@ module Bud
         memo
       end
     end
+
+		def self.natural_preds(bud_instance, rels)
+			preds = []
+	    rels.each do |r|
+	      rels.each do |s|
+	        matches = r.schema & s.schema
+	        matches.each do |c|
+	          preds << [bud_instance.send(r.tabname).send(c), bud_instance.send(s.tabname).send(c)] unless r.tabname.to_s >= s.tabname.to_s
+	        end
+	      end
+	    end
+	    preds.uniq
+		end
+		
+		# currently supports two options for equijoin predicates:
+		#    general form: an array of arrays capturing a conjunction of equiv. classes
+		#          [[table1.col1, table2.col2, table3.col3], [table1.col2, table2.col3]]
+		#    common form: a hash capturing equality of a column on left with one on right.
+		#          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
+		def pairs(*preds, &blk)
+			unless preds.nil?
+				if preds.size == 1 and preds[0].class <= Hash
+					predarray = preds[0].map do |k,v|
+						if k.class != v.class
+            	raise Bud::CompileError, "inconsistent attribute ref style #{k.inspect} => #{v.inspect}"
+						elsif k.class <= Array
+							[k,v]
+						elsif k.class <= Symbol
+							begin
+								[@rels[0].send(k), @rels[1].send(v)]
+							rescue
+								raise Bud::CompileError, "unknown attribute ref in #{k.inspect} => #{v.inspect}"
+					    end
+					  else
+							raise Bud::CompileError, "invalid attribute ref in #{k.inspect} => #{v.inspect}"
+						end
+					end
+					@localpreds = decomp_preds(*predarray)
+				else
+					@localpreds = decomp_preds(*preds)
+				end
+				canonicalize_localpreds(@rels)
+			end
+			map(&blk)
+		end
+		
+		def matches(&blk)
+			preds = BudJoin::natural_preds(@bud_instance, @rels)
+			pairs(*preds, &blk)
+		end
+			
+		def lefts(preds, &blk)
+			pairs(*preds) {|l, r| l}
+		end
+
+		def rights(preds, &blk)
+			pairs(*preds) {|l, r| r}
+		end
+
+	  def decomp_preds(*preds)
+	    # decompose each pred into a binary pred
+		  return nil if preds.nil? or preds.empty? or preds == [nil]
+	    newpreds = []
+	    preds.each do |p|
+	      p.each_with_index do |c, i|
+	        newpreds << [p[i], p[i+1]] unless p[i+1].nil?
+	      end
+	    end
+	    newpreds
+	  end	  
+	
+		def canonicalize_localpreds(rellist)
+			return if @localpreds.nil?
+			@localpreds.each do |p|
+        if p[1][0] == rellist[0].tabname
+          @localpreds.delete(p)
+          @localpreds << [p[1], p[0]]
+        end
+      end
+		end
 
     def flatten
       flat_schema = @rels.map{|r| r.schema}.flatten(1)

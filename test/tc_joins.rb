@@ -1,5 +1,85 @@
 require 'test_common'
 
+class StarJoin
+	include Bud
+	state do
+		table :r1
+		table :r2, [:key] => [:vat]
+		table :r3
+		table :r4
+		table :r5
+		table :r51
+		table :r52
+		table :r6
+		table :r7
+		table :r8
+		table :r9
+		table :r10
+		table :r11
+		table :r12
+	end
+	
+	bootstrap do
+		r1 <= [[1,1]]
+		r2 <= [[1,2],[3,4]]
+	end
+	
+	bloom do
+		r3 <= (r1*r2).pairs {|r,s| [s.vat, r.key]}
+		r4 <= join([r1,r2]) {|r,s| [s.vat, r.key]}
+		r5 <= (r1*r2).pairs(:val => :key) {|r,s| [r.key, s.vat]}
+		r51 <= (r1*r2).pairs([r1.val,r2.key]) {|r,s| [r.key, s.vat]}
+		r52 <= (r1*r2).pairs(r2.key => r1.val) {|r,s| [r.key, s.vat]}
+		r6 <= join([r1,r2], [r1.val,r2.key]) {|r,s| [r.key, s.vat]}
+		r7 <= (r1*r2).matches {|r,s| [r.key, s.vat]}
+		r8 <= natjoin([r1,r2]) {|r,s| [r.key, s.vat]}
+		r9 <= (r1*r2).lefts([[r1.val,r2.key]])
+		r10 <= join([r1,r2], [r1.val,r2.key]) {|r,s| r}
+		r11 <= (r1*r2).rights([[r1.val,r2.key]])
+		r12 <= join([r1,r2], [r1.val,r2.key]) {|r,s| s}
+	end
+end
+
+class BadStarJoin1
+	include Bud
+	state do
+		table :r1
+		table :r2
+		table :r3
+	end
+	
+	bloom do
+		r3 <= (r1*r2).pairs(:key => r2.val)
+	end
+end
+
+class BadStarJoin2
+	include Bud
+	state do
+		table :r1
+		table :r2
+		table :r3
+	end
+	
+	bloom do
+		r3 <= (r1*r2).pairs(:i_dont_exist => :ha)
+	end
+end
+
+class BadStarJoin3
+	include Bud
+	state do
+		table :r1
+		table :r2
+		table :r3
+	end
+	
+	bloom do
+		r3 <= (r1*r2).pairs("key" => "val")
+	end
+end
+
+
 class CombosBud
   include Bud
 
@@ -137,4 +217,30 @@ class TestJoins < Test::Unit::TestCase
     assert_equal(3, loj_outs.length)
     assert_equal(loj_outs.to_a.sort, [["a", "a", 1, 1], ["v", nil, 1, nil], ["z", nil, 1, nil]])
   end
+
+	def test_star_join
+		program = StarJoin.new
+		assert_nothing_raised(RuntimeError) { program.tick }
+		assert_equal(program.r3.to_a.sort, program.r4.to_a.sort)
+		assert_equal([[2,1],[4,1]], program.r3.to_a.sort)
+		assert_equal(program.r5.to_a.sort, program.r6.to_a.sort)
+		assert_equal(program.r5.to_a.sort, program.r51.to_a.sort)
+		assert_equal(program.r5.to_a.sort, program.r52.to_a.sort)
+		assert_equal([[1,2]], program.r5.to_a.sort)
+		assert_equal(program.r7.to_a.sort, program.r8.to_a.sort)
+		assert_equal([[1,2]], program.r7.to_a.sort)
+		assert_equal(program.r9.to_a.sort, program.r10.to_a.sort)
+		assert_equal([[1,1]], program.r9.to_a.sort)
+		assert_equal([[1,2]], program.r11.to_a.sort)
+		assert_equal(program.r11.to_a.sort, program.r12.to_a.sort)
+	end
+	
+	def test_bad_star_joins
+		p1 = BadStarJoin1.new
+		p2 = BadStarJoin2.new
+		p3 = BadStarJoin3.new
+		assert_raise(Bud::CompileError) {p1.tick}
+		assert_raise(Bud::CompileError) {p2.tick}
+		assert_raise(Bud::CompileError) {p3.tick}
+	end
 end

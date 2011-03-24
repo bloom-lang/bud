@@ -30,16 +30,6 @@ module BudState
     end
   end
 
-  def wrap_collection(c)
-    return lambda do |&blk|
-      unless blk.nil? then
-        return c.map(&blk)
-      else
-        return c
-      end
-    end
-  end
-
   def input
     true
   end

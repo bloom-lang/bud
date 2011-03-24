@@ -407,6 +407,10 @@ module Bud
       argagg(:max, gbkey_cols, col)
     end
 
+		def *(coll)
+			bud_instance.join([self, coll])
+		end
+
     # currently support two options for column ref syntax -- :colname or table.colname
     def group(key_cols, *aggpairs)
       key_cols = [] if key_cols.nil?

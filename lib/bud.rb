@@ -591,18 +591,6 @@ module Bud
   end
 
   ####### Joins
-  private
-  def decomp_preds(*preds)
-    # decompose each pred into a binary pred
-    newpreds = []
-    preds.each do |p|
-      p.each_with_index do |c, i|
-        newpreds << [p[i], p[i+1]] unless p[i+1].nil?
-      end
-    end
-    newpreds
-  end
-
   def wrap_map(j, &blk)
     if blk.nil?
       return j
@@ -613,7 +601,7 @@ module Bud
 
   public
   def join(rels, *preds, &blk)
-    j = BudJoin.new(rels, self, decomp_preds(*preds))
+    j = BudJoin.new(rels, self, preds)
     wrap_map(j, &blk)
   end
 
@@ -621,16 +609,7 @@ module Bud
 
   def natjoin(rels, &blk)
     # for all pairs of relations, add predicates on matching column names
-    preds = []
-    rels.each do |r|
-      rels.each do |s|
-        matches = r.schema & s.schema
-        matches.each do |c|
-          preds << [self.send(r.tabname).send(c), self.send(s.tabname).send(c)] unless r.tabname.to_s >= s.tabname.to_s
-        end
-      end
-    end
-    preds.uniq!
+		preds = BudJoin::natural_preds(self, rels)
     j = join(rels, *preds)
     wrap_map(j, &blk)
   end
@@ -639,7 +618,7 @@ module Bud
   alias natcoincide natjoin
 
   def leftjoin(rels, *preds, &blk)
-    j = BudLeftJoin.new(rels, self, decomp_preds(*preds))
+    j = BudLeftJoin.new(rels, self, preds)
     wrap_map(j, &blk)
   end
 
