@@ -183,13 +183,11 @@ implicit map:
 * Summary aggs: `count`, `sum`, `avg`
 * Structural aggs: `accum`
 
-## Join, Coincide ###
-`join` and `coincide` are synonyms.<br>
+## Join ###
 First argument is always an array of collections to join.<br>
 Later arguments are arrays of columns to be matched (equijoin).
 
 `join([`*tablelist*`]` *,[optional column matches], ...*`)`<br>
-`coincide([`*tablelist*`]` *,[optional column matches], ...*`)`<br>
 
     # the following 3 Bloom statements are equivalent to this SQL
     # SELECT r.a, s_tab.b, t.c
@@ -212,10 +210,6 @@ Later arguments are arrays of columns to be matched (equijoin).
     out <= join([r,s_tab,t]) do |t1, t2, t3|
              [t1.a, t2.b, t3.c] if r.x == s_tab.x and s_tab.x = t.x
            end
-
-    # coincide is a more natural verb for timers and messages.
-    # here is a typical timeout/retry pattern for requests
-    request_chan <~ coincide([request_buf, timeout]) {|r, t| r }
 
 `natjoin([`*tablelist*`]`)<br>
 Natural join of tables.
