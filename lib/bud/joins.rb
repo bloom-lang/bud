@@ -59,6 +59,7 @@ module Bud
 			self
     end
 
+		private_class_method
 		def self.natural_preds(bud_instance, rels)
 			preds = []
 	    rels.each do |r|
@@ -77,6 +78,7 @@ module Bud
 		#          [[table1.col1, table2.col2, table3.col3], [table1.col2, table2.col3]]
 		#    common form: a hash capturing equality of a column on left with one on right.
 		#          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
+		public
 		def pairs(*preds, &blk)
 			unless preds.nil?
 				@localpreds = disambiguate_preds(preds)
@@ -87,7 +89,7 @@ module Bud
 		
 		alias combos pairs
 				
-	
+		public
     def flatten(*preds)
 			unless preds.nil? or preds.size == 0
 				@localpreds = disambiguate_preds(preds)
@@ -117,23 +119,25 @@ module Bud
       retval.merge(self.map{|r,s| r + s}, retval.storage)
     end
 		
-		alias concat flatten
-
+		public
 		def matches(&blk)
 			preds = BudJoin::natural_preds(@bud_instance, @rels)
 			pairs(*preds, &blk)
 		end
 			
+		public
 		def lefts(*preds)
 			@localpreds = disambiguate_preds(preds)
 			map{ |l,r| l }
 		end
 
+		public
 		def rights(*preds)
 			@localpreds = disambiguate_preds(preds)
 			map{ |l,r| r }
 		end
 
+		private
 		def disambiguate_preds(preds)
 			if preds.size == 1 and preds[0].class <= Hash
 				predarray = preds[0].map do |k,v|
@@ -160,7 +164,7 @@ module Bud
 		# find element in @origrels that contains this aname method
 		# if 2nd arg is non-nil, only check that collection.
 		# after found, return the result of invoking aname from chosen collection
-		
+		private
 		def find_attr_match(aname, rel=nil)
 			dorels = (rel.nil? ? @origrels : [rel])
 			match = nil
@@ -176,6 +180,7 @@ module Bud
 			match.send(aname)
 		end
 		
+		private
 	  def decomp_preds(*preds)
 	    # decompose each pred into a binary pred
 		  return nil if preds.nil? or preds.empty? or preds == [nil]
@@ -188,6 +193,7 @@ module Bud
 	    newpreds
 	  end	  
 	
+	  private
 		def canonicalize_localpreds(rellist)
 			return if @localpreds.nil?
 			@localpreds.each do |p|
@@ -198,10 +204,12 @@ module Bud
       end
 		end
 
+		private
     def do_insert(o, store)
       raise BudError, "no insertion into joins"
     end
 
+		public
     def inspected
       if @rels.length == 2 then
         # fast common case
@@ -216,7 +224,7 @@ module Bud
       end
     end
 
-
+		public
     def each(mode=:both, &block)
       mode = :storage if @bud_instance.stratum_first_iter
       if mode == :storage
@@ -237,6 +245,7 @@ module Bud
       end
     end
     
+		public
     def each_from_sym(buf_syms, &block)
       buf_syms.each do |s|
         each(s, &block)
@@ -251,7 +260,7 @@ module Bud
     # def each_delta(&block)
     #   each(:delta, &block)
     # end
-
+		private
     def test_locals(r, s, *skips)
       retval = true
       if (@localpreds and skips and @localpreds.length > skips.length)
@@ -268,6 +277,7 @@ module Bud
       return retval
     end
 
+		private
     def nestloop_join(collection1, collection2, &block)
       @rels[0].each_from_sym([collection1]) do |r|
         @rels[1].each_from_sym([collection2]) do |s|
@@ -277,6 +287,7 @@ module Bud
       end
     end
 
+		private
     def join_offsets(pred)
       build_entry = pred[1]
       build_name, build_offset = build_entry[0], build_entry[1]
@@ -296,6 +307,7 @@ module Bud
       return probe_offset, index, build_offset
     end
 
+		private
     def hash_join(collection1, collection2, &block)
       # hash join on first predicate!
       ht = {}
@@ -328,6 +340,7 @@ module Bud
       @origpreds = preds
     end
 
+		public
     def each(&block)
       super(&block)
       # previous line finds all the matches.

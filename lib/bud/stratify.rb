@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud'
 
-class Stratification
+class Stratification # :nodoc: all
   include Bud
 
   state do

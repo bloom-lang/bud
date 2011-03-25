@@ -4,7 +4,7 @@ require 'gchart'
 require 'digest/md5'
 require 'bud/state'
 
-class VizOnline
+class VizOnline #:nodoc: all
   include BudState
 
   def initialize(bud_instance)

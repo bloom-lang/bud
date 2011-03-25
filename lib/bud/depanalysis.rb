@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud'
 
-class DepAnalysis
+class DepAnalysis #:nodoc: all
   include Bud
 
   state do

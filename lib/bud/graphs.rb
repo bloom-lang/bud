@@ -2,7 +2,7 @@
 require 'rubygems'
 require 'graphviz'
 
-class GraphGen
+class GraphGen #:nodoc: all
 
   def initialize(mapping, tableinfo, cycle, name, budtime, vizlevel, pics_dir, collapse=false, depanalysis=nil, cardinalities={})
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85 )

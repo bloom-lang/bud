@@ -1,7 +1,7 @@
 require 'socket'
 
 module Bud
-  class BudServer < EM::Connection
+  class BudServer < EM::Connection  #:nodoc: all
     def initialize(bud, lazy=false)
       @bud = bud
       @lazy = lazy

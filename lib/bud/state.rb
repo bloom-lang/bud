@@ -1,5 +1,6 @@
 module BudState
   ######## methods for registering collection types
+	private
   def define_collection(name, &block)
     # don't allow duplicate table definitions
     if @tables.has_key? name
@@ -19,17 +20,19 @@ module BudState
       end
     end
   end
+  # 
+  # def tmp(var, coll)
+  #   self.singleton_class.send(:define_method, var) do |*args, &blk|
+  #     unless blk.nil? then
+  #       return coll.map(&blk)
+  #     else
+  #       return coll
+  #     end
+  #   end
+  # end
 
-  def tmp(var, coll)
-    self.singleton_class.send(:define_method, var) do |*args, &blk|
-      unless blk.nil? then
-        return coll.map(&blk)
-      else
-        return coll
-      end
-    end
-  end
-
+	public
+	
   def input
     true
   end
