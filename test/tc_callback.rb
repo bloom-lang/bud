@@ -94,6 +94,16 @@ class CallbackTest < Test::Unit::TestCase
     end
   end
 
+  def test_blocking_on_callback
+    c = SimpleCb.new
+    c.run_bg
+    tup_set = [[1, 2]]
+    c.sync_callback(:t1, tup_set, :c1) do |cb|
+      assert_equal(1, cb.length)
+    end
+    c.stop_bg
+  end
+
   def add_cb(b)
     tick = Counter.new
     id = b.register_callback(:c1) do

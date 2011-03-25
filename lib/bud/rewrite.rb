@@ -128,24 +128,6 @@ class RuleRewriter < Ruby2Ruby
   end
 end
 
-class StateExtractor < Ruby2Ruby
-  attr_reader :decls
-
-  def initialize(context)
-    @cxt = context
-    @decls = []
-    super()
-  end
-
-  def process_call(exp)
-    lhs = process exp[2]
-    foo = "#{exp[1]} #{lhs}"
-    @decls << ["#{lhs}"[/:.*?,/][1..-1].chop!, foo]
-    exp.shift until exp.empty?
-    return ""
-  end
-end
-
 # Given a table of renames from x => y, replace all calls to "x" with calls to
 # "y" instead. We don't try to handle shadowing due to block variables: if a
 # block references a block variable that shadows an identifier in the rename

@@ -13,9 +13,6 @@ class BudMeta
   end
 
   def meta_rewrite
-    # N.B. -- parse_tree will not be supported in ruby 1.9.
-    # however, we can still pass the "string" code of bud modules
-    # to ruby_parse (but not the "live" class)
     shred_rules
     top_stratum = stratify
     stratum_map = binaryrel2map(@bud_instance.t_stratum)
@@ -57,7 +54,6 @@ class BudMeta
     seed = 0
     rulebag = {}
     @bud_instance.class.ancestors.reverse.each do |anc|
-      shred_state(anc)
       @declarations.each do |meth_name|
         rw = rewrite_rule_block(anc, meth_name, seed)
         if rw
@@ -68,25 +64,9 @@ class BudMeta
     end
 
     rulebag.each_value do |v|
-      v.rules.each do |r|
-        @bud_instance.t_rules << r
-      end
-      v.depends.each do |d|
-        @bud_instance.t_depends << d
-      end
+      v.rules.each {|r| @bud_instance.t_rules << r}
+      v.depends.each {|d| @bud_instance.t_depends << d}
     end
-  end
-
-  def shred_state(anc)
-    return unless @bud_instance.options[:scoping]
-    # XXX: this is wrong!
-    stp = ParseTree.translate(anc, "__state__#{@bud_instance.class}")
-    return if stp[0].nil?
-    u = Unifier.new
-    pt = u.process(stp)
-    state_reader = StateExtractor.new(anc.to_s)
-    state_reader.process(pt)
-    @decls += state_reader.decls
   end
 
   def rewrite_rule_block(klass, block_name, seed)

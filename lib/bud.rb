@@ -141,6 +141,7 @@ module Bud
     @budtime = 0
     @inbound = []
     @done_bootstrap = false
+    @em_stopped = Queue.new
 
     # Setup options (named arguments), along with default values
     @options = options
@@ -268,11 +269,11 @@ module Bud
   # Bud collections from the caller's thread (see async_do and sync_do).
   #
   # This instance of Bud will continue to run until stop_bg is called.
-  def run_bg
+  def run_bg(lazy=false)
     start_reactor
     # Wait for Bud to start up before returning
     schedule_and_wait do
-      start_bud
+      start_bud(lazy)
     end
   end
 
@@ -295,13 +296,19 @@ module Bud
   end
 
   # Shutdown a Bud instance that is running asynchronously. This method blocks
-  # until Bud has been shutdown. If _stop_em_ is true, the EventMachine event
+  # until Bud has been shutdown. If +stop_em+ is true, the EventMachine event
   # loop is also shutdown; this will interfere with the execution of any other
   # Bud instances in the same process (as well as anything else that happens to
   # use EventMachine).
   def stop_bg(stop_em=false)
-    schedule_and_wait do
-      do_shutdown(stop_em)
+    if stop_em
+      schedule_shutdown(true)
+      # Wait until EM has completely shutdown before we return.
+      @em_stopped.pop
+    else
+      schedule_and_wait do
+        do_shutdown(false)
+      end
     end
   end
 
@@ -385,6 +392,24 @@ module Bud
     end
   end
 
+  # sync_callback supports synchronous interaction with bud modules.
+  # The caller supplies the name of an input relation,
+  # a set of tuples to insert, and an output relation on which  to 'listen.'
+  # The call blocks until tuples are inserted into the output collection:
+  # these are returned to the caller.
+  def sync_callback(in_coll, tupleset, out_coll)
+    q = Queue.new
+    cb = register_callback(out_coll) do |c|
+      q.push c.to_a
+    end
+    sync_do do 
+      @tables[in_coll] <+ tupleset
+    end
+    result = q.pop
+    unregister_callback(cb)
+    yield result
+  end
+
   private
 
   def invoke_callbacks
@@ -408,11 +433,16 @@ module Bud
 
     # Block until EM has successfully started up.
     q = Queue.new
+    # This thread helps us avoid race conditions on the start and stop of
+    # EventMachine's event loop.
     Thread.new do
       EventMachine.run do
         q << true
       end
+      # Executed only after EventMachine::stop_event_loop is done
+      @em_stopped << true
     end
+    # Block waiting for EM's event loop to start up.
     q.pop
   end
 
@@ -445,7 +475,8 @@ module Bud
     close_tables
     @dsock.close_connection
     # Note that this affects anyone else in the same process who happens to be
-    # using EventMachine!
+    # using EventMachine! This is also a non-blocking call; to block until EM
+    # has completely shutdown, we use the @em_stopped queue.
     EventMachine::stop_event_loop if stop_em
   end
 
@@ -461,18 +492,20 @@ module Bud
     end
   end
 
-  def start_bud
+  def start_bud(lazy=false)
     raise BudError unless EventMachine::reactor_thread?
 
     # If we get SIGINT or SIGTERM, shutdown gracefully
-    Signal.trap("INT") do
-      schedule_shutdown(true)
-    end
-    Signal.trap("TRAP") do
-      schedule_shutdown(true)
+    unless @options[:no_signal_handlers]
+      Signal.trap("INT") do
+        schedule_shutdown(true)
+      end
+      Signal.trap("TRAP") do
+        schedule_shutdown(true)
+      end
     end
 
-    do_start_server
+    do_start_server(lazy)
 
     # Initialize periodics
     @periodics.each do |p|
@@ -484,19 +517,15 @@ module Bud
     @stdio.start_stdin_reader if @options[:read_stdin]
 
     # Compute a fixpoint; this will also invoke any bootstrap blocks.
-    tick
+    tick unless lazy
 
     @rtracer.sleep if options[:rtrace]
   end
 
-  def do_start_server
-    if @options[:port] == 0
-      @dsock = EventMachine::open_datagram_socket(@ip, 0, BudServer, self)
-      @port = Socket.unpack_sockaddr_in(@dsock.get_sockname)[0]
-    else
-      @port = @options[:port]
-      @dsock = EventMachine::open_datagram_socket(@ip, @port, BudServer, self)
-    end
+  def do_start_server(lazy=false)
+    @dsock = EventMachine::open_datagram_socket(@ip, @options[:port],
+                                                BudServer, self, lazy)
+    @port = Socket.unpack_sockaddr_in(@dsock.get_sockname)[0]
   end
 
   public

@@ -112,13 +112,13 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_visualization
-    program = KTest2.new(:dump_rewrite => true, :trace => true)
+    program = KTest2.new(:trace => true)
     dep = DepAnalysis.new
 
     program.run_bg
-    program.sync_do{}
-    program.sync_do{}
-    program.sync_do{}
+    program.sync_do
+    program.sync_do
+    program.sync_do
 
     program.t_depends_tc.each {|d| dep.depends_tc << d}
     program.t_provides.each {|p| dep.providing << p}

@@ -53,5 +53,5 @@ class ShortestPaths
   end
 end
 
-program = ShortestPaths.new(:scoping => true, :ip => "127.0.0.1", :port => 0, :dump_rewrite => true)
+program = ShortestPaths.new(:ip => "127.0.0.1", :port => 0, :dump_rewrite => true)
 program.run

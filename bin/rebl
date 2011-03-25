@@ -3,59 +3,67 @@ require 'readline'
 require 'rubygems'
 require 'bud'
 require 'abbrev'
+require 'bud/server'
 
-TABLE_TYPES = ["table", "scratch"]
+TABLE_TYPES = ["table", "scratch", "channel"]
 BUILTIN_TABLES = [:stdio, :t_depends, :periodics_tbl, :t_cycle, :localtick,
                   :t_provides, :t_rules, :t_depends_tc, :t_stratum]
 HISTFILE = "~/.rebl_history"
 MAXHISTSIZE = 100
 
-# set up everything
 class ReblClass
   include Bud
-  attr_accessor :commands
-  
+  attr_accessor :commands, :dsock, :port, :ip
+#  public :schedule_shutdown
+
   @@escape_char = '/'
   def self.escape_char; @@escape_char; end
 
-  @@commands = {"tick" => ["@rebl_class_inst.tick", ReblClass::escape_char+"tick: 	execute a timestep"],
-               "lsrules" =>["@rules.each{|k,v| puts k.to_s + ':  ' + v}", ReblClass::escape_char+"lsrules: 	list rules"],
-               "rmrule" => ["@rules.delete(Integer(split_line[1]));reinstantiate", ReblClass::escape_char+"rmrule x: 	remove rule number x"], 
-               "lscollections" => ["puts @rebl_class_inst.tables.keys.find_all{ |tn| not BUILTIN_TABLES.include? tn}.inspect", ReblClass::escape_char+"lscollections: 	list collections"],
-               "dump" => ['@rebl_class_inst.instance_eval("#{split_line[1]}.dump")', ReblClass::escape_char+"dump c: 	dump contents of collection c"],
-               "exit" => ["ReblClass::do_exit", ReblClass::escape_char+"exit: 	exit rebl"],
-               "quit" => ["ReblClass::do_exit", ReblClass::escape_char+"quit: 	exit rebl"],
-               "help" => ["ReblClass::pretty_help", ReblClass::escape_char+"help: 	print this help message"] }
+  @@commands = {"tick" => ["@rebl_class_inst.sync_do",
+                           ReblClass::escape_char+"tick: \texecute a timestep"],
+    "lsrules" =>["@rules.each{|k,v| puts k.to_s + ':  ' + v}",
+                 ReblClass::escape_char+"lsrules: \tlist rules"],
+    "rmrule" => ["@rules.delete(Integer(split_line[1]));reinstantiate",
+                 ReblClass::escape_char+"rmrule x: \tremove rule number x"],
+    "lscollections" => ["puts @rebl_class_inst.tables.keys.find_all{ |tn| not BUILTIN_TABLES.include? tn}.inspect",
+                        ReblClass::escape_char+"lscollections: \tlist collections"],
+    "dump" => ['@rebl_class_inst.instance_eval("#{split_line[1]}.dump")',
+               ReblClass::escape_char+"dump c: \tdump contents of collection c"],
+    "exit" => ["ReblClass::do_exit", ReblClass::escape_char+"exit  \texit rebl"],
+    "quit" => ["ReblClass::do_exit", ReblClass::escape_char+"quit: \texit rebl"],
+    "help" => ["ReblClass::pretty_help",
+               ReblClass::escape_char+"help: \tprint this help message"] }
 
-	@@abbrevs = @@commands.keys.abbrev
+  @@abbrevs = @@commands.keys.abbrev
   @@exit_message = "Rebellion quashed."
-   
+
   def self.commands; @@commands; end
-  
+
   def self.command(c)
     return @@abbrevs[c].nil? ? nil : @@commands[@@abbrevs[c]][0]
-  end            
-  
+  end
+
   def self.pretty_help
-	  puts "rebl commands are prefixed by '#{ReblClass::escape_char}'"
-	  puts "other input is interpreted as Bloom code."
-	  puts
-	  puts "rebl commands:"
+    puts "rebl commands are prefixed by '#{ReblClass::escape_char}'"
+    puts "other input is interpreted as Bloom code."
+    puts
+    puts "rebl commands:"
     maxlen = @@commands.keys.sort{|a,b| b.size - a.size}.first.size
     @@commands.values.each do |v|
       puts v[1].gsub( /\t/, " "*(maxlen + 3 - v[1].split(':')[0].size))
     end
   end
-  
+
   def self.welcome
-	  puts "Welcome to rebl, the interactive Bloom terminal."
-		puts
-		puts "Type: " + ReblClass::escape_char + "h for help"
-		puts "      " + ReblClass::escape_char + "q to quit"
-		puts
-	end
-	
+    puts "Welcome to rebl, the interactive Bloom terminal."
+    puts
+    puts "Type: " + ReblClass::escape_char + "h for help"
+    puts "      " + ReblClass::escape_char + "q to quit"
+    puts
+  end
+
   def self.do_exit
+    @rebl_class_inst.stop_bg(true) if @rebl_class_inst
     puts "\n" + @@exit_message
     exit!
   end
@@ -65,32 +73,40 @@ def reinstantiate
   # new anonymous subclass
   @rebl_class = Class.new(ReblClass)
 
-	begin
-	  if not @rules.empty?
-	    @rebl_class.class_eval("bloom :rebl_rules do\n" +
-	                           @rules.sort.map {|_,r| r}.join("\n") + "\nend")
-	  end
-	rescue
-		raise
-	end
+  begin
+    if not @rules.empty?
+      @rebl_class.class_eval("bloom :rebl_rules do\n" +
+                             @rules.sort.map {|_,r| r}.join("\n") + "\nend")
+    end
+    if not @state.empty?
+      @rebl_class.class_eval("state do\n" + @state.values.join("\n") + "\nend")
+    end
+  rescue
+    raise
+  end
 
-	begin
-	  if not @state.empty?
-	    @rebl_class.class_eval("state do\n" + @state.values.join("\n") + "\nend")
-	  end
-	rescue 
-		raise
-	end
-	
-  # instantiate it
+  # shut down old instance
   @old_inst = @rebl_class_inst
-  @rebl_class_inst = @rebl_class.new
+  @rebl_class_inst = @rebl_class.new(:no_signal_handlers => true)
 
   # copy the tables over
   if @old_inst
     @rebl_class_inst.tables.merge!(@old_inst.tables.reject do |k,v|
                                      BUILTIN_TABLES.include? k
                                    end)
+    # fix the bud instance pointers from copied tables
+    @rebl_class_inst.tables.values.each do |v|
+      v.bud_instance = @rebl_class_inst
+    end
+  end
+
+  # Run lazily in background, stopping old instance
+  begin
+    @old_inst.stop_bg(true) if @old_inst
+    @rebl_class_inst.run_bg(true)
+  rescue
+    puts "unrecoverable error, please file a bug: #{$!}"
+    abort
   end
 end
 
@@ -113,15 +129,24 @@ def setup_history
 end
 
 # main
+Signal.trap("INT") {ReblClass::do_exit}
+Signal.trap("TRAP") {ReblClass::do_exit}
+
+ipport = ARGV[0] ? ARGV[0].split(":") : []
+@ip, @port = [(ipport[0] or "localhost"), (ipport[1] or 0)]
 @rules = {}
 @ruleid = 0
 @state = {}
 @stateid = 0
-@new_table = nil
+#@rebl_class_inst = nil
 reinstantiate
 setup_history
 
-comp = proc { |s| ReblClass::commands.keys.map{|c| ReblClass::escape_char+c}.grep( /^#{Regexp.escape(s)}/ ) }
+comp = proc do |s|
+  ReblClass::commands.keys.map do |c|
+    ReblClass::escape_char+c
+  end.grep( /^#{Regexp.escape(s)}/ )
+end
 
 Readline.completion_append_character = ' '
 Readline.completion_proc = comp
@@ -131,8 +156,8 @@ ReblClass.welcome
 loop do
   begin
     line = Readline::readline('rebl> ')
-		ReblClass::do_exit if line.nil?
-		line = line.lstrip.rstrip
+    ReblClass::do_exit if line.nil?
+    line = line.lstrip.rstrip
     Readline::HISTORY.push(line)
     split_line = line.split(" ")
 

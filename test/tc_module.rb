@@ -273,6 +273,46 @@ class TestModules < Test::Unit::TestCase
     c.tick
   end
 
+  module ModuleT1
+    state do
+      table :t1
+    end
+  end
+
+  module IncludeT1
+    import ModuleT1 => :m
+
+    state do
+      table :t2, m.t1.schema
+    end
+
+    bloom :logic do
+      m.t1 <= t2
+    end
+  end
+
+  class IncludeT1User
+    include Bud
+    import IncludeT1 => :t
+
+    bootstrap do
+      t.t2 <= [[35, 70], [45, 90]]
+    end
+
+    def do_check
+      sync_do {
+        raise unless [[35, 70], [45, 90]] == t.m.t1.to_a.sort
+      }
+    end
+  end
+
+  def test_nested_ref_import
+    t = IncludeT1User.new
+    t.run_bg
+    t.do_check
+    t.stop_bg
+  end
+
   module OuterModule
     module NestedModule
       state do
