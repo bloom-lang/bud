@@ -664,24 +664,17 @@ module Bud
     wrap_map(j, &blk)
   end
 
-  alias coincide join
-
+  # :nodoc
   def natjoin(rels, &blk)
     # for all pairs of relations, add predicates on matching column names
 		preds = BudJoin::natural_preds(self, rels)
     j = join(rels, *preds, &blk)
   end
 
-  # ugly, but why not
-  alias natcoincide natjoin
-
   def leftjoin(rels, *preds, &blk)
     j = BudLeftJoin.new(rels, self, preds)
     wrap_map(j, &blk)
   end
-
-  # ugly, but why not
-  alias leftcoincide leftjoin
 
   private
 
