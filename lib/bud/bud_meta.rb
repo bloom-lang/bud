@@ -4,7 +4,7 @@ require 'parse_tree'
 require 'pp'
 
 class BudMeta #:nodoc: all
-  attr_reader :depanalysis, :decls, :bud_instance
+  attr_reader :depanalysis, :decls
 
   def initialize(bud_instance, declarations)
     @bud_instance = bud_instance
@@ -77,7 +77,7 @@ class BudMeta #:nodoc: all
     pp pt if @bud_instance.options[:dump_ast]
     check_rule_ast(pt)
 
-    rewriter = RuleRewriter.new(seed, bud_instance)
+    rewriter = RuleRewriter.new(seed, @bud_instance)
     rewriter.process(pt)
     #rewriter.rules.each {|r| puts "RW: #{r.inspect}"}
     return rewriter
@@ -93,7 +93,7 @@ class BudMeta #:nodoc: all
     lhs = s(:call, nil, n[3][1][1][1], s(:arglist))
     op = n[3][1][2]
     rhs = n[3][1][3]
-    bud_instance.temp n[3][1][1][1]
+    @bud_instance.temp n[3][1][1][1]
     
     return s(:call, lhs, op, rhs)
   end    
@@ -117,7 +117,7 @@ class BudMeta #:nodoc: all
       raise Bud::CompileError unless n.length == 3
       tag, lhs, rhs = n
       lhs = lhs.to_sym
-      bud_instance.temp lhs
+      @bud_instance.temp lhs
 
       equi_rules << s(:call, s(:call, nil, lhs, s(:arglist)), :<=, s(:arglist, rhs))               
     end
@@ -158,8 +158,8 @@ class BudMeta #:nodoc: all
       # node; the LHS of the :call is the actual rule body, the :call's oper is
       # the rest of the superator (unary ~, -, +), and the RHS is empty.  Note
       # that ParseTree encodes unary "-" and "+" as :-@ and :-+, respectively.
-      # XXX: Checking for illegal superators (e.g., "<--") is tricky, because
-      # they are encoded as a nested unary operator in the rule body.
+      # XXX: We don't check for illegal superators (e.g., "<--"). That would be
+      # tricky, because they are encoded as a nested unary op in the rule body.
       if op == :<
         raise Bud::CompileError unless rhs.sexp_type == :arglist
         body = rhs[1]
