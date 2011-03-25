@@ -133,8 +133,6 @@ end
 # block references a block variable that shadows an identifier in the rename
 # tbl, it should appear as an :lvar node rather than a :call, so we should be
 # okay.
-# XXX: If this module imports a submodule :p and we see a call to p.x, we
-# shouldn't try to rewrite x.
 class CallRewriter < SexpProcessor
   def initialize(rename_tbl)
     super()
