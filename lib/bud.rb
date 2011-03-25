@@ -458,7 +458,7 @@ module Bud
     @dsock.close_connection
     # Note that this affects anyone else in the same process who happens to be
     # using EventMachine! This is also a non-blocking call; to block until EM
-    # has completely shutdown, we use the @stopped queue.
+    # has completely shutdown, we use the @em_stopped queue.
     EventMachine::stop_event_loop if stop_em
   end
 
