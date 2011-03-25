@@ -3,7 +3,7 @@ require 'bud/state'
 require 'parse_tree'
 require 'pp'
 
-class BudMeta
+class BudMeta #:nodoc: all
   attr_reader :depanalysis, :decls, :bud_instance
 
   def initialize(bud_instance, declarations)

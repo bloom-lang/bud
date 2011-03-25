@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'ruby2ruby'
 
-class RuleRewriter < Ruby2Ruby
+class RuleRewriter < Ruby2Ruby #:nodoc: all
   attr_accessor :rule_indx, :rules, :depends, :bud_instance
 
   def initialize(seed, bud_instance)

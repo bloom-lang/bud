@@ -1,6 +1,6 @@
 module Bud
   ######## Agg definitions
-  class Agg
+  class Agg #:nodoc: all
     def init(val)
       val
     end
