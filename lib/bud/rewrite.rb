@@ -8,7 +8,7 @@ class RuleRewriter < Ruby2Ruby #:nodoc: all
     @bud_instance = bud_instance
     @ops = {:<< => 1, :< => 1, :<= => 1}
     @monotonic_whitelist = {
-	      :== => 1, :+ => 1, :- => 1, :<= => 1, :- => 1, :< => 1, :> => 1, 
+	      :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1, 
 	      :* => 1, :pairs => 1, :matches => 1, :flatten => 1, :lefts => 1, :rights => 1
 	  }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
@@ -417,15 +417,13 @@ module ModuleRewriter
   end
 
   def self.ast_update_refs(ast, rename_tbl)
-    cr = CallRewriter.new(rename_tbl)
-    cr.process(ast)
+    CallRewriter.new(rename_tbl).process(ast)
   end
 
   # If this module imports a submodule and binds it to :x, references to x.t1
   # need to be flattened to the mangled name of x.t1.
   def self.ast_flatten_nested_refs(ast, import_tbl)
-    nr = NestedRefRewriter.new(import_tbl)
-    nr.process(ast)
+    NestedRefRewriter.new(import_tbl).process(ast)
   end
 
   # Return a list of symbols containing the names of def blocks containing Bloom
