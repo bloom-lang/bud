@@ -125,6 +125,7 @@ module Bud
   attr_reader :dsock
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
+  attr_accessor :lazy
 
   include BudState
 
@@ -145,6 +146,7 @@ module Bud
 
     # Setup options (named arguments), along with default values
     @options = options
+    @lazy = @options[:lazy] ||= false
     @options[:ip] ||= "localhost"
     @ip = @options[:ip]
     @options[:port] ||= 0
@@ -269,11 +271,11 @@ module Bud
   # Bud collections from the caller's thread (see async_do and sync_do).
   #
   # This instance of Bud will continue to run until stop_bg is called.
-  def run_bg(lazy=false)
+  def run_bg
     start_reactor
     # Wait for Bud to start up before returning
     schedule_and_wait do
-      start_bud(lazy)
+      start_bud
     end
   end
 
@@ -492,7 +494,7 @@ module Bud
     end
   end
 
-  def start_bud(lazy=false)
+  def start_bud
     raise BudError unless EventMachine::reactor_thread?
 
     # If we get SIGINT or SIGTERM, shutdown gracefully
@@ -505,7 +507,7 @@ module Bud
       end
     end
 
-    do_start_server(lazy)
+    do_start_server
 
     # Initialize periodics
     @periodics.each do |p|
@@ -517,14 +519,14 @@ module Bud
     @stdio.start_stdin_reader if @options[:read_stdin]
 
     # Compute a fixpoint; this will also invoke any bootstrap blocks.
-    tick unless lazy
+    tick unless @lazy
 
     @rtracer.sleep if options[:rtrace]
   end
 
-  def do_start_server(lazy=false)
+  def do_start_server
     @dsock = EventMachine::open_datagram_socket(@ip, @options[:port],
-                                                BudServer, self, lazy)
+                                                BudServer, self)
     @port = Socket.unpack_sockaddr_in(@dsock.get_sockname)[0]
   end
 

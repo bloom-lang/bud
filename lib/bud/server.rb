@@ -2,9 +2,8 @@ require 'socket'
 
 module Bud
   class BudServer < EM::Connection
-    def initialize(bud, lazy=false)
+    def initialize(bud)
       @bud = bud
-      @lazy = lazy
       @pac = MessagePack::Unpacker.new
       super
     end
@@ -32,7 +31,7 @@ module Bud
 
       @bud.inbound << obj
       begin
-        @bud.tick unless @lazy
+        @bud.tick unless @bud.lazy
       rescue Exception
         # If we raise an exception here, EM dies, which causes problems (e.g.,
         # other Bud instances in the same process will crash). Ignoring the
