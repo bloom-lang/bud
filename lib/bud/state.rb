@@ -20,18 +20,8 @@ module BudState
       end
     end
   end
-  # 
-  # def tmp(var, coll)
-  #   self.singleton_class.send(:define_method, var) do |*args, &blk|
-  #     unless blk.nil? then
-  #       return coll.map(&blk)
-  #     else
-  #       return coll
-  #     end
-  #   end
-  # end
 
-	public
+  public
 	
   def input
     true

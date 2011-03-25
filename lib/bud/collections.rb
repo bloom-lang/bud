@@ -26,10 +26,10 @@ module Bud
     attr_reader :schema, :key_cols, :val_cols, :bud_instance, :tabname
     attr_reader :storage, :delta, :new_delta
     
-    def initialize(name, bud_instance, given_schema=nil)
+    def initialize(name, bud_instance, given_schema=nil, defer_schema=false)
       @tabname = name
       @bud_instance = bud_instance
-      init_schema(given_schema)
+      init_schema(given_schema) unless given_schema.nil? and defer_schema
       init_buffers
     end
 
@@ -358,7 +358,7 @@ module Bud
 
     alias <= merge
 
-    private
+    public
     def pending_merge(o)
       check_enumerable(o)
       deduce_schema(o)

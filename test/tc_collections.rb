@@ -255,7 +255,6 @@ class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
     assert_nothing_raised(RuntimeError) { program.tick }
-    # assert_equal([["[\"c\", \"d\", 5, 6]"]], program.scrtch.pending_inspected)
     assert_equal(1, program.scrtch2.length)
     assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal([["[\"c\", \"d\", 5, 6]"]], program.scrtch.inspected)
