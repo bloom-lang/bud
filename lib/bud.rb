@@ -385,6 +385,24 @@ module Bud
     end
   end
 
+  # sync_callback supports synchronous interaction with bud modules.
+  # The caller supplies the name of an input relation,
+  # a set of tuples to insert, and an output relation on which  to 'listen.'
+  # The call blocks until tuples are inserted into the output collection:
+  # these are returned to the caller.
+  def sync_callback(in_coll, tupleset, out_coll)
+    q = Queue.new
+    cb = register_callback(out_coll) do |c|
+      q.push c.to_a
+    end
+    sync_do do 
+      @tables[in_coll] <+ tupleset
+    end
+    result = q.pop
+    unregister_callback(cb)
+    return result
+  end
+
   private
 
   def invoke_callbacks
