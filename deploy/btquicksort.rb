@@ -56,6 +56,6 @@ class BTQuicksort
 
 end
 
-program = BTQuicksort.new(:scoping => true, :ip => "127.0.0.1",
-                          :deploy => true, :dump_rewrite => true)
+program = BTQuicksort.new(:ip => "127.0.0.1", :deploy => true,
+                          :dump_rewrite => true)
 program.run

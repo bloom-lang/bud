@@ -177,5 +177,5 @@ class Mergesort
 
 end
 
-program = Mergesort.new(:scoping => true, :ip => "127.0.0.1", :port => 0, :dump_rewrite => true, :deploy => true)
+program = Mergesort.new(:ip => "127.0.0.1", :port => 0, :dump_rewrite => true, :deploy => true)
 program.run
