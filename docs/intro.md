@@ -22,6 +22,6 @@ To get to that point, we're offering Bud as a pre-alpha "friends and family" edi
 ## Getting Started ##
 We're shipping Bud with a [sandbox](http://github.com/bloom-lang/bud-sandbox) of libraries and example applications for distributed systems.  These illustrate the language and how it can be used, and also can serve as mixins for new code you might want to write.  You may be surprised at how short the provided Bud code is, but don't be fooled.
 
-To help newcomers learn the language, we've provided an annotated [cheat sheet](cheat.mdown) to overview the language, a [quick-start tutorial](getstarted.md), and a simple *language reference*.  We also provide instructions and tools for launching Bud code on Amazon's EC2 cloud, and instrumenting what it's doing up there. Like Bud itself, these documents are an early alpha.
+To help newcomers learn the language, we've provided an annotated [cheat sheet](cheat.md) to overview the language, a [quick-start tutorial](getstarted.md), and a simple *language reference*.  We also provide instructions and tools for launching Bud code on Amazon's EC2 cloud, and instrumenting what it's doing up there. Like Bud itself, these documents are an early alpha.
 
 We welcome both constructive criticism and (hopefully occasional) smoke-out-your-ears, hair-tearing shouts of frustration.  Please point your feedback cannon at the [Bloom mailing list](http://groups.google.com/group/bloom-lang) on Google Groups.

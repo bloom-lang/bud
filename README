@@ -1,7 +1,7 @@
 This is Bud, a.k.a. "Bloom Under Development".  It is an initial cut at
 providing a Bloom-like language, using Ruby as a basis.
 
-Language cheatsheet in doc/cheat.mdown
+Language cheatsheet in doc/cheat.md
 
 This 0.0 version is not supported.  
 

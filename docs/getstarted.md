@@ -122,7 +122,7 @@ Now that we've seen a bit of Bloom, we're ready to write our first interesting s
 
 **Basic idea**: The basic idea of this program is that clients will connect to a chatserver process across the Internet.  When a client first connects to the server, the server will remember its address and nickname.  The server will also accept messages from clients, and relay them to other clients.
 
-Even though we're getting ahead of ourselves, let's have a peek at the Bloom statements that implement the server in `examples/chat/chatserver.rb`:
+Even though we're getting ahead of ourselves, let's have a peek at the Bloom statements that implement the server in `examples/chat/chat_server.rb`:
 
     nodelist <= signup.payloads
     mcast <~ (mcast * nodelist).pairs { |m,n| [n.key, m.val] }
@@ -150,7 +150,7 @@ This defines a [Ruby mixin module](http://www.ruby-doc.org/docs/ProgrammingRuby/
   * Unlike the default \[key,value\] structure of scratches and tables, channels default to the structure \[address,payload\]: the first field is a destination IP string of the form 'host:port', and the second field is a payload to be delivered to that destination--typically a Ruby array.  (For the record, the default key of a channel collection is the *pair* \[address,payload\]).
   * Any Bloom statement with a channel on the lhs must use the async merge (`<~`) operator.  This instructs the runtime to attempt to deliver each rhs item to the address stored therein. In an async merge, each item in the collection on the right will appear in the collection on the lhs *eventually*.  But this will not happen instantaneously, and it might not happen atomically--items in the collection on the rhs may "straggle in" individually over time at the destination.  And if you're unlucky, this may happen after an arbitrarily long delay (possibly never).  The use of `<~` for channels reflects the typical uncertainty of real-world network delivery.  (Don't worry, the Bud sandbox provides libraries to wrap that uncertainty up in convenient ways.)
 
-Given this protocol (and the Ruby constant at the bottom), we're now ready to examine `examples/chat/chatserver.rb` in more detail:
+Given this protocol (and the Ruby constant at the bottom), we're now ready to examine `examples/chat/chat_server.rb` in more detail:
 
     require 'rubygems'
     require 'bud'
