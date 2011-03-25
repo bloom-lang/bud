@@ -407,7 +407,7 @@ module Bud
     end
     result = q.pop
     unregister_callback(cb)
-    return result
+    yield result
   end
 
   private
