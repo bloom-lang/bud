@@ -189,14 +189,19 @@ module Bud
   # Rewrite methods defined in the main Bud class to expand module
   # references. Imported modules are rewritten during the import process.
   def rewrite_local_methods
+    u = Unifier.new
+    ref_expander = NestedRefRewriter.new(self.class.bud_import_table)
+    tmp_expander = TempExpander.new
+    r2r = Ruby2Ruby.new
+
     self.class.instance_methods(false).each do |m|
       ast = ParseTree.translate(self.class, m)
-      ast = Unifier.new.process(ast)
 
-      expander = NestedRefRewriter.new(self.class.bud_import_table)
-      ast = expander.process(ast)
+      ast = u.process(ast)
+      ast = ref_expander.process(ast)
+      ast = tmp_expander.process(ast)
+      new_source = r2r.process(ast)
 
-      new_source = Ruby2Ruby.new.process(ast)
       self.class.module_eval new_source # Replace previous method def
     end
   end

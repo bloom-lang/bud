@@ -222,6 +222,31 @@ class NestedRefRewriter < SexpProcessor
   end
 end
 
+class TempExpander < SexpProcessor
+  def initialize
+    super()
+    self.require_empty = false
+    self.expected = Sexp
+
+    # Map from name => schema
+    @tmp_tables = {}
+  end
+
+  def process_defn(exp)
+    tag, name, args, scope = exp
+
+    if false and name.to_s =~ /^__bloom__.+/
+      block = scope.sexp_body.first
+
+      block.each do |b|
+        next unless b.sexp_type == :call
+      end
+    end
+
+    Sexp.from_array [tag,name, args, scope]
+  end
+end
+
 class DefnRenamer < SexpProcessor
   def initialize(old_mod_name, new_mod_name, local_name)
     super()
