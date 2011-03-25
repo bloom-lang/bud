@@ -21,73 +21,70 @@ As in Ruby, backslash is used to escape a newline.<br>
     end
     
 ## State Declarations ##
-Use `state` to register a Ruby block of state declarations to be invoked during Bud bootstrapping.
+A `state` block contains Bud collection definitions.
 
 ### Default Declaration Syntax ###
 *BudCollection :name, [keys] => [values]*
 
 ### table ###
-contents persist in memory until deleted.<br>
-default attributes: `[:key] => [:val]`
+Contents persist in memory until explicitly deleted.<br>
+Default attributes: `[:key] => [:val]`
 
     table :keyvalue
     table :composite, [:keyfield1, :keyfield2] => [:values]
     table :noDups, [:field1, field2]
 
 ### scratch ###
-contents emptied at start of each timestep<br>
-default attributes: `[:key] => [:val]`
+Contents emptied at start of each timestep.<br>
+Default attributes: `[:key] => [:val]`
 
     scratch :stats
 
 ### interface ###
-scratch collections, used as module interfaces<br>
-default attributes: `[:key] => [:val]`
+Scratch collections, used as connection points between modules.<br>
+Default attributes: `[:key] => [:val]`
 
     interface input, :request
     interface output, :response
 
 ### channel ###
-network channel manifested as a scratch collection.  <br>
-address attribute prefixed with `@`.  <br>
-default attributes: `[:@address, :val] => []`
+Network channel manifested as a scratch collection.<br>
+Facts that are inserted into a channel are sent to a remote host; the address of the remote host is specified in an attribute of the channel that is denoted with `@`.<br>
+Default attributes: `[:@address, :val] => []`
 
-(bloom statements with channel on lhs must use async merge (`<~`).)
-
+(Bloom statements with channel on lhs must use async merge (`<~`).)
 
     channel :msgs
     channel :req_chan, [:@address, :cartnum, :storenum] => [:command, :params]
 
-
 ### periodic ###
-system timer manifested as a scratch collection.<br>
-system-provided attributes: `[:key] => [:val]`<br>
-&nbsp;&nbsp;&nbsp;&nbsp; (key is a unique ID, val is a Ruby Time converted to a string.)<br>
-state declaration includes interval (in seconds)
+System timer manifested as a scratch collection.<br>
+System-provided attributes: `[:key] => [:val]`<br>
+&nbsp;&nbsp;&nbsp;&nbsp; (`key` is a unique ID, `val` is a Ruby Time converted to a string.)<br>
+State declaration includes interval (in seconds).
 
-(periodic can only be used on rhs of a bloom statement)
+(periodic can only be used on rhs of a Bloom statement.)
 
     periodic :timer, 0.1
 
 ### stdio ###
-built-in scratch collection mapped to Ruby's `$stdin` and `$stdout`<br>
-system-provided attributes: `[:line] => []`
+Built-in scratch collection mapped to Ruby's `$stdin` and `$stdout`<br>
+System-provided attributes: `[:line] => []`
 
-(statements with stdio on lhs must use async merge (`<~`)<br>
-to capture `$stdin` on rhs, instantiate Bud with `:read_stdin` option.)<br>
+Statements with stdio on lhs must use async merge (`<~`).<br>
+To capture `$stdin` on rhs, instantiate Bud with `:read_stdin` option.<br>
 
 ### tctable ###
-table collection mapped to a [Tokyo Cabinet](http://fallabs.com/tokyocabinet/) store.<br>
-default attributes: `[:key] => [:val]`
+Table collection mapped to a [Tokyo Cabinet](http://fallabs.com/tokyocabinet/) store.<br>
+Default attributes: `[:key] => [:val]`
 
     tctable :t1
     tctable :t2, [:k1, :k2] => [:v1, :v2]
 
 ### zktable ###
-table collection mapped to an [Apache Zookeeper](http://hadoop.apache.org/zookeeper/) store.<br>
-given attributes: `[:key] => [:val]`<br>
-state declaration includes zookeeper path
-and optional TCP string (default: "localhost:2181")<br>
+Table collection mapped to an [Apache Zookeeper](http://hadoop.apache.org/zookeeper/) store.<br>
+System-provided attributes: `[:key] => [:val]`<br>
+State declaration includes Zookeeper path and optional TCP string (default: "localhost:2181")<br>
 
     zktable :foo, "/bat"
     zktable :bar, "/dat", "localhost:2182"
@@ -112,10 +109,11 @@ delete:
 * `left <- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
 
 insert:<br>
-unlike merge/delete, insert expects a singly-nested array on the rhs
 
 * `left << [...]` &nbsp;&nbsp;&nbsp;&nbsp; (*instantaneous*)
 
+Note that unlike merge/delete, insert expects a single fact on the rhs, rather
+than a collection.
 
 ## Collection Methods ##
 Standard Ruby methods used on a BudCollection `bc`:
@@ -237,23 +235,33 @@ Left Outer Join.  Objects in the first collection will be included in the output
 
 ## Temp/Equality statements ##
 `temp`<br>
-temp collections are scratches defined within a Bloom block:
+Temp collections are scratches defined within a Bloom block:
 
     temp :my_scratch1 <= foo
 
-The schema of a temp collection in inherited from the rhs; if the rhs has no schema, a simple one is manufactured to suit the data in the rhs at runtime: [c0, c1, ...].
+The schema of a temp collection in inherited from the rhs; if the rhs has no
+schema, a simple one is manufactured to suit the data found in the rhs at
+runtime: `[c0, c1, ...]`.
 
+## Bud Modules ##
+A Bud module combines state (collections) and logic (Bloom rules). Using modules allows your program to be decomposed into a collection of smaller units.
 
-## Interacting with Bud from Ruby ##
-* `run`
-* `run_bg`
-* `sync_do`
-* `async_do`
-* callbacks
+Definining a Bud module is identical to defining a Ruby module, except that the module can use the `bloom`, `bootstrap`, and `state` blocks described above.
 
-## Bud Code Visualizer ##
+There are two ways to use a module *B* in another Bloom module *A*:
 
+  1. `include B`: This "inlines" the definitions (state and logic) from *B* into
+     *A*. Hence, collections defined in *B* can be accessed from *A* (via the
+     same syntax as *A*'s own collections). In fact, since Ruby is
+     dynamically-typed, Bloom statements in *B* can access collections
+     in *A*!
 
+  2. `import B => :b`: The `import` statement provides a more structured way to
+     access another module. Module *A* can now access state defined in *B* by
+     using the qualifier `b`. *A* can also import two different copies of *B*,
+     and give them local names `b1` and `b2`; these copies will be independent
+     (facts inserted into a collection defined in `b1` won't also be inserted
+     into `b2`'s copy of the collection).
 
 ## Skeleton of a Bud Module ##
 

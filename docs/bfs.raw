@@ -77,7 +77,7 @@ The logic for file and directory creation and deletion follow a similar logic wi
 
 ==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|62-71
 
-Unlike a directory listing, however, these operations change the state of the filesystem.  In general, any state change will invove 
+Unlike a directory listing, however, these operations change the state of the filesystem.  In general, any state change will involve 
 carrying out two mutating operations to the key-value store atomically:
 
  1. update the value (child array) associated with the parent directory entry
