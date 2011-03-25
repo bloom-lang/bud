@@ -111,7 +111,6 @@ class BudMeta #:nodoc: all
     # First, remove any equality statements (i.e., alias definitions) from the
     # rule block's AST. Then convert them to temp rules so we can add them back in.
     assign_nodes, rest_nodes = block.partition {|b| b.class == Sexp && b.sexp_type == :lasgn}
-    assign_vars = {}
     equi_rules = []     # equality statements rewritten as temp rules
     assign_nodes.each do |n|
       # Expected format: lasgn tag, lhs, rhs
