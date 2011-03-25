@@ -1,6 +1,6 @@
 To run the chat example, do each of the following in a different terminal:
 
-    # ruby chatserver.rb
+    # ruby chat_server.rb
 
     # ruby chat.rb alice
 
