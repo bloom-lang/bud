@@ -125,7 +125,7 @@ module Bud
   attr_reader :dsock
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
-  attr_accessor :lazy
+  attr_reader :lazy
 
   include BudState
 
