@@ -160,7 +160,7 @@ class CombosBud
     k = join [r,s_tab], [r.x, s_tab.x], [r.y1, s_tab.y1]
     match_out <= k.map { |t1,t2| [t1.x, t1.y1, t2.y1] }
 
-    l = coincide [r,s_tab,t], [r.x, s_tab.x], [s_tab.x, t.x]
+    l = join [r,s_tab,t], [r.x, s_tab.x], [s_tab.x, t.x]
     chain_out <= l.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
     m = join [r,s_tab,t], [r.x, s_tab.x, t.x]
@@ -172,7 +172,7 @@ class CombosBud
 		temp :newtab <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x)
 		temp :newtab_out <= newtab { |a,b,c| [a.x, b.x, c.x, a.y1, b.y1, c.y1] }	
 
-    loj = leftjoin [mismatches,s_tab], [mismatches.x, s_tab.x]
+    temp :loj <= leftjoin([mismatches, s_tab], [mismatches.x, s_tab.x])
     loj_out <= loj.map { |t1, t2| [t1.x, t2.x, t1.y1, t2.y1] }
   end
 end
