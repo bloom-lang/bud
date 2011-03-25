@@ -125,7 +125,7 @@ module Bud
   attr_reader :dsock
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
-  attr_reader :lazy
+  attr_accessor :lazy # This can be changed on-the-fly by REBL
 
   include BudState
 
