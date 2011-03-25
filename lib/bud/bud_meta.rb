@@ -108,23 +108,7 @@ class BudMeta #:nodoc: all
     raise Bud::CompileError if scope.sexp_type != :scope
     block = scope[1]
 
-    # First, remove any equality statements (i.e., alias definitions) from the
-    # rule block's AST. Then convert them to temp rules so we can add them back in.
-    assign_nodes, rest_nodes = block.partition {|b| b.class == Sexp && b.sexp_type == :lasgn}
-    equi_rules = []     # equality statements rewritten as temp rules
-    assign_nodes.each do |n|
-      # Expected format: lasgn tag, lhs, rhs
-      raise Bud::CompileError unless n.length == 3
-      tag, lhs, rhs = n
-      lhs = lhs.to_sym
-      @bud_instance.temp lhs
-
-      equi_rules << s(:call, s(:call, nil, lhs, s(:arglist)), :<=, s(:arglist, rhs))               
-    end
-
-    rest_nodes += equi_rules
-
-    rest_nodes.each_with_index do |n,i|
+    block.each_with_index do |n,i|
       if i == 0
         raise Bud::CompileError if n != :block
         next
@@ -135,7 +119,7 @@ class BudMeta #:nodoc: all
 
       if n[2] == :temp 
         n = declare_and_unwrap_temp(n)
-        rest_nodes[i] = n
+        block[i] = n
       end
 
       # Rule format: call tag, lhs, op, rhs
@@ -171,9 +155,6 @@ class BudMeta #:nodoc: all
         raise Bud::CompileError if rhs_args.length != 1
       end
     end
-
-    # Replace old block with rewritten version
-    scope[1] = rest_nodes
   end
 
   def stratify

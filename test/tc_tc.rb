@@ -38,7 +38,7 @@ class TcTest
   end
 
   bloom :do_join do
-    j = join [join_t1, join_t2], [join_t1.k, join_t2.k]
+    temp :j <= join([join_t1, join_t2], [join_t1.k, join_t2.k])
     join_res <= j
     cart_prod <= join([join_t1, join_t2])
   end
@@ -235,8 +235,7 @@ class TcNest
   end
 
   bloom do
-    j = join([in_buf, t1])
-    t2 <= j.map {|b, t| [b.k1, b.k2, b.v1, t]}
+    t2 <= (in_buf * t1).pairs {|b, t| [b.k1, b.k2, b.v1, t]}
   end
 end
 

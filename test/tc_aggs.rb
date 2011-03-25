@@ -23,7 +23,7 @@ class ShortestPaths
   bloom do
     path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
 
-    j = join [link, path], [path.from, link.to]
+    temp :j <= (link * path).pairs(:to => :from)
     path <= j.map do |l,p|
       [l.from, p.to, p.from, l.cost+p.cost] # if l.to == p.from
     end
@@ -98,7 +98,6 @@ class DupAggs
 
   state do
     table :tab, [:i]
-#    scratch :out, [:s1, :s2]
   end
 
   bootstrap do
@@ -107,7 +106,7 @@ class DupAggs
   end
 
   bloom do
-    out = tab.group(nil, sum(tab.i), sum(tab.i))
+    temp :out <= tab.group(nil, sum(tab.i), sum(tab.i))
     p out.inspect
   end
 end
