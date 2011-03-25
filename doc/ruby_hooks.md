@@ -1,0 +1,19 @@
+## Ruby/Bloom interactions in Bud ##
+Bud embeds Bloom as a [DSL](http://en.wikipedia.org/wiki/Domain-specific_language) in Ruby.  On a given node, it is often useful to run a Ruby thread, and pass information to and from Bloom-land and Ruby-land.  If nothing else, this allows the Ruby process hosting the Bud evaluator to monitor its progress.
+
+As described in the [Getting Started](getstarted.md) document, we embed Bloom code into Ruby by including the `Bud` module in some Ruby class, and putting Bloom blocks into the class.  We then typically allocate a new instance of that class in Ruby, and invoke either its `run` method or `run_bg` method.  Since the Bud runtime typically runs indefinitely, the blocking `run` call essentially hands the thread over to Bud.  The `run_bg` call puts the Bud runtime into a second thread and returns to the caller.
+
+To support the `run_bg` case further, the Bud runtime provides hooks for  Ruby threads to register code with the runtime for execution during Bloom timesteps.  These hooks always run at the end of a timestep, after all Bloom statements have been processed for that timestep.  There are two basic types of hooks:
+
+* The Bud module provides a Ruby method called `sync_do`, which takes a block of code, and hands it to the Bud runtime for execution at the end of a timestep.  The Bud runtime is blocked during this execution, so the state of all Bud collections is fixed for the furation of the block of Ruby code. This is also a blocking call for the caller.  Bud also supplies `async_do`, which hands off the code block to the Bud runtime to be executed, but returns immediately to the caller without waiting for the runtime.
+
+* The Bud module provides a Ruby method called `register_callback`.  Given the name of a Bud collection, this method arranges for the given block of Ruby code to be invoked at the end of any timestep in which any tuples have been inserted into the specified collection. The code block is passed the collection as an argument; this provides a convenient way to examine the items inserted during that timestep. Note that because the Bud runtime is blocked while the callback is invoked, it can also examine any other Bud state freely.
+
+## Bud and Ruby-driven Side Effects ##
+The Bloom language itself is a pure logic language based in Dedalus.  Like any logic language, it has no notion of "mutable state" or "side effects".  Each item that appears in a Bloom collection at timestep T will *forever* be recorded as having been in that collection at timestep T, at least in a formal sense. The temporal logic of Dedalus is a lot like a versioning system, where old versions of items are never removed.
+
+In the context of the existing Bud prototype, though, it easy to step outside the bright lines of pure Bloom using straight Ruby code and libraries.  Methods like `sync_do` and callbacks allow Ruby code to be run that can mess with Bloom collections in a way that Bloom doesn't model.  Similarly, Ruby blocks *within* the rhs of a Bloom statement (e.g. after a collection name or a `pairs` call) can produce visible side-effects in unpredictable ways.  In particular, be aware that side-effecting Ruby code within a Bloom block may be called an *arbitrary* number of times during a single Bloom timestep, as it works its way to fixpoint.  
+
+If you must pollute your Bloom statements with side-effecting Ruby, please do it with *idempotent* side-effecting Ruby.  Thank you.
+
+In future versions of the Bud runtime we plan to limit the Ruby that gets invoked in the Bloom context, and keep you safe from these tendencies.  (As with a lot of the Bloom design, we hope to do this in a way that won't make you feel handicapped, just gently cradled in disorderly goodness.)

@@ -196,18 +196,18 @@ The next Bloom statement is more complex.  Remember the description in the "basi
     
 The first thing to note is the lhs and operator in this statement.  We are merging items (asynchronously, of course!) into the mcast channel, where they will be sent to their eventual destination.  
 
-The rhs requires us to understand the Bloom `*` operator, and the `pairs` method after it.  You can think of the `*` operator as producing a Bloom collection containing all pairs of mcast and nodelist items.  The `pairs` method iterates through these pairs, passing them through a code block via the block arguments `m` and `n`. Finally, for each such pair the block produces an item containing the `key` attribute of the nodelist item, and the `val` attribute of the mcast item.  This is structured as a proper \[address, value\] entry to be merged back into the mcast channel.  Putting this together, this statement *multicasts inbound payloads on the mcast channel to all nodes in the chat*.
+The rhs is our first introduction to the `*` operator of Bloom collections, and the `pairs` method after it.  You can think of the `*` operator as "all-pairs": it produces a Bloom collection containing all pairs of mcast and nodelist items.  The `pairs` method iterates through these pairs, passing them through a code block via the block arguments `m` and `n`. Finally, for each such pair the block produces an item containing the `key` attribute of the nodelist item, and the `val` attribute of the mcast item.  This is structured as a proper \[address, value\] entry to be merged back into the mcast channel.  Putting this together, this statement *multicasts inbound payloads on the mcast channel to all nodes in the chat*.
 
 The remaining lines of plain Ruby simply instantiate and run the ChatServer class (which includes the `Bud` module) using an ip and port given on the command line (or the default from ChatProtocol.rb).
 
 #### `*`'s and Clouds ####
-You can think of the `*` operator in the rhs of the second statement in a few different ways:
+You can think of out use of the `*` operator in the rhs of the second statement in a few different ways:
 
-* If you're familiar with event-loop programming, this is essentially an *event handler* for messages on the mcast channel: whenever an mcast message arrives, this handler performs lookups in the nodelist table to form new messages.  (It is easy to add "filters" to these handlers.)  The resulting messages are dispatched via the mcast channel accordingly.
+* If you're familiar with event-loop programming, this implements an *event handler* for messages on the mcast channel: whenever an mcast message arrives, this handler performs lookups in the nodelist table to form new messages.  (It is easy to add "filters" to these handlers.)  The resulting messages are dispatched via the mcast channel accordingly.  This is a very common pattern in Bloom programs: handling channel messages via lookups in a table.
 
-* If you're familiar with SQL databases, the rhs is essentially a query that is run at each timestep, performing a CROSS JOIN of the mcast and nodelist "tables", with the SELECT clause captured by the block. (It is easy to add WHERE clauses to these joins.)  The resulting "tuples" are "inserted" into the lhs asynchronously (and typical on remote nodes).
+* If you're familiar with SQL databases, the rhs is essentially a query that is run at each timestep, performing a CROSS JOIN of the mcast and nodelist "tables", with the SELECT clause captured by the block. (It is easy to add WHERE clauses to these joins.)  The resulting "tuples" are "inserted" into the lhs asynchronously (and typical on remote nodes).  This is a general-purpose way to think about the * operator. But as you've already seen, many common use cases for Bloom's * operator don't "feel" like database queries, because one or more of the collections is a scratch that is "driving" the program.
 
-These are both reasonable ways to think about the `*` operator in this rule, and we expect that people doing distributed programming are probably familiar with both metaphors.  In the Bloom group, we tend to think of our rules in the first form, although the second form is actually closer to the underlying semantics of the language (which come from a temporal logic called [Dedalus](http://www.eecs.berkeley.edu/Pubs/TechRpts/2009/EECS-2009-173.html)).
+We expect that people doing distributed programming are probably familiar with both of these metaphors, and they're both useful.  It's fairly common to think about rules in the first form, although the second form is actually closer to the underlying semantics of the language (which come from a temporal logic called [Dedalus](http://www.eecs.berkeley.edu/Pubs/TechRpts/2009/EECS-2009-173.html)).
 
 ### The Client side ###
 Given our understanding of the server, the client should be pretty simple.  It needs to send an appropriately-formatted message on the `connect` channel to the server, send/receive messages on the `mcast` channel, and print the messages it receives to the screen.
@@ -292,5 +292,5 @@ In this section we saw a number of features that we missed in our earlier single
 * **channel collections**: collection types that enable sending/receiving asynchronous, unreliable messages
 * **the * operator and pairs method**: the way to combine items from multiple collections.
 
-# The Big Picture: Bloom Concepts #
-*now we're ready to present/review Bloom semantics more carefully, starting with the single-node timestep model, the operator types, and the collection types.*
+# The Big Picture and the Details #
+Now that you've seen some working Bloom code, hopefully you're ready to delve deeper.  The [README](README.md) provides links to places you can go for more information.  Have fun and [stay in touch](http://groups.google.com/group/bloom-lang)!
