@@ -45,11 +45,11 @@ class ReblShell
     "dump" => [lambda {|lib,argv| lib.dump(argv[1])},
                "dump c:\tdump contents of collection c"],
 
-    "exit" => [lambda {|_,_| ReblShell::do_exit}, "exit:\texit rebl"],
+    "exit" => [lambda {|_,_| do_exit}, "exit:\texit rebl"],
 
-    "quit" => [lambda {|_,_| ReblShell::do_exit}, "quit:\texit rebl"],
+    "quit" => [lambda {|_,_| do_exit}, "quit:\texit rebl"],
 
-    "help" => [lambda {|_,_| ReblShell::pretty_help},
+    "help" => [lambda {|_,_| pretty_help},
                "help:\tprint this help message"]}
   @@abbrevs = @@commands.keys.abbrev
   @@exit_message = "Rebellion quashed."
@@ -83,6 +83,10 @@ class ReblShell
       puts @@escape_char +
         v[1].gsub(/\t/, " "*(maxlen + 3 - v[1].split(':')[0].size))
     end
+    puts "\nbreakpoints:"
+    puts "a breakpoint is a rule with the 'breakpoint' scratch on the left of "+
+      "a '<=' arrow.  '#{@@escape_char}run' will stop ticking at the end of a "+
+      "timestep where a 'breakpoint' tuple exists."
   end
 
   def self.welcome
