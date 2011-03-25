@@ -64,12 +64,8 @@ class BudMeta
     end
 
     rulebag.each_value do |v|
-      v.rules.each do |r|
-        @bud_instance.t_rules << r
-      end
-      v.depends.each do |d|
-        @bud_instance.t_depends << d
-      end
+      v.rules.each {|r| @bud_instance.t_rules << r}
+      v.depends.each {|d| @bud_instance.t_depends << d}
     end
   end
 
