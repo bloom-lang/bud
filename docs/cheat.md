@@ -221,15 +221,15 @@ The following is equivalent to the above statements if `x` is the only attribute
 `leftjoin([`*t1, t2*`]` *, [optional column matches], ...*`)`<br>
 Left Outer Join.  Objects in the first collection will be included in the output even if no match is found in the second collection.
 
-### Join methods ###
+### Join Methods ###
 `join([`*tablelist*`]` *,[optional column matches], ...*`).flatten`<br>
 `flatten` is a bit like SQL's `SELECT *`: it produces a collection of concatenated objects, with a schema that is the concatenation of the schemas in tablelist (with duplicate names disambiguated.) Useful for chaining to operators that expect input collections with schemas, e.g. group:
 
     out <= natjoin([r,s]).flatten.group([:a], max(:b))
 
-## Temp/Equality statements ##
+## Temp Collections ##
 `temp`<br>
-Temp collections are scratches defined within a Bloom block:
+Temp collections are scratches defined within a `bloom` block:
 
     temp :my_scratch1 <= foo
 
