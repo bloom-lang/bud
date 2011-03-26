@@ -4,13 +4,13 @@ module BudState
   def define_collection(name, &block)
     # don't allow duplicate table definitions
     if @tables.has_key? name
-      raise Bud::BudError, "collection already exists: #{name}"
+      raise Bud::CompileError, "collection already exists: #{name}"
     end
     # rule out table names that use reserved words
     reserved = eval "defined?(#{name})"
     unless (reserved.nil? or (reserved == "method" and @tables[name]))
       # first time registering table, check for method name reserved
-      raise Bud::BudError, "symbol :#{name} reserved, cannot be used as table name"
+      raise Bud::CompileError, "symbol :#{name} reserved, cannot be used as table name"
     end
     self.singleton_class.send(:define_method, name) do |*args, &blk|
         unless blk.nil? then
@@ -47,8 +47,6 @@ module BudState
   end
 
   def temp(name)
-    # XXX: redundant
-    raise Bud::CompileError, "temp table #{name} reused" unless @tables[name].nil?
     define_collection(name)
     # defer schema definition until merge
     @tables[name] = Bud::BudTemp.new(name, self, nil, true)

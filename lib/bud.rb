@@ -136,7 +136,6 @@ module Bud
     @channels = {}
     @tc_tables = {}
     @zk_tables = {}
-    @tmp_tables = []
     @callbacks = {}
     @callback_id = 0
     @timers = []
@@ -197,7 +196,6 @@ module Bud
 
     self.class.instance_methods(false).each do |m|
       ast = ParseTree.translate(self.class, m)
-
       ast = u.process(ast)
       ast = ref_expander.process(ast)
       ast = tmp_expander.process(ast)
@@ -206,17 +204,17 @@ module Bud
       self.class.module_eval new_source # Replace previous method def
     end
 
-    @tmp_tables = tmp_expander.tmp_tables
+    s = tmp_expander.get_state_meth(self.class)
+    if s
+      state_src = r2r.process(s)
+      self.class.module_eval(state_src)
+    end
   end
 
   # Invoke all the user-defined state blocks and initialize builtin state.
   def init_state
     builtin_state
     call_state_methods
-
-    @tmp_tables.each do |t|
-      temp t
-    end
   end
 
   # If module Y is a parent module of X, X's state block might reference state

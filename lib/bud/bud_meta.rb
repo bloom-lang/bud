@@ -82,21 +82,6 @@ class BudMeta #:nodoc: all
     return rewriter
   end
   
-  # given a rule of the form "temp <lhs> <op> <rhs>"
-  # this is actually a call to "temp" with args "[<lhs> <op> <rhs>]" which 
-  # isn't what we mean.
-  # So register the temp, and return a rule of the form "<lhs> <op> <rhs>".
-  def declare_and_unwrap_temp(n)
-    raise Bud::CompileError, "lhs of temp rule not a symbol" if n[3][1][1][0] != :lit
-    # temp rules w/o parens on lhs are nested one level down, nil, temp, (call tag, lhs, op, rhs)
-    lhs = s(:call, nil, n[3][1][1][1], s(:arglist))
-    op = n[3][1][2]
-    rhs = n[3][1][3]
-    @bud_instance.temp n[3][1][1][1]
-    
-    return s(:call, lhs, op, rhs)
-  end    
-
   # Perform some basic sanity checks on the AST of a rule block. We expect a
   # rule block to consist of a :defn, a nested :scope, and then a sequence of
   # statements. Each statement is a :call node.
@@ -116,18 +101,13 @@ class BudMeta #:nodoc: all
       raise Bud::CompileError if n.sexp_type != :call
       raise Bud::CompileError unless n.length == 4
 
-      if n[2] == :temp 
-        n = declare_and_unwrap_temp(n)
-        block[i] = n
-      end
-
       # Rule format: call tag, lhs, op, rhs
       tag, lhs, op, rhs = n
 
       # Check that LHS references a named collection or is a temp expression
       raise Bud::CompileError if lhs.nil? or lhs.sexp_type != :call
       lhs_name = lhs[2]
-      unless lhs_name == :temp or @bud_instance.tables.has_key? lhs_name.to_sym
+      unless @bud_instance.tables.has_key? lhs_name.to_sym
         raise Bud::CompileError, "Table does not exist: '#{lhs_name}'"
       end
 

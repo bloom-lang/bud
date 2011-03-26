@@ -282,7 +282,7 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_dup_tables
-    assert_raise(Bud::BudError) {program = DupTableBud.new}
+    assert_raise(Bud::CompileError) {program = DupTableBud.new}
   end
 
   def test_dup_columns
@@ -385,7 +385,7 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_dup_table_def
-    assert_raise(Bud::BudError) { DupTableDef.new }
+    assert_raise(Bud::CompileError) { DupTableDef.new }
   end
 
   def test_filter_and_delete
@@ -401,7 +401,7 @@ class TestCollections < Test::Unit::TestCase
   end
   
   def test_bad_declarations
-    assert_raise(Bud::BudError) { BadDeclaration1.new }
-    assert_raise(Bud::BudError) { BadDeclaration2.new }
+    assert_raise(Bud::CompileError) { BadDeclaration1.new }
+    assert_raise(Bud::CompileError) { BadDeclaration2.new }
   end
 end

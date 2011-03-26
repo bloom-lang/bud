@@ -255,6 +255,22 @@ class TempExpander < SexpProcessor
     Sexp.from_array [tag, name, args, scope]
   end
 
+  # Return an AST containing a state def block with definitions for all the temp
+  # tables encountered by this TempExpander.
+  def get_state_meth(klass)
+    return if @tmp_tables.empty?
+    block = s(:block)
+
+    @tmp_tables.each do |t|
+      args = s(:arglist, s(:lit, t.to_sym))
+      block << s(:call, nil, :temp, args)
+    end
+
+    meth_name = Module.make_state_meth_name(klass).to_s + "__tmp"
+    return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
+  end
+
+  private
   def rewrite_temp(exp)
     _, recv, meth, args = exp
 
