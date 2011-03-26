@@ -348,8 +348,9 @@ module ModuleRewriter
   # see Bud#rewrite_local_methods.
   def self.do_import(import_site, mod, local_name)
     ast = get_module_ast(mod)
-    ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
+    ast = ast_process_temps(ast, mod)
+    ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     rename_tbl = ast_rename_state(ast, local_name)
     ast = ast_update_refs(ast, rename_tbl)
 
@@ -419,6 +420,26 @@ module ModuleRewriter
     end
 
     return code
+  end
+
+  # If this module imports a submodule and binds it to :x, references to x.t1
+  # need to be flattened to the mangled name of x.t1.
+  def self.ast_flatten_nested_refs(ast, import_tbl)
+    NestedRefRewriter.new(import_tbl).process(ast)
+  end
+
+  # Handle temp collections defined in the module's Bloom blocks.
+  def self.ast_process_temps(ast, mod)
+    t = TempExpander.new
+    ast = t.process(ast)
+
+    new_meth = t.get_state_meth(mod)
+    if new_meth
+      # Insert the new extra state method into the module's AST
+      ast << new_meth
+    end
+
+    return ast
   end
 
   # Rename the given module's name to be a mangle of import site, imported
@@ -491,12 +512,6 @@ module ModuleRewriter
 
   def self.ast_update_refs(ast, rename_tbl)
     CallRewriter.new(rename_tbl).process(ast)
-  end
-
-  # If this module imports a submodule and binds it to :x, references to x.t1
-  # need to be flattened to the mangled name of x.t1.
-  def self.ast_flatten_nested_refs(ast, import_tbl)
-    NestedRefRewriter.new(import_tbl).process(ast)
   end
 
   # Return a list of symbols containing the names of def blocks containing Bloom

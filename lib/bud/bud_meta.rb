@@ -105,7 +105,11 @@ class BudMeta #:nodoc: all
       tag, lhs, op, rhs = n
 
       # Check that LHS references a named collection or is a temp expression
-      raise Bud::CompileError if lhs.nil? or lhs.sexp_type != :call
+      # raise Bud::CompileError if lhs.nil? or lhs.sexp_type != :call
+      if lhs.nil? or lhs.sexp_type != :call
+        pp n
+        raise Bud::CompileError
+      end
       lhs_name = lhs[2]
       unless @bud_instance.tables.has_key? lhs_name.to_sym
         raise Bud::CompileError, "Table does not exist: '#{lhs_name}'"
