@@ -151,7 +151,7 @@ class CallRewriter < SexpProcessor
     recv = process(recv)
     args = process(args)
 
-    Sexp.from_array [tag, recv, meth_name, args]
+    s(tag, recv, meth_name, args)
   end
 end
 
@@ -198,7 +198,7 @@ class NestedRefRewriter < SexpProcessor
     recv = process(recv)
     args = process(args)
 
-    Sexp.from_array [tag, recv, meth_name, args]
+    s(tag, recv, meth_name, args)
   end
 
   def make_recv_stack(r)
@@ -252,7 +252,7 @@ class TempExpander < SexpProcessor
       end
     end
 
-    Sexp.from_array [tag, name, args, scope]
+    s(tag, name, args, scope)
   end
 
   # Return an AST containing a state def block with definitions for all the temp
@@ -314,7 +314,7 @@ class DefnRenamer < SexpProcessor
 
     # Note that we don't bother to recurse further into the AST: we're only
     # interested in top-level :defn nodes.
-    Sexp.from_array [tag, name, args, scope]
+    s(tag, name, args, scope)
   end
 end
 
