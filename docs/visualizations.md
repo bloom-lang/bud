@@ -24,15 +24,13 @@ The __plotter__ is a visual static analysis tool that aids in design and early i
 
 As its usage message indicates, __plotter__ expects a list of ruby input files, followed by a list of BUD modules to mix in.
 
-```
-$ ruby budplot kvs/kvs.rb ReplicatedKVS
-Warning: underspecified dataflow: ["my_id", true]
-Warning: underspecified dataflow: ["add_member", true]
-Warning: underspecified dataflow: ["send_mcast", true]
-Warning: underspecified dataflow: ["mcast_done", false]
-fn is ReplicatedKVS_viz_collapsed.svg
-$ open -a /Applications/Google\ Chrome.app/ ReplicatedKVS_viz_collapsed.svg
-```
+    $ ruby budplot kvs/kvs.rb ReplicatedKVS
+    Warning: underspecified dataflow: ["my_id", true]
+    Warning: underspecified dataflow: ["add_member", true]
+    Warning: underspecified dataflow: ["send_mcast", true]
+    Warning: underspecified dataflow: ["mcast_done", false]
+    fn is ReplicatedKVS_viz_collapsed.svg
+    $ open -a /Applications/Google\ Chrome.app/ ReplicatedKVS_viz_collapsed.svg
 
 __ReplicatedKVS__ includes the __MulticastProtocol__ and __MembershipProtocol__ protocols, but does not specify which implementation of these abstractions to use.  The program is underspecified, and this is represented in the resulting graph (ReplicatedKVS_viz_collapsed.svg) by a node labeled "??" in the dataflow.
 
