@@ -23,7 +23,8 @@ module Bud
   class BudCollection
     include Enumerable
 
-    attr_reader :schema, :key_cols, :val_cols, :bud_instance, :tabname
+    attr_accessor :bud_instance
+    attr_reader :schema, :key_cols, :val_cols, :tabname
     attr_reader :storage, :delta, :new_delta
     
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false)
