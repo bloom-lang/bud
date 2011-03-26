@@ -46,11 +46,12 @@ module BudState
     @tables[name] = Bud::BudScratch.new(name, self, schema)
   end
 
-  def temp(name, schema=nil)
+  def temp(name)
+    # XXX: redundant
     raise Bud::CompileError, "temp table #{name} reused" unless @tables[name].nil?
-    # defer schema definition until merge
     define_collection(name)
-    @tables[name] = Bud::BudTemp.new(name, self, schema, true)
+    # defer schema definition until merge
+    @tables[name] = Bud::BudTemp.new(name, self, nil, true)
   end
 
   def channel(name, schema=nil)

@@ -223,13 +223,14 @@ class NestedRefRewriter < SexpProcessor
 end
 
 class TempExpander < SexpProcessor
+  attr_reader :tmp_tables
+
   def initialize
     super()
     self.require_empty = false
     self.expected = Sexp
 
-    # Map from name => schema
-    @tmp_tables = {}
+    @tmp_tables = []
   end
 
   def process_defn(exp)
@@ -244,9 +245,9 @@ class TempExpander < SexpProcessor
           next
         end
 
-        _, lhs, op, rhs = n
-        if op == :temp
-          n = rewrite_temp(n)
+        _, recv, meth, meth_args = n
+        if meth == :temp
+          block[i] = rewrite_temp(n)
         end
       end
     end
@@ -255,6 +256,19 @@ class TempExpander < SexpProcessor
   end
 
   def rewrite_temp(exp)
+    _, recv, meth, args = exp
+
+    raise Bud::CompileError unless recv == nil
+    nest_call = args.sexp_body.first
+    raise Bud::CompileError unless nest_call.sexp_type == :call
+
+    nest_recv, nest_op, nest_args = nest_call.sexp_body
+    raise Bud::CompileError unless nest_recv.sexp_type == :lit
+
+    tmp_name = nest_recv.sexp_body.first
+    @tmp_tables << tmp_name
+    new_recv = s(:call, nil, tmp_name, s(:arglist))
+    return s(:call, new_recv, nest_op, nest_args)
   end
 end
 

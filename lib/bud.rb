@@ -136,6 +136,7 @@ module Bud
     @channels = {}
     @tc_tables = {}
     @zk_tables = {}
+    @tmp_tables = []
     @callbacks = {}
     @callback_id = 0
     @timers = []
@@ -204,12 +205,18 @@ module Bud
 
       self.class.module_eval new_source # Replace previous method def
     end
+
+    @tmp_tables = tmp_expander.tmp_tables
   end
 
   # Invoke all the user-defined state blocks and initialize builtin state.
   def init_state
     builtin_state
     call_state_methods
+
+    @tmp_tables.each do |t|
+      temp t
+    end
   end
 
   # If module Y is a parent module of X, X's state block might reference state
