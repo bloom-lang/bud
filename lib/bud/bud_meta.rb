@@ -79,7 +79,6 @@ class BudMeta #:nodoc: all
 
     rewriter = RuleRewriter.new(seed, @bud_instance)
     rewriter.process(pt)
-    #rewriter.rules.each {|r| puts "RW: #{r.inspect}"}
     return rewriter
   end
   
@@ -100,7 +99,7 @@ class BudMeta #:nodoc: all
 
   # Perform some basic sanity checks on the AST of a rule block. We expect a
   # rule block to consist of a :defn, a nested :scope, and then a sequence of
-  # statements. Each statement is either a :call or :lasgn node.
+  # statements. Each statement is a :call node.
   def check_rule_ast(pt)
     # :defn format: node tag, block name, args, nested scope
     raise Bud::CompileError if pt.sexp_type != :defn

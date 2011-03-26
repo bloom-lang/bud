@@ -191,7 +191,7 @@ module Bud
   def rewrite_local_methods
     u = Unifier.new
     ref_expander = NestedRefRewriter.new(self.class.bud_import_table)
-#    tmp_expander = TempExpander.new
+    tmp_expander = TempExpander.new
     r2r = Ruby2Ruby.new
 
     self.class.instance_methods(false).each do |m|
@@ -199,7 +199,7 @@ module Bud
 
       ast = u.process(ast)
       ast = ref_expander.process(ast)
-#      ast = tmp_expander.process(ast)
+      ast = tmp_expander.process(ast)
       new_source = r2r.process(ast)
 
       self.class.module_eval new_source # Replace previous method def

@@ -235,15 +235,26 @@ class TempExpander < SexpProcessor
   def process_defn(exp)
     tag, name, args, scope = exp
 
-    if false and name.to_s =~ /^__bloom__.+/
-      block = scope.sexp_body.first
+    if name.to_s =~ /^__bloom__.+/
+      block = scope[1]
 
-      block.each do |b|
-        next unless b.sexp_type == :call
+      block.each_with_index do |n,i|
+        if i == 0
+          raise Bud::CompileError if n != :block
+          next
+        end
+
+        _, lhs, op, rhs = n
+        if op == :temp
+          n = rewrite_temp(n)
+        end
       end
     end
 
-    Sexp.from_array [tag,name, args, scope]
+    Sexp.from_array [tag, name, args, scope]
+  end
+
+  def rewrite_temp(exp)
   end
 end
 
