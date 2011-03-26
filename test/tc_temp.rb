@@ -287,3 +287,32 @@ class TestTempNoMaps < Test::Unit::TestCase
     assert_equal(p.t3.to_a.sort, p.t4.to_a.sort)
   end
 end
+
+module TestDefModule
+  state do
+    table :t1
+    table :t2
+  end
+
+  bootstrap do
+    t1 << [10, 10]
+  end
+
+  bloom do
+    temp :t3 <= t1 {|t| [t.key + 10, t.val + 20]}
+    t2 <= t3 {|t| [t[0] + 20, t[1] + 40]}
+  end
+end
+
+class TestModuleUser
+  include Bud
+  include TestDefModule
+end
+
+class TestModuleTemp < Test::Unit::TestCase
+  def test_simple
+    c = TestModuleUser.new
+    c.tick
+    assert_equal([[40, 70]], c.t2.to_a.sort)
+  end
+end

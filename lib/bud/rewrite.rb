@@ -404,7 +404,7 @@ module ModuleRewriter
 
     # For each distinct method name, use the implementation that appears the
     # furthest down in the inheritance hierarchy.
-    relatives = relatives.reverse
+    relatives.reverse!
     method_names.uniq.sort.each do |m|
       relatives.each do |r|
         t = pt.parse_tree_for_method(r, m.to_sym)

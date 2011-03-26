@@ -154,7 +154,10 @@ module Bud
     # NB: If using an ephemeral port (specified by port = 0), the actual port
     # number won't be known until we start EM
 
-    Bud.rewrite_local_methods(self.class)
+    relatives = self.class.modules + [self.class]
+    relatives.each do |r|
+      Bud.rewrite_local_methods(r)
+    end
 
     @declarations = ModuleRewriter.get_rule_defs(self.class)
 
@@ -187,8 +190,9 @@ module Bud
   private
 
   # Rewrite methods defined in the given klass to expand module references and
-  # temp collections. Imported modules are rewritten during the import process.
-  # Note that we only rewrite each distinct Class once.
+  # temp collections. Imported modules are rewritten during the import process;
+  # we rewrite the main Bud class and any included modules here. Note that we
+  # only rewrite each distinct Class once.
   def self.rewrite_local_methods(klass)
     @done_rewrite ||= {}
     return if @done_rewrite.has_key? klass.name
