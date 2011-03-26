@@ -17,9 +17,17 @@ class VizOnline #:nodoc: all
 
     @logtab = {}
     tmp_set = []
-    @bud_instance.tables.each do |t|
-      next if t[0].to_s =~ /_vizlog\z/
-      tmp_set << [t[0], t[1].schema.clone, t[1].class.to_s]
+    @bud_instance.tables.each do |name, tbl|
+      next if name.to_s =~ /_vizlog\z/
+
+      # Temp collections don't have a schema until a fact has been inserted into
+      # them; for now, we just include an empty schema for them in the viz
+      if tbl.schema.nil?
+        schema = []
+      else
+        schema = tbl.schema.clone
+      end
+      tmp_set << [name, schema, tbl.class.to_s]
     end
 
     tmp_set.each do |t|
