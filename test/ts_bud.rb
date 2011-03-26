@@ -23,6 +23,7 @@ require 'tc_terminal'
 require 'tc_timer'
 require 'tc_wc1'
 require 'tc_wc2'
+require 'tc_rebl'
 
 if defined? Bud::HAVE_TOKYO_CABINET
   puts "Running TC tests"

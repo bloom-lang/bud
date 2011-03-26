@@ -89,12 +89,13 @@ class ReblShell
 
   # One step of the rebl shell loop: processes one rebl shell line from stdin
   # and returns.  May raise an Exception.
-  def self.rebl_loop(lib)
+  def self.rebl_loop(lib,noreadline=false)
     begin
-      line = Readline::readline('rebl> ')
+      line = Readline::readline('rebl> ') unless noreadline
+      line = gets if noreadline
       do_exit if line.nil?
       line = line.lstrip.rstrip
-      Readline::HISTORY.push(line)
+      Readline::HISTORY.push(line) unless noreadline
       split_line = line.split(" ")
       if line[0..0] == @@escape_char then
         # Command
@@ -169,7 +170,7 @@ class ReblShell
     rescue Exception
       puts "Error when saving permanent history: #{$!}"
     end
-    @rebl_class_inst.stop_bg(true) if @rebl_class_inst
+    @rebl_class_inst.stop_bg if @rebl_class_inst
     puts "\n" + @@exit_message
     exit!
   end
@@ -215,7 +216,8 @@ class LibRebl
 
   # Dumps the contents of a table at the current time.
   def dump(c)
-    @rebl_class_inst.instance_eval("#{c}.dump")
+    tups = @rebl_class_inst.instance_eval("#{c}.inspected")
+    puts(tups.empty? ? "(empty)" : tups.sort.join("\n"))
   end
 
   # Declares a new collection.
@@ -285,7 +287,7 @@ class LibRebl
 
     # Run lazily in background, shutting down old instance.
     begin
-      @old_inst.stop_bg(true) if @old_inst
+      @old_inst.stop_bg if @old_inst
       # Lazify the instance upon a breakpoint (no effect if instance is
       # already lazy)
       @rebl_class_inst.register_callback(:breakpoint) do
