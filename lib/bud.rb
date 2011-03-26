@@ -199,9 +199,14 @@ module Bud
       ast = u.process(ast)
       ast = ref_expander.process(ast)
       ast = tmp_expander.process(ast)
-      new_source = r2r.process(ast)
 
-      self.class.module_eval new_source # Replace previous method def
+      if (ref_expander.did_work or tmp_expander.did_work)
+        new_source = r2r.process(ast)
+        self.class.module_eval new_source # Replace previous method def
+      end
+
+      ref_expander.did_work = false
+      tmp_expander.did_work = false
     end
 
     s = tmp_expander.get_state_meth(self.class)

@@ -165,11 +165,14 @@ end
 # be name-mangled. Note that we don't currently check that a__b__c (or a.b.c)
 # corresponds to an extant Bloom collection.
 class NestedRefRewriter < SexpProcessor
+  attr_accessor :did_work
+
   def initialize(import_tbl)
     super()
     self.require_empty = false
     self.expected = Sexp
     @import_tbl = import_tbl
+    @did_work = false
   end
 
   def process_call(exp)
@@ -190,6 +193,7 @@ class NestedRefRewriter < SexpProcessor
       end
 
       # Okay, apply the rewrite
+      @did_work = true
       new_meth_name += meth_name.to_s
       recv = nil
       meth_name = new_meth_name.to_sym
@@ -201,6 +205,7 @@ class NestedRefRewriter < SexpProcessor
     s(tag, recv, meth_name, args)
   end
 
+  private
   def make_recv_stack(r)
     rv = []
 
@@ -224,6 +229,7 @@ end
 
 class TempExpander < SexpProcessor
   attr_reader :tmp_tables
+  attr_accessor :did_work
 
   def initialize
     super()
@@ -231,6 +237,7 @@ class TempExpander < SexpProcessor
     self.expected = Sexp
 
     @tmp_tables = []
+    @did_work = false
   end
 
   def process_defn(exp)
@@ -248,6 +255,7 @@ class TempExpander < SexpProcessor
         _, recv, meth, meth_args = n
         if meth == :temp
           block[i] = rewrite_temp(n)
+          @did_work = true
         end
       end
     end
