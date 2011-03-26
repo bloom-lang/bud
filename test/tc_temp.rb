@@ -73,7 +73,7 @@ class SimpleTempTest
   end
 
   bloom do
-    temp(:j) <= join([t1, t2])
+    temp :j <= join([t1, t2])
     t3 <= j.map {|a, b| [a.key + b.key, a.val + b.val]}
     t4 <= j.map {|a, b| [a.key + b.key, a.val + b.val]}
     t5 <= j.map {|a, b| a if b.val > 100}
@@ -93,9 +93,9 @@ class TempRefTemp
   end
 
   bloom do
-    temp(:a) <= t1.map {|t| [t.key + 10, t.val + 10]}
+    temp :a <= t1.map {|t| [t.key + 10, t.val + 10]}
     temp :b <= a.map {|t| [t[0] + 20, t[1] + 20]}
-    temp(:c) <= b.map {|t| [t[0] - 50, t[1] - 100]}
+    temp :c <= b.map {|t| [t[0] - 50, t[1] - 100]}
     temp :d <= b.map {|t| [t[0] - 50, t[1] - 100]} # unreferenced
     t2 <= c
   end
@@ -117,7 +117,7 @@ class TempShadow
   end
 
   bloom do
-    temp(:k) <= t1.map {|t| [t.key + 10, t.val + 20]}
+    temp :k <= t1.map {|t| [t.key + 10, t.val + 20]}
     t2 <= k
     t2 <= t1.map {|k| [k.key, k.val]}
     t3 <= join([t1, t2], [t1.key, t2.key]).map {|j,k| [j.key + 20, k.val + 20]}
@@ -144,7 +144,7 @@ class SimpleTempNoMapTest
   end
 
   bloom do
-    temp(:j) <= join([t1, t2])
+    temp :j <= join([t1, t2])
     t3 <= j {|a, b| [a.key + b.key, a.val + b.val]}
     t4 <= j {|a, b| [a.key + b.key, a.val + b.val]}
     t5 <= j {|a, b| a if b.val > 100}
@@ -164,10 +164,10 @@ class TempNoMapRefTempNoMap
   end
 
   bloom do
-    temp(:a) <= t1 {|t| [t.key + 10, t.val + 10]}
-    temp(:b) <= a {|t| [t[0] + 20, t[1] + 20]}
-    temp(:c) <= b {|t| [t[0] - 50, t[1] - 100]}
-    temp(:d) <= b {|t| [t[0] - 50, t[1] - 100]} # unreferenced
+    temp :a <= t1 {|t| [t.key + 10, t.val + 10]}
+    temp :b <= a {|t| [t[0] + 20, t[1] + 20]}
+    temp :c <= b {|t| [t[0] - 50, t[1] - 100]}
+    temp :d <= b {|t| [t[0] - 50, t[1] - 100]} # unreferenced
     t2 <= c
   end
 end
@@ -199,9 +199,7 @@ end
 class TestTemps < Test::Unit::TestCase
   def test_basic_temp
     p = BasicTemp.new
-    p.inski <+ [[1,1],
-                [2,2],
-                [3,3]]
+    p.inski <+ [[1,1], [2,2], [3,3]]
     p.tick
     assert_equal(3, p.out.length)
     assert_equal([[1], [2], [3]], p.out.map{|o| [o.val]}.sort)
@@ -209,9 +207,7 @@ class TestTemps < Test::Unit::TestCase
   def test_retemp
     p = BasicTemp.new
     p.run_bg
-    p.sync_do{p.inski <+ [[1,1],
-                [2,2],
-                [3,3]]}
+    p.sync_do{p.inski <+ [[1,1], [2,2], [3,3]]}
     p.stop_bg
     assert_equal(3, p.out.length)
     assert_equal([[1], [2], [3]], p.out.map{|o| [o.val]}.sort)
@@ -289,5 +285,34 @@ class TestTempNoMaps < Test::Unit::TestCase
     assert_equal([[20, 40], [30, 60], [40, 60], [50, 80]], p.t2.to_a.sort)
     assert_equal([[40, 60], [60, 80]], p.t3.to_a.sort)
     assert_equal(p.t3.to_a.sort, p.t4.to_a.sort)
+  end
+end
+
+module TestDefModule
+  state do
+    table :t1
+    table :t2
+  end
+
+  bootstrap do
+    t1 << [10, 10]
+  end
+
+  bloom do
+    temp :t3 <= t1 {|t| [t.key + 10, t.val + 20]}
+    t2 <= t3 {|t| [t[0] + 20, t[1] + 40]}
+  end
+end
+
+class TestModuleUser
+  include Bud
+  include TestDefModule
+end
+
+class TestModuleTemp < Test::Unit::TestCase
+  def test_simple
+    c = TestModuleUser.new
+    c.tick
+    assert_equal([[40, 70]], c.t2.to_a.sort)
   end
 end

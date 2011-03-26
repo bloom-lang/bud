@@ -48,7 +48,7 @@ class LessAnnoying < StillAnnoying
   include Bud
 
   bloom :rules do
-    temp(tmpy) <= inski
+    temp :tmpy <= inski
     out <= tmpy {|t| [t.val]}
   end
 end

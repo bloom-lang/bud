@@ -151,7 +151,7 @@ class CallRewriter < SexpProcessor
     recv = process(recv)
     args = process(args)
 
-    Sexp.from_array [tag, recv, meth_name, args]
+    s(tag, recv, meth_name, args)
   end
 end
 
@@ -165,14 +165,18 @@ end
 # be name-mangled. Note that we don't currently check that a__b__c (or a.b.c)
 # corresponds to an extant Bloom collection.
 class NestedRefRewriter < SexpProcessor
+  attr_accessor :did_work
+
   def initialize(import_tbl)
     super()
     self.require_empty = false
     self.expected = Sexp
     @import_tbl = import_tbl
+    @did_work = false
   end
 
   def process_call(exp)
+    return exp if @import_tbl.empty?
     tag, recv, meth_name, args = exp
 
     catch :skip do
@@ -190,6 +194,7 @@ class NestedRefRewriter < SexpProcessor
       end
 
       # Okay, apply the rewrite
+      @did_work = true
       new_meth_name += meth_name.to_s
       recv = nil
       meth_name = new_meth_name.to_sym
@@ -198,9 +203,10 @@ class NestedRefRewriter < SexpProcessor
     recv = process(recv)
     args = process(args)
 
-    Sexp.from_array [tag, recv, meth_name, args]
+    s(tag, recv, meth_name, args)
   end
 
+  private
   def make_recv_stack(r)
     rv = []
 
@@ -223,27 +229,71 @@ class NestedRefRewriter < SexpProcessor
 end
 
 class TempExpander < SexpProcessor
+  attr_reader :tmp_tables
+  attr_accessor :did_work
+
   def initialize
     super()
     self.require_empty = false
     self.expected = Sexp
 
-    # Map from name => schema
-    @tmp_tables = {}
+    @tmp_tables = []
+    @did_work = false
   end
 
   def process_defn(exp)
     tag, name, args, scope = exp
 
-    if false and name.to_s =~ /^__bloom__.+/
-      block = scope.sexp_body.first
+    if name.to_s =~ /^__bloom__.+/
+      block = scope[1]
 
-      block.each do |b|
-        next unless b.sexp_type == :call
+      block.each_with_index do |n,i|
+        if i == 0
+          raise Bud::CompileError if n != :block
+          next
+        end
+
+        _, recv, meth, meth_args = n
+        if meth == :temp
+          block[i] = rewrite_temp(n)
+          @did_work = true
+        end
       end
     end
 
-    Sexp.from_array [tag,name, args, scope]
+    s(tag, name, args, scope)
+  end
+
+  # Return an AST containing a state def block with definitions for all the temp
+  # tables encountered by this TempExpander.
+  def get_state_meth(klass)
+    return if @tmp_tables.empty?
+    block = s(:block)
+
+    @tmp_tables.each do |t|
+      args = s(:arglist, s(:lit, t.to_sym))
+      block << s(:call, nil, :temp, args)
+    end
+
+    meth_name = Module.make_state_meth_name(klass).to_s + "__tmp"
+    return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
+  end
+
+  private
+  def rewrite_temp(exp)
+    _, recv, meth, args = exp
+
+    raise Bud::CompileError unless recv == nil
+    nest_call = args.sexp_body.first
+    raise Bud::CompileError unless nest_call.sexp_type == :call
+
+    nest_recv, nest_op, nest_args = nest_call.sexp_body
+    raise Bud::CompileError unless nest_recv.sexp_type == :lit
+
+    tmp_name = nest_recv.sexp_body.first
+    @tmp_tables << tmp_name
+    new_recv = s(:call, nil, tmp_name, s(:arglist))
+    return s(:call, new_recv, nest_op, nest_args)
   end
 end
 
@@ -273,7 +323,7 @@ class DefnRenamer < SexpProcessor
 
     # Note that we don't bother to recurse further into the AST: we're only
     # interested in top-level :defn nodes.
-    Sexp.from_array [tag, name, args, scope]
+    s(tag, name, args, scope)
   end
 end
 
@@ -298,8 +348,9 @@ module ModuleRewriter
   # see Bud#rewrite_local_methods.
   def self.do_import(import_site, mod, local_name)
     ast = get_module_ast(mod)
-    ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
+    ast = ast_process_temps(ast, mod)
+    ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     rename_tbl = ast_rename_state(ast, local_name)
     ast = ast_update_refs(ast, rename_tbl)
 
@@ -353,7 +404,7 @@ module ModuleRewriter
 
     # For each distinct method name, use the implementation that appears the
     # furthest down in the inheritance hierarchy.
-    relatives = relatives.reverse
+    relatives.reverse!
     method_names.uniq.sort.each do |m|
       relatives.each do |r|
         t = pt.parse_tree_for_method(r, m.to_sym)
@@ -369,6 +420,26 @@ module ModuleRewriter
     end
 
     return code
+  end
+
+  # If this module imports a submodule and binds it to :x, references to x.t1
+  # need to be flattened to the mangled name of x.t1.
+  def self.ast_flatten_nested_refs(ast, import_tbl)
+    NestedRefRewriter.new(import_tbl).process(ast)
+  end
+
+  # Handle temp collections defined in the module's Bloom blocks.
+  def self.ast_process_temps(ast, mod)
+    t = TempExpander.new
+    ast = t.process(ast)
+
+    new_meth = t.get_state_meth(mod)
+    if new_meth
+      # Insert the new extra state method into the module's AST
+      ast << new_meth
+    end
+
+    return ast
   end
 
   # Rename the given module's name to be a mangle of import site, imported
@@ -441,12 +512,6 @@ module ModuleRewriter
 
   def self.ast_update_refs(ast, rename_tbl)
     CallRewriter.new(rename_tbl).process(ast)
-  end
-
-  # If this module imports a submodule and binds it to :x, references to x.t1
-  # need to be flattened to the mangled name of x.t1.
-  def self.ast_flatten_nested_refs(ast, import_tbl)
-    NestedRefRewriter.new(import_tbl).process(ast)
   end
 
   # Return a list of symbols containing the names of def blocks containing Bloom
