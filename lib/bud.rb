@@ -154,7 +154,7 @@ module Bud
     # NB: If using an ephemeral port (specified by port = 0), the actual port
     # number won't be known until we start EM
 
-    rewrite_local_methods
+    Bud.rewrite_local_methods(self.class)
 
     @declarations = ModuleRewriter.get_rule_defs(self.class)
 
@@ -186,34 +186,41 @@ module Bud
 
   private
 
-  # Rewrite methods defined in the main Bud class to expand module
-  # references. Imported modules are rewritten during the import process.
-  def rewrite_local_methods
+  # Rewrite methods defined in the given klass to expand module references and
+  # temp collections. Imported modules are rewritten during the import process.
+  # Note that we only rewrite each distinct Class once.
+  def self.rewrite_local_methods(klass)
+    @done_rewrite ||= {}
+    return if @done_rewrite.has_key? klass.name
+
     u = Unifier.new
-    ref_expander = NestedRefRewriter.new(self.class.bud_import_table)
+    ref_expander = NestedRefRewriter.new(klass.bud_import_table)
     tmp_expander = TempExpander.new
     r2r = Ruby2Ruby.new
 
-    self.class.instance_methods(false).each do |m|
-      ast = ParseTree.translate(self.class, m)
+    klass.instance_methods(false).each do |m|
+      ast = ParseTree.translate(klass, m)
       ast = u.process(ast)
       ast = ref_expander.process(ast)
       ast = tmp_expander.process(ast)
 
       if (ref_expander.did_work or tmp_expander.did_work)
         new_source = r2r.process(ast)
-        self.class.module_eval new_source # Replace previous method def
+        klass.module_eval new_source # Replace previous method def
       end
 
       ref_expander.did_work = false
       tmp_expander.did_work = false
     end
 
-    s = tmp_expander.get_state_meth(self.class)
+    s = tmp_expander.get_state_meth(klass)
     if s
       state_src = r2r.process(s)
-      self.class.module_eval(state_src)
+      klass.module_eval(state_src)
     end
+
+    # Always rewrite anonymous classes
+    @done_rewrite[klass.name] = true unless klass.name == ""
   end
 
   # Invoke all the user-defined state blocks and initialize builtin state.
