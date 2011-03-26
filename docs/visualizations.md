@@ -17,6 +17,7 @@ The __plotter__ is a visual static analysis tool that aids in design and early i
 4. Experimenting with different module compositions
 5. Identifying and iteratively refining a program's points of order
 
+
     $ ruby budplot 
     USAGE:
     ruby budplot LIST_OF_FILES LIST_OF_MODULES
