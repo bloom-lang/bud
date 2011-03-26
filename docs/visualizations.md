@@ -18,11 +18,9 @@ The __plotter__ is a visual static analysis tool that aids in design and early i
 5. Identifying and iteratively refining a program's points of order
     * JMH: you need a link to a definition of points of order somewhere
 
-```
-$ ruby budplot 
-USAGE:
-ruby budplot LIST_OF_FILES LIST_OF_MODULES
-```
+    $ ruby budplot 
+    USAGE:
+    ruby budplot LIST_OF_FILES LIST_OF_MODULES
 
 As its usage message indicates, __plotter__ expects a list of ruby input files, followed by a list of BUD modules to mix in.
 
