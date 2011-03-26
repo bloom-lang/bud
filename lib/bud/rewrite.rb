@@ -176,6 +176,7 @@ class NestedRefRewriter < SexpProcessor
   end
 
   def process_call(exp)
+    return exp if @import_tbl.empty?
     tag, recv, meth_name, args = exp
 
     catch :skip do
