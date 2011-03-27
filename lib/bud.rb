@@ -425,17 +425,24 @@ module Bud
   # a set of tuples to insert, and an output relation on which  to 'listen.'
   # The call blocks until tuples are inserted into the output collection:
   # these are returned to the caller.
-  def sync_callback(in_coll, tupleset, out_coll)
+  def sync_callback(in_tbl, tupleset, out_tbl)
     q = Queue.new
-    cb = register_callback(out_coll) do |c|
+    cb = register_callback(out_tbl) do |c|
       q.push c.to_a
     end
     sync_do do 
-      @tables[in_coll] <+ tupleset
+      unless in_tbl.nil?
+        @tables[in_tbl] <+ tupleset 
+      end
     end
     result = q.pop
     unregister_callback(cb)
-    yield result
+    return result
+  end
+
+  # a common special case for sync_callback: block on a delta to a table.
+  def delta(out_tbl)
+    sync_callback(nil, nil, out_tbl)
   end
 
   private
