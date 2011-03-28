@@ -72,22 +72,6 @@ module Bud
 	    end
 	    preds.uniq
 		end
-		
-		# currently supports two options for equijoin predicates:
-		#    general form: an array of arrays capturing a conjunction of equiv. classes
-		#          [[table1.col1, table2.col2, table3.col3], [table1.col2, table2.col3]]
-		#    common form: a hash capturing equality of a column on left with one on right.
-		#          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
-		public
-		def pairs(*preds, &blk)
-			unless preds.nil?
-				@localpreds = disambiguate_preds(preds)
-				canonicalize_localpreds(@rels)
-			end
-			blk.nil? ? self : map(&blk)
-		end	
-		
-		alias combos pairs
 				
 		public
     def flatten(*preds)
@@ -119,91 +103,6 @@ module Bud
       retval.merge(self.map{|r,s| r + s}, retval.storage)
     end
 		
-		public
-		def matches(&blk)
-			preds = BudJoin::natural_preds(@bud_instance, @rels)
-			pairs(*preds, &blk)
-		end
-			
-		public
-		def lefts(*preds)
-			@localpreds = disambiguate_preds(preds)
-			map{ |l,r| l }
-		end
-
-		public
-		def rights(*preds)
-			@localpreds = disambiguate_preds(preds)
-			map{ |l,r| r }
-		end
-
-		private
-		def disambiguate_preds(preds)
-			if preds.size == 1 and preds[0].class <= Hash
-				predarray = preds[0].map do |k,v|
-					if k.class != v.class
-           	raise Bud::CompileError, "inconsistent attribute ref style #{k.inspect} => #{v.inspect}"
-					elsif k.class <= Array
-						[k,v]
-					elsif k.class <= Symbol
-						if @origrels.length == 2
-							[find_attr_match(k,@origrels[0]), find_attr_match(v,@origrels[1])]
-						else
-							[find_attr_match(k), find_attr_match(v)]
-						end
-				  else
-						raise Bud::CompileError, "invalid attribute ref in #{k.inspect} => #{v.inspect}"
-					end
-				end
-				return decomp_preds(*predarray)
-			else
-				return decomp_preds(*preds)
-			end
-		end
-		
-		# find element in @origrels that contains this aname method
-		# if 2nd arg is non-nil, only check that collection.
-		# after found, return the result of invoking aname from chosen collection
-		private
-		def find_attr_match(aname, rel=nil)
-			dorels = (rel.nil? ? @origrels : [rel])
-			match = nil
-			dorels.each do |r|
-				match ||= r if r.respond_to?(aname)
-				if r.respond_to?(aname) and match != r
-					raise Bud::CompileError, "ambiguous attribute :#{aname} in both #{match.tabname} and #{r.tabname}"
-				end
-			end
-			if match.nil?
-				raise Bud::CompileError, "attribute :#{aname} not found in any of #{dorels.map{|t| t.tabname}.inspect}"
-			end
-			match.send(aname)
-		end
-		
-		private
-	  def decomp_preds(*preds)
-	    # decompose each pred into a binary pred
-		  return nil if preds.nil? or preds.empty? or preds == [nil]
-	    newpreds = []
-	    preds.each do |p|
-	      p.each_with_index do |c, i|
-	        newpreds << [p[i], p[i+1]] unless p[i+1].nil?
-	      end
-	    end
-	    newpreds
-	  end	  
-	
-	  private
-		def canonicalize_localpreds(rellist)
-			return if @localpreds.nil?
-			@localpreds.each do |p|
-        if p[1][0] == rellist[0].tabname
-          @localpreds.delete(p)
-          @localpreds << [p[1], p[0]]
-        end
-      end
-		end
-
 		private
     def do_insert(o, store)
       raise BudError, "no insertion into joins"
