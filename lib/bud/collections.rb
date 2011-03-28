@@ -1,17 +1,5 @@
 require 'msgpack'
 
-begin
-  require 'tokyocabinet'
-  Bud::HAVE_TOKYO_CABINET = true
-rescue LoadError
-end
-
-begin
-  require 'zookeeper'
-  Bud::HAVE_ZOOKEEPER = true
-rescue LoadError
-end
-
 module Bud
   ######## the collection types
   # each collection is partitioned into 4:

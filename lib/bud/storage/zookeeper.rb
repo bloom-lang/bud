@@ -1,3 +1,9 @@
+begin
+  require 'zookeeper'
+  Bud::HAVE_ZOOKEEPER = true
+rescue LoadError
+end
+
 module Bud
   # Persistent table implementation based on Zookeeper.
   class BudZkTable < BudCollection
