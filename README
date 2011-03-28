@@ -34,9 +34,8 @@ Optional Dependencies
 =====================
 
 The bud gem has a handful of mandatory dependencies. It also has some optional
-dependencies: if you wish to use the Bud collections backed by Tokyo Cabinet or
-Zookeeper ("tctable" and "zktable" collection types, respectively), the
-"tokyocabinet" and/or "zookeeper" gems must be installed.
+dependencies: if you wish to use the Bud collections backed by Zookeeper (the
+"zktable" collection type), the "zookeeper" gem must be installed.
 
 Development Notes
 =================

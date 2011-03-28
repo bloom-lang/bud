@@ -9,7 +9,7 @@ In this document we'll use what we've learned to build a piece of systems softwa
 
 ## High-level architecture
 
-![BFS Architecture](https://github.com/bloom-lang/bud/raw/master/doc/bfs_arch.png)
+![BFS Architecture](https://github.com/bloom-lang/bud/raw/master/docs/bfs_arch.png)
 
 BFS implements a chunked, distributed filesystem (mostly) in the Bloom
 language.  BFS is architecturally based on BOOMFS, which is itself based on

@@ -21,7 +21,7 @@ class HashJoinBench
   end
 
   bloom do
-    j = join([t1, t2], [t1.key, t2.key])
+    temp :j <= join([t1, t2], [t1.key, t2.key])
     stdio <~ j.map {|t1, t2| ["Join result: #{[t1,t2].inspect}"]}
   end
 end

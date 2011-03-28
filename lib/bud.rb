@@ -154,7 +154,10 @@ module Bud
     # NB: If using an ephemeral port (specified by port = 0), the actual port
     # number won't be known until we start EM
 
-    rewrite_local_methods
+    relatives = self.class.modules + [self.class]
+    relatives.each do |r|
+      Bud.rewrite_local_methods(r)
+    end
 
     @declarations = ModuleRewriter.get_rule_defs(self.class)
 
@@ -186,19 +189,42 @@ module Bud
 
   private
 
-  # Rewrite methods defined in the main Bud class to expand module
-  # references. Imported modules are rewritten during the import process.
-  def rewrite_local_methods
-    self.class.instance_methods(false).each do |m|
-      ast = ParseTree.translate(self.class, m)
-      ast = Unifier.new.process(ast)
+  # Rewrite methods defined in the given klass to expand module references and
+  # temp collections. Imported modules are rewritten during the import process;
+  # we rewrite the main Bud class and any included modules here. Note that we
+  # only rewrite each distinct Class once.
+  def self.rewrite_local_methods(klass)
+    @done_rewrite ||= {}
+    return if @done_rewrite.has_key? klass.name
 
-      expander = NestedRefRewriter.new(self.class.bud_import_table)
-      ast = expander.process(ast)
+    u = Unifier.new
+    ref_expander = NestedRefRewriter.new(klass.bud_import_table)
+    tmp_expander = TempExpander.new
+    r2r = Ruby2Ruby.new
 
-      new_source = Ruby2Ruby.new.process(ast)
-      self.class.module_eval new_source # Replace previous method def
+    klass.instance_methods(false).each do |m|
+      ast = ParseTree.translate(klass, m)
+      ast = u.process(ast)
+      ast = ref_expander.process(ast)
+      ast = tmp_expander.process(ast)
+
+      if (ref_expander.did_work or tmp_expander.did_work)
+        new_source = r2r.process(ast)
+        klass.module_eval new_source # Replace previous method def
+      end
+
+      ref_expander.did_work = false
+      tmp_expander.did_work = false
     end
+
+    s = tmp_expander.get_state_meth(klass)
+    if s
+      state_src = r2r.process(s)
+      klass.module_eval(state_src)
+    end
+
+    # Always rewrite anonymous classes
+    @done_rewrite[klass.name] = true unless klass.name == ""
   end
 
   # Invoke all the user-defined state blocks and initialize builtin state.
@@ -399,17 +425,24 @@ module Bud
   # a set of tuples to insert, and an output relation on which  to 'listen.'
   # The call blocks until tuples are inserted into the output collection:
   # these are returned to the caller.
-  def sync_callback(in_coll, tupleset, out_coll)
+  def sync_callback(in_tbl, tupleset, out_tbl)
     q = Queue.new
-    cb = register_callback(out_coll) do |c|
+    cb = register_callback(out_tbl) do |c|
       q.push c.to_a
     end
     sync_do do 
-      @tables[in_coll] <+ tupleset
+      unless in_tbl.nil?
+        @tables[in_tbl] <+ tupleset 
+      end
     end
     result = q.pop
     unregister_callback(cb)
-    yield result
+    return result
+  end
+
+  # a common special case for sync_callback: block on a delta to a table.
+  def delta(out_tbl)
+    sync_callback(nil, nil, out_tbl)
   end
 
   private

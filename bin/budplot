@@ -36,7 +36,9 @@ def process(mods)
     tab = t[0].to_s
     tabinf[tab] = t[1].class.to_s
     if interfaces[tab].nil?
-      priv << t
+      unless tab =~ /^t_/ or tab == "stdio" or tab == "localtick"
+        priv << t
+      end
     else
       if interfaces[tab]
         inp << t
@@ -69,7 +71,7 @@ def write_index(inp, outp, priv, svg)
   f.puts "<h2> Input Interfaces </h2>"
   do_table(f, inp)
   f.puts "</td><td>"
-  f.puts "<h2> Input Interfaces </h2>"
+  f.puts "<h2> Output Interfaces </h2>"
   do_table(f, outp)
   f.puts "</td><td>"
   f.puts "<h2> Private State </h2>"

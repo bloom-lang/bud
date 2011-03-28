@@ -233,6 +233,34 @@ class ModuleMethodOverride
   end
 end
 
+module TempMod
+  state do
+    table :t1
+    table :t2
+  end
+
+  bloom do
+    temp :t3 <= t1 {|t| [t.key + 20, t.val + 20]}
+    t2 <= t3 {|t| [t[0] + 10, t[1] + 10]}
+  end
+end
+
+class TempModUser
+  include Bud
+  import TempMod => :m1
+  import TempMod => :m2
+
+  bootstrap do
+    m1.t1 << [10, 10]
+    m2.t1 << [20, 20]
+  end
+
+  def do_check
+    raise unless m1.t2.to_a.sort == [[40, 40]]
+    raise unless m2.t2.to_a.sort == [[50, 50]]
+  end
+end
+
 class TestModules < Test::Unit::TestCase
   def test_simple
     c = ChildClass.new
@@ -377,6 +405,12 @@ class TestModules < Test::Unit::TestCase
     c.sync_do
     c.do_check
     c.stop_bg
+  end
+
+  def test_module_temp_collection
+    c = TempModUser.new
+    c.tick
+    c.do_check
   end
 
   def test_duplicate_import

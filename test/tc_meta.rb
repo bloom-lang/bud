@@ -17,7 +17,7 @@ class LocalShortestPaths
   bloom do
     link2 <= link.map {|l| l unless empty.include? [l.ident]}
     path <= link2.map {|e| [e.from, e.to, e.to, e.cost]}
-    j = join([link2, path])
+    temp :j <= join([link2, path])
     path <= j.map do |l, p|
       [l.from, p.to, p.from, l.cost+p.cost] if l.to == p.from
     end
@@ -60,7 +60,7 @@ class KTest2 < KTest
   bloom :update do
     mystate <= upd
     node <= upd
-    j = join([upd, mystate])
+    temp :j <= join([upd, mystate])
     mystate <- j.map {|i, s| s}
   end
 end

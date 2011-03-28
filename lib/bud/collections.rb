@@ -1,17 +1,5 @@
 require 'msgpack'
 
-begin
-  require 'tokyocabinet'
-  Bud::HAVE_TOKYO_CABINET = true
-rescue LoadError
-end
-
-begin
-  require 'zookeeper'
-  Bud::HAVE_ZOOKEEPER = true
-rescue LoadError
-end
-
 module Bud
   ######## the collection types
   # each collection is partitioned into 4:
@@ -23,7 +11,8 @@ module Bud
   class BudCollection
     include Enumerable
 
-    attr_reader :schema, :key_cols, :val_cols, :bud_instance, :tabname
+    attr_accessor :bud_instance
+    attr_reader :schema, :key_cols, :val_cols, :tabname
     attr_reader :storage, :delta, :new_delta
     
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false)
