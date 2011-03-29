@@ -12,7 +12,7 @@ class ReblClass
   attr_accessor:port, :ip
 
   # Support for breakpoints
-  state { scratch :breakpoint }
+  state { scratch :rebl_breakpoint }
 end
 
 
@@ -184,7 +184,7 @@ class LibRebl
   attr_accessor :rules, :state
   @@builtin_tables = [:stdio, :t_depends, :periodics_tbl, :t_cycle, :localtick,
                       :t_provides, :t_rules, :t_depends_tc, :t_stratum,
-                      :breakpoint]
+                      :rebl_breakpoint]
 
   def initialize(ip, port)
     @ip = ip
@@ -290,7 +290,7 @@ class LibRebl
       @old_inst.stop_bg if @old_inst
       # Lazify the instance upon a breakpoint (no effect if instance is
       # already lazy)
-      @rebl_class_inst.register_callback(:breakpoint) do
+      @rebl_class_inst.register_callback(:rebl_breakpoint) do
         @rebl_class_inst.lazy = true
       end
       @rebl_class_inst.run_bg
