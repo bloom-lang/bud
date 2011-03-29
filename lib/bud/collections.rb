@@ -862,8 +862,9 @@ end
 
 module Enumerable
   public
-  def rename(new_tabname, new_schema)
+  def rename(new_tabname, new_schema=nil)
     budi = (respond_to?(:bud_instance)) ? bud_instance : nil
+    new_schema ||= schema unless schema.nil?
     scr = Bud::BudScratch.new(new_tabname.to_s, budi, new_schema)
     scr.merge(self, scr.storage)
     scr

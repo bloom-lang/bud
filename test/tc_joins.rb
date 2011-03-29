@@ -210,7 +210,7 @@ class BlockAppend
   end
 end
 
-class Rename
+class RenameJoin
   include Bud
   
   state do
@@ -315,8 +315,8 @@ class TestJoins < Test::Unit::TestCase
     assert_raise(Bud::CompileError) {p4.tick}
   end
   
-  def test_rename_kpom
-    p = Rename.new
+  def test_rename_join
+    p = RenameJoin.new
     assert_nothing_raised(RuntimeError) {p.tick}
     assert_equal([['a', 1]], p.out.to_a)
   end
