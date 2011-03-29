@@ -210,6 +210,22 @@ class BlockAppend
   end
 end
 
+class Rename
+  include Bud
+  
+  state do
+    table :foo
+  end
+  
+  bootstrap do
+    foo << ['a', 1]
+  end
+  
+  bloom do
+    temp :out <= (foo.rename([:c1]=>[:c2]) * foo).lefts(:c1 => :key)
+  end
+end
+
 class TestJoins < Test::Unit::TestCase
   def test_combos
     program = CombosBud.new
@@ -297,5 +313,11 @@ class TestJoins < Test::Unit::TestCase
     assert_raise(Bud::CompileError) {p2.tick}
     assert_raise(Bud::CompileError) {p3.tick}
     assert_raise(Bud::CompileError) {p4.tick}
+  end
+  
+  def test_rename_kpom
+    p = Rename.new
+    assert_nothing_raised(RuntimeError) {p.tick}
+    assert_equal([['a', 1]], p.out.to_a)
   end
 end

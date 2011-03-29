@@ -454,6 +454,7 @@ module Bud
     # form a collection containing all pairs of items in self and items in collection
     public
     def *(collection)
+      require 'ruby-debug'; debugger if bud_instance.nil?
       bud_instance.join([self, collection])
     end
 
@@ -862,7 +863,7 @@ end
 module Enumerable
   public
   def rename(schema)
-    s = Bud::BudScratch.new('renamed', nil, schema)
+    s = Bud::BudScratch.new('renamed', bud_instance, schema)
     s.merge(self, s.storage)
     s
   end
