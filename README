@@ -1,7 +1,7 @@
 This is Bud, a.k.a. "Bloom Under Development".  It is an initial cut at
 providing a Bloom-like language, using Ruby as a basis.
 
-Language cheatsheet in doc/cheat.mdown
+Language cheatsheet in doc/cheat.md
 
 This 0.0 version is not supported.  
 
@@ -34,9 +34,8 @@ Optional Dependencies
 =====================
 
 The bud gem has a handful of mandatory dependencies. It also has some optional
-dependencies: if you wish to use the Bud collections backed by Tokyo Cabinet or
-Zookeeper ("tctable" and "zktable" collection types, respectively), the
-"tokyocabinet" and/or "zookeeper" gems must be installed.
+dependencies: if you wish to use the Bud collections backed by Zookeeper (the
+"zktable" collection type), the "zookeeper" gem must be installed.
 
 Development Notes
 =================

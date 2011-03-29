@@ -1,8 +1,3 @@
-# simple chat
-# run "ruby chat_master.rb 127.0.0.1:12345"
-# run "ruby chat.rb 127.0.0.1:12346 alice 127.0.0.1:12345"
-# run "ruby chat.rb 127.0.0.1:12347 bob 127.0.0.1:12345"
-# run "ruby chat.rb 127.0.0.1:12348 harvey 127.0.0.1:12345"
 require 'rubygems'
 require 'bud'
 require 'chat_protocol'
@@ -11,50 +6,42 @@ class ChatClient
   include Bud
   include ChatProtocol
 
-  def initialize(me, master, opts)
-    @me = me
-    @master = master
-    # @port = opts[:port]
-    # @ip = opts[:ip]
+  def initialize(nick, server, opts={})
+    @nick = nick
+    @server = server
     super opts
   end
 
-  state do
-    table :status
-  end
-
+  # send connection request to server on startup
   bootstrap do
-    # send connection request to master
-    ctrl <~ [[@master, ip_port, @me]]
+    connect <~ [[@server, [ip_port, @nick]]]
   end
 
-  def nice_time
-    return Time.new.strftime("%I:%M.%S")
+  bloom do
+    # send terminal input to the server to be broadcast
+    mcast <~ stdio do |s|
+      [@server, [ip_port, @nick, Time.new.strftime("%I:%M.%S"), s.line]]
+    end
+    # pretty-print mcast messages from server on terminal
+    stdio <~ mcast do |m|
+      [left_right_align(m.val[1].to_s + ": " \
+                        + (m.val[3].to_s || ''),
+                        "(" + m.val[2].to_s + ")")]
+    end
   end
 
+  # format chat messages with timestamp on the right of the screen
   def left_right_align(x, y)
     return x + " "*[66 - x.length,2].max + y
   end
-
-  declare
-  def chatter
-    # add "live" status on ack
-     status <= ctrl do |c|
-       if @master == c.from and c.cmd == 'ack'
-         [@master, 'live']
-       end
-     end
-     stdio <~ ctrl.inspected
-
-    # send mcast requests to master if status is non-empty
-    mcast <~ join([stdio, status]) do |t,s|
-      [@master, ip_port, @me, nice_time, t.line]
-    end
-    # pretty-print mcast msgs from master on terminal
-    stdio <~ mcast do |m|
-      [left_right_align(m.nick + ": " \
-                        + (m.msg || ''),
-                        "(" + m.time + ")")]
-    end
-  end
 end
+
+if ARGV.length == 2
+  server = ARGV[1]
+else
+  server = ChatProtocol::DEFAULT_ADDR
+end
+
+puts "Server address: #{server}"
+program = ChatClient.new(ARGV[0], server, :read_stdin => true)
+program.run

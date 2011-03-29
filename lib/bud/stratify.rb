@@ -1,10 +1,10 @@
 require 'rubygems'
 require 'bud'
 
-class Stratification
+class Stratification # :nodoc: all
   include Bud
 
-  state {
+  state do
     # Data inserted by client (Bud rewrite code)
     table :tab_info, [:tab, :typecol, :columns]
     table :depends, [:rule, :head, :op, :body, :neg]
@@ -15,7 +15,7 @@ class Stratification
     table :stratum_base, [:predicate, :stratum]
     table :stratum, [:predicate, :stratum]
     table :top_strat, [:stratum]
-  }
+  end
 
   def declaration
     strata[0] = lambda {

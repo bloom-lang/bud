@@ -4,7 +4,7 @@ require 'gchart'
 require 'digest/md5'
 require 'bud/state'
 
-class VizOnline
+class VizOnline #:nodoc: all
   include BudState
 
   def initialize(bud_instance)
@@ -17,9 +17,17 @@ class VizOnline
 
     @logtab = {}
     tmp_set = []
-    @bud_instance.tables.each do |t|
-      next if t[0].to_s =~ /_vizlog\z/
-      tmp_set << [t[0], t[1].schema.clone, t[1].class.to_s]
+    @bud_instance.tables.each do |name, tbl|
+      next if name.to_s =~ /_vizlog\z/
+
+      # Temp collections don't have a schema until a fact has been inserted into
+      # them; for now, we just include an empty schema for them in the viz
+      if tbl.schema.nil?
+        schema = []
+      else
+        schema = tbl.schema.clone
+      end
+      tmp_set << [name, schema, tbl.class.to_s]
     end
 
     tmp_set.each do |t|
@@ -47,6 +55,7 @@ class VizOnline
       tab = t[0]
       next if tab.to_s =~ /_vizlog\z/
       next if @meta_tables[tab.to_s] and @bud_instance.budtime > 0
+      next unless @logtab[tab]
       t[1].each do |row|
         newrow = [@bud_instance.budtime]
         row.each{ |r| newrow << r }

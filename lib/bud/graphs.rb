@@ -2,7 +2,7 @@
 require 'rubygems'
 require 'graphviz'
 
-class GraphGen
+class GraphGen #:nodoc: all
 
   def initialize(mapping, tableinfo, cycle, name, budtime, vizlevel, pics_dir, collapse=false, depanalysis=nil, cardinalities={})
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85 )
@@ -129,8 +129,12 @@ class GraphGen
         puts "IMAGE IS #{@cards[node]}"
         #@nodes[node].image = @cards[node]
       end
-  
-      @nodes[node].URL = "javascript:openWin(\"#{node}\", #{@budtime})"
+ 
+      if @vizlevel >= 3 
+        @nodes[node].URL = "javascript:openWin(\"#{node}\", #{@budtime})"
+      else
+        @nodes[node].URL = "#{node}.html"
+      end
     end
 
     if negcluster
@@ -150,8 +154,7 @@ class GraphGen
       @nodes[node].color = "red"
       @nodes[node].shape = "octagon"
       @nodes[node].penwidth = 3
-#      @nodes[node].URL = "file://#{ENV['PWD']}/#{@name}_expanded.svg"
-      @nodes[node].URL = "#{@name}_expanded.svg"
+      @nodes[node].URL = "#{File.basename(@name)}_expanded.svg"
     elsif @tabinf[node] and (@tabinf[node] == "Bud::BudTable")
       @nodes[node].shape = "rect"
     end
@@ -168,7 +171,6 @@ class GraphGen
       @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head], :penwidth => 5)
       @edges[ekey].arrowsize = 2
 
-      #@edges[ekey].URL = "file://#{ENV['PWD']}/plotter_out/#{rule_id}.html" unless rule_id.nil?
       @edges[ekey].URL = "#{rule_id}.html" unless rule_id.nil?
       if head =~ /_msg\z/
         @edges[ekey].minlen = 2
@@ -217,8 +219,13 @@ class GraphGen
     @nodes["T"].penwidth = 3
 
     @tabinf.each_pair do |k, v|
+
       unless @nodes[name_of(k.to_s)] or k.to_s =~ /_tbl/ or @internals[k.to_s] or (k.to_s =~ /^t_/ and @budtime != 0)
         addonce(k.to_s, false)
+      end
+      if v == "Bud::BudPeriodic"
+        puts "adding edge S -> #{@nodes[k.to_s]}"
+        addedge("S", k.to_s, false, false, false)
       end
     end
 
@@ -247,6 +254,8 @@ class GraphGen
     puts "fn is #{fn}"
     staging = "#{fn}_staging"
     @graph.output(:svg => staging)
+    @graph.output(:dot => "#{fn}.dot")
+    @graph.output(:png => "#{fn}.png")
     fin = File.open(staging, "r")
     fout = File.open(fn, "w")
     while line = fin.gets

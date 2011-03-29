@@ -1,90 +1,465 @@
 require 'test_common'
 
 module ParentModule
-  include BudModule
-
   state do
-    table :boot_t
-    table :p
+    table :t1
+    table :t2
   end
 
   bootstrap do
-    boot_t << [5, 10]
-    boot_t << [20, 30]
+    t1 << [5, 10]
   end
 
-  declare
-  def parent_rules
-    p <= boot_t.map {|x| [x.key + 10, x.val + 20]}
+  bloom :parent_rules do
+    t2 <= t1
+  end
+
+  def t1_val_sum
+    t1.values.flatten.reduce(:+)
   end
 end
 
-class ImportParent
+class ChildClass
   include Bud
   import ParentModule => :p
-  import ParentModule => :q
 
   state do
-    table :t2
-    table :t3
-    table :t4
+    table :t3, p.t2.key_cols => p.t2.val_cols
   end
 
-  declare
-  def rules
-    t2 <= p.boot_t.map {|t| [t.key + 1, t.val + 1]}
-    t3 <= q.boot_t.map {|t| [t.key + 1, t.val + 1]}
-    t4 <= p.p
+  bootstrap do
+    p.t2 << [200, 400]
+    p.t1 <= [[500, 1000]]
+  end
+
+  # Shouldn't override the named block declared in ParentModule
+  bloom :parent_rules do
+    t3 <= p.t2
+  end
+
+  def get_sum
+    p.t1_val_sum
+  end
+end
+
+class ChildImportTwice
+  import ParentModule => :x
+  import ParentModule => :y
+  include Bud
+
+  state do
+    table :t4, x.t1.key_cols => y.t2.val_cols
+    table :t5, y.t1.key_cols => x.t2.val_cols
+  end
+
+  bootstrap do
+    y.t1 << [50,100]
+  end
+
+  bloom do
+    t4 <= y.t2.map {|t| [t.key + 10, t.val + 10]}
+    t5 <= x.t2
   end
 end
 
 module ChildModule
-  include BudModule
   import ParentModule => :p
 
   state do
     table :t1
+    table :t2
+  end
+
+  bootstrap do
+    t1 << [1000, 2000]
+  end
+
+  bloom do
+    t2 <= t1.map {|t| [t.key + 7, t.val + 7]}
   end
 end
 
-class ImportGrandParent
+class GrandChildClass
   include Bud
   import ChildModule => :c
   import ParentModule => :p
 
   state do
+    table :t6, c.p.t1.key_cols => c.p.t2.val_cols
+    table :t7
+    table :t8
+  end
+
+  bootstrap do
+    c.t2 << [0, 0]
+  end
+
+  bloom do
+    t6 <= c.p.t1
+    t7 <= p.t2.map {|p| [p.key + 20, p.val + 20]}
+    t8 <= c.t2
+  end
+end
+
+# Issue #109
+module InterfaceMod
+  state do
+    interface input, :iin
+    interface output, :iout
+  end
+
+  bloom do
+    iout <= iin
+  end
+end
+
+class InterfaceModUser
+  include Bud
+  import InterfaceMod => :m
+
+  state do
+    table :t1
+  end
+
+  bootstrap do
+    m.iin <= [[35, 45]]
+  end
+
+  bloom do
+    t1 <= m.iout
+  end
+end
+
+# Issue #110
+module ModuleA
+  state do
+    table :t1
+    table :t2
+  end
+
+  bloom do
+    t1 <= t2
+  end
+end
+
+module ModuleB
+  state do
+    table :t3
+  end
+
+  bloom do
+    t1 <= t3
+  end
+end
+
+class Issue110
+  include Bud
+  include ModuleA
+  include ModuleB
+
+  bootstrap do
+    t2 << [400, 500]
+    t3 << [100, 200]
+  end
+end
+
+# Check that ordering dependencies (implied by the inheritance hierarchy between
+# modules) are respected after module import.
+module ModuleA1
+  state do
+    table :t1
+  end
+end
+module ModuleA2
+  state do
+    table :t2
+  end
+end
+module ModuleB1
+  include ModuleA1
+
+  state do
+    table :t3, t1.schema
+  end
+end
+module ModuleC1
+  include ModuleB1
+  include ModuleA2
+
+  state do
+    table :t4, t2.schema
+    table :t5, t1.schema
+  end
+end
+
+class ModuleStateOrdering
+  include Bud
+  import ModuleC1 => :m
+end
+
+module BaseInsertT2
+  state do
+    table :t1
     table :t2
     table :t3
   end
 
-  declare
-  def rules
-    t2 <= c.p.boot_t
-    t3 <= p.boot_t.map {|p| [p.key + 10, p.val + 20]}
+  bootstrap do
+    t1 <= [[10, 20], [40, 50]]
+  end
+
+  bloom :foo do
+    t2 <= t1
+  end
+end
+
+module DoInsertT3
+  include BaseInsertT2
+
+  bloom :foo do
+    t3 <= t1
+  end
+end
+
+class ModuleMethodOverride
+  include Bud
+  import DoInsertT3 => :m
+
+  def do_check
+    sync_do {
+      raise unless m.t2.empty?
+      raise unless m.t3.to_a.sort == [[10, 20], [40, 50]]
+    }
+  end
+end
+
+module TempMod
+  state do
+    table :t1
+    table :t2
+  end
+
+  bloom do
+    temp :t3 <= t1 {|t| [t.key + 20, t.val + 20]}
+    t2 <= t3 {|t| [t[0] + 10, t[1] + 10]}
+  end
+end
+
+class TempModUser
+  include Bud
+  import TempMod => :m1
+  import TempMod => :m2
+
+  bootstrap do
+    m1.t1 << [10, 10]
+    m2.t1 << [20, 20]
+  end
+
+  def do_check
+    raise unless m1.t2.to_a.sort == [[40, 40]]
+    raise unless m2.t2.to_a.sort == [[50, 50]]
   end
 end
 
 class TestModules < Test::Unit::TestCase
-  def test_simple_bootstrap
-    c = ImportParent.new
+  def test_simple
+    c = ChildClass.new
     c.tick
-    assert_equal([[6, 11], [21, 31]], c.t2.to_a.sort)
-    assert_equal(c.t2.to_a.sort, c.t2.to_a.sort)
-    # XXX: wrong
-    assert_equal([], c.t4.to_a.sort)
+    assert_equal([[5, 10], [200, 400], [500, 1000]], c.t3.to_a.sort)
+    assert_equal(1010, c.get_sum)
+  end
+
+  def test_import_twice
+    c = ChildImportTwice.new
+    c.tick
+    assert_equal([[15, 20], [60, 110]], c.t4.to_a.sort)
+    assert_equal([[5, 10]], c.t5.to_a.sort)
   end
 
   def test_nested_import
-    c = ImportGrandParent.new
+    c = GrandChildClass.new
     c.tick
-    assert_equal([[5, 10], [20, 30]], c.t2.to_a.sort)
-    assert_equal([[15, 30], [30, 50]], c.t3.to_a.sort)
+    assert_equal([[5, 10]], c.t6.to_a.sort)
+    assert_equal([[25, 30]], c.t7.to_a.sort)
+    assert_equal([[0, 0], [1007, 2007]], c.t8.to_a.sort)
+  end
+
+  def test_interface_module
+    c = InterfaceModUser.new
+    c.tick
+    assert_equal([[35, 45]], c.t1.to_a.sort)
+  end
+
+  def test_issue110
+    c = Issue110.new
+    c.tick
+    assert_equal([[100, 200], [400, 500]], c.t1.to_a.sort)
+  end
+
+  def test_module_import_state_order
+    c = ModuleStateOrdering.new
+    c.tick
+  end
+
+  module ModuleT1
+    state do
+      table :t1
+    end
+  end
+
+  module IncludeT1
+    import ModuleT1 => :m
+
+    state do
+      table :t2, m.t1.schema
+    end
+
+    bloom :logic do
+      m.t1 <= t2
+    end
+  end
+
+  class IncludeT1User
+    include Bud
+    import IncludeT1 => :t
+
+    bootstrap do
+      t.t2 <= [[35, 70], [45, 90]]
+    end
+
+    def do_check
+      sync_do {
+        raise unless [[35, 70], [45, 90]] == t.m.t1.to_a.sort
+      }
+    end
+  end
+
+  def test_nested_ref_import
+    t = IncludeT1User.new
+    t.run_bg
+    t.do_check
+    t.stop_bg
+  end
+
+  module OuterModule
+    module NestedModule
+      state do
+        table :x
+        table :y
+      end
+
+      bootstrap do
+        x << [30, 40]
+        y << [50, 60]
+      end
+    end
+  end
+
+  class NestedModuleUser
+    include Bud
+    import OuterModule::NestedModule => :nm
+
+    state do
+      table :z
+    end
+
+    bloom do
+      z <= nm.x
+      z <= nm.y
+    end
+  end
+
+  def test_nested_module_import
+    c = NestedModuleUser.new
+    c.tick
+    assert_equal([[30, 40], [50, 60]], c.z.to_a.sort)
+  end
+
+  def test_anon_class
+    k = Class.new do
+      include Bud
+
+      state do
+        table :t1
+        scratch :s1
+      end
+
+      bloom do
+        t1 <= s1
+      end
+    end
+    c = k.new
+    c.run_bg
+    c.sync_do {
+      c.s1 <+ [[5, 10]]
+    }
+    c.sync_do {
+      assert_equal([[5, 10]], c.t1.to_a.sort)
+    }
+    c.stop_bg
+  end
+
+  def test_module_method_override
+    c = ModuleMethodOverride.new
+    c.run_bg
+    c.sync_do
+    c.do_check
+    c.stop_bg
+  end
+
+  def test_module_temp_collection
+    c = TempModUser.new
+    c.tick
+    c.do_check
+  end
+
+  def test_duplicate_import
+    assert_raise(Bud::CompileError) do
+      eval "
+      class DupImport
+        include Bud
+        import ParentModule => :p
+        import ParentModule => :p
+      end"
+    end
+  end
+
+  # ParseTree failed for methods defined in "grandparent" modules.
+  module ModuleC
+    def foo; puts "hello, world"; end
+    def bar; puts "baz"; end
+  end
+  module ModuleD
+    include ModuleC
+  end
+  module ModuleE
+    include ModuleD
+  end
+
+  def test_parsetree_bug
+    assert_nothing_raised do
+      eval "
+      class DescendentClass
+        import ModuleE => :e
+        include Bud
+      end
+      "
+    end
+  end
+
+  def test_import_class
+    assert_raise(Bud::BudError) do
+      eval "
+      class DummyClass; end
+      class DummyImporter
+        include Bud
+        import DummyClass => :c
+      end"
+    end
   end
 end
 
 # Testing TODO:
-# * GrandChild (class), state ref c.p.boot_t
-# * ChildModule, state ref p.boot_t
-# * Module table on LHS of class
-# * Module table on LHS of module
-# * Rule blocks in modules
+# * Temp collections in modules (+ in classes)
+# * Qualified names in (a)sync_do
+# * Rename instance variables in modules?

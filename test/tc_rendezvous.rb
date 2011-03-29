@@ -10,7 +10,6 @@ require 'socket'
 require 'timeout'
 
 module LogicThatTakesTime 
-  include BudModule
   state do
     interface input, :start
     channel :one
@@ -20,8 +19,7 @@ module LogicThatTakesTime
     periodic :timer, 1
   end
 
-  declare
-  def logos
+  bloom :logos do
     one <~ start
     two <+ one
     three <+ two

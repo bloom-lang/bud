@@ -27,8 +27,7 @@ class TestErrorHandling < Test::Unit::TestCase
       table :t1
     end
 
-    declare
-    def rules
+    bloom do
       t1 < t1.map {|t| [t.key + 1, t.val + 1]}
     end
   end
@@ -44,8 +43,7 @@ class TestErrorHandling < Test::Unit::TestCase
       table :t1
     end
 
-    declare
-    def rules
+    bloom do
       t2 <= t1
     end
   end
@@ -63,8 +61,7 @@ class TestErrorHandling < Test::Unit::TestCase
       table :baz
     end
 
-    declare
-    def rules
+    bloom do
       foo <= baz
       # Mistake: <= binds more tightly than "or"
       foo <= (bar.first and baz.first) or []
@@ -83,9 +80,8 @@ class TestErrorHandling < Test::Unit::TestCase
       table :t2
     end
 
-    declare
-    def rules
-      t2 = join [t1, t1]
+    bloom do
+      temp :t2 <= join([t1, t1])
     end
   end
 

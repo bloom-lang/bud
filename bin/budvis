@@ -1,3 +1,4 @@
+#!/usr/bin/env ruby
 require 'rubygems'
 require 'tokyocabinet'
 require 'bud'
@@ -12,11 +13,11 @@ BUD_TC_DIR = "#{ARGV[0]}/bud_"
 class VizHelper
   include Bud
 
-  state {
+  state do
     table :full_info, [:bud_time, :table, :row]
     scratch :cardinalities, [:bud_time, :table] => [:cnt]
     scratch :times, [:bud_time]
-  }
+  end
 
   def initialize(strata, tabinf, cycle, depends, rules, dir)
     @t_strata = strata
@@ -28,14 +29,12 @@ class VizHelper
     super()
   end
 
-  declare
-  def counting
+  bloom :counting do
     cardinalities <= full_info.group([full_info.bud_time, full_info.table], count)
     times <= full_info.map{|f| [f.bud_time]}
   end
 
   def summarize(dir, schema)
-    puts "SUMMARIZE"
     table_io = {}
     timeseries = {}
     cardinalities.sort{|a, b| a[0] <=> b[0]}.each do |card|
@@ -55,16 +54,6 @@ class VizHelper
 
     ts2 = {}
     timeseries.each_pair do |k, v|
-      #taburl = gchart.(:size => '100x100', :data => v, :axis_with_labels => 'x, y')
-      puts "TS[#{k}] = #{v.inspect}"
-      #taburl = gchart.line(:data => v, :axis_with_labels => 'x, y')
-      #url = URI::parse(taburl)
-      #puts "TABURL = #{taburl}"
-      #response = Net::HTTP.get_response(url)
-      #fn = "#{@dir}/#{k}_timeseries.png"
-      #fout = File.new(fn, "w")
-      #fout.write response.body
-      #fout.close
       fn = v
       puts "GOT #{fn}"
       #ts2[k] = "#{ENV['PWD']}/#{fn}"
@@ -75,10 +64,6 @@ class VizHelper
     sum.process(@t_depends)
     sum.dump(@t_rules)
     sum.finish
-
-    #table_io.each_value do |tab|
-    #  end_table(tab)
-    #end
 
     # fix: nested loops
     times.sort.each do |time|

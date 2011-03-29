@@ -1,23 +1,34 @@
 module Bud
   class BudJoin < BudCollection
-    attr_accessor :rels, :origrels
+    attr_accessor :rels, :origrels, :origpreds
 
     def initialize(rellist, bud_instance, preds=nil)
       @schema = []
       otherpreds = nil
-      @origrels = rellist
+			@origpreds = preds
       @bud_instance = bud_instance
       @localpreds = nil
+			@tabname = :temp_join
+			
+			# if any elements on rellist are BudJoins, suck up their contents
+			tmprels = []
+			rellist.each do |r|
+				if r.class <= BudJoin
+					tmprels += r.origrels
+					preds += r.origpreds
+				else
+					tmprels << r
+				end
+			end
+			rellist = tmprels
+		  @origrels = rellist	
+			
+			preds = decomp_preds(*preds)
 
       # extract predicates on rellist[0] and let the rest recurse
       unless preds.nil?
         @localpreds = preds.reject { |p| p[0][0] != rellist[0].tabname and p[1][0] != rellist[0].tabname }
-        @localpreds.each do |p|
-          if p[1][0] == rellist[0].tabname
-            @localpreds.delete(p)
-            @localpreds << [p[1], p[0]]
-          end
-        end
+				canonicalize_localpreds(rellist)
         otherpreds = preds.reject { |p| p[0][0] == rellist[0].tabname or p[1][0] == rellist[0].tabname}
         otherpreds = nil if otherpreds.empty?
       end
@@ -28,42 +39,76 @@ module Bud
       # recurse to form a tree of binary BudJoins
       @rels = [rellist[0]]
       @rels << (rellist.length == 2 ? rellist[1] : BudJoin.new(rellist[1..rellist.length-1], @bud_instance, otherpreds))
-
       # derive schema: one column for each table.
       # unnamed inputs become "t_i" for position i
       # duplicated inputs get distinguishing numeral
       @schema = []
       index = 0
-      rellist.reduce({}) do |memo, r|
+      retval = rellist.reduce({}) do |memo, r|
         index += 1
         if !r.respond_to?(:tabname)
           @schema << "t_#{index}".to_sym
         else
           memo[r.tabname.to_s] ||= 0
-          @schema << (r.tabname.to_s + (memo[r.tabname.to_s] > 0 ? "_" + memo[r.tabname.to_s].to_s : "")).to_sym
+					newstr = r.tabname.to_s + ((memo[r.tabname.to_s] > 0) ? ("_" + memo[r.tabname.to_s].to_s) : "")
+          @schema << newstr.to_sym
           memo[r.tabname.to_s] += 1
         end
         memo
       end
+			self
     end
 
-    def flatten
+		private_class_method
+		def self.natural_preds(bud_instance, rels)
+			preds = []
+	    rels.each do |r|
+	      rels.each do |s|
+	        matches = r.schema & s.schema
+	        matches.each do |c|
+	          preds << [bud_instance.send(r.tabname).send(c), bud_instance.send(s.tabname).send(c)] unless r.tabname.to_s >= s.tabname.to_s
+	        end
+	      end
+	    end
+	    preds.uniq
+		end
+				
+		public
+    def flatten(*preds)
+			unless preds.nil? or preds.size == 0
+				@localpreds = disambiguate_preds(preds)
+				canonicalize_localpreds(@rels)
+			end
       flat_schema = @rels.map{|r| r.schema}.flatten(1)
       dupfree_schema = []
-      flat_schema.reduce({}) do |memo, r|
-        memo[r] ||= 0
-        dupfree_schema << (r.to_s + (memo[r] > 0 ? "_" + memo[r].to_s : "")).to_sym
-        memo[r] += 1
-        memo
-      end
+			# while loop here (inefficiently) ensures no collisions
+			while dupfree_schema == [] or dupfree_schema.uniq.length < dupfree_schema.length
+				dupfree_schema = []
+	      flat_schema.reduce({}) do |memo, r|
+					if r.to_s.include?("_") and ((r.to_s.rpartition("_")[2] =~ /^\d+$/) == 0)
+						r = r.to_s.rpartition("_")[0].to_sym
+					end
+	        memo[r] ||= 0
+					if memo[r] == 0
+						dupfree_schema << r.to_s.to_sym
+					else
+						dupfree_schema << (r.to_s + "_" + (memo[r]).to_s).to_sym
+					end
+	        memo[r] += 1
+	        memo
+	      end
+				flat_schema = dupfree_schema
+			end
       retval = BudScratch.new('temp_flatten', bud_instance, dupfree_schema)
-      retval.merge(self.map{|r,s| r+s}, retval.storage)
+      retval.merge(self.map{|r,s| r + s}, retval.storage)
     end
-
+		
+		private
     def do_insert(o, store)
       raise BudError, "no insertion into joins"
     end
 
+		public
     def inspected
       if @rels.length == 2 then
         # fast common case
@@ -78,7 +123,7 @@ module Bud
       end
     end
 
-
+		public
     def each(mode=:both, &block)
       mode = :storage if @bud_instance.stratum_first_iter
       if mode == :storage
@@ -99,6 +144,7 @@ module Bud
       end
     end
     
+		public
     def each_from_sym(buf_syms, &block)
       buf_syms.each do |s|
         each(s, &block)
@@ -113,7 +159,7 @@ module Bud
     # def each_delta(&block)
     #   each(:delta, &block)
     # end
-
+		private
     def test_locals(r, s, *skips)
       retval = true
       if (@localpreds and skips and @localpreds.length > skips.length)
@@ -130,6 +176,7 @@ module Bud
       return retval
     end
 
+		private
     def nestloop_join(collection1, collection2, &block)
       @rels[0].each_from_sym([collection1]) do |r|
         @rels[1].each_from_sym([collection2]) do |s|
@@ -139,6 +186,7 @@ module Bud
       end
     end
 
+		private
     def join_offsets(pred)
       build_entry = pred[1]
       build_name, build_offset = build_entry[0], build_entry[1]
@@ -158,6 +206,7 @@ module Bud
       return probe_offset, index, build_offset
     end
 
+		private
     def hash_join(collection1, collection2, &block)
       # hash join on first predicate!
       ht = {}
@@ -190,6 +239,7 @@ module Bud
       @origpreds = preds
     end
 
+		public
     def each(&block)
       super(&block)
       # previous line finds all the matches.

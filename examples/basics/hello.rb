@@ -3,9 +3,8 @@ require 'bud'
 
 class HelloWorld
   include Bud
-  
-  declare 
-  def hi
+
+  bloom do
     stdio <~ [["hello world!"]]
   end
 end

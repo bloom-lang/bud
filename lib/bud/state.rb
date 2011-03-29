@@ -1,15 +1,16 @@
 module BudState
   ######## methods for registering collection types
+	private
   def define_collection(name, &block)
     # don't allow duplicate table definitions
     if @tables.has_key? name
-      raise Bud::BudError, "collection already exists: #{name}"
+      raise Bud::CompileError, "collection already exists: #{name}"
     end
     # rule out table names that use reserved words
     reserved = eval "defined?(#{name})"
     unless (reserved.nil? or (reserved == "method" and @tables[name]))
       # first time registering table, check for method name reserved
-      raise Bud::BudError, "symbol :#{name} reserved, cannot be used as table name"
+      raise Bud::CompileError, "symbol :#{name} reserved, cannot be used as table name"
     end
     self.singleton_class.send(:define_method, name) do |*args, &blk|
         unless blk.nil? then
@@ -20,26 +21,8 @@ module BudState
     end
   end
 
-  def tmp(var, coll)
-    self.singleton_class.send(:define_method, var) do |*args, &blk|
-      unless blk.nil? then
-        return coll.map(&blk)
-      else
-        return coll
-      end
-    end
-  end
-
-  def wrap_collection(c)
-    return lambda do |&blk|
-      unless blk.nil? then
-        return c.map(&blk)
-      else
-        return c
-      end
-    end
-  end
-
+  public
+	
   def input
     true
   end
@@ -63,11 +46,10 @@ module BudState
     @tables[name] = Bud::BudScratch.new(name, self, schema)
   end
 
-  def temp(name, schema=nil)
-    raise Bud::CompileError, "temp table #{name} reused" unless @tables[name].nil?
-    # defer schema definition until merge
+  def temp(name)
     define_collection(name)
-    @tables[name] = Bud::BudTemp.new(name, self, schema, true)
+    # defer schema definition until merge
+    @tables[name] = Bud::BudTemp.new(name, self, nil, true)
   end
 
   def channel(name, schema=nil)

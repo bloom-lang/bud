@@ -1,9 +1,5 @@
-require 'rubygems'
 require 'bud'
-require 'test/unit'
 require 'msgpack'
-require 'ruby2ruby'
-require 'sourcify'
 require 'eventmachine'
 require 'socket'
 require 'timeout'
@@ -19,8 +15,6 @@ module GlueServer
 end
 
 class Rendezvous
-  @@stashed_cons = []
-
   # Ruby-Bud glue.
   def initialize(instance, interface)
     @q = Queue.new

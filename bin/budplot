@@ -1,3 +1,4 @@
+#!/usr/bin/env ruby
 require 'rubygems'
 require 'bud'
 require 'bud/bud_meta'
@@ -12,17 +13,15 @@ def process(mods)
   d = eval(classdef)
 
   d.t_rules.each {|s| puts "RULE: #{s.inspect}" }
-  d.t_depends.each {|s| puts "DEP: #{s.inspect}" }
-
+  #d.t_depends.each {|s| puts "DEP: #{s.inspect}" }
 
   da = d.meta_parser.depanalysis
 
-  puts "MP info src=#{da.source.length}, snk=#{da.sink.length}, under=#{da.underspecified.length}"
+  #puts "MP info src=#{da.source.length}, snk=#{da.sink.length}, under=#{da.underspecified.length}"
 
-  d.meta_parser.depanalysis.source.each do |s|
-    puts "SRC: #{s}"
-  end
-
+  #d.meta_parser.depanalysis.source.each do |s|
+  #  puts "SRC: #{s}"
+  #end
 
   interfaces = {}
   d.t_provides.each do |name, is_input|
@@ -37,7 +36,9 @@ def process(mods)
     tab = t[0].to_s
     tabinf[tab] = t[1].class.to_s
     if interfaces[tab].nil?
-      priv << t
+      unless tab =~ /^t_/ or tab == "stdio" or tab == "localtick"
+        priv << t
+      end
     else
       if interfaces[tab]
         inp << t
@@ -56,7 +57,7 @@ def process(mods)
 
   gv2 = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, svg, -1, 1, ".", false, d.meta_parser.depanalysis)
   gv2.process(d.t_depends)
-  #gv.dump(d.t_rules)
+  gv2.dump(d.t_rules)
   gv2.finish
 end
 
@@ -70,7 +71,7 @@ def write_index(inp, outp, priv, svg)
   f.puts "<h2> Input Interfaces </h2>"
   do_table(f, inp)
   f.puts "</td><td>"
-  f.puts "<h2> Input Interfaces </h2>"
+  f.puts "<h2> Output Interfaces </h2>"
   do_table(f, outp)
   f.puts "</td><td>"
   f.puts "<h2> Private State </h2>"
@@ -82,13 +83,16 @@ def write_index(inp, outp, priv, svg)
 end
 
 def do_table(f, info, type=false)
-  info.each do |inf|
-    f.puts "<h3>#{inf[0]}</h3>"
-    f.puts  "&nbsp; (#{inf[1].class.to_s.gsub('Bud::Bud', '')})<br>" if type
-    f.puts "<table border='1'>"
-    f.puts "<tr>" + inf[1].schema.map{|i| "<td>#{i}</td>"}.join(" ") + "</tr>"
-    f.puts "</table>"
+  next if info.nil?
+  f.puts "<table border='1'>"
+  info.sort{|a, b| a[0].to_s <=> b[0].to_s}.each do |inf|
+    #f.puts "<h3>#{inf[0]}</h3>"
+    #f.puts  "&nbsp; (#{inf[1].class.to_s.gsub('Bud::Bud', '')})<br>" if type
+    unless inf[1].schema.nil?
+      f.puts "<tr><td><b>#{inf[0]}</b></td>" + inf[1].schema.map{|i| "<td>#{i}</td>"}.join(" ") + "</tr>"
+    end
   end
+  f.puts "</table>"
 end
 
 @shreddies = []
@@ -100,7 +104,7 @@ files = []
 classes = []
 
 if ARGV.length < 2
-  puts "USAGE:\nruby plotter.rb LIST_OF_FILES LIST_OF_MODULES"
+  puts "len #{ARGV.length} USAGE:\nruby plotter.rb LIST_OF_FILES LIST_OF_MODULES"
   exit
 end
 
@@ -128,4 +132,3 @@ end
 
 process(modules)
 
-###work

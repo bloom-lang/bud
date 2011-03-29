@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud/state'
 
-class RTrace
+class RTrace #:nodoc: all
   attr_reader :table_recv, :table_send, :table_sleep
 
   include BudState

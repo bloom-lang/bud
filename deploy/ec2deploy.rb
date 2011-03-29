@@ -10,7 +10,7 @@ module EC2Deploy
   include BudModule
   include Deployer
 
-  state {
+  state do
     table :access_key_id, [] => [:key]
     table :secret_access_key, [] => [:key]
     table :image_id, [] => [:img]
@@ -31,7 +31,7 @@ module EC2Deploy
     table :ruby_command, [] => [:cmd]
     table :deploy_node, [:uid] => [:node]
     scratch :deploy_node_count, [:num]
-  }
+  end
 
   bootstrap do
     image_id <= [["ami-76f0061f"]]
@@ -40,8 +40,7 @@ module EC2Deploy
     init_dir <= [["/home/wrm/devel/bud/deploy"]]
   end
 
-  declare
-  def spinup
+  bloom :spinup do
     # HACK HACK: join & map functions shouldn't be required
     ec2_conn <= join([access_key_id, secret_access_key]).map do
       (puts "Creating EC2 connection") or
@@ -116,8 +115,7 @@ module EC2Deploy
 
   end
 
-  declare
-  def all_nodes
+  bloom :all_nodes do
     # does num_nodes deploy_nodes exist?  if so, put them all in node atomically
     deploy_node_count <= deploy_node.group(nil, count)
     stdio <~ deploy_node_count.map {|d| ["deploy node count: " + d.inspect]}

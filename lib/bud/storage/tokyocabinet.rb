@@ -1,11 +1,9 @@
+require 'tokyocabinet'
+
 module Bud
   # Persistent table implementation based on TokyoCabinet.
   class BudTcTable < BudCollection
     def initialize(name, bud_instance, given_schema)
-      unless defined? HAVE_TOKYO_CABINET
-        raise BudError, "tokyocabinet gem is not available: tctable cannot be used"
-      end
-
       tc_dir = bud_instance.options[:tc_dir]
       raise BudError, "TC support must be enabled via 'tc_dir'" unless tc_dir
       unless File.exists?(tc_dir)

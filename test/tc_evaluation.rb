@@ -10,17 +10,16 @@ class Paths
     super()
   end
 
-  state {
+  state do
     table :link, ['from', 'to']
     table :path, ['from', 'to']
-  }
+  end
 
-  declare
-  def program
+  bloom :program do
     # this is the program a user might write.
     path <= link.map{|e| (@cnt = @cnt + 1) and [e.from, e.to] }
 
-    j = join [link, path], [path.from, link.to]
+    temp :j <= join [link, path], [path.from, link.to]
     path <= j.map do |l,p|
       (@pcnt = @pcnt + 1) and [l.from, p.to]
     end
@@ -37,20 +36,19 @@ class PathsDelta < Paths
     super()
   end
 
-  state {
+  state do
     scratch :d_link, ['from', 'to']
     scratch :d_path, ['from', 'to']
-  }
+  end
 
-  declare
-  def program
+  bloom :program do
     # this is the delta-rewritten program.  it is a shame that we need
     # to duplicate both the join assignment statement and the rule that
     # uses the join.
     d_path <+ d_link.map{|e| (@cnt = @cnt + 1) and [e.from, e.to]}
 
-    j = join [d_link, path], [path.from, d_link.to]
-    j2 = join [link, d_path], [d_path.from, link.to]
+    temp :j <= join [d_link, path], [path.from, d_link.to]
+    temp :j2 <= join [link, d_path], [d_path.from, link.to]
 
     d_path <+ j.map do |l,p|
       (@pcnt = @pcnt + 1) and [l.from, p.to]
@@ -61,25 +59,23 @@ class PathsDelta < Paths
     end
   end
 
-  declare
-  def next_strat
+  bloom :next_strat do
     path <+ d_path.map{|p| (@m1cnt = @m1cnt + 1) and p}
     link <+ d_link.map{|l| (@m2cnt = @m2cnt + 1) and l}
   end
 end
 
 class PathsDeltaIndirected < PathsDelta
-  state {
+  state do
     table :n_link, ['from', 'to']
     table :n_path, ['from', 'to']
-  }
+  end
 
-  declare
-  def program
+  bloom :program do
     d_path <+ d_link.map{|e| (@cnt = @cnt + 1) and [e.from, e.to]}
 
-    j = join [d_link, n_path], [n_path.from, d_link.to]
-    j2 = join [n_link, d_path], [d_path.from, n_link.to]
+    temp :j <= join [d_link, n_path], [n_path.from, d_link.to]
+    temp :j2 <= join [n_link, d_path], [d_path.from, n_link.to]
 
     d_path <+ j.map do |l,p|
       (@pcnt = @pcnt + 1) and [l.from, p.to]
@@ -90,14 +86,12 @@ class PathsDeltaIndirected < PathsDelta
     end
   end
 
-  declare
-  def next_strat
+  bloom :next_strat do
     n_path <+ d_path.map{|p| (@m1cnt = @m1cnt + 1) and p}
     n_link <+ d_link.map{|l| (@m2cnt = @m2cnt + 1) and l}
   end
 
-  declare
-  def alfinal
+  bloom :alfinal do
     link <+ n_link.map{|n| n if d_link.empty? and d_path.empty?}
     path <+ n_path.map{|n| n if d_link.empty? and d_path.empty?}
 

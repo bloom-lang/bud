@@ -39,7 +39,7 @@ class StillAnnoying
   end
 
   bloom :rules do
-    j = inski
+    temp :j <= inski
     out <= j.map {|t| [t.val]}
   end
 end
@@ -48,7 +48,7 @@ class LessAnnoying < StillAnnoying
   include Bud
 
   bloom :rules do
-    temp(tmpy) <= inski
+    temp :tmpy <= inski
     out <= tmpy {|t| [t.val]}
   end
 end

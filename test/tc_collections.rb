@@ -223,16 +223,17 @@ class DelBug
   include Bud
 
   state do
-    scratch :start
     table :buffer
-    periodic :tic, 1
+    table :to_delete
+  end
+
+  bootstrap do
+    buffer <= [[1,2], [3,4]]
+    to_delete <= [[3,4], [5,6]]
   end
 
   bloom do
-    buffer <= start
-    buffer <- join([tic, buffer]) do |t, h|
-      h if h.key == 'foo'
-    end
+    buffer <- to_delete.map {|t| t if t.val != 4}
   end
 end
 
@@ -254,7 +255,6 @@ class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
     assert_nothing_raised(RuntimeError) { program.tick }
-    assert_equal([["[\"c\", \"d\", 5, 6]"]], program.scrtch.pending_inspected)
     assert_equal(1, program.scrtch2.length)
     assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal([["[\"c\", \"d\", 5, 6]"]], program.scrtch.inspected)
@@ -282,7 +282,7 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_dup_tables
-    assert_raise(Bud::BudError) {program = DupTableBud.new}
+    assert_raise(Bud::CompileError) {program = DupTableBud.new}
   end
 
   def test_dup_columns
@@ -385,20 +385,23 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_dup_table_def
-    assert_raise(Bud::BudError) { DupTableDef.new }
+    assert_raise(Bud::CompileError) { DupTableDef.new }
   end
 
   def test_filter_and_delete
-    th = DelBug.new(:port => 12345)
-    th.run_bg
-    assert_nothing_raised do
-      th.sync_do {th.start <+ [['foo','bar'], ['baz','bam']]}
-      sleep 2
-    end
+    b = DelBug.new
+
+    b.tick
+    assert_equal([[1,2], [3,4]], b.buffer.to_a.sort)
+
+    b.to_delete << [1,2]
+    b.tick
+    b.tick
+    assert_equal([[3,4]], b.buffer.to_a.sort)
   end
   
   def test_bad_declarations
-    assert_raise(Bud::BudError) { BadDeclaration1.new }
-    assert_raise(Bud::BudError) { BadDeclaration2.new }
+    assert_raise(Bud::CompileError) { BadDeclaration1.new }
+    assert_raise(Bud::CompileError) { BadDeclaration2.new }
   end
 end

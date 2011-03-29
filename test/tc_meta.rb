@@ -3,7 +3,7 @@ require 'test_common'
 class LocalShortestPaths
   include Bud
 
-  state {
+  state do
     table :link, [:from, :to, :cost]
     table :link2, [:from, :to, :cost]
     table :link3, [:from, :to, :cost]
@@ -12,13 +12,12 @@ class LocalShortestPaths
     table :shortest, [:from, :to] => [:next, :cost]
     table :minz, [:cost]
     table :minmaxsumcntavg, [:from, :to] => [:mincost, :maxcost, :sumcost, :cnt, :avgcost]
-  }
+  end
 
-  declare
-  def program
+  bloom do
     link2 <= link.map {|l| l unless empty.include? [l.ident]}
     path <= link2.map {|e| [e.from, e.to, e.to, e.cost]}
-    j = join([link2, path])
+    temp :j <= join([link2, path])
     path <= j.map do |l, p|
       [l.from, p.to, p.from, l.cost+p.cost] if l.to == p.from
     end
@@ -36,38 +35,39 @@ end
 class KTest
   include Bud
 
-  state {
+  state do
     interface input, :upd, [:datacol]
     interface input, :req, [:ident]
     interface output, :resp, [:ident, :datacol]
     table :mystate, [:datacol]
-  }
+  end
 
-  declare
-  def update
+  bloom :update do
     mystate <+ upd
     mystate <- join([upd, mystate]).map{|i, s| s}
   end
 
-  declare
-  def respond
+  bloom :respond do
     resp <= join([req, mystate]).map{|r, s| [r.ident, s.datacol]}
   end
 end
 
 class KTest2 < KTest
-  declare
-  def update
+  state do
+    # make sure :node isn't reserved
+    scratch :node
+  end
+  bloom :update do
     mystate <= upd
-    j = join([upd, mystate])
+    node <= upd
+    temp :j <= join([upd, mystate])
     mystate <- j.map {|i, s| s}
   end
 end
 
 
 class KTest3 < KTest
-  declare
-  def update
+  bloom :update do
     mystate <= upd.map {|u| u unless mystate.include? u}
   end
 end
@@ -112,8 +112,13 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_visualization
-    program = KTest2.new(:dump_rewrite => true, :trace => true)
+    program = KTest2.new(:trace => true)
     dep = DepAnalysis.new
+
+    program.run_bg
+    program.sync_do
+    program.sync_do
+    program.sync_do
 
     program.t_depends_tc.each {|d| dep.depends_tc << d}
     program.t_provides.each {|p| dep.providing << p}

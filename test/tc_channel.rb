@@ -6,8 +6,8 @@ class TickleCount
   state do
     channel :loopback, [:cnt]
     channel :mcast, [:@addr, :cnt]
-    table   :result, [:nums]
-    table   :mresult, [:nums]
+    scratch :loopback_done, [:nums]
+    scratch :mcast_done, [:nums]
   end
 
   bootstrap do
@@ -16,21 +16,29 @@ class TickleCount
 
   bloom :count_to_5 do
     loopback <~ loopback {|l| [l.cnt + 1] if l.cnt < 6}
-    result <= loopback {|l| [l.cnt] if l.cnt == 5}
+    loopback_done <= loopback {|l| [l.cnt] if l.cnt == 5}
 
     mcast <~ loopback {|l| [ip_port, l.cnt] if l.cnt < 6}
-    mresult <= mcast {|m| [m.cnt] if m.cnt == 5}
+    mcast_done <= mcast {|m| [m.cnt] if m.cnt == 5}
   end
 end
 
 class TestTickle < Test::Unit::TestCase
   def test_tickle_count
     c = TickleCount.new
+    q = Queue.new
+    c.register_callback(:loopback_done) do |t|
+      assert_equal([5], t.to_a.flatten)
+      q.push(true)
+    end
+    c.register_callback(:mcast_done) do |t|
+      assert_equal([5], t.to_a.flatten)
+      q.push(true)
+    end
+
     c.run_bg
-    sleep 1
+    q.pop ; q.pop
     c.stop_bg
-    assert_equal([[5]], c.result.to_a)
-    assert_equal([[5]], c.mresult.to_a)
   end
 end
 
@@ -42,11 +50,13 @@ class RingMember
     scratch :kickoff, [:cnt]
     table :next_guy, [:addr]
     table :last_cnt, [:cnt]
+    scratch :done, [:cnt]
   end
 
   bloom :ring_msg do
-    pipe <~ kickoff {|k| [ip_port, k.cnt.to_i]}
-    pipe <~ join([pipe, next_guy]).map {|p,n| [n.addr, p.cnt.to_i + 1] if p.cnt.to_i < 39}
+    pipe <~ kickoff {|k| [ip_port, k.cnt]}
+    pipe <~ join([pipe, next_guy]).map {|p,n| [n.addr, p.cnt + 1] if p.cnt < 39}
+    done <= pipe.map {|p| [p.cnt] if p.cnt == 39}
   end
 
   bloom :update_log do
@@ -60,9 +70,14 @@ class TestRing < Test::Unit::TestCase
 
   def test_basic
     ring = []
-    0.upto(RING_SIZE - 1) do |i|
+    RING_SIZE.times do |i|
       ring[i] = RingMember.new
       ring[i].run_bg
+    end
+
+    q = Queue.new
+    ring.last.register_callback(:done) do
+      q.push(true)
     end
 
     ring.each_with_index do |r, i|
@@ -80,7 +95,8 @@ class TestRing < Test::Unit::TestCase
       first.kickoff <+ [[0]]
     }
 
-    sleep 3
+    # Wait for the "done" callback from the last member of the ring.
+    q.pop
 
     ring.each_with_index do |r, i|
       # XXX: we need to do a final tick here to ensure that each Bud instance
@@ -99,11 +115,13 @@ class ChannelWithKey
     channel :c, [:@addr, :k1] => [:v1]
     scratch :kickoff, [:addr, :v1, :v2]
     table :recv, c.key_cols => c.val_cols
+    table :ploads
   end
 
   bloom do
     c <~ kickoff {|k| [k.addr, k.v1, k.v2]}
     recv <= c
+    ploads <= c.payloads
   end
 end
 
@@ -127,6 +145,11 @@ class TestChannelWithKey < Test::Unit::TestCase
     p1 = ChannelWithKey.new
     p2 = ChannelWithKey.new
 
+    q = Queue.new
+    p2.register_callback(:recv) do
+      q.push(true)
+    end
+
     p1.run_bg
     p2.run_bg
 
@@ -136,9 +159,13 @@ class TestChannelWithKey < Test::Unit::TestCase
       # Test that directly inserting into a channel also works
       p1.c <~ [[target_addr, 50, 100]]
     }
-    sleep 1
+
+    # Wait for p2 to receive message
+    q.pop
+
     p2.sync_do {
       assert_equal([[target_addr, 10, 20], [target_addr, 50, 100]], p2.recv.to_a.sort)
+      assert_equal([[10, 20], [50, 100]], p2.ploads.to_a.sort)
     }
 
     # Check that inserting into a channel via <= is rejected
@@ -166,6 +193,11 @@ class TestChannelAddrInVal < Test::Unit::TestCase
     p1 = ChannelAddrInVal.new
     p2 = ChannelAddrInVal.new
 
+    q = Queue.new
+    p2.register_callback(:recv) do
+      q.push(true)
+    end
+
     p1.run_bg
     p2.run_bg
 
@@ -175,7 +207,10 @@ class TestChannelAddrInVal < Test::Unit::TestCase
       # Test that directly inserting into a channel also works
       p1.c <~ [[50, target_addr, 100]]
     }
-    sleep 1
+
+    # Wait for p2 to receive message
+    q.pop
+
     p2.sync_do {
       assert_equal([[10, target_addr, 20], [50, target_addr, 100]], p2.recv.to_a.sort)
     }
@@ -207,7 +242,12 @@ end
 class TestChannelBootstrap < Test::Unit::TestCase
   def test_bootstrap
     c = ChannelBootstrap.new
+    q = Queue.new
+    c.register_callback(:loopback) do
+      q.push(true)
+    end
     c.run_bg
+
     c.sync_do {
       t = c.t1.to_a
       assert_equal(1, t.length)
@@ -215,7 +255,7 @@ class TestChannelBootstrap < Test::Unit::TestCase
       assert(v[1] > 1024)
       assert_equal(v[0], "localhost")
     }
-    sleep 1
+    q.pop
     c.sync_do {
       assert_equal([[1000]], c.t2.to_a.sort)
     }

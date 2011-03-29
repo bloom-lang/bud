@@ -1,5 +1,4 @@
 require 'rubygems'
-require 'anise'
 require 'eventmachine'
 require 'msgpack'
 require 'socket'
@@ -18,20 +17,62 @@ require 'bud/storage/tokyocabinet'
 require 'bud/storage/zookeeper'
 require 'bud/viz'
 
+# We monkeypatch Module to add support for four new module methods: import,
+# state, bootstrap, and bloom.
 class Module
   def import(spec)
-    raise Bud::BudError unless (spec.class <= Hash and spec.length == 1)
+    raise Bud::CompileError unless (spec.class <= Hash and spec.length == 1)
     mod, local_name = spec.first
+    raise Bud::CompileError unless (mod.class <= Module and local_name.class <= Symbol)
 
-    # Record that the current module imported a sub-module. We also record that
-    # the sub-module has its own nested import table.
+    # To correctly expand qualified references to an imported module, we keep a
+    # table with the local bind names of all the modules imported by this
+    # module. To handle nested references (a.b.c.d etc.), the import table for
+    # module X points to X's own nested import table.
     @bud_import_tbl ||= {}
     child_tbl = mod.bud_import_table
-    raise Bud::BudError if @bud_import_tbl.has_key? local_name
+    raise Bud::CompileError if @bud_import_tbl.has_key? local_name
     @bud_import_tbl[local_name] = child_tbl.clone # XXX: clone needed?
 
     rewritten_mod_name = ModuleRewriter.do_import(self, mod, local_name)
     self.module_eval "include #{rewritten_mod_name}"
+  end
+
+  # Transform "state", "bootstrap" and "bloom" blocks (calls to module methods
+  # with that name) into instance methods with a special name.
+  def state(&block)
+    meth_name = Module.make_state_meth_name(self)
+    define_method(meth_name, &block)
+  end
+
+  def bootstrap(&block)
+    meth_name = "__bootstrap__#{Module.get_class_name(self)}".to_sym
+    define_method(meth_name, &block)
+  end
+
+  def bloom(block_name=nil, &block)
+    # If no block name was specified, generate a unique name
+    if block_name.nil?
+      @block_id ||= 0
+      block_name = "#{Module.get_class_name(self)}__#{@block_id.to_s}"
+      @block_id += 1
+    else
+      unless block_name.class <= Symbol
+        raise Bud::CompileError, "Bloom block names must be a symbol: #{block_name}"
+      end
+    end
+
+    # Note that we don't encode the module name ("self") into the name of the
+    # method. This allows named blocks to be overridden (via inheritance or
+    # mixin) in the same way as normal Ruby methods.
+    meth_name = "__bloom__#{block_name}"
+
+    # Don't allow duplicate named bloom blocks to be defined within a single
+    # module; this indicates a likely programmer error.
+    if instance_methods(false).include? meth_name
+      raise Bud::CompileError, "Duplicate named bloom block: '#{block_name}' in #{self}"
+    end
+    define_method(meth_name.to_sym, &block)
   end
 
   def bud_import_table
@@ -39,83 +80,38 @@ class Module
     @bud_import_tbl
   end
 
-  def print_import_table
-    puts self.bud_import_table.inspect
+  private
+  # Return a string with a version of the class name appropriate for embedding
+  # into a method name. Annoyingly, if you define class X nested inside
+  # class/module Y, X's class name is the string "Y::X". We don't want to define
+  # method names with semicolons in them, so just return "X" instead.
+  def self.get_class_name(klass)
+    klass.name.split("::").last
   end
-end
 
-module BudModule
-  def self.included(o)
-    # Add support for the "declare" annotator to the specified module
-    o.send(:include, Anise)
-    o.send(:annotator, :declare)
-
-    # Transform "state", "bootstrap" and "bloom" blocks (calls to a module
-    # methods with that name) into instance methods with a special name.
-    def o.state(&block)
-      meth_name = "__#{self}__state".to_sym
-      define_method(meth_name, &block)
-    end
-    def o.bootstrap(&block)
-      meth_name = "__#{self}__bootstrap".to_sym
-      define_method(meth_name, &block)
-    end
-    def o.bloom(block_name=nil, &block)
-      # If no block name was specified, generate a unique name
-      if block_name.nil?
-        @block_id ||= 0
-        block_name = @block_id.to_s
-        @block_id += 1
-      else
-        unless block_name.class <= Symbol
-          raise Bud::BudError, "Bloom block names must be a symbol: #{block_name}"
-        end
-      end
-
-      # Note that we don't encode the module name ("self") into the name of the
-      # method. This allows named blocks to be overridden (via inheritance or
-      # mixin) in the same way as normal Ruby methods.
-      meth_name = "__bloom__#{block_name}"
-
-      # Don't allow duplicate named bloom blocks to be defined within a single
-      # module; this indicates a likely programmer error.
-      if instance_methods(false).include? meth_name
-        raise Bud::BudError, "Duplicate named bloom block: '#{block_name}' in #{self}"
-      end
-      define_method(meth_name.to_sym, &block)
-    end
-
-    # NB: it would be easy to workaround this by creating an alias for the
-    # user's included method and then calling the alias from our replacement
-    # "included" method.
-    if o.singleton_methods.include? "included"
-      # XXX: If o is a subclass of Bud, it already has a definition of the
-      # included method, so avoid complaining or defining a duplicate.
-      # return if o < Bud
-      # raise "#{o} already defines 'included' singleton method!"
-      return
-    end
-
-    # If Module X includes BudModule and Y includes X, we want BudModule's
-    # "included" method to be invoked for both X and Y.
-    def o.included(other)
-      BudModule.included(other)
-    end
+  # State method blocks are named using an auto-incrementing counter. This is to
+  # ensure that we can rediscover the possible dependencies between these blocks
+  # after module import (see Bud#call_state_methods).
+  def self.make_state_meth_name(klass)
+    @state_meth_id ||= 0
+    r = "__state#{@state_meth_id}__#{Module.get_class_name(klass)}".to_sym
+    @state_meth_id += 1
+    return r
   end
 end
 
 # The root Bud module. To run a Bud instance, there are three main options:
 #
-# 1. Synchronously. To do this, instanciate your program and then call tick()
+# 1. Synchronously. To do this, instantiate your program and then call tick()
 #    one or more times; each call evaluates a single Bud timestep. Note that in
 #    this mode, network communication (channels) and timers cannot be used. This
 #    is mostly intended for "one-shot" programs that compute a single result and
 #    then terminate.
-# 2. In a separate thread in the foreground. To do this, instanciate your
+# 2. In a separate thread in the foreground. To do this, instantiate your
 #    program and then call run(). The Bud interpreter will then run, handling
 #    network events and evaluating new timesteps as appropriate. The run()
 #    method will not return unless an error occurs.
-# 3. In a separate thread in the background. To do this, instanciate your
+# 3. In a separate thread in the background. To do this, instantiate your
 #    program and then call run_bg(). The Bud interpreter will run
 #    asynchronously. To interact with Bud (e.g., insert additional data or
 #    inspect the state of a Bud collection), use the sync_do and async_do
@@ -129,8 +125,8 @@ module Bud
   attr_reader :dsock
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
+  attr_accessor :lazy # This can be changed on-the-fly by REBL
 
-  include BudModule
   include BudState
 
   def initialize(options={})
@@ -140,13 +136,17 @@ module Bud
     @channels = {}
     @tc_tables = {}
     @zk_tables = {}
+    @callbacks = {}
+    @callback_id = 0
     @timers = []
     @budtime = 0
     @inbound = []
     @done_bootstrap = false
+    @em_stopped = Queue.new
 
     # Setup options (named arguments), along with default values
     @options = options
+    @lazy = @options[:lazy] ||= false
     @options[:ip] ||= "localhost"
     @ip = @options[:ip]
     @options[:port] ||= 0
@@ -154,8 +154,12 @@ module Bud
     # NB: If using an ephemeral port (specified by port = 0), the actual port
     # number won't be known until we start EM
 
+    relatives = self.class.modules + [self.class]
+    relatives.each do |r|
+      Bud.rewrite_local_methods(r)
+    end
+
     @declarations = ModuleRewriter.get_rule_defs(self.class)
-    @state_methods = lookup_state_methods
 
     init_state
 
@@ -185,27 +189,78 @@ module Bud
 
   private
 
-  def lookup_state_methods
-    rv = []
+  # Rewrite methods defined in the given klass to expand module references and
+  # temp collections. Imported modules are rewritten during the import process;
+  # we rewrite the main Bud class and any included modules here. Note that we
+  # only rewrite each distinct Class once.
+  def self.rewrite_local_methods(klass)
+    @done_rewrite ||= {}
+    return if @done_rewrite.has_key? klass.name
 
-    # Traverse the ancestor hierarchy from root => leaf. This helps to support a
-    # common idiom: the schema of a table in a child module/class might
-    # reference the schema of an included module.
-    self.class.ancestors.reverse.each do |anc|
-      anc.instance_methods(false).each do |m|
-        if /__.+?__state/.match m
-          rv << self.method(m.to_sym)
-        end
+    u = Unifier.new
+    ref_expander = NestedRefRewriter.new(klass.bud_import_table)
+    tmp_expander = TempExpander.new
+    r2r = Ruby2Ruby.new
+
+    klass.instance_methods(false).each do |m|
+      ast = ParseTree.translate(klass, m)
+      ast = u.process(ast)
+      ast = ref_expander.process(ast)
+      ast = tmp_expander.process(ast)
+
+      if (ref_expander.did_work or tmp_expander.did_work)
+        new_source = r2r.process(ast)
+        klass.module_eval new_source # Replace previous method def
       end
+
+      ref_expander.did_work = false
+      tmp_expander.did_work = false
     end
-    rv
+
+    s = tmp_expander.get_state_meth(klass)
+    if s
+      state_src = r2r.process(s)
+      klass.module_eval(state_src)
+    end
+
+    # Always rewrite anonymous classes
+    @done_rewrite[klass.name] = true unless klass.name == ""
+  end
+
+  # Invoke all the user-defined state blocks and initialize builtin state.
+  def init_state
+    builtin_state
+    call_state_methods
+  end
+
+  # If module Y is a parent module of X, X's state block might reference state
+  # defined in Y. Hence, we want to invoke Y's state block first.  However, when
+  # "import" and "include" are combined, we can't use the inheritance hierarchy
+  # to do this. When a module Z is imported, the import process inlines all the
+  # modules Z includes into a single module. Hence, we can no longer rely on the
+  # inheritance hierarchy to respect dependencies between modules. To fix this,
+  # we add an increasing ID to each state block's method name (assigned
+  # according to the order in which the state blocks are defined); we then sort
+  # by this order before invoking the state blocks.
+  def call_state_methods
+    meth_map = {} # map from ID => [Method]
+    self.class.instance_methods.each do |m|
+      next unless m =~ /^__state(\d+)__/
+      id = Regexp.last_match.captures.first.to_i
+      meth_map[id] ||= []
+      meth_map[id] << self.method(m)
+    end
+
+    meth_map.keys.sort.each do |i|
+      meth_map[i].each {|m| m.call}
+    end
   end
 
   # Evaluate all bootstrap blocks
   def do_bootstrap
     self.class.ancestors.reverse.each do |anc|
       anc.instance_methods(false).each do |m|
-        if /__.+?__bootstrap/.match m
+        if /^__bootstrap__/.match m
           self.method(m.to_sym).call
         end
       end
@@ -268,18 +323,25 @@ module Bud
     }
   end
 
-  # Shutdown a Bud instance running asynchronously. This method blocks until Bud
-  # has been shutdown. If _stop_em_ is true, the EventMachine event loop is also
-  # shutdown; this will interfere with the execution of any other Bud instances
-  # in the same process (as well as anything else that happens to use EM).
+  # Shutdown a Bud instance that is running asynchronously. This method blocks
+  # until Bud has been shutdown. If +stop_em+ is true, the EventMachine event
+  # loop is also shutdown; this will interfere with the execution of any other
+  # Bud instances in the same process (as well as anything else that happens to
+  # use EventMachine).
   def stop_bg(stop_em=false)
-    schedule_and_wait do
-      do_shutdown(stop_em)
+    if stop_em
+      schedule_shutdown(true)
+      # Wait until EM has completely shutdown before we return.
+      @em_stopped.pop
+    else
+      schedule_and_wait do
+        do_shutdown(false)
+      end
     end
   end
 
   # Given a block, evaluate that block inside the background Ruby thread at some
-  # point in the future. Because the callback is invoked inside the background
+  # time in the future. Because the callback is invoked inside the background
   # Ruby thread, Bud state can be safely examined inside the block. Naturally,
   # this method can only be used when Bud is running in the background. Note
   # that calling sync_do blocks the caller's thread until the block has been
@@ -288,7 +350,7 @@ module Bud
   # Note that the callback is invoked after one Bud timestep has ended but
   # before the next timestep begins. Hence, synchronous accumulation (<=) into a
   # Bud scratch collection in a callback is typically not useful: when the next
-  # tick begins, the content of any scratch collections will be empted, which
+  # tick begins, the content of any scratch collections will be emptied, which
   # includes anything inserted by a sync_do block using <=. To avoid this
   # behavior, insert into scratches using <+.
   def sync_do
@@ -320,7 +382,80 @@ module Bud
     end
   end
 
+  # Register a new callback. Given the name of a Bud collection, this method
+  # arranges for the given block to be invoked at the end of any tick in which
+  # any tuples have been inserted into the specified collection. The code block
+  # is passed the collection as an argument; this provides a convenient way to
+  # examine the tuples inserted during that fixpoint. (Note that because the Bud
+  # runtime is blocked while the callback is invoked, it can also examine any
+  # other Bud state freely.)
+  #
+  # Note that registering callbacks on persistent collections (e.g., tables and
+  # tctables) is probably not a wise thing to do: as long as any tuples are
+  # stored in the collection, the callback will be invoked at the end of every
+  # tick.
+  def register_callback(tbl_name, &block)
+    # We allow callbacks to be added before or after EM has been started. To
+    # simplify matters, we start EM if it hasn't been started yet.
+    start_reactor
+    cb_id = nil
+    schedule_and_wait do
+      unless @tables.has_key? tbl_name
+        raise Bud::BudError, "No such table: #{tbl_name}"
+      end
+
+      raise Bud::BudError if @callbacks.has_key? @callback_id
+      @callbacks[@callback_id] = [tbl_name, block]
+      cb_id = @callback_id
+      @callback_id += 1
+    end
+    return cb_id
+  end
+
+  # Unregister the callback that has the given ID.
+  def unregister_callback(id)
+    schedule_and_wait do
+      raise Bud::BudError unless @callbacks.has_key? id
+      @callbacks.delete(id)
+    end
+  end
+
+  # sync_callback supports synchronous interaction with bud modules.
+  # The caller supplies the name of an input relation,
+  # a set of tuples to insert, and an output relation on which  to 'listen.'
+  # The call blocks until tuples are inserted into the output collection:
+  # these are returned to the caller.
+  def sync_callback(in_tbl, tupleset, out_tbl)
+    q = Queue.new
+    cb = register_callback(out_tbl) do |c|
+      q.push c.to_a
+    end
+    sync_do do 
+      unless in_tbl.nil?
+        @tables[in_tbl] <+ tupleset 
+      end
+    end
+    result = q.pop
+    unregister_callback(cb)
+    return result
+  end
+
+  # a common special case for sync_callback: block on a delta to a table.
+  def delta(out_tbl)
+    sync_callback(nil, nil, out_tbl)
+  end
+
   private
+
+  def invoke_callbacks
+    @callbacks.each_value do |cb|
+      tbl_name, block = cb
+      tbl = @tables[tbl_name]
+      unless tbl.empty?
+        block.call(tbl)
+      end
+    end
+  end
 
   def start_reactor
     return if EventMachine::reactor_running?
@@ -333,11 +468,16 @@ module Bud
 
     # Block until EM has successfully started up.
     q = Queue.new
+    # This thread helps us avoid race conditions on the start and stop of
+    # EventMachine's event loop.
     Thread.new do
       EventMachine.run do
         q << true
       end
+      # Executed only after EventMachine::stop_event_loop is done
+      @em_stopped << true
     end
+    # Block waiting for EM's event loop to start up.
     q.pop
   end
 
@@ -370,7 +510,8 @@ module Bud
     close_tables
     @dsock.close_connection
     # Note that this affects anyone else in the same process who happens to be
-    # using EventMachine!
+    # using EventMachine! This is also a non-blocking call; to block until EM
+    # has completely shutdown, we use the @em_stopped queue.
     EventMachine::stop_event_loop if stop_em
   end
 
@@ -390,11 +531,13 @@ module Bud
     raise BudError unless EventMachine::reactor_thread?
 
     # If we get SIGINT or SIGTERM, shutdown gracefully
-    Signal.trap("INT") do
-      schedule_shutdown(true)
-    end
-    Signal.trap("TRAP") do
-      schedule_shutdown(true)
+    unless @options[:no_signal_handlers]
+      Signal.trap("INT") do
+        schedule_shutdown(true)
+      end
+      Signal.trap("TRAP") do
+        schedule_shutdown(true)
+      end
     end
 
     do_start_server
@@ -404,20 +547,20 @@ module Bud
       @timers << set_periodic_timer(p.pername, p.ident, p.period)
     end
 
+    # Arrange for Bud to read from stdin if enabled. Note that we can't do this
+    # earlier because we need to wait for EventMachine startup.
+    @stdio.start_stdin_reader if @options[:read_stdin]
+
     # Compute a fixpoint; this will also invoke any bootstrap blocks.
-    tick
+    tick unless @lazy
 
     @rtracer.sleep if options[:rtrace]
   end
 
   def do_start_server
-    if @options[:port] == 0
-      @dsock = EventMachine::open_datagram_socket(@ip, 0, BudServer, self)
-      @port = Socket.unpack_sockaddr_in(@dsock.get_sockname)[0]
-    else
-      @port = @options[:port]
-      @dsock = EventMachine::open_datagram_socket(@ip, @port, BudServer, self)
-    end
+    @dsock = EventMachine::open_datagram_socket(@ip, @options[:port],
+                                                BudServer, self)
+    @port = Socket.unpack_sockaddr_in(@dsock.get_sockname)[0]
   end
 
   public
@@ -454,6 +597,7 @@ module Bud
     @strata.each { |strat| stratum_fixpoint(strat) }
     @viz.do_cards if @options[:trace]
     do_flush
+    invoke_callbacks
     @budtime += 1
   end
 
@@ -464,7 +608,7 @@ module Bud
   # initialized before user-defined state.
   def builtin_state
     channel  :localtick, [:col1]
-    terminal :stdio
+    @stdio = terminal :stdio
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
 
     # for BUD reflection
@@ -474,14 +618,6 @@ module Bud
     table :t_provides, [:interface] => [:input]
     table :t_stratum, [:predicate] => [:stratum]
     table :t_cycle, [:predicate, :via, :neg, :temporal]
-  end
-
-  # Invoke all the user-defined state blocks and initialize builtin state.
-  def init_state
-    builtin_state
-    @state_methods.each do |s|
-      s.call
-    end
   end
 
   # Handle any inbound tuples off the wire and then clear. Received messages are
@@ -547,18 +683,6 @@ module Bud
   end
 
   ####### Joins
-  private
-  def decomp_preds(*preds)
-    # decompose each pred into a binary pred
-    newpreds = []
-    preds.each do |p|
-      p.each_with_index do |c, i|
-        newpreds << [p[i], p[i+1]] unless p[i+1].nil?
-      end
-    end
-    newpreds
-  end
-
   def wrap_map(j, &blk)
     if blk.nil?
       return j
@@ -569,38 +693,21 @@ module Bud
 
   public
   def join(rels, *preds, &blk)
-    j = BudJoin.new(rels, self, decomp_preds(*preds))
+    j = BudJoin.new(rels, self, preds)
     wrap_map(j, &blk)
   end
 
-  alias coincide join
-
+  # :nodoc
   def natjoin(rels, &blk)
     # for all pairs of relations, add predicates on matching column names
-    preds = []
-    rels.each do |r|
-      rels.each do |s|
-        matches = r.schema & s.schema
-        matches.each do |c|
-          preds << [self.send(r.tabname).send(c), self.send(s.tabname).send(c)] unless r.tabname.to_s >= s.tabname.to_s
-        end
-      end
-    end
-    preds.uniq!
-    j = join(rels, *preds)
-    wrap_map(j, &blk)
+		preds = BudJoin::natural_preds(self, rels)
+    j = join(rels, *preds, &blk)
   end
-
-  # ugly, but why not
-  alias natcoincide natjoin
 
   def leftjoin(rels, *preds, &blk)
-    j = BudLeftJoin.new(rels, self, decomp_preds(*preds))
+    j = BudLeftJoin.new(rels, self, preds)
     wrap_map(j, &blk)
   end
-
-  # ugly, but why not
-  alias leftcoincide leftjoin
 
   private
 

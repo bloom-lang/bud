@@ -1,10 +1,10 @@
 require 'socket'
 
 module Bud
-  class BudServer < EM::Connection
+  class BudServer < EM::Connection #:nodoc: all
     def initialize(bud)
-      @pac = MessagePack::Unpacker.new
       @bud = bud
+      @pac = MessagePack::Unpacker.new
       super
     end
 
@@ -22,7 +22,8 @@ module Bud
 
     def message_received(obj)
       # puts "#{@bud.ip_port} <= #{obj.inspect}"
-      unless (obj.class <= Array and obj.length == 2 and not @bud.tables[obj[0].to_sym].nil? and obj[1].class <= Array)
+      unless (obj.class <= Array and obj.length == 2 and not
+              @bud.tables[obj[0].to_sym].nil? and obj[1].class <= Array)
         raise BudError, "Bad inbound message of class #{obj.class}: #{obj.inspect}"
       end
 
@@ -30,7 +31,7 @@ module Bud
 
       @bud.inbound << obj
       begin
-        @bud.tick
+        @bud.tick unless @bud.lazy
       rescue Exception
         # If we raise an exception here, EM dies, which causes problems (e.g.,
         # other Bud instances in the same process will crash). Ignoring the

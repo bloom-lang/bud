@@ -5,9 +5,7 @@ require 'bud'
 # aspect-oriented programming here, or allow users to extend the definitions of
 # existing table types
 module CountAtomicDelivery
-  include BudModule
-
-  state {
+  state do
     scratch :atomic_data_in, [:loc, :tuple]
     channel :atomic_data_chan, [:@loc, :tuple]
     table :atomic_data_recv, [:loc, :tuple]
@@ -19,10 +17,9 @@ module CountAtomicDelivery
     scratch :atomic_recv_count, [:loc] => [:cnt]
     scratch :atomic_data_atomic, [:loc, :tuple]
     scratch :atomic_data_out, [:tuple]
-  }
+  end
 
-  declare
-  def countatomicdelivery
+  bloom :countatomicdelivery do
     atomic_count <= atomic_data_in.group([:loc], count)
 
     atomic_data_chan <~ atomic_data_in

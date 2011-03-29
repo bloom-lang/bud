@@ -8,13 +8,13 @@ module Deployer
   include BudModule
   include CountAtomicDelivery
 
-  state {
+  state do
     table :node, [:uid] => [:node] # nodes with running programs
     table :node_count, [] => [:num]
     table :initial_data, [:uid, :pred, :data]
     channel :dont_care, [:@loc]
     table :dead, [:dead]
-  }
+  end
 
   def idempotent(r) (dead.include? r) ? false : dead.insert(r) end
 
@@ -31,8 +31,8 @@ module Deployer
   # before any messages are received.  In order to fix this, we would probably
   # need to globally synchronize to ensure that "timestamp 0" gets "fully
   # evaluated" before any messages can be sent
-  declare
-  def distribute_data
+
+  bloom :distribute_data do
     atomic_data_in <= join([node, initial_data],
                            [node.uid, initial_data.uid]).map do |n, i|
       [n.node, [i.pred, i.data]] if idempotent [[n.node, i.pred, i.data]]

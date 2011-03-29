@@ -3,8 +3,8 @@ require 'bud/state'
 require 'parse_tree'
 require 'pp'
 
-class BudMeta
-  attr_reader :depanalysis, :decls, :bud_instance
+class BudMeta #:nodoc: all
+  attr_reader :depanalysis, :decls
 
   def initialize(bud_instance, declarations)
     @bud_instance = bud_instance
@@ -13,9 +13,6 @@ class BudMeta
   end
 
   def meta_rewrite
-    # N.B. -- parse_tree will not be supported in ruby 1.9.
-    # however, we can still pass the "string" code of bud modules
-    # to ruby_parse (but not the "live" class)
     shred_rules
     top_stratum = stratify
     stratum_map = binaryrel2map(@bud_instance.t_stratum)
@@ -56,8 +53,7 @@ class BudMeta
     # we are shredding down to the granularity of rule heads.
     seed = 0
     rulebag = {}
-    each_relevant_ancestor do |anc|
-      shred_state(anc)
+    @bud_instance.class.ancestors.reverse.each do |anc|
       @declarations.each do |meth_name|
         rw = rewrite_rule_block(anc, meth_name, seed)
         if rw
@@ -68,63 +64,27 @@ class BudMeta
     end
 
     rulebag.each_value do |v|
-      v.rules.each do |r|
-        @bud_instance.t_rules << r
-      end
-      v.depends.each do |d|
-        @bud_instance.t_depends << d
-      end
+      v.rules.each {|r| @bud_instance.t_rules << r}
+      v.depends.each {|d| @bud_instance.t_depends << d}
     end
-  end
-
-  def shred_state(anc)
-    return unless @bud_instance.options[:scoping]
-    stp = ParseTree.translate(anc, "__#{@bud_instance.class}__state")
-    return if stp[0].nil?
-    u = Unifier.new
-    pt = u.process(stp)
-    state_reader = StateExtractor.new(anc.to_s)
-    state_reader.process(pt)
-    @decls += state_reader.decls
   end
 
   def rewrite_rule_block(klass, block_name, seed)
     parse_tree = ParseTree.translate(klass, block_name)
     return unless parse_tree.first
 
-    u = Unifier.new
-    pt = u.process(parse_tree)
+    pt = Unifier.new.process(parse_tree)
     pp pt if @bud_instance.options[:dump_ast]
     check_rule_ast(pt)
 
-    # Expand references to imported modules
-    ref_expand = NestedRefRewriter.new(@bud_instance.class.bud_import_table)
-    pt = ref_expand.process(pt)
-
-    rewriter = RuleRewriter.new(seed, bud_instance)
+    rewriter = RuleRewriter.new(seed, @bud_instance)
     rewriter.process(pt)
-    #rewriter.rules.each {|r| puts "RW: #{r.inspect}"}
     return rewriter
   end
   
-  # given a rule of the form "temp <lhs> <op> <rhs>"
-  # this is actually a call to "temp" with args "[<lhs> <op> <rhs>]" which 
-  # isn't what we mean.
-  # So register the temp, and return a rule of the form "<lhs> <op> <rhs>".
-  def declare_and_unwrap_temp(n)
-    raise Bud::CompileError, "lhs of temp rule not a symbol" if n[3][1][1][0] != :lit
-    # temp rules w/o parens on lhs are nested one level down, nil, temp, (call tag, lhs, op, rhs)
-    lhs = s(:call, nil, n[3][1][1][1], s(:arglist))
-    op = n[3][1][2]
-    rhs = n[3][1][3]
-    bud_instance.temp n[3][1][1][1]
-    
-    return s(:call, lhs, op, rhs)
-  end    
-
   # Perform some basic sanity checks on the AST of a rule block. We expect a
   # rule block to consist of a :defn, a nested :scope, and then a sequence of
-  # statements. Each statement is either a :call or :lasgn node.
+  # statements. Each statement is a :call node.
   def check_rule_ast(pt)
     # :defn format: node tag, block name, args, nested scope
     raise Bud::CompileError if pt.sexp_type != :defn
@@ -132,24 +92,7 @@ class BudMeta
     raise Bud::CompileError if scope.sexp_type != :scope
     block = scope[1]
 
-    # First, remove any equality statements (i.e., alias definitions) from the
-    # rule block's AST. Then convert them to temp rules so we can add them back in.
-    assign_nodes, rest_nodes = block.partition {|b| b.class == Sexp && b.sexp_type == :lasgn}
-    assign_vars = {}
-    equi_rules = []     # equality statements rewritten as temp rules
-    assign_nodes.each do |n|
-      # Expected format: lasgn tag, lhs, rhs
-      raise Bud::CompileError unless n.length == 3
-      tag, lhs, rhs = n
-      lhs = lhs.to_sym
-      bud_instance.temp lhs
-
-      equi_rules << s(:call, s(:call, nil, lhs, s(:arglist)), :<=, s(:arglist, rhs))               
-    end
-
-    rest_nodes += equi_rules
-
-    rest_nodes.each_with_index do |n,i|
+    block.each_with_index do |n,i|
       if i == 0
         raise Bud::CompileError if n != :block
         next
@@ -158,18 +101,13 @@ class BudMeta
       raise Bud::CompileError if n.sexp_type != :call
       raise Bud::CompileError unless n.length == 4
 
-      if n[2] == :temp 
-        n = declare_and_unwrap_temp(n)
-        rest_nodes[i] = n
-      end
-
       # Rule format: call tag, lhs, op, rhs
       tag, lhs, op, rhs = n
 
       # Check that LHS references a named collection or is a temp expression
       raise Bud::CompileError if lhs.nil? or lhs.sexp_type != :call
       lhs_name = lhs[2]
-      unless lhs_name == :temp or @bud_instance.tables.has_key? lhs_name.to_sym
+      unless @bud_instance.tables.has_key? lhs_name.to_sym
         raise Bud::CompileError, "Table does not exist: '#{lhs_name}'"
       end
 
@@ -183,8 +121,8 @@ class BudMeta
       # node; the LHS of the :call is the actual rule body, the :call's oper is
       # the rest of the superator (unary ~, -, +), and the RHS is empty.  Note
       # that ParseTree encodes unary "-" and "+" as :-@ and :-+, respectively.
-      # XXX: Checking for illegal superators (e.g., "<--") is tricky, because
-      # they are encoded as a nested unary operator in the rule body.
+      # XXX: We don't check for illegal superators (e.g., "<--"). That would be
+      # tricky, because they are encoded as a nested unary op in the rule body.
       if op == :<
         raise Bud::CompileError unless rhs.sexp_type == :arglist
         body = rhs[1]
@@ -194,20 +132,6 @@ class BudMeta
         rhs_args = body[3]
         raise Bud::CompileError unless rhs_args.sexp_type == :arglist
         raise Bud::CompileError if rhs_args.length != 1
-      end
-    end
-
-    # Replace old block with rewritten version
-    scope[1] = rest_nodes
-  end
-
-  def each_relevant_ancestor
-    on = false
-    @bud_instance.class.ancestors.reverse.each do |anc|
-      if on
-        yield anc
-      elsif anc == Bud
-        on = true
       end
     end
   end

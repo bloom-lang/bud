@@ -1,30 +1,20 @@
 require 'msgpack'
 
-begin
-  require 'tokyocabinet'
-  Bud::HAVE_TOKYO_CABINET = true
-rescue LoadError
-end
-
-begin
-  require 'zookeeper'
-  Bud::HAVE_ZOOKEEPER = true
-rescue LoadError
-end
-
 module Bud
   ######## the collection types
+  # each collection is partitioned into 4:
+  # - pending holds tuples deferred til the next tick
+  # - storage holds the "normal" tuples
+  # - delta holds the delta for rhs's of rules during semi-naive
+  # - new_delta will hold the lhs tuples currently being produced during s-n
+
   class BudCollection
     include Enumerable
 
-    attr_accessor :schema, :key_cols, :val_cols
-    attr_reader :tabname, :bud_instance, :storage, :delta, :new_delta
-
-    # each collection is partitioned into 4:
-    # - pending holds tuples deferred til the next tick
-    # - storage holds the "normal" tuples
-    # - delta holds the delta for rhs's of rules during semi-naive
-    # - new_delta will hold the lhs tuples currently being produced during s-n
+    attr_accessor :bud_instance
+    attr_reader :schema, :key_cols, :val_cols, :tabname
+    attr_reader :storage, :delta, :new_delta
+    
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false)
       @tabname = name
       @bud_instance = bud_instance
@@ -32,12 +22,14 @@ module Bud
       init_buffers
     end
 
+    private
     def init_buffers
       init_storage
       init_pending
       init_deltas
     end
 
+    private
     def init_schema(given_schema)
       given_schema ||= {[:key]=>[:val]}
       @given_schema = given_schema
@@ -50,6 +42,7 @@ module Bud
     # Array (key_cols => remaining columns), or simply an Array of columns (if no
     # key_cols were specified). Return a pair: [list of columns in entire tuple,
     # list of key columns]
+    private
     def parse_schema(given_schema)
       if given_schema.respond_to? :keys
         raise BudError, "invalid schema for #{tabname}" if given_schema.length != 1
@@ -73,10 +66,12 @@ module Bud
       return [schema, key_cols]
     end
 
+    public
     def clone_empty
       self.class.new(tabname, bud_instance, @given_schema)
     end
 
+    public
     def val_cols
       schema - key_cols
     end
@@ -84,6 +79,7 @@ module Bud
     # define methods to turn 'table.col' into a [table,col] pair
     # e.g. to support something like
     #    j = join link, path, {link.to => path.from}
+    private
     def setup_accessors
       s = @schema
       s.each do |colname|
@@ -115,30 +111,37 @@ module Bud
     end
 
     # define methods to access tuple attributes by column name
+    private
     def tuple_accessors(tup)
       tup.extend @tupaccess
     end
 
+    public
     def null_tuple
       tuple_accessors(Array.new(@schema.length))
     end
 
+    public
     def keys
       self.map{|t| (0..self.key_cols.length-1).map{|i| t[i]}}
     end
 
+    public
     def values
       self.map{|t| (self.key_cols.length..self.schema.length-1).map{|i| t[i]}}
     end
 
+    public
     def inspected
       self.map{|t| [t.inspect]}
     end
 
+    private
     def pending_inspected
       @pending.map{|t| [t[1].inspect]}
     end
 
+    public
     def pro(&blk)
       # to be filled in later for single-node semi-naive iteration
       return map(&blk)
@@ -147,11 +150,14 @@ module Bud
     # By default, all tuples in any rhs are in storage or delta. Tuples in
     # new_delta will get transitioned to delta in the next iteration of the
     # evaluator (but within the current time tick).
+    public
     def each(&block)
       # if @bud_instance.stratum_first_iter
       each_from([@storage, @delta], &block)
     end
 
+    # :nodoc
+    private
     def each_from(bufs, &block)
       bufs.each do |b|
         b.each_value do |v|
@@ -160,6 +166,8 @@ module Bud
       end
     end
 
+    # :nodoc
+    public
     def each_from_sym(buf_syms, &block)
       bufs = buf_syms.map do |s|
         case s
@@ -172,33 +180,42 @@ module Bud
       each_from(bufs, &block)
     end
 
+    private
     def init_storage
       @storage = {}
     end
 
+    private
     def init_pending
       @pending = {}
     end
 
+    private
     def init_deltas
       @delta = {}
       @new_delta = {}
     end
 
+    public
     def close
     end
 
+    public
     def has_key?(k)
       return false if k.nil? or k.empty? or self[k].nil?
       return true
     end
 
+    # return item with that key
+    # ---
     # assumes that key is in storage or delta, but not both
     # is this enforced in do_insert?
+    public
     def [](key)
       return @storage[key].nil? ? @delta[key] : @storage[key]
     end
 
+    public
     def include?(tuple)
       return true if key_cols.nil? or (key_cols.empty? and length > 0)
       return false if tuple.nil? or tuple.empty?
@@ -206,6 +223,7 @@ module Bud
       return (tuple == self[key])
     end
 
+    public
     def exists?(&block)
       if length == 0
         return false
@@ -217,11 +235,13 @@ module Bud
       end
     end
 
+    private
     def raise_pk_error(new, old)
       keycols = key_cols.map{|k| old[schema.index(k)]}
       raise KeyConstraintError, "Key conflict inserting #{old.inspect} into \"#{tabname}\": existing tuple #{new.inspect}, key_cols = #{keycols.inspect}"
     end
 
+    private
     def prep_tuple(o)
       unless o.respond_to?(:length) and o.respond_to?(:[])
         raise BudTypeError, "non-indexable type inserted into BudCollection #{self.tabname}: #{o.inspect}"
@@ -240,6 +260,7 @@ module Bud
       return o
     end
 
+    private
     def do_insert(o, store)
       # return if o.respond_to?(:empty?) and o.empty?
       return if o.nil? # silently ignore nils resulting from map predicates failing
@@ -258,6 +279,7 @@ module Bud
       end
     end
 
+    public
     def insert(o)
       # puts "insert: #{o.inspect} into #{tabname}"
       do_insert(o, @storage)
@@ -265,6 +287,7 @@ module Bud
 
     alias << insert
 
+    private
     def check_enumerable(o)
       unless (o.nil? or o.class < Enumerable) and o.respond_to? 'each'
         raise BudTypeError, "Attempt to merge non-enumerable type into BudCollection"
@@ -273,6 +296,7 @@ module Bud
 
     # Assign self a schema, by hook or by crook.  If o is schemaless *and* empty, will
     # leave @schema as is.
+    private
     def establish_schema(o)
       # use o's schema if available
       deduce_schema(o) if @schema.nil?
@@ -282,6 +306,7 @@ module Bud
     end
 
     # Copy over the schema from o if available
+    private
     def deduce_schema(o)
       if @schema.nil? and o.class <= Bud::BudCollection and not o.schema.nil?
         # must have been initialized with defer_schema==true.  take schema from rhs
@@ -292,12 +317,15 @@ module Bud
     end
 
     # manufacture schema of the form [:c0, :c1, ...] with width = arity
+    private
     def fit_schema(arity)
       # rhs is schemaless.  create schema from first tuple merged
       init_schema((0..arity-1).map{|indx| ("c"+indx.to_s).to_sym})
       return @schema
     end
 
+    # instantaneously merge items from collection into self
+    public
     def merge(o, buf=@new_delta)
       check_enumerable(o)
       establish_schema(o) if @schema.nil?
@@ -319,6 +347,7 @@ module Bud
 
     alias <= merge
 
+    public
     def pending_merge(o)
       check_enumerable(o)
       deduce_schema(o)
@@ -327,12 +356,15 @@ module Bud
       return self
     end
 
+    # merge items from collection into self at the end of this timestep
+    public
     superator "<+" do |o|
       pending_merge o
     end
 
     # Called at the end of each time step: prepare the collection for the next
     # timestep.
+    public
     def tick
       @storage = @pending
       @pending = {}
@@ -341,6 +373,7 @@ module Bud
     end
 
     # move deltas to storage, and new_deltas to deltas.
+    public
     def tick_deltas
       # assertion: intersect(@storage, @delta) == nil
       @storage.merge!(@delta)
@@ -348,13 +381,18 @@ module Bud
       @new_delta = {}
     end
 
+    private
     def method_missing(sym, *args, &block)
       @storage.send sym, *args, &block
     end
 
     ######## aggs
-    # currently support two options for column ref syntax -- :colname or table.colname
-    def argagg(aggname, gbkey_cols, col)
+
+    # a generalization of argmin/argmax to arbitrary exemplary aggregates.
+    # for each distinct value in the grouping key columns, return the item in that group
+    # that has the value of the exemplary aggregate "aggname"
+    public
+    def argagg(aggname, gbkey_cols, collection)
       agg = bud_instance.send(aggname, nil)[0]
       raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
       keynames = gbkey_cols.map do |k|
@@ -364,10 +402,10 @@ module Bud
           k[2]
         end
       end
-      if col.class == Symbol
-        colnum = self.send(col.to_s)[1]
+      if collection.class == Symbol
+        colnum = self.send(collection.to_s)[1]
       else
-        colnum = col[1]
+        colnum = collection[1]
       end
       tups = self.inject({}) do |memo,p|
         pkey_cols = keynames.map{|n| p.send(n.to_sym)}
@@ -399,15 +437,29 @@ module Bud
       retval.merge(finals, retval.storage)
     end
 
+    # for each distinct value in the grouping key columns, return the item in that group
+    # that has the minimum value of the attribute col
+    public
     def argmin(gbkey_cols, col)
       argagg(:min, gbkey_cols, col)
     end
 
+    # for each distinct value in the grouping key columns, return the item in that group
+    # that has the maximum value of the attribute col
+    public
     def argmax(gbkey_cols, col)
       argagg(:max, gbkey_cols, col)
     end
 
+    # form a collection containing all pairs of items in self and items in collection
+    public
+    def *(collection)
+      require 'ruby-debug'; debugger if bud_instance.nil?
+      bud_instance.join([self, collection])
+    end
+
     # currently support two options for column ref syntax -- :colname or table.colname
+    public
     def group(key_cols, *aggpairs)
       key_cols = [] if key_cols.nil?
       keynames = key_cols.map do |k|
@@ -466,15 +518,111 @@ module Bud
       end
     end
 
-    def dump
-      puts '(empty)' if @storage.empty?
-      @storage.sort.each do |t|
-        puts t.inspect unless val_cols.empty?
-        puts t[0].inspect if val_cols.empty?
-      end
-    end
-
     alias reduce inject
+    
+    # methods that work on nested collections (resulting from joins)
+    
+    
+    # currently supports two options for equijoin predicates:
+		#    general form: an array of arrays capturing a conjunction of equiv. classes
+		#          [[table1.col1, table2.col2, table3.col3], [table1.col2, table2.col3]]
+		#    common form: a hash capturing equality of a column on left with one on right.
+		#          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
+		public
+		def pairs(*preds, &blk)
+			unless preds.nil?
+				@localpreds = disambiguate_preds(preds)
+				canonicalize_localpreds(@rels)
+			end
+			blk.nil? ? self : map(&blk)
+		end	
+		
+		alias combos pairs
+    
+    public
+		def matches(&blk)
+			preds = BudJoin::natural_preds(@bud_instance, @rels)
+			pairs(*preds, &blk)
+		end
+			
+		public
+		def lefts(*preds)
+			@localpreds = disambiguate_preds(preds)
+			map{ |l,r| l }
+		end
+
+		public
+		def rights(*preds)
+			@localpreds = disambiguate_preds(preds)
+			map{ |l,r| r }
+		end
+
+		private
+		def disambiguate_preds(preds)
+			if preds.size == 1 and preds[0].class <= Hash
+				predarray = preds[0].map do |k,v|
+					if k.class != v.class
+           	raise Bud::CompileError, "inconsistent attribute ref style #{k.inspect} => #{v.inspect}"
+					elsif k.class <= Array
+						[k,v]
+					elsif k.class <= Symbol
+						if @origrels and @origrels.length == 2
+							[find_attr_match(k,@origrels[0]), find_attr_match(v,@origrels[1])]
+						else
+							[find_attr_match(k), find_attr_match(v)]
+						end
+				  else
+						raise Bud::CompileError, "invalid attribute ref in #{k.inspect} => #{v.inspect}"
+					end
+				end
+				return decomp_preds(*predarray)
+			else
+				return decomp_preds(*preds)
+			end
+		end
+		
+		# find element in @origrels that contains this aname method
+		# if 2nd arg is non-nil, only check that collection.
+		# after found, return the result of invoking aname from chosen collection
+		private
+		def find_attr_match(aname, rel=nil)
+			dorels = (rel.nil? ? @origrels : [rel])
+			match = nil
+			dorels.each do |r|
+				match ||= r if r.respond_to?(aname)
+				if r.respond_to?(aname) and match != r
+					raise Bud::CompileError, "ambiguous attribute :#{aname} in both #{match.tabname} and #{r.tabname}"
+				end
+			end
+			if match.nil?
+				raise Bud::CompileError, "attribute :#{aname} not found in any of #{dorels.map{|t| t.tabname}.inspect}"
+			end
+			match.send(aname)
+		end
+		
+		private
+	  def decomp_preds(*preds)
+	    # decompose each pred into a binary pred
+		  return nil if preds.nil? or preds.empty? or preds == [nil]
+	    newpreds = []
+	    preds.each do |p|
+	      p.each_with_index do |c, i|
+	        newpreds << [p[i], p[i+1]] unless p[i+1].nil?
+	      end
+	    end
+	    newpreds
+	  end	  
+	
+	  private
+		def canonicalize_localpreds(rellist)
+			return if @localpreds.nil?
+			@localpreds.each do |p|
+        if p[1][0] == rellist[0].tabname
+          @localpreds.delete(p)
+          @localpreds << [p[1], p[0]]
+        end
+      end
+		end
   end
 
   class BudScratch < BudCollection
@@ -503,6 +651,7 @@ module Bud
       super(name, bud_instance, given_schema)
     end
 
+    private
     def remove_at_sign!(cols)
       i = cols.find_index {|c| c.to_s[0].chr == '@'}
       unless i.nil?
@@ -511,18 +660,22 @@ module Bud
       return i
     end
 
+    private
     def split_locspec(l)
       lsplit = l.split(':')
       lsplit[1] = lsplit[1].to_i
       return lsplit
     end
 
+    # form a copy of this collection with no items in it
+    private
     def clone_empty
       retval = super
       retval.locspec_idx = @locspec_idx
       retval
     end
 
+    public
     def tick
       @storage = {}
       # Note that we do not clear @pending here: if the user inserted into the
@@ -530,12 +683,13 @@ module Bud
       # message at the end of the current tick.
     end
 
+    public
     def flush
       ip = @bud_instance.ip
       port = @bud_instance.port
       each_from([@pending]) do |t|
         if @locspec_idx.nil?
-          the_locspec = [ip, port.to_i]
+          the_locspec = [ip, port]
         else
           begin
             the_locspec = split_locspec(t[@locspec_idx])
@@ -550,8 +704,20 @@ module Bud
       @pending.clear
     end
 
+    public
     def payloads
-      self.map{|t| t.val}
+      if schema.size > 2
+        # need to bundle up each tuple's non-locspec fields into an array
+        retval = case @locspec_idx
+          when 0 then self.map{|t| t[1..(t.size-1)]}
+          when (t.size - 1) then self.map{|t| t[0..(t.size-2)]}
+          else self.map{|t| t[0..(@locspec_idx-1)] + t[@locspec_idx+1..(t.size-1)]}
+        end
+      else
+        # just return each tuple's non-locspec field value
+        retval = self.pro{|t| t[(@locspec_idx == 0) ? 1 : 0]}
+      end
+      return retval
     end
 
     superator "<~" do |o|
@@ -562,6 +728,7 @@ module Bud
       raise BudError, "Illegal use of <+ with channel '#{@tabname}' on left"
     end
 
+    public
     def <=(o)
       raise BudError, "Illegal use of <= with channel '#{@tabname}' on left"
     end
@@ -570,27 +737,28 @@ module Bud
   class BudTerminal < BudCollection
     def initialize(name, given_schema, bud_instance, prompt=false)
       super(name, bud_instance, given_schema)
-      @connection = nil
       @prompt = prompt
-
-      start_stdin_reader if bud_instance.options[:read_stdin]
     end
 
+    public
     def start_stdin_reader
-      # XXX: Ugly hack. Rather than sending terminal data to EM via TCP,
+      # XXX: Ugly hack. Rather than sending terminal data to EM via UDP,
       # we should add the terminal file descriptor to the EM event loop.
       @reader = Thread.new do
         begin
           while true
-            STDOUT.print("#{tabname} > ") if @prompt
-            s = STDIN.gets
+            $stdout.print("#{tabname} > ") if @prompt
+            s = $stdin.gets
+            break if s.nil? # Hit EOF
             s = s.chomp if s
-            tup = tuple_accessors([s])
+            tup = [s]
 
             ip = @bud_instance.ip
             port = @bud_instance.port
-            @connection ||= EventMachine::connect ip, port, BudServer, @bud_instance
-            @connection.send_data [tabname, tup].to_msgpack
+            EventMachine::schedule do
+              socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
+              socket.send_datagram([tabname, tup].to_msgpack, ip, port)
+            end
           end
         rescue
           puts "terminal reader thread failed: #{$!}"
@@ -600,22 +768,26 @@ module Bud
       end
     end
 
+    public
     def flush
       @pending.each do |p|
-        STDOUT.puts p[0]
+        $stdout.puts p[0]
       end
       @pending = {}
     end
 
+    public
     def tick
       @storage = {}
       raise BudError unless @pending.empty?
     end
 
+    public
     def merge(o)
       raise BudError, "no synchronous accumulation into terminal; use <~"
     end
 
+    public
     def <=(o)
       merge(o)
     end
@@ -634,6 +806,7 @@ module Bud
       @to_delete = []
     end
 
+    public
     def tick
       @to_delete.each do |tuple|
         keycols = @key_colnums.map{|k| tuple[k]}
@@ -659,6 +832,7 @@ module Bud
     superator "<+" do |o|
       raise BudError, "Illegal use of <+ with read-only collection '#{@tabname}' on left"
     end
+    public
     def merge
       raise BudError, "Illegal use of <= with read-only collection '#{@tabname}' on left"
     end
@@ -674,6 +848,8 @@ module Bud
       @linenum = 0
     end
 
+    # :nodoc
+    public
     def each(&block)
       while (l = @fd.gets)
         t = tuple_accessors([@linenum, l.strip])
@@ -685,9 +861,12 @@ module Bud
 end
 
 module Enumerable
-  def rename(schema)
-    s = Bud::BudScratch.new('renamed', nil, schema)
-    s.merge(self, s.storage)
-    s
+  public
+  def rename(new_tabname, new_schema=nil)
+    budi = (respond_to?(:bud_instance)) ? bud_instance : nil
+    new_schema ||= schema unless schema.nil?
+    scr = Bud::BudScratch.new(new_tabname.to_s, budi, new_schema)
+    scr.merge(self, scr.storage)
+    scr
   end
 end

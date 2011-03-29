@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+require 'bud/rebl'
+
+ReblShell::run

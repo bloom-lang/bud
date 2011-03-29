@@ -25,8 +25,7 @@ class BTQuicksort
     super
   end
 
-  declare
-  def btquicksort
+  bloom :btquicksort do
     # we send the root the initial list to sort
     initial_data <= node.map do |n|
       if not tree_parent.has_key? [n.uid]
