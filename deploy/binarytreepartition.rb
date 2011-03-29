@@ -1,14 +1,14 @@
 require 'rubygems'
 require 'bud'
-require 'localdeploy-nonmeta'
+require 'deployer'
 
-# Distributes initial data to nodes 
+# Distributes initial data to nodes
 module BinaryTreePartition
   include BudModule
-  include LocalDeploy # XXX
+  include Deployer
 
   state do
-    scratch :initial_tree_data, [] => [:data]
+    #scratch :initial_tree_data, [] => [:data] # XXX
     scratch :num_levels, [] => [:num]
     table :tree_parent, [:uid] => [:parent_uid]
     table :tree_left_child, [:uid] => [:child_uid]
@@ -16,12 +16,6 @@ module BinaryTreePartition
     table :parent, [] => [:node]
     table :left_child, [] => [:node]
     table :right_child, [] => [:node]
-  end
-
-  def deploystrap
-    node_count <<
-      [2**((Math.log(input_list[[]].list.size)/Math.log(2)).ceil + 1) - 1]
-    super
   end
 
   declare

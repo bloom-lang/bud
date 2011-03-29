@@ -8,7 +8,7 @@ class TwitterExample
 
   bootstrap do
     # get the 20 most recent tweets from twitter
-    rest_req <+ [[1, :get, :json,
+    rest_req <= [[1, :get, :json,
                   'http://api.twitter.com/1/statuses/public_timeline']]
   end
 

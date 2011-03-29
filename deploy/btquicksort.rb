@@ -2,12 +2,14 @@ require 'rubygems'
 require 'bud'
 require 'quicksort'
 require 'binarytreepartition'
+require 'localdeploy-nonmeta'
 
 # Mixes in quicksort with BinaryTreePartition
 class BTQuicksort
   include Bud
   include Quicksort
   include BinaryTreePartition
+  include LocalDeploy
 
   state do
     channel :elt_list_chan, [:@loc] => [:elt_list]
@@ -18,6 +20,8 @@ class BTQuicksort
 
   def deploystrap
     input_list << [[2,5,3,6,0,1,8,7,4,9]]
+    node_count <<
+      [2**((Math.log(input_list[[]].list.size)/Math.log(2)).ceil + 1) - 1]
     super
   end
 
@@ -31,7 +35,7 @@ class BTQuicksort
     end
 
     # send every node the master (deployer)
-    initial_data <= node.map {|n| [ n.uid, :master, [[ me ]] ]}
+    initial_data <= node.map {|n| [ n.uid, :master, [[ ip_port ]] ]}
 
     # map elt_list_chan into list_to_sort
     # stdio <~ list_to_sort.map {|l| [ip_port + " received list: " + l.inspect]}
@@ -57,6 +61,4 @@ class BTQuicksort
 
 end
 
-program = BTQuicksort.new(:scoping => true, :ip => "127.0.0.1",
-                          :deploy => true, :dump_rewrite => true)
-program.run
+BTQuicksort.new(:ip => "127.0.0.1", :deploy => true).run
