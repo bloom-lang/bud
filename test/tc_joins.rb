@@ -222,7 +222,7 @@ class Rename
   end
   
   bloom do
-    temp :out <= (foo.rename([:c1]=>[:c2]) * foo).lefts(:c1 => :key)
+    temp :out <= (foo.rename(:floo, [:c1]=>[:c2]) * foo).lefts(:c1 => :key)
   end
 end
 

@@ -34,7 +34,7 @@ class ShortestPaths
     avrg <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)) do |t|
       [t[0], t[1], t[6], t[4], t[5]]
     end
-    avrg2 <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)).rename([:from, :to] => [:mincol, :maxcol, :sumcol, :cntcol, :avgcol]).map do |t|
+    avrg2 <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)).rename(:chump, [:from, :to] => [:mincol, :maxcol, :sumcol, :cntcol, :avgcol]).map do |t|
         [t.from, t.to, t.avgcol, t.sumcol, t.cntcol]
     end
   end
@@ -111,7 +111,7 @@ class DupAggs
   end
 end
 
-class Rename
+class RenameGroup
   include Bud
 
   state do
@@ -126,11 +126,11 @@ class Rename
   end
 
   bloom do
-    shoes <= emp.group([:dname], avg(:sal)).rename([:dept] => [:avgsal]).map{|t| t if t.dept == 'shoe'}
+    shoes <= emp.group([:dname], avg(:sal)).rename(:tempo, [:dept] => [:avgsal]).map{|t| t if t.dept == 'shoe'}
   end
 end
 
-class JoinAgg < Rename
+class JoinAgg < RenameGroup
   state do
     scratch :richsal, [:sal]
     scratch :rich, emp.key_cols => emp.val_cols
@@ -226,7 +226,7 @@ class TestAggs < Test::Unit::TestCase
   end
 
   def test_rename
-    program = Rename.new
+    program = RenameGroup.new
     assert_nothing_raised (RuntimeError) { program.tick }
     shoes = program.shoes.to_a
     assert_equal([["shoe", 10.5]], shoes)

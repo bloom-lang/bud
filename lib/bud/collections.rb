@@ -862,9 +862,10 @@ end
 
 module Enumerable
   public
-  def rename(schema)
-    s = Bud::BudScratch.new('renamed', bud_instance, schema)
-    s.merge(self, s.storage)
-    s
+  def rename(new_tabname, new_schema)
+    budi = (respond_to?(:bud_instance)) ? bud_instance : nil
+    scr = Bud::BudScratch.new(new_tabname.to_s, budi, new_schema)
+    scr.merge(self, scr.storage)
+    scr
   end
 end

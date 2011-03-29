@@ -21,7 +21,7 @@ class WordCount1
   bloom do
     wc <= txt.flat_map do |t|
             t.text.split.enum_for(:each_with_index).map {|w, i| [t.lineno, i, w]}
-          end.rename([:lineno, :wordno, :word]).group([:word], count)
+          end.rename(:loo, [:lineno, :wordno, :word]).group([:word], count)
   end
 end
 
