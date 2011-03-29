@@ -112,9 +112,9 @@ module Bud
     end
 
     def flush
-      each_pending do |t|
+      each_from([@pending]) do |t|
         path = @base_path + t.key
-        data = t.value
+        data = t.val
         r = @zk.create(:path => path, :data => data)
         if r[:rc] == Zookeeper::ZNODEEXISTS
           puts "Ignoring duplicate insert: #{t.inspect}"
