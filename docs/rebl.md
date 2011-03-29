@@ -7,7 +7,7 @@ A breakpoint is a Bud rule that has the "breakpoint" scratch on its left-hand-si
 Let's step through two examples to better understand REBL.  The first example is a centralized all-pairs-all-paths example in a graph, the second example is a distributed ping-pong example.  These examples illustrate the use of the commands, which can be listed from within rebl by typing "/help".
 
 
-==Shortest Paths Example==
+# Shortest Paths Example
 
 Let's start by declaring some collections.  "link" represents directed edges in a graph.  "path" represents all pairs of reachable nodes, with the next hop and cost of the path.
 
@@ -70,7 +70,7 @@ Note how ticking no longer prints out the paths.
     rebl> /tick
 
 
-==Ping-Pong Example==
+# Ping-Pong Example
 
 We begin by starting up two instances of REBL on the same machine in different terminal windows.  Take note of the port number printed when REBL starts up.  For example, we might have:
 

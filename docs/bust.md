@@ -52,7 +52,7 @@ Now, let's retrieve all foo facts where the "qux" attribute is "c", and the "baz
 Note that the response is a JSON array.
 
 
-## BUST Inspector ==
+## BUST Inspector
 
 BUST Inspector -- an example app that uses XMLHttpRequests to inspect state in a Bud program using BUST is included -- (bust/bustinspector.html).  Right now, it assumes that the Bud instance you're trying to inspect is listening on "localhost" at port "8080".  BUST Inspector is tested to work in Firefox, and may or may not work in other browsers.  BUST Inspector will query your Bud instance every second for metadata describing the tables and their schema.  It will display a list of the tables in a pane on the left of the screen, with a checkbox next to each table.  Selecting a checkbox renders the current table contents in the right pane (these are also updated every second while the box is checked).
 
