@@ -19,7 +19,7 @@ class Stratification # :nodoc: all
 
   def declaration
     strata[0] = lambda {
-      depends_tc <= depends.map do |d|
+      depends_tc <= depends do |d|
         dneg = (d.neg or d.op.to_s =~ /<-/)
         if d.op.to_s =~ /<[\+\-\~]/
           [d.head, d.body, d.body, dneg, true]
@@ -27,8 +27,8 @@ class Stratification # :nodoc: all
           [d.head, d.body, d.body, dneg, false]
         end
       end
-      dj = join [depends, depends_tc], [depends.body, depends_tc.head]
-      depends_tc <= dj.map do |b, r|
+
+      depends_tc <= (depends * depends_tc).pairs(:body => :head) do |b, r|
         # theoretically illegal, would break our analysis
         temporal = false
         if (b.op.to_s =~ /<[\+\-\~]/) or r.temporal
@@ -46,7 +46,7 @@ class Stratification # :nodoc: all
       #print "OK CYCLE has #{cycle.length} elements, TC has #{depends_tc.length}!\n"
       #depends_tc.each {|d| print "\tDEP_TC: #{d.inspect}\n" }
 
-      cycle <= depends_tc.map do |d|
+      cycle <= depends_tc do |d|
         if d.head == d.body
           if d.neg and !d.temporal
             raise Bud::CompileError, "unstratifiable program: #{d.inspect}"
@@ -56,11 +56,11 @@ class Stratification # :nodoc: all
           end
         end
       end
-      stratum_base <= depends.map{|d| [d.body, 0]}
+      stratum_base <= depends {|d| [d.body, 0]}
     }
 
     strata[1] = lambda {
-      stratum_base <= join([depends, stratum_base], [depends.body, stratum_base.predicate]).map do |d, s|
+      stratum_base <= (depends * stratum_base).pairs(:body => :predicate) do |d, s|
         if (d.neg or d.op.to_s == "<-") and !(cycle.map{|c| c.predicate}.include? d.body and cycle.map{|c| c.predicate}.include? d.head)
           [d.head, s.stratum + 1]
         else
