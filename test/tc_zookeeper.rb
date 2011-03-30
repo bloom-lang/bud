@@ -21,18 +21,36 @@ unless zk_running?
   raise
 end
 
+ZK_ROOT = "/foo"
+
 class ZkMirror
   include Bud
 
   state do
-    zktable :t1, "/foo"
+    zktable :t1, ZK_ROOT
+    table :dummy
+    scratch :t1_is_empty
+  end
+
+  bootstrap do
+    dummy << [1,1]
+  end
+
+  # XXX: This is a hack: we want t1_is_empty to have a tuple iff t1.empty? is
+  # true
+  bloom do
+    t1_is_empty <= dummy {|t| t if t1.empty?}
   end
 end
 
 class TestZk < Test::Unit::TestCase
   def setup
+    zk_delete(ZK_ROOT)
+  end
+
+  def zk_delete(path)
     z = Zookeeper.new("localhost:2181")
-    zk_rm_r(z, "/foo")
+    zk_rm_r(z, path)
     z.close
   end
 
@@ -56,7 +74,7 @@ class TestZk < Test::Unit::TestCase
     b.sync_callback(:t1, tuples, :t1)
 
     b.sync_do {
-      assert_equal([["xyz", "zzz"]], b.t1.to_a.sort)
+      assert_equal(tuples.sort, b.t1.to_a.sort)
     }
     b.stop_bg
   end
@@ -85,7 +103,64 @@ class TestZk < Test::Unit::TestCase
       assert_equal(tuples.sort, b2.t1.to_a.sort)
     }
 
+    c = b2.register_callback(:t1) do |t|
+      q.push(true) if t.length == 1
+    end
+    zk_delete(ZK_ROOT + "/k1")
+    q.pop
+    b2.unregister_callback(c)
+    b2.sync_do {
+      assert_equal([["k2", "ggg"]], b2.t1.to_a.sort)
+    }
+
+    c = b2.register_callback(:t1_is_empty) do |t|
+      q.push(true)
+    end
+    zk_delete(ZK_ROOT + "/k2")
+    q.pop
+    b2.unregister_callback(c)
+
+    b2.sync_do {
+      assert_equal([], b2.t1.to_a.sort)
+    }
+
     b1.stop_bg
+    b2.stop_bg
+  end
+
+  def test_ephemeral
+    b1, b2 = ZkMirror.new, ZkMirror.new
+    b1.run_bg
+    b2.run_bg
+
+    b2.sync_do {
+      b2.t1 <~ [["baz", "xyz"]]
+    }
+
+    q = Queue.new
+    c = b2.register_callback(:t1) do |t|
+      q.push(true) if t.length == 2
+    end
+    b1.sync_do {
+      b1.t1 <~ [["foo", "bar", {:ephemeral => true}]]
+    }
+    q.pop
+    b2.unregister_callback(c)
+
+    b2.sync_do {
+      assert_equal([["baz", "xyz"], ["foo", "bar"]], b2.t1.to_a.sort)
+    }
+
+    c = b2.register_callback(:t1) do |t|
+      q.push(true) if t.length == 1
+    end
+    b1.stop_bg
+    q.pop
+    b2.unregister_callback(c)
+    b2.sync_do {
+      assert_equal([["baz", "xyz"]], b2.t1.to_a.sort)
+    }
+
     b2.stop_bg
   end
 end
