@@ -232,7 +232,8 @@ class PartlyQualifiedCombo
     table :arr
     table :ess
     table :tee
-    table :result
+    table :result1
+    table :result2
   end
 
   bootstrap do
@@ -243,11 +244,12 @@ class PartlyQualifiedCombo
 
   bloom do
     # result is never populated
-    result <= (tee * arr * ess).combos(arr.key => ess.key)
+    result1 <= (tee * arr * ess).combos(arr.key => ess.key)
     # but it is when the join is specified in this order
-    #result <= (arr * ess * tee).combos(arr.key => ess.key)
+    result2 <= (arr * ess * tee).combos(arr.key => ess.key)
   end
 end
+
 
 class TestJoins < Test::Unit::TestCase
   def test_combos
@@ -347,6 +349,7 @@ class TestJoins < Test::Unit::TestCase
   def test_partial_combos
     p = PartlyQualifiedCombo.new
     p.tick
-    assert_equal(1, p.result.length)
+    assert_equal(1, p.result1.length)
+    assert_equal(p.result2.to_a.flatten.sort, p.result1.to_a.flatten.sort)
   end
 end

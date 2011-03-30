@@ -420,20 +420,17 @@ module Bud
     end
   end
 
-  # sync_callback supports synchronous interaction with bud modules.
-  # The caller supplies the name of an input relation,
-  # a set of tuples to insert, and an output relation on which  to 'listen.'
-  # The call blocks until tuples are inserted into the output collection:
-  # these are returned to the caller.
+  # sync_callback supports synchronous interaction with bud modules.  The caller
+  # supplies the name of an input collection, a set of tuples to insert, and an
+  # output collection on which to 'listen.'  The call blocks until tuples are
+  # inserted into the output collection: these are returned to the caller.
   def sync_callback(in_tbl, tupleset, out_tbl)
     q = Queue.new
     cb = register_callback(out_tbl) do |c|
       q.push c.to_a
     end
-    sync_do do 
-      unless in_tbl.nil?
-        @tables[in_tbl] <+ tupleset 
-      end
+    unless in_tbl.nil?
+      sync_do { @tables[in_tbl] <+ tupleset }
     end
     result = q.pop
     unregister_callback(cb)
@@ -700,7 +697,7 @@ module Bud
   # :nodoc
   def natjoin(rels, &blk)
     # for all pairs of relations, add predicates on matching column names
-		preds = BudJoin::natural_preds(self, rels)
+        preds = BudJoin::natural_preds(self, rels)
     j = join(rels, *preds, &blk)
   end
 

@@ -149,7 +149,6 @@ module Bud
     # akin to map, but modified for efficiency in Bloom statements
     public
     def pro(&blk)
-      # to be filled in later for single-node semi-naive iteration
       return map(&blk)
     end
 
@@ -158,7 +157,6 @@ module Bud
     # evaluator (but within the current time tick).
     public # :nodoc:
     def each(&block)
-      # if @bud_instance.stratum_first_iter
       each_from([@storage, @delta], &block)
     end
 
@@ -538,10 +536,7 @@ module Bud
 		#          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
 		public
 		def pairs(*preds, &blk)
-			unless preds.nil?
-				@localpreds = disambiguate_preds(preds)
-				canonicalize_localpreds(@rels)
-			end
+      setup_preds(preds) unless preds.nil? or preds.empty?
 			blk.nil? ? self : map(&blk)
 		end	
 		
@@ -573,7 +568,24 @@ module Bud
 			map{ |l,r| r }
 		end
 
-		private
+    # extract predicates on rellist[0] and recurse to right side with remainder
+    protected 
+    def setup_preds(preds)
+      allpreds = disambiguate_preds(preds)
+			allpreds = canonicalize_localpreds(@rels, allpreds)
+			@localpreds = allpreds.reject { |p| p[0][0] != @rels[0].tabname and p[1][0] != @rels[1].tabname }
+			otherpreds = allpreds.reject { |p| p[0][0] == @rels[0].tabname or p[1][0] == @rels[1].tabname}
+      otherpreds = nil if otherpreds.empty?
+      unless otherpreds.nil?
+        unless @rels[1].class <= Bud::BudJoin
+          require 'ruby-debug'; debugger
+          raise BudError, "join predicates don't match tables being joined: #{otherpreds.inspect}"
+        end
+        @rels[1].setup_preds(otherpreds)
+      end
+    end
+
+		protected
 		def disambiguate_preds(preds)
 			if preds.size == 1 and preds[0].class <= Hash
 				predarray = preds[0].map do |k,v|
@@ -600,7 +612,7 @@ module Bud
 		# find element in @origrels that contains this aname method
 		# if 2nd arg is non-nil, only check that collection.
 		# after found, return the result of invoking aname from chosen collection
-		private
+		protected
 		def find_attr_match(aname, rel=nil)
 			dorels = (rel.nil? ? @origrels : [rel])
 			match = nil
@@ -616,7 +628,7 @@ module Bud
 			match.send(aname)
 		end
 		
-		private
+		protected
 	  def decomp_preds(*preds)
 	    # decompose each pred into a binary pred
 		  return nil if preds.nil? or preds.empty? or preds == [nil]
@@ -629,14 +641,11 @@ module Bud
 	    newpreds
 	  end	  
 	
-	  private
-		def canonicalize_localpreds(rellist)
-			return if @localpreds.nil?
-			@localpreds.each do |p|
-        if p[1][0] == rellist[0].tabname
-          @localpreds.delete(p)
-          @localpreds << [p[1], p[0]]
-        end
+	  protected
+		def canonicalize_localpreds(rel_list, preds)
+			return if preds.nil?
+			retval = preds.map do |p|
+        p[1][0] == rel_list[0].tabname ? p.reverse : p
       end
 		end
   end
