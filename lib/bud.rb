@@ -555,6 +555,7 @@ module Bud
     # Arrange for Bud to read from stdin if enabled. Note that we can't do this
     # earlier because we need to wait for EventMachine startup.
     @stdio.start_stdin_reader if @options[:read_stdin]
+    @zk_tables.each_value {|t| t.start_watchers}
 
     # Compute a fixpoint; this will also invoke any bootstrap blocks.
     tick unless @lazy

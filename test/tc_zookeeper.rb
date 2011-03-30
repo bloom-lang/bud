@@ -56,7 +56,7 @@ class TestZk < Test::Unit::TestCase
     b.sync_callback(:t1, tuples, :t1)
 
     b.sync_do {
-      assert_equal([["xyz", "zzz"]], b.t1.to_a.sort)
+      assert_equal(tuples.sort, b.t1.to_a.sort)
     }
     b.stop_bg
   end

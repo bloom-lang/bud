@@ -22,8 +22,14 @@ module Bud
       @base_path += "/" unless @zk_path.end_with? "/"
       @store_mutex = Mutex.new
       @next_storage = {}
+      @saw_delta = false
       @child_watch_id = nil
+      @stat_watch_id = nil
+    end
 
+    # Since the watcher callbacks might invoke EventMachine, we wait until after
+    # EM startup to start watching for Zk events.
+    def start_watchers
       # NB: Watcher callbacks are invoked in a separate Ruby thread.
       @child_watcher = Zookeeper::WatcherCallback.new { get_and_watch }
       @stat_watcher = Zookeeper::WatcherCallback.new { stat_and_watch }
@@ -36,6 +42,7 @@ module Bud
 
     def stat_and_watch
       r = @zk.stat(:path => @zk_path, :watcher => @stat_watcher)
+      @stat_watch_id = r[:req_id]
 
       unless r[:stat].exists
         cancel_child_watch
@@ -58,6 +65,13 @@ module Bud
       end
     end
 
+    def cancel_stat_watch
+      if @stat_watch_id
+        @zk.unregister_watcher(@stat_watch_id)
+        @stat_with_id = nil
+      end
+    end
+
     def get_and_watch
       r = @zk.get_children(:path => @zk_path, :watcher => @child_watcher)
       @child_watch_id = r[:req_id]
@@ -73,7 +87,7 @@ module Bud
 
         get_r = @zk.get(:path => child_path)
         unless get_r[:stat].exists
-          puts "Failed to fetch child: #{child_path}"
+          puts "ZK: failed to fetch child: #{child_path}"
           return
         end
 
@@ -90,11 +104,12 @@ module Bud
         @next_storage = new_children
         if @storage != @next_storage
           need_tick = true
+          @saw_delta = true
         end
       }
 
       # If we have new data, force a new Bud tick in the near future
-      if need_tick
+      if need_tick and not @bud_instance.lazy
         EventMachine::schedule {
           @bud_instance.tick
         }
@@ -103,10 +118,10 @@ module Bud
 
     def tick
       @store_mutex.synchronize {
-        return if @next_storage.empty?
-
+        return unless @saw_delta
         @storage = @next_storage
         @next_storage = {}
+        @saw_delta = false
       }
     end
 
@@ -125,6 +140,8 @@ module Bud
     end
 
     def close
+      cancel_child_watch
+      cancel_stat_watch
       @zk.close
     end
 
