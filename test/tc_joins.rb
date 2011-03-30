@@ -226,6 +226,29 @@ class RenameJoin
   end
 end
 
+class PartlyQualifiedCombo
+  include Bud
+  state do
+    table :arr
+    table :ess
+    table :tee
+    table :result
+  end
+
+  bootstrap do
+    arr << [1, 2]
+    ess << [1, 3]
+    tee << [5, 6]
+  end
+
+  bloom do
+    # result is never populated
+    result <= (tee * arr * ess).combos(arr.key => ess.key)
+    # but it is when the join is specified in this order
+    #result <= (arr * ess * tee).combos(arr.key => ess.key)
+  end
+end
+
 class TestJoins < Test::Unit::TestCase
   def test_combos
     program = CombosBud.new
@@ -319,5 +342,11 @@ class TestJoins < Test::Unit::TestCase
     p = RenameJoin.new
     assert_nothing_raised(RuntimeError) {p.tick}
     assert_equal([['a', 1]], p.out.to_a)
+  end
+
+  def test_partial_combos
+    p = PartlyQualifiedCombo.new
+    p.tick
+    assert_equal(1, p.result.length)
   end
 end
