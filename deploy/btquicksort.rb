@@ -60,4 +60,4 @@ class BTQuicksort
 
 end
 
-BTQuicksort.new(:ip => "127.0.0.1", :deploy => true).run
+BTQuicksort.new(:ip => "127.0.0.1", :deploy => true).run_fg

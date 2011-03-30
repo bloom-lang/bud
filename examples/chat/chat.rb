@@ -44,4 +44,4 @@ end
 
 puts "Server address: #{server}"
 program = ChatClient.new(ARGV[0], server, :read_stdin => true)
-program.run
+program.run_fg

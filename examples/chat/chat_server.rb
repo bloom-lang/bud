@@ -10,7 +10,7 @@ class ChatServer
 
   bloom do
     nodelist <= connect.payloads
-    mcast <~ (mcast*nodelist).pairs { |m,n| [n.key, m.val] }
+    mcast <~ (mcast * nodelist).pairs { |m,n| [n.key, m.val] }
   end
 end
 
@@ -23,4 +23,4 @@ end
 ip, port = addr.split(":")
 puts "Server address: #{ip}:#{port}"
 program = ChatServer.new(:ip => ip, :port => port.to_i)
-program.run
+program.run_fg

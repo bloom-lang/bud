@@ -100,7 +100,8 @@ class Module
   end
 end
 
-# The root Bud module. To run a Bud instance, there are three main options:
+# The root Bud module. To cause an instance of Bud to begin executing, there are
+# three main options:
 #
 # 1. Synchronously. To do this, instantiate your program and then call tick()
 #    one or more times; each call evaluates a single Bud timestep. Note that in
@@ -108,8 +109,8 @@ end
 #    is mostly intended for "one-shot" programs that compute a single result and
 #    then terminate.
 # 2. In a separate thread in the foreground. To do this, instantiate your
-#    program and then call run(). The Bud interpreter will then run, handling
-#    network events and evaluating new timesteps as appropriate. The run()
+#    program and then call run_fg(). The Bud interpreter will then run, handling
+#    network events and evaluating new timesteps as appropriate. The run_fg()
 #    method will not return unless an error occurs.
 # 3. In a separate thread in the background. To do this, instantiate your
 #    program and then call run_bg(). The Bud interpreter will run
@@ -296,7 +297,7 @@ module Bud
   # when interacting with it. For example, it is not safe to directly examine
   # Bud collections from the caller's thread (see async_do and sync_do).
   #
-  # This instance of Bud will continue to run until stop_bg is called.
+  # This instance of Bud will continue to execute until stop_bg is called.
   def run_bg
     start_reactor
     # Wait for Bud to start up before returning
@@ -309,13 +310,13 @@ module Bud
   # Bud interpreter. This means this method won't return unless an error
   # occurs. It is often more useful to run Bud asynchronously -- see run_bg.
   #
-  # Note that run cannot be invoked if run_bg has already been called in the
+  # Note that run_fg cannot be invoked if run_bg has already been called in the
   # same Ruby process.
   #
   # Execution proceeds in time ticks, a la Dedalus.
   # * Within each tick there may be multiple strata.
   # * Within each stratum we do multiple semi-naive iterations.
-  def run
+  def run_fg
     raise BudError if EventMachine::reactor_running?
 
     EventMachine::run {
@@ -341,18 +342,18 @@ module Bud
   end
 
   # Given a block, evaluate that block inside the background Ruby thread at some
-  # time in the future. Because the callback is invoked inside the background
-  # Ruby thread, Bud state can be safely examined inside the block. Naturally,
-  # this method can only be used when Bud is running in the background. Note
-  # that calling sync_do blocks the caller's thread until the block has been
-  # evaluated by the Bud thread; for a non-blocking version, see async_do.
+  # time in the future. Because the block is evaluate inside the background Ruby
+  # thread, the block can safely examine Bud state. Naturally, this method can
+  # only be used when Bud is running in the background. Note that calling
+  # sync_do blocks the caller until the block has been evaluated; for a
+  # non-blocking version, see async_do.
   #
-  # Note that the callback is invoked after one Bud timestep has ended but
-  # before the next timestep begins. Hence, synchronous accumulation (<=) into a
-  # Bud scratch collection in a callback is typically not useful: when the next
-  # tick begins, the content of any scratch collections will be emptied, which
-  # includes anything inserted by a sync_do block using <=. To avoid this
-  # behavior, insert into scratches using <+.
+  # Note that the block is invoked after one Bud timestep has ended but before
+  # the next timestep begins. Hence, synchronous accumulation (<=) into a Bud
+  # scratch collection in a callback is typically not a useful thing to do: when
+  # the next tick begins, the content of any scratch collections will be
+  # emptied, which includes anything inserted by a sync_do block using <=. To
+  # avoid this behavior, insert into scratches using <+.
   def sync_do
     schedule_and_wait do
       yield if block_given?
@@ -374,8 +375,8 @@ module Bud
 
   # Shutdown any persistent tables used by the current Bud instance. If you are
   # running Bud via tick() and using `tctable` collections, you should call this
-  # after you're finished using Bud. Programs that use Bud via run() or run_bg()
-  # don't need to call this manually.
+  # after you're finished using Bud. Programs that use Bud via run_fg() or
+  # run_bg() don't need to call this manually.
   def close_tables
     @tables.each_value do |t|
       t.close

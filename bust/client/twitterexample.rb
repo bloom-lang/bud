@@ -14,11 +14,10 @@ class TwitterExample
 
   bloom :print_recent_tweets do
     # print the tweets with user screen names
-    stdio <~ rest_response.map do |r|
+    stdio <~ rest_response do |r|
       [r.resp.map {|s| s["user"]["screen_name"] + ": " + s["text"]}] if r.rid==1
     end
   end
-
 end
 
-TwitterExample.new.run
+TwitterExample.new.run_fg

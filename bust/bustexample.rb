@@ -11,8 +11,8 @@ class BustExample
   end
 
   bloom do
-    stdio <~ foo.map {|t| [t.inspect]}
+    stdio <~ foo {|t| [t.inspect]}
   end
 end
 
-BustExample.new.run
+BustExample.new.run_fg
