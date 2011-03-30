@@ -14,7 +14,7 @@ module Bud
     attr_accessor :bud_instance
     attr_reader :schema, :key_cols, :val_cols, :tabname
     attr_reader :storage, :delta, :new_delta
-    
+
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false)
       @tabname = name
       @bud_instance = bud_instance
@@ -284,7 +284,7 @@ module Bud
       end
     end
 
-    public 
+    public
     def insert(o) #:nodoc:
       # puts "insert: #{o.inspect} into #{tabname}"
       do_insert(o, @storage)
@@ -330,7 +330,7 @@ module Bud
     end
 
     # instantaneously merge items from collection into self
-    public 
+    public
     def merge(o, buf=@new_delta)
       check_enumerable(o)
       establish_schema(o) if @schema.nil?
@@ -523,58 +523,58 @@ module Bud
     end
 
     alias reduce inject
-    
+
     # methods that work on nested collections (resulting from joins)
-    
-    
+
+
     # given a * expression over n collections, form all combinations of items
     # subject to an array of predicates, pred
     # currently supports two options for equijoin predicates:
-		#    general form: an array of arrays capturing a conjunction of equiv. classes
-		#          [[table1.col1, table2.col2, table3.col3], [table1.col2, table2.col3]]
-		#    common form: a hash capturing equality of a column on left with one on right.
-		#          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
-		public
-		def pairs(*preds, &blk)
+        #    general form: an array of arrays capturing a conjunction of equiv. classes
+        #          [[table1.col1, table2.col2, table3.col3], [table1.col2, table2.col3]]
+        #    common form: a hash capturing equality of a column on left with one on right.
+        #          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
+        public
+        def pairs(*preds, &blk)
       setup_preds(preds) unless preds.nil? or preds.empty?
-			blk.nil? ? self : map(&blk)
-		end	
-		
-		alias combos pairs
-    
-    # the natural join: given a * expression over 2 collections, form all 
+            blk.nil? ? self : map(&blk)
+        end
+
+        alias combos pairs
+
+    # the natural join: given a * expression over 2 collections, form all
     # combinations of items that have the same values in matching fiels
     public
-		def matches(&blk)
-			preds = BudJoin::natural_preds(@bud_instance, @rels)
-			pairs(*preds, &blk)
-		end
-			
-    # given a * expression over 2 collections, form all 
+        def matches(&blk)
+            preds = BudJoin::natural_preds(@bud_instance, @rels)
+            pairs(*preds, &blk)
+        end
+
+    # given a * expression over 2 collections, form all
     # combinations of items that have the same values in matching fields
     # and project only onto the attributes of the first item
-		public
-		def lefts(*preds)
-			@localpreds = disambiguate_preds(preds)
-			map{ |l,r| l }
-		end
+        public
+        def lefts(*preds)
+            @localpreds = disambiguate_preds(preds)
+            map{ |l,r| l }
+        end
 
-    # given a * expression over 2 collections, form all 
+    # given a * expression over 2 collections, form all
     # combinations of items that have the same values in matching fields
     # and project only onto the attributes of the second item
-		public
-		def rights(*preds)
-			@localpreds = disambiguate_preds(preds)
-			map{ |l,r| r }
-		end
+        public
+        def rights(*preds)
+            @localpreds = disambiguate_preds(preds)
+            map{ |l,r| r }
+        end
 
     # extract predicates on rellist[0] and recurse to right side with remainder
-    protected 
+    protected
     def setup_preds(preds)
       allpreds = disambiguate_preds(preds)
-			allpreds = canonicalize_localpreds(@rels, allpreds)
-			@localpreds = allpreds.reject { |p| p[0][0] != @rels[0].tabname and p[1][0] != @rels[1].tabname }
-			otherpreds = allpreds.reject { |p| p[0][0] == @rels[0].tabname or p[1][0] == @rels[1].tabname}
+            allpreds = canonicalize_localpreds(@rels, allpreds)
+            @localpreds = allpreds.reject { |p| p[0][0] != @rels[0].tabname and p[1][0] != @rels[1].tabname }
+            otherpreds = allpreds.reject { |p| p[0][0] == @rels[0].tabname or p[1][0] == @rels[1].tabname}
       otherpreds = nil if otherpreds.empty?
       unless otherpreds.nil?
         unless @rels[1].class <= Bud::BudJoin
@@ -585,69 +585,69 @@ module Bud
       end
     end
 
-		protected
-		def disambiguate_preds(preds)
-			if preds.size == 1 and preds[0].class <= Hash
-				predarray = preds[0].map do |k,v|
-					if k.class != v.class
-           	raise Bud::CompileError, "inconsistent attribute ref style #{k.inspect} => #{v.inspect}"
-					elsif k.class <= Array
-						[k,v]
-					elsif k.class <= Symbol
-						if @origrels and @origrels.length == 2
-							[find_attr_match(k,@origrels[0]), find_attr_match(v,@origrels[1])]
-						else
-							[find_attr_match(k), find_attr_match(v)]
-						end
-				  else
-						raise Bud::CompileError, "invalid attribute ref in #{k.inspect} => #{v.inspect}"
-					end
-				end
-				return decomp_preds(*predarray)
-			else
-				return decomp_preds(*preds)
-			end
-		end
-		
-		# find element in @origrels that contains this aname method
-		# if 2nd arg is non-nil, only check that collection.
-		# after found, return the result of invoking aname from chosen collection
-		protected
-		def find_attr_match(aname, rel=nil)
-			dorels = (rel.nil? ? @origrels : [rel])
-			match = nil
-			dorels.each do |r|
-				match ||= r if r.respond_to?(aname)
-				if r.respond_to?(aname) and match != r
-					raise Bud::CompileError, "ambiguous attribute :#{aname} in both #{match.tabname} and #{r.tabname}"
-				end
-			end
-			if match.nil?
-				raise Bud::CompileError, "attribute :#{aname} not found in any of #{dorels.map{|t| t.tabname}.inspect}"
-			end
-			match.send(aname)
-		end
-		
-		protected
-	  def decomp_preds(*preds)
-	    # decompose each pred into a binary pred
-		  return nil if preds.nil? or preds.empty? or preds == [nil]
-	    newpreds = []
-	    preds.each do |p|
-	      p.each_with_index do |c, i|
-	        newpreds << [p[i], p[i+1]] unless p[i+1].nil?
-	      end
-	    end
-	    newpreds
-	  end	  
-	
-	  protected
-		def canonicalize_localpreds(rel_list, preds)
-			return if preds.nil?
-			retval = preds.map do |p|
+        protected
+        def disambiguate_preds(preds)
+            if preds.size == 1 and preds[0].class <= Hash
+                predarray = preds[0].map do |k,v|
+                    if k.class != v.class
+            raise Bud::CompileError, "inconsistent attribute ref style #{k.inspect} => #{v.inspect}"
+                    elsif k.class <= Array
+                        [k,v]
+                    elsif k.class <= Symbol
+                        if @origrels and @origrels.length == 2
+                            [find_attr_match(k,@origrels[0]), find_attr_match(v,@origrels[1])]
+                        else
+                            [find_attr_match(k), find_attr_match(v)]
+                        end
+                  else
+                        raise Bud::CompileError, "invalid attribute ref in #{k.inspect} => #{v.inspect}"
+                    end
+                end
+                return decomp_preds(*predarray)
+            else
+                return decomp_preds(*preds)
+            end
+        end
+
+        # find element in @origrels that contains this aname method
+        # if 2nd arg is non-nil, only check that collection.
+        # after found, return the result of invoking aname from chosen collection
+        protected
+        def find_attr_match(aname, rel=nil)
+            dorels = (rel.nil? ? @origrels : [rel])
+            match = nil
+            dorels.each do |r|
+                match ||= r if r.respond_to?(aname)
+                if r.respond_to?(aname) and match != r
+                    raise Bud::CompileError, "ambiguous attribute :#{aname} in both #{match.tabname} and #{r.tabname}"
+                end
+            end
+            if match.nil?
+                raise Bud::CompileError, "attribute :#{aname} not found in any of #{dorels.map{|t| t.tabname}.inspect}"
+            end
+            match.send(aname)
+        end
+
+        protected
+      def decomp_preds(*preds)
+        # decompose each pred into a binary pred
+          return nil if preds.nil? or preds.empty? or preds == [nil]
+        newpreds = []
+        preds.each do |p|
+          p.each_with_index do |c, i|
+            newpreds << [p[i], p[i+1]] unless p[i+1].nil?
+          end
+        end
+        newpreds
+      end
+
+      protected
+        def canonicalize_localpreds(rel_list, preds)
+            return if preds.nil?
+            retval = preds.map do |p|
         p[1][0] == rel_list[0].tabname ? p.reverse : p
       end
-		end
+        end
   end
 
   class BudScratch < BudCollection
@@ -729,11 +729,11 @@ module Bud
       @pending.clear
     end
 
-    # given a channel collections, project to the non-address fields 
+    # given a channel collection, project to the non-address fields
     public
     def payloads
       if schema.size > 2
-        # need to bundle up each tuple's non-locspec fields into an array
+        # bundle up each tuple's non-locspec fields into an array
         retval = case @locspec_idx
           when 0 then self.pro{|t| t[1..(t.size-1)]}
           when (t.size - 1) then self.pro{|t| t[0..(t.size-2)]}
