@@ -75,8 +75,21 @@ class BudMeta #:nodoc: all
 
     pt = Unifier.new.process(parse_tree)
     pp pt if @bud_instance.options[:dump_ast]
-    check_rule_ast(pt)
-
+    begin
+      check_rule_ast(pt)
+    rescue
+      # try to "generate" the source code associated with the problematic
+      # block, so as to generate a more meaningful error message.
+      # if this parse fails, return the original exception (not the new one).
+      begin
+        r2r = Ruby2Ruby.new
+        code = r2r.process(pt) 
+      rescue
+        raise $!, "Error parsing rule block #{block_name}.  Could not extract source."
+      end
+      raise $!, "Error parsing rule block:\n #{code}"
+    end
+  
     rewriter = RuleRewriter.new(seed, @bud_instance)
     rewriter.process(pt)
     return rewriter
