@@ -51,9 +51,16 @@ class TestZk < Test::Unit::TestCase
     b.sync_do {
       assert_equal([], b.t1.to_a.sort)
     }
+    q = Queue.new
+    c = b.register_callback(:t1) do
+      q.push(true)
+    end
     b.sync_do {
       b.t1 <~ [["xyz", "zzz"]]
     }
+    q.pop
+    b.unregister_callback(c)
+
     b.sync_do {
       assert_equal([["xyz", "zzz"]], b.t1.to_a.sort)
     }
