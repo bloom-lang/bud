@@ -345,11 +345,11 @@ class TestJoins < Test::Unit::TestCase
     assert_nothing_raised(RuntimeError) {p.tick}
     assert_equal([['a', 1]], p.out.to_a)
   end
-  
 
   def test_partial_combos
     p = PartlyQualifiedCombo.new
     p.tick
+    assert_equal(1, p.result1.length)
     assert_equal(p.result2.to_a.flatten.sort, p.result1.to_a.flatten.sort)
   end
 end
