@@ -267,15 +267,10 @@ module Bud
 
     private
     def do_insert(o, store)
-      # return if o.respond_to?(:empty?) and o.empty?
       return if o.nil? # silently ignore nils resulting from map predicates failing
       o = prep_tuple(o)
       keycols = @key_colnums.map{|i| o[i]}
 
-      # XXX should this be self[keycols?]
-      # but what about if we're not calling on store = @storage?
-      # probably pk should be tested by the caller of this routing
-      # XXX please check in some key violation tests!!
       old = store[keycols]
       if old.nil?
         store[keycols] = tuple_accessors(o)
