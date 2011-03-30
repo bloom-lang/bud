@@ -123,17 +123,17 @@ module Bud
 
     public
     def keys
-      self.map{|t| (0..self.key_cols.length-1).map{|i| t[i]}}
+      self.pro{|t| (0..self.key_cols.length-1).map{|i| t[i]}}
     end
 
     public
     def values
-      self.map{|t| (self.key_cols.length..self.schema.length-1).map{|i| t[i]}}
+      self.pro{|t| (self.key_cols.length..self.schema.length-1).map{|i| t[i]}}
     end
 
     public
     def inspected
-      self.map{|t| [t.inspect]}
+      self.pro{|t| [t.inspect]}
     end
 
     private
@@ -708,9 +708,9 @@ module Bud
       if schema.size > 2
         # need to bundle up each tuple's non-locspec fields into an array
         retval = case @locspec_idx
-          when 0 then self.map{|t| t[1..(t.size-1)]}
-          when (t.size - 1) then self.map{|t| t[0..(t.size-2)]}
-          else self.map{|t| t[0..(@locspec_idx-1)] + t[@locspec_idx+1..(t.size-1)]}
+          when 0 then self.pro{|t| t[1..(t.size-1)]}
+          when (t.size - 1) then self.pro{|t| t[0..(t.size-2)]}
+          else self.pro{|t| t[0..(@locspec_idx-1)] + t[@locspec_idx+1..(t.size-1)]}
         end
       else
         # just return each tuple's non-locspec field value
