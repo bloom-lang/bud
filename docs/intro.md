@@ -1,6 +1,6 @@
 # *Bud*: Ruby <~ Bloom #
 
-Bud is a prototype of the [*Bloom*](http://bloom-lang.org) language for distributed programming, embedded in Ruby.  "Bud" stands for *Bloom under development*.  Bud is currently in alpha; we intend to keep developing Bloom aggressively in the short term, before a firmer beta design.
+Bud is a prototype of the [*Bloom*](http://bloom-lang.org) language for distributed programming, embedded as a DSL in Ruby.  "Bud" stands for *Bloom under development*.  The current 0.0.1 release is the initial alpha, targeted at "friends and family" who would like to engage at an early stage in the language design.
 
 ## Distributed Code in Bloom ##
 The goal of Bloom is to make distributed programming far easier than it has been with traditional languages.  The key features of Bloom are:
@@ -13,15 +13,24 @@ The goal of Bloom is to make distributed programming far easier than it has been
 
 4. *Concise Code*: Bloom is a very high-level language, designed with distributed code in mind.  As a result, Bloom programs tend to be far smaller (often [orders of magnitude](http://boom.cs.berkeley.edu) smaller) than equivalent programs in traditional imperative languages.
 
+## Alpha Goals and Limitations ##
 
-## Friends and Family: Come On In ##
-Bloom is beginning life as a research project, but our goal is to enable real developers to get real work done.  Faster.  Better.  In a more maintainable and malleable way.
+We had three main goals in preparing this release.  The first was to flesh out the shape of the Bloom language: initial syntax and semantics, and the "feel" of embedding it as a DSL.  The second goal was to build tools for reasoning about Bloom programs: both automatic program analysis, and tools for surfacing that analysis to developers.
 
-To get to that point, we're offering Bud as a pre-alpha "friends and family" edition of Bloom.  This is definitely the bleeding edge: we're in a rapid  cycle of learning about this new style of programming, and exposing what we learn in new iterations of the language.  If you'd like to jump on the wheel with us and play with Bud, we'd love your feedback--both success stories and constructive criticism.
+The third goal was to start a feedback loop with developers interested in the potential of the ideas behind the language.  We are optimistic that the principles underlying Bloom can make distributed programming radically simpler.  But we realize that those ideas only matter if programmers can adopt them naturally.  We intend Bud to be the beginning of an iterative design partnership with developers who see value in betting early on these ideas, and shaping the design of the language.  
+
+In developing this alpha release, we explicitly set aside some issues that we intend to revisit in future.  The first limitation is performance: Bud 0.0.1 is not intended to excel in single-node performance in terms of either latency, throughput or scale.  We do expect major improvements on all these fronts in future releases: many of the known performance problems have known solutions that we've implemented in prior systems, and we intend to revisit them for our beta release.  The second main limitation involves integration issues embedding Bloom as a DSL in Ruby.  In the spectrum from flexibility to purity, we leaned decidedly toward flexibility.  The barriers between Ruby and Bloom code are very fluid in the alpha, and we do relatively little to prevent programmers from ad-hoc mixtures of the two.  Aggressive use of Ruby within Bloom statements is likely to do something *interesting*, but not necessarily predictable or desirable.  This is an area where we expect to learn more from experience, and make some more refined decisions for the beta release.
+
+### Friends and Family: Come On In ###
+Although our team has many years of development experience, Bud is still open-source academic software built on a decidedly personal scale.
+
+This 0.0.1 alpha is targeted at "friends and family", and at developers who'd like to become same.  This is definitely the bleeding edge: we're in a rapid  cycle of learning about this new style of programming, and exposing what we learn in new iterations of the language.  If you'd like to jump on the wheel with us and play with Bud, we'd love your feedback--both success stories and constructive criticism.
 
 ## Getting Started ##
 We're shipping Bud with a [sandbox](http://github.com/bloom-lang/bud-sandbox) of libraries and example applications for distributed systems.  These illustrate the language and how it can be used, and also can serve as mixins for new code you might want to write.  You may be surprised at how short the provided Bud code is, but don't be fooled.
 
-To help newcomers learn the language, we've provided an annotated [cheat sheet](cheat.md) to overview the language, a [quick-start tutorial](getstarted.md), and a simple *language reference*.  We also provide instructions and tools for launching Bud code on Amazon's EC2 cloud, and instrumenting what it's doing up there. Like Bud itself, these documents are an early alpha.
+To get you started with Bud, we've provided a [quick-start tutorial](getstarted.md), instructions for [deploying distributed Bud](deployer.md) programs on Amazon's EC2 cloud, and a number of other docs you can find linked from the [README](README.md).
 
 We welcome both constructive criticism and (hopefully occasional) smoke-out-your-ears, hair-tearing shouts of frustration.  Please point your feedback cannon at the [Bloom mailing list](http://groups.google.com/group/bloom-lang) on Google Groups.
+
+Happy Blooming!
