@@ -1,6 +1,6 @@
 module Bud
   # Root Bud exception type.
-  class BudError < Exception; end
+  class BudError < StandardError; end
 
   # Raised (at runtime) when a type mismatch occurs (e.g., supplying a
   # non-Enumerable object to the RHS of a Bud statement).
