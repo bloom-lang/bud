@@ -23,22 +23,9 @@ module Bud
 			rellist = tmprels
 		  @origrels = rellist	
 			
-			preds = decomp_preds(*preds)
-
-      # extract predicates on rellist[0] and let the rest recurse
-      unless preds.nil?
-        @localpreds = preds.reject { |p| p[0][0] != rellist[0].tabname and p[1][0] != rellist[0].tabname }
-				canonicalize_localpreds(rellist)
-        otherpreds = preds.reject { |p| p[0][0] == rellist[0].tabname or p[1][0] == rellist[0].tabname}
-        otherpreds = nil if otherpreds.empty?
-      end
-      if rellist.length == 2 and not otherpreds.nil?
-        raise BudError, "join predicates don't match tables being joined: #{otherpreds.inspect}"
-      end
-
       # recurse to form a tree of binary BudJoins
       @rels = [rellist[0]]
-      @rels << (rellist.length == 2 ? rellist[1] : BudJoin.new(rellist[1..rellist.length-1], @bud_instance, otherpreds))
+      @rels << (rellist.length == 2 ? rellist[1] : BudJoin.new(rellist[1..rellist.length-1], @bud_instance, nil))
       # derive schema: one column for each table.
       # unnamed inputs become "t_i" for position i
       # duplicated inputs get distinguishing numeral
@@ -56,6 +43,8 @@ module Bud
         end
         memo
       end
+      
+      preds = setup_preds(preds) unless preds.nil? or preds.empty?
 			self
     end
 
