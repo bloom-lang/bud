@@ -12,7 +12,7 @@ The __plotter__ is a visual static analysis tool that aids in design and early i
 
 1. Visual sanity checking: does the dataflow look like I expected it to look?
 2. Ensuring that a particular set of mixins is fully specified: e.g., did I forget to include a concrete implementation of a protocol required by other modules?
-    * JMH: What's a "concrete implementation" really?  Will readers follow?
+   The Bloom module system, abstract interfaces and concrete implementations are described in more detail in [[modules]].
 3. Identifying dead code sections
 4. Experimenting with different module compositions
 5. Identifying and iteratively refining a program's points of order
