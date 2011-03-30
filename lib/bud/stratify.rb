@@ -51,8 +51,7 @@ class Stratification # :nodoc: all
           if d.neg and !d.temporal
             raise Bud::CompileError, "unstratifiable program: #{d.inspect}"
           else
-            # a special hack for scope rewriting; mod_p <- p and p <- mod_p
-            [d.head, d.via, d.neg, d.temporal] unless d.head =~ /_#{d.via}/ or d.via =~ /_#{d.head}/
+            [d.head, d.via, d.neg, d.temporal]
           end
         end
       end
