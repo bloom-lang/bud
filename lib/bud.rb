@@ -429,10 +429,8 @@ module Bud
     cb = register_callback(out_tbl) do |c|
       q.push c.to_a
     end
-    sync_do do
-      unless in_tbl.nil?
-        @tables[in_tbl] <+ tupleset
-      end
+    unless in_tbl.nil?
+      sync_do { @tables[in_tbl] <+ tupleset }
     end
     result = q.pop
     unregister_callback(cb)
