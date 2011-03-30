@@ -454,7 +454,6 @@ module Bud
     # form a collection containing all pairs of items in self and items in collection
     public
     def *(collection)
-      require 'ruby-debug'; debugger if bud_instance.nil?
       bud_instance.join([self, collection])
     end
 
