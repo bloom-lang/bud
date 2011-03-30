@@ -430,7 +430,14 @@ module Bud
       q.push c.to_a
     end
     unless in_tbl.nil?
-      sync_do { @tables[in_tbl] <+ tupleset }
+      sync_do {
+        t = @tables[in_tbl]
+        if t.class <= Bud::BudChannel or t.class <= Bud::BudZkTable
+          t <~ tupleset
+        else
+          t <+ tupleset
+        end
+      }
     end
     result = q.pop
     unregister_callback(cb)
