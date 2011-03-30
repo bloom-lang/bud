@@ -45,7 +45,6 @@ module Bud
         if r[:rc] != Zookeeper::ZOK and r[:rc] != Zookeeper::ZNODEEXISTS
           raise
         end
-        puts "Created root path: #{@zk_path}"
       end
 
       # Make sure we're watching for children
