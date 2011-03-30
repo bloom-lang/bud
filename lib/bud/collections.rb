@@ -66,11 +66,12 @@ module Bud
       return [schema, key_cols]
     end
 
-    public
+    public #:nodoc: all
     def clone_empty
       self.class.new(tabname, bud_instance, @given_schema)
     end
 
+    # returns the subset of the schema that is not the key
     public
     def val_cols
       schema - key_cols
@@ -116,24 +117,28 @@ module Bud
       tup.extend @tupaccess
     end
 
+    # generate a tuple with the schema of this collection and nil values in each attribute
     public
     def null_tuple
       tuple_accessors(Array.new(@schema.length))
     end
 
+    # project the collection to its key attributes
     public
     def keys
-      self.map{|t| (0..self.key_cols.length-1).map{|i| t[i]}}
+      self.pro{|t| (0..self.key_cols.length-1).map{|i| t[i]}}
     end
 
+    # project the collection to its non-key attributes
     public
     def values
-      self.map{|t| (self.key_cols.length..self.schema.length-1).map{|i| t[i]}}
+      self.pro{|t| (self.key_cols.length..self.schema.length-1).map{|i| t[i]}}
     end
 
+    # map each item in the collection into a string, suitable for placement in stdio
     public
     def inspected
-      self.map{|t| [t.inspect]}
+      self.pro{|t| [t.inspect]}
     end
 
     private
@@ -141,6 +146,7 @@ module Bud
       @pending.map{|t| [t[1].inspect]}
     end
 
+    # akin to map, but modified for efficiency in Bloom statements
     public
     def pro(&blk)
       # to be filled in later for single-node semi-naive iteration
@@ -150,7 +156,7 @@ module Bud
     # By default, all tuples in any rhs are in storage or delta. Tuples in
     # new_delta will get transitioned to delta in the next iteration of the
     # evaluator (but within the current time tick).
-    public
+    public # :nodoc:
     def each(&block)
       # if @bud_instance.stratum_first_iter
       each_from([@storage, @delta], &block)
@@ -166,9 +172,8 @@ module Bud
       end
     end
 
-    # :nodoc
     public
-    def each_from_sym(buf_syms, &block)
+    def each_from_sym(buf_syms, &block) # :nodoc
       bufs = buf_syms.map do |s|
         case s
         when :storage then @storage
@@ -200,29 +205,31 @@ module Bud
     def close
     end
 
+    # checks for key k in the key columns
     public
     def has_key?(k)
       return false if k.nil? or k.empty? or self[k].nil?
       return true
     end
 
-    # return item with that key
-    # ---
-    # assumes that key is in storage or delta, but not both
-    # is this enforced in do_insert?
+    # return item with key k
     public
-    def [](key)
-      return @storage[key].nil? ? @delta[key] : @storage[key]
+    def [](k)
+      # assumes that key is in storage or delta, but not both
+      # is this enforced in do_insert?
+      return @storage[k].nil? ? @delta[k] : @storage[k]
     end
 
+    # checks for item in the key columns
     public
-    def include?(tuple)
+    def include?(item)
       return true if key_cols.nil? or (key_cols.empty? and length > 0)
-      return false if tuple.nil? or tuple.empty?
-      key = key_cols.map{|k| tuple[schema.index(k)]}
-      return (tuple == self[key])
+      return false if item.nil? or item.empty?
+      key = key_cols.map{|k| item[schema.index(k)]}
+      return (item == self[key])
     end
 
+    # checks for an item for which the block produces a match
     public
     def exists?(&block)
       if length == 0
@@ -279,8 +286,8 @@ module Bud
       end
     end
 
-    public
-    def insert(o)
+    public 
+    def insert(o) #:nodoc:
       # puts "insert: #{o.inspect} into #{tabname}"
       do_insert(o, @storage)
     end
@@ -325,7 +332,7 @@ module Bud
     end
 
     # instantaneously merge items from collection into self
-    public
+    public 
     def merge(o, buf=@new_delta)
       check_enumerable(o)
       establish_schema(o) if @schema.nil?
@@ -347,6 +354,7 @@ module Bud
 
     alias <= merge
 
+    # buffer items to be merged atomically at end of this timestep
     public
     def pending_merge(o)
       check_enumerable(o)
@@ -356,7 +364,6 @@ module Bud
       return self
     end
 
-    # merge items from collection into self at the end of this timestep
     public
     superator "<+" do |o|
       pending_merge o
@@ -373,7 +380,7 @@ module Bud
     end
 
     # move deltas to storage, and new_deltas to deltas.
-    public
+    public # :nodoc:
     def tick_deltas
       # assertion: intersect(@storage, @delta) == nil
       @storage.merge!(@delta)
@@ -454,7 +461,6 @@ module Bud
     # form a collection containing all pairs of items in self and items in collection
     public
     def *(collection)
-      require 'ruby-debug'; debugger if bud_instance.nil?
       bud_instance.join([self, collection])
     end
 
@@ -523,6 +529,8 @@ module Bud
     # methods that work on nested collections (resulting from joins)
     
     
+    # given a * expression over n collections, form all combinations of items
+    # subject to an array of predicates, pred
     # currently supports two options for equijoin predicates:
 		#    general form: an array of arrays capturing a conjunction of equiv. classes
 		#          [[table1.col1, table2.col2, table3.col3], [table1.col2, table2.col3]]
@@ -539,18 +547,26 @@ module Bud
 		
 		alias combos pairs
     
+    # the natural join: given a * expression over 2 collections, form all 
+    # combinations of items that have the same values in matching fiels
     public
 		def matches(&blk)
 			preds = BudJoin::natural_preds(@bud_instance, @rels)
 			pairs(*preds, &blk)
 		end
 			
+    # given a * expression over 2 collections, form all 
+    # combinations of items that have the same values in matching fields
+    # and project only onto the attributes of the first item
 		public
 		def lefts(*preds)
 			@localpreds = disambiguate_preds(preds)
 			map{ |l,r| l }
 		end
 
+    # given a * expression over 2 collections, form all 
+    # combinations of items that have the same values in matching fields
+    # and project only onto the attributes of the second item
 		public
 		def rights(*preds)
 			@localpreds = disambiguate_preds(preds)
@@ -675,7 +691,7 @@ module Bud
       retval
     end
 
-    public
+    public # :nodoc:
     def tick
       @storage = {}
       # Note that we do not clear @pending here: if the user inserted into the
@@ -683,7 +699,7 @@ module Bud
       # message at the end of the current tick.
     end
 
-    public
+    public # :nodoc:
     def flush
       ip = @bud_instance.ip
       port = @bud_instance.port
@@ -704,14 +720,15 @@ module Bud
       @pending.clear
     end
 
+    # given a channel collections, project to the non-address fields 
     public
     def payloads
       if schema.size > 2
         # need to bundle up each tuple's non-locspec fields into an array
         retval = case @locspec_idx
-          when 0 then self.map{|t| t[1..(t.size-1)]}
-          when (t.size - 1) then self.map{|t| t[0..(t.size-2)]}
-          else self.map{|t| t[0..(@locspec_idx-1)] + t[@locspec_idx+1..(t.size-1)]}
+          when 0 then self.pro{|t| t[1..(t.size-1)]}
+          when (t.size - 1) then self.pro{|t| t[0..(t.size-2)]}
+          else self.pro{|t| t[0..(@locspec_idx-1)] + t[@locspec_idx+1..(t.size-1)]}
         end
       else
         # just return each tuple's non-locspec field value
@@ -728,7 +745,7 @@ module Bud
       raise BudError, "Illegal use of <+ with channel '#{@tabname}' on left"
     end
 
-    public
+    public # :nodoc:
     def <=(o)
       raise BudError, "Illegal use of <= with channel '#{@tabname}' on left"
     end
@@ -740,7 +757,7 @@ module Bud
       @prompt = prompt
     end
 
-    public
+    public #:nodoc: all
     def start_stdin_reader
       # XXX: Ugly hack. Rather than sending terminal data to EM via UDP,
       # we should add the terminal file descriptor to the EM event loop.
@@ -769,7 +786,7 @@ module Bud
     end
 
     public
-    def flush
+    def flush #:nodoc: all
       @pending.each do |p|
         $stdout.puts p[0]
       end
@@ -777,18 +794,18 @@ module Bud
     end
 
     public
-    def tick
+    def tick #:nodoc: all
       @storage = {}
       raise BudError unless @pending.empty?
     end
 
     public
-    def merge(o)
+    def merge(o) #:nodoc: all
       raise BudError, "no synchronous accumulation into terminal; use <~"
     end
 
     public
-    def <=(o)
+    def <=(o) #:nodoc: all
       merge(o)
     end
 
@@ -807,7 +824,7 @@ module Bud
     end
 
     public
-    def tick
+    def tick #:nodoc: all
       @to_delete.each do |tuple|
         keycols = @key_colnums.map{|k| tuple[k]}
         if @storage[keycols] == tuple
@@ -833,7 +850,7 @@ module Bud
       raise BudError, "Illegal use of <+ with read-only collection '#{@tabname}' on left"
     end
     public
-    def merge
+    def merge  #:nodoc: all
       raise BudError, "Illegal use of <= with read-only collection '#{@tabname}' on left"
     end
   end
@@ -864,7 +881,9 @@ module Enumerable
   public
   def rename(new_tabname, new_schema=nil)
     budi = (respond_to?(:bud_instance)) ? bud_instance : nil
-    new_schema ||= schema unless schema.nil?
+    if new_schema.nil? and respond_to?(:schema)
+      new_schema = schema
+    end
     scr = Bud::BudScratch.new(new_tabname.to_s, budi, new_schema)
     scr.merge(self, scr.storage)
     scr

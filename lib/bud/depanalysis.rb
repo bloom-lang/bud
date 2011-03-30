@@ -15,19 +15,19 @@ class DepAnalysis #:nodoc: all
 
   def declaration
     strata[0] = lambda { 
-      source <= providing.map do |p|
+      source <= providing do |p|
         if p.input and !depends_tc.map{|d| d.head}.include? p.pred
           [p.pred]
         end
       end
 
-      sink <= providing.map do |p|
+      sink <= providing do |p|
         if !p.input and !depends_tc.map{|d| d.body}.include? p.pred
           [p.pred]
         end
       end
 
-      underspecified <= providing.map do |p|
+      underspecified <= providing do |p|
         if p.input
           unless depends_tc.map{|d| d.body if d.head != d.body}.include? p.pred 
             [p.pred, true]
