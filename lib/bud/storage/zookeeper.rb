@@ -129,7 +129,16 @@ module Bud
       each_from([@pending]) do |t|
         path = @base_path + t.key
         data = t.val
-        r = @zk.create(:path => path, :data => data)
+        ephemeral = false
+
+        if t.length > 2
+          opts = t.last.first
+          if opts[:ephemeral] == true
+            ephemeral = true
+          end
+        end
+
+        r = @zk.create(:path => path, :data => data, :ephemeral => ephemeral)
         if r[:rc] == Zookeeper::ZNODEEXISTS
           puts "Ignoring duplicate insert: #{t.inspect}"
         elsif r[:rc] != Zookeeper::ZOK
