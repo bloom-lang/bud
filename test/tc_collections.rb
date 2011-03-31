@@ -251,6 +251,19 @@ class BadDeclaration2
   end
 end
 
+class EmptyPk
+  include Bud
+
+  state do
+    table :t1, [] => [:foo]
+  end
+
+  bootstrap do
+    t1 << ["abc"]
+    t1 << ["xyz"]
+  end
+end
+
 class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
@@ -403,5 +416,10 @@ class TestCollections < Test::Unit::TestCase
   def test_bad_declarations
     assert_raise(Bud::CompileError) { BadDeclaration1.new }
     assert_raise(Bud::CompileError) { BadDeclaration2.new }
+  end
+
+  def test_empty_pk
+    e = EmptyPk.new
+    assert_raise(Bud::KeyConstraintError) { e.tick }
   end
 end
