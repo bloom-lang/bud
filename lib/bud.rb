@@ -173,8 +173,7 @@ module Bud
     @viz = VizOnline.new(self) if @options[:trace]
     @rtracer = RTrace.new(self) if @options[:rtrace]
 
-    # meta stuff.  parse the AST of the current (sub)class,
-    # get dependency info, and determine stratification order.
+    # Get dependency info and determine stratification order.
     unless self.class <= Stratification or self.class <= DepAnalysis
       do_rewrite
     end
