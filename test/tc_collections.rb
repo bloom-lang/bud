@@ -255,21 +255,21 @@ class EmptyPk
   include Bud
 
   state do
-    table :t1, [] => [:foo]
+    table :t1, [] => [:foo, :bar]
   end
 
   bootstrap do
-    t1 << ["abc"]
-    t1 << ["xyz"]
+    t1 << ["abc", 5]
+    t1 << ["abc", 6]
   end
 end
 
 class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
-    assert_nothing_raised(RuntimeError) { program.tick }
+    program.tick
     assert_equal(1, program.scrtch2.length)
-    assert_nothing_raised(RuntimeError) { program.tick }
+    program.tick
     assert_equal([["[\"c\", \"d\", 5, 6]"]], program.scrtch.inspected)
     assert_equal(0, program.scrtch2.length)
     assert_equal(2, program.tbl.length)
@@ -279,7 +279,7 @@ class TestCollections < Test::Unit::TestCase
 
   def test_tuple_accessors
     program = BabyBud.new
-    assert_nothing_raised(RuntimeError) { program.tick }
+    program.tick
     assert_equal(1, program.scrtch[['a','b']].v1)
     assert_equal(2, program.scrtch[['a','b']].v2)
   end
@@ -287,8 +287,8 @@ class TestCollections < Test::Unit::TestCase
   def test_insert_delete
     program = BabyBud.new
     # tick twice to get to 2nd timestep
-    assert_nothing_raised(RuntimeError) { program.tick }
-    assert_nothing_raised(RuntimeError) { program.tick }
+    program.tick
+    program.tick
     assert_equal(1, program.scrtch.length )
     assert_equal(0, program.scrtch2.length )
     assert_equal(2, program.tbl.length )
@@ -309,33 +309,33 @@ class TestCollections < Test::Unit::TestCase
 
   def test_grep
     program = Grep.new(/[Bb]loom/)
-    assert_nothing_raised(RuntimeError) { program.tick }
-    lines = program.matches.map{|t| t}
+    program.tick
+    lines = program.matches.to_a
     assert_equal(1, lines.length)
     assert_equal(44, lines[0][0])
   end
 
   def test_union
     s = Union.new
-    assert_nothing_raised(RuntimeError) { s.tick }
+    s.tick
     assert_equal(2, s.union.length)
     assert_equal([["a", "b", 4], ["a", "b", 1]], s.union.to_a)
   end
 
   def test_delete_key
     d = DeleteKey.new
-    assert_nothing_raised(RuntimeError) { d.tick }
+    d.tick
     assert_equal(1, d.t1.length)
     d.del_buf << [5, 11] # shouldn't delete
-    assert_nothing_raised(RuntimeError) { d.tick }
+    d.tick
     assert_equal(1, d.t1.length)
-    assert_nothing_raised(RuntimeError) { d.tick }
+    d.tick
     assert_equal(1, d.t1.length)
 
     d.del_buf << [5, 10] # should delete
-    assert_nothing_raised(RuntimeError) { d.tick }
+    d.tick
     assert_equal(1, d.t1.length)
-    assert_nothing_raised(RuntimeError) { d.tick }
+    d.tick
     assert_equal(0, d.t1.length)
   end
 
@@ -360,7 +360,7 @@ class TestCollections < Test::Unit::TestCase
 
   def test_types
     p1 = BendTypes.new
-    assert_nothing_raised(RuntimeError) { p1.tick }
+    p1.tick
     assert_equal(1, p1.t1.first.key)
     p2 = NonEnumerable.new
     assert_raise(Bud::BudTypeError) { p2.tick }
