@@ -182,7 +182,7 @@ module Bud
     # Load the rules as a closure.
     @strata = []
     declaration
-    @rewritten_strata.each_with_index do |rs, i|
+    @rewritten_strata.each do |rs|
       block = eval "lambda { #{rs} }"
       @strata << block
     end
