@@ -130,15 +130,20 @@ module Bud
         path = @base_path + t.key
         data = t.val
         ephemeral = false
+        sequence = false
 
         if t.length > 2
           opts = t.last.first
           if opts[:ephemeral] == true
             ephemeral = true
           end
+          if opts[:sequence] == true
+            sequence = true
+          end
         end
 
-        r = @zk.create(:path => path, :data => data, :ephemeral => ephemeral)
+        r = @zk.create(:path => path, :data => data,
+                       :ephemeral => ephemeral, :sequence => sequence)
         if r[:rc] == Zookeeper::ZNODEEXISTS
           puts "Ignoring duplicate insert: #{t.inspect}"
         elsif r[:rc] != Zookeeper::ZOK

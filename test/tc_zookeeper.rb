@@ -163,4 +163,29 @@ class TestZk < Test::Unit::TestCase
 
     b2.stop_bg
   end
+
+  def test_sequence
+    b = ZkMirror.new
+    b.run_bg
+
+    q = Queue.new
+    c = b.register_callback(:t1) do |t|
+      q.push(true) if t.length == 3
+    end
+    b.sync_do { b.t1 <~ [["a_", "kkk", {:sequence => true}]] }
+    b.sync_do { b.t1 <~ [["b_", "kkk", {:sequence => true}]] }
+    b.sync_do { b.t1 <~ [["c_", "kkk", {:sequence => true}]] }
+
+    q.pop
+    b.unregister_callback(c)
+
+    b.sync_do {
+      assert_equal([["a_0000000000", "kkk"],
+                    ["b_0000000001", "kkk"],
+                    ["c_0000000002", "kkk"]],
+                   b.t1.to_a.sort)
+    }
+
+    b.stop_bg
+  end
 end
