@@ -21,10 +21,22 @@ While the order and grouping of BUD rules have no semantic significance, rules c
       end
     end
 
-Within a module
 
- The BUD Module Import System
+### The BUD Module Import System
 
+For simple programs, composing modules via _include_ is often sufficient.  But the flat namespace provided by mixins can make it difficult or impossible to support certain types of reuse.  Consider a module Q that provides a queue-like functionality via an input interface _enqueue_ and an output interface _dequeue_, each with a single attribute (payload).  A later module may wish to employ two queues (say, to implement a scheduler).  But it cannot include Q twice!  It would be necessary to rewrite Q's interfaces so as to support multiple ``users.'' 
+
+In addition to _include_, BUD supports the _import_ keyword, which instantiates a BUD module under a namespace alias.  For example:
+
+    module UserCode
+      import Q => :q1
+      import Q => :q2
+
+      bloom do
+        # insert into the first queue
+        q1.enqueue <= [....]
+      end
+    end
 ## Techniques
 
 
