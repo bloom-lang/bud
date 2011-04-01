@@ -78,4 +78,22 @@ Basic code composition can achieved using the Ruby mixin system.  If the flat na
 
 Extending the existing functionality of a BUD program can be achieved in a number of ways.  The simplest (but arguably least flexible) is via basket overriding, as described in the Hello example above.  
 
-The import system can be used to implement finer-grained overriding, at the collection level.  Consider a module BlackBox that provides an input interface __iin__ and an output interface __iout__,
+The import system can be used to implement finer-grained overriding, at the collection level.  Consider a module BlackBox that provides an input interface __iin__ and an output interface __iout__.  Suppose that we wish to ``use'' BlackBox, but need to provide additional functionality.  We may extend one or both of its interfaces by _import_'ing BlackBox, redeclaring the interfaces, and gluing them together.  For example, the module UsesBlackBox shown below interposes additional logic (indicated by ellipses) upstream of BlackBox's input interface, and provides ``extended'' BlackBox functionality.
+
+    module UsesBlackBox
+      import BlackBox => :bb
+      state do
+        interface input, :iin
+        interface output, :iout
+      end
+
+      bloom do
+        [ .... ] <= iin
+        bb.iin <= [ .... ]
+        iout <= bb.iout
+      end
+    end
+
+### Abstract Interfaces and Concrete Implementations
+
+
