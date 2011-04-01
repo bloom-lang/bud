@@ -37,7 +37,17 @@ In addition to _include_, BUD supports the _import_ keyword, which instantiates 
         q1.enqueue <= [....]
       end
     end
+
+
 ## Techniques
 
+### Structuring 
 
+
+
+### Composition
+
+Code composition is achieved 
+
+### Extension and Overriding
 
