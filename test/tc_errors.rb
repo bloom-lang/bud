@@ -88,4 +88,30 @@ class TestErrorHandling < Test::Unit::TestCase
   def test_var_shadow_error
     assert_raise(Bud::CompileError) { VarShadowError.new }
   end
+
+  class EvalError
+    include Bud
+
+    state do
+      scratch :t1
+      scratch :t2
+    end
+
+    bloom do
+      t2 <= t1 { |t| [t.key, 5 / t.val]}
+    end
+  end
+
+  def test_eval_error
+    e = EvalError.new
+    e.run_bg
+
+    assert_raise(Bud::BudError) {
+      e.sync_do {
+        e.t1 <+ [[5, 0]]
+      }
+    }
+
+    e.stop_bg
+  end
 end

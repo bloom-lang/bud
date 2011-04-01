@@ -17,11 +17,11 @@ class BudMeta #:nodoc: all
     top_stratum = stratify
     stratum_map = binaryrel2map(@bud_instance.t_stratum)
 
-    rewritten_strata = Array.new(top_stratum + 1, "")
+    rewritten_strata = Array.new(top_stratum + 1) { [] }
     @bud_instance.t_rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
       belongs_in = stratum_map[d.lhs]
       belongs_in ||= 0
-      rewritten_strata[belongs_in] += "#{d.src}\n"
+      rewritten_strata[belongs_in] << d.src
     end
 
     @depanalysis = DepAnalysis.new
@@ -191,8 +191,9 @@ class BudMeta #:nodoc: all
       fout.puts d
     end
 
-    strata.each_with_index do |r, i|
-      fout.puts "R[#{i}]:\n #{r}"
+    strata.each_with_index do |src_ary, i|
+      text = src_ary.join("\n")
+      fout.puts "R[#{i}]:\n#{text}"
     end
     fout.close
   end
