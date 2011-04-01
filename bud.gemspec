@@ -3,14 +3,16 @@ Gem::Specification.new do |s|
   s.version = "0.0.1"
   s.date = "2010-07-19"
   s.authors = ["Peter Alvaro", "Neil Conway", "Joseph M. Hellerstein", "William R. Marczak"]
-  s.email = ["palvaro@cs.berkeley.edu", "nrc@cs.berkeley.edu", "hellerstein@berkeley.edu", "wrm@cs.berkeley.edu"]
+  s.email = ["palvaro@cs.berkeley.edu", "nrc@cs.berkeley.edu", "jmh@berkeley.edu", "wrm@cs.berkeley.edu"]
   s.summary = "A prototype Bloom DSL for distributed programming."
   s.homepage = "http://www.bloom-lang.org"
   s.description = "A prototype of the Bloom distributed programming language, as a Ruby DSL."
   s.license = "BSD"
   s.has_rdoc = true
+  s.required_ruby_version = '>= 1.8.1'
+  s.rubyforge_project = 'bloom-lang'
 
-  s.files = Dir.glob("lib/**/*") + %w[README LICENSE]
+  s.files = Dir['lib/**/*'] + Dir['bin/*'] + Dir['docs/**/*'] + Dir['examples/**/*'] + %w[README LICENSE]
   s.executables = %w[rebl budplot budvis]
   s.default_executable = 'rebl'
 
