@@ -126,19 +126,19 @@ module Bud
     # project the collection to its key attributes
     public
     def keys
-      self.pro{|t| (0..self.key_cols.length-1).map{|i| t[i]}}
+      self.map{|t| (0..self.key_cols.length-1).map{|i| t[i]}}
     end
 
     # project the collection to its non-key attributes
     public
     def values
-      self.pro{|t| (self.key_cols.length..self.schema.length-1).map{|i| t[i]}}
+      self.map{|t| (self.key_cols.length..self.schema.length-1).map{|i| t[i]}}
     end
 
     # map each item in the collection into a string, suitable for placement in stdio
     public
     def inspected
-      self.pro{|t| [t.inspect]}
+      self.map{|t| [t.inspect]}
     end
 
     private
@@ -149,7 +149,16 @@ module Bud
     # akin to map, but modified for efficiency in Bloom statements
     public
     def pro(&blk)
-      return map(&blk)
+      if @bud_instance.stratum_first_iter
+        return map(&blk) 
+      else
+        retval = []
+        each_from([@delta]) do |t|
+          newitem = blk.call(t)
+          retval << newitem unless newitem.nil?
+        end
+        return retval
+      end    
     end
 
     # By default, all tuples in any rhs are in storage or delta. Tuples in
@@ -163,6 +172,7 @@ module Bud
     # :nodoc
     private
     def each_from(bufs, &block)
+      @@each_counter ||= 0
       bufs.each do |b|
         b.each_value do |v|
           yield v
