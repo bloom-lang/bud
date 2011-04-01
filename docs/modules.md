@@ -78,7 +78,7 @@ Basic code composition can achieved using the Ruby mixin system.  If the flat na
 
 Extending the existing functionality of a BUD program can be achieved in a number of ways.  The simplest (but arguably least flexible) is via basket overriding, as described in the Hello example above.  
 
-The import system can be used to implement finer-grained overriding, at the collection level.  Consider a module BlackBox that provides an input interface __iin__ and an output interface __iout__.  Suppose that we wish to ``use'' BlackBox, but need to provide additional functionality.  We may extend one or both of its interfaces by _import_'ing BlackBox, redeclaring the interfaces, and gluing them together.  For example, the module UsesBlackBox shown below interposes additional logic (indicated by ellipses) upstream of BlackBox's input interface, and provides ``extended'' BlackBox functionality.
+The import system can be used to implement finer-grained overriding, at the collection level.  Consider a module BlackBox that provides an input interface __iin__ and an output interface __iout__.  Suppose that we wish to "use" BlackBox, but need to provide additional functionality.  We may extend one or both of its interfaces by _import_'ing BlackBox, redeclaring the interfaces, and gluing them together.  For example, the module UsesBlackBox shown below interposes additional logic (indicated by ellipses) upstream of BlackBox's input interface, and provides ``extended'' BlackBox functionality.
 
     module UsesBlackBox
       import BlackBox => :bb
@@ -96,4 +96,16 @@ The import system can be used to implement finer-grained overriding, at the coll
 
 ### Abstract Interfaces and Concrete Implementations
 
+In the previous example, two different implementations (UsesBlackBox and its dependency BlackBox) had the same externally visible interface: inserting tuples into __iin__ causes tuples to appear in __iout__.  In some sense, the definition of this pair of interfaces comprises an abstract contract which both implementations implement -- and the dependency of UsesBlackBox on Blackbox is just a detail of UsesBlackBox's implementation.
 
+The basic Ruby module system inherited by Bud may be used, by convention, to enable code reuse and hiding via the separation of abstract interfaces and concrete implementations.  Instead of reiterating the schema definitions in multiple state blocks, we will often instead declare a protocol module as follows:
+
+    module BBProtocol
+      # Contract: do XXXXXXXXXXX
+      state do
+        interface input, :iin
+        interface output, :iout
+      end
+    end
+
+Each implementation of the protocol would then include BBProtocol.  Though the interpreter treats this as an ordinary Ruby mixin, the interpretation is that by including BBProtocol, both BlackBox and UsesBlackBox _implement_ the protocol.  A downstream developer may then write code against the external interface, committing only when necessary to a fully-specified implmentation.
