@@ -203,14 +203,14 @@ module Bud
     def close
     end
 
-    # checks for key k in the key columns
+    # checks for key +k+ in the key columns
     public
     def has_key?(k)
       return false if k.nil? or k.empty? or self[k].nil?
       return true
     end
 
-    # return item with key k
+    # return item with key +k+
     public
     def [](k)
       # assumes that key is in storage or delta, but not both
@@ -218,7 +218,7 @@ module Bud
       return @storage[k].nil? ? @delta[k] : @storage[k]
     end
 
-    # checks for item in the key columns
+    # checks for +item+ in the collection
     public
     def include?(item)
       return true if key_cols.nil? or (key_cols.empty? and length > 0)
@@ -227,7 +227,7 @@ module Bud
       return (item == self[key])
     end
 
-    # checks for an item for which the block produces a match
+    # checks for an item for which +block+ produces a match
     public
     def exists?(&block)
       if length == 0
@@ -235,8 +235,7 @@ module Bud
       elsif not block_given?
         return true
       else
-        retval = ((detect{|t| yield t}).nil?) ? false : true
-        return retval
+        return ((detect{|t| yield t}).nil?) ? false : true
       end
     end
 
@@ -294,8 +293,8 @@ module Bud
       end
     end
 
-    # Assign self a schema, by hook or by crook.  If o is schemaless *and* empty, will
-    # leave @schema as is.
+    # Assign self a schema, by hook or by crook.  If +o+ is schemaless *and*
+    # empty, will leave @schema as is.
     private
     def establish_schema(o)
       # use o's schema if available
@@ -305,7 +304,7 @@ module Bud
       return @schema
     end
 
-    # Copy over the schema from o if available
+    # Copy over the schema from +o+ if available
     private
     def deduce_schema(o)
       if @schema.nil? and o.class <= Bud::BudCollection and not o.schema.nil?
@@ -316,7 +315,7 @@ module Bud
       return @schema
     end
 
-    # manufacture schema of the form [:c0, :c1, ...] with width = arity
+    # manufacture schema of the form [:c0, :c1, ...] with width = +arity+
     private
     def fit_schema(arity)
       # rhs is schemaless.  create schema from first tuple merged
@@ -324,7 +323,7 @@ module Bud
       return @schema
     end
 
-    # instantaneously merge items from collection into self
+    # instantaneously merge items from collection +o+ into +buf+
     public
     def merge(o, buf=@new_delta)
       check_enumerable(o)
@@ -362,7 +361,7 @@ module Bud
       pending_merge o
     end
 
-    # Called at the end of each time step: prepare the collection for the next
+    # Called at the end of each timestep: prepare the collection for the next
     # timestep.
     public
     def tick
@@ -451,7 +450,8 @@ module Bud
       argagg(:max, gbkey_cols, col)
     end
 
-    # form a collection containing all pairs of items in self and items in collection
+    # form a collection containing all pairs of items in +self+ and items in
+    # +collection+
     public
     def *(collection)
       bud_instance.join([self, collection])
