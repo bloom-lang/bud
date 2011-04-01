@@ -12,29 +12,27 @@ class ChatClient
     super opts
   end
 
-  # send connection request to server on startup
   bootstrap do
     connect <~ [[@server, [ip_port, @nick]]]
   end
 
   bloom do
-    # send terminal input to the server to be broadcast
     mcast <~ stdio do |s|
       [@server, [ip_port, @nick, Time.new.strftime("%I:%M.%S"), s.line]]
     end
-    # pretty-print mcast messages from server on terminal
-    stdio <~ mcast do |m|
-      [left_right_align(m.val[1].to_s + ": " \
-                        + (m.val[3].to_s || ''),
-                        "(" + m.val[2].to_s + ")")]
-    end
+
+    stdio <~ mcast { |m| [pretty_print(m.val)] }
   end
 
   # format chat messages with timestamp on the right of the screen
-  def left_right_align(x, y)
-    return x + " "*[66 - x.length,2].max + y
+  def pretty_print(val)
+    str = val[1].to_s + ": " + (val[3].to_s || '')
+    pad = "(" + val[2].to_s + ")"
+    return str + " "*[66 - str.length,2].max + pad
   end
 end
+
+
 
 if ARGV.length == 2
   server = ARGV[1]
