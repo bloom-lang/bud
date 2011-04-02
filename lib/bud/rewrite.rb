@@ -257,8 +257,31 @@ class TempExpander < SexpProcessor
           next
         end
 
+        # temp declarations are misparsed if the RHS contains certain constructs
+        # (e.g., old-style join syntax, group, "do |f| ... end" rather than
+        # "{|f| ... }").  Rewrite to correct the misparsing.
+        if n.sexp_type == :iter
+          iter_body = n.sexp_body
+
+          if iter_body.first.sexp_type == :call
+            call_node = iter_body.first
+
+            _, recv, meth, meth_args = call_node
+            if meth == :temp and recv.nil?
+              _, lhs, op, rhs = meth_args.sexp_body.first
+
+              old_rhs_body = rhs.sexp_body
+              rhs[1] = s(:iter)
+              rhs[1] += old_rhs_body
+              rhs[1] += iter_body[1..-1]
+              block[i] = n = call_node
+              @did_work = true
+            end
+          end
+        end
+
         _, recv, meth, meth_args = n
-        if meth == :temp
+        if meth == :temp and recv.nil?
           block[i] = rewrite_temp(n)
           @did_work = true
         end
