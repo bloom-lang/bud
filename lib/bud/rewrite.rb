@@ -228,6 +228,10 @@ class NestedRefRewriter < SexpProcessor
   end
 end
 
+# Look for temp declarations and remove the "temp" keyword, yielding code that
+# we can safely eval. We also record the set of "temp" collections we've seen,
+# and provide a helper method that returns the AST of a state block that
+# contains declarations for all those temp tables.
 class TempExpander < SexpProcessor
   attr_reader :tmp_tables
   attr_accessor :did_work
@@ -264,8 +268,6 @@ class TempExpander < SexpProcessor
     s(tag, name, args, scope)
   end
 
-  # Return an AST containing a state def block with definitions for all the temp
-  # tables encountered by this TempExpander.
   def get_state_meth(klass)
     return if @tmp_tables.empty?
     block = s(:block)
