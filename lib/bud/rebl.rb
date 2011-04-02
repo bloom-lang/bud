@@ -140,13 +140,15 @@ class ReblShell
     puts
     puts "rebl commands:"
     maxlen = @@commands.keys.sort{|a,b| b.size - a.size}.first.size
-    @@commands.values.each do |v|
+    cmd_list = @@commands.keys.sort
+    cmd_list.each do |c|
+      v = @@commands[c]
       puts @@escape_char +
         v[1].gsub(/\t/, " "*(maxlen + 3 - v[1].split(':')[0].size))
     end
     puts "\nbreakpoints:"
     puts "a breakpoint is a rule with the 'breakpoint' scratch on the left of "+
-      "a '<=' arrow.  '#{@@escape_char}run' will stop ticking at the end of a "+
+      "a '<=' operator.\n'#{@@escape_char}run' will stop ticking at the end of a "+
       "timestep where a 'breakpoint' tuple exists."
   end
 
