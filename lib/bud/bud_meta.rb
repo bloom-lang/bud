@@ -77,24 +77,23 @@ class BudMeta #:nodoc: all
     pp pt if @bud_instance.options[:dump_ast]
     begin
       check_rule_ast(pt)
-    rescue
+    rescue Exception => e
       # try to "generate" the source code associated with the problematic
       # block, so as to generate a more meaningful error message.
       # if this parse fails, return the original exception (not the new one).
       begin
-        r2r = Ruby2Ruby.new
-        code = r2r.process(pt) 
-      rescue
-        raise $!, "Error parsing rule block #{block_name}.  Could not extract source."
+        code = Ruby2Ruby.new.process(pt)
+      rescue Exception => sub_e
+        raise e, "Error parsing rule block #{block_name}.  Could not extract source."
       end
-      raise $!, "Error parsing rule block:\n #{code}"
+      raise e, "Error parsing rule block #{block_name}:\n#{code}"
     end
-  
+
     rewriter = RuleRewriter.new(seed, @bud_instance)
     rewriter.process(pt)
     return rewriter
   end
-  
+
   # Perform some basic sanity checks on the AST of a rule block. We expect a
   # rule block to consist of a :defn, a nested :scope, and then a sequence of
   # statements. Each statement is a :call node.

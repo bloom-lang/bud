@@ -24,7 +24,7 @@ class TestSyntax < Test::Unit::TestCase
     rescue
       assert_equal(Bud::CompileError, $!.class)
       # fragile assertion? (whitespace etc)
-      assert_equal("Error parsing rule block:\n def __bloom__foobar\n  foo = bar\nend", $!.to_s)
+      assert_equal("Error parsing rule block __bloom__foobar:\ndef __bloom__foobar\n  foo = bar\nend", $!.to_s)
     end
   end
 end
