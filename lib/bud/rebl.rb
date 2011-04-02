@@ -31,13 +31,13 @@ class ReblShell
     "stop" => [lambda {|lib,_| lib.stop},
                "stop:\tstop ticking"],
 
-    "lsrules" => [lambda {|lib,_| lib.rules.each {|k,v| puts "#{k}: "+v}},
+    "lsrules" => [lambda {|lib,_| lib.rules.sort{|a,b| a[0] <=> b[0]}.each {|k,v| puts "#{k}: "+v}},
                   "lsrules:\tlist rules"],
 
     "rmrule" => [lambda {|lib,argv| lib.del_rule(Integer(argv[1]))},
                  "rmrule x:\tremove rule number x"],
 
-    "lscollections" => [lambda {|lib,_| lib.state.each {|k,v| puts "#{k}: "+v}},
+    "lscollections" => [lambda {|lib,_| lib.state.sort{|a,b| a[0] <=> b[0]}.each {|k,v| puts "#{k}: "+v}},
                         "lscollections:\tlist collections"],
 
     "dump" => [lambda {|lib,argv| lib.dump(argv[1])},
