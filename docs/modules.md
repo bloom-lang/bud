@@ -96,7 +96,8 @@ The import system can be used to implement finer-grained overriding, at the coll
 
 ### Abstract Interfaces and Concrete Implementations
 
-In the previous example, two different implementations (UsesBlackBox and its dependency BlackBox) had the same externally visible interface: inserting tuples into __iin__ causes tuples to appear in __iout__.  In some (extremely underspecified) sense, the definition of this pair of interfaces comprises an abstract contract which both implementations implement -- and the dependency of UsesBlackBox on Blackbox is just a detail of UsesBlackBox's implementation.
+In the previous example, UsesBlackBox extended the functionality of BlackBox by _interposing_ additional logic into its dataflow. 
+It was able to do this transparently because both implementations had the same externally visible interface: inserting tuples into __iin__ causes tuples to appear in __iout__.  In some (extremely underspecified) sense, the definition of this pair of interfaces constitutes an abstract contract which both implementations implement -- and the dependency of UsesBlackBox on Blackbox is just a detail of UsesBlackBox's implementation.
 
 The basic Ruby module system inherited by Bud may be used, by convention, to enable code reuse and hiding via the separation of abstract interfaces and concrete implementations.  Instead of reiterating the schema definitions in multiple state blocks, we will often instead declare a protocol module as follows:
 
