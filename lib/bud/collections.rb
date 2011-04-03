@@ -400,6 +400,17 @@ module Bud
 
     ######## aggs
 
+    private
+    # we only do grouping during first iteration of stratum: it never deals with deltas
+    def agg_in
+      if not @bud_instance.nil? and @bud_instance.stratum_first_iter == false
+        return []
+      else
+        return self
+      end
+    end
+      
+
     # a generalization of argmin/argmax to arbitrary exemplary aggregates.
     # for each distinct value in the grouping key columns, return the item in that group
     # that has the value of the exemplary aggregate "aggname"
@@ -419,7 +430,7 @@ module Bud
       else
         colnum = collection[1]
       end
-      tups = self.inject({}) do |memo,p|
+      tups = agg_in.inject({}) do |memo,p|
         pkey_cols = keynames.map{|n| p.send(n.to_sym)}
         if memo[pkey_cols].nil?
           memo[pkey_cols] = {:agg=>agg.send(:init, p[colnum]), :tups => [p]}
@@ -489,7 +500,7 @@ module Bud
       aggcolsdups.each_with_index do |n, i|
         aggcols << "#{n.downcase}_#{i}".to_sym
       end
-      tups = self.inject({}) do |memo, p|
+      tups = agg_in.inject({}) do |memo, p|
         pkey_cols = keynames.map{|n| p.send(n)}
         memo[pkey_cols] = [] if memo[pkey_cols].nil?
         aggpairs.each_with_index do |ap, i|
