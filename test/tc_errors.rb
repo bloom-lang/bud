@@ -88,4 +88,14 @@ class TestErrorHandling < Test::Unit::TestCase
   def test_var_shadow_error
     assert_raise(Bud::CompileError) { VarShadowError.new }
   end
+  
+  def test_bloom_block_error
+    defn = "class BloomBlockError\ninclude Bud\nbloom \"blockname\" do\nend\n\nend\n"
+    assert_raise(Bud::CompileError) {eval(defn)}
+  end
+  
+  def test_dup_blocks
+    defn = "class DupBlocks\ninclude Bud\nbloom :foo do\nend\nbloom :foo do\nend\nend\n"
+    assert_raise(Bud::CompileError) {eval(defn)}
+  end
 end
