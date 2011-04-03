@@ -122,6 +122,5 @@ class TestErrorHandling < Test::Unit::TestCase
     }
 
     e.stop_bg
->>>>>>> 1a096b5e7e2c5425e425922ef668f8a7588a7d04
   end
 end
