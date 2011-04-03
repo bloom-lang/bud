@@ -4,12 +4,11 @@ require 'parse_tree'
 require 'pp'
 
 class BudMeta #:nodoc: all
-  attr_reader :depanalysis, :decls
+  attr_reader :depanalysis
 
   def initialize(bud_instance, declarations)
     @bud_instance = bud_instance
     @declarations = declarations
-    @decls = []
   end
 
   def meta_rewrite
@@ -18,7 +17,7 @@ class BudMeta #:nodoc: all
     stratum_map = binaryrel2map(@bud_instance.t_stratum)
 
     rewritten_strata = Array.new(top_stratum + 1) { [] }
-    @bud_instance.t_rules.sort{|a, b| oporder(a.op) <=> oporder(b.op)}.each do |d|
+    @bud_instance.t_rules.each do |d|
       belongs_in = stratum_map[d.lhs]
       belongs_in ||= 0
       rewritten_strata[belongs_in] << d.src
@@ -171,25 +170,9 @@ class BudMeta #:nodoc: all
     return top
   end
 
-  def oporder(op)
-    case op
-      when '='
-        return 0
-      when '<<'
-        return 1
-      when '<='
-        return 2
-    else
-      return 3
-    end
-  end
-
   def dump_rewrite(strata)
     fout = File.new("#{@bud_instance.class}_rewritten.txt", "w")
     fout.puts "Declarations:"
-    @decls.each do |d|
-      fout.puts d
-    end
 
     strata.each_with_index do |src_ary, i|
       text = src_ary.join("\n")
