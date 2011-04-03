@@ -33,5 +33,16 @@ class CallbackTest < Test::Unit::TestCase
     c1.stop_bg
   end
 
+  def test_interrogate1
+    c = Vacuous.new
+    assert_raise(Bud::BudError) {c.int_ip_port}
+  end
+
+  def test_interrogate2
+    c = Vacuous.new
+    c.run_bg
+    assert_nothing_raised {c.int_ip_port}
+  end
+
 end
 
