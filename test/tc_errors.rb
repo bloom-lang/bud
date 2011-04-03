@@ -97,6 +97,7 @@ class TestErrorHandling < Test::Unit::TestCase
   def test_dup_blocks
     defn = "class DupBlocks\ninclude Bud\nbloom :foo do\nend\nbloom :foo do\nend\nend\n"
     assert_raise(Bud::CompileError) {eval(defn)}
+  end
 
   class EvalError
     include Bud
