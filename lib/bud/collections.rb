@@ -152,12 +152,16 @@ module Bud
       if @bud_instance.stratum_first_iter
         return map(&blk) 
       else
-        retval = []
-        each_from([@delta]) do |t|
-          newitem = blk.call(t)
-          retval << newitem unless newitem.nil?
+        if @delta.empty?
+          return []
+        else
+          retval = []
+          each_from([@delta]) do |t|
+            newitem = blk.call(t)
+            retval << newitem unless newitem.nil?
+          end
+          return retval
         end
-        return retval
       end    
     end
 

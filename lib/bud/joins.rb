@@ -133,10 +133,10 @@ module Bud
       end
     end
 
-    # public 
-    # def pro(&blk)
-    #   map(&blk)
-    # end
+    public 
+    def pro(&blk)
+      map(&blk)
+    end
 
 		public
     def each(mode=:both, &block)
