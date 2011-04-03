@@ -31,6 +31,7 @@ class BudMeta #:nodoc: all
 
     @depanalysis.underspecified.each do |u|
       puts "Warning: underspecified dataflow: #{u.inspect}"
+      @bud_instance.t_underspecified << u
     end
     dump_rewrite(rewritten_strata) if @bud_instance.options[:dump_rewrite]
 

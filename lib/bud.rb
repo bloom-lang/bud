@@ -641,6 +641,7 @@ module Bud
     table :t_depends, [:rule_id, :lhs, :op, :body] => [:nm]
     table :t_depends_tc, [:head, :body, :via, :neg, :temporal]
     table :t_provides, [:interface] => [:input]
+    table :t_underspecified, t_provides.schema
     table :t_stratum, [:predicate] => [:stratum]
     table :t_cycle, [:predicate, :via, :neg, :temporal]
   end
