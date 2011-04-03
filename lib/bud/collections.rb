@@ -172,7 +172,6 @@ module Bud
     # :nodoc
     private
     def each_from(bufs, &block)
-      @@each_counter ||= 0
       bufs.each do |b|
         b.each_value do |v|
           yield v
@@ -443,6 +442,7 @@ module Bud
       # merge directly into retval.storage, so that the temp tuples get picked up
       # by the lhs of the rule
       retval = BudScratch.new('argagg_temp', bud_instance, @given_schema)
+      retval.uniquify_tabname
       retval.merge(finals, retval.storage)
     end
 
@@ -523,6 +523,7 @@ module Bud
           schema = { keynames => aggcols }
         end
         retval = BudScratch.new('temp_group', bud_instance, schema)
+        retval.uniquify_tabname
         retval.merge(result, retval.storage)
       end
     end
@@ -541,7 +542,9 @@ module Bud
         #          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
     public
     def pairs(*preds, &blk)
-      setup_preds(preds) unless preds.nil? or preds.empty?
+      setup_preds(preds) unless (preds.nil? or preds.empty?)
+      # given new preds, the state for the join will be different.  set it up again.
+      setup_state if self.class <= Bud::BudJoin
       blk.nil? ? self : map(&blk)
     end
 
@@ -583,7 +586,6 @@ module Bud
       otherpreds = nil if otherpreds.empty?
       unless otherpreds.nil?
         unless @rels[1].class <= Bud::BudJoin
-          require 'ruby-debug'; debugger
           raise BudError, "join predicates don't match tables being joined: #{otherpreds.inspect}"
         end
         @rels[1].setup_preds(otherpreds)
@@ -653,6 +655,13 @@ module Bud
         p[1][0] == rel_list[0].tabname ? p.reverse : p
       end
     end
+    
+    public
+    def uniquify_tabname
+      # just append current number of microseconds
+      @tabname = (@tabname.to_s + Time.new.tv_usec.to_s).to_sym
+    end
+    
   end
 
   class BudScratch < BudCollection
@@ -899,6 +908,7 @@ module Enumerable
       new_schema = schema
     end
     scr = Bud::BudScratch.new(new_tabname.to_s, budi, new_schema)
+    scr.uniquify_tabname
     scr.merge(self, scr.storage)
     scr
   end

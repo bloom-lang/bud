@@ -144,6 +144,7 @@ module Bud
     @inbound = []
     @done_bootstrap = false
     @em_stopped = Queue.new
+    @joinstate = {}  # joins are stateful, their state needs to be kept inside the Bud instance
 
     # Setup options (named arguments), along with default values
     @options = options
@@ -731,21 +732,26 @@ module Bud
   end
 
   public
+  def joinstate
+    @joinstate
+  end
+
+  public
   def join(rels, *preds, &blk)
-    j = BudJoin.new(rels, self, preds)
-    wrap_map(j, &blk)
+    # since joins are stateful, we want to allocate them once and store in this Bud instance
+    # we ID them on their tablenames, preds, and block
+    return wrap_map(BudJoin.new(rels, self, preds), &blk)
   end
 
   # :nodoc
   def natjoin(rels, &blk)
     # for all pairs of relations, add predicates on matching column names
-        preds = BudJoin::natural_preds(self, rels)
-    j = join(rels, *preds, &blk)
+    preds = BudJoin::natural_preds(self, rels)
+    join(rels, *preds, &blk)
   end
 
   def leftjoin(rels, *preds, &blk)
-    j = BudLeftJoin.new(rels, self, preds)
-    wrap_map(j, &blk)
+    return wrap_map(BudLeftJoin.new(rels, self, preds), &blk)
   end
 
   private

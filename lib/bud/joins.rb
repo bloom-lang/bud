@@ -1,6 +1,7 @@
 module Bud
   class BudJoin < BudCollection
     attr_accessor :rels, :origrels, :origpreds
+    attr_reader :hash_tables
 
     def initialize(rellist, bud_instance, preds=nil)
       @schema = []
@@ -9,7 +10,8 @@ module Bud
       @bud_instance = bud_instance
       @localpreds = nil
 			@tabname = :temp_join
-			
+			uniquify_tabname
+						
 			# if any elements on rellist are BudJoins, suck up their contents
 			tmprels = []
 			rellist.each do |r|
@@ -45,8 +47,22 @@ module Bud
       end
       
       preds = setup_preds(preds) unless preds.nil? or preds.empty?
+      
+      setup_state
 			self
     end
+
+    # initialize the 
+    private 
+    def setup_state
+      state_id = Marshal.dump([@rels.map{|r| r.tabname},@localpreds]).hash
+      @bud_instance.joinstate[state_id] ||= [{:storage => {}, :delta => {}}, {:storage => {}, :delta => {}}]
+      @hash_tables = @bud_instance.joinstate[state_id]
+      found = false
+      (0..1).each do |i|
+        found = true if @hash_tables[i][:storage].any? or @hash_tables[i][:delta].any?
+      end
+		end		
 
 		private_class_method
 		def self.natural_preds(bud_instance, rels)
@@ -89,6 +105,7 @@ module Bud
 				flat_schema = dupfree_schema
 			end
       retval = BudScratch.new('temp_flatten', bud_instance, dupfree_schema)
+      retval.uniquify_tabname
       retval.merge(self.map{|r,s| r + s}, retval.storage)
     end
 		
@@ -112,6 +129,11 @@ module Bud
       end
     end
 
+    # public 
+    # def pro(&blk)
+    #   map(&blk)
+    # end
+
 		public
     def each(mode=:both, &block)
       mode = :storage if @bud_instance.stratum_first_iter
@@ -121,16 +143,17 @@ module Bud
         methods = [:delta, :storage]
       end
 
-      methods.each do |collection1|
-        methods.each do |collection2|
-          next if (mode == :delta and collection1 == :storage and collection2 == :storage)
+      methods.each do |left_rel|
+        methods.each do |right_rel|
+          next if (mode == :delta and left_rel == :storage and right_rel == :storage)
           if @localpreds.nil? or @localpreds.empty?
-            nestloop_join(collection1, collection2, &block)
+            nestloop_join(left_rel, right_rel, &block)
           else
-            hash_join(collection1, collection2, &block)
+            hash_join(left_rel, right_rel, &block)
           end
         end
       end
+      tick_hash_deltas
     end
     
 		public
@@ -140,15 +163,9 @@ module Bud
       end
     end
 
-    # def each_storage(&block)
-    #   each(:storage, &block)
-    # end
-    # 
-    # # this needs to be made more efficient!
-    # def each_delta(&block)
-    #   each(:delta, &block)
-    # end
 		private
+		# r is a tuple
+		# s is an array (combo) of joined tuples
     def test_locals(r, s, *skips)
       retval = true
       if (@localpreds and skips and @localpreds.length > skips.length)
@@ -166,9 +183,9 @@ module Bud
     end
 
 		private
-    def nestloop_join(collection1, collection2, &block)
-      @rels[0].each_from_sym([collection1]) do |r|
-        @rels[1].each_from_sym([collection2]) do |s|
+    def nestloop_join(left_rel, right_rel, &block)
+      @rels[0].each_from_sym([left_rel]) do |r|
+        @rels[1].each_from_sym([right_rel]) do |s|
           s = [s] if origrels.length == 2
           yield([r] + s) if test_locals(r, s)
         end
@@ -176,46 +193,82 @@ module Bud
     end
 
 		private
+		# calculate the attribute position for the left table in the join ("left_offset")
+		# the right table may itself be a nested tuple from a join, so calculate
+		# the tuple offset ("right_subtuple") and the attribute position within it
+		# ("right_offset")
     def join_offsets(pred)
-      build_entry = pred[1]
-      build_name, build_offset = build_entry[0], build_entry[1]
-      probe_entry = pred[0]
-      probe_name, probe_offset = probe_entry[0], probe_entry[1]
+      right_entry = pred[1]
+      right_name, right_offset = right_entry[0], right_entry[1]
+      left_entry = pred[0]
+      left_name, left_offset = left_entry[0], left_entry[1]
 
-      # determine which subtuple of s contains the table referenced in RHS of pred
-      # note that s doesn't contain the first entry in rels, which is r
-      index = 0
+      # determine which subtuple of right collection contains the table 
+      # referenced in RHS of pred.  note that right collection doesn't contain the 
+      # first entry in rels, which is the left collection
+      right_subtuple = 0
       origrels[1..origrels.length].each_with_index do |t,i|
         if t.tabname == pred[1][0]
-          index = i
+          right_subtuple = i
           break
         end
       end
 
-      return probe_offset, index, build_offset
+      return left_offset, right_subtuple, right_offset
     end
 
-		private
-    def hash_join(collection1, collection2, &block)
-      # hash join on first predicate!
-      ht = {}
-
-      probe_offset, build_tup, build_offset = join_offsets(@localpreds.first)
-
-      # build the hashtable on s!
-      rels[1].each_from_sym([collection2]) do |s|
-        s = [s] if origrels.length == 2
-        attrval = s[build_tup][build_offset]
-        ht[attrval] ||= []
-        ht[attrval] << s
+    def tick_hash_deltas
+      # for hash_join, move old delta hashtables into storage hashtables
+      return if @hash_tables.nil?
+      (0..1).each do |i|
+        @hash_tables[i][:storage].merge!(@hash_tables[i][:delta]) do |k,l,r|
+            l+r
+        end
+        @hash_tables[i][:delta] = {}
       end
+    end
 
-      # probe the hashtable!
-      rels[0].each_from_sym([collection1]) do |r|
-        next if ht[r[probe_offset]].nil?
-        ht[r[probe_offset]].each do |s|
-          retval = [r] + s
-          yield(retval) if test_locals(r, s, @localpreds.first)
+    # semi-naive symmetric hash join on first predicate
+		private
+    def hash_join(left_sym, right_sym, &block)
+      left_offset, right_subtuple, right_offset = join_offsets(@localpreds.first)
+
+      syms = [left_sym, right_sym]
+
+      syms.each_with_index do |probe_sym, probe_ix|        
+        other_ix = 1 - probe_ix # bit-flip
+        other_sym = syms[other_ix]
+        probe_offset = (probe_ix == 0) ? left_offset : right_offset
+        
+        # in a delta/storage join we do traditional one-sided hash join
+        # so don't probe from the storage side. 
+        # the other side should have been built already!
+        if probe_sym == :storage and probe_sym != other_sym
+          next
+        end
+      
+        # ready to do the symmetric hash join
+        rels[probe_ix].each_from_sym([probe_sym]) do |r|   
+          r = [r] unless probe_ix == 1 and origrels.length > 2
+          attrval = (probe_ix == 0) ? r[0][left_offset] : r[right_subtuple][right_offset]
+
+          # insert into the prober's hashtable only if symmetric ...
+          if probe_sym == other_sym
+            @hash_tables[probe_ix][probe_sym][attrval] ||= []
+            @hash_tables[probe_ix][probe_sym][attrval] << r
+          end
+          
+          # ...and probe the other hashtable
+          next if @hash_tables[other_ix][other_sym][attrval].nil?
+          @hash_tables[other_ix][other_sym][attrval].each do |s_tup|
+            if probe_ix == 0
+              left = r; right = s_tup
+            else
+              left = s_tup; right = r
+            end
+            retval = left + right
+            yield(retval) if test_locals(left[0], right, @localpreds.first)
+          end
         end
       end
     end
@@ -239,9 +292,19 @@ module Bud
       # and join with inner.  If result is empty, preserve tuple.
       @rels[0].each do |r|
         t = @origrels[0].clone_empty
-        t.insert(r)
-        j = BudJoin.new([t,@origrels[1]], @bud_instance, @origpreds)
-        next if j.any?
+        # need to uniquify the tablename here to avoid sharing join state with original
+        t.uniquify_tabname
+        t << r
+        j = BudJoin.new([t, @origrels[1]], @bud_instance, @origpreds)
+
+        # the following is "next if j.any?" on storage tuples *only*
+        any = false
+        j.each(:storage) do |j|
+          any = true
+          break
+        end
+        next if any
+
         nulltup = @origrels[1].null_tuple
         yield [r, nulltup]
       end
