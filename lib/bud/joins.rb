@@ -9,8 +9,6 @@ module Bud
 			@origpreds = preds
       @bud_instance = bud_instance
       @localpreds = nil
-			@tabname = :temp_join
-			uniquify_tabname
 						
 			# if any elements on rellist are BudJoins, suck up their contents
 			tmprels = []
@@ -52,12 +50,18 @@ module Bud
 			self
     end
 
-    # initialize the 
+    public
+    def state_id
+      Marshal.dump([@rels.map{|r| r.tabname},@localpreds]).hash
+    end
+
+    # initialize the state for this join to be carried across iterations within a fixpoint
     private 
     def setup_state
-      state_id = Marshal.dump([@rels.map{|r| r.tabname},@localpreds]).hash
-      @bud_instance.joinstate[state_id] ||= [{:storage => {}, :delta => {}}, {:storage => {}, :delta => {}}]
-      @hash_tables = @bud_instance.joinstate[state_id]
+      sid = state_id
+      @tabname = ("temp_join"+state_id.to_s).to_sym
+      @bud_instance.joinstate[sid] ||= [{:storage => {}, :delta => {}}, {:storage => {}, :delta => {}}]
+      @hash_tables = @bud_instance.joinstate[sid]
       found = false
       (0..1).each do |i|
         found = true if @hash_tables[i][:storage].any? or @hash_tables[i][:delta].any?
