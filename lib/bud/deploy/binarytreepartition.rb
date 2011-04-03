@@ -1,10 +1,9 @@
 require 'rubygems'
 require 'bud'
-require 'deployer'
+require 'bud/deploy/deployer'
 
 # Distributes initial data to nodes
 module BinaryTreePartition
-  include BudModule
   include Deployer
 
   state do
