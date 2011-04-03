@@ -97,8 +97,8 @@ class CallbackTest < Test::Unit::TestCase
   def test_blocking_on_callback
     c = SimpleCb.new
     c.run_bg
-    tup_set = [[1, 2]]
-    c.sync_callback(:t1, tup_set, :c1) do |cb|
+    tuples = [[1, 2]]
+    c.sync_callback(:t1, tuples, :c1) do |cb|
       assert_equal(1, cb.length)
     end
     c.stop_bg

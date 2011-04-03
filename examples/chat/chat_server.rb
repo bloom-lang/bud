@@ -14,6 +14,9 @@ class ChatServer
   end
 end
 
+
+
+# ruby command-line wrangling
 if ARGV.first
   addr = ARGV.first
 else

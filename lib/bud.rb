@@ -178,12 +178,27 @@ module Bud
       do_rewrite
     end
 
-    # Load the rules as a closure.
+    # Load the rules as a closure. Each element of @strata is an array of
+    # lambdas, one for each rewritten rule in that strata. Note that legacy Bud
+    # code (with user-specified stratification) assumes that @strata is a simple
+    # array, so we need to convert it before loading the rewritten strata.
     @strata = []
+    @rule_src = []
     declaration
-    @rewritten_strata.each do |rs|
-      block = eval "lambda { #{rs} }"
-      @strata << block
+    @strata.each_with_index do |s,i|
+      raise BudError if s.class <= Array
+      @strata[i] = [s]
+      # Don't try to record source text for old-style rule blocks
+      @rule_src[i] = [""]
+    end
+
+    @rewritten_strata.each_with_index do |src_ary,i|
+      @strata[i] ||= []
+      @rule_src[i] ||= []
+      src_ary.each do |src|
+        @strata[i] << eval("lambda { #{src} }")
+        @rule_src[i] << src
+      end
     end
   end
 
@@ -217,6 +232,8 @@ module Bud
       tmp_expander.did_work = false
     end
 
+    # If we found any temp statements in the klass's rule blocks, add a state
+    # block with declarations for the corresponding temp collections.
     s = tmp_expander.get_state_meth(klass)
     if s
       state_src = r2r.process(s)
@@ -420,7 +437,7 @@ module Bud
     end
   end
 
-  # sync_callback supports synchronous interaction with bud modules.  The caller
+  # sync_callback supports synchronous interaction with Bud modules.  The caller
   # supplies the name of an input collection, a set of tuples to insert, and an
   # output collection on which to 'listen.'  The call blocks until tuples are
   # inserted into the output collection: these are returned to the caller.
@@ -599,7 +616,7 @@ module Bud
     do_bootstrap unless @done_bootstrap
     receive_inbound
 
-    @strata.each { |strat| stratum_fixpoint(strat) }
+    @strata.each_with_index { |s,i| stratum_fixpoint(s, i) }
     @viz.do_cards if @options[:trace]
     do_flush
     invoke_callbacks
@@ -644,7 +661,7 @@ module Bud
     @tc_tables.each_value { |t| t.flush }
   end
 
-  def stratum_fixpoint(strat)
+  def stratum_fixpoint(strat, strat_num)
     # This routine uses semi-naive evaluation to compute
     # a fixpoint of the rules in strat.
     #
@@ -678,7 +695,24 @@ module Bud
     # these cases.
     @stratum_first_iter = true
     begin
-      strat.call
+      strat.each_with_index do |r,i|
+        begin
+          r.call
+        rescue Exception => e
+          # Don't report source text for certain rules (old-style rule blocks)
+          rule_src = @rule_src[strat_num][i]
+          src_msg = ""
+          unless rule_src == ""
+            src_msg = "\nRule: #{rule_src}"
+          end
+
+          new_e = e
+          unless new_e.class <= BudError
+            new_e = BudError
+          end
+          raise new_e, "Exception during Bud evaluation.\nException: #{e.inspect}.#{src_msg}"
+        end
+      end
       @stratum_first_iter = false
       # XXX this next line is inefficient.
       # we could call tick_deltas only on predicates in this stratum.

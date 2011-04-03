@@ -31,13 +31,13 @@ class ReblShell
     "stop" => [lambda {|lib,_| lib.stop},
                "stop:\tstop ticking"],
 
-    "lsrules" => [lambda {|lib,_| lib.rules.each {|k,v| puts "#{k}: "+v}},
+    "lsrules" => [lambda {|lib,_| lib.rules.sort{|a,b| a[0] <=> b[0]}.each {|k,v| puts "#{k}: "+v}},
                   "lsrules:\tlist rules"],
 
     "rmrule" => [lambda {|lib,argv| lib.del_rule(Integer(argv[1]))},
                  "rmrule x:\tremove rule number x"],
 
-    "lscollections" => [lambda {|lib,_| lib.state.each {|k,v| puts "#{k}: "+v}},
+    "lscollections" => [lambda {|lib,_| lib.state.sort{|a,b| a[0] <=> b[0]}.each {|k,v| puts "#{k}: "+v}},
                         "lscollections:\tlist collections"],
 
     "dump" => [lambda {|lib,argv| lib.dump(argv[1])},
@@ -140,13 +140,15 @@ class ReblShell
     puts
     puts "rebl commands:"
     maxlen = @@commands.keys.sort{|a,b| b.size - a.size}.first.size
-    @@commands.values.each do |v|
+    cmd_list = @@commands.keys.sort
+    cmd_list.each do |c|
+      v = @@commands[c]
       puts @@escape_char +
         v[1].gsub(/\t/, " "*(maxlen + 3 - v[1].split(':')[0].size))
     end
     puts "\nbreakpoints:"
     puts "a breakpoint is a rule with the 'breakpoint' scratch on the left of "+
-      "a '<=' arrow.  '#{@@escape_char}run' will stop ticking at the end of a "+
+      "a '<=' operator.\n'#{@@escape_char}run' will stop ticking at the end of a "+
       "timestep where a 'breakpoint' tuple exists."
   end
 

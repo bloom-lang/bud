@@ -261,6 +261,32 @@ class TestTemps < Test::Unit::TestCase
     assert_equal([[40, 60], [60, 80]], p.t3.to_a.sort)
     assert_equal(p.t3.to_a.sort, p.t4.to_a.sort)
   end
+
+  class Issue132
+    include Bud
+
+    state do
+      table :foo
+      table :bar
+    end
+
+    bootstrap do
+      foo << [10, 10]
+    end
+
+    bloom do
+      temp :baz <= foo do |f|
+        [f.key, f.val + 1]
+      end
+      bar <= baz
+    end
+  end
+
+  def test_issue132
+    i = Issue132.new
+    i.tick
+    assert_equal([[10, 11]], i.bar.to_a.sort)
+  end
 end
 
 class TestTempNoMaps < Test::Unit::TestCase
