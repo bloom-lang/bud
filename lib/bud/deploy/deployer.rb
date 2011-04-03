@@ -1,11 +1,9 @@
 require 'rubygems'
 require 'bud'
 require 'open-uri'
-require 'countatomicdelivery'
+require 'bud/deploy/countatomicdelivery'
 
 module Deployer
-
-  include BudModule
   include CountAtomicDelivery
 
   state do
@@ -35,6 +33,7 @@ module Deployer
   bloom :distribute_data do
     atomic_data_in <= join([node, initial_data],
                            [node.uid, initial_data.uid]).map do |n, i|
+      puts "sending EDB to " + n.inspect
       [n.node, [i.pred, i.data]] if idempotent [[n.node, i.pred, i.data]]
     end
 

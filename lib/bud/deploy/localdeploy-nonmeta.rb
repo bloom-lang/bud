@@ -7,7 +7,6 @@ require 'deployer'
 # This is for the case where you just want to test stuff locally, but you don't
 # really care about port numbers.
 module LocalDeploy
-  include BudModule
   include Deployer
 
   # deal with SIGCHILD
