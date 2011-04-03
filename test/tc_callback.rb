@@ -1,4 +1,5 @@
 require 'test_common'
+require 'timeout'
 
 class SimpleCb
   include Bud
@@ -23,6 +24,14 @@ class CallbackAtNext
 
   bloom do
     c1 <+ t1
+  end
+end
+
+class TickingCallback
+  include Bud
+
+  state do
+    periodic :tic, 1
   end
 end
 
@@ -101,6 +110,13 @@ class CallbackTest < Test::Unit::TestCase
     c.sync_callback(:t1, tuples, :c1) do |cb|
       assert_equal(1, cb.length)
     end
+    c.stop_bg
+  end
+
+  def test_delta
+    c = TickingCallback.new
+    c.run_bg
+    Timeout::timeout(3) {c.delta(:tic)}
     c.stop_bg
   end
 
