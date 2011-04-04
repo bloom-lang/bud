@@ -422,4 +422,24 @@ class TestCollections < Test::Unit::TestCase
     e = EmptyPk.new
     assert_raise(Bud::KeyConstraintError) { e.tick }
   end
+  
+  class SimpleRename
+    include Bud
+    state do
+      table :t1
+    end
+    bootstrap do
+      t1 << [1,1]
+    end
+    bloom do
+      temp :t2 <= t1.rename(:bob)
+    end
+  end
+  
+  def test_simple_rename
+    p = SimpleRename.new
+    assert_nothing_raised {p.tick}
+  end
+      
+  
 end
