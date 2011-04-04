@@ -91,4 +91,6 @@ or on EC2:
 
     ruby btquicksort-ec2.rb local_ip:local_port ext_ip true
 
+Note that before running btquicksort-ec2, you must create a "keys.rb" file that contains "access_key_id", "secret_access_key", "key_name" and "ec2_key_location".
+
 Output will be displayed to show the progress of the deployment.  Be patient, it may take a while for output to appear.  Once deployment is complete and all nodes are ready, the quicksort program should begin to display output in the form of "successor" tuples that indicate the links in the sorted list.
