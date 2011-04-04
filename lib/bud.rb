@@ -17,8 +17,7 @@ require 'bud/storage/tokyocabinet'
 require 'bud/storage/zookeeper'
 require 'bud/viz'
 
-# We monkeypatch Module to add support for four new module methods: import,
-# state, bootstrap, and bloom.
+# We monkeypatch Module to add support for Bloom state and code declarations.
 class Module
   
   # import another module and assign to a qualifier symbol: <tt>import MyModule => :m</tt>
@@ -132,6 +131,27 @@ module Bud
   attr_reader :stratum_first_iter
   attr_accessor :lazy # This can be changed on-the-fly by REBL
 
+  # options to the bud runtime are passed in a hash, with the following keys
+  # * network configuration
+  #   * <tt>:ip</tt>   IP address string for this instance
+  #   * <tt>:port</tt>   port number for this instance
+  #   * <tt>:ext_ip</tt>  IP address at which external nodes can contact this instance
+  #   * <tt>:ext_port</tt>   port number to go with :ext_ip
+  #   * <tt>:bust_port</tt>  port number for the restful http messages
+  # * operating system interaction
+  #   * <tt>:read_stdin</tt>  if true, captures stdin via the stdio collection
+  #   * <tt>:no_signal_handlers</tt> if true, runtime ignores SIGINT and SIGTERM
+  # * tracing and output
+  #   * <tt>:quiet</tt> if true, suppress certain messages
+  #   * <tt>:trace</tt> if true, generate budvis outputs
+  #   * <tt>:rtrace</tt>  if true, generate budplot outputs
+  #   * <tt>:dump_rewrite</tt> if true, dump results of internal rewriting of Bloom code to a file
+  # * controlling execution 
+  #   * <tt>:lazy</tt>  if true, prevents runtime from ticking except on external calls to +tick+
+  #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
+  # * storage configuration
+  #   * <tt>:tc_dir</tt>  filesystem directory to hold TokyoCabinet data stores
+  #   * <tt>:tc_truncate</tt> if true, TokyoCabinet collections are opened with OTRUNC
   def initialize(options={})
     @tables = {}
     @table_meta = []

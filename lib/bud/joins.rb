@@ -1,9 +1,9 @@
 module Bud
   class BudJoin < BudCollection
-    attr_accessor :rels, :origrels, :origpreds
-    attr_reader :hash_tables
+    attr_accessor :rels, :origrels, :origpreds # :nodoc: all
+    attr_reader :hash_tables # :nodoc: all
 
-    def initialize(rellist, bud_instance, preds=nil)
+    def initialize(rellist, bud_instance, preds=nil) # :nodoc: all
       @schema = []
       otherpreds = nil
 			@origpreds = preds
@@ -51,7 +51,7 @@ module Bud
     end
 
     public
-    def state_id
+    def state_id # :nodoc: all
       Marshal.dump([@rels.map{|r| r.tabname},@localpreds]).hash
     end
 
@@ -82,6 +82,9 @@ module Bud
 	    preds.uniq
 		end
 				
+		# flatten joined items into arrays, with attribute accessors inherited
+		# from the input collections, disambiguated via suffix indexes as needed.
+		# similar to <tt>SELECT * FROM ... WHERE...</tt> block in SQL.  
 		public
     def flatten(*preds)
 			unless preds.nil? or preds.size == 0
@@ -119,6 +122,7 @@ module Bud
     end
 
 		public
+		# map each (nested) item in the collection into a string, suitable for placement in stdio
     def inspected
       if @rels.length == 2 then
         # fast common case
@@ -134,12 +138,12 @@ module Bud
     end
 
     public 
-    def pro(&blk)
+    def pro(&blk) # :nodoc: all
       map(&blk)
     end
 
 		public
-    def each(mode=:both, &block)
+    def each(mode=:both, &block) # :nodoc: all
       mode = :storage if @bud_instance.stratum_first_iter
       if mode == :storage
         methods = [:storage]
@@ -161,7 +165,7 @@ module Bud
     end
     
 		public
-    def each_from_sym(buf_syms, &block)
+    def each_from_sym(buf_syms, &block) # :nodoc: all
       buf_syms.each do |s|
         each(s, &block)
       end
@@ -278,7 +282,7 @@ module Bud
     end
   end
 
-  class BudLeftJoin < BudJoin
+  class BudLeftJoin < BudJoin # :nodoc: all
     def initialize(rellist, bud_instance, preds=nil)
       raise(BudError, "Left Join only defined for two relations") unless rellist.length == 2
       super(rellist, bud_instance, preds)
@@ -286,7 +290,7 @@ module Bud
     end
 
 		public
-    def each(&block)
+    def each(&block) # :nodoc:all
       super(&block)
       # previous line finds all the matches.
       # now its time to ``preserve'' the outer tuples with no matches.

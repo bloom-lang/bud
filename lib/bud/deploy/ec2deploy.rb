@@ -6,6 +6,7 @@ require 'net/scp'
 require 'bud'
 require 'bud/deploy/deployer'
 
+# logic to deploy Bloom programs on EC2
 module EC2Deploy
   include Deployer
 

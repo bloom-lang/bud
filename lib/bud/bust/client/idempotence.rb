@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud'
 
-module Idempotence # :nodoc: all
+module Idempotence #:nodoc: all
   state do
     table :dead, [:dead]
   end

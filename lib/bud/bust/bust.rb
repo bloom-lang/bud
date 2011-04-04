@@ -7,10 +7,12 @@ require 'cgi'
 
 HTTP_VERBS = ["GET", "POST"] #, "DELETE"]
 
-# used this for inspiration:
-# http://blogs.msdn.com/b/abhinaba/archive/2005/10/14/474841.aspx
+# a RESTful interface to Bloom code
 module Bust
   include Bud
+
+  # used this for inspiration:
+  # http://blogs.msdn.com/b/abhinaba/archive/2005/10/14/474841.aspx
 
   # allow state to be queried easily
   state do

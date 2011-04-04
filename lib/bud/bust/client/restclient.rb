@@ -4,7 +4,7 @@ require 'nestful'
 require 'idempotence'
 
 module RestClient
-  include Idempotence
+  include Idempotence # :nodoc: all
 
   state do
     # complains about underspecified dataflow because it can't see the

@@ -6,7 +6,7 @@ require 'abbrev'
 
 TABLE_TYPES = ["table", "scratch", "channel"]
 
-# The class that rebl adds user-specified rules and declarations to.
+# The class to which rebl adds user-specified rules and declarations.
 class ReblClass
   include Bud
   attr_accessor:port, :ip
@@ -52,8 +52,11 @@ class ReblShell
   @@abbrevs = @@commands.keys.abbrev
   @@exit_message = "Rebellion quashed."
 
-  # Starts a rebl shell.  This function is not covered by testcases, but setup
+  # Starts a rebl shell.  
+  #-- 
+  # This function is not covered by testcases, but setup
   # and rebl_loop are.
+  #++
   def self.run
     lib = setup
     loop do
@@ -130,10 +133,13 @@ class ReblShell
     end
   end
 
+  # lookup full command from abbreviation
   def self.command(c)
     return @@abbrevs[c].nil? ? nil : @@commands[@@abbrevs[c]][0]
   end
 
+  private
+  # pretty-printed help
   def self.pretty_help
     puts "rebl commands are prefixed by '#{@@escape_char}'"
     puts "other input is interpreted as Bloom code."
@@ -152,6 +158,7 @@ class ReblShell
       "timestep where a 'breakpoint' tuple exists."
   end
 
+  private
   def self.welcome
     puts "Welcome to rebl, the interactive Bloom terminal."
     puts
@@ -160,6 +167,7 @@ class ReblShell
     puts
   end
 
+  private
   # Called on exit.  Writes the session's history to @@histfile, and stops the
   # bud instance from listening.
   def self.do_exit
@@ -253,7 +261,6 @@ class LibRebl
   end
 
   private
-
   def reinstantiate
     # New anonymous subclass.
     @rebl_class = Class.new(ReblClass)

@@ -1,21 +1,24 @@
 require 'msgpack'
 
 module Bud
-  ######## the collection types
+  ######## 
+  #--
+  # the collection types
   # each collection is partitioned into 4:
   # - pending holds tuples deferred til the next tick
   # - storage holds the "normal" tuples
   # - delta holds the delta for rhs's of rules during semi-naive
   # - new_delta will hold the lhs tuples currently being produced during s-n
+  #++
 
   class BudCollection
     include Enumerable
 
-    attr_accessor :bud_instance
-    attr_reader :schema, :key_cols, :val_cols, :tabname
-    attr_reader :storage, :delta, :new_delta
+    attr_accessor :bud_instance # :nodoc: all
+    attr_reader :schema, :tabname # :nodoc: all
+    attr_reader :storage, :delta, :new_delta # :nodoc: all
 
-    def initialize(name, bud_instance, given_schema=nil, defer_schema=false)
+    def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
       @tabname = name
       @bud_instance = bud_instance
       init_schema(given_schema) unless given_schema.nil? and defer_schema
@@ -72,9 +75,15 @@ module Bud
       self.class.new(tabname, bud_instance, @given_schema)
     end
 
-    # returns the subset of the schema that is not the key
+    # subset of the schema (i.e. an array of attribute names) that forms the key
     public
-    def val_cols
+    def key_cols
+      @key_cols
+    end
+    
+    # subset of the schema (i.e. an array of attribute names) that is not in the key
+    public
+    def val_cols # :nodoc: all
       schema - key_cols
     end
 
@@ -213,7 +222,7 @@ module Bud
     end
 
     public
-    def close
+    def close # :nodoc: all
     end
 
     # checks for key +k+ in the key columns
@@ -297,7 +306,10 @@ module Bud
       do_insert(o, @storage)
     end
 
-    alias << insert
+    # instantaneously place an individual item from rhs into collection on lhs
+    def <<(item)
+      insert(item)
+    end
 
     private
     def check_enumerable(o)
@@ -336,9 +348,8 @@ module Bud
       return @schema
     end
 
-    # instantaneously merge items from collection +o+ into +buf+
     public
-    def merge(o, buf=@new_delta)
+    def merge(o, buf=@new_delta) # :nodoc: all
       check_enumerable(o)
       establish_schema(o) if @schema.nil?
 
@@ -357,11 +368,15 @@ module Bud
       return self
     end
 
-    alias <= merge
+    public
+    # instantaneously merge items from collection +o+ into +buf+
+    def <=(collection) 
+      merge(collection)
+    end
 
     # buffer items to be merged atomically at end of this timestep
     public
-    def pending_merge(o)
+    def pending_merge(o) # :nodoc: all
       check_enumerable(o)
       deduce_schema(o)
 
@@ -377,7 +392,7 @@ module Bud
     # Called at the end of each timestep: prepare the collection for the next
     # timestep.
     public
-    def tick
+    def tick  # :nodoc: all
       @storage = @pending
       @pending = {}
       raise BudError, "orphaned tuples in @delta for #{@tabname}" unless @delta.empty?
@@ -417,7 +432,7 @@ module Bud
 
     # a generalization of argmin/argmax to arbitrary exemplary aggregates.
     # for each distinct value in the grouping key columns, return the item in that group
-    # that has the value of the exemplary aggregate "aggname"
+    # that has the value of the exemplary aggregate +aggname+
     public
     def argagg(aggname, gbkey_cols, collection)
       agg = bud_instance.send(aggname, nil)[0]
@@ -466,14 +481,14 @@ module Bud
     end
 
     # for each distinct value in the grouping key columns, return the item in that group
-    # that has the minimum value of the attribute col
+    # that has the minimum value of the attribute +col+
     public
     def argmin(gbkey_cols, col)
       argagg(:min, gbkey_cols, col)
     end
 
     # for each distinct value in the grouping key columns, return the item in that group
-    # that has the maximum value of the attribute col
+    # that has the maximum value of the attribute +col+
     public
     def argmax(gbkey_cols, col)
       argagg(:max, gbkey_cols, col)
@@ -486,7 +501,9 @@ module Bud
       bud_instance.join([self, collection])
     end
 
-    # currently support two options for column ref syntax -- :colname or table.colname
+    # SQL-style grouping.  first argument is an array of attributes to group by.  
+    # Followed by a variable-length list of aggregates over attributes (e.g. +min(:x)+)
+    # Attributes can be referenced as symbols, or as +collection_name.attribute_name+
     public
     def group(key_cols, *aggpairs)
       key_cols = [] if key_cols.nil?
@@ -578,8 +595,8 @@ module Bud
     end
 
     # given a * expression over 2 collections, form all
-    # combinations of items that have the same values in matching fields
-    # and project only onto the attributes of the first item
+    # combinations of items that satisfy the predicates +preds+,
+    # and project only onto the attributes of the first collection
     public
     def lefts(*preds)
       @localpreds = disambiguate_preds(preds)
@@ -587,7 +604,7 @@ module Bud
     end
 
     # given a * expression over 2 collections, form all
-    # combinations of items that have the same values in matching fields
+    # combinations of items that satisfy the predicates +preds+,
     # and project only onto the attributes of the second item
     public
     def rights(*preds)
@@ -597,7 +614,7 @@ module Bud
 
     # extract predicates on rellist[0] and recurse to right side with remainder
     protected
-    def setup_preds(preds)
+    def setup_preds(preds) # :nodoc: all
       allpreds = disambiguate_preds(preds)
       allpreds = canonicalize_localpreds(@rels, allpreds)
       @localpreds = allpreds.reject { |p| p[0][0] != @rels[0].tabname and p[1][0] != @rels[1].tabname }
@@ -612,7 +629,7 @@ module Bud
     end
 
     protected
-    def disambiguate_preds(preds)
+    def disambiguate_preds(preds) # :nodoc: all
       if preds.size == 1 and preds[0].class <= Hash
         predarray = preds[0].map do |k,v|
           if k.class != v.class
@@ -639,7 +656,7 @@ module Bud
     # if 2nd arg is non-nil, only check that collection.
     # after found, return the result of invoking aname from chosen collection
     protected
-    def find_attr_match(aname, rel=nil)
+    def find_attr_match(aname, rel=nil) # :nodoc: all
       dorels = (rel.nil? ? @origrels : [rel])
       match = nil
       dorels.each do |r|
@@ -655,7 +672,7 @@ module Bud
     end
 
     protected
-    def decomp_preds(*preds)
+    def decomp_preds(*preds) # :nodoc:all
       # decompose each pred into a binary pred
       return nil if preds.nil? or preds.empty? or preds == [nil]
       newpreds = []
@@ -668,7 +685,7 @@ module Bud
     end
 
     protected
-    def canonicalize_localpreds(rel_list, preds)
+    def canonicalize_localpreds(rel_list, preds) # :nodoc:all
       return if preds.nil?
       retval = preds.map do |p|
         p[1][0] == rel_list[0].tabname ? p.reverse : p
@@ -676,7 +693,7 @@ module Bud
     end
     
     public
-    def uniquify_tabname
+    def uniquify_tabname # :nodoc: all
       # just append current number of microseconds
       @tabname = (@tabname.to_s + Time.new.tv_usec.to_s).to_sym
     end
@@ -690,9 +707,9 @@ module Bud
   end
 
   class BudChannel < BudCollection
-    attr_reader :locspec_idx
+    attr_reader :locspec_idx # :nodoc: all
 
-    def initialize(name, bud_instance, given_schema=nil)
+    def initialize(name, bud_instance, given_schema=nil) # :nodoc: all
       given_schema ||= [:@address, :val]
       the_schema, the_key_cols = parse_schema(given_schema)
       the_val_cols = the_schema - the_key_cols
@@ -795,7 +812,7 @@ module Bud
   end
 
   class BudTerminal < BudCollection # :nodoc: all
-    def initialize(name, given_schema, bud_instance, prompt=false)
+    def initialize(name, given_schema, bud_instance, prompt=false) # :nodoc: all
       super(name, bud_instance, given_schema)
       @prompt = prompt
     end
@@ -862,7 +879,7 @@ module Bud
   end
 
   class BudTable < BudCollection # :nodoc: all
-    def initialize(name, bud_instance, given_schema)
+    def initialize(name, bud_instance, given_schema) # :nodoc: all
       super(name, bud_instance, given_schema)
       @to_delete = []
     end
@@ -900,7 +917,7 @@ module Bud
   end
 
   class BudFileReader < BudReadOnly # :nodoc: all
-    def initialize(name, filename, delimiter, bud_instance)
+    def initialize(name, filename, delimiter, bud_instance) # :nodoc: all
       super(name, bud_instance, {[:lineno] => [:text]})
       @filename = filename
       @storage = {}
@@ -922,6 +939,7 @@ end
 
 module Enumerable
   public
+  # monkeypatch to Enumerable to rename collections and their schemas
   def rename(new_tabname, new_schema=nil)
     budi = (respond_to?(:bud_instance)) ? bud_instance : nil
     if new_schema.nil? and respond_to?(:schema)
