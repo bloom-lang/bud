@@ -47,10 +47,25 @@ module EC2Deploy
       if idempotent [:ec2_insts]
         print "Starting up EC2 instances"
         STDOUT.flush
+        # First, we create the security group
+        begin
+          ec2_conn[[]].conn.create_security_group(:group_name => "bud", :group_description => "bud")
+        rescue AWS::InvalidGroupDuplicate
+          # Group already exists; ok, maybe we created it previously
+        else
+          # Add SSH permission
+          ec2_conn[[]].conn.authorize_security_group_ingress( :group_name => "bud", :ip_protocol => "tcp", :from_port => 22, :to_port => 22, :cidr_ip => "0.0.0.0/0" )
+          # Add unlimited UDP permission from any node not in the security group
+          # XXX: make this more restrictive?
+          ec2_conn[[]].conn.authorize_security_group_ingress( :group_name => "bud", :ip_protocol => "udp", :from_port => 0, :to_port => 65535, :cidr_ip => "0.0.0.0/0" )
+        end
+
+        # Finally, start up the instances
         [ec2_conn[[]].conn.run_instances(:image_id => image_id[[]].img,
                                          :min_count => node_count[[]].num,
                                          :max_count => node_count[[]].num,
-                                         :key_name => key_name[[]].name)]
+                                         :key_name => key_name[[]].name,
+                                         :security_group => "bud")]
       end
     end
 
