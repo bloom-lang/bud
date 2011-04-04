@@ -45,6 +45,6 @@ module CountAtomicDelivery # :nodoc: all
     # Commented out due to bug #85.
     # atomic_data_recv <- atomic_data_atomic
     # Idempotence hack inserted due to bug #85.
-    atomic_data_out <= atomic_data_atomic.map {|a| [a.tuple] if idempotent [[:atomic_data_out, a]]}
+    atomic_data_out <= atomic_data_atomic.map {|a| [a.tuple] if depl_idempotent [[:atomic_data_out, a]]}
   end
 end

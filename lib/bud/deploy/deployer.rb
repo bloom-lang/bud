@@ -21,7 +21,7 @@ module Deployer # :nodoc: all
     table :dead, [:dead]
   end
 
-  def idempotent(r) (dead.include? r) ? false : dead.insert(r) end
+  def depl_idempotent(r) (dead.include? r) ? false : dead.insert(r) end
 
   def do_deploystrap
     self.class.ancestors.each do |anc|
@@ -50,12 +50,12 @@ module Deployer # :nodoc: all
   bloom :distribute_data do
     atomic_data_in <= join([node, initial_data],
                            [node.uid, initial_data.uid]).map do |n, i|
-      [n.node, [i.pred, i.data]] if idempotent [[n.node, i.pred, i.data]]
+      [n.node, [i.pred, i.data]] if depl_idempotent [[n.node, i.pred, i.data]]
     end
 
     # Add all tuples at once.
     dont_care <~ atomic_data_out.map do |a|
-      if idempotent a
+      if depl_idempotent a
         a.tuple[1].map do |d|
           eval a.tuple[0].to_s + " <+ [" + d.inspect + "]"
         end

@@ -15,7 +15,7 @@ module Quicksort # :nodoc: all
   bloom :quicksort do
     # pick a pivot (median in the list) (expected O(N) time alg)
     pivot <= ((list_to_sort[[]] and
-               if idempotent [[:pivot, list_to_sort[[]].list]]
+               if depl_idempotent [[:pivot, list_to_sort[[]].list]]
                  ((def find_median(list, k)
                      return list[0] if list.size == 1
                      rand_elt = list[rand(list.size)]

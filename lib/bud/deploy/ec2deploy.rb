@@ -55,14 +55,14 @@ module EC2Deploy
 
   bloom :spinup do
     ec2_conn <= join([access_key_id, secret_access_key]).map do
-      if idempotent [:ec2_comm]
+      if depl_idempotent [:ec2_comm]
         [AWS::EC2::Base.new(:access_key_id => access_key_id[[]].key,
                             :secret_access_key => secret_access_key[[]].key)]
       end
     end
 
     ec2_insts <= join([image_id, node_count, key_name, ec2_conn]).map do
-      if idempotent [:ec2_insts]
+      if depl_idempotent [:ec2_insts]
         print "Starting up EC2 instances"
         STDOUT.flush
         # First, we create the security group.
@@ -96,7 +96,7 @@ module EC2Deploy
     end
 
     the_reservation <= join([spinup_timer, ec2_conn, ec2_insts]).map do |t,c,i|
-      if idempotent [[:the_reservation, t.val]] and not all_up.include? [true]
+      if depl_idempotent [[:the_reservation, t.val]] and not all_up.include? [true]
         to_ret = nil
         begin
           to_ret = [ec2_conn[[]].conn.describe_instances()["reservationSet"]["item"].find do |i|
@@ -126,7 +126,7 @@ module EC2Deploy
 
     all_up <+ node_up.map do
       if node_up.find {|n| n.bool == false} == nil and node_up.find {|n| n.bool == true} != nil
-        if idempotent [:nodes_all_up]
+        if depl_idempotent [:nodes_all_up]
           puts "done"
           STDOUT.flush
           [true]
@@ -140,7 +140,7 @@ module EC2Deploy
     end
 
     deploy_node <= join([temp_node, init_dir, ruby_command]).map do |t, i, r|
-      if idempotent [[:node_startup, t.node]]
+      if depl_idempotent [[:node_startup, t.node]]
         ip = t.node.split(":")[0]
         port = t.node.split(":")[1]
         print "Deploying to #{ip} (#{t.uid}/#{node_count[[]].num-1})."

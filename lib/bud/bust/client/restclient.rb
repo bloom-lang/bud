@@ -41,8 +41,8 @@ module RestClient
          bud.async_do do
            rest_response <+ [resp_tuple]
          end
-       end] if idempotent [[req.rid, req.verb, req.form, req.url, req.params,
-                            @budtime]]
+       end] if bust_idempotent [[req.rid, req.verb, req.form, req.url, req.params,
+                                 @budtime]]
     end
   end
 end
