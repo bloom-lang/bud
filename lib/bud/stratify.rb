@@ -59,10 +59,19 @@ class Stratification # :nodoc: all
     }
 
     strata[1] = lambda {
+      # classic stratification:
+      # if A depends on B, A is >= B.
+      # if A depends nonmonotonically on B, A > B.
+      # if A are B are co-dependent, give up.
+      # stratum choice will represent local evaluation order,
+      # so we need only consider 'synchronous' dependencies (<=)
       stratum_base <= (depends * stratum_base).pairs(:body => :predicate) do |d, s|
-        if (d.neg or d.op.to_s == "<-") and !(cycle.map{|c| c.predicate}.include? d.body and cycle.map{|c| c.predicate}.include? d.head)
+        if d.neg and d.op.to_s == "<=" and !cycle.map{|c| c.predicate}.include? d.head
+          #puts "bump: #{d.head} to #{s.stratum + 1} due to #{d.op} #{d.body}"
           [d.head, s.stratum + 1]
+        #elsif !cycle.map{|c| c.predicate}.include? d.head
         else
+          # always hoist, unless it will put us into an infinite loop
           [d.head, s.stratum]
         end
       end
