@@ -42,9 +42,9 @@ module CountAtomicDelivery # :nodoc: all
                               atomic_data_recv
                             end) or [])
 
-    # commented out due to bug #85
+    # Commented out due to bug #85.
     # atomic_data_recv <- atomic_data_atomic
-    # idempotence hack inserted due to bug #85
+    # Idempotence hack inserted due to bug #85.
     atomic_data_out <= atomic_data_atomic.map {|a| [a.tuple] if idempotent [[:atomic_data_out, a]]}
   end
 end

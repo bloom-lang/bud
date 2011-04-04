@@ -33,7 +33,7 @@ module Quicksort # :nodoc: all
                end
                ) or [])
 
-    # stdio <~ pivot.map{|p| [ip_port + " pivot: " + p.elt.to_s]}
+    #stdio <~ pivot.map{|p| [ip_port + " pivot: " + p.elt.to_s]}
 
     gt_pivot <= ((pivot[[]] and list_to_sort[[]] and
                   [[list_to_sort[[]].list.find_all do |e|
