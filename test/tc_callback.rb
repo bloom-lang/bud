@@ -31,7 +31,20 @@ class TickingCallback
   include Bud
 
   state do
-    periodic :tic, 1
+    periodic :tic, 0.1
+  end
+end
+
+class CallbackWithChannel
+  include Bud
+
+  state do
+    channel :cin
+    scratch :iout
+  end
+    
+  bloom do
+    iout <= cin
   end
 end
 
@@ -146,5 +159,12 @@ class CallbackTest < Test::Unit::TestCase
     assert_equal(1, tick1.cnt)
     assert_equal(2, tick2.cnt)
     c.stop_bg
+  end
+
+  def test_callback_with_channel
+    c = CallbackWithChannel.new
+    c.run_bg
+    c.sync_callback(:cin, [[c.ip_port, "foo"]], :iout)
+    assert(true)
   end
 end

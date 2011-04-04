@@ -24,6 +24,20 @@ class CallbackTest < Test::Unit::TestCase
     c.run_bg
     assert_nothing_raised {c.stop_bg(true)}
   end
+    
+  def test_trap
+    kill_with_signal("TRAP")
+  end
+  
+  def test_int
+    kill_with_signal("INT")
+  end
+
+  def kill_with_signal(sig)
+    c = Vacuous.new
+    c.run_bg
+    Process.kill(sig, $$)
+  end
 
   def test_already_running
     c1 = Vacuous.new

@@ -32,6 +32,15 @@ class LocalShortestPaths
   end
 end
 
+class Underspecified
+  include Bud
+
+  state do
+    interface input, :iin
+    interface output, :iout
+  end
+end
+
 class KTest
   include Bud
 
@@ -71,6 +80,8 @@ class KTest3 < KTest
     mystate <= upd.map {|u| u unless mystate.include? u}
   end
 end
+
+
 
 class TestMeta < Test::Unit::TestCase
   def test_paths
@@ -112,7 +123,7 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_visualization
-    program = KTest2.new(:trace => true)
+    program = KTest2.new(:trace => true, :dump_rewrite => true)
     dep = DepAnalysis.new
 
     program.run_bg
@@ -123,5 +134,21 @@ class TestMeta < Test::Unit::TestCase
     program.t_depends_tc.each {|d| dep.depends_tc << d}
     program.t_provides.each {|p| dep.providing << p}
     dep.tick
+    
+    File.delete("KTest2_rewritten.txt")
+    `rm -r TC_KTest2*`
   end
+
+  def test_underspecified
+    u = Underspecified.new
+    assert_equal(2, u.t_underspecified.length)
+    u.t_underspecified.each do |u|
+      case u[0]
+        when "iin" then assert(u[1])
+        when "iout" then assert(!u[1])
+      end
+    end 
+    
+  end
+  
 end
