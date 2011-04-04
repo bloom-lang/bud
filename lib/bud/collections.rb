@@ -151,11 +151,6 @@ module Bud
       self.map{|t| [t.inspect]}
     end
 
-    private
-    def pending_inspected
-      @pending.map{|t| [t[1].inspect]}
-    end
-
     # akin to map, but modified for efficiency in Bloom statements
     public
     def pro(&blk)
@@ -416,13 +411,12 @@ module Bud
     ######## aggs
 
     private
-    # we only do grouping during first iteration of stratum: it never deals with deltas
+    # we only do grouping during first iteration of stratum.  group and argagg should
+    # never deal with deltas.  This assumes that stratification is done right, and it will
+    # be sensitive to bugs in the stratification!
     def agg_in
       return self # disable this optimization until stratification is fixed
-      if @sealed.nil?
-        return self
-      elsif @sealed == false
-        @sealed = true
+      if not respond_to?(:bud_instance) or bud_instance.nil? or bud_instance.stratum_first_iter
         return self
       else
         return []
