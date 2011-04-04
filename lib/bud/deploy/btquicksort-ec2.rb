@@ -26,7 +26,7 @@ class BTQuicksort
   end
 
   bootstrap do
-    eval(IO.read('keys.rb'), binding)
+    eval(IO.read('keys.rb'), binding) if File.exists?('keys.rb')
     key_name <= [["wrm"]]
     ec2_key_location <= [["/home/wrm/.ssh/ec2"]]
     ruby_command <= [["ruby btquicksort-ec2.rb"]]
