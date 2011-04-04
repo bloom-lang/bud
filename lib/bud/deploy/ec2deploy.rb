@@ -32,13 +32,12 @@ module EC2Deploy
   end
 
   bootstrap do
-    image_id <= [["ami-bec73ad7"]]
+    image_id <= [["ami-f434c99d"]]
   end
 
   bloom :spinup do
     ec2_conn <= join([access_key_id, secret_access_key]).map do
       if idempotent [:ec2_comm]
-        puts "Creating EC2 connection"
         [AWS::EC2::Base.new(:access_key_id => access_key_id[[]].key,
                             :secret_access_key => secret_access_key[[]].key)]
       end
@@ -46,7 +45,8 @@ module EC2Deploy
 
     ec2_insts <= join([image_id, node_count, key_name, ec2_conn]).map do
       if idempotent [:ec2_insts]
-        puts "Starting up EC2 instances"
+        print "Starting up EC2 instances"
+        STDOUT.flush
         [ec2_conn[[]].conn.run_instances(:image_id => image_id[[]].img,
                                          :min_count => node_count[[]].num,
                                          :max_count => node_count[[]].num,
@@ -56,7 +56,8 @@ module EC2Deploy
 
     the_reservation <= join([spinup_timer, ec2_conn, ec2_insts]).map do |t,c,i|
       if idempotent [[:the_reservation, t.val]] and not all_up.include? [true]
-        puts "Checking on the reservation"
+        print "."
+        STDOUT.flush
         [ec2_conn[[]].conn.describe_instances()["reservationSet"]["item"].find do |i|
            i["reservationId"] == ec2_insts[[]].insts["reservationId"]
          end]
@@ -78,7 +79,8 @@ module EC2Deploy
     all_up <+ node_up.map do
       if node_up.find {|n| n.bool == false} == nil and node_up.find {|n| n.bool == true} != nil
         if idempotent [:nodes_all_up]
-          puts "Nodes are all up"
+          puts "done"
+          STDOUT.flush
           [true]
         end
       end
@@ -93,8 +95,7 @@ module EC2Deploy
     # a "[0] or [nil]" at the end of this rule to peel off the extra level of
     # array
     temp_node <= join([all_up, the_reservation_next]).map do
-      break ((puts  ((0..(the_reservation_next[[]].reservation["instancesSet"]["item"].size-1)).to_a.zip(the_reservation_next[[]].reservation["instancesSet"]["item"].map {|i| [i["ipAddress"], i["privateIpAddress"]] })).map {|n,ips| [n, ips[0] + ":54321", ips[1] + ":54321"]}.inspect) or 
-             ((0..(the_reservation_next[[]].reservation["instancesSet"]["item"].size-1)).to_a.zip(the_reservation_next[[]].reservation["instancesSet"]["item"].map {|i| [i["ipAddress"], i["privateIpAddress"]]})).map {|n,ips| [n, ips[0] + ":54321", ips[1] + ":54321"]})
+      break(((0..(the_reservation_next[[]].reservation["instancesSet"]["item"].size-1)).to_a.zip(the_reservation_next[[]].reservation["instancesSet"]["item"].map {|i| [i["ipAddress"], i["privateIpAddress"]]})).map {|n,ips| [n, ips[0] + ":54321", ips[1] + ":54321"]})
     end
 
     # For each node, upload the file or directory in init_files, then execute
@@ -103,43 +104,48 @@ module EC2Deploy
       if idempotent [[:node_startup, t.node]]
         ip = t.node.split(":")[0]
         port = t.node.split(":")[1]
-        stdout_file = File.new(ip + "." + port + ".stdout", 'a')
-        stderr_file = File.new(ip + "." + port + ".stderr", 'a')
+        print "Deploying to #{ip} (#{t.uid}/#{node_count[[]].num-1}) "
+        STDOUT.flush
 
         # Upload the initial file (or directory)
-        10.times do
+        ctr = 0
+        while ctr < 10
           begin
             Net::SCP.upload!(ip, 'ec2-user', init_dir[[]].dir, '/home/ec2-user',
                              :recursive => true, :ssh => {:keys =>
-                               [ec2_key_location[[]].loc]})
+                               [ec2_key_location[[]].loc], :timeout => 5,
+                               :paranoid => false})
 
             break true
           rescue Exception
-            puts "retrying ssh (this is normal)..."
+            ctr += 1
+            print "."
+            STDOUT.flush
             sleep 6
             next
           end
-        end or raise "Failed to connect to EC2 ssh after 10 retries"
+        end or raise "Failed to connect to EC2 after 10 retries (scp)"
 
         # Run the initial deployment command
-        Net::SSH.start(ip, 'ec2-user', :keys => [ec2_key_location[[]].loc]) do |session|
-          session.open_channel do |channel|
-            channel.request_pty do |_, success|
-              raise "PTY Error" unless success
+        ctr = 0
+        while ctr < 10
+          begin
+            Net::SSH.start(ip, 'ec2-user', :keys => [ec2_key_location[[]].loc],
+                           :timeout => 5, :paranoid => false) do |session|
+              session.exec!('nohup ' + ruby_command[[]].cmd + ' ' + t.localip +
+                            ' ' + ip + ' >metarecv.out 2>metarecv.err </dev/null &')
             end
-            channel.exec('nohup ' + ruby_command[[]].cmd + ' ' + t.localip + ' ' +
-                         ip + ' >metarecv.out 2>metarecv.err </dev/null') do |_, success|
-              channel.on_data do |_, data|
-                stdout_file.print(data)
-              end
-              channel.on_extended_data do |_, _, data|
-                stderr_file.print(data)
-              end
-            end
+            break true
+          rescue Exception
+            ctr += 1
+            print "."
+            STDOUT.flush
+            sleep 6
+            next
           end
-        end
+        end or raise "Failed to connect to EC2 after 10 retries (ssh)"
 
-        puts "Done commands and upload:" + t.inspect
+        puts "done"
         # XXX: Wait for everything to start up on the remote node
         sleep 6
         [t.uid, t.node]
@@ -151,10 +157,9 @@ module EC2Deploy
   bloom :all_nodes do
     # Does num_nodes deploy_nodes exist?  If so, put them all in node atomically
     deploy_node_count <= deploy_node.group(nil, count)
-    stdio <~ deploy_node_count.map {|d| ["deploy node count: " + d.inspect]}
     node <= join([deploy_node_count, node_count, deploy_node],
                  [deploy_node_count.num, node_count.num]).map do |_, _, d|
-      d
+        d
     end
   end
 
