@@ -124,4 +124,19 @@ class TestErrorHandling < Test::Unit::TestCase
 
     e.stop_bg
   end
+
+  class BadOp
+    include Bud
+    state do
+      table :foo
+      table :bar
+    end
+    bloom do
+      foo + bar
+    end
+  end
+  
+  def ntest_bad_op
+    b = BadOp.new
+  end
 end

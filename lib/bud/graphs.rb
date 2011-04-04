@@ -36,6 +36,7 @@ class GraphGen #:nodoc: all
 
     @redcycle = {}
     cycle.each do |c|
+      puts "CYCLE: #{c.inspect}"
       if c[2] and c[3]
         if !@redcycle[c[0]]
           @redcycle[c[0]] = []
@@ -85,6 +86,7 @@ class GraphGen #:nodoc: all
     # consider doing this in bud
     # PAA
     if @redcycle[predicate] and @collapse
+      puts "collapse #{predicate}, redcycle #{@redcycle[predicate].inspect}"
       via = @redcycle[predicate]
       bag = name_bag(predicate, {})
       #str = bag.key_cols.sort.join(", ")
