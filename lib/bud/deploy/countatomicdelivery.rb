@@ -4,7 +4,7 @@ require 'bud'
 # XXX: delivery modules are a massive hack.  we need to think about
 # aspect-oriented programming here, or allow users to extend the definitions of
 # existing table types
-module CountAtomicDelivery
+module CountAtomicDelivery # :nodoc: all
   state do
     scratch :atomic_data_in, [:loc, :tuple]
     channel :atomic_data_chan, [:@loc, :tuple]

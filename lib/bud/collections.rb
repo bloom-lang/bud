@@ -24,6 +24,7 @@ module Bud
 
     private
     def init_buffers
+      @sealed = false
       init_storage
       init_pending
       init_deltas
@@ -66,8 +67,8 @@ module Bud
       return [schema, key_cols]
     end
 
-    public #:nodoc: all
-    def clone_empty
+    public 
+    def clone_empty #:nodoc: all
       self.class.new(tabname, bud_instance, @given_schema)
     end
 
@@ -168,14 +169,13 @@ module Bud
     # By default, all tuples in any rhs are in storage or delta. Tuples in
     # new_delta will get transitioned to delta in the next iteration of the
     # evaluator (but within the current time tick).
-    public # :nodoc:
-    def each(&block)
+    public 
+    def each(&block) # :nodoc: all
       each_from([@storage, @delta], &block)
     end
 
-    # :nodoc
     private
-    def each_from(bufs, &block)
+    def each_from(bufs, &block) # :nodoc: all
       bufs.each do |b|
         b.each_value do |v|
           yield v
@@ -184,7 +184,7 @@ module Bud
     end
 
     public
-    def each_from_sym(buf_syms, &block) # :nodoc
+    def each_from_sym(buf_syms, &block) # :nodoc: all
       bufs = buf_syms.map do |s|
         case s
         when :storage then @storage
@@ -292,7 +292,7 @@ module Bud
     end
 
     public
-    def insert(o) #:nodoc:
+    def insert(o) # :nodoc: all
       # puts "insert: #{o.inspect} into #{tabname}"
       do_insert(o, @storage)
     end
@@ -385,8 +385,8 @@ module Bud
     end
 
     # move deltas to storage, and new_deltas to deltas.
-    public # :nodoc:
-    def tick_deltas
+    public 
+    def tick_deltas # :nodoc: all
       # assertion: intersect(@storage, @delta) == nil
       @storage.merge!(@delta)
       @delta = @new_delta
@@ -403,10 +403,14 @@ module Bud
     private
     # we only do grouping during first iteration of stratum: it never deals with deltas
     def agg_in
-      if not @bud_instance.nil? and @bud_instance.stratum_first_iter == false
-        return []
-      else
+      return self # disable this optimization until stratification is fixed
+      if @sealed.nil?
         return self
+      elsif @sealed == false
+        @sealed = true
+        return self
+      else
+        return []
       end
     end
       
@@ -679,10 +683,10 @@ module Bud
     
   end
 
-  class BudScratch < BudCollection
+  class BudScratch < BudCollection # :nodoc: all
   end
 
-  class BudTemp < BudCollection
+  class BudTemp < BudCollection # :nodoc: all
   end
 
   class BudChannel < BudCollection
@@ -729,16 +733,17 @@ module Bud
       retval
     end
 
-    public # :nodoc:
-    def tick
+    public 
+    def tick # :nodoc: all
+      @sealed = false
       @storage = {}
       # Note that we do not clear @pending here: if the user inserted into the
       # channel manually (e.g., via <~ from inside a sync_do block), we send the
       # message at the end of the current tick.
     end
 
-    public # :nodoc:
-    def flush
+    public 
+    def flush # :nodoc: all
       ip = @bud_instance.ip
       port = @bud_instance.port
       each_from([@pending]) do |t|
@@ -758,8 +763,8 @@ module Bud
       @pending.clear
     end
 
-    # given a channel collection, project to the non-address fields
     public
+    # project to the non-address fields
     def payloads
       if schema.size > 2
         # bundle up each tuple's non-locspec fields into an array
@@ -783,20 +788,20 @@ module Bud
       raise BudError, "Illegal use of <+ with channel '#{@tabname}' on left"
     end
 
-    public # :nodoc:
-    def <=(o)
+    public 
+    def <=(o) # :nodoc: all
       raise BudError, "Illegal use of <= with channel '#{@tabname}' on left"
     end
   end
 
-  class BudTerminal < BudCollection
+  class BudTerminal < BudCollection # :nodoc: all
     def initialize(name, given_schema, bud_instance, prompt=false)
       super(name, bud_instance, given_schema)
       @prompt = prompt
     end
 
-    public #:nodoc: all
-    def start_stdin_reader
+    public 
+    def start_stdin_reader # :nodoc: all
       # XXX: Ugly hack. Rather than sending terminal data to EM via UDP,
       # we should add the terminal file descriptor to the EM event loop.
       @reader = Thread.new do
@@ -852,10 +857,10 @@ module Bud
     end
   end
 
-  class BudPeriodic < BudCollection
+  class BudPeriodic < BudCollection # :nodoc: all
   end
 
-  class BudTable < BudCollection
+  class BudTable < BudCollection # :nodoc: all
     def initialize(name, bud_instance, given_schema)
       super(name, bud_instance, given_schema)
       @to_delete = []
@@ -883,7 +888,7 @@ module Bud
     end
   end
 
-  class BudReadOnly < BudScratch
+  class BudReadOnly < BudScratch # :nodoc: all
     superator "<+" do |o|
       raise BudError, "Illegal use of <+ with read-only collection '#{@tabname}' on left"
     end
@@ -893,7 +898,7 @@ module Bud
     end
   end
 
-  class BudFileReader < BudReadOnly
+  class BudFileReader < BudReadOnly # :nodoc: all
     def initialize(name, filename, delimiter, bud_instance)
       super(name, bud_instance, {[:lineno] => [:text]})
       @filename = filename
@@ -903,9 +908,8 @@ module Bud
       @linenum = 0
     end
 
-    # :nodoc
     public
-    def each(&block)
+    def each(&block) # :nodoc: all
       while (l = @fd.gets)
         t = tuple_accessors([@linenum, l.strip])
         @linenum += 1

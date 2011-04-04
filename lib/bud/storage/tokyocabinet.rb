@@ -2,7 +2,7 @@ require 'tokyocabinet'
 
 module Bud
   # Persistent table implementation based on TokyoCabinet.
-  class BudTcTable < BudCollection
+  class BudTcTable < BudCollection # :nodoc: all
     def initialize(name, bud_instance, given_schema)
       tc_dir = bud_instance.options[:tc_dir]
       raise BudError, "TC support must be enabled via 'tc_dir'" unless tc_dir

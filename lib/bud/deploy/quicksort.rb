@@ -3,7 +3,7 @@ require 'bud'
 
 # Balanced quicksort protocol that uses an expected O(N) time median-finding
 # algorithm to select the pivot.
-module Quicksort
+module Quicksort # :nodoc: all
   state do
     scratch :succ, [:elt1, :elt2]
     scratch :pivot, [] => [:elt]

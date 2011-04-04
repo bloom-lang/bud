@@ -2,7 +2,7 @@ require 'rubygems'
 require 'bud'
 require 'bust'
 
-class BustExample
+class BustExample # :nodoc: all
   include Bud
   include Bust
 

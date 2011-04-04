@@ -4,8 +4,6 @@ require 'bud/state'
 class RTrace #:nodoc: all
   attr_reader :table_recv, :table_send, :table_sleep
 
-  include BudState
-
   def initialize(bud_instance)
     @bud_instance = bud_instance
     return if bud_instance.class == Stratification or

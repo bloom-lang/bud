@@ -133,7 +133,7 @@ end
 # block references a block variable that shadows an identifier in the rename
 # tbl, it should appear as an :lvar node rather than a :call, so we should be
 # okay.
-class CallRewriter < SexpProcessor
+class CallRewriter < SexpProcessor # :nodoc: all
   def initialize(rename_tbl)
     super()
     self.require_empty = false
@@ -164,7 +164,7 @@ end
 # call to a__b__c, which matches how the corresponding Bloom collection will
 # be name-mangled. Note that we don't currently check that a__b__c (or a.b.c)
 # corresponds to an extant Bloom collection.
-class NestedRefRewriter < SexpProcessor
+class NestedRefRewriter < SexpProcessor # :nodoc: all
   attr_accessor :did_work
 
   def initialize(import_tbl)
@@ -232,7 +232,7 @@ end
 # we can safely eval. We also record the set of "temp" collections we've seen,
 # and provide a helper method that returns the AST of a state block that
 # contains declarations for all those temp tables.
-class TempExpander < SexpProcessor
+class TempExpander < SexpProcessor # :nodoc: all
   attr_reader :tmp_tables
   attr_accessor :did_work
 
@@ -322,7 +322,7 @@ class TempExpander < SexpProcessor
   end
 end
 
-class DefnRenamer < SexpProcessor
+class DefnRenamer < SexpProcessor # :nodoc: all
   def initialize(old_mod_name, new_mod_name, local_name)
     super()
     self.require_empty = false
@@ -352,7 +352,7 @@ class DefnRenamer < SexpProcessor
   end
 end
 
-module ModuleRewriter
+module ModuleRewriter # :nodoc: all
   # Do the heavy-lifting to import the Bloom module "mod" into the class/module
   # "import_site", bound to "local_name" at the import site. We implement this
   # by converting the imported module into an AST and rewriting the AST like so:

@@ -3,7 +3,7 @@ require 'bud'
 require 'bud/deploy/deployer'
 
 # Distributes initial data to nodes
-module BinaryTreePartition
+module BinaryTreePartition # :nodoc: all
   include Deployer
 
   state do

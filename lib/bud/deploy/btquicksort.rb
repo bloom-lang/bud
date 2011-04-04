@@ -5,7 +5,7 @@ require 'binarytreepartition'
 require 'localdeploy-nonmeta'
 
 # Mixes in quicksort with BinaryTreePartition
-class BTQuicksort
+class BTQuicksort # :nodoc: all
   include Bud
   include Quicksort
   include BinaryTreePartition

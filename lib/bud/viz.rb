@@ -5,8 +5,6 @@ require 'digest/md5'
 require 'bud/state'
 
 class VizOnline #:nodoc: all
-  include BudState
-
   def initialize(bud_instance)
     @bud_instance = bud_instance
     return if bud_instance.class == Stratification or @bud_instance.class == DepAnalysis

@@ -6,7 +6,7 @@ end
 
 module Bud
   # Persistent table implementation based on Zookeeper.
-  class BudZkTable < BudCollection
+  class BudZkTable < BudCollection # :nodoc: all
     def initialize(name, zk_path, zk_addr, bud_instance)
       unless defined? HAVE_ZOOKEEPER
         raise BudError, "zookeeper gem is not installed: zktables cannot be used"

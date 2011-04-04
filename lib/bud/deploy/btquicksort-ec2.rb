@@ -5,7 +5,7 @@ require 'bud/deploy/binarytreepartition'
 require 'bud/deploy/ec2deploy'
 
 # Mixes in quicksort with BinaryTreePartition
-class BTQuicksort
+class BTQuicksort # :nodoc: all
   include Bud
   include Quicksort
   include BinaryTreePartition

@@ -179,6 +179,27 @@ class ChoiceAgg
   end
 end
 
+class ChainAgg
+  include Bud
+  
+  state do
+    table :t1
+    table :t2
+    table :t3
+    table :r
+  end
+  
+  bootstrap do
+    t1 <= [[1,1],[2,1]]
+    r <= [['a', 'b']]
+  end
+  
+  bloom do
+    t2 <= (t1 * r * r).combos {|a,b,c| a}
+    t3 <= t2.argmax([], :key)
+  end
+end
+
 class TestAggs < Test::Unit::TestCase
   def test_paths
     program = ShortestPaths.new
@@ -251,5 +272,15 @@ class TestAggs < Test::Unit::TestCase
     p = ChoiceAgg.new
     assert_nothing_raised {p.tick}
     assert(([[1,1]]) == p.t2.to_a || ([[2,1]]) == p.t2.to_a)
+  end
+  
+  def test_chain_agg
+    p = ChainAgg.new
+    q = Queue.new
+    
+    p.register_callback(:t3) { q.push(true) }
+    p.run_bg
+    q.pop
+    assert_equal([[2,1]], p.t3.to_a) 
   end
 end

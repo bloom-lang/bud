@@ -20,6 +20,8 @@ require 'bud/viz'
 # We monkeypatch Module to add support for four new module methods: import,
 # state, bootstrap, and bloom.
 class Module
+  
+  # import another module and assign to a qualifier symbol: <tt>import MyModule => :m</tt>
   def import(spec)
     raise Bud::CompileError unless (spec.class <= Hash and spec.length == 1)
     mod, local_name = spec.first
@@ -38,18 +40,20 @@ class Module
     self.module_eval "include #{rewritten_mod_name}"
   end
 
-  # Transform "state", "bootstrap" and "bloom" blocks (calls to module methods
-  # with that name) into instance methods with a special name.
+  # the block of Bloom collection declarations.  one per module.
   def state(&block)
     meth_name = Module.make_state_meth_name(self)
     define_method(meth_name, &block)
   end
 
+  # a ruby block to be run before timestep 1.  one per module.
   def bootstrap(&block)
     meth_name = "__bootstrap__#{Module.get_class_name(self)}".to_sym
     define_method(meth_name, &block)
   end
 
+  # bloom statements to be registered with Bud runtime.  optional +block_name+ 
+  # allows for multiple bloom blocks per module, and overriding
   def bloom(block_name=nil, &block)
     # If no block name was specified, generate a unique name
     if block_name.nil?
@@ -75,7 +79,7 @@ class Module
     define_method(meth_name.to_sym, &block)
   end
 
-  def bud_import_table
+  def bud_import_table() #:nodoc: all
     @bud_import_tbl ||= {}
     @bud_import_tbl
   end
@@ -127,8 +131,6 @@ module Bud
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter
   attr_accessor :lazy # This can be changed on-the-fly by REBL
-
-  include BudState
 
   def initialize(options={})
     @tables = {}
@@ -296,14 +298,14 @@ module Bud
   public
 
   ########### give empty defaults for these
-  def declaration
+  def declaration # :nodoc: all
   end
-  def bootstrap
+  def bootstrap # :nodoc: all
   end
 
   ########### metaprogramming support for ruby and for rule rewriting
   # helper to define instance methods
-  def singleton_class
+  def singleton_class # :nodoc: all
     class << self; self; end
   end
 
@@ -603,12 +605,13 @@ module Bud
     ip + ":" + port
   end
 
-  # Returns the internal IP and port
+  # Returns the internal IP and port.  See ip_port
   def int_ip_port
     raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0
     @port.nil? ? "#{@ip}:#{@options[:port]}" : "#{@ip}:#{@port}"
   end
 
+  # manually trigger one timestep of Bloom execution.
   def tick
     @tables.each_value do |t|
       t.tick
@@ -735,26 +738,27 @@ module Bud
   end
 
   public
-  def joinstate
+  def joinstate # :nodoc: all
     @joinstate
   end
 
   public
-  def join(rels, *preds, &blk)
+  def join(collections, *preds, &blk) # :nodoc: all
     # since joins are stateful, we want to allocate them once and store in this Bud instance
     # we ID them on their tablenames, preds, and block
-    return wrap_map(BudJoin.new(rels, self, preds), &blk)
+    return wrap_map(BudJoin.new(collections, self, preds), &blk)
   end
 
-  # :nodoc
-  def natjoin(rels, &blk)
+  def natjoin(collections, &blk) # :nodoc: all
     # for all pairs of relations, add predicates on matching column names
-    preds = BudJoin::natural_preds(self, rels)
-    join(rels, *preds, &blk)
+    preds = BudJoin::natural_preds(self, collections)
+    join(collections, *preds, &blk)
   end
 
-  def leftjoin(rels, *preds, &blk)
-    return wrap_map(BudLeftJoin.new(rels, self, preds), &blk)
+  # left-outer-join syntax to be used in rhs of Bloom statements.  
+  # first argument an array of 2 collections, second argument an array of predicates (as in Bud::BudCollection.pairs)
+  def leftjoin(collections, *preds, &blk)
+    return wrap_map(BudLeftJoin.new(collections, self, preds), &blk)
   end
 
   private

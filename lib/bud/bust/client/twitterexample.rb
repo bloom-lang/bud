@@ -2,7 +2,7 @@ require 'rubygems'
 require 'bud'
 require 'restclient'
 
-class TwitterExample
+class TwitterExample # :nodoc: all
   include Bud
   include RestClient
 

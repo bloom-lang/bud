@@ -3,7 +3,7 @@ require 'bud'
 require 'open-uri'
 require 'bud/deploy/countatomicdelivery'
 
-module Deployer
+module Deployer # :nodoc: all
   include CountAtomicDelivery
 
   state do
