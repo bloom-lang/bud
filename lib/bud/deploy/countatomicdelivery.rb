@@ -3,7 +3,7 @@ require 'bud'
 
 # XXX: delivery modules are a massive hack.  we need to think about
 # aspect-oriented programming here, or allow users to extend the definitions of
-# existing table types
+# existing table types.
 module CountAtomicDelivery
   state do
     scratch :atomic_data_in, [:loc, :tuple]
@@ -42,9 +42,9 @@ module CountAtomicDelivery
                               atomic_data_recv
                             end) or [])
 
-    # commented out due to bug #85
+    # Commented out due to bug #85.
     # atomic_data_recv <- atomic_data_atomic
-    # idempotence hack inserted due to bug #85
+    # Idempotence hack inserted due to bug #85.
     atomic_data_out <= atomic_data_atomic.map {|a| [a.tuple] if idempotent [[:atomic_data_out, a]]}
   end
 end

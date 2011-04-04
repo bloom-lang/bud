@@ -816,6 +816,7 @@ module Bud
     def flush #:nodoc: all
       @pending.each do |p|
         $stdout.puts p[0]
+        $stdout.flush
       end
       @pending = {}
     end
