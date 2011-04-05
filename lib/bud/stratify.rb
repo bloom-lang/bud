@@ -8,6 +8,7 @@ class Stratification # :nodoc: all
     # Data inserted by client (Bud rewrite code)
     table :tab_info, [:tab, :typecol, :columns]
     table :depends, [:rule, :head, :op, :body, :neg]
+    table :depends_clean, [:head, :body, :neg, :temporal]
 
     # Transitive closure of "depends" relation
     table :depends_tc, [:head, :body, :via, :neg, :temporal]
@@ -19,32 +20,21 @@ class Stratification # :nodoc: all
 
   def declaration
     strata[0] = lambda {
-      depends_tc <= depends do |d|
+      depends_clean <= depends do |d|
         dneg = (d.neg or d.op.to_s =~ /<-/)
-        if d.op.to_s =~ /<[\+\-\~]/
-          [d.head, d.body, d.body, dneg, true]
-        else
-          [d.head, d.body, d.body, dneg, false]
-        end
+        dtmp = d.op.to_s =~ /<[\+\-\~]/
+        [d.head, d.body, dneg, dtmp]
       end
 
-      depends_tc <= (depends * depends_tc).pairs(:body => :head) do |b, r|
-        # theoretically illegal, would break our analysis
-        temporal = false
-        if (b.op.to_s =~ /<[\+\-\~]/) or r.temporal
-          temporal = true
-        end
-        if (b.neg or b.op.to_s =~ /<-/) || r.neg
-          # revert the computation of 'via' -- too slow
-          # b.body -> nil
-          [b.head, r.body, b.body, true, temporal]
-        else
-          [b.head, r.body, b.body, false, temporal]
-        end
+      # we need to compute the transitive closure of depends() 
+      # to detect cycles in the deductive fragment of the program.
+      depends_tc <= depends_clean do |d|
+        [d.head, d.body, d.body, d.neg, d.temporal]
       end
 
-      #print "OK CYCLE has #{cycle.length} elements, TC has #{depends_tc.length}!\n"
-      #depends_tc.each {|d| print "\tDEP_TC: #{d.inspect}\n" }
+      depends_tc <= (depends_clean * depends_tc).pairs(:body => :head) do |b, r|
+        [b.head, r.body, b.body, (b.neg or r.neg), (b.temporal or r.temporal)]
+      end
 
       cycle <= depends_tc do |d|
         if d.head == d.body
@@ -55,6 +45,8 @@ class Stratification # :nodoc: all
           end
         end
       end
+    
+      # we initially assign all predicates to stratum 0
       stratum_base <= depends {|d| [d.body, 0]}
     }
 
@@ -62,24 +54,44 @@ class Stratification # :nodoc: all
       # classic stratification:
       # if A depends on B, A is >= B.
       # if A depends nonmonotonically on B, A > B.
-      # if A are B are co-dependent, give up.
+      # if A are B are co-dependent, give up. 
+      #  (don't need to do this, b/c we've ruled out deductive cycles)
       # stratum choice will represent local evaluation order,
       # so we need only consider 'synchronous' dependencies (<=)
+
+      # pass 1: assume no deductive cycles
+      # do "vanilla stratification" on deductive rules
       stratum_base <= (depends * stratum_base).pairs(:body => :predicate) do |d, s|
-        if d.neg and d.op.to_s == "<=" and !cycle.map{|c| c.predicate}.include? d.head
-          #puts "bump: #{d.head} to #{s.stratum + 1} due to #{d.op} #{d.body}"
-          [d.head, s.stratum + 1]
-        #elsif !cycle.map{|c| c.predicate}.include? d.head
-        else
-          # always hoist, unless it will put us into an infinite loop
-          [d.head, s.stratum]
+        if d.op.to_s == '<='
+          if d.neg
+            # BUMP
+            [d.head, s.stratum + 1]
+          else
+            # HOIST
+            [d.head, s.stratum]
+          end
         end
       end
     }
 
     strata[2] = lambda {
+      # pass 2: do additional hoisting to ensure that rules with scratches in their
+      # LHS do not appear in strata below rules that produce their inputs
+      stratum_base <= (depends * stratum_base).pairs(:body => :predicate) do |d, s|
+        unless d.op.to_s == '<='
+          [d.head, s.stratum]
+        end
+      end
+    }
+
+    strata[3] = lambda {
       stratum <= stratum_base.group([stratum_base.predicate], max(stratum_base.stratum))
-      top_strat <= stratum_base.group(nil, max(stratum_base.stratum))
+    }
+
+    strata[4] = lambda {
+      # there is no good reason that top_strat can't be computed in strata[3] over stratum_base.
+      # however, when it is deduced that way, it is empty after a tick
+      top_strat <= stratum.group([], max(stratum.stratum))
     }
   end
 end

@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud'
 require 'nestful'
-require 'idempotence'
+require 'bud/bust/client/idempotence'
 
 module RestClient
   include Idempotence # :nodoc: all
@@ -41,8 +41,8 @@ module RestClient
          bud.async_do do
            rest_response <+ [resp_tuple]
          end
-       end] if idempotent [[req.rid, req.verb, req.form, req.url, req.params,
-                            @budtime]]
+       end] if bust_idempotent [[req.rid, req.verb, req.form, req.url, req.params,
+                                 @budtime]]
     end
   end
 end

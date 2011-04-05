@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'bud'
-require 'restclient'
+require 'bud/bust/client/restclient'
 
 class TwitterExample # :nodoc: all
   include Bud
