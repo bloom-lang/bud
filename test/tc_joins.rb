@@ -25,7 +25,7 @@ class StarJoin
   end
 
   bloom do
-    r3 <= (r1*r2).pairs {|r,s| [s.vat, r.key]}
+    r3 <= (r1*r2).pro {|r,s| [s.vat, r.key]}
     r4 <= join([r1,r2]) {|r,s| [s.vat, r.key]}
     r5 <= (r1*r2).pairs(:val => :key) {|r,s| [r.key, s.vat]}
     r51 <= (r1*r2).pairs([r1.val,r2.key]) {|r,s| [r.key, s.vat]}
@@ -172,7 +172,7 @@ class CombosBud
     temp :newtab <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x)
     temp :newtab_out <= newtab { |a,b,c| [a.x, b.x, c.x, a.y1, b.y1, c.y1] }
 
-    temp :loj <= leftjoin([mismatches, s_tab], [mismatches.x, s_tab.x])
+    temp :loj <= leftjoin([mismatches, s_tab], :x => :x)
     loj_out <= loj.map { |t1, t2| [t1.x, t2.x, t1.y1, t2.y1] }
   end
 end
@@ -351,5 +351,51 @@ class TestJoins < Test::Unit::TestCase
     p.tick
     assert_equal(1, p.result1.length)
     assert_equal(p.result2.to_a.flatten.sort, p.result1.to_a.flatten.sort)
+  end
+  
+  class FlattenJoins
+    include Bud
+    state do
+      table :t1, [:key_1] => [:val]
+      table :t2
+    end
+    bootstrap do
+      t1 <+ [[1,1]]
+      t2 <+ [[1,2], [2,3]]
+    end
+    bloom do
+      temp :out <= (t1 * t2).flatten
+      temp :out2 <= (t1 * t2).flatten(:key_1 => :key)
+    end
+  end
+  
+  def test_flatten_joins
+    p = FlattenJoins.new
+    p.tick; p.tick
+    assert_equal(2, p.out.length)
+    assert_equal(1, p.out2.length)
+  end
+  
+  class InspectJoins
+    include Bud
+    state do
+      table :t1
+      table :t2
+      table :t3
+    end
+    bootstrap do
+      t1 << [1,1]
+      t2 << [1,2]
+      t3 << [1,3]
+    end
+    bloom do
+      temp :out <= (t1 * t2).inspected
+      temp :out2 <= (t1 * t2 * t3).inspected
+    end
+  end
+  
+  def test_inspect_joins
+    p = InspectJoins.new
+    p.tick
   end
 end

@@ -1,36 +1,36 @@
-# BFS: A distributed filesystem in Bloom
+# BFS: A distributed file system in Bloom
 
 In this document we'll use what we've learned to build a piece of systems software using Bloom.  The libraries that ship with BUD provide many of the building blocks we'll need to create a distributed,
-``chunked'' filesystem in the style of the Google Filesystem(GFS):
+``chunked'' file system in the style of the Google File System (GFS):
 
- * a [key-value store](https://github.com/bloom-lang/bud-sandbox/blob/master/kvs/kvs.rb), 
+ * a [key-value store](https://github.com/bloom-lang/bud-sandbox/blob/master/kvs/kvs.rb) (KVS)
  * [nonce generation](https://github.com/bloom-lang/bud-sandbox/blob/master/ordering/nonce.rb)
  * a [heartbeat protocol](https://github.com/bloom-lang/bud-sandbox/blob/master/heartbeat/heartbeat.rb)
 
 ## High-level architecture
 
-![BFS Architecture](https://github.com/bloom-lang/bud/raw/master/docs/bfs_arch.png)
+![BFS Architecture](bfs_arch.png?raw=true)
 
-BFS implements a chunked, distributed filesystem (mostly) in the Bloom
-language.  BFS is architecturally based on BOOMFS, which is itself based on
-the Google Filesystem (GFS).  As in GFS, a single master node manages
-filesystem metadata, while data blocks are replicated and stored on a large
+BFS implements a chunked, distributed file system (mostly) in the Bloom
+language.  BFS is architecturally based on [BOOM-FS](http://db.cs.berkeley.edu/papers/eurosys10-boom.pdf), which is itself based on
+the Google File System (GFS).  As in GFS, a single master node manages
+file system metadata, while data blocks are replicated and stored on a large
 number of storage nodes.  Writing or reading data involves a multi-step
 protocol in which clients interact with the master, retrieving metadata and
 possibly changing state, then interact with storage nodes to read or write
 chunks.  Background jobs running on the master will contact storage nodes to
 orchestrate chunk migrations, during which storage nodes communicate with
-other storage nodes.  As in BFS, the communication protocols and the data
+other storage nodes.  As in BOOM-FS, the communication protocols and the data
 channel used for bulk data transfer between clients and datanodes and between
 datanodes is written outside Bloom (in Ruby).
 
-## [Basic Filesystem](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/fs_master.rb)
+## [Basic File System](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/fs_master.rb)
 
-Before we worry about any of the details of distribution, we need to implement the basic filesystem metadata operations: _create_, _remove_, _mkdir_ and _ls_.
-There are many choices for how to implement these operations, and it makes sense to keep them separate from the (largely orthogonal) distributed filesystem logic.
+Before we worry about any of the details of distribution, we need to implement the basic file system metadata operations: _create_, _remove_, _mkdir_ and _ls_.
+There are many choices for how to implement these operations, and it makes sense to keep them separate from the (largely orthogonal) distributed file system logic.
 That way, it will be possible later to choose a different implementation of the metadata operations without impacting the rest of the system.
-Another obvious benefit of modularizing the metadata logic is that it can be independently tested and debugged.  We want to get the core of the filesystem
-working correctly before we even send a whisper over the network, let alone snap on any complex features.
+Another benefit of modularizing the metadata logic is that it can be independently tested and debugged.  We want to get the core of the file system
+working correctly before we even send a whisper over the network, let alone add any complex features.
 
 ### Protocol
 
@@ -41,7 +41,7 @@ indicating whether the request succeeded, and __data__ may contain return values
 
 ### Implementation
 
-We already have a library that provides an updateable flat namespace: the key-value store.  We can easily implement the tree structure of a filesystem over a key-value store
+We already have a library that provides an updateable flat namespace: the key-value store.  We can easily implement the tree structure of a file system over a key-value store
 in the following way:
 
  1. keys are paths
@@ -51,7 +51,7 @@ in the following way:
 <!--- (**JMH**: I find it a bit confusing how you toggle from the discussion above to this naive file-storage design here.  Can you warn us a bit more clearly that this is a starting point focused on metadata, with (3) being a strawman for data storage that is intended to be overriden later?)
 --->
 Note that (3) is a strawman: it will cease to apply when we implement chunked storage later.  It is tempting, however, to support (3) so that the resulting program is a working
-standalone filesystem.
+standalone file system.
 
 We begin our implementation of a KVS-backed metadata system in the following way:
 
@@ -77,7 +77,7 @@ The logic for file and directory creation and deletion follow a similar logic wi
 
 ==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|62-71
 
-Unlike a directory listing, however, these operations change the state of the filesystem.  In general, any state change will involve 
+Unlike a directory listing, however, these operations change the state of the file system.  In general, any state change will involve 
 carrying out two mutating operations to the key-value store atomically:
 
  1. update the value (child array) associated with the parent directory entry
@@ -92,8 +92,8 @@ The following Bloom code carries this out:
 <!--- (**JMH**: This next sounds awkward.  You *do* take care: by using <= and understanding the atomicity of timesteps in Bloom.  I think what you mean to say is that Bloom's atomic timestep model makes this easy compared to ... something.)
 Note that we need not take any particular care to ensure that the two inserts into __kvput__ occur together atomically.  Because both statements use the synchronous 
 -->
-Note that because both inserts into the __kvput__ collection use the synchronous operator (<=), we know that they will occur together in the same fixpoint computation or not at all.
-Therefore we need not be concerned with explicitly sequencing the operations (e.g., ensuring that the directory entries is created AFTER the file entry) to deal with concurrency:
+Note that because both inserts into the __kvput__ collection use the synchronous operator (`<=`), we know that they will occur together in the same fixpoint computation or not at all.
+Therefore we need not be concerned with explicitly sequencing the operations (e.g., ensuring that the directory entries is created _after_ the file entry) to deal with concurrency:
 there can be no visible state of the database in which only one of the operations has succeeded.
 
 If the request is a deletion, we need some additional logic to enforce the constraint that only an empty directory may be removed:
@@ -103,13 +103,13 @@ If the request is a deletion, we need some additional logic to enforce the const
 
 
 Recall that when we created KVSFS we mixed in __TimestepNonce__, one of the nonce libraries.  While we were able to use the _reqid_ field from the input operation as a unique identifier
-for one of our kvs operations, we need a fresh, unique request id for the second kvs operation in the atomic pair described above.  By joining __nonce__, we get
+for one of our KVS operations, we need a fresh, unique request id for the second KVS operation in the atomic pair described above.  By joining __nonce__, we get
 an identifier that is unique to this timestep.
 
 
 ## [File Chunking](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/chunking.rb)
 
-Now that we have a module providing a basic filesystem, we can extend it to support chunked storage of file contents.  The metadata master will contain, in addition to the KVS
+Now that we have a module providing a basic file system, we can extend it to support chunked storage of file contents.  The metadata master will contain, in addition to the KVS
 structure for directory information, a relation mapping a set of chunk identifiers to each file
 
 ==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/chunking.rb|26-26
@@ -160,7 +160,7 @@ Otherwise, __chunk_cache__ has information about the given chunk, which we may r
 
 ### [Datanode](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/datanode.rb)
 
-A datanode runs both BUD code (to support the heartbeat and control protocols) and pure ruby (to support the data transfer protocol).  A datanode's main job is keeping the master 
+A datanode runs both Bud code (to support the heartbeat and control protocols) and pure Ruby (to support the data transfer protocol).  A datanode's main job is keeping the master 
 aware of it existence and its state, and participating when necessary in data pipelines to read or write chunk data to and from its local storage.
 
 ==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|9-13
@@ -191,7 +191,7 @@ payload of local chunks:
 
 ==https://github.com/bloom-lang/bud-sandbox/raw/5c7734912e900c28087e39b3424a1e0191e13704/bfs/hb_master.rb|30-32
 
-At the same time, we use the ruby _flatmap_ function to flatten the array of chunks in the heartbeat payload into a set of tuples, which we
+At the same time, we use the Ruby _flatmap_ method to flatten the array of chunks in the heartbeat payload into a set of tuples, which we
 associate with the heartbeating datanode and the time of receipt in __chunk_cache__:
 
 ==https://github.com/bloom-lang/bud-sandbox/raw/5c7734912e900c28087e39b3424a1e0191e13704/bfs/hb_master.rb|22-28
@@ -207,7 +207,7 @@ __last_heartbeat__ is an output interface provided by the __HeartbeatAgent__ mod
 One of the most complicated parts of the basic GFS design is the client component.  To minimize load on the centralized master, we take it off the critical 
 path of file transfers.  The client therefore needs to pick up this work.
 
-We won't spend too much time on the details of the client code, as it is nearly all _plain old ruby_.  The basic idea is:
+We won't spend too much time on the details of the client code, as it is nearly all _plain old Ruby_.  The basic idea is:
 
  1. Pure metadata operations 
      * _mkdir_, _create_, _ls_, _rm_
@@ -229,7 +229,7 @@ We won't spend too much time on the details of the client code, as it is nearly 
 ## [Data transfer protocol](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/data_protocol.rb)
 
 The data transfer protocol comprises a set of support functions for the bulk data transfer protocol whose use is described in the previous section.
-Because it is _plain old ruby_ it is not as interesting as the other modules. It provides:
+Because it is _plain old Ruby_ it is not as interesting as the other modules. It provides:
 
   * The TCP server code that runs at each datanode, which parses headers and writes stream data to the local FS (these files are later detected by the directory poll).
   * Client API calls to connect to datanodes and stream data.  Datanodes also use this protocol to pipeline chunks to downstream datanodes.
@@ -238,7 +238,7 @@ Because it is _plain old ruby_ it is not as interesting as the other modules. It
 ## [Master background process](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/background.rb)
 
 So far, we have implemented the BFS master as a strictly reactive system: when clients make requests, it queries and possibly updates local state.
-To maintain the durability requirement that REP_FACTOR copies of every chunk are stored on distinct nodes, the master must be an active system
+To maintain the durability requirement that `REP_FACTOR` copies of every chunk are stored on distinct nodes, the master must be an active system
 that maintains a near-consistent view of global state, and takes steps to correct violated requirements.  
 
 __chunk_cache__ is the master's view of datanode state, maintained as described by collecting and pruning heartbeat messages.  
