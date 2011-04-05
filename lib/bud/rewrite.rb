@@ -26,7 +26,7 @@ class RuleRewriter < Ruby2Ruby #:nodoc: all
       do_table(exp)
     elsif @ops[exp[1]] and @context[1] == :block and @context.length == 4
       # NB: context.length is 4 when see a method call at the top-level of a
-      # :defn block -- this is where we expect Bloom ops to appear
+      # :defn block -- this is where we expect Bloom statements to appear
       do_rule(exp)
     else
       if exp[0] and exp[0].class == Sexp
@@ -69,8 +69,8 @@ class RuleRewriter < Ruby2Ruby #:nodoc: all
     end
 
     @rules << [@rule_indx, lhs, op, rule_txt]
-    @tables.each_pair do |k, v|
-      @depends << [@rule_indx, lhs, op, k, v]
+    @tables.each_pair do |t, non_monotonic|
+      @depends << [@rule_indx, lhs, op, t, non_monotonic]
     end
 
     @tables = {}

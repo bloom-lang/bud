@@ -21,17 +21,15 @@ class Stratification # :nodoc: all
   def declaration
     strata[0] = lambda {
       depends_clean <= depends do |d|
-        dneg = (d.neg or d.op.to_s =~ /<-/)
-        dtmp = d.op.to_s =~ /<[\+\-\~]/
-        [d.head, d.body, dneg, dtmp]
+        is_temporal = (d.op.to_s =~ /<[\+\-\~]/)
+        [d.head, d.body, d.neg, is_temporal]
       end
 
-      # We need to compute the transitive closure of "depends_clean" to detect
-      # cycles in the deductive fragment of the program.
+      # Compute the transitive closure of "depends_clean" to detect cycles in
+      # the deductive fragment of the program.
       depends_tc <= depends_clean do |d|
         [d.head, d.body, d.body, d.neg, d.temporal]
       end
-
       depends_tc <= (depends_clean * depends_tc).pairs(:body => :head) do |b, r|
         [b.head, r.body, b.body, (b.neg or r.neg), (b.temporal or r.temporal)]
       end
