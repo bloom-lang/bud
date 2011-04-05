@@ -398,4 +398,24 @@ class TestJoins < Test::Unit::TestCase
     p = InspectJoins.new
     p.tick
   end
+  
+  class LeftJoinChannel
+    include Bud
+    state do 
+      channel :c
+      table :t
+    end
+    bootstrap do
+      t <+ [[2,1]]
+    end
+    bloom do
+      temp :out <= leftjoin([c, t], :val => :key)
+    end
+  end
+  
+  def test_left_join_channel
+    p = LeftJoinChannel.new
+    p.run_bg
+    p.sync_callback(:c, [[p.ip_port,1]], :out)
+  end
 end

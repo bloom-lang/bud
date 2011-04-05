@@ -14,7 +14,7 @@ module Bud
   class BudCollection
     include Enumerable
 
-    attr_accessor :bud_instance # :nodoc: all
+    attr_accessor :bud_instance, :locspec_idx # :nodoc: all
     attr_reader :schema, :tabname # :nodoc: all
     attr_reader :storage, :delta, :new_delta # :nodoc: all
 
@@ -734,10 +734,13 @@ module Bud
       return lsplit
     end
 
-    # not sure we should inherit this .. seems unsafe.  
-    # was never called before anyhow.
-    undef clone_empty
-    
+    public
+    def clone_empty
+      retval = super
+      retval.locspec_idx = @locspec_idx
+      retval
+    end
+
     public 
     def tick # :nodoc: all
       @sealed = false
