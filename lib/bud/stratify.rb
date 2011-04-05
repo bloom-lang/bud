@@ -21,17 +21,15 @@ class Stratification # :nodoc: all
   def declaration
     strata[0] = lambda {
       depends_clean <= depends do |d|
-        dneg = (d.neg or d.op.to_s =~ /<-/)
-        dtmp = d.op.to_s =~ /<[\+\-\~]/
-        [d.head, d.body, dneg, dtmp]
+        is_temporal = (d.op.to_s =~ /<[\+\-\~]/)
+        [d.head, d.body, d.neg, is_temporal]
       end
 
-      # we need to compute the transitive closure of depends() 
-      # to detect cycles in the deductive fragment of the program.
+      # Compute the transitive closure of "depends_clean" to detect cycles in
+      # the deductive fragment of the program.
       depends_tc <= depends_clean do |d|
         [d.head, d.body, d.body, d.neg, d.temporal]
       end
-
       depends_tc <= (depends_clean * depends_tc).pairs(:body => :head) do |b, r|
         [b.head, r.body, b.body, (b.neg or r.neg), (b.temporal or r.temporal)]
       end
@@ -75,8 +73,8 @@ class Stratification # :nodoc: all
     }
 
     strata[2] = lambda {
-      # pass 2: do additional hoisting to ensure that rules with scratches in their
-      # LHS do not appear in strata below rules that produce their inputs
+      # pass 2: do additional hoisting to ensure that rules do not appear in
+      # strata below rules that produce their inputs
       stratum_base <= (depends * stratum_base).pairs(:body => :predicate) do |d, s|
         unless d.op.to_s == '<='
           [d.head, s.stratum]
