@@ -9,7 +9,7 @@ module Bud
       @origpreds = preds
       @bud_instance = bud_instance
       @localpreds = nil
-            
+
       # if any elements on rellist are BudJoins, suck up their contents
       tmprels = []
       rellist.each do |r|
@@ -21,8 +21,8 @@ module Bud
         end
       end
       rellist = tmprels
-      @origrels = rellist 
-      
+      @origrels = rellist
+
       # recurse to form a tree of binary BudJoins
       @rels = [rellist[0]]
       @rels << (rellist.length == 2 ? rellist[1] : BudJoin.new(rellist[1..rellist.length-1], @bud_instance, nil))
@@ -38,9 +38,9 @@ module Bud
         memo[r.tabname.to_s] += 1
         memo
       end
-      
+
       preds = setup_preds(preds) unless preds.nil? or preds.empty?
-      
+
       setup_state
       self
     end
@@ -51,7 +51,7 @@ module Bud
     end
 
     # initialize the state for this join to be carried across iterations within a fixpoint
-    private 
+    private
     def setup_state
       sid = state_id
       @tabname = ("temp_join"+state_id.to_s).to_sym
@@ -61,7 +61,7 @@ module Bud
       (0..1).each do |i|
         found = true if @hash_tables[i][:storage].any? or @hash_tables[i][:delta].any?
       end
-    end   
+    end
 
     private_class_method
     def self.natural_preds(bud_instance, rels)
@@ -76,10 +76,10 @@ module Bud
       end
       preds.uniq
     end
-        
+
     # flatten joined items into arrays, with attribute accessors inherited
     # from the input collections, disambiguated via suffix indexes as needed.
-    # similar to <tt>SELECT * FROM ... WHERE...</tt> block in SQL.  
+    # similar to <tt>SELECT * FROM ... WHERE...</tt> block in SQL.
     public
     def flatten(*preds)
       setup_preds(preds) unless preds.nil? or preds.size == 0
@@ -107,7 +107,7 @@ module Bud
       retval.uniquify_tabname
       retval.merge(self.map{|r,s| r + s}, retval.storage)
     end
-    
+
     undef do_insert
 
     public
@@ -117,7 +117,7 @@ module Bud
       self.map{|r1, r2| ["\[ #{r1.inspect} #{r2.inspect} \]"]}
     end
 
-    public 
+    public
     def pro(&blk) # :nodoc: all
       pairs(&blk)
     end
@@ -143,7 +143,7 @@ module Bud
       end
       tick_hash_deltas
     end
-    
+
     public
     def each_from_sym(buf_syms, &block) # :nodoc: all
       buf_syms.each do |s|
@@ -191,8 +191,8 @@ module Bud
       left_entry = pred[0]
       left_name, left_offset = left_entry[0], left_entry[1]
 
-      # determine which subtuple of right collection contains the table 
-      # referenced in RHS of pred.  note that right collection doesn't contain the 
+      # determine which subtuple of right collection contains the table
+      # referenced in RHS of pred.  note that right collection doesn't contain the
       # first entry in rels, which is the left collection
       right_subtuple = 0
       origrels[1..origrels.length].each_with_index do |t,i|
@@ -223,20 +223,20 @@ module Bud
 
       syms = [left_sym, right_sym]
 
-      syms.each_with_index do |probe_sym, probe_ix|        
+      syms.each_with_index do |probe_sym, probe_ix|
         other_ix = 1 - probe_ix # bit-flip
         other_sym = syms[other_ix]
         probe_offset = (probe_ix == 0) ? left_offset : right_offset
-        
+
         # in a delta/storage join we do traditional one-sided hash join
-        # so don't probe from the storage side. 
+        # so don't probe from the storage side.
         # the other side should have been built already!
         if probe_sym == :storage and probe_sym != other_sym
           next
         end
-      
+
         # ready to do the symmetric hash join
-        rels[probe_ix].each_from_sym([probe_sym]) do |r|   
+        rels[probe_ix].each_from_sym([probe_sym]) do |r|
           r = [r] unless probe_ix == 1 and origrels.length > 2
           attrval = (probe_ix == 0) ? r[0][left_offset] : r[right_subtuple][right_offset]
 
@@ -245,7 +245,7 @@ module Bud
             @hash_tables[probe_ix][probe_sym][attrval] ||= []
             @hash_tables[probe_ix][probe_sym][attrval] << r
           end
-          
+
           # ...and probe the other hashtable
           next if @hash_tables[other_ix][other_sym][attrval].nil?
           @hash_tables[other_ix][other_sym][attrval].each do |s_tup|
@@ -272,7 +272,6 @@ module Bud
           raise Bud::CompileError, "in leftjoin, attribute refs must have style :col1 => :col2"
         end
       end
-      
     end
 
     public
