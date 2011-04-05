@@ -192,6 +192,7 @@ end
 # can step through the execution of.
 class LibRebl
   attr_accessor :rules, :state
+  attr_reader :ip, :port, :rebl_class_inst
   @@builtin_tables = [:stdio, :t_depends, :periodics_tbl, :t_cycle, :localtick,
                       :t_provides, :t_rules, :t_depends_tc, :t_stratum,
                       :rebl_breakpoint]
@@ -278,10 +279,8 @@ class LibRebl
     end
 
     @old_inst = @rebl_class_inst
-    ip = @old_inst ? @old_inst.ip : (@ip ? @ip : nil)
-    port = @old_inst ? @old_inst.port : (@port ? @port : 0)
-    @rebl_class_inst = @rebl_class.new(:no_signal_handlers => true, :ip => ip,
-                                       :port => port, :lazy => true)
+    @rebl_class_inst = @rebl_class.new(:no_signal_handlers => true, :ip => @ip,
+                                       :port => @port, :lazy => true)
 
     # Copy the tables over.
     if @old_inst
@@ -303,6 +302,8 @@ class LibRebl
         @rebl_class_inst.lazy = true
       end
       @rebl_class_inst.run_bg
+      @ip = @rebl_class_inst.ip
+      @port = @rebl_class_inst.port
       puts "Listening on #{@rebl_class_inst.ip_port}" if not @old_inst
     rescue
       # The above two need to be atomic, or we're in trouble.

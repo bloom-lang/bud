@@ -3,6 +3,8 @@ require 'stringio'
 require 'bud/rebl'
 
 class ReblTester
+  attr_reader :lib
+
   def initialize
     @lib = ReblShell::setup
   end
@@ -20,9 +22,100 @@ end
 
 # TODO: add the following testcases:
 #    * test persistent store functionality
-#    * ping/pong test with multiple rebls
 
 class TestRebl < Test::Unit::TestCase
+  def test_rebl_pingpong
+    the_line = nil
+    rt1 = nil
+    ip_port1 = nil
+    rt2 = nil
+    ip_port2 = nil
+    actual_output = nil
+    assert_nothing_raised do
+      begin
+        # Ignore the welcome messages.
+        $stdout = StringIO.new
+        rt1 = ReblTester.new
+        rt2 = ReblTester.new
+        ip_port1 = "#{rt1.lib.ip}:#{rt1.lib.port}"
+        ip_port2 = "#{rt2.lib.ip}:#{rt2.lib.port}"
+      ensure
+        $stdout = STDOUT
+      end
+    end
+
+    # Set up ping rules, send initial ping from rt1 to rt2
+    assert_nothing_raised do
+      rt1.exec_rebl("channel :ping, [:@dst, :src]")
+      rt1.exec_rebl("ping <~ ping.map {|p| [p.src, p.dst]}")
+      rt2.exec_rebl("channel :ping, [:@dst, :src]")
+      rt2.exec_rebl("ping <~ ping.map {|p| [p.src, p.dst]}")
+      rt1.exec_rebl("ping <~ [['#{ip_port2}', ip_port]]")
+      rt1.exec_rebl("stdio <~ [(@budtime == 50) ? ['hit'] : nil]")
+      rt2.exec_rebl("/run")
+    end
+
+    # Start up the node, and wait for the bud time to go up to 50 (non-lazy mode)
+    assert_nothing_raised do
+      read, $stdout = IO.pipe
+      $stdin = StringIO.new("/run")
+      ReblShell::rebl_loop(rt1.lib, true)
+      the_line = read.readline
+      $stdout = STDOUT
+    end
+    assert_equal(the_line, "hit\n")
+
+    # Now perform a stop on both nodes
+    assert_nothing_raised do
+      rt1.exec_rebl("/stop")
+      rt2.exec_rebl("/stop")
+    end
+
+    # Check their timestamps
+    stop_time1 = rt1.lib.rebl_class_inst.budtime
+    stop_time2 = rt2.lib.rebl_class_inst.budtime
+
+    # Sleep for a bit; this is a hack, but I know of no other way to test this.
+    # Could definitely be some false negatives here if there's a ridiculous
+    # amount of latency.
+    sleep 10
+
+    # Check their timestamps are still the same
+    assert_equal(stop_time1, rt1.lib.rebl_class_inst.budtime)
+    assert_equal(stop_time2, rt2.lib.rebl_class_inst.budtime)
+
+    assert_nothing_raised do
+      # Now, test the breakpoint functionality
+      rt1.exec_rebl("rebl_breakpoint <= [{50 => [true]}[@budtime]]")
+      rt2.exec_rebl("/run")
+      read, $stdout = IO.pipe
+      $stdin = StringIO.new("/run")
+      ReblShell::rebl_loop(rt1.lib, true)
+      the_line = read.readline
+      $stdout = STDOUT
+    end
+    assert_equal(the_line, "hit\n")
+
+    # Now perform a stop on both nodes
+    assert_nothing_raised do
+      rt1.exec_rebl("/stop")
+      rt2.exec_rebl("/stop")
+    end
+
+    # Check their timestamps
+    stop_time1 = rt1.lib.rebl_class_inst.budtime
+    stop_time2 = rt2.lib.rebl_class_inst.budtime
+
+    # Sleep for a bit; this is a hack, but I know of no other way to test this.
+    # Could definitely be some false negatives here if there's a ridiculous
+    # amount of latency.
+    sleep 10
+
+    # Check their timestamps are still the same
+    assert_equal(stop_time1, rt1.lib.rebl_class_inst.budtime)
+    assert_equal(stop_time2, rt2.lib.rebl_class_inst.budtime)
+  end
+
   def test_rebl_shortestpaths
     rt = nil
     actual_output = nil
