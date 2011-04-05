@@ -82,8 +82,6 @@ The directory listing operation is implemented by a simple block of Bloom statem
             [l.reqid, false, nil]
           end
         end
-      end
-    
 
 If we get a __fsls__ request, probe the key-value store for the requested by projecting _reqid_, _path_ from the __fsls__ tuple into __kvget__.  If the given path
 is a key, __kvget_response__ will contain a tuple with the same _reqid_, and the join on the second line will succeed.  In this case, we insert the value

@@ -239,7 +239,8 @@ class TestAggs < Test::Unit::TestCase
   end
 
   def test_argaggs
-    program = PriorityQ.new
+    program = PriorityQ.new(:dump_rewrite => true)
+    program.t_depends.each{|d| puts "DEP: #{d.inspect}"}
     assert_nothing_raised (RuntimeError) { program.tick }
     argouts = program.out.to_a
     basicouts = program.out2.to_a
@@ -254,7 +255,7 @@ class TestAggs < Test::Unit::TestCase
   end
 
   def test_join_agg
-    program = JoinAgg.new
+    program = JoinAgg.new(:dump_rewrite => true)
     assert_nothing_raised (RuntimeError) { program.tick }
     rich = program.rich.first
     assert_equal(['bob', 'shoe', 11], rich)
