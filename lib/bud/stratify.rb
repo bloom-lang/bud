@@ -29,7 +29,6 @@ class Stratification # :nodoc: all
       end
 
       depends_tc <= (depends * depends_tc).pairs(:body => :head) do |b, r|
-        # theoretically illegal, would break our analysis
         temporal = false
         if (b.op.to_s =~ /<[\+\-\~]/) or r.temporal
           temporal = true
@@ -65,21 +64,40 @@ class Stratification # :nodoc: all
       # if A are B are co-dependent, give up.
       # stratum choice will represent local evaluation order,
       # so we need only consider 'synchronous' dependencies (<=)
+
+      # pass 1: assume no deductive cycles
+      # do "vanilla stratification" on deductive rules
       stratum_base <= (depends * stratum_base).pairs(:body => :predicate) do |d, s|
-        if d.neg and d.op.to_s == "<=" and !cycle.map{|c| c.predicate}.include? d.head
-          #puts "bump: #{d.head} to #{s.stratum + 1} due to #{d.op} #{d.body}"
-          [d.head, s.stratum + 1]
-        #elsif !cycle.map{|c| c.predicate}.include? d.head
-        else
-          # always hoist, unless it will put us into an infinite loop
-          [d.head, s.stratum]
+        if d.op.to_s == '<='
+          if d.neg
+            # BUMP
+            [d.head, s.stratum + 1]
+          else
+            # HOIST
+            [d.head, s.stratum]
+          end
         end
       end
     }
 
     strata[2] = lambda {
+      # pass 2: do additional hoisting to ensure that rules with scratches in their
+      # LHS do not appear in strata below rules that produce their inputs
+      stratum_base <= (depends * stratum_base).pairs(:body => :predicate) do |d, s|
+        unless d.op.to_s == '<='
+          [d.head, s.stratum]
+        end
+      end
+    }
+
+    strata[3] = lambda {
       stratum <= stratum_base.group([stratum_base.predicate], max(stratum_base.stratum))
-      top_strat <= stratum_base.group(nil, max(stratum_base.stratum))
+    }
+
+    strata[4] = lambda {
+      # there is no good reason that top_strat can't be computed in strata[3] over stratum_base.
+      # however, when it is deduced that way, it is empty after a tick
+      top_strat <= stratum.group([], max(stratum.stratum))
     }
   end
 end
