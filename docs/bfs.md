@@ -249,7 +249,7 @@ Otherwise, __chunk_cache__ has information about the given chunk, which we may r
 
 ## Datanodes and Heartbeats
 
-### [Datanode](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/datanode.rb)
+### [[Datanode]](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/datanode.rb)
 
 A datanode runs both Bud code (to support the heartbeat and control protocols) and pure Ruby (to support the data transfer protocol).  A datanode's main job is keeping the master 
 aware of it existence and its state, and participating when necessary in data pipelines to read or write chunk data to and from its local storage.
