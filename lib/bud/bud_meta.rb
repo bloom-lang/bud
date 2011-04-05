@@ -116,7 +116,7 @@ class BudMeta #:nodoc: all
       # Rule format: call tag, lhs, op, rhs
       tag, lhs, op, rhs = n
 
-      # Check that LHS references a named collection or is a temp expression
+      # Check that LHS references a named collection
       raise Bud::CompileError if lhs.nil? or lhs.sexp_type != :call
       lhs_name = lhs[2]
       unless @bud_instance.tables.has_key? lhs_name.to_sym
