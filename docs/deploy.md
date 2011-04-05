@@ -73,7 +73,7 @@ Finally, `ec2_key_location` is the path to the private key of the `key_name` key
 
     key_name <= [["/home/bob/.ssh/ec2"]]
 
-EC2 deployment will spin up `num_nodes` instances (using defaults) on EC2 using a pre-rolled Bud AMI based on Amazon's 32-bit Linux AMI (ami-8c1fece5).  Each instance contains one Bud instance, which runs the `ruby_command`.  Like before, the deployment code will populate a binary relation called `node`; the first argument is a "node ID" -- a distinct integer from the range [0, num_nodes - 1] -- and the second argument is an "IP:port" string associated with the node.  Nodes are currently spun up on fixed port 54321.
+EC2 deployment will spin up `num_nodes` instances (using defaults) on EC2 using a pre-rolled Bud AMI based on Amazon's 32-bit Linux AMI (`ami-8c1fece5`).  Each instance contains one Bud instance, which runs the `ruby_command`.  Like before, the deployment code will populate a binary relation called `node`; the first argument is a "node ID" -- a distinct integer from the range [0, num_nodes - 1] -- and the second argument is an "IP:port" string associated with the node.  Nodes are currently spun up on fixed port 54321.
 
 Defining initial data works exactly the same way with EC2 deployment as it does with local deployment.
 
@@ -83,7 +83,7 @@ Note that EC2 deployment does *not* shut down the EC2 nodes it starts up under a
 
 ## Examples
 
-Check out the examples/deploy directory in Bud.  There is an example of distributed tree-based quicksort that can be deployed locally:
+Check out the `examples/deploy` directory in Bud.  There is an example of distributed tree-based quicksort that can be deployed locally:
 
     ruby btquicksort-local.rb
 
