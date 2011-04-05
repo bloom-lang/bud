@@ -734,14 +734,10 @@ module Bud
       return lsplit
     end
 
-    # form a copy of this collection with no items in it
-    private
-    def clone_empty
-      retval = super
-      retval.locspec_idx = @locspec_idx
-      retval
-    end
-
+    # not sure we should inherit this .. seems unsafe.  
+    # was never called before anyhow.
+    undef clone_empty
+    
     public 
     def tick # :nodoc: all
       @sealed = false
