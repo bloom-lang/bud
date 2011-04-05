@@ -40,3 +40,32 @@ class GratuitousBud < Test::Unit::TestCase
     Process.wait
   end
 end
+
+class ShootGarbage < Test::Unit::TestCase
+  class SimpleChannel
+    include Bud
+    state {channel :c1}
+  end
+  
+  def test_shoot_garbage
+    p = SimpleChannel.new(:port => 54321)
+    t = Thread.new do
+      assert_raise(Bud::BudError) {p.run_fg}
+    end
+    socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
+    socket.send_datagram(1234, "127.0.0.1", 54321)
+    sleep 1
+    t.kill
+  end
+  
+  def test_shoot_badtup
+    p = SimpleChannel.new(:port => 54321)
+    t = Thread.new do
+      assert_raise(Bud::BudError) {p.run_fg}
+    end
+    socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
+    socket.send_datagram([:c1, 1234, 56].to_msgpack, "127.0.0.1", 54321)
+    sleep 1
+    t.kill
+  end
+end

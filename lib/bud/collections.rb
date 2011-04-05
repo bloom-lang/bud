@@ -611,8 +611,8 @@ module Bud
     def setup_preds(preds) # :nodoc: all
       allpreds = disambiguate_preds(preds)
       allpreds = canonicalize_localpreds(@rels, allpreds)
-      @localpreds = allpreds.reject { |p| p[0][0] != @rels[0].tabname and p[1][0] != @rels[1].tabname }
-      otherpreds = allpreds.reject { |p| p[0][0] == @rels[0].tabname or p[1][0] == @rels[1].tabname}
+      @localpreds = allpreds.reject { |p|  p[0][0] != @rels[0].tabname }
+      otherpreds = allpreds - @localpreds
       otherpreds = nil if otherpreds.empty?
       unless otherpreds.nil?
         unless @rels[1].class <= Bud::BudJoin
@@ -691,7 +691,6 @@ module Bud
       # just append current number of microseconds
       @tabname = (@tabname.to_s + Time.new.tv_usec.to_s).to_sym
     end
-    
   end
 
   class BudScratch < BudCollection # :nodoc: all
@@ -761,13 +760,8 @@ module Bud
         if @locspec_idx.nil?
           the_locspec = [ip, port]
         else
-          begin
-            the_locspec = split_locspec(t[@locspec_idx])
-            raise BudError, "bad locspec" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
-          rescue
-            puts "bad locspec '#{t[@locspec_idx]}', channel '#{@tabname}', skipping: #{t.inspect}"
-            next
-          end
+          the_locspec = split_locspec(t[@locspec_idx])
+          raise BudError, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
         end
         @bud_instance.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
       end
@@ -781,7 +775,7 @@ module Bud
         # bundle up each tuple's non-locspec fields into an array
         retval = case @locspec_idx
           when 0 then self.pro{|t| t[1..(t.size-1)]}
-          when (t.size - 1) then self.pro{|t| t[0..(t.size-2)]}
+          when (schema.size - 1) then self.pro{|t| t[0..(t.size-2)]}
           else self.pro{|t| t[0..(@locspec_idx-1)] + t[@locspec_idx+1..(t.size-1)]}
         end
       else
@@ -799,8 +793,9 @@ module Bud
       raise BudError, "Illegal use of <+ with channel '#{@tabname}' on left"
     end
 
-    public 
-    def <=(o) # :nodoc: all
+    undef merge
+    
+    def <=(o)
       raise BudError, "Illegal use of <= with channel '#{@tabname}' on left"
     end
   end
@@ -854,14 +849,11 @@ module Bud
       raise BudError unless @pending.empty?
     end
 
-    public
-    def merge(o) #:nodoc: all
-      raise BudError, "no synchronous accumulation into terminal; use <~"
-    end
+    undef merge
 
     public
     def <=(o) #:nodoc: all
-      merge(o)
+      raise BudError, "Illegal use of <= with terminal '#{@tabname}' on left"
     end
 
     superator "<~" do |o|
@@ -902,11 +894,11 @@ module Bud
 
   class BudReadOnly < BudScratch # :nodoc: all
     superator "<+" do |o|
-      raise BudError, "Illegal use of <+ with read-only collection '#{@tabname}' on left"
+      raise CompileError, "Illegal use of <+ with read-only collection '#{@tabname}' on left"
     end
     public
-    def merge  #:nodoc: all
-      raise BudError, "Illegal use of <= with read-only collection '#{@tabname}' on left"
+    def merge(o)  #:nodoc: all
+      raise CompileError, "Illegal use of <= with read-only collection '#{@tabname}' on left"
     end
   end
 

@@ -283,4 +283,17 @@ class TestAggs < Test::Unit::TestCase
     q.pop
     assert_equal([[2,1]], p.t3.to_a) 
   end
+  
+  class SimpleAgg
+    include Bud
+    state {table :t1}
+    bootstrap {t1 << [[1,1]]}
+    bloom {temp :t2 <= t1.group([:key])}
+  end
+  
+  def test_simple_agg
+    p = SimpleAgg.new
+    p.tick
+  end
+  
 end

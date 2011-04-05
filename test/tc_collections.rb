@@ -441,5 +441,25 @@ class TestCollections < Test::Unit::TestCase
     assert_nothing_raised {p.tick}
   end
       
+  class FunkyPayloads
+    include Bud
+    state do
+      channel :c1, [:pay, :morepay, :@loc]
+      channel :c2, [:pay, :@loc, :morepay]
+      table :t1
+      table :t2
+    end
+    bloom do
+      t1 <= c1.payloads
+      t2 <= c2.payloads
+    end
+  end
+  
+  def test_funky_payload
+    p = FunkyPayloads.new
+    p.run_bg
+    p.sync_callback(:c1, [["hi", "miley", p.ip_port]], :t1)
+    p.sync_callback(:c2, [["guy", p.ip_port, "smiley"]], :t1)
+  end
   
 end

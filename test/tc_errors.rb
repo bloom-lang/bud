@@ -181,20 +181,21 @@ class TestErrorHandling < Test::Unit::TestCase
     end
     
     bloom do
-      temp :t2 <= t1.group([:qi], min(:val))
+      temp :t2 <= t1.group(["key"], min(:val))
     end
   end
   
   def test_bad_grouping_cols
     p = BadGroupingCols.new
-    assert_raise(Bud::BudError) {p.tick}
+    assert_raise(Bud::CompileError) {p.tick}
   end
   
-  class BadJoinCols
+  class BadJoinTabs
     include Bud
     state do
       table :t1
       table :t2
+      table :t3
     end 
     bootstrap do
       t1 << [1,1]
@@ -202,13 +203,13 @@ class TestErrorHandling < Test::Unit::TestCase
     end
     
     bloom do
-      temp :out <= (t1*t2).pairs(:qi => :gollum)
+      temp :out <= (t1*t2).pairs(t3.key => t2.val)
     end
   end
   
-  def test_bad_join_cols
-    p = BadJoinCols.new
-    assert_raise(Bud::CompileError) {p.tick}
+  def test_bad_join_tabs
+    p = BadJoinTabs.new
+    assert_raise(Bud::BudError) {p.tick}
   end
   
   class BadNextChannel
@@ -238,7 +239,7 @@ class TestErrorHandling < Test::Unit::TestCase
     assert_raise(Bud::BudError) {p.tick}
   end
   
-  class BadFileReader
+  class BadFileReader1
     include Bud
     state do
       file_reader :fd, '/tmp/foo'+Process.pid.to_s
@@ -248,9 +249,41 @@ class TestErrorHandling < Test::Unit::TestCase
     end
   end
   
-  def test_bad_file_reader
+  def test_bad_file_reader_1
     File.open('/tmp/foo'+Process.pid.to_s, 'a')
-    p = BadFileReader.new
+    p = BadFileReader1.new
+    assert_raise(Bud::CompileError) {p.tick}
+  end
+  
+  class BadFileReader2
+    include Bud
+    state do
+      file_reader :fd, '/tmp/foo'+Process.pid.to_s
+    end
+    bloom do
+      fd <+ [['no!']]
+    end
+  end
+  
+  def test_bad_file_reader_2
+    File.open('/tmp/foo'+Process.pid.to_s, 'a')
+    p = BadFileReader2.new
+    assert_raise(Bud::CompileError) {p.tick}
+  end
+  
+  class BadFileReader3
+    include Bud
+    state do
+      file_reader :fd, '/tmp/foo'+Process.pid.to_s
+    end
+    bloom do
+      fd <~ [['no!']]
+    end
+  end
+  
+  def test_bad_file_reader_3
+    File.open('/tmp/foo'+Process.pid.to_s, 'a')
+    p = BadFileReader3.new
     assert_raise(Bud::BudError) {p.tick}
   end
   
@@ -265,7 +298,31 @@ class TestErrorHandling < Test::Unit::TestCase
     end
   end
   
-  def ntest_bad_op
-    b = BadOp.new
+  def test_bad_op
+    assert_raise(Bud::CompileError) { BadOp.new }
+  end
+  
+  class BadLeftJoin
+    include Bud
+    state do
+      table :t1
+      table :t2
+    end
+    bloom { temp :loj <= leftjoin([t1, t2], [t1.val, t2.val]) }
+  end
+    
+  def test_bad_left_join
+    p = BadLeftJoin.new
+    assert_raise(Bud::CompileError) {p.tick}
+  end
+  
+  class BadTerminal
+    include Bud
+    state {terminal :joeio}
+    bloom {joeio <~ [["hi"]]}
+  end
+  
+  def test_bad_terminal
+    assert_raise(Bud::BudError) {p = BadTerminal.new}
   end
 end
