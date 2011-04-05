@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud'
 require 'nestful'
-require 'idempotence'
+require 'bud/bust/client/idempotence'
 
 module RestClient
   include Idempotence # :nodoc: all

@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'bud'
-require 'bust'
+require 'bud/bust/bust'
 
 class BustExample # :nodoc: all
   include Bud

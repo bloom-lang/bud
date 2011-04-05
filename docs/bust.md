@@ -6,13 +6,13 @@ Right now BUST supports "GET" and "POST" requests, and may support "DELETE" and 
 
 For the BUST server, a "GET" request corresponds to retrieving a subset of rows of a table, and a "POST" request corresponds to inserting a row into a table.  For example, the following "GET" request (assuming BUST is running on port 8080):
 
-GET localhost:8080/foo?bar=hello&baz=world
+    GET localhost:8080/foo?bar=hello&baz=world
 
 would retrieve all rows in table "foo" where named schema attribute "bar" is equal to the string "hello", and named schema attribute "baz" is equal to the string "world".  Right now, one limitation of BUST is that only strings are supported.
 
 To use BUST in your program, ensure you have the json gem installed.  Add the "require" line for BUST:
 
-    require "bust/bust"
+    require "bud/bust/bust"
 
 In your class, make sure to:
 
@@ -24,10 +24,9 @@ You can test out the BUST server using Ruby's "net/http" library if you want, an
 
 ## net/http Example
 
-Try running "bustexample.rb" in the "bust/" directory:
+Try running "bustserver-example.rb" in the "examples/bust" directory:
 
-    cd bust/
-    ruby bustexample.rb
+    ruby bustserver-example.rb
 
 Now, let's interact with our example using "net/http" from within IRB.  Start up an IRB instance:
 
@@ -61,7 +60,7 @@ BUST Inspector -- an example app that uses XMLHttpRequests to inspect state in a
 
 The BUST client (located in the "bust/client" folder) allows Bud applications to access REST services (including a Bud client hosting a BUST instance). The REST client is basically a wrapper for the Ruby nestful library. You'll need to ensure you have the "nestful" gem installed before you can use the REST client. To use it in your application, you need to put the require line:
 
-    require 'bust/client/restclient'
+    require 'bud/bust/client/restclient'
 
 and the include line:
 
@@ -79,6 +78,6 @@ The output interface is:
 
 "rid" is the unique ID supplied when the request was made, "resp" is the parsed response from the server. For example, if you do a ":json" ":get", then "resp" will contain whatever JSON object was returned converted into a Ruby object, e.g., array, hash, etc. If there is an exception, then "resp" will contain a string describing the exception, and "exception" will be set to true; otherwise, "exception" will be set to false.
 
-A simple example is included (twitterexample.rb) that does an HTTP GET on Twitter's public timeline, returning the most recent statuses, and prints them to stdout.
+A simple example is included (bustclient-example.rb) that does an HTTP GET on Twitter's public timeline, returning the most recent statuses, and prints them to stdout.  The example is in "examples/bust/client".
 
 The BUST client does not yet support OAuth. Also unsupported so far is HTTP DELETE and PUT.
