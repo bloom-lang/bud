@@ -415,7 +415,6 @@ module Bud
     # never deal with deltas.  This assumes that stratification is done right, and it will
     # be sensitive to bugs in the stratification!
     def agg_in
-      return self # disable this optimization until stratification is fixed
       if not respond_to?(:bud_instance) or bud_instance.nil? or bud_instance.stratum_first_iter
         return self
       else
