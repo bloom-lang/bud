@@ -92,6 +92,7 @@ associated with that key into __fsret__.  Otherwise, the third rule will fire, i
 
 The logic for file and directory creation and deletion follow a similar logic with regard to the parent directory:
 
+        check_parent_exists <= fscreate { |c| [c.reqid, c.name, c.path, :create, c.data] }
         check_parent_exists <= fsmkdir { |m| [m.reqid, m.name, m.path, :mkdir, nil] }
         check_parent_exists <= fsrm { |m| [m.reqid, m.name, m.path, :rm, nil] }
     
@@ -111,7 +112,14 @@ carrying out two mutating operations to the key-value store atomically:
 
 The following Bloom code carries this out:
 
+        temp :dir_exists <= (check_parent_exists * kvget_response * nonce).combos([check_parent_exists.reqid, kvget_response.reqid])
         check_is_empty <= (fsrm * nonce).pairs {|m, n| [n.ident, m.reqid, terminate_with_slash(m.path) + m.name] }
+        kvget <= check_is_empty {|c| [c.reqid, c.name] }
+        can_remove <= (kvget_response * check_is_empty).pairs([kvget_response.reqid, check_is_empty.reqid]) do |r, c|
+          [c.reqid, c.orig_reqid, c.name] if r.value.length == 0
+        end
+        kvput <= dir_exists do |c, r, n|
+          if c.mtype == :rm
             if can_remove.map{|can| can.orig_reqid}.include? c.reqid
               [ip_port, c.path, n.ident, r.value.clone.reject{|item| item == c.name}]
             end
@@ -127,9 +135,6 @@ The following Bloom code carries this out:
             when :create
               [ip_port, terminate_with_slash(c.path) + c.name, c.reqid, "LEAF"]
           end
-        end
-    
-        # delete entry -- if an 'rm' request,
 
 
 <!--- (**JMH**: This next sounds awkward.  You *do* take care: by using <= and understanding the atomicity of timesteps in Bloom.  I think what you mean to say is that Bloom's atomic timestep model makes this easy compared to ... something.)

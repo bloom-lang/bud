@@ -75,7 +75,7 @@ associated with that key into __fsret__.  Otherwise, the third rule will fire, i
 
 The logic for file and directory creation and deletion follow a similar logic with regard to the parent directory:
 
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|62-71
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|61-71
 
 Unlike a directory listing, however, these operations change the state of the file system.  In general, any state change will involve 
 carrying out two mutating operations to the key-value store atomically:
@@ -85,8 +85,8 @@ carrying out two mutating operations to the key-value store atomically:
 
 The following Bloom code carries this out:
 
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|74-74
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|93-110
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|73-78
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|91-107
 
 
 <!--- (**JMH**: This next sounds awkward.  You *do* take care: by using <= and understanding the atomicity of timesteps in Bloom.  I think what you mean to say is that Bloom's atomic timestep model makes this easy compared to ... something.)
