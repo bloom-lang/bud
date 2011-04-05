@@ -26,8 +26,8 @@ class Stratification # :nodoc: all
         [d.head, d.body, dneg, dtmp]
       end
 
-      # we need to compute the transitive closure of depends() 
-      # to detect cycles in the deductive fragment of the program.
+      # We need to compute the transitive closure of "depends_clean" to detect
+      # cycles in the deductive fragment of the program.
       depends_tc <= depends_clean do |d|
         [d.head, d.body, d.body, d.neg, d.temporal]
       end
