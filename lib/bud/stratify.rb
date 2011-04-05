@@ -77,7 +77,7 @@ class Stratification # :nodoc: all
       # strata below rules that produce their inputs
       stratum_base <= (depends * stratum_base).pairs(:body => :predicate) do |d, s|
         unless d.op.to_s == '<='
-          #[d.head, s.stratum]
+          [d.head, s.stratum]
         end
       end
     }

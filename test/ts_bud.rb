@@ -1,6 +1,6 @@
 require 'test_common'
 
-#require 'tc_aggs'
+require 'tc_aggs'
 require 'tc_callback'
 require 'tc_channel'
 require 'tc_collections'
