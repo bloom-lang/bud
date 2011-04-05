@@ -29,13 +29,13 @@ module BTQuicksort
 
     # Elements > pivot are sent to left child.
     elt_list_chan <~ (if gt_pivot[[]] and not gt_pivot[[]].list.empty? and
-                          left_child[[]] and sleep(rand)
+                          left_child[[]]
                         [[left_child[[]].node, gt_pivot[[]].list]]
                       else [] end)
 
     # Elements < pivot are sent to right child.
     elt_list_chan <~ (if lt_pivot[[]] and not lt_pivot[[]].list.empty? and
-                          right_child[[]] and sleep(rand)
+                          right_child[[]]
                         [[right_child[[]].node, lt_pivot[[]].list]]
                       else [] end)
 
