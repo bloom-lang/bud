@@ -3,7 +3,7 @@ You may ask yourself: well, what does a Bloom program *mean*?  You may ask yours
 
 There is a formal answer to these questions about Bloom, but there's also a more more approachable answer.  *Very* briefly, the formal answer is that Bloom's semantics are based in model theory, via a temporal logic language called *Dedalus* that is described in [a paper from Berkeley](http://www.eecs.berkeley.edu/Pubs/TechRpts/2009/EECS-2009-173.html). 
 
-While that's nice for proving theorems (and writing [program analysis tools](vis.md)), many programmers don't find model-theoretic discussions of semantics terribly helpful or even interesting. It's usually easier to think about how the language *works* at some level, so you can reason about how to use it.
+While that's nice for proving theorems (and writing [program analysis tools](visualizations.md)), many programmers don't find model-theoretic discussions of semantics terribly helpful or even interesting. It's usually easier to think about how the language *works* at some level, so you can reason about how to use it.
 
 That's the goal of this document: to provide a relatively simple, hopefully useful intuition for how Bloom is evaluated.  This is not the only way to evaluate Bloom, but it's the intuitive way to do it, and basically the way that the Bud implementation works (modulo some optimizations).  
 
@@ -31,7 +31,7 @@ It is important to understand how the Bloom collection operators fit into these 
 
 ## Atomicity: Timesteps and Deferred Operators ##
 
-The only instantaneous Bloom operator is a merge (`<=`), which can only introduce additional items into a collection--it can not delete or change existing items.  As a result, all state within a Bloom timestep is *immutable*: once an item is in a collection at timestep T, it stays in that collection throughout timestep T. 
+The only instantaneous Bloom operator is a merge (`<=`), which can only introduce additional items into a collection--it can not delete or change existing items.  As a result, all state within a Bloom timestep is *immutable*: once an item is in a collection at timestep *T*, it stays in that collection throughout timestep *T*.
 
 To get atomic state change in Bloom, you exploit the combination of two language features: 
 
@@ -71,7 +71,7 @@ The recursion in the second Bloom statement is easy to see: the lhs and rhs both
 
 You can think of this being computed by reevaluating the bloom block over and over--within a single timestep--until no more new paths are found.  In each iteration, we find new paths that are one hop longer than the longest paths found previously.  When no new items are found in an iteration, we are at what's called a *fixpoint*.
 
-Hopefully that description is fairly easy to understand.  You can certainly construct more complicated examples of recursion--just as you can in a traditional language (e.g. simultaneous recursion.)  But understanding this example of simple recursion is probably sufficient for most needs.
+Hopefully that description is fairly easy to understand.  You can certainly construct more complicated examples of recursion--just as you can in a traditional language (e.g., simultaneous recursion.)  But understanding this example of simple recursion is probably sufficient for most needs.
 
 ## Non-monotonicity and Strata ##
 
@@ -81,13 +81,13 @@ Consider augmenting the previous path-finding program to compute only the "highe
       stdio <~ path.argmax([:from, :to], :cost)
     end
 
-The `argmax` expression in the rhs of this statement finds the items in path that have the maximum cost for each \[from, to\] pair.
+The `argmax` expression in the rhs of this statement finds the items in path that have the maximum cost for each `[from, to]` pair.
   
 It's interesting to think about how to evaluate this statement.  Consider what happens after a single iteration of the path-finding logic listed above.  We will have 1-hop paths between some pairs.  But there will likely be multi-hop paths between those pairs that cost more.  So it would be premature after a single iteration to put anything out on stdio.  In fact, we can't be sure what should go out to stdio until we have hit a fixpoint with respect to the path collection.  That's because `argmax` is a logically *non-monotonic* operator: as we merge more items into its input collection, it may have to "retract" an output they would previously have produced. 
 
 The Bud runtime takes care of this problem for you under the covers, by breaking your statements in *strata* (layers) via a process called *stratification*.  The basic idea is simple.  The goal is to postpone evaluating non-monotonic operators until fixpoint is reached on their input collections.  Stratification basically breaks up the statements in a Bloom program into layers that are separated by non-monotonic operators, and evaluates the layers in order.  
 
-For your reference, the basic non-monotonic Bloom operators include `group, reduce, argmin, argmax`.  Also, statements that embed Ruby collection methods in their blocks are often non-monotonic--e.g. methods like `all?, empty?, include?, none?` and `size`.
+For your reference, the basic non-monotonic Bloom operators include `group, reduce, argmin, argmax`.  Also, statements that embed Ruby collection methods in their blocks are often non-monotonic--e.g., methods like `all?, empty?, include?, none?` and `size`.
 
 Note that it is possible to write a program in Bloom that is *unstratifiable*: there is no way to separate it into layers like this.  This arises when some collection is recursively defined in terms of itself, and there is a non-monotonic method along the recursive dependency chain.  A simple example of this is as follows:
 
