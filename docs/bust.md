@@ -78,6 +78,6 @@ The output interface is:
 
 "rid" is the unique ID supplied when the request was made, "resp" is the parsed response from the server. For example, if you do a ":json" ":get", then "resp" will contain whatever JSON object was returned converted into a Ruby object, e.g., array, hash, etc. If there is an exception, then "resp" will contain a string describing the exception, and "exception" will be set to true; otherwise, "exception" will be set to false.
 
-A simple example is included (twitterexample.rb) that does an HTTP GET on Twitter's public timeline, returning the most recent statuses, and prints them to stdout.  The example is in "examples/bust/client".
+A simple example is included (bustclient-example.rb) that does an HTTP GET on Twitter's public timeline, returning the most recent statuses, and prints them to stdout.  The example is in "examples/bust/client".
 
 The BUST client does not yet support OAuth. Also unsupported so far is HTTP DELETE and PUT.
