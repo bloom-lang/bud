@@ -113,11 +113,17 @@ carrying out two mutating operations to the key-value store atomically:
 The following Bloom code carries this out:
 
         temp :dir_exists <= (check_parent_exists * kvget_response * nonce).combos([check_parent_exists.reqid, kvget_response.reqid])
-        check_is_empty <= (fsrm * nonce).pairs {|m, n| [n.ident, m.reqid, terminate_with_slash(m.path) + m.name] }
-        kvget <= check_is_empty {|c| [c.reqid, c.name] }
-        can_remove <= (kvget_response * check_is_empty).pairs([kvget_response.reqid, check_is_empty.reqid]) do |r, c|
-          [c.reqid, c.orig_reqid, c.name] if r.value.length == 0
+        fsret <= dir_exists do |c, r, n|
+          if c.mtype == :rm
+            unless can_remove.map{|can| can.orig_reqid}.include? c.reqid
+              [c.reqid, false, "directory #{} not empty"]
+            end
+          end
         end
+    
+        # update dir entry
+        # note that it is unnecessary to ensure that a file is created before its corresponding
+        # directory entry, as both inserts into :kvput below will co-occur in the same timestep.
         kvput <= dir_exists do |c, r, n|
           if c.mtype == :rm
             if can_remove.map{|can| can.orig_reqid}.include? c.reqid
@@ -135,6 +141,7 @@ The following Bloom code carries this out:
             when :create
               [ip_port, terminate_with_slash(c.path) + c.name, c.reqid, "LEAF"]
           end
+        end
 
 
 <!--- (**JMH**: This next sounds awkward.  You *do* take care: by using <= and understanding the atomicity of timesteps in Bloom.  I think what you mean to say is that Bloom's atomic timestep model makes this easy compared to ... something.)
@@ -147,19 +154,17 @@ there can be no visible state of the database in which only one of the operation
 If the request is a deletion, we need some additional logic to enforce the constraint that only an empty directory may be removed:
 
 
+        check_is_empty <= (fsrm * nonce).pairs {|m, n| [n.ident, m.reqid, terminate_with_slash(m.path) + m.name] }
+        kvget <= check_is_empty {|c| [c.reqid, c.name] }
         can_remove <= (kvget_response * check_is_empty).pairs([kvget_response.reqid, check_is_empty.reqid]) do |r, c|
           [c.reqid, c.orig_reqid, c.name] if r.value.length == 0
         end
-    
-        fsret <= dir_exists do |c, r, n|
-          if c.mtype == :rm
-            unless can_remove.map{|can| can.orig_reqid}.include? c.reqid
-              [c.reqid, false, "directory #{} not empty"]
-            end
+        # delete entry -- if an 'rm' request,
+        kvdel <= dir_exists do |c, r, n|
+          if can_remove.map{|can| can.orig_reqid}.include? c.reqid
+            [terminate_with_slash(c.path) + c.name, c.reqid]
           end
         end
-    
-        # update dir entry
 
 
 Recall that when we created KVSFS we mixed in __TimestepNonce__, one of the nonce libraries.  While we were able to use the _reqid_ field from the input operation as a unique identifier

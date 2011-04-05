@@ -85,8 +85,8 @@ carrying out two mutating operations to the key-value store atomically:
 
 The following Bloom code carries this out:
 
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|73-78
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|91-107
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|73-73
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|80-108
 
 
 <!--- (**JMH**: This next sounds awkward.  You *do* take care: by using <= and understanding the atomicity of timesteps in Bloom.  I think what you mean to say is that Bloom's atomic timestep model makes this easy compared to ... something.)
@@ -99,7 +99,8 @@ there can be no visible state of the database in which only one of the operation
 If the request is a deletion, we need some additional logic to enforce the constraint that only an empty directory may be removed:
 
 
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|76-88
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|74-78
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/fs_master.rb|110-115
 
 
 Recall that when we created KVSFS we mixed in __TimestepNonce__, one of the nonce libraries.  While we were able to use the _reqid_ field from the input operation as a unique identifier
