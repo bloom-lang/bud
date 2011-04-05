@@ -8,9 +8,9 @@ class RuleRewriter < Ruby2Ruby #:nodoc: all
     @bud_instance = bud_instance
     @ops = {:<< => 1, :< => 1, :<= => 1}
     @monotonic_whitelist = {
-	      :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1, 
-	      :* => 1, :pairs => 1, :matches => 1, :flatten => 1, :lefts => 1, :rights => 1
-	  }
+          :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1,
+          :* => 1, :pairs => 1, :matches => 1, :flatten => 1, :lefts => 1, :rights => 1
+      }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
     @nm = false
@@ -20,7 +20,7 @@ class RuleRewriter < Ruby2Ruby #:nodoc: all
     @depends = []
     super()
   end
-    
+
   def process_call(exp)
     if exp[0].nil? and exp[2] == s(:arglist) and @collect
       do_table(exp)
@@ -33,9 +33,9 @@ class RuleRewriter < Ruby2Ruby #:nodoc: all
         # ignore accessors of iterator variables
         if exp[0].first != :lvar
           if exp[2].class == Sexp and exp[2].length == 1 and exp[2] == s(:arglist)
-            # check for delete ops and predicate methods (ending in "?" like "empty?"), 
+            # check for delete ops and predicate methods (ending in "?" like "empty?"),
             # but ignore top-level accessors and maps
-            # XXX we should be more methodical about white/black-listing unary Enumerator 
+            # XXX we should be more methodical about white/black-listing unary Enumerator
             # methods, as this will silently fail to notice non-monotonicity if we're wrong.
             @nm = true if exp[1] == :-@ or exp[1].to_s[-1..-1] == '?'
           else
@@ -59,7 +59,7 @@ class RuleRewriter < Ruby2Ruby #:nodoc: all
     @collect = false
     return rhs
   end
-  
+
   def record_rule(lhs, op, rhs)
     rule_txt = "#{lhs} #{op} (#{rhs})"
     if op == :<
@@ -94,12 +94,12 @@ class RuleRewriter < Ruby2Ruby #:nodoc: all
     drain(exp)
   end
 
-  # look for top-level map on a base-table on rhs, and rewrite to pro
+  # Look for top-level map on a base-table on rhs, and rewrite to pro
   def map2pro(exp)
     if exp[1] and exp[1][0] and exp[1][0] == :iter \
        and exp[1][1] and exp[1][1][1] == :call \
        and exp[1][1][2] == :map
-      exp[1][1][2] = :pro 
+      exp[1][1][2] = :pro
     end
     exp
   end

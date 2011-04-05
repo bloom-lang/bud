@@ -73,8 +73,8 @@ class Stratification # :nodoc: all
     }
 
     strata[2] = lambda {
-      # pass 2: do additional hoisting to ensure that rules with scratches in their
-      # LHS do not appear in strata below rules that produce their inputs
+      # pass 2: do additional hoisting to ensure that rules do not appear in
+      # strata below rules that produce their inputs
       stratum_base <= (depends * stratum_base).pairs(:body => :predicate) do |d, s|
         unless d.op.to_s == '<='
           [d.head, s.stratum]
