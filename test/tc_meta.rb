@@ -85,7 +85,7 @@ end
 
 class TestMeta < Test::Unit::TestCase
   def test_paths
-    program = LocalShortestPaths.new(:dump_rewrite => true)
+    program = LocalShortestPaths.new
     assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal(4, program.strata.length)
 
