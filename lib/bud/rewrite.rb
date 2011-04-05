@@ -30,9 +30,8 @@ class RuleRewriter < Ruby2Ruby #:nodoc: all
       do_rule(exp)
     else
       if exp[0] and exp[0].class == Sexp
-        # ignore accessors of iterator variables, 
-        # but do analyze variables from equality rules that got turned into temps!
-        if exp[0].first != :lvar or @bud_instance.tables.include? exp[0][1]
+        # ignore accessors of iterator variables
+        if exp[0].first != :lvar
           if exp[2].class == Sexp and exp[2].length == 1 and exp[2] == s(:arglist)
             # check for delete ops and predicate methods (ending in "?" like "empty?"), 
             # but ignore top-level accessors and maps
@@ -44,11 +43,6 @@ class RuleRewriter < Ruby2Ruby #:nodoc: all
               # suspicious function: exp[1]
               @nm = true
             end
-          end
-          # now check for variables from equality rules that we converted into temps
-          # and register in @tables for dependency checking
-          if exp[0].first == :lvar and @bud_instance.tables.include? exp[0][1]
-            @tables[exp[0][1].to_s] = @nm
           end
         end
       end
@@ -93,23 +87,11 @@ class RuleRewriter < Ruby2Ruby #:nodoc: all
   end
 
   def do_rule(exp)
-    if exp[0][2] == :temp
-      lhs = handle_temp(exp[0])
-    else
-      lhs = exp[0]
-    end
-    lhs = process lhs
+    lhs = process exp[0]
     op = exp[1]
     rhs = collect_rhs(map2pro(exp[2]))
     record_rule(lhs, op, rhs)
     drain(exp)
-  end
-
-  def handle_temp(lhs)
-    raise Bud::CompileError,  "lhs of temp rule not a symbol" unless lhs[3][1][0] == :lit
-    temp_name = lhs[3][1][1]
-    bud_instance.temp temp_name
-    return s(:call, nil, temp_name, s(:arglist))
   end
 
   # look for top-level map on a base-table on rhs, and rewrite to pro
