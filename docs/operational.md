@@ -12,7 +12,7 @@ Bloom is designed to be run on multiple machines, with no assumptions about coor
 
 Each machine runs an evaluator that works in a loop, as depicted in this figure: 
 
-![Bloom Loop](bloom-loop.png) 
+![Bloom Loop](bloom-loop.png?raw=true)
 
 Each iteration of this loop is a *timestep* for that node; each timestep is associated with a monotonically increasing timestamp (which is accessible via the `budtime` method in Bud). Timesteps and timestamps are not coordinated across nodes; any such coordination has to be programmed in the Bloom language itself.
 
