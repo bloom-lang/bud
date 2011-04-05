@@ -254,11 +254,11 @@ Otherwise, __chunk_cache__ has information about the given chunk, which we may r
 A datanode runs both Bud code (to support the heartbeat and control protocols) and pure Ruby (to support the data transfer protocol).  A datanode's main job is keeping the master 
 aware of it existence and its state, and participating when necessary in data pipelines to read or write chunk data to and from its local storage.
 
-    
-    
     module BFSDatanode
       include HeartbeatAgent
       include StaticMembership
+      include TimestepNonce
+      include BFSHBProtocol
 
 By mixing in HeartbeatAgent, the datanode includes the machinery necessary to regularly send status messages to the master.  __HeartbeatAgent__ provides an input interface
 called __payload__ that allows an agent to optionally include additional information in heartbeat messages: in our case, we wish to include state deltas which ensure that
@@ -266,25 +266,29 @@ the master has an accurate view of the set of chunks owned by the datanode.
 
 When a datanode is constructed, it takes a port at which the embedded data protocol server will listen, and starts the server in the background:
 
-        # turn a set into an array
+        @dp_server = DataProtocolServer.new(dataport)
+        return_address <+ [["localhost:#{dataport}"]]
 
 At regular intervals, a datanode polls its local chunk directory (which is independently written to by the data protocol):
 
-    
-      bloom :hblogic do
         dir_contents <= hb_timer.flat_map do |t|
           dir = Dir.new("#{DATADIR}/#{@data_port}")
           files = dir.to_a.map{|d| d.to_i unless d =~ /^\./}.uniq!
           dir.close
+          files.map {|f| [f, Time.parse(t.val).to_f]}
+        end
 
 We update the payload that we send to the master if our recent poll found files that we don't believe the master knows about:
 
 
-        end
-    
         to_payload <= (dir_contents * nonce).pairs do |c, n|
           unless server_knows.map{|s| s.file}.include? c.file
             #puts "BCAST #{c.file}; server doesn't know" or [n.ident, c.file, c.time]
+            [n.ident, c.file, c.time]
+          else
+            #puts "server knows about #{server_knows.length} files"
+          end
+        end
 
 Our view of what the master ``knows'' about reflects our local cache of acknowledgement messages from the master.  This logic is defined in __HBMaster__.
 

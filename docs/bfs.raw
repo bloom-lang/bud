@@ -164,7 +164,7 @@ Otherwise, __chunk_cache__ has information about the given chunk, which we may r
 A datanode runs both Bud code (to support the heartbeat and control protocols) and pure Ruby (to support the data transfer protocol).  A datanode's main job is keeping the master 
 aware of it existence and its state, and participating when necessary in data pipelines to read or write chunk data to and from its local storage.
 
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|9-13
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|11-15
 
 By mixing in HeartbeatAgent, the datanode includes the machinery necessary to regularly send status messages to the master.  __HeartbeatAgent__ provides an input interface
 called __payload__ that allows an agent to optionally include additional information in heartbeat messages: in our case, we wish to include state deltas which ensure that
@@ -172,16 +172,16 @@ the master has an accurate view of the set of chunks owned by the datanode.
 
 When a datanode is constructed, it takes a port at which the embedded data protocol server will listen, and starts the server in the background:
 
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|53-53
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|61-62
 
 At regular intervals, a datanode polls its local chunk directory (which is independently written to by the data protocol):
 
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|24-29
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|26-31
 
 We update the payload that we send to the master if our recent poll found files that we don't believe the master knows about:
 
 
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|31-35
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/datanode.rb|33-40
 
 Our view of what the master ``knows'' about reflects our local cache of acknowledgement messages from the master.  This logic is defined in __HBMaster__.
 
