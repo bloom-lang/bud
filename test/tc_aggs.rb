@@ -21,11 +21,9 @@ class ShortestPaths
   end
 
   bloom do
-    path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
-
-    temp :j <= (link * path).pairs(:to => :from)
-    path <= j.map do |l,p|
-      [l.from, p.to, p.from, l.cost+p.cost] # if l.to == p.from
+    path <= link {|l| [l.from, l.to, l.to, l.cost]}
+    path <= (link * path).pairs(:to => :from) do |l,p|
+      [l.from, p.to, p.from, l.cost+p.cost]
     end
 
     # second stratum

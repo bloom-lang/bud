@@ -17,8 +17,8 @@ class LocalShortestPaths
   bloom do
     link2 <= link.map {|l| l unless empty.include? [l.ident]}
     path <= link2.map {|e| [e.from, e.to, e.to, e.cost]}
-    temp :j <= join([link2, path])
-    path <= j.map do |l, p|
+    temp :k <= join([link2, path])
+    path <= k.map do |l, p|
       [l.from, p.to, p.from, l.cost+p.cost] if l.to == p.from
     end
 
@@ -69,8 +69,8 @@ class KTest2 < KTest
   bloom :update do
     mystate <= upd
     node <= upd
-    temp :j <= join([upd, mystate])
-    mystate <- j.map {|i, s| s}
+    temp :k <= join([upd, mystate])
+    mystate <- k.map {|i, s| s}
   end
 end
 
@@ -81,12 +81,33 @@ class KTest3 < KTest
   end
 end
 
+class TestStratTemporal
+  include Bud
 
+  state do
+    scratch :foo, [:loc, :a]
+    table :foo_persist, [:loc, :a]
+    scratch :foo_cnt, [:a] => [:cnt]
+  end
+
+  bootstrap do
+    foo <= [["xyz",1], ["xyz",2], ["xyz",3]]
+  end
+
+  bloom do
+    foo_persist <= foo
+    foo_cnt <= foo_persist.group([:loc], count)
+
+    foo_persist <- ((if foo_cnt[["xyz"]] and
+                        foo_cnt[["xyz"]].cnt == 3
+                       foo_persist
+                     end) or [])
+  end
+end
 
 class TestMeta < Test::Unit::TestCase
   def test_paths
     program = LocalShortestPaths.new
-    assert_nothing_raised(RuntimeError) { program.tick }
     assert_equal(5, program.strata.length)
 
     tally = 0
@@ -113,7 +134,7 @@ class TestMeta < Test::Unit::TestCase
         # weird: count is now getting parsed as a table
       else
         assert(!dep.nm, "Monotonic rule marked NM: #{dep.inspect}")
-      end 
+      end
     end
     assert_equal(6, tally)
   end
@@ -134,7 +155,7 @@ class TestMeta < Test::Unit::TestCase
     program.t_depends_tc.each {|d| dep.depends_tc << d}
     program.t_provides.each {|p| dep.providing << p}
     dep.tick
-    
+
     File.delete("KTest2_rewritten.txt")
     `rm -r TC_KTest2*`
   end
@@ -147,8 +168,15 @@ class TestMeta < Test::Unit::TestCase
         when "iin" then assert(u[1])
         when "iout" then assert(!u[1])
       end
-    end 
-    
+    end
   end
-  
+
+  def test_temporal_strat
+    t = TestStratTemporal.new
+    assert_equal(3, t.strata.length)
+    t.tick
+    assert_equal([["xyz", 1], ["xyz", 2], ["xyz", 3]], t.foo_persist.to_a.sort)
+    t.tick
+    assert_equal([], t.foo_persist.to_a.sort)
+  end
 end

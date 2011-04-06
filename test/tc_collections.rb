@@ -237,14 +237,14 @@ class DelBug
   end
 end
 
-class BadDeclaration1
+class BadDeclaration
   include Bud
   state do
     scratch 0
   end
 end
 
-class BadDeclaration2
+class DeclarationOverrideMethod
   include Bud
   state do
     scratch :id
@@ -413,9 +413,12 @@ class TestCollections < Test::Unit::TestCase
     assert_equal([[3,4]], b.buffer.to_a.sort)
   end
   
-  def test_bad_declarations
-    assert_raise(Bud::CompileError) { BadDeclaration1.new }
-    assert_raise(Bud::CompileError) { BadDeclaration2.new }
+  def test_bad_declaration
+    assert_raise(Bud::CompileError) { BadDeclaration.new }
+  end
+
+  def test_declaration_override_method
+    assert_raise(Bud::CompileError) { DeclarationOverrideMethod.new }
   end
 
   def test_empty_pk

@@ -131,7 +131,7 @@ class BudMeta #:nodoc: all
       end
 
       # Check that op is a legal Bloom operator
-      unless [:<, :<=, :<<].include? op
+      unless [:<, :<=].include? op
         raise Bud::CompileError, "Illegal operator: '#{op}'"
       end
 

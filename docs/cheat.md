@@ -177,55 +177,62 @@ implicit map:
 * `bc.argmax([:col1], :col2)` &nbsp;&nbsp;&nbsp;&nbsp; *returns the bc tuple per col1 that has highest col2*
 * `bc.argmin([:col1], :col2)`
 
-## Built-in Aggregates: ##
+### Built-in Aggregates: ###
 
 * Exemplary aggs: `min`, `max`, `choose`
 * Summary aggs: `count`, `sum`, `avg`
 * Structural aggs: `accum`
 
-## Join ###
-First argument is always an array of collections to join.<br>
-Later arguments are arrays of columns to be matched (equijoin).
+## Collection Combination (Join) ###
+To match items across two (or more) collections, use the `*` operator, followed by methods to filter/format the result (`pairs`, `matches`, `combos`, `lefts`, `rights`).
 
-`join([`*tablelist*`]` *,[optional column matches], ...*`)`<br>
+### Methods on Combinations (Joins) ###
 
-    # the following 3 Bloom statements are equivalent to this SQL
+`pairs(`*hash pairs*`)`: <br>
+given a `*` expression, form all pairs of items with value matches in the hash-pairs attributes.  Hash pairs can be fully qualified (`coll1.attr1 => coll2.attr2`) or shorthand (`:attr1 => :attr2`).
+
+    # for each inbound msg, find match in a persistent buffer
+    result <= (msg * buffer).pairs(:val => :key) {|m, b| [m.address, m.val, b.val] }
+
+`pairs(`*hash pairs*`)`: <br>
+alias for `pairs`, more readable for multi-collection `*` expressions.  Must use fully-qualified hash pairs.
+
+    # the following 2 Bloom statements are equivalent to this SQL
     # SELECT r.a, s_tab.b, t.c
     #   FROM r, s_tab, t
     #  WHERE r.x = s_tab.x
     #    AND s_tab.x = t.x;
 
     # multiple column matches
-    out <= join([r,s_tab,t],
-                [r.x, s_tab.x], [s_tab.x, t.x]) do |t1, t2, t3|
-             [t1.a, t2.b, t3.c]
-           end
-
-    # a single 3-way column match
-    out <= join([r,s_tab,t], [r.x, s_tab.x, t.x]) do |t1, t2, t3|
+    out <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x) do |t1, t2, t3|
              [t1.a, t2.b, t3.c]
            end
 
     # column matching done per pair: this will be very slow
     out <= join([r,s_tab,t]) do |t1, t2, t3|
-             [t1.a, t2.b, t3.c] if r.x == s_tab.x and s_tab.x = t.x
+             [t1.a, t2.b, t3.c] if r.x == s_tab.x and s_tab.x == t.x
            end
 
-`natjoin([`*tablelist*`]`)<br>
-Natural join of tables.
-Implicitly includes matching of attributes across collections with the same name.<br>
-The following is equivalent to the above statements if `x` is the only attribute name in common:
+`matches`:<br>
+Shorthand for `combos` with hash pairs for all attributes with matching names.
 
-    out <= natjoin([r, s_tab, t]) do {|t1, t2, t3| [t1.a, t2.b, t3.c]}
+    # Equivalent to the above statements if x is the only attribute name in common:
+    out <= (r * s_tab * t).matches do {|t1, t2, t3| [t1.a, t2.b, t3.c]}
+    
+`lefts(`*hash pairs*`)`: <br>
+Like `pairs`, but implicitly includes a block that projects down to the left item in each pair.
 
-`leftjoin([`*t1, t2*`]` *, [optional column matches], ...*`)`<br>
-Left Outer Join.  Objects in the first collection will be included in the output even if no match is found in the second collection.
+`rights(`*hash pairs*`)`: 
+Like `pairs`, but implicitly includes a block that projects down to the right item in each pair.
 
-### Join Methods ###
-`join([`*tablelist*`]` *,[optional column matches], ...*`).flatten`<br>
+`flatten`<br>
 `flatten` is a bit like SQL's `SELECT *`: it produces a collection of concatenated objects, with a schema that is the concatenation of the schemas in tablelist (with duplicate names disambiguated.) Useful for chaining to operators that expect input collections with schemas, e.g. group:
 
-    out <= natjoin([r,s]).flatten.group([:a], max(:b))
+    out <= (r * s).matches.flatten.group([:a], max(:b))
+
+### Left Join ###
+`leftjoin([`*t1, t2*`]` *, optional hash pairs, ...*`)`<br>
+Left Outer Join.  Note postfix syntax with array of 2 collections as first argument, hash pairs as subsequent arguments.  Objects in the first collection will be included in the output even if no match is found in the second collection.
 
 ## Temp Collections ##
 `temp`<br>

@@ -1,21 +1,22 @@
 module Bud
   ######## methods for registering collection types
-	private
+  private
   def define_collection(name, &block)
-    # don't allow duplicate table definitions
+    # Don't allow duplicate collection definitions
     if @tables.has_key? name
       raise Bud::CompileError, "collection already exists: #{name}"
     end
-    # rule out table names that use reserved words
+
+    # Rule out collection names that use reserved words, including
+    # previously-defined method names.
     reserved = eval "defined?(#{name})"
-    unless (reserved.nil? or (reserved == "method" and @tables[name]))
-      # first time registering table, check for method name reserved
+    unless reserved.nil?
       raise Bud::CompileError, "symbol :#{name} reserved, cannot be used as table name"
     end
     self.singleton_class.send(:define_method, name) do |*args, &blk|
-        unless blk.nil? then
+      unless blk.nil? then
         return @tables[name].pro(&blk)
-        else
+      else
         return @tables[name]
       end
     end
