@@ -10,4 +10,4 @@ The documents here are organized to be read in any order, but you might like to 
 * [cheat.md](cheat.md): A concise "cheat sheet" to remind you about Bloom syntax.
 * [ruby_hooks.md](ruby_hooks.md): Bud module methods that allow you to interact with the Bud evaluator from other Ruby threads.
 * [bud-sandbox](http://github.com/bloom-lang/bud-sandbox): a github repository including lots of useful libraries and examples.
-
+* [bfs.md](bfs.md):  A walkthrough of the Bloom distributed filesystem.
