@@ -93,4 +93,4 @@ Note that it is possible to write a program in Bloom that is *unstratifiable*: t
 
     glass <= one_item {|t| ['full'] if glass.empty? }
 
-Consider the case where we start out with glass being empty.  Then we know the fact `glass.empty?`, and the bloom statement says that `(glass.empty? => not glass.empty?)` which is equivalent to `(glass.empty? and not glass.empty?)` which is a paradox.  The Bud runtime detects cycles through non-monotonicity for you automatically when you instantiate your class.
+Consider the case where we start out with glass being empty.  Then we know the fact `glass.empty?`, and the bloom statement says that `(glass.empty? => not glass.empty?)` which is equivalent to `(glass.empty? and not glass.empty?)` which is a contradiction.  The Bud runtime detects cycles through non-monotonicity for you automatically when you instantiate your class.
