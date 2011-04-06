@@ -87,7 +87,7 @@ class TestMeta < Test::Unit::TestCase
   def test_paths
     program = LocalShortestPaths.new
     assert_nothing_raised(RuntimeError) { program.tick }
-    assert_equal(4, program.strata.length)
+    assert_equal(5, program.strata.length)
 
     tally = 0
     program.t_depends.each do |dep|
