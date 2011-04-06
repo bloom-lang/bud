@@ -39,15 +39,13 @@ module Bud
         memo
       end
 
-      preds = setup_preds(preds) unless preds.nil? or preds.empty?
-
+      setup_preds(preds) unless preds.nil? or preds.empty?
       setup_state
-      self
     end
 
     public
     def state_id # :nodoc: all
-      Marshal.dump([@rels.map{|r| r.tabname},@localpreds]).hash
+      Marshal.dump([@rels.map{|r| r.tabname}, @localpreds]).hash
     end
 
     # initialize the state for this join to be carried across iterations within a fixpoint
@@ -251,7 +249,7 @@ module Bud
               left = s_tup; right = r
             end
             retval = left + right
-            yield(retval) if test_locals(left[0], right, @localpreds.first)
+            yield retval if test_locals(left[0], right, @localpreds.first)
           end
         end
       end

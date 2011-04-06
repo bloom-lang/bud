@@ -125,7 +125,7 @@ end
 class CombosBud
   include Bud
 
-  state {
+  state do
     table :r, [:x, :y1]
     table :s_tab, [:x, :y1]
     table :t, [:x, :y1]
@@ -136,9 +136,9 @@ class CombosBud
     scratch :flip_out, [:x1, :x2, :x3, :y1, :y2, :y3]
     scratch :nat_out, [:x1, :x2, :x3, :y1, :y2, :y3]
     scratch :loj_out, [:x1, :x2, :y1, :y2]
-  }
+  end
 
-  bloom do
+  bootstrap do
     r << ['a', 1]
     r << ['b', 1]
     r << ['b', 2]
@@ -153,7 +153,9 @@ class CombosBud
     mismatches << ['a', 1]
     mismatches << ['v', 1]
     mismatches << ['z', 1]
+  end
 
+  bloom do
     temp :j <= join([r,s_tab], [r.x, s_tab.x])
     simple_out <= j.map { |t1,t2| [t1.x, t1.y1, t2.y1] }
 
