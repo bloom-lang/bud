@@ -28,8 +28,7 @@ module EC2Deploy
     table :all_up, [:bool]
     table :ruby_command, [] => [:cmd]
     table :deploy_node, [:uid] => [:node]
-    # XXX: uncomment this when we update the AMI's gem
-#    channel :ready, [:@loc, :sender]
+    channel :ready, [:@loc, :sender]
     table :ready_tab, [:sender]
     scratch :ready_count, [:num]
   end
@@ -44,13 +43,12 @@ module EC2Deploy
   bootstrap do
     # The official BUD AMI.
     image_id <= [["ami-f434c99d"]]
-    # XXX: uncomment this when we update the AMI's gem
-#    unless @options[:deploy]
-#      # Send message to the deployer telling 'em we's up.
-#      File.open("deploy_ip_port", "r") do |f|
-#        ready <~ [[f.readline.chop, ip_port]]
-#      end
-#    end
+    unless @options[:deploy]
+      # Send message to the deployer telling 'em we's up.
+      File.open("deploy_ip_port", "r") do |f|
+        ready <~ [[f.readline.chop, ip_port]]
+      end
+    end
   end
 
   bloom :spinup do
@@ -152,11 +150,21 @@ module EC2Deploy
           begin
             Net::SSH.start(ip, 'ec2-user', :keys => [ec2_key_location[[]].loc],
                            :timeout => 5, :paranoid => false) do |session|
+              # Upload init_dir, and the IP and port of the deployer
               session.scp.upload!("deploy_ip_port", "/home/ec2-user")
               session.scp.upload!(init_dir[[]].dir, "/home/ec2-user",
                                   :recursive  => true)
+              # Update the Bud gem
+              channel = session.open_channel do |ch|
+                channel.request_pty do |_, success|
+                  raise "Couldn't open a PTY on #{t.node}" if !success
+                end
+                channel.exec("sudo gem update --no-ri --no-rdoc bud")
+                channel.wait
+              end
+              # Run the ruby_command
               session.exec!('nohup ' + ruby_command[[]].cmd + ' ' + t.localip +
-                           ' ' + ip + ' >metarecv.out 2>metarecv.err </dev/null &')
+                            ' ' + t.node + ' >metarecv.out 2>metarecv.err </dev/null &')
             end
             break true
           rescue Exception
