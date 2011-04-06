@@ -3,7 +3,7 @@ Gem::Specification.new do |s|
   s.version = "0.0.1"
   s.date = "2010-07-19"
   s.authors = ["Peter Alvaro", "Neil Conway", "Joseph M. Hellerstein", "William R. Marczak"]
-  s.email = ["palvaro@cs.berkeley.edu", "nrc@cs.berkeley.edu", "jmh@berkeley.edu", "wrm@cs.berkeley.edu"]
+  s.email = ["bloomdevs@gmail.com"]
   s.summary = "A prototype Bloom DSL for distributed programming."
   s.homepage = "http://www.bloom-lang.org"
   s.description = "A prototype of the Bloom distributed programming language, as a Ruby DSL."

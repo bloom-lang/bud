@@ -1,10 +1,10 @@
+# Bud
+
 This is Bud, a.k.a. "Bloom Under Development".  It is an initial cut at a Bloom DSL, using Ruby as a setting.
 
 Please see LICENSE for licensing information.
 
 Language cheatsheet in doc/cheat.md
-
-This 0.0 version is not supported.  
 
 Main deficiencies at this point are:
 - Inefficient evaluation: Programs are run using semi-naive evaluation strategies, but no further
@@ -23,9 +23,8 @@ To install:
 Simple example programs can be found in examples. A much larger set
 of example programs and libraries can be found in the bud-sandbox repo.
 
-Optional Dependencies
-=====================
+## Optional Dependencies
 
-The bud gem has a handful of mandatory dependencies. It also has some optional
-dependencies: if you wish to use the Bud collections backed by Zookeeper (the
+The bud gem has a handful of mandatory dependencies. It also has one optional
+dependency: if you wish to use the Bud collections backed by Zookeeper (the
 "zktable" collection type), the "zookeeper" gem must be installed.
