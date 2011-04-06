@@ -16,11 +16,18 @@ class BudMeta #:nodoc: all
     top_stratum = stratify
     stratum_map = binaryrel2map(@bud_instance.t_stratum)
 
-    rewritten_strata = Array.new(top_stratum + 1) { [] }
+    rewritten_strata = Array.new(top_stratum + 2) { [] }
     @bud_instance.t_rules.each do |d|
-      belongs_in = stratum_map[d.lhs]
-      belongs_in ||= 0
-      rewritten_strata[belongs_in] << d.src
+      if d.op.to_s == '<='
+        # deductive rules are assigned to strata based on
+        # the basic datalog stratification algorithm
+        belongs_in = stratum_map[d.lhs]
+        belongs_in ||= 0
+        rewritten_strata[belongs_in] << d.src
+      else
+        # all temporal rules are placed in the last stratum
+        rewritten_strata[top_stratum + 1] << d.src
+      end
     end
 
     @depanalysis = DepAnalysis.new

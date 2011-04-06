@@ -71,20 +71,10 @@ class Stratification # :nodoc: all
     }
 
     strata[2] = lambda {
-      # pass 2: do additional hoisting to ensure that rules do not appear in
-      # strata below rules that produce their inputs
-      stratum_base <= (depends * stratum_base).pairs(:body => :predicate) do |d, s|
-        unless d.op.to_s == '<='
-          [d.head, s.stratum]
-        end
-      end
-    }
-
-    strata[3] = lambda {
       stratum <= stratum_base.group([stratum_base.predicate], max(stratum_base.stratum))
     }
 
-    strata[4] = lambda {
+    strata[3] = lambda {
       # there is no good reason that top_strat can't be computed in strata[3] over stratum_base.
       # however, when it is deduced that way, it is empty after a tick
       top_strat <= stratum.group([], max(stratum.stratum))
