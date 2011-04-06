@@ -25,7 +25,7 @@ class ShortestPaths
 
     temp :j <= (link * path).pairs(:to => :from)
     path <= j.map do |l,p|
-      [l.from, p.to, p.from, l.cost+p.cost] # if l.to == p.from
+      [l.from, p.to, p.from, l.cost+p.cost]
     end
 
     # second stratum
