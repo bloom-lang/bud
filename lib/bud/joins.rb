@@ -39,10 +39,8 @@ module Bud
         memo
       end
 
-      preds = setup_preds(preds) unless preds.nil? or preds.empty?
-
+      setup_preds(preds) unless preds.nil? or preds.empty?
       setup_state
-      self
     end
 
     public
@@ -255,7 +253,7 @@ module Bud
               left = s_tup; right = r
             end
             retval = left + right
-            yield(retval) if test_locals(left[0], right, @localpreds.first)
+            yield retval if test_locals(left[0], right, @localpreds.first)
           end
         end
       end
