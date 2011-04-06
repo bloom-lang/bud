@@ -73,10 +73,10 @@ class SimpleTempTest
   end
 
   bloom do
-    temp :j <= join([t1, t2])
-    t3 <= j.map {|a, b| [a.key + b.key, a.val + b.val]}
-    t4 <= j.map {|a, b| [a.key + b.key, a.val + b.val]}
-    t5 <= j.map {|a, b| a if b.val > 100}
+    temp :k <= join([t1, t2])
+    t3 <= k.map {|a, b| [a.key + b.key, a.val + b.val]}
+    t4 <= k.map {|a, b| [a.key + b.key, a.val + b.val]}
+    t5 <= k.map {|a, b| a if b.val > 100}
   end
 end
 
@@ -144,10 +144,10 @@ class SimpleTempNoMapTest
   end
 
   bloom do
-    temp :j <= join([t1, t2])
-    t3 <= j {|a, b| [a.key + b.key, a.val + b.val]}
-    t4 <= j {|a, b| [a.key + b.key, a.val + b.val]}
-    t5 <= j {|a, b| a if b.val > 100}
+    temp :k <= join([t1, t2])
+    t3 <= k {|a, b| [a.key + b.key, a.val + b.val]}
+    t4 <= k {|a, b| [a.key + b.key, a.val + b.val]}
+    t5 <= k {|a, b| a if b.val > 100}
   end
 end
 

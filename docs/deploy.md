@@ -83,14 +83,14 @@ Note that EC2 deployment does *not* shut down the EC2 nodes it starts up under a
 
 ## Examples
 
-Check out the `examples/deploy` directory in Bud.  There is an example of distributed tree-based quicksort that can be deployed locally:
+Check out the `examples/deploy` directory in Bud.  There is a simple token ring example that establishes a ring involving 10 nodes and sends a token around the ring continuously.  This example can be deployed locally:
 
-    ruby btquicksort-local.rb
+    ruby tokenring-local.rb
 
 or on EC2:
 
-    ruby btquicksort-ec2.rb local_ip:local_port ext_ip true
+    ruby tokenring-ec2.rb local_ip:local_port ext_ip true
 
-Note that before running `btquicksort-ec2`, you must create a "keys.rb" file that contains `access_key_id`, `secret_access_key`, `key_name` and `ec2_key_location`.
+Note that before running `tokenring-ec2`, you must create a "keys.rb" file that contains `access_key_id`, `secret_access_key`, `key_name` and `ec2_key_location`.
 
-Output will be displayed to show the progress of the deployment.  Be patient, it may take a while for output to appear.  Once deployment is complete and all nodes are ready, the quicksort program should begin to display output in the form of "successor" tuples that indicate the links in the sorted list.
+Output will be displayed to show the progress of the deployment.  Be patient, it may take a while for output to appear.  Once deployment is complete and all nodes are ready, each node will display output indicating when it has the token.  All output will be visible for the local deployment case, whereas only the deployer node's output will be visible for the EC2 deployment case (stdout of all other nodes is materialized to disk).

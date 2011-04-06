@@ -150,8 +150,8 @@ class TestRebl < Test::Unit::TestCase
     # Now add some rules
     assert_nothing_raised do
       rt.exec_rebl("path <= link {|e| [e.from, e.to, e.to, e.cost]}")
-      rt.exec_rebl("temp :j <= (link*path).pairs(:to => :from)")
-      rt.exec_rebl("path <= j { |l,p| [l.from, p.to, p.from, l.cost+p.cost] }")
+      rt.exec_rebl("temp :k <= (link*path).pairs(:to => :from)")
+      rt.exec_rebl("path <= k { |l,p| [l.from, p.to, p.from, l.cost+p.cost] }")
       rt.exec_rebl("stdio <~ [['foo']]")
       actual_output = rt.exec_rebl("/tick 3")
     end
@@ -165,7 +165,7 @@ class TestRebl < Test::Unit::TestCase
     assert_equal("", actual_output)
 
     # Now check the rules we've got
-    expected_output = "1: path <= link {|e| [e.from, e.to, e.to, e.cost]}\n2: temp :j <= (link*path).pairs(:to => :from)\n3: path <= j { |l,p| [l.from, p.to, p.from, l.cost+p.cost] }\n"
+    expected_output = "1: path <= link {|e| [e.from, e.to, e.to, e.cost]}\n2: temp :k <= (link*path).pairs(:to => :from)\n3: path <= k { |l,p| [l.from, p.to, p.from, l.cost+p.cost] }\n"
     assert_nothing_raised do
       actual_output = rt.exec_rebl("/lsrules")
     end
