@@ -28,9 +28,12 @@ module Bust
       t_table_info << [t[0], t[1].class.to_s]
     end
 
+    q = Queue.new
     Thread.start(self) do |bud|
-      BustClass.new(bud)
+      BustClass.new(bud, q)
     end
+    # Wait for socket to be ready before we return from bootstrap.
+    q.pop
   end
 
   class BustClass
@@ -95,9 +98,11 @@ module Bust
       end
     end
 
-    def initialize(bud)
+    def initialize(bud, q)
       # allow user-configurable port
       server = TCPServer.new(bud.ip, (bud.options[:bust_port] or 8080))
+      # We're now ready to accept connections.
+      q << true
 
       loop do
         session = server.accept

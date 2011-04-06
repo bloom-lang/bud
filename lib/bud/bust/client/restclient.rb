@@ -24,8 +24,9 @@ module RestClient
          begin
            case r.verb
            when :get
-             params = params.merge({:format => r.form}) if r.form
-             resp_tuple = [r.rid, Nestful.get(r.url, params), false]
+             get_hash = {:params => params}
+             get_hash[:format] = r.form if r.form
+             resp_tuple = [r.rid, Nestful.get(r.url, get_hash), false]
            when :post
              # not sure if this is a sensible default for format?
              format = (r.form or :form)
