@@ -418,4 +418,32 @@ class TestJoins < Test::Unit::TestCase
     p.run_bg
     p.sync_callback(:c, [[p.ip_port,1]], :out)
   end
+  
+  class SharedJoin
+    include Bud
+    state do
+      table :t1
+      table :t2
+      table :t3
+    end
+    bootstrap do
+      t1 <+ [[1,1]]
+      t1 <+ [[2,1]]
+      t1 <+ [[3,2]]
+      t2 <+ [[1,1]]
+      t2 <+ [[2,2]]
+      t2 <+ [[3,2]]
+    end
+    bloom do
+      temp :out1 <= (t1 * t2).pairs(:val=>:val) {|a,b| [a.key, b.key, a.val]}
+      temp :out2 <= (t1 * t2).pairs(:val=>:val) {|a,b| [a.key, a.val]}
+    end
+  end
+  
+  def test_shared_join
+    p = SharedJoin.new
+    p.tick; p.tick
+    assert_equal([[1, 1, 1], [2, 1, 1], [3, 2, 2], [3, 3, 2]], p.out1.to_a.sort)
+    assert_equal([[1, 1], [2, 1], [3, 2]], p.out2.to_a.sort)
+  end
 end
