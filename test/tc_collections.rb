@@ -418,7 +418,7 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_declaration_override_method
-    assert_nothing_raised { DeclarationOverrideMethod.new }
+    assert_raise(Bud::CompileError) { DeclarationOverrideMethod.new }
   end
 
   def test_empty_pk

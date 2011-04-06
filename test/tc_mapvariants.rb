@@ -39,8 +39,8 @@ class StillAnnoying
   end
 
   bloom :rules do
-    temp :j <= inski
-    out <= j.map {|t| [t.val]}
+    temp :k <= inski
+    out <= k.map {|t| [t.val]}
   end
 end
 

@@ -18,9 +18,7 @@ class Paths
   bloom :program do
     # this is the program a user might write.
     path <= link.map{|e| (@cnt = @cnt + 1) and [e.from, e.to] }
-
-    temp :j <= join [link, path], [path.from, link.to]
-    path <= j.map do |l,p|
+    path <= (link * path).pairs(:to => :from) do |l,p|
       (@pcnt = @pcnt + 1) and [l.from, p.to]
     end
   end
@@ -47,14 +45,14 @@ class PathsDelta < Paths
     # uses the join.
     d_path <+ d_link.map{|e| (@cnt = @cnt + 1) and [e.from, e.to]}
 
-    temp :j <= join [d_link, path], [path.from, d_link.to]
-    temp :j2 <= join [link, d_path], [d_path.from, link.to]
+    temp :k <= join [d_link, path], [path.from, d_link.to]
+    temp :k2 <= join [link, d_path], [d_path.from, link.to]
 
-    d_path <+ j.map do |l,p|
+    d_path <+ k.map do |l,p|
       (@pcnt = @pcnt + 1) and [l.from, p.to]
     end
 
-    d_path <+ j2.map do |l,p|
+    d_path <+ k2.map do |l,p|
       (@pcnt = @pcnt + 1) and [l.from, p.to]
     end
   end
@@ -74,14 +72,14 @@ class PathsDeltaIndirected < PathsDelta
   bloom :program do
     d_path <+ d_link.map{|e| (@cnt = @cnt + 1) and [e.from, e.to]}
 
-    temp :j <= join [d_link, n_path], [n_path.from, d_link.to]
-    temp :j2 <= join [n_link, d_path], [d_path.from, n_link.to]
+    temp :k <= join [d_link, n_path], [n_path.from, d_link.to]
+    temp :k2 <= join [n_link, d_path], [d_path.from, n_link.to]
 
-    d_path <+ j.map do |l,p|
+    d_path <+ k.map do |l,p|
       (@pcnt = @pcnt + 1) and [l.from, p.to]
     end
 
-    d_path <+ j2.map do |l,p|
+    d_path <+ k2.map do |l,p|
       (@pcnt = @pcnt + 1) and [l.from, p.to]
     end
   end
