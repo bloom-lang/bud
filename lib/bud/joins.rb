@@ -57,10 +57,6 @@ module Bud
       @tabname = ("temp_join"+state_id.to_s).to_sym
       @bud_instance.joinstate[sid] ||= [{:storage => {}, :delta => {}}, {:storage => {}, :delta => {}}]
       @hash_tables = @bud_instance.joinstate[sid]
-      found = false
-      (0..1).each do |i|
-        found = true if @hash_tables[i][:storage].any? or @hash_tables[i][:delta].any?
-      end
     end
 
     private_class_method
