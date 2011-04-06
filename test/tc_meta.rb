@@ -91,15 +91,15 @@ class TestStratTemporal
   end
 
   bootstrap do
-    foo <= [["127.0.0.1:54321",1], ["127.0.0.1:54321",2], ["127.0.0.1:54321",3]]
+    foo <= [["xyz",1], ["xyz",2], ["xyz",3]]
   end
 
   bloom do
     foo_persist <= foo
     foo_cnt <= foo_persist.group([:loc], count)
 
-    foo_persist <- ((if foo_cnt[["127.0.0.1:54321"]] and
-                        foo_cnt[["127.0.0.1:54321"]].cnt == 3
+    foo_persist <- ((if foo_cnt[["xyz"]] and
+                        foo_cnt[["xyz"]].cnt == 3
                        foo_persist
                      end) or [])
   end
@@ -108,7 +108,6 @@ end
 class TestMeta < Test::Unit::TestCase
   def test_paths
     program = LocalShortestPaths.new
-    program.tick
     assert_equal(5, program.strata.length)
 
     tally = 0
@@ -174,6 +173,10 @@ class TestMeta < Test::Unit::TestCase
 
   def test_temporal_strat
     t = TestStratTemporal.new
-    assert(3, t.strata.length)
+    assert_equal(3, t.strata.length)
+    t.tick
+    assert_equal([["xyz", 1], ["xyz", 2], ["xyz", 3]], t.foo_persist.to_a.sort)
+    t.tick
+    assert_equal([], t.foo_persist.to_a.sort)
   end
 end
