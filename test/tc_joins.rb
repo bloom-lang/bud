@@ -156,8 +156,8 @@ class CombosBud
   end
 
   bloom do
-    temp :j <= join([r,s_tab], [r.x, s_tab.x])
-    simple_out <= j.map { |t1,t2| [t1.x, t1.y1, t2.y1] }
+    temp :j2 <= join([r,s_tab], [r.x, s_tab.x])
+    simple_out <= j2.map { |t1,t2| [t1.x, t1.y1, t2.y1] }
 
     temp :k <= join([r,s_tab], [r.x, s_tab.x], [r.y1, s_tab.y1])
     match_out <= k.map { |t1,t2| [t1.x, t1.y1, t2.y1] }

@@ -6,10 +6,11 @@ module Bud
     if @tables.has_key? name
       raise Bud::CompileError, "collection already exists: #{name}"
     end
-    # Rule out collection names that use reserved words. Note that we allow
-    # collection names to override method names.
+
+    # Rule out collection names that use reserved words, including
+    # previously-defined method names.
     reserved = eval "defined?(#{name})"
-    unless (reserved.nil? or reserved == "method")
+    unless reserved.nil?
       raise Bud::CompileError, "symbol :#{name} reserved, cannot be used as table name"
     end
     self.singleton_class.send(:define_method, name) do |*args, &blk|
