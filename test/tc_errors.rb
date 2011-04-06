@@ -36,6 +36,22 @@ class TestErrorHandling < Test::Unit::TestCase
     assert_raise(Bud::CompileError) { IllegalOp.new }
   end
 
+  class InsertInBloomBlock
+    include Bud
+
+    state do
+      table :t1
+    end
+
+    bloom do
+      t1 << [5, 10]
+    end
+  end
+
+  def test_insert_in_bloom_error
+    assert_raise(Bud::CompileError) { InsertInBloomBlock.new }
+  end
+
   class MissingTable
     include Bud
 
