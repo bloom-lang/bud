@@ -57,9 +57,9 @@ class TiedPaths
   end
 
   bloom do
-    path <= link.map{|e| [e.from, e.to, e.to, e.cost]}
-    path <= join([link, path], [path.from, link.to]).map do |l,p|
-      [l.from, p.to, p.from, l.cost+p.cost] # if l.to == p.from
+    path <= link {|e| [e.from, e.to, e.to, e.cost]}
+    path <= (link*path).pairs(:to => :from) do |l,p|
+      [l.from, p.to, p.from, l.cost+p.cost]
     end
     shortest <= path.argmin([path.from, path.to], path.cost).argagg(:max, [:from, :to], :next)
   end

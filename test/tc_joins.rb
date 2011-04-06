@@ -281,8 +281,7 @@ class TestJoins < Test::Unit::TestCase
     assert_equal(1, chain_outs.length)
     flip_outs = program.flip_out.to_a
     assert_equal(1, flip_outs.length)
-    nat_outs = program.nat_out
-    assert_equal(1, nat_outs.length)
+    assert_equal(1, program.nat_out.length)
     assert_equal(chain_outs, flip_outs)
     assert_equal(chain_outs, program.newtab_out.to_a)
   end

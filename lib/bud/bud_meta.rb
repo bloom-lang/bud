@@ -150,14 +150,7 @@ class BudMeta #:nodoc: all
 
   def stratify
     strat = Stratification.new
-    @bud_instance.tables.each do |t|
-      strat.tab_info << [t[0].to_s, t[1].class, (t[1].schema.nil? ? 0 : t[1].schema.length)]
-    end
-    @bud_instance.t_depends.each do |d|
-      #if d.op == '<='
-        strat.depends << d
-      #end
-    end
+    @bud_instance.t_depends.each {|d| strat.depends << d}
     strat.tick
 
     # Copy computed data back into Bud runtime

@@ -6,13 +6,11 @@ class Stratification # :nodoc: all
 
   state do
     # Data inserted by client (Bud rewrite code)
-    table :tab_info, [:tab, :typecol, :columns]
     table :depends, [:rule, :head, :op, :body, :neg]
-    table :depends_clean, [:head, :body, :neg, :temporal]
 
-    # Transitive closure of "depends" relation
-    table :depends_tc, [:head, :body, :via, :neg, :temporal]
-    table :cycle, [:predicate, :via, :neg, :temporal]
+    scratch :depends_clean, [:head, :body, :neg, :temporal]
+    scratch :depends_tc, [:head, :body, :via, :neg, :temporal]
+    scratch :cycle, [:predicate, :via, :neg, :temporal]
     table :stratum_base, [:predicate, :stratum]
     table :stratum, [:predicate, :stratum]
     table :top_strat, [:stratum]

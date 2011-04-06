@@ -2,14 +2,15 @@ require 'rubygems'
 require 'ruby2ruby'
 
 class RuleRewriter < Ruby2Ruby #:nodoc: all
-  attr_accessor :rule_indx, :rules, :depends, :bud_instance
+  attr_accessor :rule_indx, :rules, :depends
 
   def initialize(seed, bud_instance)
     @bud_instance = bud_instance
     @ops = {:<< => 1, :< => 1, :<= => 1}
     @monotonic_whitelist = {
           :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1,
-          :* => 1, :pairs => 1, :matches => 1, :flatten => 1, :lefts => 1, :rights => 1
+          :* => 1, :pairs => 1, :matches => 1, :flatten => 1,
+          :lefts => 1, :rights => 1, :map => 1, :pro => 1, :schema => 1
       }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
@@ -32,19 +33,9 @@ class RuleRewriter < Ruby2Ruby #:nodoc: all
     else
       if recv and recv.class == Sexp
         # ignore accessors of iterator variables
-        if recv.first != :lvar
-          if args == s(:arglist)
-            # check for delete ops and predicate methods (ending in "?" like "empty?"),
-            # but ignore top-level accessors and maps
-            # XXX we should be more methodical about white/black-listing unary Enumerator
-            # methods, as this will silently fail to notice non-monotonicity if we're wrong.
-            @nm = true if op == :-@ or op.to_s.end_with? '?'
-          else
-            unless @monotonic_whitelist[op]
-              # suspicious function: exp[1]
-              @nm = true
-            end
-          end
+        unless recv.first == :lvar
+          @nm = true if op == :-@
+          @nm = true unless (@monotonic_whitelist[op] or @bud_instance.tables.has_key? op)
         end
       end
       if @temp_ops[op]
@@ -82,7 +73,9 @@ class RuleRewriter < Ruby2Ruby #:nodoc: all
 
   def do_table(exp)
     t = exp[1].to_s
-    @tables[t] = @nm
+    # If we're called on a "table-like" part of the AST that doesn't correspond
+    # to an extant table, ignore it.
+    @tables[t] = @nm if @bud_instance.tables.has_key? t.to_sym
     drain(exp)
     return t
   end
