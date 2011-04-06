@@ -3,7 +3,6 @@ require 'bud'
 require 'tokenring'
 require 'bud/deploy/localdeploy'
 
-# Mixes in quicksort with BinaryTreePartition
 class RingLocal
   include Bud
   include TokenRing
