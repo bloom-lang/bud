@@ -20,7 +20,7 @@ class RingLocal
   end
 
   bloom :pass_token_once do
-    next_node <- join([next_node, token_persist]) {|n,_| [n.node]}
+    next_node <- (next_node * token_persist).lefts {|n| n.node}
   end
 end
 
@@ -81,6 +81,5 @@ class TestLocalDeploy < Test::Unit::TestCase
     ensure
       $stdout = STDOUT
     end
-
   end
 end

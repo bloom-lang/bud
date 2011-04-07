@@ -55,13 +55,13 @@ class RingMember
 
   bloom :ring_msg do
     pipe <~ kickoff {|k| [ip_port, k.cnt]}
-    pipe <~ join([pipe, next_guy]).map {|p,n| [n.addr, p.cnt + 1] if p.cnt < 39}
-    done <= pipe.map {|p| [p.cnt] if p.cnt == 39}
+    pipe <~ (pipe * next_guy).pairs {|p,n| [n.addr, p.cnt + 1] if p.cnt < 39}
+    done <= pipe {|p| [p.cnt] if p.cnt == 39}
   end
 
   bloom :update_log do
     last_cnt <+ pipe {|p| [p.cnt]}
-    last_cnt <- join([pipe, last_cnt]).map {|p, lc| [lc.cnt]}
+    last_cnt <- (pipe * last_cnt).pairs {|p, lc| [lc.cnt]}
   end
 end
 

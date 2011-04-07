@@ -108,13 +108,6 @@ delete:
 
 * `left <- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
 
-insert:<br>
-
-* `left << [...]` &nbsp;&nbsp;&nbsp;&nbsp; (*instantaneous*)
-
-Note that unlike merge/delete, insert expects a single fact on the rhs, rather
-than a collection.
-
 ### Collection Methods ###
 Standard Ruby methods used on a BudCollection `bc`:
 

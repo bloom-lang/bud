@@ -38,9 +38,8 @@ class TcTest
   end
 
   bloom :do_join do
-    temp :k <= join([join_t1, join_t2], [join_t1.k, join_t2.k])
-    join_res <= k
-    cart_prod <= join([join_t1, join_t2])
+    join_res <= (join_t1 * join_t2).pairs(:k => :k)
+    cart_prod <= (join_t1 * join_t2)
   end
 end
 
