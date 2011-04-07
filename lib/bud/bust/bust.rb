@@ -10,6 +10,7 @@ HTTP_VERBS = ["GET", "POST"] #, "DELETE"]
 # a RESTful interface to Bloom code
 module Bust
   include Bud
+  attr_reader :bust_port
 
   # used this for inspiration:
   # http://blogs.msdn.com/b/abhinaba/archive/2005/10/14/474841.aspx
@@ -33,7 +34,7 @@ module Bust
       BustClass.new(bud, q)
     end
     # Wait for socket to be ready before we return from bootstrap.
-    q.pop
+    @bust_port = q.pop
   end
 
   class BustClass
@@ -100,9 +101,11 @@ module Bust
 
     def initialize(bud, q)
       # allow user-configurable port
-      server = TCPServer.new(bud.ip, (bud.options[:bust_port] or 8080))
+      server = TCPServer.new(bud.ip, (bud.options[:bust_port] or 0))
+      port = server.addr[1]
+      puts "Bust server listening on #{bud.ip}:#{port}"
       # We're now ready to accept connections.
-      q << true
+      q << port
 
       loop do
         session = server.accept

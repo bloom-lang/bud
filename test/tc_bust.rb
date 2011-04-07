@@ -26,14 +26,17 @@ class TestBust < Test::Unit::TestCase
       result = nil
       server = nil
       client = nil
+      host = nil
 
       $stdout = StringIO.new
 
       assert_nothing_raised do
-        server = ReblServer.new.run_bg
+        server = ReblServer.new
+        server.run_bg
         client = ReblClient.new
+        host = "http://localhost:#{server.bust_port}"
         result = client.sync_callback(:rest_req, [[1, :post, :form,
-                                                   "http://localhost:8080/foo",
+                                                   "#{host}/foo",
                                                    {:bar => 'a', :baz => 'b',
                                                      :qux => 'c'}]],
                                       :rest_response)
@@ -43,7 +46,7 @@ class TestBust < Test::Unit::TestCase
 
       assert_nothing_raised do
         result = client.sync_callback(:rest_req, [[2, :post, :form,
-                                                   "http://localhost:8080/foo",
+                                                   "#{host}/foo",
                                                    {:qux => 'd', :bar => 'a',
                                                      :baz => 'b'}]],
                                       :rest_response)
@@ -53,9 +56,9 @@ class TestBust < Test::Unit::TestCase
 
       assert_nothing_raised do
         result = client.sync_callback(:rest_req, [[3, :get, :json,
-                                                 "http://localhost:8080/foo",
-                                                 {:qux => 'c'}]],
-                                    :rest_response)
+                                                   "#{host}/foo",
+                                                   {:qux => 'c'}]],
+                                      :rest_response)
       end
       assert_equal(result.first[0], 3)
       assert_equal(result.first[1], [['a', 'b', 'c']])

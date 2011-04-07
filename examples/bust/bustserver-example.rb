@@ -15,4 +15,4 @@ class BustExample # :nodoc: all
   end
 end
 
-BustExample.new.run_fg
+BustExample.new(:bust_port => 8080).run_fg
