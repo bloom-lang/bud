@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name = "bud"
-  s.version = "0.0.1"
-  s.date = "2010-07-19"
+  s.version = "0.0.2"
+  s.date = "2011-04-06"
   s.authors = ["Peter Alvaro", "Neil Conway", "Joseph M. Hellerstein", "William R. Marczak"]
   s.email = ["bloomdevs@gmail.com"]
   s.summary = "A prototype Bloom DSL for distributed programming."
