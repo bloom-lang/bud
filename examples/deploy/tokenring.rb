@@ -30,7 +30,7 @@ module TokenRing
   bloom :pass_token do
     # Persist the token for as long as necessary
     token_persist <= token
-    token_persist <- join([token_persist, next_node]).map {|t,_| [t]}
+    token_persist <- join([token_persist, next_node]).map {|t,_| [t.loc]}
     # Pass on the token
     token <~ join([token_persist, next_node]).map {[next_node[[]].node]}
     stdio <~ token.map {["#{ip_port}: Got token!"]}

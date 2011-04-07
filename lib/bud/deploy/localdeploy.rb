@@ -12,12 +12,21 @@ module LocalDeploy
     puts "Child pid #{pid}: terminated"
   }
 
+  def stop_bg
+    super
+    for p in @pids
+      Process.kill("INT", p)
+    end
+    Process.waitall
+  end
+
   deploystrap do
     read, write = IO.pipe
     if node_count[[]]
       print "Forking local processes"
+      @pids = []
       (0..node_count[[]].num-1).map do |i|
-        Process.fork do
+        @pids << Process.fork do
           # Don't want to inherit our parent's random stuff.
           srand
           foo = self.class.new
@@ -34,6 +43,8 @@ module LocalDeploy
       (0..node_count[[]].num-1).map do |i|
         node << [i, "localhost:" + read.readline.rstrip]
       end
+      read.close
+      write.close
       puts "done"
     end
   end
