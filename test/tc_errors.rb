@@ -141,7 +141,7 @@ class TestErrorHandling < Test::Unit::TestCase
     end
 
     bloom do
-      temp :t2 <= join([t1, t1])
+      temp :t2 <= (t1 * t1)
     end
   end
 
