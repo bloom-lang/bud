@@ -18,7 +18,7 @@ In your class, make sure to:
 
     include Bust
 
-That's it!  Now a BUST server will be started up when your class is instantiated.  By default, this server will listen on port 8080, but you can change this by passing a port via the "bust_port" option when you instantiate your class.
+That's it!  Now a BUST server will be started up when your class is instantiated.  This server will listen on an open port; it will print out "Bust server listening on port xxxxx" to let you know which port it has selected.  But you can select a specific port by passing a port via the "bust_port" option when you instantiate your class.
 
 You can test out the BUST server using Ruby's "net/http" library if you want, and you can also check out "BUST Inspector", a sample AJAX application that allows you to view the state of a bud instance.
 
