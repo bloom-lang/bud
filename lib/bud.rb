@@ -17,6 +17,8 @@ require 'bud/storage/tokyocabinet'
 require 'bud/storage/zookeeper'
 require 'bud/viz'
 
+$em_stopped = Queue.new
+
 # We monkeypatch Module to add support for Bloom state and code declarations.
 class Module
   
@@ -165,7 +167,6 @@ module Bud
     @budtime = 0
     @inbound = []
     @done_bootstrap = false
-    @em_stopped = Queue.new
     @joinstate = {}  # joins are stateful, their state needs to be kept inside the Bud instance
 
     # Setup options (named arguments), along with default values
@@ -372,7 +373,7 @@ module Bud
     if stop_em
       schedule_shutdown(true)
       # Wait until EM has completely shutdown before we return.
-      @em_stopped.pop
+      $em_stopped.pop
     else
       schedule_and_wait do
         do_shutdown(false)
@@ -519,7 +520,7 @@ module Bud
         q << true
       end
       # Executed only after EventMachine::stop_event_loop is done
-      @em_stopped << true
+      $em_stopped << true
     end
     # Block waiting for EM's event loop to start up.
     q.pop

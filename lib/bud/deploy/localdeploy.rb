@@ -7,20 +7,21 @@ require 'bud/deploy/deployer'
 module LocalDeploy
   include Deployer
 
-  trap("CLD") {
-    pid = Process.wait
-    puts "Child pid #{pid}: terminated"
-  }
-
   def stop_bg
     super
     for p in @pids
       Process.kill("INT", p)
     end
     Process.waitall
+    trap("CLD", "DEFAULT")
   end
 
   deploystrap do
+    trap("CLD") {
+      pid = Process.wait
+      puts "Child pid #{pid}: terminated"
+    }
+
     read, write = IO.pipe
     if node_count[[]]
       print "Forking local processes"

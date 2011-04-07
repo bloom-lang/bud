@@ -6,6 +6,10 @@ require 'bud/deploy/localdeploy'
 
 DEPLOY_NUM_NODES = 10
 
+class Dummy
+  include Bud
+end
+
 class RingLocal
   include Bud
   include TokenRing
@@ -23,6 +27,11 @@ end
 
 class TestLocalDeploy < Test::Unit::TestCase
   def test_local_deploy
+
+    # Stop EM to make my deploy work
+    d = Dummy.new
+    d.run_bg
+    d.stop_bg true
 
     ring_local = nil
     read, write = IO.pipe

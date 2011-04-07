@@ -160,8 +160,8 @@ module EC2Deploy
                   raise "Couldn't open a PTY on #{t.node}" if !success
                 end
                 channel.exec("sudo gem update --no-ri --no-rdoc bud")
-                channel.wait
               end
+              channel.wait
               # Run the ruby_command
               session.exec!('nohup ' + ruby_command[[]].cmd + ' ' + t.localip +
                             ' ' + t.node + ' >metarecv.out 2>metarecv.err </dev/null &')
