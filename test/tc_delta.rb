@@ -37,9 +37,9 @@ class DeltaJoinTest
   bloom :paths do
     link <= orig
     path <= link
-    path <= join([link, path]).map {|l,p| [l.from, p.to] if l.to == p.from}
+    path <= (link * path).pairs {|l,p| [l.from, p.to] if l.to == p.from}
     hashpath <= link
-    hashpath <= join([link, path], [link.to, path.from]).map {|l,p| [l.from, p.to]}
+    hashpath <= (link * path).pairs(:to => :from) {|l,p| [l.from, p.to]}
   end
 end
 
@@ -62,9 +62,9 @@ class Delta3JoinTest
   bloom :paths do
     link <= orig
     path <= link
-    path <= join([link, path, wanted]).map{|l,p,w| [l.from, p.to] if l.to == p.from and l.from == w.node}
+    path <= (link * path * wanted).combos {|l,p,w| [l.from, p.to] if l.to == p.from and l.from == w.node}
     hashpath <= link
-    hashpath <= join([link, path, wanted], [link.to, path.from],[link.from, wanted.node]).map {|l,p| [l.from, p.to]}
+    hashpath <= (link * path * wanted).combos(link.to => path.from, link.from => wanted.node) {|l,p| [l.from, p.to]}
   end
 end
 

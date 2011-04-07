@@ -17,8 +17,7 @@ class LocalShortestPaths
   bloom do
     link2 <= link.map {|l| l unless empty.include? [l.ident]}
     path <= link2.map {|e| [e.from, e.to, e.to, e.cost]}
-    temp :k <= join([link2, path])
-    path <= k.map do |l, p|
+    path <= (link2 * path).pairs do |l, p|
       [l.from, p.to, p.from, l.cost+p.cost] if l.to == p.from
     end
 

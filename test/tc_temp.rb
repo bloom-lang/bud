@@ -73,7 +73,7 @@ class SimpleTempTest
   end
 
   bloom do
-    temp :k <= join([t1, t2])
+    temp :k <= (t1 * t2)
     t3 <= k.map {|a, b| [a.key + b.key, a.val + b.val]}
     t4 <= k.map {|a, b| [a.key + b.key, a.val + b.val]}
     t5 <= k.map {|a, b| a if b.val > 100}
@@ -120,7 +120,7 @@ class TempShadow
     temp :k <= t1.map {|t| [t.key + 10, t.val + 20]}
     t2 <= k
     t2 <= t1.map {|k| [k.key, k.val]}
-    t3 <= join([t1, t2], [t1.key, t2.key]).map {|j,k| [j.key + 20, k.val + 20]}
+    t3 <= (t1 * t2).pairs(:key => :key) {|j,k| [j.key + 20, k.val + 20]}
     t4 <= t3.map {|t| [t.key, t.val] unless k.include? t}
   end
 end
@@ -144,7 +144,7 @@ class SimpleTempNoMapTest
   end
 
   bloom do
-    temp :k <= join([t1, t2])
+    temp :k <= (t1 * t2)
     t3 <= k {|a, b| [a.key + b.key, a.val + b.val]}
     t4 <= k {|a, b| [a.key + b.key, a.val + b.val]}
     t5 <= k {|a, b| a if b.val > 100}
@@ -191,7 +191,7 @@ class TempNoMapShadow
     temp :k <= t1 {|t| [t.key + 10, t.val + 20]}
     t2 <= k
     t2 <= t1 {|k| [k.key, k.val]}
-    t3 <= join([t1, t2], [t1.key, t2.key]) {|j,k| [j.key + 20, k.val + 20]}
+    t3 <= (t1 * t2).pairs(:key => :key) {|j,k| [j.key + 20, k.val + 20]}
     t4 <= t3 {|t| [t.key, t.val] unless k.include? t}
   end
 end
