@@ -43,10 +43,17 @@ class TestLocalDeploy < Test::Unit::TestCase
     end
 
     lines = []
-    (DEPLOY_NUM_NODES + 3).times do
-      lines << read.readline
+    begin
+      assert_nothing_raised do
+        Timeout::timeout(60) do
+          (DEPLOY_NUM_NODES + 3).times do
+            lines << read.readline
+          end
+        end
+      end
+    ensure
+      $stdout = STDOUT
     end
-    $stdout = STDOUT
     # Close pipe
     read.close
     write.close
