@@ -107,14 +107,14 @@ See how the second tick produced no output this time?  After the first timestep,
 ### Summing Up ###
 In these initial examples we learned about a few simple but important things:
 
-* **rebl**: the interactive Bloom terminal and its `/` commands.
-* **Bloom collections**: unordered sets of items, which are set up by collection declarations.  So far we have seen persistent `table` and transient `scratch` collections.  By default, collections are structured as \[key,value\] pairs.
+* **rebl**: the interactive Bloom terminal and its slash (`/`) commands.
+* **Bloom collections**: unordered sets of items, which are set up by collection declarations.  So far we have seen persistent `table` and transient `scratch` collections.  By default, collections are structured as \[key,val\] pairs.
 * **Bloom statements**: expressions of the form *lhs op rhs*, where the lhs is a collection and the rhs is either a collection or an array-of-arrays.   
 * **Bloom timestep**: an atomic single-machine evaluation of a block of Bloom statements.
 * **Bloom merge operators**:
   * The `<=` merge operator for *instantaneously* merging things into a collection.
-  * The `<~` merge operator for *asynchronously* merging things into collections outside the control of tick evaluation: e.g. terminal output.* 
-* **stdio**: a built-in Bloom collection that, when place on the rhs of an asynch merge operator `<~`, prints its contents to stdout.
+  * The `<~` merge operator for *asynchronously* merging things into collections outside the control of tick evaluation: e.g. terminal output.
+* **stdio**: a built-in Bloom collection that, when placed on the lhs of an asynch merge operator `<~`, prints its contents to stdout.
 * **inspected**: a method of Bloom collections that transforms the elements to be suitable for textual display on the terminal.
 
 ## Chat, World! ##
@@ -147,7 +147,7 @@ This defines a [Ruby mixin module](http://www.ruby-doc.org/docs/ProgrammingRuby/
 1. It contains a Bloom `state` block, containing collection declarations.  When embedding Bloom in Ruby, all Bloom collection declarations must appear in a `state` block of this sort.
 2. This particular state block uses a kind of Bloom collection we have not seen before: a `channel`.  A channel collection is a special kind of scratch used for network communication.  It has a few key features:
 
-  * Unlike the default \[key,value\] structure of scratches and tables, channels default to the structure \[address,payload\]: the first field is a destination IP string of the form 'host:port', and the second field is a payload to be delivered to that destination--typically a Ruby array.  (For the record, the default key of a channel collection is the *pair* \[address,payload\]).
+  * Unlike the default \[key,val\] structure of scratches and tables, channels default to the structure \[address,val\]: the first field is a destination IP string of the form 'host:port', and the second field is a payload to be delivered to that destination--typically a Ruby array.  (For the record, the default key of a channel collection is the *pair* \[address,val\]).
   * Any Bloom statement with a channel on the lhs must use the async merge (`<~`) operator.  This instructs the runtime to attempt to deliver each rhs item to the address stored therein. In an async merge, each item in the collection on the right will appear in the collection on the lhs *eventually*.  But this will not happen instantaneously, and it might not happen atomically--items in the collection on the rhs may "straggle in" individually over time at the destination.  And if you're unlucky, this may happen after an arbitrarily long delay (possibly never).  The use of `<~` for channels reflects the typical uncertainty of real-world network delivery.  (Don't worry, the Bud sandbox provides libraries to wrap that uncertainty up in convenient ways.)
 
 Given this protocol (and the Ruby constant at the bottom), we're now ready to examine `examples/chat/chat_server.rb` in more detail:
@@ -188,7 +188,7 @@ The first is pretty simple:
 
      nodelist <= connect.payloads
 
-This says that whenever messages arrive on the channel named "connect", their payloads (i.e. their non-address field) should be instantaneously merged into the table nodelist, which will store them persistently.  Note that nodelist has a \[key/value\] pair structure, so we expect the payloads will have that structure as well.
+This says that whenever messages arrive on the channel named "connect", their payloads (i.e. their non-address field) should be instantaneously merged into the table nodelist, which will store them persistently.  Note that nodelist has a \[key/val\] pair structure, so we expect the payloads will have that structure as well.
 
 The next Bloom statement is more complex.  Remember the description in the "basic idea" at the beginning of this section: the server needs to accept inbound chat messages from clients, and forward them to other clients.  
 
@@ -196,16 +196,16 @@ The next Bloom statement is more complex.  Remember the description in the "basi
     
 The first thing to note is the lhs and operator in this statement.  We are merging items (asynchronously, of course!) into the mcast channel, where they will be sent to their eventual destination.  
 
-The rhs is our first introduction to the `*` operator of Bloom collections, and the `pairs` method after it.  You can think of the `*` operator as "all-pairs": it produces a Bloom collection containing all pairs of mcast and nodelist items.  The `pairs` method iterates through these pairs, passing them through a code block via the block arguments `m` and `n`. Finally, for each such pair the block produces an item containing the `key` attribute of the nodelist item, and the `val` attribute of the mcast item.  This is structured as a proper \[address, value\] entry to be merged back into the mcast channel.  Putting this together, this statement *multicasts inbound payloads on the mcast channel to all nodes in the chat*.
+The rhs is our first introduction to the `*` operator of Bloom collections, and the `pairs` method after it.  You can think of the `*` operator as "all-pairs": it produces a Bloom collection containing all pairs of mcast and nodelist items.  The `pairs` method iterates through these pairs, passing them through a code block via the block arguments `m` and `n`. Finally, for each such pair the block produces an item containing the `key` attribute of the nodelist item, and the `val` attribute of the mcast item.  This is structured as a proper \[address, val\] entry to be merged back into the mcast channel.  Putting this together, this statement *multicasts inbound payloads on the mcast channel to all nodes in the chat*.
 
 The remaining lines of plain Ruby simply instantiate and run the ChatServer class (which includes the `Bud` module) using an ip and port given on the command line (or the default from ChatProtocol.rb).
 
 #### `*`'s and Clouds ####
 You can think of out use of the `*` operator in the rhs of the second statement in a few different ways:
 
-* If you're familiar with event-loop programming, this implements an *event handler* for messages on the mcast channel: whenever an mcast message arrives, this handler performs lookups in the nodelist table to form new messages.  (It is easy to add "filters" to these handlers.)  The resulting messages are dispatched via the mcast channel accordingly.  This is a very common pattern in Bloom programs: handling channel messages via lookups in a table.
+* If you're familiar with event-loop programming, this implements an *event handler* for messages on the mcast channel: whenever an mcast message arrives, this handler performs lookups in the nodelist table to form new messages.  (It is easy to add "filters" to these handlers as arguments to `pairs`.)  The resulting messages are dispatched via the mcast channel accordingly.  This is a very common pattern in Bloom programs: handling channel messages via lookups in a table.
 
-* If you're familiar with SQL databases, the rhs is essentially a query that is run at each timestep, performing a CROSS JOIN of the mcast and nodelist "tables", with the SELECT clause captured by the block. (It is easy to add WHERE clauses to these joins.)  The resulting "tuples" are "inserted" into the lhs asynchronously (and typical on remote nodes).  This is a general-purpose way to think about the * operator. But as you've already seen, many common use cases for Bloom's * operator don't "feel" like database queries, because one or more of the collections is a scratch that is "driving" the program.
+* If you're familiar with SQL databases, the rhs is essentially a query that is run at each timestep, performing a CROSS JOIN of the mcast and nodelist "tables", with the SELECT clause captured by the block. (It is easy to add WHERE clauses to these joins as arguments to `pairs`.)  The resulting "tuples" are "inserted" into the lhs asynchronously (and typical on remote nodes).  This is a general-purpose way to think about the * operator. But as you've already seen, many common use cases for Bloom's * operator don't "feel" like database queries, because one or more of the collections is a scratch that is "driving" the program.
 
 We expect that people doing distributed programming are probably familiar with both of these metaphors, and they're both useful.  It's fairly common to think about rules in the first form, although the second form is actually closer to the underlying semantics of the language (which come from a temporal logic called [Dedalus](http://www.eecs.berkeley.edu/Pubs/TechRpts/2009/EECS-2009-173.html)).
 
@@ -222,35 +222,33 @@ And here's the code:
       include Bud
       include ChatProtocol
 
-      def initialize(nick, server, opts)
+      def initialize(nick, server, opts={})
         @nick = nick
         @server = server
         super opts
       end
 
-      # send connection request to server on startup
       bootstrap do
         connect <~ [[@server, [ip_port, @nick]]]
       end
 
-      bloom :chatter do
-        # send mcast requests to server
+      bloom do
         mcast <~ stdio do |s|
           [@server, [ip_port, @nick, Time.new.strftime("%I:%M.%S"), s.line]]
         end
-        # pretty-print mcast msgs from server on terminal
-        stdio <~ mcast do |m|
-          [left_right_align(m.val[1].to_s + ": " \
-                            + (m.val[3].to_s || ''),
-                            "(" + m.val[2].to_s + ")")]
-        end
+
+        stdio <~ mcast { |m| [pretty_print(m.val)] }
       end
 
       # format chat messages with timestamp on the right of the screen
-      def left_right_align(x, y)
-        return x + " "*[66 - x.length,2].max + y
+      def pretty_print(val)
+        str = val[1].to_s + ": " + (val[3].to_s || '')
+        pad = "(" + val[2].to_s + ")"
+        return str + " "*[66 - str.length,2].max + pad
       end
     end
+
+
 
     if ARGV.length == 2
       server = ARGV[1]
@@ -260,13 +258,13 @@ And here's the code:
 
     puts "Server address: #{server}"
     program = ChatClient.new(ARGV[0], server, :read_stdin => true)
-    program.run
+    program.run_fg
 
 The ChatClient class has a typical Ruby `initialize` method that sets up two local instance variables: one for this client's nickname, and another for the 'IP:port' address string for the server.  It then calls the initializer of the Bud superclass passing along a hash of options.
 
 The next block in the class is the first Bloom `bootstrap` block we've seen.  This is a set of Bloom statements that are evaluated only once, just before the first "regular" timestep of the system.  In this case, we bootstrap the client by sending a message to the server on the connect channel, containing the client's address (via the built-in Bud instance method `ip_port`) and chosen nickname.  
 
-After that comes a bloom block, with the name `:chatter`.  It contains two statements: one to take stdio input from the terminal and send it to the server via mcast, and another to receive mcasts and place them on stdio output.  The first statement has the built-in `stdio` scratch on the rhs: this includes any lines of terminal input that arrived since the last timestep.  For each line of terminal input, the `do...end` block formats an `mcast` message destined to the address in the instance variable `@server`, with an array as the payload.  The rhs of the second statement takes `mcast` messages that arrived since the last timestep.  For each message `m`, the `m.val` expression in the block returns the message payload; the call to the Ruby instance method `left_right_align` formats the message so it will look nice on-screen.  These formatted strings are placed (asynchronously, as before) into `stdio` on the left.
+After that comes a bloom block, with the name `:chatter`.  It contains two statements: one to take stdio input from the terminal and send it to the server via mcast, and another to receive mcasts and place them on stdio output.  The first statement has the built-in `stdio` scratch on the rhs: this includes any lines of terminal input that arrived since the last timestep.  For each line of terminal input, the `do...end` block formats an `mcast` message destined to the address in the instance variable `@server`, with an array as the payload.  The rhs of the second statement takes `mcast` messages that arrived since the last timestep.  For each message `m`, the `m.val` expression in the block returns the message payload; the call to the Ruby instance method `pretty_print` formats the message so it will look nice on-screen.  These formatted strings are placed (asynchronously, as before) into `stdio` on the left.
 
 The remaining lines are Ruby driver code to instantiate and run the ChatClient class (which includes the `Bud` module) using arguments from the command line.  Note the option `:read_stdin => true` to `ChatClient.new`: this causes the Bud runtime to capture stdin via the built-in `stdio` collection.
 

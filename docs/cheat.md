@@ -55,7 +55,7 @@ Default attributes: `[:@address, :val] => []`
 (Bloom statements with channel on lhs must use async merge (`<~`).)
 
     channel :msgs
-    channel :req_chan, [:@address, :cartnum, :storenum] => [:command, :params]
+    channel :req_chan, [:cartnum, :storenum, :@server] => [:command, :params]
 
 ### periodic ###
 System timer manifested as a scratch collection.<br>
@@ -97,7 +97,7 @@ Left-hand-side (lhs) is a named `BudCollection` object.<br>
 Right-hand-side (rhs) is a Ruby expression producing a `BudCollection` or `Array` of `Arrays`.<br>
 BloomOp is one of the 5 operators listed below.
 
-## Bloom Operators ##
+### Bloom Operators ###
 merges:
 
 * `left <= right` &nbsp;&nbsp;&nbsp;&nbsp; (*instantaneous*)
@@ -115,7 +115,7 @@ insert:<br>
 Note that unlike merge/delete, insert expects a single fact on the rhs, rather
 than a collection.
 
-## Collection Methods ##
+### Collection Methods ###
 Standard Ruby methods used on a BudCollection `bc`:
 
 implicit map:
@@ -154,7 +154,7 @@ implicit map:
 
     stdio <~ bc.inspected
 
-`chan.payloads`: shorthand for `chan {|t| t.val}`, only defined for channels
+`chan.payloads`: projects `chan` to non-address columns. only defined for channels
 
     # at sender
     msgs <~ requests {|r| "127.0.0.1:12345", r}
@@ -182,6 +182,8 @@ implicit map:
 * Exemplary aggs: `min`, `max`, `choose`
 * Summary aggs: `count`, `sum`, `avg`
 * Structural aggs: `accum`
+
+Note that custom aggregation can be written using `reduce`.
 
 ## Collection Combination (Join) ###
 To match items across two (or more) collections, use the `*` operator, followed by methods to filter/format the result (`pairs`, `matches`, `combos`, `lefts`, `rights`).
@@ -225,7 +227,7 @@ Like `pairs`, but implicitly includes a block that projects down to the left ite
 `rights(`*hash pairs*`)`: 
 Like `pairs`, but implicitly includes a block that projects down to the right item in each pair.
 
-`flatten`<br>
+`flatten`:<br>
 `flatten` is a bit like SQL's `SELECT *`: it produces a collection of concatenated objects, with a schema that is the concatenation of the schemas in tablelist (with duplicate names disambiguated.) Useful for chaining to operators that expect input collections with schemas, e.g. group:
 
     out <= (r * s).matches.flatten.group([:a], max(:b))

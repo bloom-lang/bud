@@ -1,7 +1,7 @@
 # An Operational View Of Bloom #
-You may ask yourself: well, what does a Bloom program *mean*?  You may ask yourself: How do I read this Bloom code?  ([You may tell yourself, this is not my beautiful house.](http://www.youtube.com/watch?v=I1wg1DNHbNU)  But I digress.)
+You may ask yourself: well, what does a Bloom program *mean*?  You may ask yourself: How do I read this Bloom code?  ([You may tell yourself, this is not my beautiful house.](http://www.youtube.com/watch?v=I1wg1DNHbNU))
 
-There is a formal answer to these questions about Bloom, but there's also a more more approachable answer.  *Very* briefly, the formal answer is that Bloom's semantics are based in model theory, via a temporal logic language called *Dedalus* that is described in [a paper from Berkeley](http://www.eecs.berkeley.edu/Pubs/TechRpts/2009/EECS-2009-173.html). 
+There is a formal answer to these questions about Bloom, but there's also a more more approachable answer.  Briefly, the formal answer is that Bloom's semantics are based in finite model theory, via a temporal logic language called *Dedalus* that is described in [a paper from Berkeley](http://www.eecs.berkeley.edu/Pubs/TechRpts/2009/EECS-2009-173.html). 
 
 While that's nice for proving theorems (and writing [program analysis tools](visualizations.md)), many programmers don't find model-theoretic discussions of semantics terribly helpful or even interesting. It's usually easier to think about how the language *works* at some level, so you can reason about how to use it.
 
@@ -16,7 +16,7 @@ Each machine runs an evaluator that works in a loop, as depicted in this figure:
 
 Each iteration of this loop is a *timestep* for that node; each timestep is associated with a monotonically increasing timestamp (which is accessible via the `budtime` method in Bud). Timesteps and timestamps are not coordinated across nodes; any such coordination has to be programmed in the Bloom language itself.
 
-A Bloom timestep has 3 main phases:
+A Bloom timestep has 3 main phases (from left to right):
 
 1. *setup*: All scratch collections are set to empty.  Network messages and periodic timer events are received from the runtime and placed into their designated `channel` and `periodic` scratches, respectively, to be read in the rhs of statements.  Note that a batch of multiple messages/events may be received at once.
 2. *logic*: All Bloom statements for the program are evaluated.  In programs with recursion through instantaneous merges (`<=`), the statements are repeatedly evaluated until a *fixpoint* is reached: i.e. no new lhs items are derived from any rhs.
@@ -31,7 +31,7 @@ It is important to understand how the Bloom collection operators fit into these 
 
 ## Atomicity: Timesteps and Deferred Operators ##
 
-The only instantaneous Bloom operator is a merge (`<=`), which can only introduce additional items into a collection--it can not delete or change existing items.  As a result, all state within a Bloom timestep is *immutable*: once an item is in a collection at timestep *T*, it stays in that collection throughout timestep *T*.
+The only instantaneous Bloom operator is a merge (`<=`), which can only introduce additional items into a collection--it can not delete or change existing items.  As a result, all state within a Bloom timestep is *immutable*: once an item is in a collection at timestep *T*, it stays in that collection throughout timestep *T*.  (And forever after, the fact that the item was in that collection at timestep *T* remains true.)
 
 To get atomic state change in Bloom, you exploit the combination of two language features: 
 
@@ -45,7 +45,7 @@ State "update" is achieved in Bloom via a pair of deferred statements, one posit
 
 This atomically replaces the entry for key 1 with the value "newval" at the start of the next timestep.
 
-Any reasoning about atomicity in Bloom programs is built on this simple foundation.  It's really all you need.  In the bud-sandbox we show how to build more powerful atomicity constructs using it, including things like enforcing [message ordering across timesteps](https://github.com/bloom-lang/bud-sandbox/tree/master/ordering), and protocols for [agreeing on ordering of distributed updates](https://github.com/bloom-lang/bud-sandbox/tree/master/paxos) across all nodes.
+Any reasoning about atomicity in Bloom programs is built on this simple foundation.  It's really all you need.  In the bud-sandbox we show how to build more powerful atomicity constructs using it, including things like enforcing [ordering of items across timesteps](https://github.com/bloom-lang/bud-sandbox/tree/master/ordering), and protocols for [agreeing on ordering of distributed updates](https://github.com/bloom-lang/bud-sandbox/tree/master/paxos) across all nodes.
 
 ## Recursion in Bloom ##
 Because Bloom is data-driven rather than call-stack-driven, recursion may feel a bit unfamiliar at first.
@@ -69,7 +69,7 @@ Have a look at the following classic "transitive closure" example, which compute
     
 The recursion in the second Bloom statement is easy to see: the lhs and rhs both contain the path collection, so path is defined in terms of itself.
 
-You can think of this being computed by reevaluating the bloom block over and over--within a single timestep--until no more new paths are found.  In each iteration, we find new paths that are one hop longer than the longest paths found previously.  When no new items are found in an iteration, we are at what's called a *fixpoint*.
+You can think of this being computed by reevaluating the bloom block over and over--within phase 2 of a single timestep--until no more new paths are found.  In each iteration, we find new paths that are one hop longer than the longest paths found previously.  When no new items are found in an iteration, we are at what's called a *fixpoint*, and we can move to phase 3.
 
 Hopefully that description is fairly easy to understand.  You can certainly construct more complicated examples of recursion--just as you can in a traditional language (e.g., simultaneous recursion.)  But understanding this example of simple recursion is probably sufficient for most needs.
 
@@ -85,7 +85,7 @@ The `argmax` expression in the rhs of this statement finds the items in path tha
   
 It's interesting to think about how to evaluate this statement.  Consider what happens after a single iteration of the path-finding logic listed above.  We will have 1-hop paths between some pairs.  But there will likely be multi-hop paths between those pairs that cost more.  So it would be premature after a single iteration to put anything out on stdio.  In fact, we can't be sure what should go out to stdio until we have hit a fixpoint with respect to the path collection.  That's because `argmax` is a logically *non-monotonic* operator: as we merge more items into its input collection, it may have to "retract" an output they would previously have produced. 
 
-The Bud runtime takes care of this problem for you under the covers, by breaking your statements in *strata* (layers) via a process called *stratification*.  The basic idea is simple.  The goal is to postpone evaluating non-monotonic operators until fixpoint is reached on their input collections.  Stratification basically breaks up the statements in a Bloom program into layers that are separated by non-monotonic operators, and evaluates the layers in order.  
+The Bud runtime takes care of this problem for you under the covers, by breaking your statements in *strata* (layers) via a process called *stratification*.  The basic idea is simple.  The goal is to postpone evaluating non-monotonic operators until fixpoint is reached on their input collections.  Stratification basically breaks up the statements in a Bloom program into layers that are separated by non-monotonic operators, and evaluates the layers in order.  (Note: the singular form of strata is *stratum*).
 
 For your reference, the basic non-monotonic Bloom operators include `group, reduce, argmin, argmax`.  Also, statements that embed Ruby collection methods in their blocks are often non-monotonic--e.g., methods like `all?, empty?, include?, none?` and `size`.
 

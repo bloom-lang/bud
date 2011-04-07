@@ -1,8 +1,8 @@
 # Visualizations
 
-BUD programs compile naturally to dataflows, and dataflows have a natural graphical representation.  Plotting a program as a graph can be useful to developers at various stages of program design, implementation and debugging.  BUD predicate dependency graphs (or PDGs) are described on [[PDGs]].
+Bud programs compile naturally to dataflows, and dataflows have a natural graphical representation.  Plotting a program as a graph can be useful to developers at various stages of program design, implementation and debugging.  Bud predicate dependency graphs (or PDGs) are described on [[PDGs]].
 
-BUD ships with two visualization utilities, __plotter__ and __visualizer__.  Both use _GraphViz_ to draw a directed graph representing the program state and logic.  __plotter__ provides a static analysis of the program, identifying sources and sinks of the dataflow, unconnected components, and points of order corresponding to logically nonmonotonic path edges. __visualizer__ is an offline debugging tool that analyses the trace of a (local) BUD execution and provides an interactive representation of runtime state over time.
+Bud ships with two visualization utilities, __plotter__ and __visualizer__.  Both use _GraphViz_ to draw a directed graph representing the program state and logic.  __plotter__ provides a static analysis of the program, identifying sources and sinks of the dataflow, unconnected components, and points of order corresponding to logically nonmonotonic path edges. __visualizer__ is an offline debugging tool that analyses the trace of a (local) Bud execution and provides an interactive representation of runtime state over time.
 
 ## The Plotter 
 
@@ -22,7 +22,7 @@ The __plotter__ is a visual static analysis tool that aids in design and early i
     USAGE:
     ruby budplot LIST_OF_FILES LIST_OF_MODULES
 
-As its usage message indicates, __plotter__ expects a list of ruby input files, followed by a list of BUD modules to mix in.
+As its usage message indicates, __plotter__ expects a list of ruby input files, followed by a list of Bud modules to mix in.
 
     $ ruby budplot kvs/kvs.rb ReplicatedKVS
     Warning: underspecified dataflow: ["my_id", true]
@@ -43,7 +43,7 @@ __ReplicatedKVS__ includes the __MulticastProtocol__ and __MembershipProtocol__ 
 
 [[https://github.com/bloom-lang/bud/blob/master/util/budvis]]
 
-To enable tracing, we need to set __:trace => true__ in the __BUD__ constructor, and optionally provide a __:tag__ to differentiate between traces by a human-readable name (rather than by object_id).  I modified the unit test `test/tc_kvs.rb` as follows:
+To enable tracing, we need to set __:trace => true__ in the __Bud__ constructor, and optionally provide a __:tag__ to differentiate between traces by a human-readable name (rather than by object_id).  I modified the unit test `test/tc_kvs.rb` as follows:
 
     - v = BestEffortReplicatedKVS.new(@opts.merge(:port => 12345))
     - v2 = BestEffortReplicatedKVS.new(@opts.merge(:port => 12346))

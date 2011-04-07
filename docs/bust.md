@@ -1,4 +1,4 @@
-BUST stands for BUd State Transfer and it is a REST interface to BUD.  BUST consists of a Bud implementation of a client and server.  The client implements bindings to a subset of the Ruby Nestful library, and the server is a lightweight HTTP server written in Ruby.  Note that the BUST server currently sets the "Access-Control-Allow-Origin: *" HTTP header to override web browsers' same-origin policy.
+BUST stands for BUd State Transfer and it is a REST interface to Bud.  BUST consists of a Bud implementation of a client and server.  The client implements bindings to a subset of the Ruby Nestful library, and the server is a lightweight HTTP server written in Ruby.  Note that the BUST server currently sets the "Access-Control-Allow-Origin: *" HTTP header to override web browsers' same-origin policy.
 
 Right now BUST supports "GET" and "POST" requests, and may support "DELETE" and "PUT" requests in the future.
 

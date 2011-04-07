@@ -1,6 +1,6 @@
 # BFS: A distributed file system in Bloom
 
-In this document we'll use what we've learned to build a piece of systems software using Bloom.  The libraries that ship with BUD provide many of the building blocks we'll need to create a distributed,
+In this document we'll use what we've learned to build a piece of systems software using Bloom.  The libraries that ship with Bud provide many of the building blocks we'll need to create a distributed,
 ``chunked'' file system in the style of the Google File System (GFS):
 
  * a [key-value store](https://github.com/bloom-lang/bud-sandbox/blob/master/kvs/kvs.rb) (KVS)
