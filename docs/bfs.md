@@ -304,7 +304,7 @@ payload of local chunks:
 At the same time, we use the Ruby _flat_map_ method to flatten the array of chunks in the heartbeat payload into a set of tuples, which we
 associate with the heartbeating datanode and the time of receipt in __chunk_cache__:
 
-        chunk_cache <= join([master_duty_cycle, last_heartbeat]).flat_map do |d, l| 
+        chunk_cache <= (master_duty_cycle * last_heartbeat).flat_map do |d, l| 
           unless l.payload[1].nil?
             l.payload[1].map do |pay|
               [l.peer, pay, Time.parse(d.val).to_f]
@@ -315,7 +315,7 @@ associate with the heartbeating datanode and the time of receipt in __chunk_cach
 We periodically garbage-collect this cache, removing entries for datanodes from whom we have not received a heartbeat in a configurable amount of time.
 __last_heartbeat__ is an output interface provided by the __HeartbeatAgent__ module, and contains the most recent, non-stale heartbeat contents:
 
-        chunk_cache <- join([master_duty_cycle, chunk_cache]).map do |t, c|
+        chunk_cache <-(master_duty_cycle * chunk_cache).pairs do |t, c|
           c unless last_heartbeat.map{|h| h.peer}.include? c.node
         end
 
