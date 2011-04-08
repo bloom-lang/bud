@@ -189,7 +189,7 @@ Given a `*` expression, form all pairs of items with value matches in the hash-p
     # for each inbound msg, find match in a persistent buffer
     result <= (msg * buffer).pairs(:val => :key) {|m, b| [m.address, m.val, b.val] }
 
-`pairs(`*hash pairs*`)`: <br>
+`combos(`*hash pairs*`)`: <br>
 Alias for `pairs`, more readable for multi-collection `*` expressions.  Must use fully-qualified hash pairs.
 
     # the following 2 Bloom statements are equivalent to this SQL
@@ -204,7 +204,7 @@ Alias for `pairs`, more readable for multi-collection `*` expressions.  Must use
            end
 
     # column matching done per pair: this will be very slow
-    out <= (r * s_tab * t).combos  do |t1, t2, t3|
+    out <= (r * s_tab * t).combos do |t1, t2, t3|
              [t1.a, t2.b, t3.c] if r.x == s_tab.x and s_tab.x == t.x
            end
 
