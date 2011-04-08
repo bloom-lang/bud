@@ -25,7 +25,7 @@ module CountAtomicDelivery # :nodoc: all
     atomic_data_chan <~ atomic_data_in
     atomic_count_chan <~ atomic_count
 
-    atomic_count_recv <= atomic_count_chan.map {|c| [c.cnt]}
+    atomic_count_recv <= atomic_count_chan {|c| [c.cnt]}
     atomic_data_recv <= atomic_data_chan
 
     atomic_recv_count <= atomic_data_recv.group([:loc], count)
