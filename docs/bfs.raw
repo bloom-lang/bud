@@ -1,6 +1,6 @@
 # BFS: A distributed file system in Bloom
 
-In this document we'll use what we've learned to build a piece of systems software using Bloom.  The libraries that ship with BUD provide many of the building blocks we'll need to create a distributed,
+In this document we'll use what we've learned to build a piece of systems software using Bloom.  The libraries that ship with Bud provide many of the building blocks we'll need to create a distributed,
 ``chunked'' file system in the style of the Google File System (GFS):
 
  * a [key-value store](https://github.com/bloom-lang/bud-sandbox/blob/master/kvs/kvs.rb) (KVS)
@@ -159,7 +159,7 @@ Otherwise, __chunk_cache__ has information about the given chunk, which we may r
 
 ## Datanodes and Heartbeats
 
-### [Datanode](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/datanode.rb)
+### [[Datanode]](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/datanode.rb)
 
 A datanode runs both Bud code (to support the heartbeat and control protocols) and pure Ruby (to support the data transfer protocol).  A datanode's main job is keeping the master 
 aware of it existence and its state, and participating when necessary in data pipelines to read or write chunk data to and from its local storage.
@@ -243,9 +243,28 @@ To maintain the durability requirement that `REP_FACTOR` copies of every chunk a
 that maintains a near-consistent view of global state, and takes steps to correct violated requirements.  
 
 __chunk_cache__ is the master's view of datanode state, maintained as described by collecting and pruning heartbeat messages.  
+After defining some helper aggregates (__chunk_cnts_chunk__ or replica count by chunk, and __chunk_cnt_host__ or datanode fill factor), 
 
 ==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/background.rb|24-27
 
-After defining some helper aggregates (__chunk_cnts_chunk__ or replica count by chunk, and __chunk_cnt_host__ or datanode fill factor), 
+we define __lowchunks__ as the set of chunks whose replication factor is too low:
 
-==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/background.rb|29-36
+
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/background.rb|29-29
+
+We define __chosen_dest__ for a given underreplicated chunk as the datanode with
+the lowest fill factor that is not already in possession of the chunk:
+
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/background.rb|32-41
+
+and the __best_src__ as any arbitrary node that is in possession of the chunk:
+
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/background.rb|42-42
+
+Finally, we initiate a background replication job for a given chunk by inserting
+the chosen chunkid, source and destination into __copy_chunk__
+
+==https://github.com/bloom-lang/bud-sandbox/raw/master/bfs/background.rb|43-45
+
+
+
