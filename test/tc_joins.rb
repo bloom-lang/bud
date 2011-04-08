@@ -32,7 +32,6 @@ class StarJoin
     r52 <= (r1*r2).pairs(r2.key => r1.val) {|r,s| [r.key, s.vat]}
     r6 <= join([r1,r2], [r1.val,r2.key]) {|r,s| [r.key, s.vat]}
     r7 <= (r1*r2).matches {|r,s| [r.key, s.vat]}
-    r8 <= natjoin([r1,r2]) {|r,s| [r.key, s.vat]}
     r9 <= (r1*r2).lefts(:val => :key)
     r10 <= join([r1,r2], [r1.val,r2.key]) {|r,s| r}
     r11 <= (r1*r2).rights(:val => :key)
@@ -168,13 +167,13 @@ class CombosBud
     temp :m <= join([r,s_tab,t], [r.x, s_tab.x, t.x])
     flip_out <= m.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
-    temp :n <= natjoin([r,s_tab,t])
+    temp :n <= (r * s_tab * t).matches
     nat_out <= n.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
     temp :newtab <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x)
     temp :newtab_out <= newtab { |a,b,c| [a.x, b.x, c.x, a.y1, b.y1, c.y1] }
 
-    temp :loj <= leftjoin([mismatches, s_tab], :x => :x)
+    temp :loj <= (mismatches * s_tab).outer(:x => :x)
     loj_out <= loj.map { |t1, t2| [t1.x, t2.x, t1.y1, t2.y1] }
   end
 end
@@ -255,7 +254,7 @@ end
 
 class TestJoins < Test::Unit::TestCase
   def test_combos
-    program = CombosBud.new
+    program = CombosBud.new(:dump_rewrite=>true)
     assert_nothing_raised(RuntimeError) { program.tick }
     simple_outs = program.simple_out
     assert_equal(7, simple_outs.length)
@@ -315,7 +314,6 @@ class TestJoins < Test::Unit::TestCase
     assert_equal(program.r5.to_a.sort, program.r51.to_a.sort)
     assert_equal(program.r5.to_a.sort, program.r52.to_a.sort)
     assert_equal([[1,2]], program.r5.to_a.sort)
-    assert_equal(program.r7.to_a.sort, program.r8.to_a.sort)
     assert_equal([[1,2]], program.r7.to_a.sort)
     assert_equal(program.r9.to_a.sort, program.r10.to_a.sort)
     assert_equal([[1,1]], program.r9.to_a.sort)
@@ -410,7 +408,7 @@ class TestJoins < Test::Unit::TestCase
       t <+ [[2,1]]
     end
     bloom do
-      temp :out <= leftjoin([c, t], :val => :key)
+      temp :out <= (c * t).outer(:val => :key)
     end
   end
   

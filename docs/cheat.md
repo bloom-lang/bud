@@ -232,9 +232,8 @@ Like `pairs`, but implicitly includes a block that projects down to the right it
 
     out <= (r * s).matches.flatten.group([:a], max(:b))
 
-### Left Join ###
-`leftjoin([`*t1, t2*`]` *, optional hash pairs, ...*`)`<br>
-Left Outer Join.  Note postfix syntax with array of 2 collections as first argument, hash pairs as subsequent arguments.  Objects in the first collection will be included in the output even if no match is found in the second collection.
+`outer(`*hash pairs*`)`:<br>
+Left Outer Join.  Like `pairs`, but objects in the first collection will be produced nil-padded if they have no match in the second collection.
 
 ## Temp Collections ##
 `temp`<br>

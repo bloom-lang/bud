@@ -571,6 +571,7 @@ module Bud
         #          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
     public
     def pairs(*preds, &blk)
+      @origpreds = preds
       setup_preds(preds) unless (preds.nil? or preds.empty?)
       # given new preds, the state for the join will be different.  set it up again.
       setup_state if self.class <= Bud::BudJoin
@@ -583,7 +584,7 @@ module Bud
     # combinations of items that have the same values in matching fiels
     public
     def matches(&blk)
-      preds = BudJoin::natural_preds(@bud_instance, @rels)
+      preds = BudJoin::natural_preds(@bud_instance, @origrels)
       pairs(*preds, &blk)
     end
 
@@ -603,6 +604,18 @@ module Bud
     def rights(*preds)
       @localpreds = disambiguate_preds(preds)
       map{ |l,r| r }
+    end
+
+    # given a * expression over 2 collections, form all
+    # combos of items that satisfy +preds+, and for any
+    # item from the 1st collection that has no matches
+    # in the 2nd, nil-pad it and include it in the output.
+    public
+    def outer(*preds)
+      @origpreds = preds
+      @localpreds = disambiguate_preds(preds)
+      self.extend(Bud::BudOuterJoin)
+      map
     end
 
     # extract predicates on rellist[0] and recurse to right side with remainder

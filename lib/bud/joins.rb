@@ -204,7 +204,7 @@ module Bud
       return if @hash_tables.nil?
       (0..1).each do |i|
         @hash_tables[i][:storage].merge!(@hash_tables[i][:delta]) do |k,l,r|
-            l+r
+          l+r
         end
         @hash_tables[i][:delta] = {}
       end
@@ -256,18 +256,7 @@ module Bud
     end
   end
 
-  class BudLeftJoin < BudJoin # :nodoc: all
-    def initialize(rellist, bud_instance, preds=nil)
-      raise(BudError, "Left Join only defined for two relations") unless rellist.length == 2
-      super(rellist, bud_instance, preds)
-      @origpreds = preds
-      preds.each do |k,v|
-        if k.class <= Array
-          raise Bud::CompileError, "in leftjoin, attribute refs must have style :col1 => :col2"
-        end
-      end
-    end
-
+  module BudOuterJoin
     public
     def each(&block) # :nodoc:all
       super(&block)
@@ -298,3 +287,4 @@ module Bud
     end
   end
 end
+

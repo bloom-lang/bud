@@ -87,7 +87,7 @@ class PriorityQ
     q <- out
 
     # third stratum
-    out2 <= natjoin([q, minny]).map{|q, m| q}
+    out2 <= (q * minny).matches {|q, m| q}
   end
 end
 
@@ -137,7 +137,7 @@ class JoinAgg < RenameGroup
 
   bloom do
     richsal <= emp.group([], max(:sal))
-    rich <= natjoin([richsal, emp]).map{|r,e| e}
+    rich <= (richsal * emp).matches {|r,e| e}
     argrich <= emp.argmax([], emp.sal)
   end
 end
@@ -159,7 +159,7 @@ class AggJoin
   end
 
   bloom do
-    funny <= natjoin([emp, shoes]).flatten.group([:dname], max(:sal), max(:usualsal))
+    funny <= (emp * shoes).matches.flatten.group([:dname], max(:sal), max(:usualsal))
   end
 end
 

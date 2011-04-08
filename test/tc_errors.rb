@@ -318,20 +318,6 @@ class TestErrorHandling < Test::Unit::TestCase
     assert_raise(Bud::CompileError) { BadOp.new }
   end
   
-  class BadLeftJoin
-    include Bud
-    state do
-      table :t1
-      table :t2
-    end
-    bloom { temp :loj <= leftjoin([t1, t2], [t1.val, t2.val]) }
-  end
-    
-  def test_bad_left_join
-    p = BadLeftJoin.new
-    assert_raise(Bud::CompileError) {p.tick}
-  end
-  
   class BadTerminal
     include Bud
     state {terminal :joeio}

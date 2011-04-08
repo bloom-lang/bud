@@ -20,7 +20,7 @@ class RingLocal
   end
 
   bloom :pass_token_once do
-    next_node <- join([next_node, token_persist]) {|n,_| [n.node]}
+    next_node <- (next_node * token_persist).pairs {|n,_| [n.node]}
   end
 end
 

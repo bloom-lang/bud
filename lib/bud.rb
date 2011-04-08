@@ -770,18 +770,6 @@ module Bud
     return wrap_map(BudJoin.new(collections, self, preds), &blk)
   end
 
-  def natjoin(collections, &blk) # :nodoc: all
-    # for all pairs of relations, add predicates on matching column names
-    preds = BudJoin::natural_preds(self, collections)
-    join(collections, *preds, &blk)
-  end
-
-  # left-outer-join syntax to be used in rhs of Bloom statements.  
-  # first argument an array of 2 collections, second argument an array of predicates (as in Bud::BudCollection.pairs)
-  def leftjoin(collections, *preds, &blk)
-    return wrap_map(BudLeftJoin.new(collections, self, preds), &blk)
-  end
-
   private
 
   ######## ids and timers
