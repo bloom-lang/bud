@@ -172,7 +172,7 @@ module Bud
     # Setup options (named arguments), along with default values
     @options = options
     @lazy = @options[:lazy] ||= false
-    @options[:ip] ||= "localhost"
+    @options[:ip] ||= "127.0.0.1"
     @ip = @options[:ip]
     @options[:port] ||= 0
     @options[:port] = @options[:port].to_i
