@@ -130,7 +130,7 @@ module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
   attr_reader :dsock
   attr_reader :tables, :ip, :port
-  attr_reader :stratum_first_iter
+  attr_reader :stratum_first_iter, :joinstate
   attr_accessor :lazy # This can be changed on-the-fly by REBL
 
   # options to the bud runtime are passed in a hash, with the following keys
@@ -747,27 +747,6 @@ module Bud
       # but it's not easy right now (??) to pull out tables in a given stratum
       @tables.each{|name,coll| coll.tick_deltas}
     end while not @tables.all?{|name,coll| coll.new_delta.empty? and coll.delta.empty?}
-  end
-
-  ####### Joins
-  def wrap_map(j, &blk)
-    if blk.nil?
-      return j
-    else
-      return j.map(&blk)
-    end
-  end
-
-  public
-  def joinstate # :nodoc: all
-    @joinstate
-  end
-
-  public
-  def join(collections, *preds, &blk) # :nodoc: all
-    # since joins are stateful, we want to allocate them once and store in this Bud instance
-    # we ID them on their tablenames, preds, and block
-    return wrap_map(BudJoin.new(collections, self, preds), &blk)
   end
 
   private

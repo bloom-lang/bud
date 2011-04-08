@@ -487,11 +487,26 @@ module Bud
       argagg(:max, gbkey_cols, col)
     end
 
+    private
+    def wrap_map(j, &blk)
+      if blk.nil?
+        return j
+      else
+        return j.map(&blk)
+      end
+    end
+
+    def join(collections, *preds, &blk)
+      # since joins are stateful, we want to allocate them once and store in this Bud instance
+      # we ID them on their tablenames, preds, and block
+      return wrap_map(BudJoin.new(collections, @bud_instance, preds), &blk)
+    end
+
     # form a collection containing all pairs of items in +self+ and items in
     # +collection+
     public
-    def *(collection)
-      bud_instance.join([self, collection])
+    def *(collection, &blk)
+      join([self, collection])
     end
 
     # SQL-style grouping.  first argument is an array of attributes to group by.  
@@ -565,10 +580,10 @@ module Bud
     # given a * expression over n collections, form all combinations of items
     # subject to an array of predicates, pred
     # currently supports two options for equijoin predicates:
-        #    general form: an array of arrays capturing a conjunction of equiv. classes
-        #          [[table1.col1, table2.col2, table3.col3], [table1.col2, table2.col3]]
-        #    common form: a hash capturing equality of a column on left with one on right.
-        #          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
+    #    general form: an array of arrays capturing a conjunction of equiv. classes
+    #          [[table1.col1, table2.col2, table3.col3], [table1.col2, table2.col3]]
+    #    common form: a hash capturing equality of a column on left with one on right.
+    #          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
     public
     def pairs(*preds, &blk)
       @origpreds = preds
