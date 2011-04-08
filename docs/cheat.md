@@ -108,13 +108,6 @@ delete:
 
 * `left <- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
 
-insert:<br>
-
-* `left << [...]` &nbsp;&nbsp;&nbsp;&nbsp; (*instantaneous*)
-
-Note that unlike merge/delete, insert expects a single fact on the rhs, rather
-than a collection.
-
 ### Collection Methods ###
 Standard Ruby methods used on a BudCollection `bc`:
 
@@ -154,7 +147,7 @@ implicit map:
 
     stdio <~ bc.inspected
 
-`chan.payloads`: projects `chan` to non-address columns. only defined for channels
+`chan.payloads`: projects `chan` to non-address columns. Only defined for channels.
 
     # at sender
     msgs <~ requests {|r| "127.0.0.1:12345", r}
@@ -191,13 +184,13 @@ To match items across two (or more) collections, use the `*` operator, followed 
 ### Methods on Combinations (Joins) ###
 
 `pairs(`*hash pairs*`)`: <br>
-given a `*` expression, form all pairs of items with value matches in the hash-pairs attributes.  Hash pairs can be fully qualified (`coll1.attr1 => coll2.attr2`) or shorthand (`:attr1 => :attr2`).
+Given a `*` expression, form all pairs of items with value matches in the hash-pairs attributes.  Hash pairs can be fully qualified (`coll1.attr1 => coll2.attr2`) or shorthand (`:attr1 => :attr2`).
 
     # for each inbound msg, find match in a persistent buffer
     result <= (msg * buffer).pairs(:val => :key) {|m, b| [m.address, m.val, b.val] }
 
-`pairs(`*hash pairs*`)`: <br>
-alias for `pairs`, more readable for multi-collection `*` expressions.  Must use fully-qualified hash pairs.
+`combos(`*hash pairs*`)`: <br>
+Alias for `pairs`, more readable for multi-collection `*` expressions.  Must use fully-qualified hash pairs.
 
     # the following 2 Bloom statements are equivalent to this SQL
     # SELECT r.a, s_tab.b, t.c
@@ -211,7 +204,7 @@ alias for `pairs`, more readable for multi-collection `*` expressions.  Must use
            end
 
     # column matching done per pair: this will be very slow
-    out <= join([r,s_tab,t]) do |t1, t2, t3|
+    out <= (r * s_tab * t).combos do |t1, t2, t3|
              [t1.a, t2.b, t3.c] if r.x == s_tab.x and s_tab.x == t.x
            end
 

@@ -17,8 +17,7 @@ class LocalShortestPaths
   bloom do
     link2 <= link.map {|l| l unless empty.include? [l.ident]}
     path <= link2.map {|e| [e.from, e.to, e.to, e.cost]}
-    temp :k <= join([link2, path])
-    path <= k.map do |l, p|
+    path <= (link2 * path).pairs do |l, p|
       [l.from, p.to, p.from, l.cost+p.cost] if l.to == p.from
     end
 
@@ -28,7 +27,7 @@ class LocalShortestPaths
     minz <= shortest.group(nil, min(shortest.cost))
 
     link3 <= path.map {|p| [p.from, p.to, p.cost]}
-    link3 <- join([link3, shortest], [link3.from, shortest.from], [link3.to, shortest.to]).map {|l, s| l }
+    link3 <- (link3 * shortest).lefts(:from => :from, :to => :to)
   end
 end
 
@@ -53,11 +52,11 @@ class KTest
 
   bloom :update do
     mystate <+ upd
-    mystate <- join([upd, mystate]).map{|i, s| s}
+    mystate <- (upd * mystate).rights
   end
 
   bloom :respond do
-    resp <= join([req, mystate]).map{|r, s| [r.ident, s.datacol]}
+    resp <= (req * mystate).pairs {|r, s| [r.ident, s.datacol]}
   end
 end
 
@@ -69,8 +68,7 @@ class KTest2 < KTest
   bloom :update do
     mystate <= upd
     node <= upd
-    temp :k <= join([upd, mystate])
-    mystate <- k.map {|i, s| s}
+    mystate <- (upd * mystate).rights
   end
 end
 

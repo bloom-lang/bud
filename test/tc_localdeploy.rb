@@ -3,6 +3,7 @@ require 'stringio'
 require 'bud/rebl'
 require '../examples/deploy/tokenring'
 require 'bud/deploy/localdeploy'
+require 'timeout'
 
 DEPLOY_NUM_NODES = 10
 
@@ -20,7 +21,7 @@ class RingLocal
   end
 
   bloom :pass_token_once do
-    next_node <- (next_node * token_persist).pairs {|n,_| [n.node]}
+    next_node <- (next_node * token_persist).lefts {|n| n.node}
   end
 end
 
@@ -43,10 +44,17 @@ class TestLocalDeploy < Test::Unit::TestCase
     end
 
     lines = []
-    (DEPLOY_NUM_NODES + 3).times do
-      lines << read.readline
+    begin
+      assert_nothing_raised do
+        Timeout::timeout(60) do
+          (DEPLOY_NUM_NODES + 3).times do
+            lines << read.readline
+          end
+        end
+      end
+    ensure
+      $stdout = STDOUT
     end
-    $stdout = STDOUT
     # Close pipe
     read.close
     write.close
@@ -74,6 +82,5 @@ class TestLocalDeploy < Test::Unit::TestCase
     ensure
       $stdout = STDOUT
     end
-
   end
 end

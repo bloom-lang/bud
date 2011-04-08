@@ -6,17 +6,12 @@ class StarJoin
     table :r1
     table :r2, [:key] => [:vat]
     table :r3
-    table :r4
     table :r5
     table :r51
     table :r52
-    table :r6
     table :r7
-    table :r8
     table :r9
-    table :r10
     table :r11
-    table :r12
   end
 
   bootstrap do
@@ -26,16 +21,12 @@ class StarJoin
 
   bloom do
     r3 <= (r1*r2).pro {|r,s| [s.vat, r.key]}
-    r4 <= join([r1,r2]) {|r,s| [s.vat, r.key]}
     r5 <= (r1*r2).pairs(:val => :key) {|r,s| [r.key, s.vat]}
     r51 <= (r1*r2).pairs([r1.val,r2.key]) {|r,s| [r.key, s.vat]}
     r52 <= (r1*r2).pairs(r2.key => r1.val) {|r,s| [r.key, s.vat]}
-    r6 <= join([r1,r2], [r1.val,r2.key]) {|r,s| [r.key, s.vat]}
     r7 <= (r1*r2).matches {|r,s| [r.key, s.vat]}
     r9 <= (r1*r2).lefts(:val => :key)
-    r10 <= join([r1,r2], [r1.val,r2.key]) {|r,s| r}
     r11 <= (r1*r2).rights(:val => :key)
-    r12 <= join([r1,r2], [r1.val,r2.key]) {|r,s| s}
   end
 end
 
@@ -64,7 +55,7 @@ class StarJoin3
 
   bloom do
     t4 <= (r1 * r2 * r3).pairs(:k4 => :k6) {|r,s,t| r+s+t}
-    t5 <= join([t1,t2,t3],[t1.key,t3.key]).map{|r,s,t| r+s+t}
+    t5 <= (t1 * t2 * t3).combos(t1.key => t3.key) {|r,s,t| r+s+t}
   end
 end
 
@@ -155,14 +146,14 @@ class CombosBud
   end
 
   bloom do
-    temp :j2 <= join([r,s_tab], [r.x, s_tab.x])
-    simple_out <= j2.map { |t1,t2| [t1.x, t1.y1, t2.y1] }
+    temp :j2 <= (r * s_tab).pairs(:x => :x)
+    simple_out <= j2 {|t1,t2| [t1.x, t1.y1, t2.y1] }
 
-    temp :k <= join([r,s_tab], [r.x, s_tab.x], [r.y1, s_tab.y1])
-    match_out <= k.map { |t1,t2| [t1.x, t1.y1, t2.y1] }
+    temp :k <= (r * s_tab).pairs(:x => :x, :y1 => :y1)
+    match_out <= k { |t1,t2| [t1.x, t1.y1, t2.y1] }
 
-    temp :l <= join([r,s_tab,t], [r.x, s_tab.x], [s_tab.x, t.x])
-    chain_out <= l.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
+    temp :l <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x)
+    chain_out <= l { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
     temp :m <= join([r,s_tab,t], [r.x, s_tab.x, t.x])
     flip_out <= m.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
@@ -308,17 +299,13 @@ class TestJoins < Test::Unit::TestCase
   def test_star_join
     program = StarJoin.new
     assert_nothing_raised(RuntimeError) { program.tick }
-    assert_equal(program.r3.to_a.sort, program.r4.to_a.sort)
     assert_equal([[2,1],[4,1]], program.r3.to_a.sort)
-    assert_equal(program.r5.to_a.sort, program.r6.to_a.sort)
     assert_equal(program.r5.to_a.sort, program.r51.to_a.sort)
     assert_equal(program.r5.to_a.sort, program.r52.to_a.sort)
     assert_equal([[1,2]], program.r5.to_a.sort)
     assert_equal([[1,2]], program.r7.to_a.sort)
-    assert_equal(program.r9.to_a.sort, program.r10.to_a.sort)
     assert_equal([[1,1]], program.r9.to_a.sort)
     assert_equal([[1,2]], program.r11.to_a.sort)
-    assert_equal(program.r11.to_a.sort, program.r12.to_a.sort)
   end
 
   def test_star_join3

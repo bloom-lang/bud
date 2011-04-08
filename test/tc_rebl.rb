@@ -57,11 +57,16 @@ class TestRebl < Test::Unit::TestCase
 
     # Start up the node, and wait for the bud time to go up to 50 (non-lazy mode)
     assert_nothing_raised do
-      read, $stdout = IO.pipe
-      $stdin = StringIO.new("/run")
-      ReblShell::rebl_loop(rt1.lib, true)
-      the_line = read.readline
-      $stdout = STDOUT
+      begin
+        read, $stdout = IO.pipe
+        $stdin = StringIO.new("/run")
+        ReblShell::rebl_loop(rt1.lib, true)
+        Timeout::timeout(30) do
+          the_line = read.readline
+        end
+      ensure
+        $stdout = STDOUT
+      end
     end
     assert_equal(the_line, "hit\n")
 
@@ -85,14 +90,19 @@ class TestRebl < Test::Unit::TestCase
     assert_equal(stop_time2, rt2.lib.rebl_class_inst.budtime)
 
     assert_nothing_raised do
-      # Now, test the breakpoint functionality
-      rt1.exec_rebl("rebl_breakpoint <= [{50 => [true]}[@budtime]]")
-      rt2.exec_rebl("/run")
-      read, $stdout = IO.pipe
-      $stdin = StringIO.new("/run")
-      ReblShell::rebl_loop(rt1.lib, true)
-      the_line = read.readline
-      $stdout = STDOUT
+      begin
+        # Now, test the breakpoint functionality
+        rt1.exec_rebl("rebl_breakpoint <= [{50 => [true]}[@budtime]]")
+        rt2.exec_rebl("/run")
+        read, $stdout = IO.pipe
+        $stdin = StringIO.new("/run")
+        ReblShell::rebl_loop(rt1.lib, true)
+        Timeout::timeout(30) do
+          the_line = read.readline
+        end
+      ensure
+        $stdout = STDOUT
+      end
     end
     assert_equal(the_line, "hit\n")
 

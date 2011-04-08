@@ -184,17 +184,14 @@ module EC2Deploy
   end
 
   bloom :all_nodes do
-    stdio <~ ready.map {|_,s| ["Ready: #{s}"]}
+    stdio <~ ready {|_,s| ["Ready: #{s}"]}
     # Persist ready messages
-    ready_tab <= ready.map {|_, s| [s]}
+    ready_tab <= ready {|_, s| [s]}
     # Compute a count of ready messages
     ready_count <= ready_tab.group(nil, count)
     # Copy deploy_node into node when all nodes are up
-    node <= join([ready_count, node_count],
-                 [ready_count.num, node_count.num]).map do
+    node <= (ready_count * node_count).pairs(:num => :num) do
       break deploy_node
     end
-
   end
-
 end

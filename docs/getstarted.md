@@ -2,7 +2,12 @@
 In this document we'll do a hands-on tour of Bud and its Bloom DSL for Ruby.  We'll start with some examples, and introduce concepts as we go.
 
 ## Installation ##
-You know the drill!
+Bud depends on two libraries that need to be installed separately:
+
+* [TokyoCabinet](http://fallabs.com/tokyocabinet/) (1.4.47 recommended)
+* [GraphViz](http://www.graphviz.org/Download.php) (2.26.3 recommended)
+
+Once that's done, you know the drill!
 
     % gem install bud
 
@@ -248,8 +253,6 @@ And here's the code:
       end
     end
 
-
-
     if ARGV.length == 2
       server = ARGV[1]
     else
@@ -264,7 +267,7 @@ The ChatClient class has a typical Ruby `initialize` method that sets up two loc
 
 The next block in the class is the first Bloom `bootstrap` block we've seen.  This is a set of Bloom statements that are evaluated only once, just before the first "regular" timestep of the system.  In this case, we bootstrap the client by sending a message to the server on the connect channel, containing the client's address (via the built-in Bud instance method `ip_port`) and chosen nickname.  
 
-After that comes a bloom block, with the name `:chatter`.  It contains two statements: one to take stdio input from the terminal and send it to the server via mcast, and another to receive mcasts and place them on stdio output.  The first statement has the built-in `stdio` scratch on the rhs: this includes any lines of terminal input that arrived since the last timestep.  For each line of terminal input, the `do...end` block formats an `mcast` message destined to the address in the instance variable `@server`, with an array as the payload.  The rhs of the second statement takes `mcast` messages that arrived since the last timestep.  For each message `m`, the `m.val` expression in the block returns the message payload; the call to the Ruby instance method `pretty_print` formats the message so it will look nice on-screen.  These formatted strings are placed (asynchronously, as before) into `stdio` on the left.
+After that comes a Bloom block with the name `:chatter`.  It contains two statements: one to take stdio input from the terminal and send it to the server via mcast, and another to receive mcasts and place them on stdio output.  The first statement has the built-in `stdio` scratch on the rhs: this includes any lines of terminal input that arrived since the last timestep.  For each line of terminal input, the `do...end` block formats an `mcast` message destined to the address in the instance variable `@server`, with an array as the payload.  The rhs of the second statement takes `mcast` messages that arrived since the last timestep.  For each message `m`, the `m.val` expression in the block returns the message payload; the call to the Ruby instance method `pretty_print` formats the message so it will look nice on-screen.  These formatted strings are placed (asynchronously, as before) into `stdio` on the left.
 
 The remaining lines are Ruby driver code to instantiate and run the ChatClient class (which includes the `Bud` module) using arguments from the command line.  Note the option `:read_stdin => true` to `ChatClient.new`: this causes the Bud runtime to capture stdin via the built-in `stdio` collection.
 

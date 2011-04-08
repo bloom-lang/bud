@@ -1,27 +1,37 @@
 # Bud
 
-This is Bud, a.k.a. "Bloom Under Development".  It is an initial cut at a Bloom DSL, using Ruby as a setting.
+This is Bud, a.k.a. "Bloom Under Development".  It is an initial cut at a Bloom
+DSL, using Ruby as a setting.
 
-Please see LICENSE for licensing information.
+See LICENSE for licensing information.
 
-Language cheatsheet in doc/cheat.md
+Language cheatsheet in docs/cheat.md ; see docs/ subdir for other documentation.
 
 Main deficiencies at this point are:
-- Inefficient evaluation: Programs are run using semi-naive evaluation strategies, but no further
-  query optimization has been implemented, and little effort has been spent in
-  tuning.
 
-- No Ruby constraints: Within Bloom programs the full power of Ruby is also available, including mutable state.
-  This allows programmers to get outside the Bloom framework and lose cleanliness.
+- Inefficient evaluation: Programs are run using semi-naive evaluation
+  strategies, but no further query optimization has been implemented, and little
+  effort has been spent in tuning.
 
-- Compatibility: Bud only works with Ruby (MRI) 1.8. MRI 1.9, JRuby and other Ruby
-  implementations are currently not supported.
+- No Ruby constraints: Within Bloom programs the full power of Ruby is also
+  available, including mutable state.  This allows programmers to get outside
+  the Bloom framework and lose cleanliness.
 
-To install:
+- Compatibility: Bud only works with Ruby (MRI) 1.8. MRI 1.9, JRuby and other
+  Ruby implementations are currently not supported.
+
+## Installation
+
+To install the latest release:
     % gem install bud
 
-Simple example programs can be found in examples. A much larger set
-of example programs and libraries can be found in the bud-sandbox repo.
+To build and install a new gem from the current development sources:
+    % gem build bud.gemspec ; gem install bud*.gem
+
+Note that TokyoCabinet and GraphViz must be installed.
+
+Simple example programs can be found in examples. A much larger set of example
+programs and libraries can be found in the bud-sandbox repository.
 
 ## Optional Dependencies
 
