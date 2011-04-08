@@ -30,10 +30,7 @@ module CountAtomicDelivery # :nodoc: all
 
     atomic_recv_count <= atomic_data_recv.group([:loc], count)
 
-#    atomic_data_atomic <= join([atomic_recv_count, atomic_count_recv,
-#                                atomic_data_recv],
-#                               [atomic_recv_count.cnt,
-#                                atomic_count_recv.cnt]).map{ |rc, cr, d| d }
+    # atomic_data_atomic <= (atomic_recv_count * atomic_count_recv * atomic_data_recv).combos(atomic_recv_count.cnt => atomic_count_recv.cnt) {|rc, cr, d| d}
 
     atomic_data_atomic <= ((if atomic_recv_count.first and
                                 atomic_count_recv.first and
@@ -45,6 +42,6 @@ module CountAtomicDelivery # :nodoc: all
     # Commented out due to bug #85.
     # atomic_data_recv <- atomic_data_atomic
     # Idempotence hack inserted due to bug #85.
-    atomic_data_out <= atomic_data_atomic.map {|a| [a.tuple] if depl_idempotent [[:atomic_data_out, a]]}
+    atomic_data_out <= atomic_data_atomic {|a| [a.tuple] if depl_idempotent [[:atomic_data_out, a]]}
   end
 end

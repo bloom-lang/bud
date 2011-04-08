@@ -155,9 +155,6 @@ class CombosBud
     temp :l <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x)
     chain_out <= l { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
-    temp :m <= join([r,s_tab,t], [r.x, s_tab.x, t.x])
-    flip_out <= m.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
-
     temp :n <= (r * s_tab * t).matches
     nat_out <= n.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
@@ -269,10 +266,7 @@ class TestJoins < Test::Unit::TestCase
     program.tick
     chain_outs = program.chain_out.to_a
     assert_equal(1, chain_outs.length)
-    flip_outs = program.flip_out.to_a
-    assert_equal(1, flip_outs.length)
     assert_equal(1, program.nat_out.length)
-    assert_equal(chain_outs, flip_outs)
     assert_equal(chain_outs, program.newtab_out.to_a)
   end
 
