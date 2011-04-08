@@ -301,7 +301,7 @@ payload of local chunks:
           [l.sender, l.payload[0]] unless l.payload[1] == [nil]
         end
 
-At the same time, we use the Ruby _flatmap_ method to flatten the array of chunks in the heartbeat payload into a set of tuples, which we
+At the same time, we use the Ruby _flat_map_ method to flatten the array of chunks in the heartbeat payload into a set of tuples, which we
 associate with the heartbeating datanode and the time of receipt in __chunk_cache__:
 
         chunk_cache <= join([master_duty_cycle, last_heartbeat]).flat_map do |d, l| 
@@ -318,7 +318,6 @@ __last_heartbeat__ is an output interface provided by the __HeartbeatAgent__ mod
         chunk_cache <- join([master_duty_cycle, chunk_cache]).map do |t, c|
           c unless last_heartbeat.map{|h| h.peer}.include? c.node
         end
-
 
 ## [BFS Client](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/bfs_client.rb)
 
