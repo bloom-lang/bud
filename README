@@ -28,7 +28,7 @@ To install the latest release:
 To build and install a new gem from the latest development sources:
     % gem build bud.gemspec ; gem install bud*.gem
 
-Note that TokyoCabinet must be installed.
+Note that TokyoCabinet and GraphViz must be installed.
 
 Simple example programs can be found in examples. A much larger set of example
 programs and libraries can be found in the bud-sandbox repo.
