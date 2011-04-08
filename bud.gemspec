@@ -20,6 +20,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'eventmachine'
   s.add_dependency 'gchart'
   s.add_dependency 'i18n'
+  s.add_dependency 'json'
   s.add_dependency 'msgpack'
   s.add_dependency 'nestful'
   s.add_dependency 'ParseTree'
