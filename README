@@ -3,9 +3,9 @@
 This is Bud, a.k.a. "Bloom Under Development".  It is an initial cut at a Bloom
 DSL, using Ruby as a setting.
 
-Please see LICENSE for licensing information.
+See LICENSE for licensing information.
 
-Language cheatsheet in doc/cheat.md
+Language cheatsheet in docs/cheat.md ; see docs/ subdir for other documentation.
 
 Main deficiencies at this point are:
 
@@ -25,13 +25,13 @@ Main deficiencies at this point are:
 To install the latest release:
     % gem install bud
 
-To build and install a new gem from the latest development sources:
+To build and install a new gem from the current development sources:
     % gem build bud.gemspec ; gem install bud*.gem
 
 Note that TokyoCabinet and GraphViz must be installed.
 
 Simple example programs can be found in examples. A much larger set of example
-programs and libraries can be found in the bud-sandbox repo.
+programs and libraries can be found in the bud-sandbox repository.
 
 ## Optional Dependencies
 
