@@ -312,7 +312,7 @@ associate with the heartbeating datanode and the time of receipt in __chunk_cach
           end
         end
 
-We periodically garbage-collect this cached, removing entries for datanodes from whom we have not received a heartbeat in a configurable amount of time.
+We periodically garbage-collect this cache, removing entries for datanodes from whom we have not received a heartbeat in a configurable amount of time.
 __last_heartbeat__ is an output interface provided by the __HeartbeatAgent__ module, and contains the most recent, non-stale heartbeat contents:
 
         chunk_cache <- join([master_duty_cycle, chunk_cache]).map do |t, c|
@@ -367,7 +367,6 @@ After defining some helper aggregates (__chunk_cnts_chunk__ or replica count by 
         chunk_cnts_host <= cc_demand.group([cc_demand.node], count(cc_demand.chunkid))
 
 we define __lowchunks__ as the set of chunks whose replication factor is too low:
-
 
         lowchunks <= chunk_cnts_chunk { |c| [c.chunkid] if c.replicas < REP_FACTOR and !c.chunkid.nil?}
 
