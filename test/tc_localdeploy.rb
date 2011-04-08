@@ -25,11 +25,11 @@ class RingLocal
   end
 end
 
-
 class TestLocalDeploy < Test::Unit::TestCase
   def test_local_deploy
 
     # Stop EM to make my deploy work
+    # XXX: Ugly kludge. See #149.
     d = Dummy.new
     d.run_bg
     d.stop_bg true
