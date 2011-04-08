@@ -204,7 +204,7 @@ Alias for `pairs`, more readable for multi-collection `*` expressions.  Must use
            end
 
     # column matching done per pair: this will be very slow
-    out <= join([r,s_tab,t]) do |t1, t2, t3|
+    out <= (r * s_tab * t).combos  do |t1, t2, t3|
              [t1.a, t2.b, t3.c] if r.x == s_tab.x and s_tab.x == t.x
            end
 
