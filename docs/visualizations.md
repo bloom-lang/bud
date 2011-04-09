@@ -24,9 +24,9 @@ implementation.  The most common uses of __budplot__ are:
 4. Experimenting with different module compositions
 5. Identifying and iteratively refining a program's points of order
 
+
     $ budplot
-    USAGE:
-    budplot LIST_OF_FILES LIST_OF_MODULES
+    usage: budplot LIST_OF_FILES LIST_OF_MODULES
 
 As its usage message indicates, __budplot__ expects a list of Ruby input files,
 followed by a list of Bud modules to mix in.
