@@ -95,7 +95,7 @@ State declaration includes Zookeeper path and optional TCP string (default: "loc
 
 Left-hand-side (lhs) is a named `BudCollection` object.<br>
 Right-hand-side (rhs) is a Ruby expression producing a `BudCollection` or `Array` of `Arrays`.<br>
-BloomOp is one of the 5 operators listed below.
+BloomOp is one of the 4 operators listed below.
 
 ### Bloom Operators ###
 merges:
