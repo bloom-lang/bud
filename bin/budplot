@@ -65,22 +65,22 @@ def write_index(inp, outp, priv, svg)
   do_table(f, outp)
   f.puts "</td><td>"
   f.puts "<h2>Private State</h2>"
-  do_table(f, priv, true)
+  do_table(f, priv)
   f.puts "</td>"
   f.puts "</tr></table>"
   f.puts "</html>"
   f.close
 end
 
-def do_table(f, info, type=false)
-  next if info.nil?
+def do_table(f, info)
   f.puts "<table border='1'>"
-  info.sort{|a, b| a[0].to_s <=> b[0].to_s}.each do |inf|
-    #f.puts "<h3>#{inf[0]}</h3>"
-    #f.puts  "&nbsp; (#{inf[1].class.to_s.gsub('Bud::Bud', '')})<br>" if type
-    unless inf[1].schema.nil?
-      f.puts "<tr><td><b>#{inf[0]}</b></td>" + inf[1].schema.map{|i| "<td>#{i}</td>"}.join(" ") + "</tr>"
-    end
+  info.sort{|a, b| a[0].to_s <=> b[0].to_s}.each do |tbl_name, tbl_impl|
+    next if tbl_impl.schema.nil?
+    key_s = tbl_impl.key_cols.join(", ")
+    key_s = "[]" if key_s == ""
+    val_s = tbl_impl.val_cols.join(", ")
+    f.puts "<tr><td><b>#{tbl_name}</b></td>"
+    f.puts "<td>#{key_s}</td><td>#{val_s}</td></tr>"
   end
   f.puts "</table>"
 end
