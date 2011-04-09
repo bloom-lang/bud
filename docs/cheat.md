@@ -9,15 +9,15 @@ As in Ruby, backslash is used to escape a newline.<br>
     require 'bud'
 
     class Foo
-        include Bud
+      include Bud
         
-        state do
-          ...
-        end
+      state do
+        ...
+      end
         
-        bloom do
-          ...
-        end
+      bloom do
+        ...
+      end
     end
     
 ## State Declarations ##
