@@ -25,7 +25,7 @@ A `state` block contains Bud collection definitions. A Bud collection is a *set*
 of *facts*; each fact is an array of Ruby values. Note that collections do not
 contain duplicates (inserting a duplicate fact into a collection is ignored).
 
-Like tables in a relational database, a subset of the columns in a collection
+Like a table in a relational databas, a subset of the columns in a collection
 makeup the collection's _key_. Attempting to insert two facts into a collection
 that agree on the key columns (but are not duplicates) results in a runtime
 exception.
