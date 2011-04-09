@@ -58,13 +58,13 @@ def write_index(inp, outp, priv, svg)
 
   f.puts "<table border='1' valign='top' width = '100%'><tr valign='top'>"
   f.puts "<td valign='top'>"
-  f.puts "<h2> Input Interfaces </h2>"
+  f.puts "<h2>Input Interfaces</h2>"
   do_table(f, inp)
   f.puts "</td><td>"
-  f.puts "<h2> Output Interfaces </h2>"
+  f.puts "<h2>Output Interfaces</h2>"
   do_table(f, outp)
   f.puts "</td><td>"
-  f.puts "<h2> Private State </h2>"
+  f.puts "<h2>Private State</h2>"
   do_table(f, priv, true)
   f.puts "</td>"
   f.puts "</tr></table>"
@@ -84,10 +84,6 @@ def do_table(f, info, type=false)
   end
   f.puts "</table>"
 end
-
-@port = 12345
-files = []
-classes = []
 
 if ARGV.length < 2
   puts "Usage: budplot LIST_OF_FILES LIST_OF_MODULES"
