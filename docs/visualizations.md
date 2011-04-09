@@ -24,12 +24,13 @@ implementation.  The most common uses of __budplot__ are:
 4. Experimenting with different module compositions
 5. Identifying and iteratively refining a program's points of order
 
+To run __budplot__, specify a list of Ruby input files, followed by a list of
+Bud modules to be "mixed in" in the visualization.
 
     $ budplot
-    usage: budplot LIST_OF_FILES LIST_OF_MODULES
+    Usage: budplot LIST_OF_FILES LIST_OF_MODULES
 
-As its usage message indicates, __budplot__ expects a list of Ruby input files,
-followed by a list of Bud modules to mix in.
+For example:
 
     $ budplot kvs/kvs.rb ReplicatedKVS
     Warning: underspecified dataflow: ["my_id", true]
@@ -51,7 +52,10 @@ dataflow.
 
 ## Using budvis
 
-To enable tracing, we need to set `:trace => true` in the `Bud` constructor, and optionally provide a `:tag` to differentiate between traces by a human-readable name (rather than by `object_id`).  I modified the unit test `test/tc_kvs.rb` as follows:
+To enable tracing, we need to set `:trace => true` in the `Bud` constructor, and
+optionally provide a `:tag` to differentiate between traces by a human-readable
+name (rather than by `object_id`).  I modified the unit test `test/tc_kvs.rb` as
+follows:
 
     - v = BestEffortReplicatedKVS.new(@opts.merge(:port => 12345))
     - v2 = BestEffortReplicatedKVS.new(@opts.merge(:port => 12346))
