@@ -1,6 +1,7 @@
 require 'test_common'
 require 'stringio'
 require 'bud/rebl'
+require 'timeout'
 
 class ReblTester
   attr_reader :lib
