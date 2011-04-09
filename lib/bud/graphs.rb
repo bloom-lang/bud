@@ -5,7 +5,6 @@ require 'graphviz'
 class GraphGen #:nodoc: all
 
   def initialize(mapping, tableinfo, cycle, name, budtime, vizlevel, pics_dir, collapse=false, depanalysis=nil, cardinalities={})
-    #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85 )
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
     @graph.node[:fontname] = "Times-Roman"
     @graph.node[:fontsize] = 18
@@ -19,8 +18,7 @@ class GraphGen #:nodoc: all
     @budtime = budtime
     @vizlevel = vizlevel
     @pics_dir = pics_dir
-    #@internals = {'count' => 1, 'localtick' => 1, 'stdio' => 1, 't_rules' => 1, 't_depends' => 1, 't_depends_tc' => 1, 't_provides' => 1, 't_cycle' => 1}
-    @internals = {'count' => 1, 'localtick' => 1, 'stdio' => 1} #, 't_rules' => 1, 't_depends' => 1, 't_depends_tc' => 1, 't_provides' => 1, 't_cycle' => 1}
+    @internals = {'localtick' => 1, 'stdio' => 1}
 
     # map: table -> stratum
     @t2s = {}
@@ -202,7 +200,6 @@ class GraphGen #:nodoc: all
 
   def finish
     @labels.each_key do |k|
-      #@edges[k].label = @labels[k].key_cols.join(" ")
       @edges[k].label = @labels[k].keys.join(" ")
     end
 
@@ -287,7 +284,6 @@ class GraphGen #:nodoc: all
     rules = {}
     convertor = Syntax::Convertors::HTML.for_syntax "ruby"
     shredded_rules.each do |s|
-      #fout = File.new("#{output_base}/#{s[0]}.html", "w+")
       fout = File.new("#{output_base}/#{s[0]}.html", "w+")
       fout.puts header
       fout.puts "<h1>Rule #{s[0]}</h1><br>"
