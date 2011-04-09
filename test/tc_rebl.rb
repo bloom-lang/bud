@@ -81,15 +81,6 @@ class TestRebl < Test::Unit::TestCase
     stop_time1 = rt1.lib.rebl_class_inst.budtime
     stop_time2 = rt2.lib.rebl_class_inst.budtime
 
-    # Sleep for a bit; this is a hack, but I know of no other way to test this.
-    # Could definitely be some false negatives here if there's a ridiculous
-    # amount of latency.
-    sleep 10
-
-    # Check their timestamps are still the same
-    assert_equal(stop_time1, rt1.lib.rebl_class_inst.budtime)
-    assert_equal(stop_time2, rt2.lib.rebl_class_inst.budtime)
-
     assert_nothing_raised do
       begin
         # Now, test the breakpoint functionality
@@ -116,15 +107,6 @@ class TestRebl < Test::Unit::TestCase
     # Check their timestamps
     stop_time1 = rt1.lib.rebl_class_inst.budtime
     stop_time2 = rt2.lib.rebl_class_inst.budtime
-
-    # Sleep for a bit; this is a hack, but I know of no other way to test this.
-    # Could definitely be some false negatives here if there's a ridiculous
-    # amount of latency.
-    sleep 10
-
-    # Check their timestamps are still the same
-    assert_equal(stop_time1, rt1.lib.rebl_class_inst.budtime)
-    assert_equal(stop_time2, rt2.lib.rebl_class_inst.budtime)
   end
 
   def test_rebl_shortestpaths
