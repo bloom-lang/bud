@@ -48,7 +48,7 @@ def process(mods)
     end
   end
 
-  svg = "bud_doc/" + mods.join("_") + "_viz" 
+  svg = "bud_doc/" + mods.join("_") + "_viz"
   write_index(inp, outp, priv, svg)
   gv = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, svg, -1, 1, ".", true, d.meta_parser.depanalysis)
   gv.process(d.t_depends)
@@ -104,7 +104,7 @@ files = []
 classes = []
 
 if ARGV.length < 2
-  puts "len #{ARGV.length} USAGE:\nruby plotter.rb LIST_OF_FILES LIST_OF_MODULES"
+  puts "Usage: budplot LIST_OF_FILES LIST_OF_MODULES"
   exit
 end
 
@@ -121,7 +121,7 @@ modules = []
 
   unless mods
     puts "DO #{ARGV[i]}"
-    eval ( "require \"#{ARGV[i]}\"")
+    eval "require \"#{ARGV[i]}\""
   else
     puts "Work on #{ARGV[i]}"
     #instant(ARGV[i])
@@ -131,4 +131,3 @@ modules = []
 end
 
 process(modules)
-

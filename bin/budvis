@@ -78,9 +78,7 @@ class VizHelper
       gv.process(@t_depends)
       gv.dump(@t_rules)
       gv.finish
-
     end
-
   end
 
   def start_table(dir, tab, time, schema)
@@ -131,16 +129,14 @@ end
 def usage
   puts "Usage:"
   puts "Running a Bud program with option :visualize => 3 will cause a TC directory TC_dir to be created (Class_ObjectId_Port)"
-  puts "> ruby visualize.rb TC_dir"
+  puts "> budvis TC_dir"
   puts "This will create a series of svg files in TC_dir, the root of which will be named tm_0_expanded.svg.  Open in a browser.\n"
   puts "e.g."
   puts "> ruby test/tc_carts.rb"
-  puts "> ruby visualize.rb BCS_2159661360_"
+  puts "> budvis BCS_2159661360_"
   puts "> open -a /Applications/Google\ Chrome.app/ BCS_2159661360_/tm_0_expanded.svg"
   exit
 end
-
-# begin "main"
 
 usage unless ARGV[0]
 
@@ -154,7 +150,6 @@ Dir.new(BUD_TC_DIR).entries.each do |file|
   raise "db not found" unless ret
   @tables[file] = hdb
 end
-
 
 # let's try to do a visualization
 strata = deserialize_table(@tables['t_stratum_vizlog.tch'], true)
@@ -179,7 +174,6 @@ gv = GraphGen.new(strata, tabinf, cycle, "OUTPUT", -1, 1, "plotter_out")
 gv.process(depends)
 gv.finish
 
-
 vh = VizHelper.new(strata, tabinf, cycle, depends, rules, ARGV[0])
 
 @tables.each_pair do |name, contents|
@@ -188,7 +182,7 @@ vh = VizHelper.new(strata, tabinf, cycle, depends, rules, ARGV[0])
     key = MessagePack.unpack(k)
     time = key[0]
     row = key
-    MessagePack.unpack(v).each{ |val| row << val }
+    MessagePack.unpack(v).each {|val| row << val}
     if name == "t_table_info.tch" or name == "t_table_schema.tch"
       #vh.full_info << [0, name, row]
     else
