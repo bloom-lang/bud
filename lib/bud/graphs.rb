@@ -3,7 +3,6 @@ require 'rubygems'
 require 'graphviz'
 
 class GraphGen #:nodoc: all
-
   def initialize(mapping, tableinfo, cycle, name, budtime, vizlevel, pics_dir, collapse=false, depanalysis=nil, cardinalities={})
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
     @graph.node[:fontname] = "Times-Roman"
@@ -87,7 +86,6 @@ class GraphGen #:nodoc: all
       puts "collapse #{predicate}, redcycle #{@redcycle[predicate].inspect}"
       via = @redcycle[predicate]
       bag = name_bag(predicate, {})
-      #str = bag.key_cols.sort.join(", ")
       str = bag.keys.sort.join(", ")
       return str
     else
@@ -96,12 +94,10 @@ class GraphGen #:nodoc: all
   end
 
   def process(depends)
-
     # collapsing NEG/+ cycles.
     # we want to create a function from any predicate to (cycle_name or bottom)
     # bottom if the predicate is not in a NEG/+ cycle.  otherwise,
     # its name is "CYC" + concat(sort(predicate names))
-
     depends.each do |d|
       #puts "DEP: #{d.inspect}"
       head = d[1]
@@ -178,7 +174,6 @@ class GraphGen #:nodoc: all
         @edges[ekey].minlen = 1.5
       end
       @labels[ekey] = {}
-
     end
 
     #@edges[ekey].minlen = 5 if negcluster and body == head
@@ -218,7 +213,6 @@ class GraphGen #:nodoc: all
     @nodes["T"].penwidth = 3
 
     @tabinf.each_pair do |k, v|
-
       unless @nodes[name_of(k.to_s)] or k.to_s =~ /_tbl/ or @internals[k.to_s] or (k.to_s =~ /^t_/ and @budtime != 0)
         addonce(k.to_s, false)
       end
@@ -229,8 +223,8 @@ class GraphGen #:nodoc: all
     end
 
     unless @depanalysis.nil? 
-      @depanalysis.source.each {|s| addedge("S", s.pred, false, false, false) }
-      @depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false) }
+      @depanalysis.source.each {|s| addedge("S", s.pred, false, false, false)}
+      @depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false)}
 
       unless @depanalysis.underspecified.empty?
         addonce("??", false)
@@ -258,7 +252,7 @@ class GraphGen #:nodoc: all
     fin = File.open(staging, "r")
     fout = File.open(fn, "w")
     while line = fin.gets
-      fout.puts line.gsub("<title>G</title>", svg_javascript())
+      fout.puts line.gsub("<title>G</title>", svg_javascript)
     end
     fin.close
     fout.close
@@ -317,13 +311,13 @@ class GraphGen #:nodoc: all
     end
   end
 
-
   def header
-      return "<html><meta content='text/html; charset=UTF-8' http-equiv='Content-Type'/>\n<head><link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\" /></head><body>"
+    return "<html><meta content='text/html; charset=UTF-8' http-equiv='Content-Type'/>\n<head><link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\" /></head><body>"
   end
 
   def css
-    return "pre.code {
+    return <<END_CSS
+pre.code {
   padding: 1ex 1ex 1ex 1ex;
   border: 4px groove #CC0000;
   overflow-x: auto;
@@ -346,14 +340,11 @@ pre.code span.punct { color: #6A5ACD; }
 pre.code span.regex { color: #DD00DD; }
 pre.code span.string { color: #DD00DD; }
 pre.code span.symbol { color: #008B8B; }
-"
+END_CSS
   end
 
-  
-end
-
   def svg_javascript
-    return "
+    return <<END_JS
 <script type='text/javascript'>
   <![CDATA[
 
@@ -382,13 +373,12 @@ function advanceTo(time) {
 }
 
 // off the netz
-function gup( name )
-{
+function gup(name) {
   name = name.replace(/[\[]/,\"\\\[\").replace(/[\]]/,\"\\\]\");
   var regexS = \"[\\?&]\"+name+\"=([^&#]*)\";
-  var regex = new RegExp( regexS );
-  var results = regex.exec( window.location.href );
-  if( results == null )
+  var regex = new RegExp(regexS);
+  var results = regex.exec(window.location.href);
+  if (results == null)
     return \"\";
   else
     return results[1];
@@ -396,6 +386,6 @@ function gup( name )
 
   ]]>
 </script>
-"
+END_JS
   end
-
+end
