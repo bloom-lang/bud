@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 require 'rubygems'
 require 'graphviz'
 
@@ -9,7 +8,6 @@ class GraphGen #:nodoc: all
     @graph.node[:fontsize] = 18
     @graph.edge[:fontname] = "Times-Roman"
     @graph.edge[:fontsize] = 18
-    @tiers = []
     @cards = cardinalities
     @name = name
     @collapse = collapse
@@ -145,7 +143,6 @@ class GraphGen #:nodoc: all
           res = res + ", " + p
         end
       end
-      #@nodes[node].label = "<b>" + res + "</b>"
       @nodes[node].label = res
       @nodes[node].color = "red"
       @nodes[node].shape = "octagon"
@@ -247,8 +244,6 @@ class GraphGen #:nodoc: all
     puts "fn is #{fn}"
     staging = "#{fn}_staging"
     @graph.output(:svg => staging)
-    @graph.output(:dot => "#{fn}.dot")
-    @graph.output(:png => "#{fn}.png")
     fin = File.open(staging, "r")
     fout = File.open(fn, "w")
     while line = fin.gets

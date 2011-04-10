@@ -5,8 +5,6 @@ require 'bud/bud_meta'
 require 'bud/graphs'
 require 'bud/depanalysis'
 
-# args: N, files_n, classes_m
-
 def process(mods)
   classdef = "class FooBar\ninclude Bud\n" + mods.map{|m| "include #{m}"}.join("\n")  +  "\nend\n FooBar.new"
   d = eval(classdef)
@@ -38,23 +36,23 @@ def process(mods)
     end
   end
 
-  svg = "bud_doc/" + mods.join("_") + "_viz"
-  write_index(inp, outp, priv, svg)
-  gv = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, svg, -1, 1, ".", true, d.meta_parser.depanalysis)
+  viz_name = "bud_doc/" + mods.join("_") + "_viz"
+  write_index(inp, outp, priv, viz_name)
+  gv = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, viz_name, -1, 1, ".", true, d.meta_parser.depanalysis)
   gv.process(d.t_depends)
   gv.dump(d.t_rules)
   gv.finish
 
-  gv2 = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, svg, -1, 1, ".", false, d.meta_parser.depanalysis)
+  gv2 = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, viz_name, -1, 1, ".", false, d.meta_parser.depanalysis)
   gv2.process(d.t_depends)
   gv2.dump(d.t_rules)
   gv2.finish
 end
 
-def write_index(inp, outp, priv, svg)
+def write_index(inp, outp, priv, viz_name)
   f = File.open("bud_doc/index.html", "w")
   f.puts "<html>"
-  f.puts "<embed src=\"#{ENV['PWD']}/#{svg}_collapsed.svg\" width=\"100%\" height=\"60%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
+  f.puts "<embed src=\"#{ENV['PWD']}/#{viz_name}_collapsed.svg\" width=\"100%\" height=\"60%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
 
   f.puts "<table border='1' valign='top' width = '100%'><tr valign='top'>"
   f.puts "<td valign='top'>"
@@ -93,22 +91,11 @@ end
 `mkdir bud_doc`
 
 modules = []
-(0..ARGV.length-1).each do |i|
-  begin
-    f = File.open(ARGV[i])
-    mods = false
-  rescue
-    mods = true
-  end
-
-  unless mods
-    puts "DO #{ARGV[i]}"
-    eval "require \"#{ARGV[i]}\""
+ARGV.each do |arg|
+  if File.exists? arg
+    eval "require '#{arg}'"
   else
-    puts "Work on #{ARGV[i]}"
-    #instant(ARGV[i])
-    modules << ARGV[i]
-    puts "OK"
+    modules << arg
   end
 end
 

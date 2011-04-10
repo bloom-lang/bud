@@ -22,7 +22,7 @@ implementation.  The most common uses of __budplot__ are:
    The Bloom module system, abstract interfaces and concrete implementations are described in more detail in [modules.md](modules.md).
 3. Identifying dead code
 4. Experimenting with different module compositions
-5. Identifying and iteratively refining a program's points of order
+5. Identifying and iteratively refining a program's "points of order"
 
 To run __budplot__, specify a list of Ruby input files, followed by a list of
 Bud modules to be "mixed in" in the visualization.
