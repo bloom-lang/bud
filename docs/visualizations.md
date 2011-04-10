@@ -60,8 +60,8 @@ follows:
     - v = BestEffortReplicatedKVS.new(@opts.merge(:port => 12345))
     - v2 = BestEffortReplicatedKVS.new(@opts.merge(:port => 12346))
 
-    + v = BestEffortReplicatedKVS.new(@opts.merge(:tag => 'dist_primary', :port => 12345, :trace => true))
-    + v2 = BestEffortReplicatedKVS.new(@opts.merge(:tag => 'dist_backup', :port => 12346, :trace => true))
+    + v = BestEffortReplicatedKVS.new(@opts.merge(:port => 12345, :tag => 'dist_primary', :trace => true))
+    + v2 = BestEffortReplicatedKVS.new(@opts.merge(:port => 12346, :tag => 'dist_backup', :trace => true))
 
 
 Then I ran the unit test:

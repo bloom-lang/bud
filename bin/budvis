@@ -21,8 +21,8 @@ class VizHelper
     @t_tabinf = tabinf
     @t_cycle = cycle
     @t_depends = depends
-    @dir = dir
     @t_rules = rules
+    @dir = dir
     super()
   end
 
@@ -123,7 +123,7 @@ end
 
 def usage
   puts "Usage:"
-  puts "Running a Bud program with option :visualize => 3 will cause a TC directory TC_dir to be created (Class_ObjectId_Port)"
+  puts "Running a Bud program with option :trace => true will cause a TC directory TC_dir to be created (Class_ObjectId_Port)"
   puts "> budvis TC_dir"
   puts "This will create a series of svg files in TC_dir, the root of which will be named tm_0_expanded.svg.  Open in a browser.\n"
   puts "e.g."
