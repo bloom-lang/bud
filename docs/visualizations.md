@@ -38,7 +38,7 @@ For example:
     Warning: underspecified dataflow: ["send_mcast", true]
     Warning: underspecified dataflow: ["mcast_done", false]
     fn is ReplicatedKVS_viz_collapsed.svg
-    $ open -a /Applications/Google\ Chrome.app/ ReplicatedKVS_viz_collapsed.svg
+    $ open bud_doc/index.html
 
 `ReplicatedKVS` includes the `MulticastProtocol` and `MembershipProtocol`
 protocols, but does not specify which implementation of these abstractions to
