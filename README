@@ -5,7 +5,8 @@ DSL, using Ruby as a setting.
 
 See LICENSE for licensing information.
 
-Language cheatsheet in docs/cheat.md ; see docs/ subdir for other documentation.
+Language cheatsheet in docs/cheat.md ; see the docs/ directory for other
+documentation.
 
 Main deficiencies at this point are:
 
@@ -32,6 +33,9 @@ Note that TokyoCabinet and GraphViz must be installed.
 
 Simple example programs can be found in examples. A much larger set of example
 programs and libraries can be found in the bud-sandbox repository.
+
+To run the unit tests:
+    % cd test; ruby ts_bud.rb
 
 ## Optional Dependencies
 
