@@ -38,7 +38,7 @@ For example:
     Warning: underspecified dataflow: ["send_mcast", true]
     Warning: underspecified dataflow: ["mcast_done", false]
     fn is ReplicatedKVS_viz_collapsed.svg
-    $ open -a /Applications/Google\ Chrome.app/ ReplicatedKVS_viz_collapsed.svg
+    $ open bud_doc/index.html
 
 `ReplicatedKVS` includes the `MulticastProtocol` and `MembershipProtocol`
 protocols, but does not specify which implementation of these abstractions to
@@ -48,7 +48,7 @@ dataflow.
 
     $ budplot kvs/kvs.rb ReplicatedKVS BestEffortMulticast StaticMembership
     fn is ReplicatedKVS_BestEffortMulticast_StaticMembership_viz_collapsed.svg
-    $ open -a /Applications/Google\ Chrome.app/ ReplicatedKVS_BestEffortMulticast_StaticMembership_viz_collapsed.svg
+    $ open bud_doc/index.html
 
 ## Using budvis
 
