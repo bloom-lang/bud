@@ -48,7 +48,7 @@ dataflow.
 
     $ budplot kvs/kvs.rb ReplicatedKVS BestEffortMulticast StaticMembership
     fn is ReplicatedKVS_BestEffortMulticast_StaticMembership_viz_collapsed.svg
-    $ open -a /Applications/Google\ Chrome.app/ ReplicatedKVS_BestEffortMulticast_StaticMembership_viz_collapsed.svg
+    $ open bud_doc/index.html
 
 ## Using budvis
 
