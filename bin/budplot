@@ -5,23 +5,11 @@ require 'bud/bud_meta'
 require 'bud/graphs'
 require 'bud/depanalysis'
 
-# args: N, files_n, classes_m
-
 def process(mods)
   classdef = "class FooBar\ninclude Bud\n" + mods.map{|m| "include #{m}"}.join("\n")  +  "\nend\n FooBar.new"
-  puts "classdef #{classdef}"
   d = eval(classdef)
 
-  d.t_rules.each {|s| puts "RULE: #{s.inspect}" }
-  #d.t_depends.each {|s| puts "DEP: #{s.inspect}" }
-
   da = d.meta_parser.depanalysis
-
-  #puts "MP info src=#{da.source.length}, snk=#{da.sink.length}, under=#{da.underspecified.length}"
-
-  #d.meta_parser.depanalysis.source.each do |s|
-  #  puts "SRC: #{s}"
-  #end
 
   interfaces = {}
   d.t_provides.each do |name, is_input|
@@ -48,87 +36,67 @@ def process(mods)
     end
   end
 
-  svg = "bud_doc/" + mods.join("_") + "_viz" 
-  write_index(inp, outp, priv, svg)
-  gv = GraphGen.new(tabinf, d.t_cycle, svg, -1, ".", true)
+  viz_name = "bud_doc/" + mods.join("_") + "_viz"
+  write_index(inp, outp, priv, viz_name)
+  gv = GraphGen.new(tabinf, d.t_cycle, viz_name, -1, ".", true)
   gv.process(d.t_depends)
   gv.dump(d.t_rules)
   gv.finish(d.meta_parser.depanalysis)
 
-  gv2 = GraphGen.new(tabinf, d.t_cycle, svg, -1, ".", false)
+  gv2 = GraphGen.new(tabinf, d.t_cycle, viz_name, -1, ".", false)
   gv2.process(d.t_depends)
   gv2.dump(d.t_rules)
   gv2.finish(d.meta_parser.depanalysis)
 end
 
-def write_index(inp, outp, priv, svg)
+def write_index(inp, outp, priv, viz_name)
   f = File.open("bud_doc/index.html", "w")
   f.puts "<html>"
-  f.puts "<embed src=\"#{ENV['PWD']}/#{svg}_collapsed.svg\" width=\"100%\" height=\"60%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
+  f.puts "<embed src=\"#{ENV['PWD']}/#{viz_name}_collapsed.svg\" width=\"100%\" height=\"60%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
 
   f.puts "<table border='1' valign='top' width = '100%'><tr valign='top'>"
   f.puts "<td valign='top'>"
-  f.puts "<h2> Input Interfaces </h2>"
+  f.puts "<h2>Input Interfaces</h2>"
   do_table(f, inp)
   f.puts "</td><td>"
-  f.puts "<h2> Output Interfaces </h2>"
+  f.puts "<h2>Output Interfaces</h2>"
   do_table(f, outp)
   f.puts "</td><td>"
-  f.puts "<h2> Private State </h2>"
-  do_table(f, priv, true)
+  f.puts "<h2>Private State</h2>"
+  do_table(f, priv)
   f.puts "</td>"
   f.puts "</tr></table>"
   f.puts "</html>"
   f.close
 end
 
-def do_table(f, info, type=false)
-  next if info.nil?
+def do_table(f, info)
   f.puts "<table border='1'>"
-  info.sort{|a, b| a[0].to_s <=> b[0].to_s}.each do |inf|
-    #f.puts "<h3>#{inf[0]}</h3>"
-    #f.puts  "&nbsp; (#{inf[1].class.to_s.gsub('Bud::Bud', '')})<br>" if type
-    unless inf[1].schema.nil?
-      f.puts "<tr><td><b>#{inf[0]}</b></td>" + inf[1].schema.map{|i| "<td>#{i}</td>"}.join(" ") + "</tr>"
-    end
+  info.sort{|a, b| a[0].to_s <=> b[0].to_s}.each do |tbl_name, tbl_impl|
+    next if tbl_impl.schema.nil?
+    key_s = tbl_impl.key_cols.join(", ")
+    key_s = "[]" if key_s == ""
+    val_s = tbl_impl.val_cols.join(", ")
+    f.puts "<tr><td><b>#{tbl_name}</b></td>"
+    f.puts "<td>#{key_s}</td><td>#{val_s}</td></tr>"
   end
   f.puts "</table>"
 end
 
-@shreddies = []
-@provides = []
-@demands = []
-@tabinf = {}
-@port = 12345
-files = []
-classes = []
-
 if ARGV.length < 2
-  puts "len #{ARGV.length} USAGE:\nruby plotter.rb LIST_OF_FILES LIST_OF_MODULES"
+  puts "Usage: budplot LIST_OF_FILES LIST_OF_MODULES"
   exit
 end
 
 `mkdir bud_doc`
 
 modules = []
-(0..ARGV.length-1).each do |i|
-  begin
-    f = File.open(ARGV[i])
-    mods = false
-  rescue
-    mods = true
-  end
-
-  unless mods
-    puts "DO #{ARGV[i]}"
-    eval ( "require \"#{ARGV[i]}\"")
+ARGV.each do |arg|
+  if File.exists? arg
+    eval "require '#{arg}'"
   else
-    puts "Work on #{ARGV[i]}"
-    #instant(ARGV[i])
-    modules << ARGV[i]
-    puts "OK"
+    modules << arg
   end
 end
 
 process(modules)
-

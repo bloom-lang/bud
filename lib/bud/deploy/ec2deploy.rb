@@ -52,14 +52,14 @@ module EC2Deploy
   end
 
   bloom :spinup do
-    ec2_conn <= join([access_key_id, secret_access_key]).map do
+    ec2_conn <= (access_key_id * secret_access_key).pairs do
       if depl_idempotent [:ec2_comm]
         [AWS::EC2::Base.new(:access_key_id => access_key_id[[]].key,
                             :secret_access_key => secret_access_key[[]].key)]
       end
     end
 
-    ec2_insts <= join([image_id, node_count, key_name, ec2_conn]).map do
+    ec2_insts <= (image_id * node_count * key_name * ec2_conn).combos do
       if depl_idempotent [:ec2_insts]
         print "Starting up EC2 instances"
         STDOUT.flush
@@ -93,7 +93,7 @@ module EC2Deploy
       end
     end
 
-    the_reservation <= join([spinup_timer, ec2_conn, ec2_insts]).map do |t,c,i|
+    the_reservation <= (spinup_timer * ec2_conn * ec2_insts).combos do |t,c,i|
       if depl_idempotent [[:the_reservation, t.val]] and not all_up.include? [true]
         to_ret = nil
         begin
@@ -113,7 +113,7 @@ module EC2Deploy
     # XXX: No upsert operator, so we have to do this.
     the_reservation_next <+ the_reservation
 
-    node_up <= ((join([ec2_insts, the_reservation]).map do
+    node_up <= (((ec2_insts * the_reservation).pairs do
                    if not all_up.include? [true]
                      the_reservation[[]].reservation["instancesSet"]["item"].map do |i|
                        [i, i["instanceState"]["code"] == "16"]
@@ -121,8 +121,7 @@ module EC2Deploy
                    end
                  end)[0] or [])
 
-
-    all_up <+ node_up.map do
+    all_up <+ node_up do
       if node_up.find {|n| n.bool == false} == nil and node_up.find {|n| n.bool == true} != nil
         if depl_idempotent [:nodes_all_up]
           puts "done"
@@ -133,11 +132,11 @@ module EC2Deploy
     end
 
     # XXX: Fixed port 54321
-    temp_node <= join([all_up, the_reservation_next]).map do
+    temp_node <= (all_up * the_reservation_next).pairs do
       break(((0..(the_reservation_next[[]].reservation["instancesSet"]["item"].size-1)).to_a.zip(the_reservation_next[[]].reservation["instancesSet"]["item"].map {|i| [i["ipAddress"], i["privateIpAddress"]]})).map {|n,ips| [n, ips[0] + ":54321", ips[1] + ":54321"]})
     end
 
-    deploy_node <= join([temp_node, init_dir, ruby_command]).map do |t, i, r|
+    deploy_node <= (temp_node * init_dir * ruby_command).combos do |t, i, r|
       if depl_idempotent [[:node_startup, t.node]]
         ip = t.node.split(":")[0]
         port = t.node.split(":")[1]
@@ -184,17 +183,14 @@ module EC2Deploy
   end
 
   bloom :all_nodes do
-    stdio <~ ready.map {|_,s| ["Ready: #{s}"]}
+    stdio <~ ready {|_,s| ["Ready: #{s}"]}
     # Persist ready messages
-    ready_tab <= ready.map {|_, s| [s]}
+    ready_tab <= ready {|_, s| [s]}
     # Compute a count of ready messages
     ready_count <= ready_tab.group(nil, count)
     # Copy deploy_node into node when all nodes are up
-    node <= join([ready_count, node_count],
-                 [ready_count.num, node_count.num]).map do
+    node <= (ready_count * node_count).pairs(:num => :num) do
       break deploy_node
     end
-
   end
-
 end

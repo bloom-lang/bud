@@ -34,11 +34,15 @@ module Bust
       BustClass.new(bud, q)
     end
     # Wait for socket to be ready before we return from bootstrap.
-    @bust_port = q.pop
+    r = q.pop
+    if r.class <= Exception
+      raise r
+    else
+      @bust_port = r
+    end
   end
 
   class BustClass
-
     class BustHandler
       def initialize(session, request, body, bud)
         @session = session
@@ -95,17 +99,21 @@ module Bust
         ensure
           @session.close
         end
-
       end
     end
 
     def initialize(bud, q)
       # allow user-configurable port
-      server = TCPServer.new(bud.ip, (bud.options[:bust_port] or 0))
-      port = server.addr[1]
-      puts "Bust server listening on #{bud.ip}:#{port}"
-      # We're now ready to accept connections.
-      q << port
+      begin
+        server = TCPServer.new(bud.ip, (bud.options[:bust_port] or 0))
+        port = server.addr[1]
+        puts "Bust server listening on #{bud.ip}:#{port}"
+        # We're now ready to accept connections
+        q << port
+      rescue Exception => e
+        # Avoid deadlock on queue, report exception to caller
+        q << e
+      end
 
       loop do
         session = server.accept
@@ -124,6 +132,5 @@ module Bust
         end
       end
     end
-
   end
 end

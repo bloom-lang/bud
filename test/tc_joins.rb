@@ -155,16 +155,13 @@ class CombosBud
     temp :l <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x)
     chain_out <= l { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
-    temp :m <= join([r,s_tab,t], [r.x, s_tab.x, t.x])
-    flip_out <= m.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
-
-    temp :n <= natjoin([r,s_tab,t])
+    temp :n <= (r * s_tab * t).matches
     nat_out <= n.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
     temp :newtab <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x)
     temp :newtab_out <= newtab { |a,b,c| [a.x, b.x, c.x, a.y1, b.y1, c.y1] }
 
-    temp :loj <= leftjoin([mismatches, s_tab], :x => :x)
+    temp :loj <= (mismatches * s_tab).outer(:x => :x)
     loj_out <= loj.map { |t1, t2| [t1.x, t2.x, t1.y1, t2.y1] }
   end
 end
@@ -246,7 +243,7 @@ end
 class TestJoins < Test::Unit::TestCase
   def test_combos
     program = CombosBud.new
-    assert_nothing_raised(RuntimeError) { program.tick }
+    program.tick
     simple_outs = program.simple_out
     assert_equal(7, simple_outs.length)
     assert_equal(1, simple_outs.select { |t| t[0] == 'a'} .length)
@@ -256,7 +253,7 @@ class TestJoins < Test::Unit::TestCase
 
   def test_secondary_join_predicates
     program = CombosBud.new
-    assert_nothing_raised(RuntimeError) { program.tick }
+    program.tick
     match_outs = program.match_out
     assert_equal(4, match_outs.length)
     assert_equal(1, match_outs.select { |t| t[0] == 'a'} .length)
@@ -266,13 +263,10 @@ class TestJoins < Test::Unit::TestCase
 
   def test_3_joins
     program = CombosBud.new
-    assert_nothing_raised(RuntimeError) { program.tick }
+    program.tick
     chain_outs = program.chain_out.to_a
     assert_equal(1, chain_outs.length)
-    flip_outs = program.flip_out.to_a
-    assert_equal(1, flip_outs.length)
     assert_equal(1, program.nat_out.length)
-    assert_equal(chain_outs, flip_outs)
     assert_equal(chain_outs, program.newtab_out.to_a)
   end
 
@@ -290,7 +284,7 @@ class TestJoins < Test::Unit::TestCase
 
   def test_left_outer_join
     program = CombosBud.new
-    assert_nothing_raised(RuntimeError) { program.tick }
+    program.tick
     loj_outs = program.loj_out
     assert_equal(3, loj_outs.length)
     assert_equal(loj_outs.to_a.sort, [["a", "a", 1, 1], ["v", nil, 1, nil], ["z", nil, 1, nil]])
@@ -298,7 +292,7 @@ class TestJoins < Test::Unit::TestCase
 
   def test_star_join
     program = StarJoin.new
-    assert_nothing_raised(RuntimeError) { program.tick }
+    program.tick
     assert_equal([[2,1],[4,1]], program.r3.to_a.sort)
     assert_equal(program.r5.to_a.sort, program.r51.to_a.sort)
     assert_equal(program.r5.to_a.sort, program.r52.to_a.sort)
@@ -310,7 +304,7 @@ class TestJoins < Test::Unit::TestCase
 
   def test_star_join3
     program = StarJoin3.new
-    assert_nothing_raised(RuntimeError) {program.tick}
+    program.tick
     assert_equal([['A','B',3,4,'A','Y']], program.t4.to_a)
     assert_equal(program.t4.to_a, program.t5.to_a)
   end
@@ -328,7 +322,7 @@ class TestJoins < Test::Unit::TestCase
   
   def test_rename_join
     p = RenameJoin.new
-    assert_nothing_raised(RuntimeError) {p.tick}
+    p.tick
     assert_equal([['a', 1]], p.out.to_a)
   end
 
@@ -395,7 +389,7 @@ class TestJoins < Test::Unit::TestCase
       t <+ [[2,1]]
     end
     bloom do
-      temp :out <= leftjoin([c, t], :val => :key)
+      temp :out <= (c * t).outer(:val => :key)
     end
   end
   

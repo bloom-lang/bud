@@ -21,7 +21,6 @@ $em_stopped = Queue.new
 
 # We monkeypatch Module to add support for Bloom state and code declarations.
 class Module
-  
   # import another module and assign to a qualifier symbol: <tt>import MyModule => :m</tt>
   def import(spec)
     raise Bud::CompileError unless (spec.class <= Hash and spec.length == 1)
@@ -130,7 +129,7 @@ module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
   attr_reader :dsock
   attr_reader :tables, :ip, :port
-  attr_reader :stratum_first_iter
+  attr_reader :stratum_first_iter, :joinstate
   attr_accessor :lazy # This can be changed on-the-fly by REBL
 
   # options to the bud runtime are passed in a hash, with the following keys
@@ -172,7 +171,7 @@ module Bud
     # Setup options (named arguments), along with default values
     @options = options
     @lazy = @options[:lazy] ||= false
-    @options[:ip] ||= "localhost"
+    @options[:ip] ||= "127.0.0.1"
     @ip = @options[:ip]
     @options[:port] ||= 0
     @options[:port] = @options[:port].to_i
@@ -747,39 +746,6 @@ module Bud
       # but it's not easy right now (??) to pull out tables in a given stratum
       @tables.each{|name,coll| coll.tick_deltas}
     end while not @tables.all?{|name,coll| coll.new_delta.empty? and coll.delta.empty?}
-  end
-
-  ####### Joins
-  def wrap_map(j, &blk)
-    if blk.nil?
-      return j
-    else
-      return j.map(&blk)
-    end
-  end
-
-  public
-  def joinstate # :nodoc: all
-    @joinstate
-  end
-
-  public
-  def join(collections, *preds, &blk) # :nodoc: all
-    # since joins are stateful, we want to allocate them once and store in this Bud instance
-    # we ID them on their tablenames, preds, and block
-    return wrap_map(BudJoin.new(collections, self, preds), &blk)
-  end
-
-  def natjoin(collections, &blk) # :nodoc: all
-    # for all pairs of relations, add predicates on matching column names
-    preds = BudJoin::natural_preds(self, collections)
-    join(collections, *preds, &blk)
-  end
-
-  # left-outer-join syntax to be used in rhs of Bloom statements.  
-  # first argument an array of 2 collections, second argument an array of predicates (as in Bud::BudCollection.pairs)
-  def leftjoin(collections, *preds, &blk)
-    return wrap_map(BudLeftJoin.new(collections, self, preds), &blk)
   end
 
   private

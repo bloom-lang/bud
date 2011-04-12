@@ -235,8 +235,8 @@ class TempExpander < SexpProcessor # :nodoc: all
         end
 
         # temp declarations are misparsed if the RHS contains certain constructs
-        # (e.g., old-style join syntax, group, "do |f| ... end" rather than
-        # "{|f| ... }").  Rewrite to correct the misparsing.
+        # (e.g., group, "do |f| ... end" rather than "{|f| ... }").  Rewrite to
+        # correct the misparsing.
         if n.sexp_type == :iter
           iter_body = n.sexp_body
 

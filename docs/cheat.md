@@ -9,19 +9,26 @@ As in Ruby, backslash is used to escape a newline.<br>
     require 'bud'
 
     class Foo
-        include Bud
+      include Bud
         
-        state do
-          ...
-        end
+      state do
+        ...
+      end
         
-        bloom do
-          ...
-        end
+      bloom do
+        ...
+      end
     end
     
 ## State Declarations ##
-A `state` block contains Bud collection definitions.
+A `state` block contains Bud collection definitions. A Bud collection is a *set*
+of *facts*; each fact is an array of Ruby values. Note that collections do not
+contain duplicates (inserting a duplicate fact into a collection is ignored).
+
+Like a table in a relational databas, a subset of the columns in a collection
+makeup the collection's _key_. Attempting to insert two facts into a collection
+that agree on the key columns (but are not duplicates) results in a runtime
+exception.
 
 ### Default Declaration Syntax ###
 *BudCollection :name, [keys] => [values]*
@@ -95,7 +102,7 @@ State declaration includes Zookeeper path and optional TCP string (default: "loc
 
 Left-hand-side (lhs) is a named `BudCollection` object.<br>
 Right-hand-side (rhs) is a Ruby expression producing a `BudCollection` or `Array` of `Arrays`.<br>
-BloomOp is one of the 5 operators listed below.
+BloomOp is one of the 4 operators listed below.
 
 ### Bloom Operators ###
 merges:
@@ -225,9 +232,8 @@ Like `pairs`, but implicitly includes a block that projects down to the right it
 
     out <= (r * s).matches.flatten.group([:a], max(:b))
 
-### Left Join ###
-`leftjoin([`*t1, t2*`]` *, optional hash pairs, ...*`)`<br>
-Left Outer Join.  Note postfix syntax with array of 2 collections as first argument, hash pairs as subsequent arguments.  Objects in the first collection will be included in the output even if no match is found in the second collection.
+`outer(`*hash pairs*`)`:<br>
+Left Outer Join.  Like `pairs`, but objects in the first collection will be produced nil-padded if they have no match in the second collection.
 
 ## Temp Collections ##
 `temp`<br>

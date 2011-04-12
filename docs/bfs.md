@@ -301,10 +301,10 @@ payload of local chunks:
           [l.sender, l.payload[0]] unless l.payload[1] == [nil]
         end
 
-At the same time, we use the Ruby _flatmap_ method to flatten the array of chunks in the heartbeat payload into a set of tuples, which we
+At the same time, we use the Ruby _flat_map_ method to flatten the array of chunks in the heartbeat payload into a set of tuples, which we
 associate with the heartbeating datanode and the time of receipt in __chunk_cache__:
 
-        chunk_cache <= join([master_duty_cycle, last_heartbeat]).flat_map do |d, l| 
+        chunk_cache <= (master_duty_cycle * last_heartbeat).flat_map do |d, l| 
           unless l.payload[1].nil?
             l.payload[1].map do |pay|
               [l.peer, pay, Time.parse(d.val).to_f]
@@ -312,13 +312,12 @@ associate with the heartbeating datanode and the time of receipt in __chunk_cach
           end
         end
 
-We periodically garbage-collect this cached, removing entries for datanodes from whom we have not received a heartbeat in a configurable amount of time.
+We periodically garbage-collect this cache, removing entries for datanodes from whom we have not received a heartbeat in a configurable amount of time.
 __last_heartbeat__ is an output interface provided by the __HeartbeatAgent__ module, and contains the most recent, non-stale heartbeat contents:
 
-        chunk_cache <- join([master_duty_cycle, chunk_cache]).map do |t, c|
+        chunk_cache <-(master_duty_cycle * chunk_cache).pairs do |t, c|
           c unless last_heartbeat.map{|h| h.peer}.include? c.node
         end
-
 
 ## [BFS Client](https://github.com/bloom-lang/bud-sandbox/blob/master/bfs/bfs_client.rb)
 
@@ -368,7 +367,6 @@ After defining some helper aggregates (__chunk_cnts_chunk__ or replica count by 
         chunk_cnts_host <= cc_demand.group([cc_demand.node], count(cc_demand.chunkid))
 
 we define __lowchunks__ as the set of chunks whose replication factor is too low:
-
 
         lowchunks <= chunk_cnts_chunk { |c| [c.chunkid] if c.replicas < REP_FACTOR and !c.chunkid.nil?}
 

@@ -2,7 +2,6 @@ require 'rubygems'
 require 'bud'
 
 module TokenRing
-
   state do
     table :next_node, [] => [:node]
     channel :token, [:@loc]
@@ -35,5 +34,4 @@ module TokenRing
     token <~ (token_persist * next_node).combos {[next_node[[]].node]}
     stdio <~ token {["#{ip_port}: Got token!"]}
   end
-
 end

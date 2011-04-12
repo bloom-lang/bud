@@ -487,11 +487,26 @@ module Bud
       argagg(:max, gbkey_cols, col)
     end
 
+    private
+    def wrap_map(j, &blk)
+      if blk.nil?
+        return j
+      else
+        return j.map(&blk)
+      end
+    end
+
+    def join(collections, *preds, &blk)
+      # since joins are stateful, we want to allocate them once and store in this Bud instance
+      # we ID them on their tablenames, preds, and block
+      return wrap_map(BudJoin.new(collections, @bud_instance, preds), &blk)
+    end
+
     # form a collection containing all pairs of items in +self+ and items in
     # +collection+
     public
-    def *(collection)
-      bud_instance.join([self, collection])
+    def *(collection, &blk)
+      join([self, collection])
     end
 
     # SQL-style grouping.  first argument is an array of attributes to group by.  
@@ -565,12 +580,13 @@ module Bud
     # given a * expression over n collections, form all combinations of items
     # subject to an array of predicates, pred
     # currently supports two options for equijoin predicates:
-        #    general form: an array of arrays capturing a conjunction of equiv. classes
-        #          [[table1.col1, table2.col2, table3.col3], [table1.col2, table2.col3]]
-        #    common form: a hash capturing equality of a column on left with one on right.
-        #          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
+    #    general form: an array of arrays capturing a conjunction of equiv. classes
+    #          [[table1.col1, table2.col2, table3.col3], [table1.col2, table2.col3]]
+    #    common form: a hash capturing equality of a column on left with one on right.
+    #          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
     public
     def pairs(*preds, &blk)
+      @origpreds = preds
       setup_preds(preds) unless (preds.nil? or preds.empty?)
       # given new preds, the state for the join will be different.  set it up again.
       setup_state if self.class <= Bud::BudJoin
@@ -583,7 +599,7 @@ module Bud
     # combinations of items that have the same values in matching fiels
     public
     def matches(&blk)
-      preds = BudJoin::natural_preds(@bud_instance, @rels)
+      preds = BudJoin::natural_preds(@bud_instance, @origrels)
       pairs(*preds, &blk)
     end
 
@@ -603,6 +619,18 @@ module Bud
     def rights(*preds)
       @localpreds = disambiguate_preds(preds)
       map{ |l,r| r }
+    end
+
+    # given a * expression over 2 collections, form all
+    # combos of items that satisfy +preds+, and for any
+    # item from the 1st collection that has no matches
+    # in the 2nd, nil-pad it and include it in the output.
+    public
+    def outer(*preds)
+      @origpreds = preds
+      @localpreds = disambiguate_preds(preds)
+      self.extend(Bud::BudOuterJoin)
+      map
     end
 
     # extract predicates on rellist[0] and recurse to right side with remainder

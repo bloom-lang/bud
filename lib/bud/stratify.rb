@@ -52,11 +52,10 @@ class Stratification # :nodoc: all
       # if A depends nonmonotonically on B, A > B.
       # if A are B are co-dependent, give up. 
       #  (don't need to do this, b/c we've ruled out deductive cycles)
-      # stratum choice will represent local evaluation order,
-      # so we need only consider 'synchronous' dependencies (<=)
-
-      # pass 1: assume no deductive cycles
-      # do "vanilla stratification" on deductive rules
+      #
+      # Stratum choice controls local evaluation order, so we need only consider
+      # deductive rules (<=). Temporal rules are placed in an extra "top"
+      # stratum afterward.
       stratum_base <= (depends * stratum_base).pairs(:body => :predicate) do |d, s|
         if d.op.to_s == '<='
           if d.neg
@@ -75,7 +74,7 @@ class Stratification # :nodoc: all
     }
 
     strata[3] = lambda {
-      # there is no good reason that top_strat can't be computed in strata[3] over stratum_base.
+      # there is no good reason that top_strat can't be computed in strata[2] over stratum_base.
       # however, when it is deduced that way, it is empty after a tick
       top_strat <= stratum.group([], max(stratum.stratum))
     }

@@ -5,10 +5,7 @@ require 'bud'
 require 'bud/graphs'
 include TokyoCabinet
 
-# prototype offline viz
-
 BUD_TC_DIR = "#{ARGV[0]}/bud_"
-
 
 class VizHelper
   include Bud
@@ -24,14 +21,14 @@ class VizHelper
     @t_tabinf = tabinf
     @t_cycle = cycle
     @t_depends = depends
-    @dir = dir
     @t_rules = rules
+    @dir = dir
     super()
   end
 
   bloom :counting do
     cardinalities <= full_info.group([full_info.bud_time, full_info.table], count)
-    times <= full_info.map{|f| [f.bud_time]}
+    times <= full_info {|f| [f.bud_time]}
   end
 
   def summarize(dir, schema)
@@ -79,9 +76,7 @@ class VizHelper
       gv.process(@t_depends)
       gv.dump(@t_rules)
       gv.finish
-
     end
-
   end
 
   def start_table(dir, tab, time, schema)
@@ -116,13 +111,11 @@ def deserialize_table(tab, strict)
   # oy.  meta only
   ret = []
   tab.each_pair do |k, v|
-    #key = Marshal.load(k)
     key = MessagePack.unpack(k)
     time = key.shift
     raise "non-zero budtime.  sure this is metadata?" if time != 0 and strict
     tup = key
-    #Marshal.load(v).each{|v| tup << v }
-    MessagePack.unpack(v).each{|val| tup << val }
+    MessagePack.unpack(v).each {|val| tup << val}
     ret << tup
   end
   tab.close
@@ -131,17 +124,15 @@ end
 
 def usage
   puts "Usage:"
-  puts "Running a Bud program with option :visualize => 3 will cause a TC directory TC_dir to be created (Class_ObjectId_Port)"
-  puts "> ruby visualize.rb TC_dir"
+  puts "Running a Bud program with option :trace => true will cause a TC directory TC_dir to be created (Class_ObjectId_Port)"
+  puts "> budvis TC_dir"
   puts "This will create a series of svg files in TC_dir, the root of which will be named tm_0_expanded.svg.  Open in a browser.\n"
   puts "e.g."
   puts "> ruby test/tc_carts.rb"
-  puts "> ruby visualize.rb BCS_2159661360_"
+  puts "> budvis BCS_2159661360_"
   puts "> open -a /Applications/Google\ Chrome.app/ BCS_2159661360_/tm_0_expanded.svg"
   exit
 end
-
-# begin "main"
 
 usage unless ARGV[0]
 
@@ -155,7 +146,6 @@ Dir.new(BUD_TC_DIR).entries.each do |file|
   raise "db not found" unless ret
   @tables[file] = hdb
 end
-
 
 # let's try to do a visualization
 strata = deserialize_table(@tables['t_stratum_vizlog.tch'], true)
@@ -180,7 +170,6 @@ gv = GraphGen.new(tabinf, cycle, "OUTPUT", -1, "plotter_out")
 gv.process(depends)
 gv.finish
 
-
 vh = VizHelper.new(strata, tabinf, cycle, depends, rules, ARGV[0])
 
 @tables.each_pair do |name, contents|
@@ -189,7 +178,7 @@ vh = VizHelper.new(strata, tabinf, cycle, depends, rules, ARGV[0])
     key = MessagePack.unpack(k)
     time = key[0]
     row = key
-    MessagePack.unpack(v).each{ |val| row << val }
+    MessagePack.unpack(v).each {|val| row << val}
     if name == "t_table_info.tch" or name == "t_table_schema.tch"
       #vh.full_info << [0, name, row]
     else

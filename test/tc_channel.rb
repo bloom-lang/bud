@@ -253,7 +253,7 @@ class TestChannelBootstrap < Test::Unit::TestCase
       assert_equal(1, t.length)
       v = t.first
       assert(v[1] > 1024)
-      assert_equal(v[0], "localhost")
+      assert_equal(v[0], c.ip)
     }
     q.pop
     c.sync_do {
@@ -262,4 +262,3 @@ class TestChannelBootstrap < Test::Unit::TestCase
     c.stop_bg
   end
 end
-

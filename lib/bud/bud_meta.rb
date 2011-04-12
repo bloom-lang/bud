@@ -82,18 +82,25 @@ class BudMeta #:nodoc: all
 
     pt = Unifier.new.process(parse_tree)
     pp pt if @bud_instance.options[:dump_ast]
-    begin
-      check_rule_ast(pt)
-    rescue Exception => e
-      # try to "generate" the source code associated with the problematic
-      # block, so as to generate a more meaningful error message.
-      # if this parse fails, return the original exception (not the new one).
-      begin
-        code = Ruby2Ruby.new.process(pt)
-      rescue Exception => sub_e
-        raise e, "Error parsing rule block #{block_name}.  Could not extract source."
+
+    rv = check_rule_ast(pt)
+    unless rv.nil?
+      if rv.class <= Sexp
+        error_pt = rv
+        error_msg = "Parse error"
+      else
+        error_pt, error_msg = rv
       end
-      raise e, "Error parsing rule block #{block_name}:\n#{code}"
+
+      # try to "generate" the source code associated with the problematic block,
+      # so as to generate a more meaningful error message.
+      begin
+        code = Ruby2Ruby.new.process(Marshal.load(Marshal.dump(error_pt)))
+        src_msg = "\nCode: #{code}"
+      rescue Exception
+        src_msg = ""
+      end
+      raise Bud::CompileError, "#{error_msg} in rule block \"#{block_name}\"#{src_msg}"
     end
 
     rewriter = RuleRewriter.new(seed, @bud_instance)
@@ -103,37 +110,38 @@ class BudMeta #:nodoc: all
 
   # Perform some basic sanity checks on the AST of a rule block. We expect a
   # rule block to consist of a :defn, a nested :scope, and then a sequence of
-  # statements. Each statement is a :call node.
+  # statements. Each statement is a :call node. Returns nil (no error found), a
+  # Sexp (containing an error), or a pair of [Sexp, error message].
   def check_rule_ast(pt)
     # :defn format: node tag, block name, args, nested scope
-    raise Bud::CompileError if pt.sexp_type != :defn
+    return pt if pt.sexp_type != :defn
     scope = pt[3]
-    raise Bud::CompileError if scope.sexp_type != :scope
+    return pt if scope.sexp_type != :scope
     block = scope[1]
 
     block.each_with_index do |n,i|
       if i == 0
-        raise Bud::CompileError if n != :block
+        return pt if n != :block
         next
       end
 
-      raise Bud::CompileError if n.sexp_type != :call
-      raise Bud::CompileError unless n.length == 4
+      # Check for a common case
+      if n.sexp_type == :lasgn
+        return [n, "Illegal operator: '='"]
+      end
+      return pt unless n.sexp_type == :call and n.length == 4
 
       # Rule format: call tag, lhs, op, rhs
       tag, lhs, op, rhs = n
 
       # Check that LHS references a named collection
-      raise Bud::CompileError if lhs.nil? or lhs.sexp_type != :call
+      return n if lhs.nil? or lhs.sexp_type != :call
       lhs_name = lhs[2]
       unless @bud_instance.tables.has_key? lhs_name.to_sym
-        raise Bud::CompileError, "Table does not exist: '#{lhs_name}'"
+        return [n, "Table does not exist: '#{lhs_name}'"]
       end
 
-      # Check that op is a legal Bloom operator
-      unless [:<, :<=].include? op
-        raise Bud::CompileError, "Illegal operator: '#{op}'"
-      end
+      return [n, "Illegal operator: '#{op}'"] unless [:<, :<=].include? op
 
       # Check superator invocation. A superator that begins with "<" is parsed
       # as a call to the binary :< operator. The right operand to :< is a :call
@@ -143,16 +151,17 @@ class BudMeta #:nodoc: all
       # XXX: We don't check for illegal superators (e.g., "<--"). That would be
       # tricky, because they are encoded as a nested unary op in the rule body.
       if op == :<
-        raise Bud::CompileError unless rhs.sexp_type == :arglist
+        return n unless rhs.sexp_type == :arglist
         body = rhs[1]
-        raise Bud::CompileError unless body.sexp_type == :call
+        return n unless body.sexp_type == :call
         op_tail = body[2]
-        raise Bud::CompileError unless [:~, :-@, :+@].include? op_tail
+        return n unless [:~, :-@, :+@].include? op_tail
         rhs_args = body[3]
-        raise Bud::CompileError unless rhs_args.sexp_type == :arglist
-        raise Bud::CompileError if rhs_args.length != 1
+        return n if rhs_args.sexp_type != :arglist or rhs_args.length != 1
       end
     end
+
+    return nil # No errors found
   end
 
   def stratify

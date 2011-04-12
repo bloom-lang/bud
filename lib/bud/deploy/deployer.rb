@@ -35,9 +35,7 @@ module Deployer # :nodoc: all
 
   def initialize(opt = {})
     super
-    if opt[:deploy]
-      do_deploystrap
-    end
+    do_deploystrap if opt[:deploy]
   end
 
   # Distribute the EDB to each node.
@@ -46,15 +44,13 @@ module Deployer # :nodoc: all
   # before any messages are received.  In order to fix this, we would probably
   # need to globally synchronize to ensure that "timestamp 0" gets "fully
   # evaluated" before any messages can be sent.
-
   bloom :distribute_data do
-    atomic_data_in <= join([node, initial_data],
-                           [node.uid, initial_data.uid]).map do |n, i|
+    atomic_data_in <= (node * initial_data).pairs(:uid => :uid) do |n, i|
       [n.node, [i.pred, i.data]] if depl_idempotent [[n.node, i.pred, i.data]]
     end
 
     # Add all tuples at once.
-    dont_care <~ atomic_data_out.map do |a|
+    dont_care <~ atomic_data_out do |a|
       if depl_idempotent a
         a.tuple[1].map do |d|
           eval a.tuple[0].to_s + " <+ [" + d.inspect + "]"
