@@ -50,15 +50,15 @@ def process(mods)
 
   svg = "bud_doc/" + mods.join("_") + "_viz" 
   write_index(inp, outp, priv, svg)
-  gv = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, svg, -1, 1, ".", true, d.meta_parser.depanalysis)
+  gv = GraphGen.new(tabinf, d.t_cycle, svg, -1, ".", true)
   gv.process(d.t_depends)
   gv.dump(d.t_rules)
-  gv.finish
+  gv.finish(d.meta_parser.depanalysis)
 
-  gv2 = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, svg, -1, 1, ".", false, d.meta_parser.depanalysis)
+  gv2 = GraphGen.new(tabinf, d.t_cycle, svg, -1, ".", false)
   gv2.process(d.t_depends)
   gv2.dump(d.t_rules)
-  gv2.finish
+  gv2.finish(d.meta_parser.depanalysis)
 end
 
 def write_index(inp, outp, priv, svg)
