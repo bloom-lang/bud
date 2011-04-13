@@ -29,7 +29,7 @@ To install the latest release:
 To build and install a new gem from the current development sources:
     % gem build bud.gemspec ; gem install bud*.gem
 
-Note that TokyoCabinet and GraphViz must be installed.
+Note that GraphViz must be installed.
 
 Simple example programs can be found in examples. A much larger set of example
 programs and libraries can be found in the bud-sandbox repository.
@@ -39,6 +39,8 @@ To run the unit tests:
 
 ## Optional Dependencies
 
-The bud gem has a handful of mandatory dependencies. It also has one optional
-dependency: if you wish to use the Bud collections backed by Zookeeper (the
-"zktable" collection type), the "zookeeper" gem must be installed.
+The bud gem has a handful of mandatory dependencies. It also has two optional
+dependencies: if you wish to use Bud collections backed by Zookeeper or Tokyo
+Cabinet (the "zktable" and "tctable" collection types, respectively), the
+"zookeeper" and/or "tokyocabinet" gems must be installed. Note that for Tokyo
+Cabinet, the TC library must be installed first.
