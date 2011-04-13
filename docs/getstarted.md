@@ -2,9 +2,8 @@
 In this document we'll do a hands-on tour of Bud and its Bloom DSL for Ruby.  We'll start with some examples, and introduce concepts as we go.
 
 ## Installation ##
-Bud depends on two libraries that need to be installed separately:
+Bud depends on one library that needs to be installed separately:
 
-* [TokyoCabinet](http://fallabs.com/tokyocabinet/) (1.4.47 recommended)
 * [GraphViz](http://www.graphviz.org/Download.php) (2.26.3 recommended)
 
 Once that's done, you know the drill!

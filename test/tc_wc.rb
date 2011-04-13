@@ -13,8 +13,8 @@ class WordCount1
   end
 
   state do
-    file_reader :txt, 'text/ulysses.txt'
-    # file_reader :txt, 'shaks12.txt'
+    # file_reader :txt, 'text/ulysses.txt'
+    file_reader :txt, 'shaks12.txt'
     scratch :wc, [:word] => [:cnt]
   end
 
@@ -27,8 +27,12 @@ end
 
 class TestWC1 < Test::Unit::TestCase
   def test_wc1
+    @t = 0
+    @u = 0
     program = WordCount1.new(/[Bb]loom/)
-    assert_nothing_raised { program.tick }
+    assert_nothing_raised { @t = Time.now ; program.tick; @u = Time.now }
+    puts "wc1: #{(@u-@t).to_f}"
+    require 'ruby-debug'; debugger
     assert_equal(23, program.wc[["yes"]].cnt)
   end
 end
@@ -45,7 +49,8 @@ class WordCount2
   end
 
   state do
-    file_reader :txt, 'text/ulysses.txt'
+    # file_reader :txt, 'text/ulysses.txt'
+    file_reader :txt, 'shaks12.txt'
     scratch :words, [:lineno, :wordno] => [:word]
     scratch :wc, [:word] => [:cnt]
   end
@@ -64,8 +69,11 @@ end
 
 class TestWC2 < Test::Unit::TestCase
   def test_wc2
+    @t = 0
+    @u = 0
     program = WordCount2.new(/[Bb]loom/)
-    assert_nothing_raised { program.tick }
+    assert_nothing_raised { @t = Time.now ; program.tick; @u = Time.now  }
+    puts "wc2: #{(@u-@t).to_f}"
     assert_equal(23, program.wc[["yes"]].cnt)
   end
 end

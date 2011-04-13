@@ -1,7 +1,7 @@
 require 'dbm'
 
 module Bud
-  # Persistent table implementation based on TokyoCabinet.
+  # Persistent table implementation based on ndbm.
   class BudDbmTable < BudCollection # :nodoc: all
     def initialize(name, bud_instance, given_schema)
       dbm_dir = bud_instance.options[:dbm_dir]
