@@ -155,7 +155,7 @@ class TestMeta < Test::Unit::TestCase
     dep.tick
 
     File.delete("KTest2_rewritten.txt")
-    `rm -r TC_KTest2*`
+    `rm -r DBM_TC_KTest2*`
   end
 
   def test_underspecified
