@@ -13,6 +13,7 @@ require 'bud/joins'
 require 'bud/rtrace'
 require 'bud/server'
 require 'bud/state'
+require 'bud/storage/dbm'
 require 'bud/storage/tokyocabinet'
 require 'bud/storage/zookeeper'
 require 'bud/viz'
@@ -159,6 +160,7 @@ module Bud
     @rewritten_strata = []
     @channels = {}
     @tc_tables = {}
+    @dbm_tables = {}
     @zk_tables = {}
     @callbacks = {}
     @callback_id = 0
@@ -686,6 +688,7 @@ module Bud
     @channels.each { |c| @tables[c[0]].flush }
     @zk_tables.each_value { |t| t.flush }
     @tc_tables.each_value { |t| t.flush }
+    @dbm_tables.each_value { |t| t.flush }
   end
 
   def stratum_fixpoint(strat, strat_num)

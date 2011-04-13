@@ -1,21 +1,17 @@
-begin
-  require 'tokyocabinet'
-  Bud::HAVE_TOKYOCABINET = true
-rescue LoadError
-end
+require 'dbm'
 
 module Bud
   # Persistent table implementation based on TokyoCabinet.
-  class BudTcTable < BudCollection # :nodoc: all
+  class BudDbmTable < BudCollection # :nodoc: all
     def initialize(name, bud_instance, given_schema)
-      tc_dir = bud_instance.options[:tc_dir]
-      raise BudError, "TC support must be enabled via 'tc_dir'" unless tc_dir
-      unless File.exists?(tc_dir)
-        Dir.mkdir(tc_dir)
-        puts "Created directory: #{tc_dir}" unless bud_instance.options[:quiet]
+      dbm_dir = bud_instance.options[:dbm_dir]
+      raise BudError, "dbm support must be enabled via 'dbm_dir'" unless dbm_dir
+      unless File.exists?(dbm_dir)
+        Dir.mkdir(dbm_dir)
+        puts "Created directory: #{dbm_dir}" unless bud_instance.options[:quiet]
       end
 
-      dirname = "#{tc_dir}/bud_#{bud_instance.port}"
+      dirname = "#{dbm_dir}/bud_#{bud_instance.port}"
       unless File.exists?(dirname)
         Dir.mkdir(dirname)
         puts "Created directory: #{dirname}" unless bud_instance.options[:quiet]
@@ -24,16 +20,15 @@ module Bud
       super(name, bud_instance, given_schema)
       @to_delete = []
 
-      @hdb = TokyoCabinet::HDB.new
-      db_fname = "#{dirname}/#{name}.tch"
-      flags = TokyoCabinet::HDB::OWRITER | TokyoCabinet::HDB::OCREAT
-      if bud_instance.options[:tc_truncate] == true
-        flags |= TokyoCabinet::HDB::OTRUNC
+      db_fname = "#{dirname}/#{name}.dbm"
+      flags = DBM::WRCREAT
+      if bud_instance.options[:dbm_newdb] == true
+        flags |= DBM::NEWDB
       end
-      if !@hdb.open(db_fname, flags)
-        raise BudError, "Failed to open TokyoCabinet DB '#{db_fname}': #{@hdb.errmsg}"
+      @dbm = DBM.open(db_fname, 0666, flags)
+      if @dbm.nil?
+        raise BudError, "Failed to open dbm database '#{db_fname}': #{@dbm.errmsg}"
       end
-      @hdb.tranbegin
     end
 
     def init_storage
@@ -44,7 +39,7 @@ module Bud
 
     def [](key)
       key_s = MessagePack.pack(key)
-      val_s = @hdb[key_s]
+      val_s = @dbm[key_s]
       if val_s
         return make_tuple(key, MessagePack.unpack(val_s))
       else
@@ -54,7 +49,7 @@ module Bud
 
     def has_key?(k)
       key_s = MessagePack.pack(k)
-      return true if @hdb.has_key? key_s
+      return true if @dbm.has_key? key_s
       return @delta.has_key? k
     end
 
@@ -93,7 +88,7 @@ module Bud
     end
 
     def each_storage(&block)
-      @hdb.each do |k,v|
+      @dbm.each do |k,v|
         k_ary = MessagePack.unpack(k)
         v_ary = MessagePack.unpack(v)
         yield make_tuple(k_ary, v_ary)
@@ -101,14 +96,14 @@ module Bud
     end
 
     def flush
-      @hdb.trancommit
     end
 
     def close
-      @hdb.close
+      @dbm.close unless @dbm.nil?
+      @dbm = nil
     end
 
-    def merge_to_hdb(buf)
+    def merge_to_db(buf)
       buf.each do |key,tuple|
         merge_tuple(key, tuple)
       end
@@ -118,15 +113,17 @@ module Bud
       val = val_cols.map{|c| tuple[schema.index(c)]}
       key_s = MessagePack.pack(key)
       val_s = MessagePack.pack(val)
-      if @hdb.putkeep(key_s, val_s) == false
+      if @dbm.has_key?(key_s)
         old_tuple = self[key]
         raise_pk_error(tuple, old_tuple) if tuple != old_tuple
+      else
+        @dbm[key_s] = val_s
       end
     end
 
     # move deltas to TC, and new_deltas to deltas
     def tick_deltas
-      merge_to_hdb(@delta)
+      merge_to_db(@delta)
       @delta = @new_delta
       @new_delta = {}
     end
@@ -144,31 +141,30 @@ module Bud
 
     alias << insert
 
-    # Remove to_delete and then add pending to HDB
+    # Remove to_delete and then add pending to db
     def tick
       @to_delete.each do |tuple|
         k = @key_colnums.map{|c| tuple[c]}
         k_str = MessagePack.pack(k)
-        cols_str = @hdb[k_str]
+        cols_str = @dbm[k_str]
         unless cols_str.nil?
-          hdb_cols = MessagePack.unpack(cols_str)
+          db_cols = MessagePack.unpack(cols_str)
           delete_cols = val_cols.map{|c| tuple[schema.index(c)]}
-          if hdb_cols == delete_cols
-            @hdb.delete k_str
+          if db_cols == delete_cols
+            @dbm.delete k_str
           end
         end
       end
       @to_delete = []
 
-      merge_to_hdb(@pending)
+      merge_to_db(@pending)
       @pending = {}
 
-      @hdb.trancommit
-      @hdb.tranbegin
+      flush
     end
 
     def method_missing(sym, *args, &block)
-      @hdb.send sym, *args, &block
+      @dbm.send sym, *args, &block
     end
   end
 end

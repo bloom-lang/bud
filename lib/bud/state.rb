@@ -98,6 +98,13 @@ module Bud
     @tables[name] = Bud::BudTcTable.new(name, self, schema)
     @tc_tables[name] = @tables[name]
   end
+  
+  # declare a dbm table
+  def dbm_table(name, schema=nil)
+    define_collection(name)
+    @tables[name] = Bud::BudDbmTable.new(name, self, schema)
+    @dbm_tables[name] = @tables[name]
+  end
 
   # declare an Apache ZooKeeper table
   def zktable(name, path, addr="localhost:2181")
