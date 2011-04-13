@@ -48,8 +48,7 @@ class WordCount2
   end
 
   state do
-    # file_reader :txt, 'text/ulysses.txt'
-    file_reader :txt, 'shaks12.txt'
+    file_reader :txt, 'text/ulysses.txt'
     scratch :words, [:lineno, :wordno] => [:word]
     scratch :wc, [:word] => [:cnt]
   end
