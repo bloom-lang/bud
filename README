@@ -42,5 +42,6 @@ To run the unit tests:
 The bud gem has a handful of mandatory dependencies. It also has two optional
 dependencies: if you wish to use Bud collections backed by Zookeeper or Tokyo
 Cabinet (the "zktable" and "tctable" collection types, respectively), the
-"zookeeper" and/or "tokyocabinet" gems must be installed. Note that for Tokyo
-Cabinet, the TC library must be installed first.
+"zookeeper" and/or "tokyocabinet" gems must be installed. Note that before
+installing the "tokyocabinet" gem, the Tokyo Cabinet libraries should be
+installed first.
