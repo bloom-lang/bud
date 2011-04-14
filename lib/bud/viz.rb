@@ -9,7 +9,7 @@ class VizOnline #:nodoc: all
     @bud_instance = bud_instance
     return if bud_instance.class == Stratification or @bud_instance.class == DepAnalysis
     @meta_tables = {'t_rules' => 1, 't_depends' => 1, 't_table_info' => 1, 't_cycle' => 1, 't_stratum' => 1, 't_depends_tc' => 1, 't_table_schema' => 1}
-    @bud_instance.options[:tc_dir] = "TC_#{@bud_instance.class}_#{bud_instance.options[:tag]}_#{bud_instance.object_id}_#{bud_instance.port}"
+    @bud_instance.options[:dbm_dir] = "DBM_#{@bud_instance.class}_#{bud_instance.options[:tag]}_#{bud_instance.object_id}_#{bud_instance.port}"
     @table_info = new_tab(:t_table_info, [:tab_name, :tab_type], @bud_instance)
     @table_schema = new_tab(:t_table_schema, [:tab_name, :col_name, :ord], @bud_instance)
 
@@ -42,7 +42,7 @@ class VizOnline #:nodoc: all
   end
 
   def new_tab(name, schema, instance)
-    ret = Bud::BudTcTable.new(name, instance, schema)
+    ret = Bud::BudDbmTable.new(name, instance, schema)
     instance.tables[name] = ret
     return ret
   end

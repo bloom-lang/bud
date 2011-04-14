@@ -1,16 +1,11 @@
 require 'test_common'
 require 'fileutils'
 
-unless defined? Bud::HAVE_TOKYOCABINET
-  puts "Skipping TC test: no tokyocabinet Gem installed"
-  raise
-end
-
-class TcTest
+class DbmTest
   include Bud
 
   state do
-    tctable :t1, [:k1, :k2] => [:v1, :v2]
+    dbm_table :t1, [:k1, :k2] => [:v1, :v2]
     table :in_buf, [:k1, :k2, :v1, :v2]
     table :del_buf, [:k1, :k2, :v1, :v2]
     table :pending_buf, [:k1, :k2] => [:v1, :v2]
@@ -19,11 +14,11 @@ class TcTest
     scratch :t2, [:k] => [:v]
     scratch :t3, [:k] => [:v]
     scratch :t4, [:k] => [:v]
-    tctable :chain_start, [:k] => [:v]
-    tctable :chain_del, [:k] => [:v]
+    dbm_table :chain_start, [:k] => [:v]
+    dbm_table :chain_del, [:k] => [:v]
 
-    tctable :join_t1, [:k] => [:v1, :v2]
-    tctable :join_t2, [:k] => [:v1, :v2]
+    dbm_table :join_t1, [:k] => [:v1, :v2]
+    dbm_table :join_t2, [:k] => [:v1, :v2]
     scratch :cart_prod, [:k, :v1]
     scratch :join_res, [:k, :v1]
   end
@@ -66,7 +61,7 @@ def rm_bud_dir
   FileUtils.rm_r(BUD_DIR)
 end
 
-class TestTc < Test::Unit::TestCase
+class TestDbm < Test::Unit::TestCase
   def setup
     setup_bud
     @t = make_bud(true)
@@ -78,7 +73,7 @@ class TestTc < Test::Unit::TestCase
   end
 
   def make_bud(truncate)
-    TcTest.new(:tc_dir => BUD_DIR, :tc_truncate => truncate, :quiet => true)
+    DbmTest.new(:dbm_dir => BUD_DIR, :dbm_truncate => truncate, :quiet => true)
   end
 
   def test_basic_ins
@@ -225,13 +220,13 @@ class TestTc < Test::Unit::TestCase
   end
 end
 
-class TcNest
+class DbmNest
   include Bud
 
   state {
     scratch :in_buf, [:k1, :k2] => [:v1]
     table :t1, [:k1] => [:v1]
-    tctable :t2, [:k1, :k2] => [:v1, :v2]
+    dbm_table :t2, [:k1, :k2] => [:v1, :v2]
   }
 
   bootstrap do
@@ -243,7 +238,7 @@ class TcNest
   end
 end
 
-class TestNestedTc < Test::Unit::TestCase
+class TestNestedDbm < Test::Unit::TestCase
   def setup
     setup_bud
     @t = make_bud
@@ -255,7 +250,7 @@ class TestNestedTc < Test::Unit::TestCase
   end
 
   def make_bud
-    TcNest.new(:tc_dir => BUD_DIR, :tc_truncate => true, :quiet => true)
+    DbmNest.new(:dbm_dir => BUD_DIR, :dbm_truncate => true, :quiet => true)
   end
 
   def test_basic_nest
@@ -274,11 +269,11 @@ class TestNestedTc < Test::Unit::TestCase
   end
 end
 
-class TcBootstrap
+class DbmBootstrap
   include Bud
 
   state do
-    tctable :t1
+    dbm_table :t1
   end
 
   bootstrap do
@@ -287,7 +282,7 @@ class TcBootstrap
   end
 end
 
-class TestTcBootstrap < Test::Unit::TestCase
+class TestDbmBootstrap < Test::Unit::TestCase
   def setup
     setup_bud
     @t = make_bud
@@ -299,7 +294,7 @@ class TestTcBootstrap < Test::Unit::TestCase
   end
 
   def make_bud
-    TcBootstrap.new(:tc_dir => BUD_DIR, :tc_truncate => false, :quiet => true)
+    DbmBootstrap.new(:dbm_dir => BUD_DIR, :dbm_truncate => false, :quiet => true)
   end
 
   def test_basic

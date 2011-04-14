@@ -54,7 +54,7 @@ dataflow.
 
 To enable tracing, we need to set `:trace => true` in the `Bud` constructor, and
 optionally provide a `:tag` to differentiate between traces by a human-readable
-name (rather than by `object_id`).  I modified the unit test `test/tc_kvs.rb` as
+name (rather than by `object_id`).  I modified the unit test `test/DBM_kvs.rb` as
 follows:
 
     - v = BestEffortReplicatedKVS.new(@opts.merge(:port => 12345))
@@ -69,10 +69,10 @@ Then I ran the unit test:
     $ ruby test/tc_kvs.rb 
     Loaded suite test/tc_kvs
     Started
-    .Created directory: TC_BestEffortReplicatedKVS_dist_primary_2160259460_
-    Created directory: TC_BestEffortReplicatedKVS_dist_primary_2160259460_/bud_
-    Created directory: TC_BestEffortReplicatedKVS_dist_backup_2159579740_
-    Created directory: TC_BestEffortReplicatedKVS_dist_backup_2159579740_/bud_
+    .Created directory: DBM_BestEffortReplicatedKVS_dist_primary_2160259460_
+    Created directory: DBM_BestEffortReplicatedKVS_dist_primary_2160259460_/bud_
+    Created directory: DBM_BestEffortReplicatedKVS_dist_backup_2159579740_
+    Created directory: DBM_BestEffortReplicatedKVS_dist_backup_2159579740_/bud_
     ..
     Finished in 4.366793 seconds.
     
@@ -80,8 +80,8 @@ Then I ran the unit test:
 
 Then I ran the visualization utility:
 
-    $ budvis TC_BestEffortReplicatedKVS_dist_primary_2160259460_/
+    $ budvis DBM_BestEffortReplicatedKVS_dist_primary_2160259460_/
 
 And finally opened the (chronological) first output file:
 
-    $ open -a /Applications/Google\ Chrome.app/ TC_BestEffortReplicatedKVS_dist_primary_2160259460_/tm_0_expanded.svg
+    $ open -a /Applications/Google\ Chrome.app/ DBM_BestEffortReplicatedKVS_dist_primary_2160259460_/tm_0_expanded.svg

@@ -81,6 +81,13 @@ System-provided attributes: `[:line] => []`
 Statements with stdio on lhs must use async merge (`<~`).<br>
 To capture `$stdin` on rhs, instantiate Bud with `:read_stdin` option.<br>
 
+### dbm_table ###
+Table collection mapped to a [DBM] (http://en.wikipedia.org/wiki/Dbm) store.<br>
+Default attributes: `[:key] => [:val]`
+
+    dbm_table :t1
+    dbm_table :t2, [:k1, :k2] => [:v1, :v2]
+
 ### tctable ###
 Table collection mapped to a [Tokyo Cabinet](http://fallabs.com/tokyocabinet/) store.<br>
 Default attributes: `[:key] => [:val]`

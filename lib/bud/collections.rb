@@ -27,7 +27,6 @@ module Bud
 
     private
     def init_buffers
-      @sealed = false
       init_storage
       init_pending
       init_deltas
@@ -771,7 +770,6 @@ module Bud
 
     public 
     def tick # :nodoc: all
-      @sealed = false
       @storage = {}
       # Note that we do not clear @pending here: if the user inserted into the
       # channel manually (e.g., via <~ from inside a sync_do block), we send the
