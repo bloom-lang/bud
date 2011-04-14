@@ -196,9 +196,9 @@ class GraphGen #:nodoc: all
       end
     end
 
-    unless @depanalysis.nil? 
-      @depanalysis.source.each {|s| addedge("S", s.pred, false, false, false)}
-      @depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false)}
+    unless depanalysis.nil? 
+      depanalysis.source.each {|s| addedge("S", s.pred, false, false, false)}
+      depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false)}
 
       unless depanalysis.underspecified.empty?
         addonce("??", false)
