@@ -3,10 +3,6 @@ require 'graphviz'
 
 class GraphGen #:nodoc: all
 
-  # PAA: 'mapping' already deprecated.
-  # 'vizlevel' deprecated
-  # 'depanalysis' deprecated (pushed to finish() method).
-  #def initialize(mapping, tableinfo, cycle, name, budtime, vizlevel, pics_dir=nil, collapse=false, depanalysis=nil, cardinalities={})
   def initialize(tableinfo, cycle, name, budtime, pics_dir, collapse=false, cardinalities={})
     #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85 )
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
@@ -62,7 +58,6 @@ class GraphGen #:nodoc: all
 
   def name_of(predicate)
     # consider doing this in bud
-    # PAA
     if @redcycle[predicate] and @collapse
       via = @redcycle[predicate]
       bag = name_bag(predicate, {})
@@ -112,6 +107,7 @@ class GraphGen #:nodoc: all
     if negcluster
       # cleaning 
       res = node
+      # pretty-printing issues
       node.split(", ").each_with_index do |p, i|
         if i == 0
           res = p
@@ -150,8 +146,6 @@ class GraphGen #:nodoc: all
       end
       @labels[ekey] = {}
     end
-
-    #@edges[ekey].minlen = 5 if negcluster and body == head
 
     if op == '<+'
       @labels[ekey][' +/-'] = true
