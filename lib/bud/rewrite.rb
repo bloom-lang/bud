@@ -33,8 +33,10 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       do_rule(exp)
     else
       if recv and recv.class == Sexp
-        # ignore accessors of iterator variables, monotone ops and table names
-        unless recv.first == :lvar or @monotonic_whitelist[op] or @bud_instance.tables.has_key? op
+        # for CALM analysis, mark deletion rules as non-monotonic
+        @nm = true if op == :-@
+        # don't worry about monotone ops, table names, and accessors of iterator variables, 
+        unless @monotonic_whitelist[op] or @bud_instance.tables.has_key? op or recv.first == :lvar
           @nm = true
         end
       end
@@ -130,6 +132,7 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
   
   def process_iter(exp)
     @iterstack ||= []
+    @iterhash ||= {}
     collname = nil
     if exp[1] and exp[1][0] == :call 
       if exp[1][1].nil? # method is a tablename
@@ -137,26 +140,19 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
       elsif exp[1][1][0] == :call and exp[1][1][1].nil? #method is an enumerable method
         collname = exp[1][1][2]
       end
+      if exp[2] and exp[2][0] == :lasgn and not collname.nil?
+        raise Bud::CompileError, "variable #{exp[1]} not allowed to be assigned twice" if @iterhash[exp[2][1]]
+        @iterhash[exp[2][1]] = collname
+      end
     end
-    unless collname.nil?
-      @iterstack << collname
-      (1..(exp.length-1)).each {|i| exp[i] = process(exp[i])}
-      @iterstack.pop
-    end
+    (1..(exp.length-1)).each {|i| exp[i] = process(exp[i])}
     exp
   end
-  
-  def process_lasgn(exp)
-    @iterhash ||= {}
-    raise Bud::CompileError, "block variable #{exp[1]} not allowed to be reused at lower scope" if @iterhash[exp[1]]
-    @iterhash[exp[1]] = @iterstack.last if @iterstack and not @iterstack.empty?
-    exp
-  end
-  
+
   def process_call(exp)
     call, recv, op, args = exp
     
-    if recv and recv.class == Sexp and recv.first == :lvar and @iterhash[recv[1]]
+    if recv and recv.class == Sexp and recv.first == :lvar and recv[1] and @iterhash[recv[1]]
       if @bud_instance.respond_to?(@iterhash[recv[1]])
         if @bud_instance.send(@iterhash[recv[1]]).class <= Bud::BudCollection
           schema = @bud_instance.send(@iterhash[recv[1]]).schema
