@@ -38,15 +38,15 @@ def process(mods)
 
   viz_name = "bud_doc/" + mods.join("_") + "_viz"
   write_index(inp, outp, priv, viz_name)
-  gv = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, viz_name, -1, 1, ".", true, d.meta_parser.depanalysis)
+  gv = GraphGen.new(tabinf, d.t_cycle, viz_name, -1, nil, true, false)
   gv.process(d.t_depends)
   gv.dump(d.t_rules)
-  gv.finish
+  gv.finish(da)
 
-  gv2 = GraphGen.new(d.t_stratum, tabinf, d.t_cycle, viz_name, -1, 1, ".", false, d.meta_parser.depanalysis)
+  gv2 = GraphGen.new(tabinf, d.t_cycle, viz_name, -1, nil, false)
   gv2.process(d.t_depends)
   gv2.dump(d.t_rules)
-  gv2.finish
+  gv2.finish(da)
 end
 
 def write_index(inp, outp, priv, viz_name)

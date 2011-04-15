@@ -30,7 +30,6 @@ class TestWC1 < Test::Unit::TestCase
     @u = 0
     program = WordCount1.new(/[Bb]loom/)
     assert_nothing_raised { @t = Time.now ; program.tick; @u = Time.now }
-    puts "wc1: #{(@u-@t).to_f}"
     assert_equal(23, program.wc[["yes"]].cnt)
   end
 end
@@ -70,7 +69,6 @@ class TestWC2 < Test::Unit::TestCase
     @u = 0
     program = WordCount2.new(/[Bb]loom/)
     assert_nothing_raised { @t = Time.now ; program.tick; @u = Time.now  }
-    puts "wc2: #{(@u-@t).to_f}"
     assert_equal(23, program.wc[["yes"]].cnt)
   end
 end

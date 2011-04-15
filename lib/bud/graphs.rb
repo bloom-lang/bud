@@ -2,7 +2,13 @@ require 'rubygems'
 require 'graphviz'
 
 class GraphGen #:nodoc: all
-  def initialize(mapping, tableinfo, cycle, name, budtime, vizlevel, pics_dir, collapse=false, depanalysis=nil, cardinalities={})
+
+  # PAA: 'mapping' already deprecated.
+  # 'vizlevel' deprecated
+  # 'depanalysis' deprecated (pushed to finish() method).
+  #def initialize(mapping, tableinfo, cycle, name, budtime, vizlevel, pics_dir=nil, collapse=false, depanalysis=nil, cardinalities={})
+  def initialize(tableinfo, cycle, name, budtime, pics_dir, collapse=false, cardinalities={})
+    #@graph = GraphViz.new(:G, :type => :digraph, :label => "", :ratio => 0.85 )
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
     @graph.node[:fontname] = "Times-Roman"
     @graph.node[:fontsize] = 18
@@ -11,17 +17,9 @@ class GraphGen #:nodoc: all
     @cards = cardinalities
     @name = name
     @collapse = collapse
-    @depanalysis = depanalysis
     @budtime = budtime
-    @vizlevel = vizlevel
     @pics_dir = pics_dir
     @internals = {'localtick' => 1, 'stdio' => 1}
-
-    # map: table -> stratum
-    @t2s = {}
-    mapping.each do |m|
-      @t2s[m[0]] = m[1].to_i
-    end
 
     # map: table -> type
     @tabinf = {}
@@ -31,7 +29,7 @@ class GraphGen #:nodoc: all
 
     @redcycle = {}
     cycle.each do |c|
-      puts "CYCLE: #{c.inspect}"
+      # assumption: !(c[2] and !c[3]), or stratification would have bombed out
       if c[2] and c[3]
         if !@redcycle[c[0]]
           @redcycle[c[0]] = []
@@ -45,21 +43,6 @@ class GraphGen #:nodoc: all
     @labels = {}
   end
   
-  def safe_t2s(tab)
-    if @t2s[tab]
-      @t2s[tab]
-    else  
-      words = tab.split(",")
-      maxs = 0
-      words.each do |w|
-        if @t2s[w] and @t2s[w] > maxs
-          maxs = @t2s[w]
-        end
-      end
-      return maxs
-    end
-  end
-
   def name_bag(predicate, bag)
     if bag[predicate]
       return bag
@@ -81,7 +64,6 @@ class GraphGen #:nodoc: all
     # consider doing this in bud
     # PAA
     if @redcycle[predicate] and @collapse
-      puts "collapse #{predicate}, redcycle #{@redcycle[predicate].inspect}"
       via = @redcycle[predicate]
       bag = name_bag(predicate, {})
       str = bag.keys.sort.join(", ")
@@ -97,7 +79,6 @@ class GraphGen #:nodoc: all
     # bottom if the predicate is not in a NEG/+ cycle.  otherwise,
     # its name is "CYC" + concat(sort(predicate names))
     depends.each do |d|
-      #puts "DEP: #{d.inspect}"
       head = d[1]
       body = d[3]
 
@@ -115,19 +96,16 @@ class GraphGen #:nodoc: all
   end
 
   def addonce(node, negcluster)
-    #puts "ADD NODE #{node}"
     if !@nodes[node]
       @nodes[node] = @graph.add_node(node)
       if @cards and @cards[node]
         @nodes[node].label = node +"\n (#{@cards[node].to_s})"
-        puts "IMAGE IS #{@cards[node]}"
-        #@nodes[node].image = @cards[node]
       end
  
-      if @vizlevel >= 3 
-        @nodes[node].URL = "javascript:openWin(\"#{node}\", #{@budtime})"
-      else
+      if @pics_dir.nil?
         @nodes[node].URL = "#{node}.html"
+      else
+        @nodes[node].URL = "javascript:openWin(\"#{node}\", #{@budtime})"
       end
     end
 
@@ -190,7 +168,7 @@ class GraphGen #:nodoc: all
     end
   end
 
-  def finish
+  def finish(depanalysis=nil)
     @labels.each_key do |k|
       @edges[k].label = @labels[k].keys.join(" ")
     end
@@ -214,23 +192,22 @@ class GraphGen #:nodoc: all
         addonce(k.to_s, false)
       end
       if v == "Bud::BudPeriodic"
-        puts "adding edge S -> #{@nodes[k.to_s]}"
         addedge("S", k.to_s, false, false, false)
       end
     end
 
-    unless @depanalysis.nil? 
-      @depanalysis.source.each {|s| addedge("S", s.pred, false, false, false)}
-      @depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false)}
+    unless depanalysis.nil? 
+      depanalysis.source.each {|s| addedge("S", s.pred, false, false, false)}
+      depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false)}
 
-      unless @depanalysis.underspecified.empty?
+      unless depanalysis.underspecified.empty?
         addonce("??", false)
         @nodes["??"].color = "red"
         @nodes["??"].shape = "diamond"
         @nodes["??"].penwidth = 2
       end
 
-      @depanalysis.underspecified.each do |u|
+      depanalysis.underspecified.each do |u|
         if u.input
           addedge(u.pred, "??", false, false, false)
         else
@@ -241,7 +218,6 @@ class GraphGen #:nodoc: all
 
     suffix = @collapse ? "collapsed" : "expanded"
     fn = "#{@name}_#{suffix}.svg"
-    puts "fn is #{fn}"
     staging = "#{fn}_staging"
     @graph.output(:svg => staging)
     fin = File.open(staging, "r")
@@ -255,10 +231,10 @@ class GraphGen #:nodoc: all
   end
 
   def output_base
-    if @vizlevel >= 3
-      @pics_dir
-    else
+    if @pics_dir.nil?
       "bud_doc"
+    else
+      @pics_dir
     end 
   end
 

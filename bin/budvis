@@ -56,7 +56,8 @@ class VizHelper
       ts2[k] = v
     end
 
-    sum = GraphGen.new(@t_strata, @t_tabinf, @t_cycle, "#{@dir}/summary", -1, 3, @dir, false, nil, ts2)
+    # this is all deprecated?
+    sum = GraphGen.new(@t_tabinf, @t_cycle, "#{@dir}/summary", -1, @dir, false, ts2)
     sum.process(@t_depends)
     sum.dump(@t_rules)
     sum.finish
@@ -70,7 +71,7 @@ class VizHelper
         end
       end
 
-      gv = GraphGen.new(@t_strata, @t_tabinf, @t_cycle, "#{@dir}/tm_#{time.bud_time}", time.bud_time, 3, @dir, false, nil, card_info)
+      gv = GraphGen.new(@t_tabinf, @t_cycle, "#{@dir}/tm_#{time.bud_time}", time.bud_time, @dir, false, card_info)
       gv.process(@t_depends)
       gv.dump(@t_rules)
       gv.finish
@@ -163,7 +164,7 @@ tabscm.each do |ts|
   schminf[tab][ts[2]] = ts[1]
 end
 
-gv = GraphGen.new(strata, tabinf, cycle, "OUTPUT", -1, 1, "plotter_out")
+gv = GraphGen.new(tabinf, cycle, "OUTPUT", -1, "plotter_out")
 gv.process(depends)
 gv.finish
 
