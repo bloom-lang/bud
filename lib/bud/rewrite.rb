@@ -33,10 +33,9 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       do_rule(exp)
     else
       if recv and recv.class == Sexp
-        # ignore accessors of iterator variables
-        unless recv.first == :lvar
-          @nm = true if op == :-@
-          @nm = true unless (@monotonic_whitelist[op] or @bud_instance.tables.has_key? op)
+        # ignore accessors of iterator variables, monotone ops and table names
+        unless recv.first == :lvar or @monotonic_whitelist[op] or @bud_instance.tables.has_key? op
+          @nm = true
         end
       end
       if @temp_ops[op]
@@ -53,22 +52,27 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     return rhs
   end
 
-  def record_rule(lhs, op, rhs)
-    rule_txt = "#{lhs} #{op} (#{rhs})"
+  def reset_instance_vars
+    @tables = {}
+    @nm = false
+    @temp_op = nil
+  end
+  
+  def record_rule(lhs, op, rhs_pos, rhs)
+    rule_txt_orig = "#{lhs} #{op} (#{rhs})"
+    rule_txt = "#{lhs} #{op} (#{rhs_pos})"
     if op == :<
       op = "<#{@temp_op}"
     else
       op = op.to_s
     end
 
-    @rules << [@rule_indx, lhs, op, rule_txt]
+    @rules << [@rule_indx, lhs, op, rule_txt, rule_txt_orig]
     @tables.each_pair do |t, non_monotonic|
       @depends << [@rule_indx, lhs, op, t, non_monotonic]
     end
 
-    @tables = {}
-    @nm = false
-    @temp_op = nil
+    reset_instance_vars
     @rule_indx += 1
   end
 
@@ -84,8 +88,18 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def do_rule(exp)
     lhs = process exp[0]
     op = exp[1]
-    rhs = collect_rhs(map2pro(exp[2]))
-    record_rule(lhs, op, rhs)
+    pro_rules = map2pro(exp[2])
+    if @bud_instance.options[:no_attr_rewrite]
+      rhs = collect_rhs(pro_rules)
+      rhs_pos = rhs
+    else
+      # need a deep copy of the rules so we can keep a version without AttrName Rewrite
+      pro_rules2 = Marshal.load(Marshal.dump(pro_rules))
+      rhs = collect_rhs(pro_rules)
+      reset_instance_vars
+      rhs_pos = collect_rhs(AttrNameRewriter.new(@bud_instance).process(pro_rules2))
+    end
+    record_rule(lhs, op, rhs_pos, rhs)
     drain(exp)
   end
 
@@ -102,6 +116,63 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def drain(exp)
     exp.shift until exp.empty?
     return ""
+  end
+end
+
+# Rewrite named-column refs to positional refs
+class AttrNameRewriter < SexpProcessor # :nodoc: all
+  def initialize(bud_instance)
+    @bud_instance = bud_instance
+    super()
+    self.require_empty = false
+    self.expected = Sexp
+  end
+  
+  def process_iter(exp)
+    @iterstack ||= []
+    collname = nil
+    if exp[1] and exp[1][0] == :call 
+      if exp[1][1].nil? # method is a tablename
+        collname = exp[1][2]
+      elsif exp[1][1][0] == :call and exp[1][1][1].nil? #method is an enumerable method
+        collname = exp[1][1][2]
+      end
+    end
+    unless collname.nil?
+      @iterstack << collname
+      (1..(exp.length-1)).each {|i| exp[i] = process(exp[i])}
+      @iterstack.pop
+    end
+    exp
+  end
+  
+  def process_lasgn(exp)
+    @iterhash ||= {}
+    raise Bud::CompileError, "block variable #{exp[1]} not allowed to be reused at lower scope" if @iterhash[exp[1]]
+    @iterhash[exp[1]] = @iterstack.last if @iterstack and not @iterstack.empty?
+    exp
+  end
+  
+  def process_call(exp)
+    call, recv, op, args = exp
+    
+    if recv and recv.class == Sexp and recv.first == :lvar and @iterhash[recv[1]]
+      if @bud_instance.respond_to?(@iterhash[recv[1]])
+        if @bud_instance.send(@iterhash[recv[1]]).class <= Bud::BudCollection
+          schema = @bud_instance.send(@iterhash[recv[1]]).schema
+          if op != :[] and @bud_instance.send(@iterhash[recv[1]]).respond_to?(op)
+            # if the op is an attribute name in the schema, col is its index
+            col = schema.index(op) unless schema.nil?
+            unless col.nil?
+              op = :[]
+              args = s(:arglist, s(:lit, col))
+            end
+          end
+        end
+        return s(call, recv, op, args)
+      end
+    end
+    return s(call, process(recv), op, process(args))
   end
 end
 

@@ -31,7 +31,6 @@ class TestWC1 < Test::Unit::TestCase
     program = WordCount1.new(/[Bb]loom/)
     assert_nothing_raised { @t = Time.now ; program.tick; @u = Time.now }
     puts "wc1: #{(@u-@t).to_f}"
-    require 'ruby-debug'; debugger
     assert_equal(23, program.wc[["yes"]].cnt)
   end
 end

@@ -17,6 +17,7 @@ class BudMeta #:nodoc: all
     stratum_map = binaryrel2map(@bud_instance.t_stratum)
 
     rewritten_strata = Array.new(top_stratum + 2) { [] }
+    no_attr_rewrite_strata = Array.new(top_stratum + 2) { [] }
     @bud_instance.t_rules.each do |d|
       if d.op.to_s == '<='
         # deductive rules are assigned to strata based on
@@ -24,9 +25,11 @@ class BudMeta #:nodoc: all
         belongs_in = stratum_map[d.lhs]
         belongs_in ||= 0
         rewritten_strata[belongs_in] << d.src
+        no_attr_rewrite_strata[belongs_in] << d.orig_src
       else
         # all temporal rules are placed in the last stratum
         rewritten_strata[top_stratum + 1] << d.src
+        no_attr_rewrite_strata[top_stratum + 1] << d.orig_src
       end
     end
 
@@ -41,7 +44,7 @@ class BudMeta #:nodoc: all
     end
     dump_rewrite(rewritten_strata) if @bud_instance.options[:dump_rewrite]
 
-    return rewritten_strata
+    return rewritten_strata, no_attr_rewrite_strata
   end
 
   def binaryrel2map(rel)

@@ -209,6 +209,7 @@ module Bud
     # array, so we need to convert it before loading the rewritten strata.
     @strata = []
     @rule_src = []
+    @rule_orig_src = []
     declaration
     @strata.each_with_index do |s,i|
       raise BudError if s.class <= Array
@@ -220,9 +221,11 @@ module Bud
     @rewritten_strata.each_with_index do |src_ary,i|
       @strata[i] ||= []
       @rule_src[i] ||= []
-      src_ary.each do |src|
+      @rule_orig_src[i] ||= []
+      src_ary.each_with_index do |src, j|
         @strata[i] << eval("lambda { #{src} }")
         @rule_src[i] << src
+        @rule_orig_src[i] << @no_attr_rewrite_strata[i][j]
       end
     end
   end
@@ -314,7 +317,7 @@ module Bud
 
   def do_rewrite
     @meta_parser = BudMeta.new(self, @declarations)
-    @rewritten_strata = @meta_parser.meta_rewrite
+    @rewritten_strata, @no_attr_rewrite_strata = @meta_parser.meta_rewrite
   end
 
   public
@@ -662,7 +665,7 @@ module Bud
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
 
     # for BUD reflection
-    table :t_rules, [:rule_id] => [:lhs, :op, :src]
+    table :t_rules, [:rule_id] => [:lhs, :op, :src, :orig_src]
     table :t_depends, [:rule_id, :lhs, :op, :body] => [:nm]
     table :t_depends_tc, [:head, :body, :via, :neg, :temporal]
     table :t_provides, [:interface] => [:input]
@@ -730,7 +733,7 @@ module Bud
           r.call
         rescue Exception => e
           # Don't report source text for certain rules (old-style rule blocks)
-          rule_src = @rule_src[strat_num][i]
+          rule_src = @rule_orig_src[strat_num][i] unless @rule_orig_src[strat_num].nil?
           src_msg = ""
           unless rule_src == ""
             src_msg = "\nRule: #{rule_src}"
