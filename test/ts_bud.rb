@@ -1,6 +1,7 @@
 require 'test_common'
 
 require 'tc_aggs'
+require 'tc_attr_rewrite'
 require 'tc_bust'
 require 'tc_callback'
 require 'tc_channel'
