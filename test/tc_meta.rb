@@ -1,4 +1,8 @@
 require 'test_common'
+require 'bud/graphs.rb'
+require 'bud/html.rb'
+
+include HTMLGen
 
 class LocalShortestPaths
   include Bud
@@ -63,11 +67,11 @@ end
 class KTest2 < KTest
   state do
     # make sure :node isn't reserved
-    scratch :node
+    scratch :noder
   end
   bloom :update do
     mystate <= upd
-    node <= upd
+    noder <= upd
     mystate <- (upd * mystate).rights
   end
 end
@@ -141,8 +145,14 @@ class TestMeta < Test::Unit::TestCase
     assert_raise(Bud::CompileError) { KTest3.new }
   end
 
-  def test_visualization
+  def test_visualization2
     program = KTest2.new(:trace => true, :dump_rewrite => true)
+    File.delete("KTest2_rewritten.txt")
+    `rm -r DBM_KTest2*`
+  end
+
+  def test_plotting
+    program = KTest2.new(:output => :dot)
     dep = DepAnalysis.new
 
     program.run_bg
@@ -153,9 +163,24 @@ class TestMeta < Test::Unit::TestCase
     program.t_depends_tc.each {|d| dep.depends_tc << d}
     program.t_provides.each {|p| dep.providing << p}
     dep.tick
+    dir = '/tmp/' + Time.new.to_f.to_s
+    Dir.mkdir(dir)
+    graph_from_instance(program, "test_graphing", dir, :dot)
+    fp = File.open("#{dir}/test_graphing.svg", "r")
+    content = ''
+    while (s = fp.gets)
+      content += s
+    end
+    fp.close
+  
+    assert_match("mystate -> mystate [label=\" +/-\", arrowsize=2, penwidth=5, URL=\"5.html\", minlen=\"1.5\", arrowhead=veeodot" , content)
+    assert_match("upd -> mystate [label=\" +/-\", arrowsize=2, penwidth=5, URL=\"5.html\", minlen=\"1.5\", arrowhead=veeodot", content)
+    assert_match("S -> upd", content)
+    assert_match("S -> req", content)
+    `rm -r #{dir}`
+    
+ 
 
-    File.delete("KTest2_rewritten.txt")
-    `rm -r DBM_KTest2*`
   end
 
   def test_underspecified
