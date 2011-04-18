@@ -56,7 +56,7 @@ class VizHelper
       end
 
       d = "#{@dir}/tm_#{time.bud_time}"
-      write_graphs(@t_tabinf, @t_cycle, @t_depends, @t_rules, d, @dir, nil, false, time.bud_time, card_info)
+      write_graphs(@t_tabinf, @t_cycle, @t_depends, @t_rules, d, @dir, nil, false, nil, time.bud_time, card_info)
     end
   end
 
