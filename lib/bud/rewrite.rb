@@ -108,7 +108,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   # Look for top-level map on a base-table on rhs, and rewrite to pro
   def map2pro(exp)
     if exp[1] and exp[1][0] and exp[1][0] == :iter \
-       and exp[1][1] and exp[1][1][1] == :call \
+       and exp[1][1] and exp[1][1][1] and exp[1][1][1][0] == :call \
        and exp[1][1][2] == :map
       exp[1][1][2] = :pro
     end
