@@ -2,27 +2,26 @@ require 'rubygems'
 require 'bud/graphs'
 
 module HTMLGen #:nodoc: all
-  def graph_from_instance(bud_instance, viz_name, output_base, fmt=nil)
+  def graph_from_instance(bud_instance, viz_name, output_base, collapse=true, fmt=nil)
     tabinf = {}
     bud_instance.tables.each do |t|
       tab = t[0].to_s
       tabinf[tab] = t[1].class.to_s
     end
-    write_graphs(tabinf, bud_instance.t_cycle, bud_instance.t_depends, bud_instance.t_rules, viz_name, output_base, fmt, bud_instance.meta_parser.depanalysis)
+    write_graphs(tabinf, bud_instance.t_cycle, bud_instance.t_depends, bud_instance.t_rules, viz_name, output_base, fmt, collapse, bud_instance.meta_parser.depanalysis)
   end
 
-  def write_graphs(tabinf, cycle, depends, rules, viz_name, output_base, fmt, depanalysis=nil, budtime=-1, card_info=nil)
+  def write_graphs(tabinf, cycle, depends, rules, viz_name, output_base, fmt, collapse, depanalysis=nil, budtime=-1, card_info=nil)
     staging = "#{viz_name}.staging"
-    gv = GraphGen.new(tabinf, cycle, staging, budtime, true, card_info)
+    gv = GraphGen.new(tabinf, cycle, staging, budtime, collapse, card_info)
     gv.process(depends)
     dump(rules, output_base, gv)
     gv.finish(depanalysis, fmt)
-    inject_js(staging, "#{output_base}/#{viz_name}.svg")
+    inject_js(staging, "#{viz_name}.svg")
     File.delete(staging)
   end
 
   def inject_js(input, fname)
-    #suffix = @collapse ? "collapsed" : "expanded"
     fin = File.open(input, "r")
     fout = File.open(fname, "w")
     while line = fin.gets
@@ -30,7 +29,6 @@ module HTMLGen #:nodoc: all
     end
     fin.close
     fout.close
-    #File.delete(staging) 
   end
 
   def dump(shredded_rules, output_base, gv_obj)
@@ -39,7 +37,6 @@ module HTMLGen #:nodoc: all
     fout = File.new("#{output_base}/style.css", "w")
     fout.puts css
     fout.close
-
     code = {}
     rules = {}
     convertor = Syntax::Convertors::HTML.for_syntax "ruby"

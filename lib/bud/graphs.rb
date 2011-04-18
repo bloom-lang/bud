@@ -83,24 +83,24 @@ class GraphGen #:nodoc: all
 
       head = name_of(head)
       body = name_of(body)
-      addonce(head, (head != d[1]))
+      addonce(head, (head != d[1]), true)
       addonce(body, (body != d[3]))
       addedge(body, head, d[2], d[4], (head != d[1]), d[0])
     end
   end
 
-  def addonce(node, negcluster)
+  def addonce(node, negcluster, inhead=false)
     if !@nodes[node]
       @nodes[node] = @graph.add_node(node)
       if @cards and @cards[node]
         @nodes[node].label = node +"\n (#{@cards[node].to_s})"
       end
- 
-      if @budtime == -1
-        @nodes[node].URL = "#{node}.html"
-      else
-        @nodes[node].URL = "javascript:openWin(\"#{node}\", #{@budtime})"
-      end
+    end 
+
+    if @budtime == -1
+      @nodes[node].URL = "#{node}.html" if inhead
+    else
+      @nodes[node].URL = "javascript:openWin(\"#{node}\", #{@budtime})"
     end
 
     if negcluster

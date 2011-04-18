@@ -39,8 +39,8 @@ def process(mods)
 
   viz_name = "bud_doc/" + mods.join("_") + "_viz"
   write_index(inp, outp, priv, viz_name)
-  graph_from_instance(d, "#{viz_name}_expanded", "bud_doc")
-  graph_from_instance(d, "#{viz_name}_expanded", "bud_doc")
+  graph_from_instance(d, "#{viz_name}_collapsed", "bud_doc", true)
+  graph_from_instance(d, "#{viz_name}_expanded", "bud_doc", false)
 end
 
 def write_index(inp, outp, priv, viz_name)

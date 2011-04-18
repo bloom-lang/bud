@@ -165,7 +165,7 @@ class TestMeta < Test::Unit::TestCase
     dep.tick
     dir = '/tmp/' + Time.new.to_f.to_s
     Dir.mkdir(dir)
-    graph_from_instance(program, "test_graphing", dir, :dot)
+    graph_from_instance(program, "#{dir}/test_graphing", dir, false, :dot)
     fp = File.open("#{dir}/test_graphing.svg", "r")
     content = ''
     while (s = fp.gets)
@@ -178,9 +178,7 @@ class TestMeta < Test::Unit::TestCase
     assert_match("S -> upd", content)
     assert_match("S -> req", content)
     `rm -r #{dir}`
-    
- 
-
+    program.stop_bg
   end
 
   def test_underspecified
