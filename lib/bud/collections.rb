@@ -154,19 +154,15 @@ module Bud
     public
     def pro(&blk)
       if @bud_instance.stratum_first_iter
-        return map(&blk) 
+        return map(&blk)
       else
-        if @delta.empty?
-          return []
-        else
-          retval = []
-          each_from([@delta]) do |t|
-            newitem = blk.call(t)
-            retval << newitem unless newitem.nil?
-          end
-          return retval
+        retval = []
+        each_from([@delta]) do |t|
+          newitem = blk.call(t)
+          retval << newitem unless newitem.nil?
         end
-      end    
+        return retval
+      end
     end
 
     # By default, all tuples in any rhs are in storage or delta. Tuples in
