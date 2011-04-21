@@ -87,7 +87,7 @@ class PriorityQ
     q <- out
 
     # third stratum
-    out2 <= (q * minny).matches {|q, m| q}
+    out2 <= (q * minny).matches.lefts
   end
 end
 
@@ -137,7 +137,7 @@ class JoinAgg < RenameGroup
 
   bloom do
     richsal <= emp.group([], max(:sal))
-    rich <= (richsal * emp).matches {|r,e| e}
+    rich <= (richsal * emp).matches.rights
     argrich <= emp.argmax([], emp.sal)
   end
 end
