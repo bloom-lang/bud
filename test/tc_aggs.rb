@@ -87,7 +87,7 @@ class PriorityQ
     q <- out
 
     # third stratum
-    out2 <= (q * minny).matches {|q, m| q}
+    out2 <= (q * minny).matches.lefts
   end
 end
 
