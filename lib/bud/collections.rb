@@ -603,7 +603,10 @@ module Bud
     # and project only onto the attributes of the first collection
     public
     def lefts(*preds)
-      @localpreds = disambiguate_preds(preds)
+      unless preds.empty?
+        @localpreds ||= []
+        @localpreds += disambiguate_preds(preds)
+      end
       map{ |l,r| l }
     end
 
@@ -612,7 +615,10 @@ module Bud
     # and project only onto the attributes of the second item
     public
     def rights(*preds)
-      @localpreds = disambiguate_preds(preds)
+      unless preds.empty?
+        @localpreds ||= []
+        @localpreds += disambiguate_preds(preds)
+      end
       map{ |l,r| r }
     end
 
