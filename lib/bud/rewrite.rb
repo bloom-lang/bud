@@ -108,9 +108,10 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   # Look for top-level map on a base-table on rhs, and rewrite to pro
   def map2pro(exp)
     if exp[1] and exp[1][0] and exp[1][0] == :iter \
-       and exp[1][1] and exp[1][1][1] == :call \
-       and exp[1][1][2] == :map
-      exp[1][1][2] = :pro
+      and exp[1][1] and exp[1][1][1] and exp[1][1][1][0] == :call
+      if exp[1][1][2] == :map
+        exp[1][1][2] = :pro
+      end
     end
     exp
   end
@@ -130,23 +131,36 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
     self.expected = Sexp
   end
   
+  # some icky special-case parsing to find mapping between collection names and iter vars
   def process_iter(exp)
     @iterstack ||= []
     @iterhash ||= {}
-    collname = nil
+    @collnames = []
     if exp[1] and exp[1][0] == :call 
-      if exp[1][1].nil? # method is a tablename
-        collname = exp[1][2]
-      elsif exp[1][1][0] == :call and exp[1][1][1].nil? #method is an enumerable method
-        collname = exp[1][1][2]
-      end
-      if exp[2] and exp[2][0] == :lasgn and not collname.nil?
+      gather_collection_names(exp[1])
+      
+      # now find iter vars and match up
+      if exp[2] and exp[2][0] == :lasgn and not @collnames.empty? #single-table iter
         raise Bud::CompileError, "variable #{exp[1]} not allowed to be assigned twice" if @iterhash[exp[2][1]]
-        @iterhash[exp[2][1]] = collname
-      end
+        @iterhash[exp[2][1]] = @collnames[0]
+      elsif exp[2] and exp[2][0] == :masgn and not @collnames.empty? # join iter
+        next unless exp[2][1] and exp[2][1][0] == :array
+        @collnames.each_with_index do |c, i|          
+          next unless exp[2][1][i+1] and exp[2][1][i+1][0] == :lasgn
+          @iterhash[exp[2][1][i+1][1]] = c
+        end
+      end        
     end
     (1..(exp.length-1)).each {|i| exp[i] = process(exp[i])}
     exp
+  end
+  
+  def gather_collection_names(exp)
+    if exp[0] == :call and exp[1].nil?
+      @collnames << exp[2]
+    else 
+      exp.each { |e| gather_collection_names(e) if e and e.class <= Sexp }
+    end
   end
 
   def process_call(exp)

@@ -154,21 +154,17 @@ module Bud
     public
     def pro(&blk)
       if @bud_instance.stratum_first_iter
-        return map(&blk) 
+        return map(&blk)
       else
-        if @delta.empty?
-          return []
-        else
-          retval = []
-          each_from([@delta]) do |t|
-            newitem = blk.call(t)
-            retval << newitem unless newitem.nil?
-          end
-          return retval
+        retval = []
+        each_from([@delta]) do |t|
+          newitem = blk.call(t)
+          retval << newitem unless newitem.nil?
         end
-      end    
+        return retval
+      end
     end
-
+  
     # By default, all tuples in any rhs are in storage or delta. Tuples in
     # new_delta will get transitioned to delta in the next iteration of the
     # evaluator (but within the current time tick).
@@ -607,7 +603,10 @@ module Bud
     # and project only onto the attributes of the first collection
     public
     def lefts(*preds)
-      @localpreds = disambiguate_preds(preds)
+      unless preds.empty?
+        @localpreds ||= []
+        @localpreds += disambiguate_preds(preds)
+      end
       map{ |l,r| l }
     end
 
@@ -616,7 +615,10 @@ module Bud
     # and project only onto the attributes of the second item
     public
     def rights(*preds)
-      @localpreds = disambiguate_preds(preds)
+      unless preds.empty?
+        @localpreds ||= []
+        @localpreds += disambiguate_preds(preds)
+      end
       map{ |l,r| r }
     end
 
@@ -934,6 +936,15 @@ module Bud
       # NEEDS A TRY/RESCUE BLOCK
       @fd = File.open(@filename, "r")
       @linenum = 0
+    end
+
+    public
+    def pro(&blk)
+      if @bud_instance.stratum_first_iter
+        return map(&blk)
+      else
+        return []
+      end
     end
 
     public

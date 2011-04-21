@@ -729,6 +729,7 @@ module Bud
     @stratum_first_iter = true
     begin
       strat.each_with_index do |r,i|
+        fixpoint = false
         begin
           r.call
         rescue Exception => e
@@ -744,14 +745,18 @@ module Bud
             new_e = BudError
           end
           raise new_e, "Exception during Bud evaluation.\nException: #{e.inspect}.#{src_msg}"
-        end
+        end        
       end
       @stratum_first_iter = false
-      # XXX this next line is inefficient.
-      # we could call tick_deltas only on predicates in this stratum.
-      # but it's not easy right now (??) to pull out tables in a given stratum
-      @tables.each{|name,coll| coll.tick_deltas}
-    end while not @tables.all?{|name,coll| coll.new_delta.empty? and coll.delta.empty?}
+      fixpoint = true
+      # should really run the following only on tables in this stratum
+      @tables.each do |name,coll| 
+        unless coll.delta.empty? and coll.new_delta.empty?
+          coll.tick_deltas
+          fixpoint = false
+        end
+      end      
+    end while not fixpoint
   end
 
   private

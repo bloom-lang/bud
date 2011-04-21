@@ -426,4 +426,33 @@ class TestJoins < Test::Unit::TestCase
     assert_equal([[1, 1, 1], [2, 1, 1], [3, 2, 2], [3, 3, 2]], p.out1.to_a.sort)
     assert_equal([[1, 1], [2, 1], [3, 2]], p.out2.to_a.sort)
   end
+  
+  class CascadedMatchJoins
+    include Bud
+    state do
+      table :t1
+      table :t2, [:key] => [:sal]
+      table :t3, [:key] => [:cal]
+    end
+    bootstrap do
+      t1 <= [[1,2]]
+      t2 <= [[1,3]]
+      t3 <= [[1,4]]
+    end
+    bloom do
+      temp :outleft <= (t1 * t2).matches.lefts
+      temp :outright <= (t1 * t2).matches.rights
+      temp :outlpairs <= (t1 * t2).pairs(:key => :key).lefts
+      temp :outrpairs <= (t1 * t2).pairs(:key => :key).rights
+    end
+  end
+  
+  def test_cascaded_match_joins
+    p = CascadedMatchJoins.new
+    p.tick; p.tick
+    assert_equal([[1,2]], p.outleft.to_a)
+    assert_equal([[1,3]], p.outright.to_a)
+    assert_equal(p.outleft.to_a, p.outlpairs.to_a)
+    assert_equal(p.outright.to_a, p.outrpairs.to_a)
+  end
 end
