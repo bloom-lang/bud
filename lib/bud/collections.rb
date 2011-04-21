@@ -164,7 +164,7 @@ module Bud
         return retval
       end
     end
-
+  
     # By default, all tuples in any rhs are in storage or delta. Tuples in
     # new_delta will get transitioned to delta in the next iteration of the
     # evaluator (but within the current time tick).
@@ -930,6 +930,15 @@ module Bud
       # NEEDS A TRY/RESCUE BLOCK
       @fd = File.open(@filename, "r")
       @linenum = 0
+    end
+
+    public
+    def pro(&blk)
+      if @bud_instance.stratum_first_iter
+        return map(&blk)
+      else
+        return []
+      end
     end
 
     public
