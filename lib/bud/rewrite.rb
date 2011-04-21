@@ -111,8 +111,6 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       and exp[1][1] and exp[1][1][1] and exp[1][1][1][0] == :call
       if exp[1][1][2] == :map
         exp[1][1][2] = :pro
-      elsif exp[1][1][2] == :flat_map
-        exp[1][1][2] = :flat_pro
       end
     end
     exp
