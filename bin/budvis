@@ -3,6 +3,9 @@ require 'rubygems'
 require 'dbm'
 require 'bud'
 require 'bud/graphs'
+require 'bud/html'
+
+include HTMLGen
 
 BUD_DBM_DIR = "#{ARGV[0]}/bud_"
 
@@ -15,8 +18,7 @@ class VizHelper
     scratch :times, [:bud_time]
   end
 
-  def initialize(strata, tabinf, cycle, depends, rules, dir)
-    @t_strata = strata
+  def initialize(tabinf, cycle, depends, rules, dir)
     @t_tabinf = tabinf
     @t_cycle = cycle
     @t_depends = depends
@@ -32,14 +34,10 @@ class VizHelper
 
   def summarize(dir, schema)
     table_io = {}
-    timeseries = {}
     cardinalities.sort{|a, b| a[0] <=> b[0]}.each do |card|
       table_io["#{card.table}_#{card.bud_time}"] = start_table(dir, card.table, card.bud_time, schema[card.table])
-      unless timeseries[card.table]
-        timeseries[card.table] = []
-      end
-      timeseries[card.table] << card.cnt
     end
+
     full_info.each do |info|
       write_table_content(table_io["#{info.table}_#{info.bud_time}"], info.row)
     end
@@ -47,20 +45,6 @@ class VizHelper
     table_io.each_value do |tab|
       end_table(tab)
     end
-
-    ts2 = {}
-    timeseries.each_pair do |k, v|
-      fn = v
-      puts "GOT #{fn}"
-      #ts2[k] = "#{ENV['PWD']}/#{fn}"
-      ts2[k] = v
-    end
-
-    # this is all deprecated?
-    sum = GraphGen.new(@t_tabinf, @t_cycle, "#{@dir}/summary", -1, @dir, false, ts2)
-    sum.process(@t_depends)
-    sum.dump(@t_rules)
-    sum.finish
 
     # fix: nested loops
     times.sort.each do |time|
@@ -71,19 +55,15 @@ class VizHelper
         end
       end
 
-      gv = GraphGen.new(@t_tabinf, @t_cycle, "#{@dir}/tm_#{time.bud_time}", time.bud_time, @dir, false, card_info)
-      gv.process(@t_depends)
-      gv.dump(@t_rules)
-      gv.finish
+      d = "#{@dir}/tm_#{time.bud_time}"
+      write_graphs(@t_tabinf, @t_cycle, @t_depends, @t_rules, d, @dir, nil, false, nil, time.bud_time, card_info)
     end
   end
 
   def start_table(dir, tab, time, schema)
     str = "#{dir}/#{tab}_#{time}.html"
-    #fout = File.new("#{dir}/#{tab}_#{time}.html", "w")
     fout = File.new(str, "w")
 
-    #fout.puts "<h1>#{tab} #{time_node_header()}</h1>"
     fout.puts "<html><title>#{tab} @ #{time}</title>"
     fout.puts "<table border=1>"
     fout.puts "<tr>" + schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>"
@@ -117,7 +97,6 @@ def deserialize_table(tab, strict)
     MessagePack.unpack(v).each {|val| tup << val}
     ret << tup
   end
-  tab.close
   return ret
 end
 
@@ -125,11 +104,11 @@ def usage
   puts "Usage:"
   puts "Running a Bud program with option :trace => true will cause a DBM directory DVM_dir to be created (Class_ObjectId_Port)"
   puts "> budvis DBM_dir"
-  puts "This will create a series of svg files in DBM_dir, the root of which will be named tm_0_expanded.svg.  Open in a browser.\n"
+  puts "This will create a series of svg files in DBM_dir, the root of which will be named tm_0.svg.  Open in a browser.\n"
   puts "e.g."
   puts "> ruby test/tc_carts.rb"
   puts "> budvis BCS_2159661360_"
-  puts "> open -a /Applications/Google\ Chrome.app/ BCS_2159661360_/tm_0_expanded.svg"
+  puts "> open -a /Applications/Google\ Chrome.app/ BCS_2159661360_/tm_0.svg"
   exit
 end
 
@@ -139,24 +118,23 @@ usage unless ARGV[0]
 
 Dir.new(BUD_DBM_DIR).entries.each do |file|
   next if file =~ /^\./
-  puts "FILE is #{file}"
-  ret = DBM.open("#{BUD_DBM_DIR}/#{file}", DBM::O_RDONLY)
+  fn = "#{BUD_DBM_DIR}/#{file}"
+  trnc = fn.gsub(/\.db\z/, "")
+  ret = DBM.open(trnc)
   raise "db not found" unless ret
   @tables[file] = ret
 end
 
 # let's try to do a visualization
-strata = deserialize_table(@tables['t_stratum_vizlog.tch'], true)
-tabinf = deserialize_table(@tables['t_table_info_vizlog.tch'], true)
-tabscm = deserialize_table(@tables['t_table_schema_vizlog.tch'], true)
-cycle = deserialize_table(@tables['t_cycle_vizlog.tch'], true)
-depends = deserialize_table(@tables['t_depends_vizlog.tch'], true)
-rules = deserialize_table(@tables['t_rules_vizlog.tch'], true)
+tabinf = deserialize_table(@tables['t_table_info_vizlog.dbm.db'], true)
+tabscm = deserialize_table(@tables['t_table_schema_vizlog.dbm.db'], true)
+cycle = deserialize_table(@tables['t_cycle_vizlog.dbm.db'], true)
+depends = deserialize_table(@tables['t_depends_vizlog.dbm.db'], true)
+rules = deserialize_table(@tables['t_rules_vizlog.dbm.db'], true)
 
 
 schminf = {}
 tabscm.each do |ts|
-  puts "TABSCM: #{ts.inspect}"
   tab = ts[0].to_s
   unless schminf[tab]
     schminf[tab] = []
@@ -164,25 +142,21 @@ tabscm.each do |ts|
   schminf[tab][ts[2]] = ts[1]
 end
 
-gv = GraphGen.new(tabinf, cycle, "OUTPUT", -1, "plotter_out")
-gv.process(depends)
-gv.finish
-
-vh = VizHelper.new(strata, tabinf, cycle, depends, rules, ARGV[0])
-
+vh = VizHelper.new(tabinf, cycle, depends, rules, ARGV[0])
 @tables.each_pair do |name, contents|
-  name = name.gsub("_vizlog.tch", "")
+  name = name.gsub("_vizlog.dbm.db", "")
   contents.each_pair do |k, v|
     key = MessagePack.unpack(k)
     time = key[0]
     row = key
     MessagePack.unpack(v).each {|val| row << val}
-    if name == "t_table_info.tch" or name == "t_table_schema.tch"
+    if name == "t_table_info.dbm.db" or name == "t_table_schema.dbm.db"
       #vh.full_info << [0, name, row]
     else
       vh.full_info << [time, name, row]
     end
   end
+  contents.close
 end
 
 vh.tick
