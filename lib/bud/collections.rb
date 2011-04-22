@@ -590,7 +590,7 @@ module Bud
 
     alias combos pairs
 
-    # the natural join: given a * expression over 2 collections, form all
+    # the natural join: given a * expression over n collections, form all
     # combinations of items that have the same values in matching fields
     public
     def matches(&blk)
