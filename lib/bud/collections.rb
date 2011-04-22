@@ -591,16 +591,16 @@ module Bud
     alias combos pairs
 
     # the natural join: given a * expression over 2 collections, form all
-    # combinations of items that have the same values in matching fiels
+    # combinations of items that have the same values in matching fields
     public
     def matches(&blk)
       preds = BudJoin::natural_preds(@bud_instance, @origrels)
       pairs(*preds, &blk)
     end
 
-    # given a * expression over 2 collections, form all
-    # combinations of items that satisfy the predicates +preds+,
-    # and project only onto the attributes of the first collection
+    # given a * expression over 2 collections, form all combinations of items
+    # that satisfy the predicates +preds+, and project only onto the attributes
+    # of the first collection
     public
     def lefts(*preds)
       unless preds.empty?
@@ -610,9 +610,9 @@ module Bud
       map{ |l,r| l }
     end
 
-    # given a * expression over 2 collections, form all
-    # combinations of items that satisfy the predicates +preds+,
-    # and project only onto the attributes of the second item
+    # given a * expression over 2 collections, form all combinations of items
+    # that satisfy the predicates +preds+, and project only onto the attributes
+    # of the second item
     public
     def rights(*preds)
       unless preds.empty?
@@ -622,10 +622,9 @@ module Bud
       map{ |l,r| r }
     end
 
-    # given a * expression over 2 collections, form all
-    # combos of items that satisfy +preds+, and for any
-    # item from the 1st collection that has no matches
-    # in the 2nd, nil-pad it and include it in the output.
+    # given a * expression over 2 collections, form all combos of items that
+    # satisfy +preds+, and for any item from the 1st collection that has no
+    # matches in the 2nd, nil-pad it and include it in the output.
     public
     def outer(*preds)
       @origpreds = preds
@@ -674,9 +673,9 @@ module Bud
       end
     end
 
-    # find element in @origrels that contains this aname method
-    # if 2nd arg is non-nil, only check that collection.
-    # after found, return the result of invoking aname from chosen collection
+    # find element in @origrels that contains this +aname+ method
+    # if +rel+ is non-nil, only check that collection.
+    # after found, return the result of invoking +aname+ from chosen collection
     protected
     def find_attr_match(aname, rel=nil) # :nodoc: all
       dorels = (rel.nil? ? @origrels : [rel])
