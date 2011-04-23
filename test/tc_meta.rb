@@ -187,7 +187,7 @@ class TestMeta < Test::Unit::TestCase
     end
     fp.close
   
-    assert_match("upd -> \"interm, mystate\" [label=\" +/-\", arrowsize=2, penwidth=5, URL=\"6.html\", minlen=\"1.5\", arrowhead=veeodot", content)
+    assert_match(/upd -> \"interm, mystate\" \[label=\" \+\/\-\",.+?arrowhead=veeodot/, content)
     assert_match("S -> upd", content)
     assert_match("S -> req", content)
     assert_match("sinkhole -> \"??\"", content)
