@@ -113,6 +113,7 @@ def usage
 end
 
 usage unless ARGV[0]
+usage if ARGV[0] == '--help'
 
 @tables = {}
 
