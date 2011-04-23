@@ -15,12 +15,6 @@ module Bust
   # used this for inspiration:
   # http://blogs.msdn.com/b/abhinaba/archive/2005/10/14/474841.aspx
 
-  # allow state to be queried easily
-  state do
-    table :t_table_info, [:tab_name, :tab_type]
-    table :t_table_schema, [:tab_name, :scheme]
-  end
-
   bootstrap do
     # copied from peter's code; this should probably be in the Bud runtime or in
     # some meta module

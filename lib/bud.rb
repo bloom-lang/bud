@@ -672,6 +672,9 @@ module Bud
     table :t_underspecified, t_provides.schema
     table :t_stratum, [:predicate] => [:stratum]
     table :t_cycle, [:predicate, :via, :neg, :temporal]
+    table :t_table_info, [:tab_name, :tab_type]
+    table :t_table_schema, [:tab_name, :col_name, :ord, :loc]
+
   end
 
   # Handle any inbound tuples off the wire and then clear. Received messages are
