@@ -107,8 +107,10 @@ def usage
   puts "This will create a series of svg files in DBM_dir, the root of which will be named tm_0.svg.  Open in a browser.\n"
   puts "e.g."
   puts "> ruby test/tc_carts.rb"
-  puts "> budvis BCS_2159661360_"
-  puts "> open -a /Applications/Google\ Chrome.app/ BCS_2159661360_/tm_0.svg"
+  puts "> budvis DBM_BCS_2159661360_"
+  puts "> open DBM_BCS_2159661360_/tm_0.svg"
+  puts "\nWith the SVG file open in a browser, you may navigate forward and backward in time"
+  puts "by clicking the T and S nodes, respectively."
   exit
 end
 
