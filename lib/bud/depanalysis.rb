@@ -6,7 +6,7 @@ class DepAnalysis #:nodoc: all
 
   state do
     table :providing, [:pred, :input]
-    scratch :depends_tc, [:head, :body, :via, :neg, :temporal]
+    table :depends_tc, [:head, :body, :via, :neg, :temporal]
     table :underspecified, [:pred, :input]
     
 

@@ -48,6 +48,7 @@ class KTest
   include Bud
 
   state do
+    interface input, :sinkhole
     interface input, :upd, [:datacol]
     interface input, :req, [:ident]
     interface output, :resp, [:ident, :datacol]
@@ -160,8 +161,7 @@ class TestMeta < Test::Unit::TestCase
 
     program.run_bg
     program.sync_do{}
-    program.sync_do{}
-    program.sync_do{}
+    
     write_graphs({}, program.t_cycle, program.t_depends, program.t_rules, "#{dir}/test_viz", dir, :dot, false, nil, 1, {})
     program.stop_bg
   end
@@ -190,6 +190,9 @@ class TestMeta < Test::Unit::TestCase
     assert_match("upd -> \"interm, mystate\" [label=\" +/-\", arrowsize=2, penwidth=5, URL=\"6.html\", minlen=\"1.5\", arrowhead=veeodot", content)
     assert_match("S -> upd", content)
     assert_match("S -> req", content)
+    assert_match("sinkhole -> \"??\"", content)
+    assert_no_match(/upd -> \"\?\?\"/, content)
+    assert_no_match(/req -> \"\?\?\"/, content)
     `rm -r #{dir}`
     program.stop_bg
   end
