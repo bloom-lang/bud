@@ -72,7 +72,8 @@ class KTest2 < KTest
   bloom :update do
     mystate <= upd
     noder <= upd
-    mystate <- (upd * mystate).rights
+    temp :interm <= mystate
+    mystate <- (upd * interm).rights
   end
 end
 
@@ -145,10 +146,24 @@ class TestMeta < Test::Unit::TestCase
     assert_raise(Bud::CompileError) { KTest3.new }
   end
 
-  def test_visualization2
+  def scratch_dir
+    dir = '/tmp/' + Time.new.to_f.to_s
+    Dir.mkdir(dir)
+    return dir
+  end
+
+  def test_visualization
     program = KTest2.new(:trace => true, :dump_rewrite => true)
     File.delete("KTest2_rewritten.txt")
     `rm -r DBM_KTest2*`
+    dir = scratch_dir
+
+    program.run_bg
+    program.sync_do{}
+    program.sync_do{}
+    program.sync_do{}
+    write_graphs({}, program.t_cycle, program.t_depends, program.t_rules, "#{dir}/test_viz", dir, :dot, false, nil, 1, {})
+    program.stop_bg
   end
 
   def test_plotting
@@ -163,9 +178,8 @@ class TestMeta < Test::Unit::TestCase
     program.t_depends_tc.each {|d| dep.depends_tc << d}
     program.t_provides.each {|p| dep.providing << p}
     dep.tick
-    dir = '/tmp/' + Time.new.to_f.to_s
-    Dir.mkdir(dir)
-    graph_from_instance(program, "#{dir}/test_graphing", dir, false, :dot)
+    dir = scratch_dir
+    graph_from_instance(program, "#{dir}/test_graphing", dir, true, :dot)
     fp = File.open("#{dir}/test_graphing.svg", "r")
     content = ''
     while (s = fp.gets)
@@ -173,8 +187,7 @@ class TestMeta < Test::Unit::TestCase
     end
     fp.close
   
-    assert_match("mystate -> mystate [label=\" +/-\", arrowsize=2, penwidth=5, URL=\"5.html\", minlen=\"1.5\", arrowhead=veeodot" , content)
-    assert_match("upd -> mystate [label=\" +/-\", arrowsize=2, penwidth=5, URL=\"5.html\", minlen=\"1.5\", arrowhead=veeodot", content)
+    assert_match("upd -> \"interm, mystate\" [label=\" +/-\", arrowsize=2, penwidth=5, URL=\"6.html\", minlen=\"1.5\", arrowhead=veeodot", content)
     assert_match("S -> upd", content)
     assert_match("S -> req", content)
     `rm -r #{dir}`
