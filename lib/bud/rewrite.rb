@@ -381,12 +381,10 @@ class TempExpander < SexpProcessor # :nodoc: all
 end
 
 class DefnRenamer < SexpProcessor # :nodoc: all
-  def initialize(old_mod_name, new_mod_name, local_name)
+  def initialize(local_name)
     super()
     self.require_empty = false
     self.expected = Sexp
-    @old_mod_name = old_mod_name
-    @new_mod_name = new_mod_name
     @local_name = local_name
   end
 
@@ -415,13 +413,13 @@ module ModuleRewriter # :nodoc: all
   # "import_site", bound to "local_name" at the import site. We implement this
   # by converting the imported module into an AST and rewriting the AST like so:
   #
-  #   (a) the module name is mangled to include the local bind name and the
-  #       importer
-  #   (b) instance method names are mangled to include the local bind name
-  #   (c) state defined by the module is mangled to include the local bind name
-  #   (d) statements in the module are rewritten to reference the mangled names
-  #   (e) statements in the module that reference sub-modules are rewritten to
-  #       reference the mangled name of the submodule.
+  #   (a) statements in the module that reference sub-modules are rewritten to
+  #       reference the mangled name of the submodule
+  #   (b) the module name is mangled to include the local bind name and the
+  #       import site
+  #   (c) instance method names are mangled to include the local bind name
+  #   (d) collection names are mangled to include the local bind name
+  #   (e) statements in the module are rewritten to reference the mangled names
   #
   # We then convert the rewritten AST back into Ruby source code using Ruby2Ruby
   # and eval() it to define a new module. We return the name of that newly
@@ -434,6 +432,7 @@ module ModuleRewriter # :nodoc: all
     ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
     ast = ast_process_temps(ast, mod)
     ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
+    ast = ast_rename_methods(ast, local_name)
     rename_tbl = ast_rename_state(ast, local_name)
     ast = ast_update_refs(ast, rename_tbl)
 
@@ -540,12 +539,14 @@ module ModuleRewriter # :nodoc: all
     new_name = "#{importer_name}__#{importee_name}__#{local_name}"
     ast[1] = new_name.to_sym
 
-    dr = DefnRenamer.new(mod_name, new_name, local_name)
-    new_ast = dr.process(ast)
-
     # XXX: it would be nice to return a Module, rather than a string containing
     # the Module's name. Unfortunately, I can't see how to do that.
-    return [new_ast, new_name]
+    return [ast, new_name]
+  end
+
+  def self.ast_rename_methods(ast, local_name)
+    dr = DefnRenamer.new(local_name)
+    return dr.process(ast)
   end
 
   # Mangle the names of all the collections defined in state blocks found in the
