@@ -261,6 +261,29 @@ class TempModUser
   end
 end
 
+module ModDefMethod
+  state do
+    table :t1
+  end
+
+  def one
+    1
+  end
+
+  bloom do
+    t1 <= [[one(), one + 10]]
+  end
+end
+
+class UseModDefMethod
+  include Bud
+  import ModDefMethod => :mdm
+
+  def do_check
+    raise unless mdm.t1.to_a.sort == [[1, 11]]
+  end
+end
+
 class TestModules < Test::Unit::TestCase
   def test_simple
     c = ChildClass.new
@@ -409,6 +432,12 @@ class TestModules < Test::Unit::TestCase
 
   def test_module_temp_collection
     c = TempModUser.new
+    c.tick
+    c.do_check
+  end
+
+  def test_module_def_method
+    c = UseModDefMethod.new
     c.tick
     c.do_check
   end

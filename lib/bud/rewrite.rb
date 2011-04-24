@@ -381,11 +381,12 @@ class TempExpander < SexpProcessor # :nodoc: all
 end
 
 class DefnRenamer < SexpProcessor # :nodoc: all
-  def initialize(local_name)
+  def initialize(local_name, rename_tbl)
     super()
     self.require_empty = false
     self.expected = Sexp
     @local_name = local_name
+    @rename_tbl = rename_tbl
   end
 
   def process_defn(exp)
@@ -393,18 +394,21 @@ class DefnRenamer < SexpProcessor # :nodoc: all
     name_s = name.to_s
 
     if name_s =~ /^__bootstrap__.+$/
-      name = name_s.sub(/^(__bootstrap__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
+      new_name = name_s.sub(/^(__bootstrap__)(.+)$/, "\\1#{@local_name}__\\2")
     elsif name_s =~ /^__state\d+__/
-      name = name_s.sub(/^(__state\d+__)(.*)$/, "\\1#{@local_name}__\\2").to_sym
+      new_name = name_s.sub(/^(__state\d+__)(.*)$/, "\\1#{@local_name}__\\2")
     elsif name_s =~ /^__bloom__.+$/
-      name = name_s.sub(/^(__bloom__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
+      new_name = name_s.sub(/^(__bloom__)(.+)$/, "\\1#{@local_name}__\\2")
     else
-      name = "#{@local_name}__#{name_s}".to_sym
+      new_name = "#{@local_name}__#{name_s}"
     end
+
+    new_name = new_name.to_sym
+    @rename_tbl[name] = new_name
 
     # Note that we don't bother to recurse further into the AST: we're only
     # interested in top-level :defn nodes.
-    s(tag, name, args, scope)
+    s(tag, new_name, args, scope)
   end
 end
 
@@ -432,8 +436,9 @@ module ModuleRewriter # :nodoc: all
     ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
     ast = ast_process_temps(ast, mod)
     ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
-    ast = ast_rename_methods(ast, local_name)
-    rename_tbl = ast_rename_state(ast, local_name)
+    rename_tbl = {}
+    ast = ast_rename_methods(ast, local_name, rename_tbl)
+    ast = ast_rename_state(ast, local_name, rename_tbl)
     ast = ast_update_refs(ast, rename_tbl)
 
     str = Ruby2Ruby.new.process(ast)
@@ -544,18 +549,16 @@ module ModuleRewriter # :nodoc: all
     return [ast, new_name]
   end
 
-  def self.ast_rename_methods(ast, local_name)
-    dr = DefnRenamer.new(local_name)
-    return dr.process(ast)
+  def self.ast_rename_methods(ast, local_name, rename_tbl)
+    DefnRenamer.new(local_name, rename_tbl).process(ast)
   end
 
   # Mangle the names of all the collections defined in state blocks found in the
   # given module's AST. Returns a table mapping old => new names.
-  def self.ast_rename_state(ast, local_name)
+  def self.ast_rename_state(ast, local_name, rename_tbl)
     # Find all the state blocks in the AST
     raise Bud::BudError unless ast.sexp_type == :module
 
-    rename_tbl = {}
     ast.sexp_body.each do |b|
       next unless b.class <= Sexp
       next if b.sexp_type != :defn
@@ -591,7 +594,7 @@ module ModuleRewriter # :nodoc: all
       end
     end
 
-    return rename_tbl
+    return ast
   end
 
   def self.ast_update_refs(ast, rename_tbl)
