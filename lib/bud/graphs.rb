@@ -120,7 +120,7 @@ class GraphGen #:nodoc: all
       @nodes[node].color = "red"
       @nodes[node].shape = "octagon"
       @nodes[node].penwidth = 3
-      @nodes[node].URL = "#{File.basename(@name)}.svg"
+      @nodes[node].URL = "#{File.basename(@name).gsub(".staging", "").gsub("collapsed", "expanded")}.svg"
     elsif @tabinf[node] and (@tabinf[node] == "Bud::BudTable")
       @nodes[node].shape = "rect"
     end
