@@ -102,7 +102,7 @@ end
 
 def usage
   puts "Usage:"
-  puts "Running a Bud program with option :trace => true will cause a DBM directory DVM_dir to be created (Class_ObjectId_Port)"
+  puts "Running a Bud program with option :trace => true will cause a DBM directory DBM_dir to be created (Class_ObjectId_Port)"
   puts "> budvis DBM_dir"
   puts "This will create a series of svg files in DBM_dir, the root of which will be named tm_0.svg.  Open in a browser.\n"
   puts "e.g."

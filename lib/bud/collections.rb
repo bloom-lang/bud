@@ -524,17 +524,20 @@ module Bud
       aggcolsdups.each_with_index do |n, i|
         aggcols << "#{n.downcase}_#{i}".to_sym
       end
+      aggpairs = aggpairs.map do |ap|
+        if ap[1].class == Symbol
+          colnum = ap[1].nil? ? nil : self.send(ap[1].to_s)[1]
+        else
+          colnum = ap[1].nil? ? nil : ap[1][1]
+        end
+        [ap[0], colnum]
+      end
       tups = agg_in.inject({}) do |memo, p|
         pkey_cols = keynames.map{|n| p.send(n)}
         memo[pkey_cols] = [] if memo[pkey_cols].nil?
         aggpairs.each_with_index do |ap, i|
           agg = ap[0]
-          if ap[1].class == Symbol
-            colnum = ap[1].nil? ? nil : self.send(ap[1].to_s)[1]
-          else
-            colnum = ap[1].nil? ? nil : ap[1][1]
-          end
-          colval = colnum.nil? ? nil : p[colnum]
+          colval = ap[1].nil? ? nil : p[ap[1]]
           if memo[pkey_cols][i].nil?
             memo[pkey_cols][i] = agg.send(:init, colval)
           else
