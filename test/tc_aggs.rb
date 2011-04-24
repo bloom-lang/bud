@@ -132,12 +132,14 @@ class JoinAgg < RenameGroup
   state do
     scratch :richsal, [:sal]
     scratch :rich, emp.key_cols => emp.val_cols
+    scratch :rich_empty, emp.key_cols => emp.val_cols
     scratch :argrich, emp.key_cols => emp.val_cols
   end
 
   bloom do
     richsal <= emp.group([], max(:sal))
-    rich <= (richsal * emp).matches {|r,e| e}
+    rich <= (richsal * emp).matches.rights
+    rich_empty <= (richsal * emp).matches.rights(emp.ename => emp.dname)
     argrich <= emp.argmax([], emp.sal)
   end
 end
@@ -201,7 +203,7 @@ end
 class TestAggs < Test::Unit::TestCase
   def test_paths
     program = ShortestPaths.new
-    assert_nothing_raised(RuntimeError) { program.tick }
+    program.tick
 
     program.minmaxsumcntavg.each do |t|
       assert(t[4])
@@ -224,13 +226,13 @@ class TestAggs < Test::Unit::TestCase
 
   def test_tied_paths
     program = TiedPaths.new
-    assert_nothing_raised(RuntimeError) { program.tick }
+    program.tick
     assert_equal([["a", "c", "c", 2], ["b", "c", "c", 1], ["a", "b", "b", 1]].sort, program.shortest.to_a.sort)
   end
 
   def test_non_exemplary
     program = ShortestPaths.new
-    assert_nothing_raised(RuntimeError) { program.tick }
+    program.tick
     assert_raise(Bud::BudError) {p = program.path.argagg(:count, [program.path.from, program.path.to], nil)}
     assert_raise(Bud::BudError) {p = program.path.argagg(:sum, [program.path.from, program.path.to], program.path.cost)}
     assert_raise(Bud::BudError) {p = program.path.argagg(:avg, [program.path.from, program.path.to], program.path.cost)}
@@ -238,7 +240,7 @@ class TestAggs < Test::Unit::TestCase
 
   def test_argaggs
     program = PriorityQ.new
-    assert_nothing_raised (RuntimeError) { program.tick }
+    program.tick
     argouts = program.out.to_a
     basicouts = program.out2.to_a
     assert_equal([], argouts - basicouts)
@@ -246,29 +248,28 @@ class TestAggs < Test::Unit::TestCase
 
   def test_rename
     program = RenameGroup.new
-    assert_nothing_raised (RuntimeError) { program.tick }
+    program.tick
     shoes = program.shoes.to_a
     assert_equal([["shoe", 10.5]], shoes)
   end
 
   def test_join_agg
     program = JoinAgg.new
-    assert_nothing_raised (RuntimeError) { program.tick }
-    rich = program.rich.first
-    assert_equal(['bob', 'shoe', 11], rich)
-    argrich = program.argrich.first
-    assert_equal(['bob', 'shoe', 11], argrich)
+    program.tick
+    assert_equal([['bob', 'shoe', 11]], program.rich.to_a)
+    assert_equal([], program.rich_empty.to_a)
+    assert_equal([['bob', 'shoe', 11]], program.argrich.to_a)
   end
 
   def test_agg_join
     p = AggJoin.new
-    assert_nothing_raised (RuntimeError) { p.tick }
-    assert_equal([['shoe', 11, 9]], p.funny.to_a  )
+    p.tick
+    assert_equal([['shoe', 11, 9]], p.funny.to_a)
   end
 
   def test_choice_agg
     p = ChoiceAgg.new
-    assert_nothing_raised {p.tick}
+    p.tick
     assert(([[1,1]]) == p.t2.to_a || ([[2,1]]) == p.t2.to_a)
   end
   

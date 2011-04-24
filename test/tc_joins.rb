@@ -10,6 +10,7 @@ class StarJoin
     table :r51
     table :r52
     table :r7
+    table :r8
     table :r9
     table :r11
   end
@@ -25,6 +26,7 @@ class StarJoin
     r51 <= (r1*r2).pairs([r1.val,r2.key]) {|r,s| [r.key, s.vat]}
     r52 <= (r1*r2).pairs(r2.key => r1.val) {|r,s| [r.key, s.vat]}
     r7 <= (r1*r2).matches {|r,s| [r.key, s.vat]}
+    r8 <= (r1*r1*r1*r2*r2*r2).matches {|r1,r2,r3,s1,s2,s3| [r1.key, s1.vat]}
     r9 <= (r1*r2).lefts(:val => :key)
     r11 <= (r1*r2).rights(:val => :key)
   end
@@ -40,8 +42,11 @@ class StarJoin3
     table :r1, [:k4] => [:v4]
     table :r2, [:k5] => [:v5]
     table :r3, [:k6] => [:v6]
+    table :r4, [:k6] => [:v7]
+    table :r5, [:k6] => [:v8]
     table :t4, [:k1,:v1,:k2,:v2,:k3,:v3]
     table :t5, [:k1,:v1,:k2,:v2,:k3,:v3]
+    table :t6, [:k1,:v1,:k2,:v2,:k3,:v3]
   end
 
   bootstrap do
@@ -51,11 +56,14 @@ class StarJoin3
     r1 <= [['A', 'B']]
     r2 <= [[3,4]]
     r3 <= [['A', 'Y']]
+    r4 <= [['A', 'X']]
+    r5 <= [['A', 'Z']]
   end
 
   bloom do
     t4 <= (r1 * r2 * r3).pairs(:k4 => :k6) {|r,s,t| r+s+t}
     t5 <= (t1 * t2 * t3).combos(t1.key => t3.key) {|r,s,t| r+s+t}
+    t6 <= (r3 * r4 * r5).matches {|a,b,c| a+b+c}
   end
 end
 
@@ -298,6 +306,7 @@ class TestJoins < Test::Unit::TestCase
     assert_equal(program.r5.to_a.sort, program.r52.to_a.sort)
     assert_equal([[1,2]], program.r5.to_a.sort)
     assert_equal([[1,2]], program.r7.to_a.sort)
+    assert_equal([[1,2]], program.r8.to_a.sort)
     assert_equal([[1,1]], program.r9.to_a.sort)
     assert_equal([[1,2]], program.r11.to_a.sort)
   end
@@ -307,6 +316,7 @@ class TestJoins < Test::Unit::TestCase
     program.tick
     assert_equal([['A','B',3,4,'A','Y']], program.t4.to_a)
     assert_equal(program.t4.to_a, program.t5.to_a)
+    assert_equal([["A", "Y", "A", "X", "A", "Z"]], program.t6.to_a)
   end
 
   def test_bad_star_joins

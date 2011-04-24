@@ -223,11 +223,11 @@ Alias for `pairs`, more readable for multi-collection `*` expressions.  Must use
            end
 
 `matches`:<br>
-Shorthand for `combos` with hash pairs for all attributes with matching names.
+Shorthand for `combos` with hash pairs for all attributes with matching names; this is called the "natural join" in SQL.
 
     # Equivalent to the above statements if x is the only attribute name in common:
-    out <= (r * s_tab * t).matches do {|t1, t2, t3| [t1.a, t2.b, t3.c]}
-    
+    out <= (r * s_tab * t).matches {|t1, t2, t3| [t1.a, t2.b, t3.c]}
+
 `lefts(`*hash pairs*`)`: <br>
 Like `pairs`, but implicitly includes a block that projects down to the left item in each pair.
 

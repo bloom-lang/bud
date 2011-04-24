@@ -50,7 +50,7 @@ class Stratification # :nodoc: all
       # classic stratification:
       # if A depends on B, A is >= B.
       # if A depends nonmonotonically on B, A > B.
-      # if A are B are co-dependent, give up. 
+      # if A are B are nonmonotonically co-dependent, give up. 
       #  (don't need to do this, b/c we've ruled out deductive cycles)
       #
       # Stratum choice controls local evaluation order, so we need only consider
