@@ -132,6 +132,7 @@ module Bud
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter, :joinstate
   attr_accessor :lazy # This can be changed on-the-fly by REBL
+  attr_accessor :stratum_collection_map
 
   # options to the bud runtime are passed in a hash, with the following keys
   # * network configuration
@@ -749,11 +750,18 @@ module Bud
       end
       @stratum_first_iter = false
       fixpoint = true
-      # should really run the following only on tables in this stratum
-      @tables.each do |name,coll| 
-        unless coll.delta.empty? and coll.new_delta.empty?
-          coll.tick_deltas
-          fixpoint = false
+      # tick collections in this stratum; if we don't have info on that, tick all collections
+      colls = @stratum_collection_map[strat_num] if @stratum_collection_map
+      colls ||= @tables.map {|name, coll| name}      
+      colls.each do |name|
+        begin
+          coll = self.send(name) 
+          unless coll.delta.empty? and coll.new_delta.empty?
+            coll.tick_deltas
+            fixpoint = false
+          end
+        rescue
+          # ignore missing tables; rebl for example deletes them mid-stream
         end
       end      
     end while not fixpoint
