@@ -459,9 +459,9 @@ module ModuleRewriter # :nodoc: all
   # the AST is returned in a different format than we expect. In particular, we
   # expect that the methods from any modules included in the target module will
   # be "inlined" into the dumped AST; ParseTree > 3.0.7 adds an "include"
-  # statement to the AST instead. In the long run we should adapt the module
-  # rewrite system to work with ParseTree > 3.0.7 and get rid of this code, but
-  # that will require further changes.
+  # statement to the AST instead. In the long run we should probably adapt the
+  # module rewrite system to work with ParseTree > 3.0.7 and get rid of this
+  # code, but that will require further changes.
   def self.get_raw_parse_tree(klass)
     pt = RawParseTree.new(false)
     klassname = klass.name
@@ -526,9 +526,9 @@ module ModuleRewriter # :nodoc: all
   end
 
   # Rename the given module's name to be a mangle of import site, imported
-  # module, and local bind name. We also need to rename special "state" and
-  # "bootstrap" methods. We also rename "bloom" methods, but we can just mangle
-  # with the local bind name for those.
+  # module, and local bind name. We also rename all the instance methods defined
+  # in the module to include the local bind name (including the special "state",
+  # "bootstrap", and "bloom" methods).
   def self.ast_rename_module(ast, importer, importee, local_name)
     mod_name = ast.sexp_body.first
     raise Bud::BudError if mod_name.to_s != importee.to_s
