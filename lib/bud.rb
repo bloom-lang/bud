@@ -132,6 +132,7 @@ module Bud
   attr_reader :tables, :ip, :port
   attr_reader :stratum_first_iter, :joinstate
   attr_accessor :lazy # This can be changed on-the-fly by REBL
+  attr_accessor :stratum_collection_map
 
   # options to the bud runtime are passed in a hash, with the following keys
   # * network configuration
@@ -672,6 +673,9 @@ module Bud
     table :t_underspecified, t_provides.schema
     table :t_stratum, [:predicate] => [:stratum]
     table :t_cycle, [:predicate, :via, :neg, :temporal]
+    table :t_table_info, [:tab_name, :tab_type]
+    table :t_table_schema, [:tab_name, :col_name, :ord, :loc]
+
   end
 
   # Handle any inbound tuples off the wire and then clear. Received messages are
@@ -729,6 +733,7 @@ module Bud
     @stratum_first_iter = true
     begin
       strat.each_with_index do |r,i|
+        fixpoint = false
         begin
           r.call
         rescue Exception => e
@@ -744,14 +749,25 @@ module Bud
             new_e = BudError
           end
           raise new_e, "Exception during Bud evaluation.\nException: #{e.inspect}.#{src_msg}"
-        end
+        end        
       end
       @stratum_first_iter = false
-      # XXX this next line is inefficient.
-      # we could call tick_deltas only on predicates in this stratum.
-      # but it's not easy right now (??) to pull out tables in a given stratum
-      @tables.each{|name,coll| coll.tick_deltas}
-    end while not @tables.all?{|name,coll| coll.new_delta.empty? and coll.delta.empty?}
+      fixpoint = true
+      # tick collections in this stratum; if we don't have info on that, tick all collections
+      colls = @stratum_collection_map[strat_num] if @stratum_collection_map
+      colls ||= @tables.map {|name, coll| name}      
+      colls.each do |name|
+        begin
+          coll = self.send(name) 
+          unless coll.delta.empty? and coll.new_delta.empty?
+            coll.tick_deltas
+            fixpoint = false
+          end
+        rescue
+          # ignore missing tables; rebl for example deletes them mid-stream
+        end
+      end      
+    end while not fixpoint
   end
 
   private

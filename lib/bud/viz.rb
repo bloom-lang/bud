@@ -10,14 +10,12 @@ class VizOnline #:nodoc: all
     return if bud_instance.class == Stratification or @bud_instance.class == DepAnalysis
     @meta_tables = {'t_rules' => 1, 't_depends' => 1, 't_table_info' => 1, 't_cycle' => 1, 't_stratum' => 1, 't_depends_tc' => 1, 't_table_schema' => 1}
     @bud_instance.options[:dbm_dir] = "DBM_#{@bud_instance.class}_#{bud_instance.options[:tag]}_#{bud_instance.object_id}_#{bud_instance.port}"
-    @table_info = new_tab(:t_table_info, [:tab_name, :tab_type], @bud_instance)
-    @table_schema = new_tab(:t_table_schema, [:tab_name, :col_name, :ord], @bud_instance)
-
+    @table_info = bud_instance.tables[:t_table_info]
+    @table_schema = bud_instance.tables[:t_table_schema]
     @logtab = {}
     tmp_set = []
     @bud_instance.tables.each do |name, tbl|
       next if name.to_s =~ /_vizlog\z/
-
       # Temp collections don't have a schema until a fact has been inserted into
       # them; for now, we just include an empty schema for them in the viz
       if tbl.schema.nil?

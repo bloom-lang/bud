@@ -154,21 +154,17 @@ module Bud
     public
     def pro(&blk)
       if @bud_instance.stratum_first_iter
-        return map(&blk) 
+        return map(&blk)
       else
-        if @delta.empty?
-          return []
-        else
-          retval = []
-          each_from([@delta]) do |t|
-            newitem = blk.call(t)
-            retval << newitem unless newitem.nil?
-          end
-          return retval
+        retval = []
+        each_from([@delta]) do |t|
+          newitem = blk.call(t)
+          retval << newitem unless newitem.nil?
         end
-      end    
+        return retval
+      end
     end
-
+  
     # By default, all tuples in any rhs are in storage or delta. Tuples in
     # new_delta will get transitioned to delta in the next iteration of the
     # evaluator (but within the current time tick).
@@ -528,17 +524,20 @@ module Bud
       aggcolsdups.each_with_index do |n, i|
         aggcols << "#{n.downcase}_#{i}".to_sym
       end
+      aggpairs = aggpairs.map do |ap|
+        if ap[1].class == Symbol
+          colnum = ap[1].nil? ? nil : self.send(ap[1].to_s)[1]
+        else
+          colnum = ap[1].nil? ? nil : ap[1][1]
+        end
+        [ap[0], colnum]
+      end
       tups = agg_in.inject({}) do |memo, p|
         pkey_cols = keynames.map{|n| p.send(n)}
         memo[pkey_cols] = [] if memo[pkey_cols].nil?
         aggpairs.each_with_index do |ap, i|
           agg = ap[0]
-          if ap[1].class == Symbol
-            colnum = ap[1].nil? ? nil : self.send(ap[1].to_s)[1]
-          else
-            colnum = ap[1].nil? ? nil : ap[1][1]
-          end
-          colval = colnum.nil? ? nil : p[colnum]
+          colval = ap[1].nil? ? nil : p[ap[1]]
           if memo[pkey_cols][i].nil?
             memo[pkey_cols][i] = agg.send(:init, colval)
           else
@@ -594,36 +593,41 @@ module Bud
 
     alias combos pairs
 
-    # the natural join: given a * expression over 2 collections, form all
-    # combinations of items that have the same values in matching fiels
+    # the natural join: given a * expression over n collections, form all
+    # combinations of items that have the same values in matching fields
     public
     def matches(&blk)
       preds = BudJoin::natural_preds(@bud_instance, @origrels)
       pairs(*preds, &blk)
     end
 
-    # given a * expression over 2 collections, form all
-    # combinations of items that satisfy the predicates +preds+,
-    # and project only onto the attributes of the first collection
+    # given a * expression over 2 collections, form all combinations of items
+    # that satisfy the predicates +preds+, and project only onto the attributes
+    # of the first collection
     public
     def lefts(*preds)
-      @localpreds = disambiguate_preds(preds)
+      unless preds.empty?
+        @localpreds ||= []
+        @localpreds += disambiguate_preds(preds)
+      end
       map{ |l,r| l }
     end
 
-    # given a * expression over 2 collections, form all
-    # combinations of items that satisfy the predicates +preds+,
-    # and project only onto the attributes of the second item
+    # given a * expression over 2 collections, form all combinations of items
+    # that satisfy the predicates +preds+, and project only onto the attributes
+    # of the second item
     public
     def rights(*preds)
-      @localpreds = disambiguate_preds(preds)
+      unless preds.empty?
+        @localpreds ||= []
+        @localpreds += disambiguate_preds(preds)
+      end
       map{ |l,r| r }
     end
 
-    # given a * expression over 2 collections, form all
-    # combos of items that satisfy +preds+, and for any
-    # item from the 1st collection that has no matches
-    # in the 2nd, nil-pad it and include it in the output.
+    # given a * expression over 2 collections, form all combos of items that
+    # satisfy +preds+, and for any item from the 1st collection that has no
+    # matches in the 2nd, nil-pad it and include it in the output.
     public
     def outer(*preds)
       @origpreds = preds
@@ -672,9 +676,9 @@ module Bud
       end
     end
 
-    # find element in @origrels that contains this aname method
-    # if 2nd arg is non-nil, only check that collection.
-    # after found, return the result of invoking aname from chosen collection
+    # find element in @origrels that contains this +aname+ method
+    # if +rel+ is non-nil, only check that collection.
+    # after found, return the result of invoking +aname+ from chosen collection
     protected
     def find_attr_match(aname, rel=nil) # :nodoc: all
       dorels = (rel.nil? ? @origrels : [rel])
@@ -934,6 +938,15 @@ module Bud
       # NEEDS A TRY/RESCUE BLOCK
       @fd = File.open(@filename, "r")
       @linenum = 0
+    end
+
+    public
+    def pro(&blk)
+      if @bud_instance.stratum_first_iter
+        return map(&blk)
+      else
+        return []
+      end
     end
 
     public

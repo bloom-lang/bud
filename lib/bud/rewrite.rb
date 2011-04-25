@@ -108,9 +108,10 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   # Look for top-level map on a base-table on rhs, and rewrite to pro
   def map2pro(exp)
     if exp[1] and exp[1][0] and exp[1][0] == :iter \
-       and exp[1][1] and exp[1][1][1] == :call \
-       and exp[1][1][2] == :map
-      exp[1][1][2] = :pro
+      and exp[1][1] and exp[1][1][1] and exp[1][1][1][0] == :call
+      if exp[1][1][2] == :map
+        exp[1][1][2] = :pro
+      end
     end
     exp
   end
@@ -130,23 +131,36 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
     self.expected = Sexp
   end
   
+  # some icky special-case parsing to find mapping between collection names and iter vars
   def process_iter(exp)
     @iterstack ||= []
     @iterhash ||= {}
-    collname = nil
+    @collnames = []
     if exp[1] and exp[1][0] == :call 
-      if exp[1][1].nil? # method is a tablename
-        collname = exp[1][2]
-      elsif exp[1][1][0] == :call and exp[1][1][1].nil? #method is an enumerable method
-        collname = exp[1][1][2]
-      end
-      if exp[2] and exp[2][0] == :lasgn and not collname.nil?
+      gather_collection_names(exp[1])
+      
+      # now find iter vars and match up
+      if exp[2] and exp[2][0] == :lasgn and not @collnames.empty? #single-table iter
         raise Bud::CompileError, "variable #{exp[1]} not allowed to be assigned twice" if @iterhash[exp[2][1]]
-        @iterhash[exp[2][1]] = collname
-      end
+        @iterhash[exp[2][1]] = @collnames[0]
+      elsif exp[2] and exp[2][0] == :masgn and not @collnames.empty? # join iter
+        next unless exp[2][1] and exp[2][1][0] == :array
+        @collnames.each_with_index do |c, i|          
+          next unless exp[2][1][i+1] and exp[2][1][i+1][0] == :lasgn
+          @iterhash[exp[2][1][i+1][1]] = c
+        end
+      end        
     end
     (1..(exp.length-1)).each {|i| exp[i] = process(exp[i])}
     exp
+  end
+  
+  def gather_collection_names(exp)
+    if exp[0] == :call and exp[1].nil?
+      @collnames << exp[2]
+    else 
+      exp.each { |e| gather_collection_names(e) if e and e.class <= Sexp }
+    end
   end
 
   def process_call(exp)
@@ -367,13 +381,12 @@ class TempExpander < SexpProcessor # :nodoc: all
 end
 
 class DefnRenamer < SexpProcessor # :nodoc: all
-  def initialize(old_mod_name, new_mod_name, local_name)
+  def initialize(local_name, rename_tbl)
     super()
     self.require_empty = false
     self.expected = Sexp
-    @old_mod_name = old_mod_name
-    @new_mod_name = new_mod_name
     @local_name = local_name
+    @rename_tbl = rename_tbl
   end
 
   def process_defn(exp)
@@ -381,18 +394,21 @@ class DefnRenamer < SexpProcessor # :nodoc: all
     name_s = name.to_s
 
     if name_s =~ /^__bootstrap__.+$/
-      name = name_s.sub(/^(__bootstrap__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
+      new_name = name_s.sub(/^(__bootstrap__)(.+)$/, "\\1#{@local_name}__\\2")
     elsif name_s =~ /^__state\d+__/
-      name = name_s.sub(/^(__state\d+__)(.*)$/, "\\1#{@local_name}__\\2").to_sym
+      new_name = name_s.sub(/^(__state\d+__)(.*)$/, "\\1#{@local_name}__\\2")
     elsif name_s =~ /^__bloom__.+$/
-      name = name_s.sub(/^(__bloom__)(.+)$/, "\\1#{@local_name}__\\2").to_sym
+      new_name = name_s.sub(/^(__bloom__)(.+)$/, "\\1#{@local_name}__\\2")
     else
-      name = "#{@local_name}__#{name_s}".to_sym
+      new_name = "#{@local_name}__#{name_s}"
     end
+
+    new_name = new_name.to_sym
+    @rename_tbl[name] = new_name
 
     # Note that we don't bother to recurse further into the AST: we're only
     # interested in top-level :defn nodes.
-    s(tag, name, args, scope)
+    s(tag, new_name, args, scope)
   end
 end
 
@@ -401,13 +417,13 @@ module ModuleRewriter # :nodoc: all
   # "import_site", bound to "local_name" at the import site. We implement this
   # by converting the imported module into an AST and rewriting the AST like so:
   #
-  #   (a) the module name is mangled to include the local bind name and the
-  #       importer
-  #   (b) instance method names are mangled to include the local bind name
-  #   (c) state defined by the module is mangled to include the local bind name
-  #   (d) statements in the module are rewritten to reference the mangled names
-  #   (e) statements in the module that reference sub-modules are rewritten to
-  #       reference the mangled name of the submodule.
+  #   (a) statements in the module that reference sub-modules are rewritten to
+  #       reference the mangled name of the submodule
+  #   (b) the module name is mangled to include the local bind name and the
+  #       import site
+  #   (c) instance method names are mangled to include the local bind name
+  #   (d) collection names are mangled to include the local bind name
+  #   (e) statements in the module are rewritten to reference the mangled names
   #
   # We then convert the rewritten AST back into Ruby source code using Ruby2Ruby
   # and eval() it to define a new module. We return the name of that newly
@@ -420,7 +436,9 @@ module ModuleRewriter # :nodoc: all
     ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
     ast = ast_process_temps(ast, mod)
     ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
-    rename_tbl = ast_rename_state(ast, local_name)
+    rename_tbl = {}
+    ast = ast_rename_methods(ast, local_name, rename_tbl)
+    ast = ast_rename_state(ast, local_name, rename_tbl)
     ast = ast_update_refs(ast, rename_tbl)
 
     str = Ruby2Ruby.new.process(ast)
@@ -445,9 +463,9 @@ module ModuleRewriter # :nodoc: all
   # the AST is returned in a different format than we expect. In particular, we
   # expect that the methods from any modules included in the target module will
   # be "inlined" into the dumped AST; ParseTree > 3.0.7 adds an "include"
-  # statement to the AST instead. In the long run we should adapt the module
-  # rewrite system to work with ParseTree > 3.0.7 and get rid of this code, but
-  # that will require further changes.
+  # statement to the AST instead. In the long run we should probably adapt the
+  # module rewrite system to work with ParseTree > 3.0.7 and get rid of this
+  # code, but that will require further changes.
   def self.get_raw_parse_tree(klass)
     pt = RawParseTree.new(false)
     klassname = klass.name
@@ -512,9 +530,9 @@ module ModuleRewriter # :nodoc: all
   end
 
   # Rename the given module's name to be a mangle of import site, imported
-  # module, and local bind name. We also need to rename special "state" and
-  # "bootstrap" methods. We also rename "bloom" methods, but we can just mangle
-  # with the local bind name for those.
+  # module, and local bind name. We also rename all the instance methods defined
+  # in the module to include the local bind name (including the special "state",
+  # "bootstrap", and "bloom" methods).
   def self.ast_rename_module(ast, importer, importee, local_name)
     mod_name = ast.sexp_body.first
     raise Bud::BudError if mod_name.to_s != importee.to_s
@@ -526,21 +544,21 @@ module ModuleRewriter # :nodoc: all
     new_name = "#{importer_name}__#{importee_name}__#{local_name}"
     ast[1] = new_name.to_sym
 
-    dr = DefnRenamer.new(mod_name, new_name, local_name)
-    new_ast = dr.process(ast)
-
     # XXX: it would be nice to return a Module, rather than a string containing
     # the Module's name. Unfortunately, I can't see how to do that.
-    return [new_ast, new_name]
+    return [ast, new_name]
+  end
+
+  def self.ast_rename_methods(ast, local_name, rename_tbl)
+    DefnRenamer.new(local_name, rename_tbl).process(ast)
   end
 
   # Mangle the names of all the collections defined in state blocks found in the
   # given module's AST. Returns a table mapping old => new names.
-  def self.ast_rename_state(ast, local_name)
+  def self.ast_rename_state(ast, local_name, rename_tbl)
     # Find all the state blocks in the AST
     raise Bud::BudError unless ast.sexp_type == :module
 
-    rename_tbl = {}
     ast.sexp_body.each do |b|
       next unless b.class <= Sexp
       next if b.sexp_type != :defn
@@ -576,7 +594,7 @@ module ModuleRewriter # :nodoc: all
       end
     end
 
-    return rename_tbl
+    return ast
   end
 
   def self.ast_update_refs(ast, rename_tbl)
