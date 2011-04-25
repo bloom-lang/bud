@@ -16,7 +16,7 @@ module Bud
 
     attr_accessor :bud_instance, :locspec_idx # :nodoc: all
     attr_reader :schema, :tabname # :nodoc: all
-    attr_reader :storage, :delta, :new_delta # :nodoc: all
+    attr_reader :storage, :delta, :new_delta, :pending # :nodoc: all
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
       @tabname = name

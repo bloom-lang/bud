@@ -30,13 +30,21 @@ class VizOnline #:nodoc: all
 
     tmp_set.each do |t|
       news = [:c_bud_time]
+      snd_alias = t[0].to_s + "_snd"
       @table_schema << [t[0], :c_bud_time, 0]
       t[1].each_with_index do |s, i|
         news << s
         @table_schema << [t[0], s, i+1]
+        if t[2] == "Bud::BudChannel"
+          @table_schema << [snd_alias, s, i+1]
+        end
       end
       lt = "#{t[0]}_vizlog".to_sym
       @logtab[t[0]] = new_tab(lt, news, @bud_instance)
+      if t[2] == "Bud::BudChannel"
+        lts = "#{snd_alias}_vizlog".to_sym
+        @logtab[snd_alias] = new_tab(lts, news, @bud_instance)
+      end
       @table_info << [t[0], t[2]]
     end
   end
@@ -47,6 +55,14 @@ class VizOnline #:nodoc: all
     return ret
   end
 
+  def add_rows(collection, tab)
+    collection.each do |row|
+      newrow = [@bud_instance.budtime]
+      row.each{ |r| newrow << r }
+      @logtab[tab] << newrow
+    end
+  end
+
   def do_cards
     return if @bud_instance.class == Stratification or @bud_instance.class == DepAnalysis
     @bud_instance.tables.each do |t|
@@ -54,10 +70,9 @@ class VizOnline #:nodoc: all
       next if tab.to_s =~ /_vizlog\z/
       next if @meta_tables[tab.to_s] and @bud_instance.budtime > 0
       next unless @logtab[tab]
-      t[1].each do |row|
-        newrow = [@bud_instance.budtime]
-        row.each{ |r| newrow << r }
-        @logtab[tab] << newrow
+      add_rows(t[1], tab)
+      if t[1].class == Bud::BudChannel
+        add_rows(t[1].pending, "#{tab}_snd")
       end
       @logtab[tab].tick
     end
