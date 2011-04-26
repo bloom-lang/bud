@@ -216,3 +216,41 @@ class GraphGen #:nodoc: all
     end
   end
 end
+
+class SpaceTime    
+  def initialize(input)
+    # first, isolate the processes: each corresponds to a subgraph.
+    @input = input 
+    processes = input.map {|i| i[1]}
+    input.map{|i| processes << i[2]}
+    processes.uniq!
+    
+    @g = GraphViz.new(:G, :type => :digraph, :rankdir => "LR", :outputorder => "edgesfirst")
+    @hdr = @g.subgraph("cluster_0")
+    
+    @subs = {}
+    @head = {}
+    last = nil
+    processes.each_with_index do |p, i|
+      @head[p] = @hdr.add_node("process #{p}(#{i})")#, :color => "white", :label => "")
+    end
+  end
+
+  def process
+    @input.sort{|a, b| a[3] <=> b[3]}.each do |i|
+      snd_loc = i[1]
+      rcv_loc = i[2]
+      snd = @g.add_node("#{snd_loc}-#{i[3]}", {:label => i[3].to_s})
+      rcv = @g.add_node("#{rcv_loc}-#{i[3]}", {:label => i[4].to_s})
+      @g.add_edge(@head[snd_loc], snd, :weight => 8)
+      @head[snd_loc] = snd
+      @g.add_edge(@head[rcv_loc], rcv, :weight => 8)
+      @head[rcv_loc] = rcv
+      @g.add_edge(snd, rcv, :weight => 1, :label => i[0])
+    end
+  end
+  
+  def finish(file)
+    @g.output(:svg => "#{file}.svg")
+  end
+end
