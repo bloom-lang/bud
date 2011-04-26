@@ -3,9 +3,9 @@ require 'rubygems'
 require 'dbm'
 require 'bud'
 require 'bud/graphs'
-require 'bud/html'
+require 'bud/viz_util'
 
-include HTMLGen
+include VizUtil
 
 BUD_DBM_DIR = "#{ARGV[0]}/bud_"
 

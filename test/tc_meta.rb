@@ -1,8 +1,8 @@
 require 'test_common'
 require 'bud/graphs.rb'
-require 'bud/html.rb'
+require 'bud/viz_util.rb'
 
-include HTMLGen
+include VizUtil
 
 class LocalShortestPaths
   include Bud

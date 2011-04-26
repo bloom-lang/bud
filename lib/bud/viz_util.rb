@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud/graphs'
 
-module HTMLGen #:nodoc: all
+module VizUtil #:nodoc: all
   def graph_from_instance(bud_instance, viz_name, output_base, collapse=true, fmt=nil)
     tabinf = {}
     bud_instance.tables.each do |t|

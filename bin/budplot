@@ -4,9 +4,9 @@ require 'bud'
 require 'bud/bud_meta'
 require 'bud/depanalysis'
 require 'bud/graphs'
-require 'bud/html'
+require 'bud/viz_util'
 
-include HTMLGen
+include VizUtil
 
 def process(mods)
   classdef = "class FooBar\ninclude Bud\n" + mods.map{|m| "include #{m}"}.join("\n")  +  "\nend\n FooBar.new"
