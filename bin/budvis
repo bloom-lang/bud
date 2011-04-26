@@ -86,20 +86,6 @@ class VizHelper
   end
 end
 
-def deserialize_table(tab, strict)
-  # oy.  meta only
-  ret = []
-  tab.each_pair do |k, v|
-    key = MessagePack.unpack(k)
-    time = key.shift
-    raise "non-zero budtime.  sure this is metadata?" if time != 0 and strict
-    tup = key
-    MessagePack.unpack(v).each {|val| tup << val}
-    ret << tup
-  end
-  return ret
-end
-
 def usage
   puts "Usage:"
   puts "Running a Bud program with option :trace => true will cause a DBM directory DBM_dir to be created (Class_ObjectId_Port)"
