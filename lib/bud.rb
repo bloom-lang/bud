@@ -490,7 +490,7 @@ module Bud
     return result
   end
 
-  # a common special case for sync_callback: block on a delta to a table.
+  # A common special case for sync_callback: block on a delta to a table.
   def delta(out_tbl)
     sync_callback(nil, nil, out_tbl)
   end
@@ -617,11 +617,11 @@ module Bud
   public
 
   # Returns the ip and port of the Bud instance.  In addition to the local IP
-  # and port, the user may define an external IP and/or port. the external
+  # and port, the user may define an external IP and/or port. The external
   # version of each is returned if available.  If not, the local version is
   # returned.  There are use cases for mixing and matching local and external.
   # local_ip:external_port would be if you have local port forwarding, and
-  # external_ip:local_port would be if you're in a DMZ, for example
+  # external_ip:local_port would be if you're in a DMZ, for example.
   def ip_port
     raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0 and not @options[:ext_port]
 
@@ -631,13 +631,13 @@ module Bud
     ip + ":" + port
   end
 
-  # Returns the internal IP and port.  See ip_port
+  # Returns the internal IP and port.  See ip_port.
   def int_ip_port
     raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0
     @port.nil? ? "#{@ip}:#{@options[:port]}" : "#{@ip}:#{@port}"
   end
 
-  # manually trigger one timestep of Bloom execution.
+  # Manually trigger one timestep of Bloom execution.
   def tick
     @tables.each_value do |t|
       t.tick
@@ -675,7 +675,6 @@ module Bud
     table :t_cycle, [:predicate, :via, :neg, :temporal]
     table :t_table_info, [:tab_name, :tab_type]
     table :t_table_schema, [:tab_name, :col_name, :ord, :loc]
-
   end
 
   # Handle any inbound tuples off the wire and then clear. Received messages are
@@ -755,7 +754,7 @@ module Bud
       fixpoint = true
       # tick collections in this stratum; if we don't have info on that, tick all collections
       colls = @stratum_collection_map[strat_num] if @stratum_collection_map
-      colls ||= @tables.map {|name, coll| name}      
+      colls ||= @tables.keys
       colls.each do |name|
         begin
           coll = self.send(name) 
