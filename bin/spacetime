@@ -1,0 +1,65 @@
+#!/usr/bin/env ruby
+require 'rubygems'
+require 'dbm'
+require 'bud'
+require 'bud/graphs'
+require 'bud/viz_util'
+
+include VizUtil
+
+
+class TraceProcessor
+  include Bud
+  state do
+    
+  end
+end
+
+def usage
+  puts "USAGE:"
+  exit
+end
+
+usage unless ARGV[0]
+usage if ARGV[0] == '--help'
+
+snd_info = {}
+rcv_info = {}
+
+ARGV.each do |arg|
+  snd_info[arg] = []
+  rcv_info[arg] = []
+
+  tables = slurp_tables("#{arg}/bud_")
+  meta = get_meta(tables)
+  data = dump_tbl_data(tables)
+  data.each do |d|
+    if meta[:tabinf].map{|m| m[0] if m[1] == "Bud::BudChannel"}.include? d[1]
+      if d[1] =~ /_snd\z/
+        snd_info[arg] << d 
+      else
+        rcv_info[arg] << d
+      end
+    end
+  end
+end
+
+plot_data = []
+snd_info.each_pair do |k1, v1|
+  rcv_info.each_pair do |k2, v2|
+    unless k1 == k2
+      v1.each do |lval|
+        v2.each do |rval|
+          if lval[2].to_msgpack == rval[2].to_msgpack
+            plot_data << ["#{rval[1]}(#{lval[2].inspect})", k1, k2, lval[0], rval[0]]
+          end
+        end
+      end
+    end
+  end
+end
+
+st = SpaceTime.new(plot_data)
+st.process
+st.finish("spacetime_trace_#{ARGV.join('-')}")
+
