@@ -117,50 +117,14 @@ end
 usage unless ARGV[0]
 usage if ARGV[0] == '--help'
 
-@tables = {}
 
-Dir.new(BUD_DBM_DIR).entries.each do |file|
-  next if file =~ /^\./
-  fn = "#{BUD_DBM_DIR}/#{file}"
-  trnc = fn.gsub(/\.db\z/, "")
-  ret = DBM.open(trnc)
-  raise "db not found" unless ret
-  @tables[file] = ret
-end
-
-# let's try to do a visualization
-tabinf = deserialize_table(@tables['t_table_info_vizlog.dbm.db'], true)
-tabscm = deserialize_table(@tables['t_table_schema_vizlog.dbm.db'], true)
-cycle = deserialize_table(@tables['t_cycle_vizlog.dbm.db'], true)
-depends = deserialize_table(@tables['t_depends_vizlog.dbm.db'], true)
-rules = deserialize_table(@tables['t_rules_vizlog.dbm.db'], true)
-
-
-schminf = {}
-tabscm.each do |ts|
-  tab = ts[0].to_s
-  unless schminf[tab]
-    schminf[tab] = []
-  end
-  schminf[tab][ts[2]] = ts[1]
-end
-
-vh = VizHelper.new(tabinf, cycle, depends, rules, ARGV[0])
-@tables.each_pair do |name, contents|
-  name = name.gsub("_vizlog.dbm.db", "")
-  contents.each_pair do |k, v|
-    key = MessagePack.unpack(k)
-    time = key[0]
-    row = key
-    MessagePack.unpack(v).each {|val| row << val}
-    if name == "t_table_info.dbm.db" or name == "t_table_schema.dbm.db"
-      #vh.full_info << [0, name, row]
-    else
-      vh.full_info << [time, name, row]
-    end
-  end
-  contents.close
+tables = slurp_tables(BUD_DBM_DIR)
+meta = get_meta(tables)
+data = dump_tbl_data(tables)
+vh = VizHelper.new(meta[:tabinf], meta[:cycle], meta[:depends], meta[:rules], ARGV[0])
+data.each do |d|
+  vh.full_info << d
 end
 
 vh.tick
-vh.summarize(ARGV[0], schminf)
+vh.summarize(ARGV[0], meta[:schminf])

@@ -151,4 +151,73 @@ function gup(name) {
 </script>
 END_JS
   end
+
+  def deserialize_table(tab, strict)
+    # oy.  meta only
+    ret = []
+    tab.each_pair do |k, v|
+      key = MessagePack.unpack(k)
+      time = key.shift
+      raise "non-zero budtime.  sure this is metadata?" if time != 0 and strict
+      tup = key
+      MessagePack.unpack(v).each {|val| tup << val}
+      ret << tup
+    end
+    return ret
+  end
+
+  def slurp_tables(dir)
+    tables = {}
+
+    Dir.new(dir).entries.each do |file|
+      next if file =~ /^\./
+      fn = "#{dir}/#{file}"
+      trnc = fn.gsub(/\.db\z/, "")
+      ret = DBM.open(trnc)
+      raise "db not found" unless ret
+      tables[file] = ret
+    end
+    return tables
+  end
+
+
+  def get_meta(tables)
+    meta = {}
+    meta[:tabinf] = deserialize_table(tables['t_table_info_vizlog.dbm.db'], true)
+    meta[:tabscm] = deserialize_table(tables['t_table_schema_vizlog.dbm.db'], true)
+    meta[:cycle] = deserialize_table(tables['t_cycle_vizlog.dbm.db'], true)
+    meta[:depends] = deserialize_table(tables['t_depends_vizlog.dbm.db'], true)
+    meta[:rules] = deserialize_table(tables['t_rules_vizlog.dbm.db'], true)
+
+
+    meta[:schminf] = {}
+    meta[:tabscm].each do |ts|
+      tab = ts[0].to_s
+      unless meta[:schminf][tab]
+        meta[:schminf][tab] = []
+      end
+      meta[:schminf][tab][ts[2]] = ts[1]
+    end
+    return meta
+  end
+
+
+
+  def dump_tbl_data(tables)
+    tbl_data = []
+    tables.each_pair do |name, contents|
+      name = name.gsub("_vizlog.dbm.db", "")
+      contents.each_pair do |k, v|
+        key = MessagePack.unpack(k)
+        time = key[0]
+        row = key
+        MessagePack.unpack(v).each {|val| row << val}
+        unless name == "t_table_info.dbm.db" or name == "t_table_schema.dbm.db"
+          tbl_data << [time, name, row]
+        end
+      end
+      contents.close
+    end
+    return tbl_data
+  end
 end
