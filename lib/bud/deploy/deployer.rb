@@ -46,17 +46,18 @@ module Deployer # :nodoc: all
   # evaluated" before any messages can be sent.
   bloom :distribute_data do
     atomic_data_in <= (node * initial_data).pairs(:uid => :uid) do |n, i|
+      # XXX: initial_data is a table, but we only want to try to deliver it to
+      # remote nodes once. Hence, we use depl_idempotent as a quick and dirty
+      # way to achieve that.
       [n.node, [i.pred, i.data]] if depl_idempotent [[n.node, i.pred, i.data]]
     end
 
     # Add all tuples at once.
     dont_care <~ atomic_data_out do |a|
-      if depl_idempotent a
-        a.tuple[1].map do |d|
-          eval a.tuple[0].to_s + " <+ [" + d.inspect + "]"
-        end
-        [ip_port]
+      a.tuple[1].map do |d|
+        eval a.tuple[0].to_s + " <+ [" + d.inspect + "]"
       end
+      [ip_port]
     end
   end
 end
