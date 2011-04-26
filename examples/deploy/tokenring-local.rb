@@ -11,7 +11,6 @@ class RingLocal
   deploystrap do
     node_count << [10]
   end
-
 end
 
 RingLocal.new(:deploy => true).run_fg

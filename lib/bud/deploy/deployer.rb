@@ -58,6 +58,5 @@ module Deployer # :nodoc: all
         [ip_port]
       end
     end
-
   end
 end

@@ -22,13 +22,11 @@ The next step is to declare how many nodes you want to the program to be spun up
 
 Local deployment will spin up `num_nodes` local processes, each containing one Bud instance, running the class that you include `LocalDeploy` in.  The deployment code will populate a binary collection called `node`; the first columm is a "node ID" -- a distinct integer from the range `[0, num_nodes - 1]` -- and the second argument is an "IP:port" string associated with the node.  Nodes are spun up on ephemeral ports, listening on "localhost".
 
-Now, you need to define how you want the initial data to be distributed.  You can do this, for example, by writing (multiple) rules with `initial_data` in the head.  The schema of `initial_data` is as follows: [node ID, relation name as a symbol, list of tuples].  For example, to distribute the IP address of the "deployer" to all of the other nodes in a relation called `master`, you might decide to write something like this:
+Now, you need to define how you want the initial data to be distributed.  You can do this, for example, by writing (multiple) rules with `initial_data` in the head.  These rules can appear in any `bloom` block in your program. The schema of `initial_data` is as follows: [node ID, relation name as a symbol, list of tuples].  For example, to distribute the IP address of the "deployer" to all of the other nodes in a relation called `master`, you might decide to write something like this:
 
-    initial_data <= node.map {|n| [n.uid, :master, [[ip_port]]]}
+    initial_data <= node {|n| [n.uid, :master, [[ip_port]]]}
 
-Note that the relation ("master" in this case) is never a channel.  You may only distribute data to scratches and tables.  Initial data is transferred only after _all_ nodes are spun up; this ensures that initial data will never be lost because a node is not yet listening on a socket, for example.  Initial data is transmitted atomically to each node; this means that on each node, _all_ initial data in _all_ relations will arrive at the same Bud timestep.  However, there is no global barrier for transfer of initial data.  For example, if initial data is distributed to nodes 1 and 2, node 1 may receive its initial data first, and then send subsequent messages on channels to node 2 which node 2 may receive before its initial data.
-
-The rules defining `initial_data` may appear in any `bloom` block.
+Note that the relation (`master` in this case) cannot be a channel -- you may only distribute data to scratches and tables.  Initial data is transferred only after _all_ nodes are spun up; this ensures that initial data will never be lost because a node is not yet listening on a socket, for example.  Initial data is transmitted atomically to each node; this means that on each node, _all_ initial data in _all_ relations will arrive at the same Bud timestep.  However, there is no global barrier for transfer of initial data.  For example, if initial data is distributed to nodes 1 and 2, node 1 may receive its initial data first, and then send subsequent messages on channels to node 2 which node 2 may receive before its initial data.
 
 The final step is to add `:deploy => true` to the instantiation of your class.  Note that the local deployer will spin up nodes without `:deploy => true`, so you don't forkbomb your system.
 

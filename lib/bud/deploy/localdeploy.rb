@@ -30,12 +30,12 @@ module LocalDeploy
         @pids << Process.fork do
           # Don't want to inherit our parent's random stuff.
           srand
-          foo = self.class.new
-          foo.run_bg
+          child = self.class.new
+          child.run_bg
           print "."
           $stdout.flush
-          # Processes write their port to a pipe.
-          write.print foo.port.to_s + "\n"
+          # Processes write their port to the pipe.
+          write.print "#{child.port}\n"
           EventMachine.reactor_thread.join
         end
       end
@@ -49,5 +49,4 @@ module LocalDeploy
       puts "done"
     end
   end
-
 end
