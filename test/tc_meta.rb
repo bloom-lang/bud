@@ -153,7 +153,7 @@ class TestMeta < Test::Unit::TestCase
     return dir
   end
 
-  def test_visualization
+  def test_11visualization
     program = KTest2.new(:trace => true, :dump_rewrite => true)
     File.delete("KTest2_rewritten.txt")
     `rm -r DBM_KTest2*`
@@ -166,7 +166,7 @@ class TestMeta < Test::Unit::TestCase
     program.stop_bg
   end
 
-  def test_plotting
+  def test_11plotting
     program = KTest2.new(:output => :dot)
     dep = DepAnalysis.new
 
