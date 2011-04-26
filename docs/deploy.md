@@ -14,7 +14,7 @@ Don't forget to include it in your class:
 
     include LocalDeploy
 
-The next step is to declare how many nodes you want to the program to be spun up on.  You need to do this in a `deploystrap` block.  A `deploystrap` block is run before `bootstrap`, and is only run for a Bud class that is instantiated with the option "`:deploy => true`".  As an example:
+The next step is to declare how many nodes you want to the program to be spun up on.  You need to do this in a `deploystrap` block.  A `deploystrap` block is run before `bootstrap`, and is only run for a Bud class that is instantiated with the option `:deploy => true`.  As an example:
 
     deploystrap do
       num_nodes <= [[2]]
@@ -22,7 +22,9 @@ The next step is to declare how many nodes you want to the program to be spun up
 
 Local deployment will spin up `num_nodes` local processes, each containing one Bud instance, running the class that you include `LocalDeploy` in.  The deployment code will populate a binary collection called `node`; the first columm is a "node ID" -- a distinct integer from the range `[0, num_nodes - 1]` -- and the second argument is an "IP:port" string associated with the node.  Nodes are spun up on ephemeral ports, listening on "localhost".
 
-Now, you need to define how you want the initial data to be distributed.  You can do this, for example, by writing (multiple) rules with `initial_data` in the head.  These rules can appear in any `bloom` block in your program. The schema of `initial_data` is as follows: [node ID, relation name as a symbol, list of tuples].  For example, to distribute the IP address of the "deployer" to all of the other nodes in a relation called `master`, you might decide to write something like this:
+Now, you need to define how you want the initial data to be distributed.  You can do this, for example, by writing (multiple) rules with `initial_data` in the head.  These rules can appear in any `bloom` block in your program. The schema of `initial_data` is as follows: [node ID, relation name as a symbol, list of tuples].
+
+For example, to distribute the IP address and port of the "deployer" to all of the other nodes in a relation called `master`, you might decide to write something like this:
 
     initial_data <= node {|n| [n.uid, :master, [[ip_port]]]}
 
