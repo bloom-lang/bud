@@ -42,6 +42,7 @@ class VizOnline #:nodoc: all
       if t[2] == "Bud::BudChannel"
         lts = "#{snd_alias}_vizlog".to_sym
         @logtab[snd_alias] = new_tab(lts, news, @bud_instance)
+        @table_info << [snd_alias, t[2]] 
       end
       @table_info << [t[0], t[2]]
     end
@@ -55,6 +56,9 @@ class VizOnline #:nodoc: all
 
   def add_rows(collection, tab)
     collection.each do |row|
+      if collection.class == Hash
+        row = row[1]
+      end
       newrow = [@bud_instance.budtime]
       row.each{ |r| newrow << r }
       @logtab[tab] << newrow
