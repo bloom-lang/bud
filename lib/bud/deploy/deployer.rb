@@ -33,7 +33,7 @@ module Deployer # :nodoc: all
     end
   end
 
-  def initialize(opt = {})
+  def initialize(opt={})
     super
     do_deploystrap if opt[:deploy]
   end

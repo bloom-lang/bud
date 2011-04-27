@@ -13,14 +13,14 @@ module LocalDeploy
       Process.kill("INT", p)
     end
     Process.waitall
-    trap("CLD", "DEFAULT")
+    trap("CHLD", @old_handler)
   end
 
   deploystrap do
-    trap("CLD") {
+    @old_handler = trap("CHLD") do
       pid = Process.wait
       puts "Child pid #{pid}: terminated"
-    }
+    end
 
     read, write = IO.pipe
     if node_count[[]]
