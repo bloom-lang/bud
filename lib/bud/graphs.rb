@@ -219,11 +219,12 @@ end
 
 class SpaceTime    
   def initialize(input)
-    # first, isolate the processes: each corresponds to a subgraph.
     @input = input 
     processes = input.map {|i| i[1]}
     input.map{|i| processes << i[2]}
     processes.uniq!
+
+    @queues = {} 
     
     @g = GraphViz.new(:G, :type => :digraph, :rankdir => "LR", :outputorder => "edgesfirst")
     @hdr = @g.subgraph("cluster_0")
@@ -236,18 +237,60 @@ class SpaceTime
     end
   end
 
+  def minn(a, b)
+    a <= b ? a : b
+  end
+
   def process
-    @input.sort{|a, b| a[3] <=> b[3]}.each do |i|
-      snd_loc = i[1]
-      rcv_loc = i[2]
-      snd = @g.add_node("#{snd_loc}-#{i[3]}", {:label => i[3].to_s})
-      rcv = @g.add_node("#{rcv_loc}-#{i[3]}", {:label => i[4].to_s})
-      @g.add_edge(@head[snd_loc], snd, :weight => 8)
-      @head[snd_loc] = snd
-      @g.add_edge(@head[rcv_loc], rcv, :weight => 8)
-      @head[rcv_loc] = rcv
-      @g.add_edge(snd, rcv, :weight => 1, :label => i[0])
+    # min of sender, receiver doesn't work
+    #@input.sort {|a, b| minn(a[3], a[4]) <=> minn(b[3], b[4]) }.each do |i|
+    # min sender
+    @input.sort {|a, b| a[3] <=> b[3] }.each do |i|
+      process_input(i)
     end
+    
+  end
+
+  def process
+    queues = {}
+    @input.each do |i|
+      queues[i[1]] = [] unless queues[i[1]]
+      queues[i[2]] = [] unless queues[i[2]]
+      queues[i[1]] << i[3]
+      queues[i[2]] << i[4]
+    end
+
+    squeues = {}
+    queues.each_pair do |k, v|
+      squeues[k] = v.sort{|a, b| a <=> b}
+    end
+    
+    todo = @input.clone
+    # alg: add the edge with the lowest src timestamp, such that its src and dst 
+    # are consistent with the local order along each timeline.
+    while (todo.length > 0) 
+      todo.sort{|a, b| a[3] <=> b[3]}.each do |i|
+        if i[3] == squeues[i[1]].first and i[4] == squeues[i[2]].first
+          process_input(i)
+          squeues[i[1]].shift
+          squeues[i[2]].shift
+          todo.delete(i)
+        end
+      end
+    end
+  end
+  
+  def process_input(i)  
+    snd_loc = i[1]
+    rcv_loc = i[2]
+    # node name used to be "#{snd_loc}-#{i[3]}"
+    snd = @g.add_node("#{i[0].inspect}-#{snd_loc}-#{i[3]}", {:label => i[3].to_s, :width => 0.1, :height => 0.1, :fontsize => 6})
+    rcv = @g.add_node("#{i[0].inspect}-#{rcv_loc}-#{i[3]}", {:label => i[4].to_s, :width => 0.1, :height => 0.1, :fontsize => 6})
+    @g.add_edge(@head[snd_loc], snd, :weight => 8)
+    @head[snd_loc] = snd
+    @g.add_edge(@head[rcv_loc], rcv, :weight => 8)
+    @head[rcv_loc] = rcv
+    @g.add_edge(snd, rcv, :weight => 1, :label => i[0])
   end
   
   def finish(file)

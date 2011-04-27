@@ -7,7 +7,6 @@ require 'bud/viz_util'
 
 include VizUtil
 
-
 class TraceProcessor
   include Bud
   state do
@@ -50,7 +49,13 @@ snd_info.each_pair do |k1, v1|
     unless k1 == k2
       v1.each do |lval|
         v2.each do |rval|
-          if lval[2].to_msgpack == rval[2].to_msgpack
+          # erm, tuple equivalence?
+          l = lval[2].clone
+          r = rval[2].clone
+          l.shift
+          r.shift
+          if l.inspect == r.inspect
+            tup = ["#{rval[1]}(#{lval[2].inspect})", k1, k2, lval[0], rval[0]]
             plot_data << ["#{rval[1]}(#{lval[2].inspect})", k1, k2, lval[0], rval[0]]
           end
         end
