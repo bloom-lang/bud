@@ -28,9 +28,9 @@ module LocalDeploy
     trap("CHLD") do
       # We get a SIGCHLD every time a child process changes state and there's no
       # easy way to tell whether the child we're getting the signal for is one
-      # of local deploy's children. Hence, we spin on waitpid() until there are
-      # no more children to cleanup. We also ignore Errno::ECHILD, because
-      # someone else's waitpid() could easily race with us.
+      # of local deploy's children. Hence, check if any of the forked children
+      # have exited. We also ignore Errno::ECHILD, because someone else's
+      # waitpid() could easily race with us.
       @child_pids.each do |c|
         begin
           pid = Process.waitpid(c, Process::WNOHANG)
