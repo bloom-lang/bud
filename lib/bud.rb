@@ -585,7 +585,7 @@ module Bud
       Signal.trap("INT") do
         schedule_shutdown(true)
       end
-      Signal.trap("TRAP") do
+      Signal.trap("TERM") do
         schedule_shutdown(true)
       end
     end
