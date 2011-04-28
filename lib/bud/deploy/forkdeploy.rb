@@ -2,8 +2,9 @@ require 'rubygems'
 require 'bud'
 require 'bud/deploy/deployer'
 
-# Starts up a bunch of Bud instances locally on 127.0.0.1, with ephemeral ports.
-module LocalDeploy
+# An implementation of the Deployer that runs instances using forked local
+# processes (listening on 127.0.0.1 w/ an ephemeral port).
+module ForkDeploy
   include Deployer
 
   def stop_bg
@@ -27,10 +28,10 @@ module LocalDeploy
   deploystrap do
     trap("CHLD") do
       # We get a SIGCHLD every time a child process changes state and there's no
-      # easy way to tell whether the child we're getting the signal for is one
-      # of local deploy's children. Hence, check if any of the forked children
-      # have exited. We also ignore Errno::ECHILD, because someone else's
-      # waitpid() could easily race with us.
+      # easy way to tell whether the child process we're getting the signal for
+      # is one of ForkDeploy's children. Hence, check if any of the forked
+      # children have exited. We also ignore Errno::ECHILD, because someone
+      # else's waitpid() could easily race with us.
       @child_pids.each do |c|
         begin
           pid = Process.waitpid(c, Process::WNOHANG)

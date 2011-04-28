@@ -1,18 +1,18 @@
 # Deployment
 
-Bud provides support for deploying a program onto a set of Bud instances.  At the moment, two types of deployments are supported: local deployment and EC2 deployment.  Intuitively, you include the module corresponding to the type of deployment you want into a Bud class, which you instantiate and run on a node called the "deployer."  The deployer then spins up a requested number of Bud instances and distributes initial data.
+Bud provides support for deploying a program onto a set of Bud instances.  At the moment, two types of deployments are supported: fork-based local deployment and EC2 deployment.  Intuitively, you include the module corresponding to the type of deployment you want into a Bud class, which you instantiate and run on a node called the "deployer."  The deployer then spins up a requested number of Bud instances and distributes initial data.
 
 First, decide which type of deployment you want to use.
 
-## Local Deployment
+## Fork-based Local Deployment
 
-To use local deployment, you'll need to require it in your program:
+To use fork-based deployment, you'll need to require it in your program:
 
-    require 'bud/deploy/localdeploy'
+    require 'bud/deploy/forkdeploy'
 
 Don't forget to include it in your class:
 
-    include LocalDeploy
+    include ForkDeploy
 
 The next step is to declare how many nodes you want to the program to be spun up on.  You need to do this in a `deploystrap` block.  A `deploystrap` block is run before `bootstrap`, and is only run for a Bud class that is instantiated with the option `:deploy => true`.  As an example:
 
@@ -20,7 +20,7 @@ The next step is to declare how many nodes you want to the program to be spun up
       num_nodes <= [[2]]
     end
 
-Local deployment will spin up `num_nodes` local processes, each containing one Bud instance, running the class that you include `LocalDeploy` in.  The deployment code will populate a binary collection called `node`; the first columm is a "node ID" -- a distinct integer from the range `[0, num_nodes - 1]` -- and the second argument is an "IP:port" string associated with the node.  Nodes are spun up on ephemeral ports, listening on "localhost".
+Fork-based deployment will spin up `num_nodes` local processes, each containing one Bud instance, running the class that you include `ForkDeploy` in.  The deployment code will populate a binary collection called `node`; the first columm is a "node ID" -- a distinct integer from the range `[0, num_nodes - 1]` -- and the second argument is an "IP:port" string associated with the node.  Nodes are spun up on ephemeral ports, listening on "localhost".
 
 Now, you need to define how you want the initial data to be distributed.  You can do this, for example, by writing (multiple) rules with `initial_data` in the head.  These rules can appear in any `bloom` block in your program. The schema of `initial_data` is as follows: [node ID, relation name as a symbol, list of tuples].
 
@@ -30,7 +30,7 @@ For example, to distribute the IP address and port of the "deployer" to all of t
 
 Note that the relation (`master` in this case) cannot be a channel -- you may only distribute data to scratches and tables.  Initial data is transferred only after _all_ nodes are spun up; this ensures that initial data will never be lost because a node is not yet listening on a socket, for example.  Initial data is transmitted atomically to each node; this means that on each node, _all_ initial data in _all_ relations will arrive at the same Bud timestep.  However, there is no global barrier for transfer of initial data.  For example, if initial data is distributed to nodes 1 and 2, node 1 may receive its initial data first, and then send subsequent messages on channels to node 2 which node 2 may receive before its initial data.
 
-The final step is to add `:deploy => true` to the instantiation of your class.  Note that the local deployer will spin up nodes without `:deploy => true`, so you don't forkbomb your system.
+The final step is to add `:deploy => true` to the instantiation of your class.  Note that the fork-based deployer will spin up nodes without `:deploy => true`, so you don't forkbomb your system.
 
 
 ## EC2 Deployment

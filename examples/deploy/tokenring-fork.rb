@@ -1,16 +1,16 @@
 require 'rubygems'
 require 'bud'
 require 'tokenring'
-require 'bud/deploy/localdeploy'
+require 'bud/deploy/forkdeploy'
 
-class RingLocal
+class RingFork
   include Bud
   include TokenRing
-  include LocalDeploy
+  include ForkDeploy
 
   deploystrap do
     node_count << [10]
   end
 end
 
-RingLocal.new(:deploy => true).run_fg
+RingFork.new(:deploy => true).run_fg

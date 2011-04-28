@@ -1,15 +1,15 @@
 require 'test_common'
 require 'stringio'
 require '../examples/deploy/tokenring'
-require 'bud/deploy/localdeploy'
+require 'bud/deploy/forkdeploy'
 require 'timeout'
 
 DEPLOY_NUM_NODES = 10
 
-class RingLocal
+class RingFork
   include Bud
   include TokenRing
-  include LocalDeploy
+  include ForkDeploy
 
   deploystrap do
     node_count << [DEPLOY_NUM_NODES]
@@ -20,12 +20,12 @@ class RingLocal
   end
 end
 
-class TestLocalDeploy < Test::Unit::TestCase
-  def test_local_deploy
+class TestForkDeploy < Test::Unit::TestCase
+  def test_fork_deploy
     read, write = IO.pipe
     $stdout = write
-    ring_local = RingLocal.new(:deploy => true)
-    ring_local.run_bg
+    ring_fork = RingFork.new(:deploy => true)
+    ring_fork.run_bg
 
     lines = []
     begin
@@ -57,7 +57,7 @@ class TestLocalDeploy < Test::Unit::TestCase
 
     begin
       $stdout = StringIO.new
-      ring_local.stop_bg
+      ring_fork.stop_bg
       # Assert there are no child processes left; we've closed them all
       assert_equal(Process.waitall, [])
     ensure
