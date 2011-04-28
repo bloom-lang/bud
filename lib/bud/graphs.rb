@@ -209,13 +209,11 @@ class GraphGen #:nodoc: all
       end
     end
 
-    old_handler = trap("CHLD", "DEFAULT")
     if output.nil?
       @graph.output(:svg => @name)
     else
       @graph.output(output => @name)
     end
-    trap("CHLD", old_handler)
   end
 end
 
@@ -253,8 +251,6 @@ class SpaceTime
   end
   
   def finish(file)
-    old_handler = trap("CHLD", "DEFAULT")
     @g.output(:svg => "#{file}.svg")
-    trap("CHLD", old_handler)
   end
 end
