@@ -22,14 +22,10 @@ end
 
 class TestLocalDeploy < Test::Unit::TestCase
   def test_local_deploy
-    ring_local = nil
     read, write = IO.pipe
     $stdout = write
-    ring_local = nil
-    assert_nothing_raised do
-      ring_local = RingLocal.new(:deploy => true)
-      ring_local.run_bg
-    end
+    ring_local = RingLocal.new(:deploy => true)
+    ring_local.run_bg
 
     lines = []
     begin
@@ -61,9 +57,7 @@ class TestLocalDeploy < Test::Unit::TestCase
 
     begin
       $stdout = StringIO.new
-      assert_nothing_raised do
-        ring_local.stop_bg
-      end
+      ring_local.stop_bg
       # Assert there are no child processes left; we've closed them all
       assert_equal(Process.waitall, [])
     ensure
