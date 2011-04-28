@@ -48,7 +48,7 @@ module LocalDeploy
       print "Forking local processes"
       @child_pids = []
       (0..node_count[[]].num-1).each do |i|
-        @child_pids << Process.fork do
+        @child_pids << EventMachine.fork_reactor do
           # Don't want to inherit our parent's random stuff.
           srand
           child = self.class.new
@@ -57,7 +57,6 @@ module LocalDeploy
           $stdout.flush
           # Processes write their port to the pipe.
           write.print "#{child.port}\n"
-          EventMachine.reactor_thread.join
         end
       end
 
