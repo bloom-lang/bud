@@ -1,6 +1,5 @@
 require 'test_common'
 require 'stringio'
-require 'bud/rebl'
 require '../examples/deploy/tokenring'
 require 'bud/deploy/localdeploy'
 require 'timeout'
@@ -27,8 +26,7 @@ end
 
 class TestLocalDeploy < Test::Unit::TestCase
   def test_local_deploy
-
-    # Stop EM to make my deploy work
+    # Stop EM to make deploy work
     # XXX: Ugly kludge. See #149.
     d = Dummy.new
     d.run_bg
@@ -45,11 +43,9 @@ class TestLocalDeploy < Test::Unit::TestCase
 
     lines = []
     begin
-      assert_nothing_raised do
-        Timeout::timeout(60) do
-          (DEPLOY_NUM_NODES + 3).times do
-            lines << read.readline
-          end
+      Timeout::timeout(60) do
+        (DEPLOY_NUM_NODES + 3).times do
+          lines << read.readline
         end
       end
     ensure
@@ -58,6 +54,7 @@ class TestLocalDeploy < Test::Unit::TestCase
     # Close pipe
     read.close
     write.close
+
     # Take off the "deploying....done" stuff
     lines = lines[1..-1]
 
