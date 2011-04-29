@@ -1,9 +1,7 @@
-require 'rubygems'
-require 'bud'
 require 'bud/deploy/deployer'
 
 # An implementation of the Deployer that runs instances using forked local
-# processes (listening on 127.0.0.1 w/ an ephemeral port).
+# processes (listening at 127.0.0.1 on an ephemeral port).
 module ForkDeploy
   include Deployer
 
@@ -48,7 +46,7 @@ module ForkDeploy
     if node_count[[]]
       print "Forking local processes"
       @child_pids = []
-      (0..node_count[[]].num-1).each do |i|
+      node_count[[]].num.times do
         @child_pids << EventMachine.fork_reactor do
           # Don't want to inherit our parent's random stuff.
           srand
@@ -62,7 +60,7 @@ module ForkDeploy
       end
 
       # Read ports from pipe.
-      (0..node_count[[]].num-1).each do |i|
+      node_count[[]].num.times do |i|
         node << [i, "localhost:" + read.readline.rstrip]
       end
       read.close
