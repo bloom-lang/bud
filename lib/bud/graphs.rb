@@ -1,4 +1,5 @@
 require 'rubygems'
+require 'digest/md5'
 require 'graphviz'
 
 class GraphGen #:nodoc: all
@@ -226,29 +227,22 @@ class SpaceTime
 
     @queues = {} 
     
-    @g = GraphViz.new(:G, :type => :digraph, :rankdir => "LR", :outputorder => "edgesfirst")
-    @hdr = @g.subgraph("cluster_0")
+    @g = GraphViz.new(:G, :type => :digraph, :rankdir => "LR", :outputorder => "nodesfirst", :splines => "line", :clusterrank => "none")
+    #@hdr = @g.subgraph("cluster_0")
     
     @subs = {}
     @head = {}
     last = nil
     processes.each_with_index do |p, i|
-      @head[p] = @hdr.add_node("process #{p}(#{i})")#, :color => "white", :label => "")
+      #@head[p] = @hdr.add_node("process #{p}(#{i})")#, :color => "white", :label => "")
+      @subs[p] = @g.subgraph("cluster_#{i+1}")
+      @head[p] = @subs[p].add_node("process #{p}(#{i})", :group => p)#, :color => "white", :label => "")
+      
     end
   end
 
   def minn(a, b)
     a <= b ? a : b
-  end
-
-  def process
-    # min of sender, receiver doesn't work
-    #@input.sort {|a, b| minn(a[3], a[4]) <=> minn(b[3], b[4]) }.each do |i|
-    # min sender
-    @input.sort {|a, b| a[3] <=> b[3] }.each do |i|
-      process_input(i)
-    end
-    
   end
 
   def process
@@ -264,33 +258,29 @@ class SpaceTime
     queues.each_pair do |k, v|
       squeues[k] = v.sort{|a, b| a <=> b}
     end
-    
-    todo = @input.clone
-    # alg: add the edge with the lowest src timestamp, such that its src and dst 
-    # are consistent with the local order along each timeline.
-    while (todo.length > 0) 
-      todo.sort{|a, b| a[3] <=> b[3]}.each do |i|
-        if i[3] == squeues[i[1]].first and i[4] == squeues[i[2]].first
-          process_input(i)
-          squeues[i[1]].shift
-          squeues[i[2]].shift
-          todo.delete(i)
+
+    # create the nodes and the timeline edges first.
+    squeues.each do |k, v|
+      v.each_with_index do |item, i|
+        label = "#{k}-#{item}"
+        snd = @subs[k].add_node(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :pos => [1, i], :group => k})  
+        unless @head[k].id == snd.id
+          @subs[k].add_edge(@head[k], snd, :weight => 2)
+          #@g.add_edge(@head[k], snd, :weight => 100)
+          @head[k] = snd
+        else
+          puts "no edge, b/c #{@head[k].id} == #{snd.id}"
         end
       end
     end
-  end
-  
-  def process_input(i)  
-    snd_loc = i[1]
-    rcv_loc = i[2]
-    # node name used to be "#{snd_loc}-#{i[3]}"
-    snd = @g.add_node("#{i[0].inspect}-#{snd_loc}-#{i[3]}", {:label => i[3].to_s, :width => 0.1, :height => 0.1, :fontsize => 6})
-    rcv = @g.add_node("#{i[0].inspect}-#{rcv_loc}-#{i[3]}", {:label => i[4].to_s, :width => 0.1, :height => 0.1, :fontsize => 6})
-    @g.add_edge(@head[snd_loc], snd, :weight => 8)
-    @head[snd_loc] = snd
-    @g.add_edge(@head[rcv_loc], rcv, :weight => 8)
-    @head[rcv_loc] = rcv
-    @g.add_edge(snd, rcv, :weight => 1, :label => i[0])
+
+    @input.sort{|a, b| a[3] <=> b[3]}.each do |i|
+      snd_loc = i[1]
+      rcv_loc = i[2]
+      snd_label = "#{snd_loc}-#{i[3]}"
+      rcv_label = "#{rcv_loc}-#{i[4]}"
+      @g.add_edge(snd_label, rcv_label, :color => "red", :weight => 1, :label => i[5])
+    end
   end
   
   def finish(file)

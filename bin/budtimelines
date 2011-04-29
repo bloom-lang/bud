@@ -24,12 +24,16 @@ usage if ARGV[0] == '--help'
 
 snd_info = {}
 rcv_info = {}
+clean_arg = []
 
-ARGV.each do |arg|
+ARGV.each do |arg_raw|
+  elems = arg_raw.split("_")
+  arg = "#{elems[2]}#{elems[3]}"
+  clean_arg << arg
   snd_info[arg] = []
   rcv_info[arg] = []
 
-  tables = slurp_tables("#{arg}/bud_")
+  tables = slurp_tables("#{arg_raw}/bud_")
   meta = get_meta(tables)
   data = dump_tbl_data(tables)
   data.each do |d|
@@ -39,6 +43,7 @@ ARGV.each do |arg|
       else
         rcv_info[arg] << d
       end
+    elsif meta[:tabinf].map{|m| m[0] if m[1] == "Bud::BudPeriodic"}.include? d[1]
     end
   end
 end
@@ -55,8 +60,7 @@ snd_info.each_pair do |k1, v1|
           l.shift
           r.shift
           if l.inspect == r.inspect
-            tup = ["#{rval[1]}(#{lval[2].inspect})", k1, k2, lval[0], rval[0]]
-            plot_data << ["#{rval[1]}(#{lval[2].inspect})", k1, k2, lval[0], rval[0]]
+            plot_data << [l.inspect, k1, k2, lval[0], rval[0], rval[1]]
           end
         end
       end
@@ -66,5 +70,5 @@ end
 
 st = SpaceTime.new(plot_data)
 st.process
-st.finish("spacetime_trace_#{ARGV.join('-')}")
+st.finish("spacetime_trace_#{clean_arg.join('-')}")
 
