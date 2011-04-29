@@ -62,7 +62,7 @@ module EC2Deploy
     ec2_insts <= (image_id * node_count * key_name * ec2_conn).combos do
       if depl_idempotent [:ec2_insts]
         print "Starting up EC2 instances"
-        STDOUT.flush
+        $stdout.flush
         # First, we create the security group.
         begin
           ec2_conn[[]].conn.create_security_group(:group_name => "bud", :group_description => "bud")
@@ -105,7 +105,7 @@ module EC2Deploy
         else
           print "."
         end
-        STDOUT.flush
+        $stdout.flush
         to_ret
       end
     end
@@ -125,7 +125,7 @@ module EC2Deploy
       if node_up.find {|n| n.bool == false} == nil and node_up.find {|n| n.bool == true} != nil
         if depl_idempotent [:nodes_all_up]
           puts "done"
-          STDOUT.flush
+          $stdout.flush
           [true]
         end
       end
@@ -141,7 +141,7 @@ module EC2Deploy
         ip = t.node.split(":")[0]
         port = t.node.split(":")[1]
         print "Deploying to #{ip} (#{t.uid}/#{node_count[[]].num-1})."
-        STDOUT.flush
+        $stdout.flush
 
         # Upload files and run commands.
         ctr = 0
@@ -169,7 +169,7 @@ module EC2Deploy
           rescue Exception
             ctr += 1
             print "."
-            STDOUT.flush
+            $stdout.flush
             sleep 10
             next
           end
@@ -179,7 +179,6 @@ module EC2Deploy
         [t.uid, t.node]
       end
     end
-
   end
 
   bloom :all_nodes do

@@ -43,33 +43,31 @@ module ForkDeploy
     end
 
     read, write = IO.pipe
-    if node_count[[]]
-      out_io = @options[:stdout]
-      out_io ||= $stdout
-      out_io.print "Forking local processes"
-      @child_pids = []
-      child_opts = @options[:deploy_child_opts]
-      child_opts ||= {}
-      node_count[[]].num.times do
-        @child_pids << EventMachine.fork_reactor do
-          # Don't want to inherit our parent's random stuff.
-          srand
-          child = self.class.new(child_opts)
-          child.run_bg
-          out_io.print "."
-          out_io.flush
-          # Processes write their port to the pipe.
-          write.print "#{child.port}\n"
-        end
+    out_io = @options[:stdout]
+    out_io ||= $stdout
+    out_io.print "Forking local processes"
+    @child_pids = []
+    child_opts = @options[:deploy_child_opts]
+    child_opts ||= {}
+    node_count[[]].num.times do
+      @child_pids << EventMachine.fork_reactor do
+        # Don't want to inherit our parent's random stuff.
+        srand
+        child = self.class.new(child_opts)
+        child.run_bg
+        out_io.print "."
+        out_io.flush
+        # Processes write their port to the pipe.
+        write.print "#{child.port}\n"
       end
-
-      # Read ports from pipe.
-      node_count[[]].num.times do |i|
-        node << [i, "localhost:" + read.readline.rstrip]
-      end
-      read.close
-      write.close
-      out_io.puts "done"
     end
+
+    # Read ports from pipe.
+    node_count[[]].num.times do |i|
+      node << [i, "localhost:" + read.readline.rstrip]
+    end
+    read.close
+    write.close
+    out_io.puts "done"
   end
 end

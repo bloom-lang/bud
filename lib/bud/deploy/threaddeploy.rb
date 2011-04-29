@@ -14,21 +14,19 @@ module ThreadDeploy
   end
 
   deploystrap do
-    if node_count[[]]
-      out_io = @options[:stdout]
-      out_io ||= $stdout
-      out_io.print "Spawning threads"
-      @instances = []
-      child_opts = @options[:deploy_child_opts]
-      child_opts ||= {}
-      node_count[[]].num.times do |i|
-        b = self.class.new(child_opts)
-        b.run_bg
-        @instances << b
-        node << [i, "localhost:#{b.port}"]
-        out_io.print "."
-      end
-      out_io.puts "done"
+    out_io = @options[:stdout]
+    out_io ||= $stdout
+    out_io.print "Spawning threads"
+    @instances = []
+    child_opts = @options[:deploy_child_opts]
+    child_opts ||= {}
+    node_count[[]].num.times do |i|
+      b = self.class.new(child_opts)
+      b.run_bg
+      @instances << b
+      node << [i, "localhost:#{b.port}"]
+      out_io.print "."
     end
+    out_io.puts "done"
   end
 end
