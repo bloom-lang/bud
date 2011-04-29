@@ -12,6 +12,8 @@ class TraceProcessor
   state do
     
   end
+
+  
 end
 
 def usage
@@ -35,8 +37,23 @@ ARGV.each do |arg_raw|
 
   tables = slurp_tables("#{arg_raw}/bud_")
   meta = get_meta(tables)
+
+  # a very conservative way to check if a timestep transition
+  # was NM is to check if the cardinality of any predicates
+  # appearing in the heads of NM rules changed...  
+  nm_heads = meta[:depends].map do |m|
+    puts "EM: #{m.inspect}"
+    if m[4] 
+      m[1]
+    end
+  end
+  nm_heads.uniq!
+
+  puts "nm heads is #{nm_heads.inspect}"
+
   data = dump_tbl_data(tables)
   data.each do |d|
+    
     if meta[:tabinf].map{|m| m[0] if m[1] == "Bud::BudChannel"}.include? d[1]
       if d[1] =~ /_snd\z/
         snd_info[arg] << d 

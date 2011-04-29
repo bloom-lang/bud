@@ -11,12 +11,7 @@ BUD_DBM_DIR = "#{ARGV[0]}/bud_"
 
 class VizHelper
   include Bud
-
-  state do
-    table :full_info, [:bud_time, :table, :row]
-    scratch :cardinalities, [:bud_time, :table] => [:cnt]
-    scratch :times, [:bud_time]
-  end
+  include TraceCardinality
 
   def initialize(tabinf, cycle, depends, rules, dir)
     @t_tabinf = tabinf
@@ -25,11 +20,6 @@ class VizHelper
     @t_rules = rules
     @dir = dir
     super()
-  end
-
-  bloom :counting do
-    cardinalities <= full_info.group([full_info.bud_time, full_info.table], count)
-    times <= full_info {|f| [f.bud_time]}
   end
 
   def summarize(dir, schema)
