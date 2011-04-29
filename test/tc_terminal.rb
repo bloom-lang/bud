@@ -15,9 +15,9 @@ end
 
 class TestTerminal < Test::Unit::TestCase
   def test_stdin
-    $stdin = StringIO.new("I am input from stdin\n")
+    input_buf = StringIO.new("I am input from stdin\n")
     q = Queue.new
-    t = TerminalTester.new(:read_stdin => true)
+    t = TerminalTester.new(:stdin => input_buf)
     t.run_bg
     t.register_callback(:saw_input) do |tbl|
       assert_equal(1, tbl.length)

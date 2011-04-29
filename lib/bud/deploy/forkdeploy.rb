@@ -11,7 +11,7 @@ module ForkDeploy
     # NB: Setting the SIGCHLD handler to "IGNORE" results in waitpid() being
     # called automatically (to cleanup zombies), at least on OSX. This is not
     # what we want, since it would cause a subsequent waitpid() to fail.
-    trap("CHLD", "DEFAULT")
+    Signal.trap("CHLD", "DEFAULT")
     @dead_pids ||= []
     pids = @child_pids - @dead_pids
     pids.each do |p|
@@ -24,7 +24,7 @@ module ForkDeploy
   end
 
   deploystrap do
-    trap("CHLD") do
+    Signal.trap("CHLD") do
       # We get a SIGCHLD every time a child process changes state and there's no
       # easy way to tell whether the child process we're getting the signal for
       # is one of ForkDeploy's children. Hence, check if any of the forked
