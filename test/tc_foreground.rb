@@ -25,8 +25,8 @@ class CallbackTest < Test::Unit::TestCase
     assert_nothing_raised {c.stop_bg(true)}
   end
     
-  def test_trap
-    kill_with_signal("TRAP")
+  def test_term
+    kill_with_signal("TERM")
   end
   
   def test_int
