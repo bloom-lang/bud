@@ -44,16 +44,20 @@ module ForkDeploy
 
     read, write = IO.pipe
     if node_count[[]]
-      print "Forking local processes"
+      out_io = @options[:stdout]
+      out_io ||= $stdout
+      out_io.print "Forking local processes"
       @child_pids = []
+      child_opts = @options[:deploy_child_opts]
+      child_opts ||= {}
       node_count[[]].num.times do
         @child_pids << EventMachine.fork_reactor do
           # Don't want to inherit our parent's random stuff.
           srand
-          child = self.class.new
+          child = self.class.new(child_opts)
           child.run_bg
-          print "."
-          $stdout.flush
+          out_io.print "."
+          out_io.flush
           # Processes write their port to the pipe.
           write.print "#{child.port}\n"
         end
@@ -65,7 +69,7 @@ module ForkDeploy
       end
       read.close
       write.close
-      puts "done"
+      out_io.puts "done"
     end
   end
 end

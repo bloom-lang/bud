@@ -79,6 +79,7 @@ module Bud
   #   * <tt>:tc_truncate</tt> if true, TokyoCabinet collections are opened with OTRUNC
   # * deployment
   #   * <tt>:deploy</tt>  enable deployment
+  #   * <tt>:deploy_child_opts</tt> option hash to pass to deployed instances
   def initialize(options={})
     @tables = {}
     @table_meta = []
