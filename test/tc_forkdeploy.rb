@@ -22,29 +22,23 @@ end
 class TestForkDeploy < Test::Unit::TestCase
   def test_fork_deploy
     read, write = IO.pipe
-    $stdout = write
-    ring_fork = RingFork.new(:deploy => true)
+    child_opts = { :stdout => write }
+    ring_fork = RingFork.new(:deploy => true, :stdout => write,
+                             :deploy_child_opts => child_opts)
     ring_fork.run_bg
 
     lines = []
-    begin
-      Timeout::timeout(60) do
-        (NUM_DEPLOY_FORKS + 3).times do
-          lines << read.readline
-        end
+    Timeout::timeout(45) do
+      (NUM_DEPLOY_FORKS + 3).times do
+        lines << read.readline
       end
-    ensure
-      $stdout = STDOUT
     end
-    # Close pipe
-    read.close
-    write.close
 
     # Take off the "deploying....done" stuff
-    lines = lines[1..-1]
+    lines.shift
 
     # Token starts and ends up at the same place
-    assert_equal(lines[0], lines[-1])
+    assert_equal(lines.first, lines.last)
 
     # Token circulates amongst nodes
     for i in (1..lines.size-1)
@@ -54,13 +48,12 @@ class TestForkDeploy < Test::Unit::TestCase
       end
     end
 
-    begin
-      $stdout = StringIO.new
-      ring_fork.stop_bg
-      # Assert there are no child processes left; we've closed them all
-      assert_equal(Process.waitall, [])
-    ensure
-      $stdout = STDOUT
-    end
+    ring_fork.stop_bg
+    # Assert there are no child processes left; we've closed them all
+    assert_equal(Process.waitall, [])
+
+    # Close pipe
+    read.close
+    write.close
   end
 end
