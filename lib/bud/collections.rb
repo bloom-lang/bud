@@ -841,8 +841,11 @@ module Bud
       @reader = Thread.new do
         begin
           while true
-            $stdout.print("#{tabname} > ") if @prompt
-            s = $stdin.gets
+            out_io = get_out_io
+            out_io.print("#{tabname} > ") if @prompt
+
+            in_io = @bud_instance.options[:stdin]
+            s = in_io.gets
             break if s.nil? # Hit EOF
             s = s.chomp if s
             tup = [s]
@@ -864,9 +867,10 @@ module Bud
 
     public
     def flush #:nodoc: all
+      out_io = get_out_io
       @pending.each do |p|
-        $stdout.puts p[0]
-        $stdout.flush
+        out_io.puts p[0]
+        out_io.flush
       end
       @pending = {}
     end
@@ -886,6 +890,13 @@ module Bud
 
     superator "<~" do |o|
       pending_merge(o)
+    end
+
+    private
+    def get_out_io
+      rv = @bud_instance.options[:stdout]
+      rv ||= $stdout
+      rv
     end
   end
 

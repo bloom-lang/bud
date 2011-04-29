@@ -75,11 +75,12 @@ State declaration includes interval (in seconds).
     periodic :timer, 0.1
 
 ### stdio ###
-Built-in scratch collection mapped to Ruby's `$stdin` and `$stdout`<br>
+Built-in scratch collection for performing terminal I/O.<br>
 System-provided attributes: `[:line] => []`
 
 Statements with stdio on lhs must use async merge (`<~`).<br>
-To capture `$stdin` on rhs, instantiate Bud with `:read_stdin` option.<br>
+Using `stdio` on the lhs of an async merge results in writing to the `IO` object specified by the `:stdout` Bud option (`$stdout` by default).<br>
+To use `stdio` on rhs, instantiate Bud with `:stdin` option set to an `IO` object (e.g., `$stdin`).<br>
 
 ### dbm_table ###
 Table collection mapped to a [DBM] (http://en.wikipedia.org/wiki/Dbm) store.<br>

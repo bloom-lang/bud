@@ -3,7 +3,7 @@ require 'stringio'
 require '../examples/deploy/tokenring'
 require 'timeout'
 
-DEPLOY_NUM_NODES = 10
+NUM_DEPLOY_FORKS = 10
 
 class RingFork
   include Bud
@@ -11,7 +11,7 @@ class RingFork
   include ForkDeploy
 
   deploystrap do
-    node_count << [DEPLOY_NUM_NODES]
+    node_count << [NUM_DEPLOY_FORKS]
   end
 
   bloom :pass_token_once do
@@ -29,7 +29,7 @@ class TestForkDeploy < Test::Unit::TestCase
     lines = []
     begin
       Timeout::timeout(60) do
-        (DEPLOY_NUM_NODES + 3).times do
+        (NUM_DEPLOY_FORKS + 3).times do
           lines << read.readline
         end
       end

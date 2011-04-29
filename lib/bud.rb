@@ -63,7 +63,8 @@ module Bud
   #   * <tt>:ext_port</tt>   port number to go with :ext_ip
   #   * <tt>:bust_port</tt>  port number for the restful http messages
   # * operating system interaction
-  #   * <tt>:read_stdin</tt>  if true, captures stdin via the stdio collection
+  #   * <tt>:stdin</tt>  if non-nil, reading from the +stdio+ collection results in reading from this +IO+ handle
+  #   * <tt>:stdout</tt> writing to the +stdio+ collection results in writing to this +IO+ handle; defaults to +$stdout+
   #   * <tt>:no_signal_handlers</tt> if true, runtime ignores SIGINT and SIGTERM
   # * tracing and output
   #   * <tt>:quiet</tt> if true, suppress certain messages
@@ -516,7 +517,7 @@ module Bud
 
     # Arrange for Bud to read from stdin if enabled. Note that we can't do this
     # earlier because we need to wait for EventMachine startup.
-    @stdio.start_stdin_reader if @options[:read_stdin]
+    @stdio.start_stdin_reader if @options[:stdin]
     @zk_tables.each_value {|t| t.start_watchers}
 
     # Compute a fixpoint; this will also invoke any bootstrap blocks.
