@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bud'
-require 'tokenring'
 require 'bud/deploy/ec2deploy'
+require 'tokenring'
 
 class RingEC2
   include Bud

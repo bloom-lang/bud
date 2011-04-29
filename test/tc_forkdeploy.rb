@@ -1,7 +1,6 @@
 require 'test_common'
 require 'stringio'
 require '../examples/deploy/tokenring'
-require 'bud/deploy/forkdeploy'
 require 'timeout'
 
 DEPLOY_NUM_NODES = 10

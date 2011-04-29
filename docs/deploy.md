@@ -6,11 +6,7 @@ First, decide which type of deployment you want to use.
 
 ## Fork-based Local Deployment
 
-To use fork-based deployment, you'll need to require it in your program:
-
-    require 'bud/deploy/forkdeploy'
-
-Don't forget to include it in your class:
+To use fork-based deployment, you'll need to include it in your class:
 
     include ForkDeploy
 
@@ -35,11 +31,13 @@ The final step is to add `:deploy => true` to the instantiation of your class.  
 
 ## EC2 Deployment
 
-To use EC2 deployment you'll need to require it in your program:
+To use EC2 deployment, you'll need to require it in your program:
 
     require 'bud/deploy/ec2deploy'
 
-Don't forget to include it in your class:
+Note that the Net::SSH, Net::SCP, and AWS Rubygems must be installed.
+
+Next, include the `EC2Deploy` module in your class:
 
     include EC2Deploy
 
@@ -83,9 +81,9 @@ Note that EC2 deployment does *not* shut down the EC2 nodes it starts up under a
 
 ## Examples
 
-Check out the `examples/deploy` directory in Bud.  There is a simple token ring example that establishes a ring involving 10 nodes and sends a token around the ring continuously.  This example can be deployed locally:
+Check out the `examples/deploy` directory in Bud.  There is a simple token ring example that establishes a ring involving 10 nodes and sends a token around the ring continuously.  This example can be deployed locally using the fork-based deployer:
 
-    ruby tokenring-local.rb
+    ruby tokenring-fork.rb
 
 or on EC2:
 
@@ -93,4 +91,4 @@ or on EC2:
 
 Note that before running `tokenring-ec2`, you must create a "keys.rb" file that contains `access_key_id`, `secret_access_key`, `key_name` and `ec2_key_location`.
 
-Output will be displayed to show the progress of the deployment.  Be patient, it may take a while for output to appear.  Once deployment is complete and all nodes are ready, each node will display output indicating when it has the token.  All output will be visible for the local deployment case, whereas only the deployer node's output will be visible for the EC2 deployment case (stdout of all other nodes is materialized to disk).
+Output will be displayed to show the progress of the deployment.  Be patient, it may take a while for output to appear.  Once deployment is complete and all nodes are ready, each node will display output indicating when it has the token.  All output will be visible for the fork-based deployment case, whereas only the deployer node's output will be visible for the EC2 deployment case (stdout of all other nodes is materialized to disk).

@@ -1,7 +1,6 @@
 require 'rubygems'
 require 'bud'
 require 'tokenring'
-require 'bud/deploy/forkdeploy'
 
 class RingFork
   include Bud
