@@ -12,6 +12,7 @@ require 'bud/bud_meta'
 require 'bud/collections'
 require 'bud/depanalysis'
 require 'bud/deploy/forkdeploy'
+require 'bud/deploy/threaddeploy'
 require 'bud/errors'
 require 'bud/joins'
 require 'bud/rtrace'
@@ -75,6 +76,8 @@ module Bud
   # * storage configuration
   #   * <tt>:tc_dir</tt>  filesystem directory to hold TokyoCabinet data stores
   #   * <tt>:tc_truncate</tt> if true, TokyoCabinet collections are opened with OTRUNC
+  # * deployment
+  #   * <tt>:deploy</tt>  enable deployment
   def initialize(options={})
     @tables = {}
     @table_meta = []
