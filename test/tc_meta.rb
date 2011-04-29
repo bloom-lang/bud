@@ -216,4 +216,41 @@ class TestMeta < Test::Unit::TestCase
     t.tick
     assert_equal([], t.foo_persist.to_a.sort)
   end
+
+  def test_spacetime
+    inp = [
+      [:ping, :a, :b, 1, 3],
+      [:pong, :b, :a, 4, 2],
+      [:ping, :a, :b, 3, 5],
+      [:pong, :b, :a, 6, 4]
+    ];
+    
+    do_spacetime(inp, "foofoo")
+  end
+
+  def test_spacetime2
+    inp = [
+      [:ping, :a, :b, 1, 3],
+      [:ping, :b, :c, 4, 11],
+      [:pong, :c, :b, 12, 5],
+      [:pong, :b, :a, 6, 2]
+    ]
+    do_spacetime(inp, "foo2")
+  end
+
+  def test_spacetime3
+    inp = [
+      [:ping1, :a, :b, 1, 3],
+      [:ping2, :a, :b, 1, 4],
+      [:ping3, :a, :b, 1, 5],
+      [:ping4, :a, :b, 1, 6]
+    ]
+    do_spacetime(inp, "foo3")
+  end
+  
+  def do_spacetime(inp, out)
+    st = SpaceTime.new(inp)
+    st.process
+    st.finish(out)
+  end
 end
