@@ -35,7 +35,7 @@ To use EC2 deployment, you'll need to require it in your program:
 
     require 'bud/deploy/ec2deploy'
 
-Note that the Net::SSH, Net::SCP, and AWS Rubygems must be installed.
+Note that the `Net::SSH`, `Net::SCP`, and `AWS` Rubygems must be installed.
 
 Next, include the `EC2Deploy` module in your class:
 
@@ -69,7 +69,7 @@ This recursively copies all directories and files rooted at the current working 
 
 Finally, `ec2_key_location` is the path to the private key of the `key_name` keypair.  For example:
 
-    key_name <= [["/home/bob/.ssh/ec2"]]
+    ec2_key_location <= [["/home/bob/.ssh/ec2"]]
 
 EC2 deployment will spin up `num_nodes` instances (using defaults) on EC2 using a pre-rolled Bud AMI based on Amazon's 32-bit Linux AMI (`ami-8c1fece5`).  Each instance contains one Bud instance, which runs the `ruby_command`.  Like before, the deployment code will populate a binary relation called `node`; the first argument is a "node ID" -- a distinct integer from the range [0, num_nodes - 1] -- and the second argument is an "IP:port" string associated with the node.  Nodes are currently spun up on fixed port 54321.
 
@@ -91,4 +91,4 @@ or on EC2:
 
 Note that before running `tokenring-ec2`, you must create a "keys.rb" file that contains `access_key_id`, `secret_access_key`, `key_name` and `ec2_key_location`.
 
-Output will be displayed to show the progress of the deployment.  Be patient, it may take a while for output to appear.  Once deployment is complete and all nodes are ready, each node will display output indicating when it has the token.  All output will be visible for the fork-based deployment case, whereas only the deployer node's output will be visible for the EC2 deployment case (stdout of all other nodes is materialized to disk).
+Output will be displayed to show the progress of the deployment.  Be patient, it may take a while for output to appear.  Once deployment is complete and all nodes are ready, each node will display output indicating when it has the token.  All output will be visible for the fork-based deployment case, whereas only the deployer node's output will be visible for the EC2 deployment case (stdout of all other nodes is written to local disk).
