@@ -9,8 +9,64 @@ include VizUtil
 
 class TraceProcessor
   include Bud
+  include TraceCardinality
   state do
+    table :depends, [:rid, :lhs, :op, :rhs, :nm]
+    table :deltas, [:bud_time, :tab, :nm]
+    table :zerod_cards, [:bud_time, :table, :cnt]
+    table :nm_tab, [:table]
+    table :collapsible_base, [:start, :fin]
+    table :collapsible, [:start, :fin]
+    table :best_interval, [:start, :fin]
+  end
+
+  bloom do
+    zerod_cards <= cardinalities
+    zerod_cards <= (times * depends).pairs do |t, d|
+      unless cardinalities{|c| c[1]}.include? d[1]
+        [t.bud_time, d[1], 0]
+      end
+    end
+
+    nm_tab <= depends do |d|
+      [d[1]] if d[4]
+    end
+
+    #stdio <~ nm_tab {|t| ["NMMMMMMM #{t.inspect}"]}
+
+    deltas <= (zerod_cards * zerod_cards).pairs do |c1, c2|
+      if c1.bud_time == c2.bud_time - 1 and c1.table == c2.table and c1.cnt != c2.cnt
+        if nm_tab.include? [c1.table]
+          [c2.bud_time, c1.table, true]
+        else 
+          [c2.bud_time, c1.table, false]
+        end
+      end
+    end
+
+    collapsible_base <= times do |t|
+      unless deltas{|d| d.bud_time if d.nm}.include? t.bud_time
+        [t.bud_time-1, t.bud_time]
+      end
+    end
+  
+    collapsible <= collapsible_base
+    #collapsible <= (collapsible_base * collapsible).pairs(collapsible_base.fin => collapsible.start) do |b, c|
+    #  [b.start, c.fin]
+    #end
+    # note to self: create issue about NM of fin, start above
+    collapsible <= (collapsible_base * collapsible).pairs do |b, c|
+      if b.fin == c.start
+        [b.start, c.fin]
+      end
+    end
     
+    best_interval <= collapsible do |c|
+      unless collapsible{|c1| c1.start == c.start and c1.fin > c.fin}.any? \
+       or collapsible{|c2| c2.fin == c.fin and c2.start < c.start}.any?
+        c 
+      end
+    end
   end
 end
 
@@ -35,8 +91,16 @@ ARGV.each do |arg_raw|
 
   tables = slurp_tables("#{arg_raw}/bud_")
   meta = get_meta(tables)
+  tp = TraceProcessor.new
+
+  meta[:depends].each do |m|
+    tp.depends << m  
+  end
+
+
   data = dump_tbl_data(tables)
   data.each do |d|
+    tp.full_info << d
     if meta[:tabinf].map{|m| m[0] if m[1] == "Bud::BudChannel"}.include? d[1]
       if d[1] =~ /_snd\z/
         snd_info[arg] << d 
@@ -46,6 +110,13 @@ ARGV.each do |arg_raw|
     elsif meta[:tabinf].map{|m| m[0] if m[1] == "Bud::BudPeriodic"}.include? d[1]
     end
   end
+
+  tp.tick
+  tp.tick
+  #tp.cardinalities.each{|c| puts "CEE: #{c.inspect}"}
+  #tp.nm_deltas.each{|n| puts "NMdelta: #{n.inspect}"}
+  tp.best_interval.each{|n| puts "collapsible (@#{arg}): #{n.inspect}"}
+  
 end
 
 plot_data = []

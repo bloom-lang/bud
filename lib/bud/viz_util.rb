@@ -1,6 +1,19 @@
 require 'rubygems'
 require 'bud/graphs'
 
+module TraceCardinality
+  state do
+    table :full_info, [:bud_time, :table, :row]
+    scratch :cardinalities, [:bud_time, :table] => [:cnt]
+    scratch :times, [:bud_time]
+  end
+
+  bloom do
+    cardinalities <= full_info.group([full_info.bud_time, full_info.table], count)
+    times <= full_info {|f| [f.bud_time]}
+  end
+end
+
 module VizUtil #:nodoc: all
   def graph_from_instance(bud_instance, viz_name, output_base, collapse=true, fmt=nil)
     tabinf = {}

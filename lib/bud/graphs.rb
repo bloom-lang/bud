@@ -266,10 +266,7 @@ class SpaceTime
         snd = @subs[k].add_node(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :pos => [1, i], :group => k})  
         unless @head[k].id == snd.id
           @subs[k].add_edge(@head[k], snd, :weight => 2)
-          #@g.add_edge(@head[k], snd, :weight => 100)
           @head[k] = snd
-        else
-          puts "no edge, b/c #{@head[k].id} == #{snd.id}"
         end
       end
     end
