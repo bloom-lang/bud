@@ -2,11 +2,16 @@ require 'bud/deploy/deployer'
 
 # An implementation of the Deployer that runs instances using forked local
 # processes (listening at 127.0.0.1 on an ephemeral port).
+#
+# Note that this module is included in both the deployer process and in the
+# deployed instances. To write code that only runs in one type of process,
+# consult the ":deploy" Bud option (which is false in deployed children).
 module ForkDeploy
   include Deployer
 
   def stop_bg
     super
+    return unless @options[:deploy]
 
     # NB: Setting the SIGCHLD handler to "IGNORE" results in waitpid() being
     # called automatically (to cleanup zombies), at least on OSX. This is not
@@ -23,7 +28,9 @@ module ForkDeploy
      end
   end
 
-  deploystrap do
+  bootstrap do
+    return unless @options[:deploy]
+
     Signal.trap("CHLD") do
       # We get a SIGCHLD every time a child process changes state and there's no
       # easy way to tell whether the child process we're getting the signal for

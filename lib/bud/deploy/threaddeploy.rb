@@ -4,18 +4,21 @@ require 'bud/deploy/deployer'
 # process (listening at 127.0.0.1 on an ephemeral port). ThreadDeploy is
 # probably not the best name: all the spawned instances are run by a single
 # thread, they are just multiplexed via EventMachine.
+#
+# Note that this module is included in both the deployer process and in the
+# deployed instances. To write code that only runs in one type of process,
+# consult the ":deploy" Bud option (which is false in deployed children).
 module ThreadDeploy
   include Deployer
 
   def stop_bg
     super
-
-    if @options[:deploy]
-      @instances.each {|b| b.stop_bg}
-    end
+    return unless @options[:deploy]
+    @instances.each {|b| b.stop_bg}
   end
 
-  deploystrap do
+  bootstrap do
+    return unless @options[:deploy]
     @instances = []
     print "Spawning threads"
     child_opts = @options[:deploy_child_opts]
