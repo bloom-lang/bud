@@ -35,7 +35,7 @@ To use EC2 deployment, you'll need to require it in your program:
 
     require 'bud/deploy/ec2deploy'
 
-Note that the Net::SSH, Net::SCP, and AWS Rubygems must be installed.
+Note that the `aws`, `net-scp`, and `net-ssh` gems must be installed.
 
 Next, include the `EC2Deploy` module in your class:
 
@@ -69,13 +69,13 @@ This recursively copies all directories and files rooted at the current working 
 
 Finally, `ec2_key_location` is the path to the private key of the `key_name` keypair.  For example:
 
-    key_name <= [["/home/bob/.ssh/ec2"]]
+    ec2_key_location <= [["/home/bob/.ssh/bob.pem"]]
 
-EC2 deployment will spin up `num_nodes` instances (using defaults) on EC2 using a pre-rolled Bud AMI based on Amazon's 32-bit Linux AMI (`ami-8c1fece5`).  Each instance contains one Bud instance, which runs the `ruby_command`.  Like before, the deployment code will populate a binary relation called `node`; the first argument is a "node ID" -- a distinct integer from the range [0, num_nodes - 1] -- and the second argument is an "IP:port" string associated with the node.  Nodes are currently spun up on fixed port 54321.
+EC2 deployment will spin up `num_nodes` instances (using defaults) on EC2 using a pre-rolled Bud AMI based on Amazon's 32-bit Linux AMI (`ami-8c1fece5`).  Each instance contains one Bud instance, which runs the `ruby_command`.  Like before, the deployment code will populate a binary relation called `node`; the first attribute is a "node ID" -- a distinct integer from the range [0, num_nodes - 1] -- and the second attribute is an "IP:port" string associated with the node.  Nodes are currently spun up on fixed port 54321.
 
-Defining initial data works exactly the same way with EC2 deployment as it does with local deployment.
+Defining `initial_data` works exactly the same way with EC2 deployment as it does with local deployment.
 
-There is a slight catch with EC2 deployment.  Sometimes EC2 tells us that the nodes have all started up, but really, one or more nodes will never start up.  Currently, in this scenario, deployment exceeds the maximum number of ssh retries, and throws an exception.
+There is a slight catch with EC2 deployment.  Sometimes EC2 tells us that the nodes have all started up, but really, one or more nodes will never start up.  Currently, in this scenario, deployment exceeds the maximum number of SSH retries, and throws an exception.
 
 Note that EC2 deployment does *not* shut down the EC2 nodes it starts up under any circumstances.  This means you must use some alternate means to shut down the nodes, such as logging onto the EC2 web interface and terminating the nodes.
 
@@ -89,6 +89,6 @@ or on EC2:
 
     ruby tokenring-ec2.rb local_ip:local_port ext_ip true
 
-Note that before running `tokenring-ec2`, you must create a "keys.rb" file that contains `access_key_id`, `secret_access_key`, `key_name` and `ec2_key_location`.
+Note that before running `tokenring-ec2`, you must create a file named "keys.rb" that contains definitions for `access_key_id`, `secret_access_key`, `key_name` and `ec2_key_location`.
 
-Output will be displayed to show the progress of the deployment.  Be patient, it may take a while for output to appear.  Once deployment is complete and all nodes are ready, each node will display output indicating when it has the token.  All output will be visible for the fork-based deployment case, whereas only the deployer node's output will be visible for the EC2 deployment case (stdout of all other nodes is materialized to disk).
+Output will be displayed to show the progress of the deployment.  Be patient, it may take a while for output to appear.  Once deployment is complete and all nodes are ready, each node will display output indicating when it has the token.  All output will be visible for the fork-based deployment case, whereas only the deployer node's output will be visible for the EC2 deployment case (stdout of all other nodes is written to local disk).

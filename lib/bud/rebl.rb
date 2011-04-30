@@ -72,7 +72,7 @@ class ReblShell
   # LibRebl that is created; testcases call this directly.
   def self.setup
     Signal.trap("INT") {do_exit}
-    Signal.trap("TRAP") {do_exit}
+    Signal.trap("TERM") {do_exit}
 
     ipport = ARGV[0] ? ARGV[0].split(":") : []
     lib = LibRebl.new(*[(ipport[0] or "localhost"), (ipport[1] or 0)])

@@ -21,21 +21,31 @@ end
 
 class TestThreadDeploy < Test::Unit::TestCase
   def test_thread_deploy
+    deploy_out = StringIO.new
+    begin
+      $stdout = deploy_out
+      do_deploy_test
+    ensure
+      $stdout = STDOUT
+    end
+  end
+
+  def do_deploy_test
     read, write = IO.pipe
-    child_opts = { :stdout => write }
     deployer = RingThread.new(:deploy => true, :stdout => write,
-                              :deploy_child_opts => child_opts)
+                              :deploy_child_opts => { :stdout => write })
     deployer.run_bg
 
     lines = []
     Timeout::timeout(45) do
-      (DEPLOY_NUM_NODES + 3).times do
+      (DEPLOY_NUM_NODES + 2).times do |i|
         lines << read.readline
       end
     end
 
-    # Take off the "deploying....done" stuff
-    lines.shift
+    # Close pipe
+    read.close
+    write.close
 
     # Token starts and ends up at the same place
     assert_equal(lines.first, lines.last)
@@ -49,9 +59,5 @@ class TestThreadDeploy < Test::Unit::TestCase
     end
 
     deployer.stop_bg
-
-    # Close pipe
-    read.close
-    write.close
   end
 end
