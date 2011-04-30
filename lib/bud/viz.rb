@@ -19,7 +19,7 @@ class VizOnline #:nodoc: all
       # Temp collections don't have a schema until a fact has been inserted into
       # them; for now, we just include an empty schema for them in the viz
       if tbl.schema.nil?
-        schema = []
+        schema = [:a, :b, :c, :d]
       else
         schema = tbl.schema.clone
       end
