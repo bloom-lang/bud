@@ -43,9 +43,7 @@ module ForkDeploy
     end
 
     read, write = IO.pipe
-    out_io = @options[:stdout]
-    out_io ||= $stdout
-    out_io.print "Forking local processes"
+    print "Forking local processes"
     @child_pids = []
     child_opts = @options[:deploy_child_opts]
     child_opts ||= {}
@@ -55,10 +53,10 @@ module ForkDeploy
         srand
         child = self.class.new(child_opts)
         child.run_bg
-        out_io.print "."
-        out_io.flush
+        print "."
+        $stdout.flush
         # Processes write their port to the pipe.
-        write.print "#{child.port}\n"
+        write.puts "#{child.port}"
       end
     end
 
@@ -68,6 +66,6 @@ module ForkDeploy
     end
     read.close
     write.close
-    out_io.puts "done"
+    puts "done"
   end
 end

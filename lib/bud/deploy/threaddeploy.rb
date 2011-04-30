@@ -1,7 +1,9 @@
 require 'bud/deploy/deployer'
 
-# An implementation of the Deployer that runs instances using Ruby threads
-# (listening at 127.0.0.1 on an ephemeral port).
+# An implementation of the Deployer that runs instances using the current Ruby
+# process (listening at 127.0.0.1 on an ephemeral port). ThreadDeploy is
+# probably not the best name: all the spawned instances are run by a single
+# thread, they are just multiplexed via EventMachine.
 module ThreadDeploy
   include Deployer
 
@@ -14,10 +16,8 @@ module ThreadDeploy
   end
 
   deploystrap do
-    out_io = @options[:stdout]
-    out_io ||= $stdout
-    out_io.print "Spawning threads"
     @instances = []
+    print "Spawning threads"
     child_opts = @options[:deploy_child_opts]
     child_opts ||= {}
     node_count[[]].num.times do |i|
@@ -25,8 +25,8 @@ module ThreadDeploy
       b.run_bg
       @instances << b
       node << [i, "localhost:#{b.port}"]
-      out_io.print "."
+      print "."
     end
-    out_io.puts "done"
+    puts "done"
   end
 end

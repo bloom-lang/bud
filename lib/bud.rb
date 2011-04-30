@@ -97,7 +97,7 @@ module Bud
     @joinstate = {}  # joins are stateful, their state needs to be kept inside the Bud instance
 
     # Setup options (named arguments), along with default values
-    @options = options
+    @options = options.clone
     @lazy = @options[:lazy] ||= false
     @options[:ip] ||= "127.0.0.1"
     @ip = @options[:ip]
