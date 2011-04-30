@@ -19,6 +19,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'backports'
   s.add_dependency 'eventmachine'
   s.add_dependency 'gchart'
+  s.add_dependency 'getopt'
   s.add_dependency 'i18n'
   s.add_dependency 'json'
   s.add_dependency 'msgpack'
