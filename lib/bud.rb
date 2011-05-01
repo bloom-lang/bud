@@ -55,28 +55,28 @@ module Bud
   attr_accessor :lazy # This can be changed on-the-fly by REBL
   attr_accessor :stratum_collection_map
 
-  # options to the bud runtime are passed in a hash, with the following keys
+  # options to the Bud runtime are passed in a hash, with the following keys
   # * network configuration
   #   * <tt>:ip</tt>   IP address string for this instance
   #   * <tt>:port</tt>   port number for this instance
   #   * <tt>:ext_ip</tt>  IP address at which external nodes can contact this instance
-  #   * <tt>:ext_port</tt>   port number to go with :ext_ip
-  #   * <tt>:bust_port</tt>  port number for the restful http messages
+  #   * <tt>:ext_port</tt>   port number to go with <tt>:ext_ip</tt>
+  #   * <tt>:bust_port</tt>  port number for the restful HTTP messages
   # * operating system interaction
   #   * <tt>:stdin</tt>  if non-nil, reading from the +stdio+ collection results in reading from this +IO+ handle
-  #   * <tt>:stdout</tt> writing to the +stdio+ collection results in writing to this +IO+ handle; defaults to +$stdout+
-  #   * <tt>:no_signal_handlers</tt> if true, runtime ignores SIGINT and SIGTERM
+  #   * <tt>:stdout</tt> writing to the +stdio+ collection results in writing to this +IO+ handle; defaults to <tt>$stdout</tt>
+  #   * <tt>:no_signal_handlers</tt> if true, runtime ignores +SIGINT+ and +SIGTERM+
   # * tracing and output
   #   * <tt>:quiet</tt> if true, suppress certain messages
-  #   * <tt>:trace</tt> if true, generate budvis outputs
-  #   * <tt>:rtrace</tt>  if true, generate budplot outputs
+  #   * <tt>:trace</tt> if true, generate +budvis+ outputs
+  #   * <tt>:rtrace</tt>  if true, generate +budplot+ outputs
   #   * <tt>:dump_rewrite</tt> if true, dump results of internal rewriting of Bloom code to a file
   # * controlling execution 
   #   * <tt>:lazy</tt>  if true, prevents runtime from ticking except on external calls to +tick+
   #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
   # * storage configuration
   #   * <tt>:tc_dir</tt>  filesystem directory to hold TokyoCabinet data stores
-  #   * <tt>:tc_truncate</tt> if true, TokyoCabinet collections are opened with OTRUNC
+  #   * <tt>:tc_truncate</tt> if true, TokyoCabinet collections are opened with +OTRUNC+
   # * deployment
   #   * <tt>:deploy</tt>  enable deployment
   #   * <tt>:deploy_child_opts</tt> option hash to pass to deployed instances
@@ -338,7 +338,7 @@ module Bud
   end
 
   # Shutdown any persistent tables used by the current Bud instance. If you are
-  # running Bud via tick() and using `tctable` collections, you should call this
+  # running Bud via tick() and using +tctable+ collections, you should call this
   # after you're finished using Bud. Programs that use Bud via run_fg() or
   # run_bg() don't need to call this manually.
   def close_tables
@@ -480,7 +480,7 @@ module Bud
     @dsock.close_connection
     # Note that this affects anyone else in the same process who happens to be
     # using EventMachine! This is also a non-blocking call; to block until EM
-    # has completely shutdown, we use the @em_stopped queue.
+    # has completely shutdown, use the @em_stopped queue.
     EventMachine::stop_event_loop if stop_em
   end
 
@@ -535,12 +535,13 @@ module Bud
 
   public
 
-  # Returns the ip and port of the Bud instance.  In addition to the local IP
-  # and port, the user may define an external IP and/or port. The external
-  # version of each is returned if available.  If not, the local version is
-  # returned.  There are use cases for mixing and matching local and external.
-  # local_ip:external_port would be if you have local port forwarding, and
-  # external_ip:local_port would be if you're in a DMZ, for example.
+  # Returns the IP and port of the Bud instance as a string.  In addition to the
+  # local IP and port, the user may define an external IP and/or port. The
+  # external version of each is returned if available.  If not, the local
+  # version is returned.  There are use cases for mixing and matching local and
+  # external.  local_ip:external_port would be if you have local port
+  # forwarding, and external_ip:local_port would be if you're in a DMZ, for
+  # example.
   def ip_port
     raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0 and not @options[:ext_port]
 
