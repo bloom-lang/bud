@@ -35,7 +35,7 @@ To use EC2 deployment, you'll need to require it in your program:
 
     require 'bud/deploy/ec2deploy'
 
-Note that the `aws`, `net-scp`, and `net-ssh` gems must be installed.
+Note that the `amazon-ec2`, `net-scp`, and `net-ssh` gems must be installed.
 
 Next, include the `EC2Deploy` module in your class:
 
