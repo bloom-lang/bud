@@ -134,12 +134,12 @@ end
 # Rewrite named-column refs to positional refs
 class AttrNameRewriter < SexpProcessor # :nodoc: all
   def initialize(bud_instance)
-    @bud_instance = bud_instance
     super()
     self.require_empty = false
     self.expected = Sexp
     @iterhash ||= {}
     @collnames = []
+    @bud_instance = bud_instance
   end
   
   # some icky special-case parsing to find mapping between collection names and iter vars

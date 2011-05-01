@@ -32,7 +32,7 @@ module Bud
     false
   end
 
-  # declare a scratch collection to be an input or output interface
+  # declare a transient collection to be an input or output interface
   def interface(mode, name, schema=nil)
     t_provides << [name.to_s, mode]
     scratch(name, schema)
@@ -44,7 +44,7 @@ module Bud
     @tables[name] = Bud::BudTable.new(name, self, schema)
   end
 
-  # declare a transient (1-timestep) collection.  default schema <tt>[:key] => [:val]</tt>
+  # declare a transient collection.  default schema <tt>[:key] => [:val]</tt>
   def scratch(name, schema=nil)
     define_collection(name)
     @tables[name] = Bud::BudScratch.new(name, self, schema)
