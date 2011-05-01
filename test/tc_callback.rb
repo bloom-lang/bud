@@ -167,4 +167,16 @@ class CallbackTest < Test::Unit::TestCase
     c.sync_callback(:cin, [[c.ip_port, "foo"]], :iout)
     assert(true)
   end
+
+  def test_shutdown_cb
+    cnt = 0
+    c = TickingCallback.new
+    c.on_shutdown do
+      cnt += 1
+    end
+    c.run_bg
+    assert_equal(0, cnt)
+    c.stop_bg
+    assert_equal(1, cnt)
+  end
 end

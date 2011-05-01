@@ -90,6 +90,7 @@ module Bud
     @zk_tables = {}
     @callbacks = {}
     @callback_id = 0
+    @shutdown_callbacks = []
     @timers = []
     @budtime = 0
     @inbound = []
@@ -305,6 +306,14 @@ module Bud
     end
   end
 
+  # Register a callback that will be invoked when this instance of Bud is
+  # shutting down.
+  def on_shutdown(&blk)
+    schedule_and_wait do
+      @shutdown_callbacks << blk
+    end
+  end
+
   # Given a block, evaluate that block inside the background Ruby thread at some
   # time in the future. Because the block is evaluate inside the background Ruby
   # thread, the block can safely examine Bud state. Naturally, this method can
@@ -473,9 +482,8 @@ module Bud
   end
 
   def do_shutdown(stop_em=false)
-    @timers.each do |t|
-      t.cancel
-    end
+    @shutdown_callbacks.each {|cb| cb.call}
+    @timers.each {|t| t.cancel}
     close_tables
     @dsock.close_connection
     # Note that this affects anyone else in the same process who happens to be
