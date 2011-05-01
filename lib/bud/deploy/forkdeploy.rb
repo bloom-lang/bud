@@ -1,4 +1,5 @@
 require 'bud/deploy/deployer'
+require 'time'
 
 FT_TIMEOUT = 10
 
@@ -32,17 +33,18 @@ module ForkDeploy
 
   state do
     table :last_ping, [:node_id] => [:tstamp]
+    scratch :new_ping, last_ping.schema
     periodic :ft_clock, 2
   end
 
   bloom :check_liveness do
     temp :not_live <= (ft_clock * last_ping).pairs do |c, p|
-      [p.node_id] if (c.val - FT_TIMEOUT < p.tstamp)
+      [p.node_id] if (Time.parse(c.val) - FT_TIMEOUT < p.tstamp)
     end
   end
 
   bloom :handle_ping do
-    temp :new_ping <= ping_chan {|p| [p.node_id, Time.new]}
+    new_ping <= ping_chan {|p| [p.node_id, Time.new]}
     last_ping <+ new_ping
     last_ping <- (new_ping * last_ping).rights(:node_id => :node_id)
   end
