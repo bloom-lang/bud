@@ -141,7 +141,7 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
       
       # now find iter vars and match up
       if exp[2] and exp[2][0] == :lasgn and not @collnames.empty? #single-table iter
-        raise Bud::CompileError, "variable #{exp[1]} not allowed to be assigned twice" if @iterhash[exp[2][1]]
+        raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
         @iterhash[exp[2][1]] = @collnames[0]
       elsif exp[2] and exp[2][0] == :masgn and not @collnames.empty? # join iter
         next unless exp[2][1] and exp[2][1][0] == :array
