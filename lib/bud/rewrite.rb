@@ -23,6 +23,15 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     super()
   end
 
+  def call_is_attr_deref?(recv, op)
+    if recv.first == :call and @bud_instance.tables.has_key? recv[2] 
+      if @bud_instance.send(recv[2]).schema.include? op
+        return true
+      end
+    end
+    return false
+  end
+
   def process_call(exp)
     recv, op, args = exp
     if recv.nil? and args == s(:arglist) and @collect
@@ -35,8 +44,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       if recv and recv.class == Sexp
         # for CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
-        # don't worry about monotone ops, table names, and accessors of iterator variables, 
-        unless @monotonic_whitelist[op] or @bud_instance.tables.has_key? op or recv.first == :lvar
+        # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables, 
+        unless @monotonic_whitelist[op] or @bud_instance.tables.has_key? op or call_is_attr_deref?(recv, op) or recv.first == :lvar
           @nm = true
         end
       end
@@ -129,13 +138,12 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
     super()
     self.require_empty = false
     self.expected = Sexp
+    @iterhash ||= {}
+    @collnames = []
   end
   
   # some icky special-case parsing to find mapping between collection names and iter vars
   def process_iter(exp)
-    @iterstack ||= []
-    @iterhash ||= {}
-    @collnames = []
     if exp[1] and exp[1][0] == :call 
       gather_collection_names(exp[1])
       

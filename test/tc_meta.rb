@@ -254,3 +254,26 @@ class TestMeta < Test::Unit::TestCase
     st.finish(out)
   end
 end
+
+class TestThetaMeta < Test::Unit::TestCase
+  class ThetaMonotoneJoin
+    include Bud
+
+    state do
+      table :a
+      table :b
+      table :c
+    end
+
+    bloom do
+      c <= (a * b).pairs(a.key => b.key)
+    end
+  end
+  
+  def test_theta
+    p = ThetaMonotoneJoin.new
+    p.t_depends.each do |dep|
+      assert(!dep[4], "this dependency should't be marked nonmonotonic: #{dep.inspect}")
+    end
+  end
+end
