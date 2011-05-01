@@ -87,7 +87,9 @@ Check out the `examples/deploy` directory in Bud.  There is a simple token ring 
 
 or on EC2:
 
-    ruby tokenring-ec2.rb local_ip:local_port ext_ip true
+    ruby tokenring-ec2.rb local_ip:local_port ext_ip:ext_port true
+
+"ext_ip" and "ext_port" should be set to the externally-visible IP and port of the computer you are deploying from.  For example, if you are behind a home router, you will want to set "ext_ip" to your public IP address, and ensure that your router forwards "ext_port" to local_port on the computer with private IP "local_ip".
 
 Note that before running `tokenring-ec2`, you must create a file named "keys.rb" that contains definitions for `access_key_id`, `secret_access_key`, `key_name` and `ec2_key_location`.
 
