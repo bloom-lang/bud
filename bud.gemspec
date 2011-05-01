@@ -13,12 +13,13 @@ Gem::Specification.new do |s|
   s.rubyforge_project = 'bloom-lang'
 
   s.files = Dir['lib/**/*'] + Dir['bin/*'] + Dir['docs/**/*'] + Dir['examples/**/*'] + %w[README LICENSE]
-  s.executables = %w[rebl budplot budvis spacetime]
+  s.executables = %w[rebl budplot budvis budtimelines]
   s.default_executable = 'rebl'
 
   s.add_dependency 'backports'
   s.add_dependency 'eventmachine'
   s.add_dependency 'gchart'
+  s.add_dependency 'getopt'
   s.add_dependency 'i18n'
   s.add_dependency 'json'
   s.add_dependency 'msgpack'

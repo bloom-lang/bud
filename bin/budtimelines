@@ -1,0 +1,224 @@
+#!/usr/bin/env ruby
+require 'rubygems'
+require 'dbm'
+require 'bud'
+require 'bud/graphs'
+require 'bud/viz_util'
+require 'getopt/std'
+
+include VizUtil
+
+module Depends
+  state do
+    table :depends, [:rid, :lhs, :op, :rhs, :nm]
+  end
+end
+
+class GlobalDepAnalyzer
+  include Bud
+  include Depends
+  # this module's purpose and mechanism are very similar
+  # to those of basic stratification.  here, we are interested
+  # in NM paths that DO cross temporal edges.
+
+  state do
+    table :depends_tc, [:lhs, :rhs, :via, :nm]
+  end
+
+  bloom do
+    depends_tc <= depends{|d| [d.lhs, d.rhs, d.rhs, d.nm]}
+    depends_tc <= (depends * depends_tc).pairs(:rhs => :lhs) do |d, tc|
+      [d.lhs, tc.rhs, d.rhs, (d.nm or tc.nm)]
+    end
+  end
+end
+
+class TraceProcessor
+  include Bud
+  include TraceCardinality
+  include Depends
+  state do
+    table :deltas, [:bud_time, :tab, :nm]
+    table :zerod_cards, [:bud_time, :table, :cnt]
+    table :nm_tab, [:table]
+    table :collapsible_base, [:start, :fin]
+    table :collapsible, [:start, :fin]
+    table :best_interval, [:start, :fin]
+  end
+
+  bloom do
+    zerod_cards <= cardinalities
+    zerod_cards <= (times * depends).pairs do |t, d|
+      unless cardinalities{|c| c[1]}.include? d[1]
+        [t.bud_time, d[1], 0]
+      end
+    end
+
+    nm_tab <= depends do |d|
+      [d[1]] if d[4]
+    end
+
+    #stdio <~ nm_tab {|t| ["NMMMMMMM #{t.inspect}"]}
+
+    deltas <= (zerod_cards * zerod_cards).pairs do |c1, c2|
+      if c1.bud_time == c2.bud_time - 1 and c1.table == c2.table and c1.cnt != c2.cnt
+        if nm_tab.include? [c1.table]
+          [c2.bud_time, c1.table, true]
+        else 
+          [c2.bud_time, c1.table, false]
+        end
+      end
+    end
+
+    collapsible_base <= times do |t|
+      unless deltas{|d| d.bud_time if d.nm}.include? t.bud_time
+        [t.bud_time-1, t.bud_time]
+      end
+    end
+  
+    collapsible <= collapsible_base
+    #collapsible <= (collapsible_base * collapsible).pairs(collapsible_base.fin => collapsible.start) do |b, c|
+    #  [b.start, c.fin]
+    #end
+    # note to self: create issue about NM of fin, start above
+    collapsible <= (collapsible_base * collapsible).pairs do |b, c|
+      if b.fin == c.start
+        [b.start, c.fin]
+      end
+    end
+    
+    best_interval <= collapsible do |c|
+      unless collapsible{|c1| c1.start == c.start and c1.fin > c.fin}.any? \
+       or collapsible{|c2| c2.fin == c.fin and c2.start < c.start}.any?
+        c 
+      end
+    end
+  end
+end
+
+
+
+
+def collapse(intervals, host, time)
+  return time unless @opts["C"]
+  # worth rethinking when the # of intervals/instance gets high
+  intervals[host].each do |i|
+    if time > i[0] and time < i[1]
+      return i[1]
+    end
+  end
+  return time
+end
+
+def usage
+  puts "USAGE:"
+  exit
+end
+
+usage unless ARGV[0]
+usage if ARGV[0] == '--help'
+
+@opts = Getopt::Std.getopts("CL")
+
+snd_info = {}
+rcv_info = {}
+clean_arg = []
+intervals = {}
+
+
+da = GlobalDepAnalyzer.new
+
+ARGV.each do |arg_raw|
+  elems = arg_raw.split("_")
+  arg = "#{elems[2]}#{elems[3]}"
+  clean_arg << arg
+  snd_info[arg] = []
+  rcv_info[arg] = []
+
+  tables = slurp_tables("#{arg_raw}/bud_")
+  meta = get_meta(tables)
+  tp = TraceProcessor.new
+
+  meta[:depends].each do |m|
+    tp.depends << m  
+    da.depends << m
+  end
+
+
+  data = dump_tbl_data(tables)
+  data.each do |d|
+    tp.full_info << d
+    if meta[:tabinf].map{|m| m[0] if m[1] == "Bud::BudChannel"}.include? d[1]
+      if d[1] =~ /_snd\z/
+        snd_info[arg] << d 
+      else
+        rcv_info[arg] << d
+      end
+    elsif meta[:tabinf].map{|m| m[0] if m[1] == "Bud::BudPeriodic"}.include? d[1]
+    end
+  end
+
+  tp.tick
+  tp.tick
+  intervals[arg] = []
+  tp.best_interval.each do |n| 
+    intervals[arg] << n
+  end
+end
+
+da.tick
+nmreach = {}
+da.depends_tc.each do |d|
+  nmreach[d[0]] = {} unless nmreach[d[0]]
+  nmreach[d[0]][d[1]] = d[3]
+end
+
+# our local intervals relations are too optimistic.  to say that intervals[foo] = [2, 5]
+# is merely to say that nothing NM happened locally btw 2 and 5.  it is only safe to collapse
+# 2 and 5 if during this interval, we could not have BOTH caused and perceived the results of 
+# a NM deduction.  we can (again, conservatively) ensure that this is not the case by showing
+# that from 2-5, there exist no messages A and B s.t. we sent A and received B in the interval 2..5
+# and B <n A (where <n means is globally NM-derivable from).
+
+# we can of course do better than this even with the data we have, but it is complicated and we'll
+# get to it later.
+
+plot_data = []
+snd_info.each_pair do |k1, v1|
+  rcv_info.each_pair do |k2, v2|
+    v1.each do |lval|
+      v2.each do |rval|
+        unless k1 == k2
+          # erm, tuple equivalence?
+          l = lval[2].clone
+          r = rval[2].clone
+          l.shift
+          r.shift
+          if l.inspect == r.inspect
+            plot_data << [l.inspect, k1, k2, lval[0], rval[0], rval[1]]
+          end
+        else
+          if collapse(intervals, k1, lval[0]) == collapse(intervals, k2, rval[0]) and lval[0] < rval[0]
+            unless nmreach[rval[1]].nil?
+              if nmreach[rval[1]][lval[1].gsub(/_snd\z/, "")]
+                match = intervals[k1].find_all{|i| i[1] == collapse(intervals, k1, lval[0])}.first
+                intervals[k1].delete(match)
+                intervals[k1] << [match[0], lval[0]]
+                intervals[k1] << [lval[0]+1, match[1]]
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+rpd = plot_data.map do |p|
+  [p[0], p[1], p[2], collapse(intervals, p[1], p[3]), collapse(intervals, p[2], p[4]), p[5]]
+end
+
+st = SpaceTime.new(rpd)
+st.process
+st.finish("spacetime_trace_#{clean_arg.join('-')}")
+

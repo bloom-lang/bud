@@ -1,6 +1,5 @@
 require 'rubygems'
 require 'bud'
-require 'open-uri'
 require 'bud/deploy/countatomicdelivery'
 
 class Module

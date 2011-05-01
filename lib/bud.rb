@@ -5,9 +5,14 @@ require 'socket'
 require 'superators'
 require 'thread'
 
+require 'bud/monkeypatch'
+
 require 'bud/aggs'
 require 'bud/bud_meta'
 require 'bud/collections'
+require 'bud/depanalysis'
+require 'bud/deploy/forkdeploy'
+require 'bud/deploy/threaddeploy'
 require 'bud/errors'
 require 'bud/joins'
 require 'bud/rtrace'
@@ -16,94 +21,10 @@ require 'bud/state'
 require 'bud/storage/dbm'
 require 'bud/storage/tokyocabinet'
 require 'bud/storage/zookeeper'
+require 'bud/stratify'
 require 'bud/viz'
 
 $em_stopped = Queue.new
-
-# We monkeypatch Module to add support for Bloom state and code declarations.
-class Module
-  # import another module and assign to a qualifier symbol: <tt>import MyModule => :m</tt>
-  def import(spec)
-    raise Bud::CompileError unless (spec.class <= Hash and spec.length == 1)
-    mod, local_name = spec.first
-    raise Bud::CompileError unless (mod.class <= Module and local_name.class <= Symbol)
-
-    # To correctly expand qualified references to an imported module, we keep a
-    # table with the local bind names of all the modules imported by this
-    # module. To handle nested references (a.b.c.d etc.), the import table for
-    # module X points to X's own nested import table.
-    @bud_import_tbl ||= {}
-    child_tbl = mod.bud_import_table
-    raise Bud::CompileError if @bud_import_tbl.has_key? local_name
-    @bud_import_tbl[local_name] = child_tbl.clone # XXX: clone needed?
-
-    rewritten_mod_name = ModuleRewriter.do_import(self, mod, local_name)
-    self.module_eval "include #{rewritten_mod_name}"
-  end
-
-  # the block of Bloom collection declarations.  one per module.
-  def state(&block)
-    meth_name = Module.make_state_meth_name(self)
-    define_method(meth_name, &block)
-  end
-
-  # a ruby block to be run before timestep 1.  one per module.
-  def bootstrap(&block)
-    meth_name = "__bootstrap__#{Module.get_class_name(self)}".to_sym
-    define_method(meth_name, &block)
-  end
-
-  # bloom statements to be registered with Bud runtime.  optional +block_name+ 
-  # allows for multiple bloom blocks per module, and overriding
-  def bloom(block_name=nil, &block)
-    # If no block name was specified, generate a unique name
-    if block_name.nil?
-      @block_id ||= 0
-      block_name = "#{Module.get_class_name(self)}__#{@block_id.to_s}"
-      @block_id += 1
-    else
-      unless block_name.class <= Symbol
-        raise Bud::CompileError, "Bloom block names must be a symbol: #{block_name}"
-      end
-    end
-
-    # Note that we don't encode the module name ("self") into the name of the
-    # method. This allows named blocks to be overridden (via inheritance or
-    # mixin) in the same way as normal Ruby methods.
-    meth_name = "__bloom__#{block_name}"
-
-    # Don't allow duplicate named bloom blocks to be defined within a single
-    # module; this indicates a likely programmer error.
-    if instance_methods(false).include? meth_name
-      raise Bud::CompileError, "Duplicate named bloom block: '#{block_name}' in #{self}"
-    end
-    define_method(meth_name.to_sym, &block)
-  end
-
-  def bud_import_table() #:nodoc: all
-    @bud_import_tbl ||= {}
-    @bud_import_tbl
-  end
-
-  private
-  # Return a string with a version of the class name appropriate for embedding
-  # into a method name. Annoyingly, if you define class X nested inside
-  # class/module Y, X's class name is the string "Y::X". We don't want to define
-  # method names with semicolons in them, so just return "X" instead.
-  def self.get_class_name(klass)
-    klass.name.split("::").last
-  end
-
-  # State method blocks are named using an auto-incrementing counter. This is to
-  # ensure that we can rediscover the possible dependencies between these blocks
-  # after module import (see Bud#call_state_methods).
-  def self.make_state_meth_name(klass)
-    @state_meth_id ||= 0
-    r = "__state#{@state_meth_id}__#{Module.get_class_name(klass)}".to_sym
-    @state_meth_id += 1
-    return r
-  end
-end
 
 # The root Bud module. To cause an instance of Bud to begin executing, there are
 # three main options:
@@ -142,7 +63,8 @@ module Bud
   #   * <tt>:ext_port</tt>   port number to go with :ext_ip
   #   * <tt>:bust_port</tt>  port number for the restful http messages
   # * operating system interaction
-  #   * <tt>:read_stdin</tt>  if true, captures stdin via the stdio collection
+  #   * <tt>:stdin</tt>  if non-nil, reading from the +stdio+ collection results in reading from this +IO+ handle
+  #   * <tt>:stdout</tt> writing to the +stdio+ collection results in writing to this +IO+ handle; defaults to +$stdout+
   #   * <tt>:no_signal_handlers</tt> if true, runtime ignores SIGINT and SIGTERM
   # * tracing and output
   #   * <tt>:quiet</tt> if true, suppress certain messages
@@ -155,6 +77,9 @@ module Bud
   # * storage configuration
   #   * <tt>:tc_dir</tt>  filesystem directory to hold TokyoCabinet data stores
   #   * <tt>:tc_truncate</tt> if true, TokyoCabinet collections are opened with OTRUNC
+  # * deployment
+  #   * <tt>:deploy</tt>  enable deployment
+  #   * <tt>:deploy_child_opts</tt> option hash to pass to deployed instances
   def initialize(options={})
     @tables = {}
     @table_meta = []
@@ -172,7 +97,7 @@ module Bud
     @joinstate = {}  # joins are stateful, their state needs to be kept inside the Bud instance
 
     # Setup options (named arguments), along with default values
-    @options = options
+    @options = options.clone
     @lazy = @options[:lazy] ||= false
     @options[:ip] ||= "127.0.0.1"
     @ip = @options[:ip]
@@ -189,12 +114,6 @@ module Bud
     @declarations = ModuleRewriter.get_rule_defs(self.class)
 
     init_state
-
-    # NB: Somewhat hacky. Dependency analysis and stratification are implemented
-    # by Bud programs, so in order for those programs to parse, we need the
-    # "Bud" class to have been defined first.
-    require 'bud/depanalysis'
-    require 'bud/stratify'
 
     @viz = VizOnline.new(self) if @options[:trace]
     @rtracer = RTrace.new(self) if @options[:rtrace]
@@ -599,7 +518,7 @@ module Bud
 
     # Arrange for Bud to read from stdin if enabled. Note that we can't do this
     # earlier because we need to wait for EventMachine startup.
-    @stdio.start_stdin_reader if @options[:read_stdin]
+    @stdio.start_stdin_reader if @options[:stdin]
     @zk_tables.each_value {|t| t.start_watchers}
 
     # Compute a fixpoint; this will also invoke any bootstrap blocks.

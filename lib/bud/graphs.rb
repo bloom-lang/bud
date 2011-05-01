@@ -1,4 +1,5 @@
 require 'rubygems'
+require 'digest/md5'
 require 'graphviz'
 
 class GraphGen #:nodoc: all
@@ -219,38 +220,80 @@ end
 
 class SpaceTime    
   def initialize(input)
-    # first, isolate the processes: each corresponds to a subgraph.
     @input = input 
     processes = input.map {|i| i[1]}
     input.map{|i| processes << i[2]}
     processes.uniq!
+
+    @queues = {} 
     
-    @g = GraphViz.new(:G, :type => :digraph, :rankdir => "LR", :outputorder => "edgesfirst")
-    @hdr = @g.subgraph("cluster_0")
+    @g = GraphViz.new(:G, :type => :digraph, :rankdir => "LR", :outputorder => "nodesfirst")#, :splines => "line", :clusterrank => "none")
+    #@hdr = @g.subgraph("cluster_0")
     
     @subs = {}
     @head = {}
     last = nil
     processes.each_with_index do |p, i|
-      @head[p] = @hdr.add_node("process #{p}(#{i})")#, :color => "white", :label => "")
+      #@head[p] = @hdr.add_node("process #{p}(#{i})")#, :color => "white", :label => "")
+      @subs[p] = @g.subgraph("buster_#{i+1}")
+      @head[p] = @subs[p].add_node("process #{p}(#{i})", :group => p)#, :color => "white", :label => "")
+      
     end
   end
 
+  def msg_edge(f, t, l)
+    lbl = f + t + l
+    if @edges[lbl]
+      prev = @edges[lbl]
+      @edges[lbl] = [prev[0], prev[1], prev[2], prev[3] + 1]
+    else
+      @edges[lbl] = [f, t, l, 1]
+    end
+  end
+  
   def process
-    @input.sort{|a, b| a[3] <=> b[3]}.each do |i|
+    @edges = {}
+    queues = {}
+    @input.each do |i|
+      queues[i[1]] = [] unless queues[i[1]]
+      queues[i[2]] = [] unless queues[i[2]]
+      queues[i[1]] << i[3]
+      queues[i[2]] << i[4]
+    end
+
+    squeues = {}
+    queues.each_pair do |k, v|
+      squeues[k] = v.sort{|a, b| a <=> b}
+    end
+
+    # create the nodes and the timeline edges first.
+    squeues.each do |k, v|
+      v.each_with_index do |item, i|
+        label = "#{k}-#{item}"
+        snd = @subs[k].add_node(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :pos => [1, i], :group => k})  
+        unless @head[k].id == snd.id
+          @subs[k].add_edge(@head[k], snd, :weight => 2)
+          @head[k] = snd
+        end
+      end
+    end
+
+    #@input.sort{|a, b| a[3] <=> b[3]}.each do |i|
+    @input.each do |i|
       snd_loc = i[1]
       rcv_loc = i[2]
-      snd = @g.add_node("#{snd_loc}-#{i[3]}", {:label => i[3].to_s})
-      rcv = @g.add_node("#{rcv_loc}-#{i[3]}", {:label => i[4].to_s})
-      @g.add_edge(@head[snd_loc], snd, :weight => 8)
-      @head[snd_loc] = snd
-      @g.add_edge(@head[rcv_loc], rcv, :weight => 8)
-      @head[rcv_loc] = rcv
-      @g.add_edge(snd, rcv, :weight => 1, :label => i[0])
+      snd_label = "#{snd_loc}-#{i[3]}"
+      rcv_label = "#{rcv_loc}-#{i[4]}"
+      #@g.add_edge(snd_label, rcv_label, :color => "red", :weight => 1, :label => i[5])
+      msg_edge(snd_label, rcv_label, i[5])
     end
   end
   
   def finish(file)
+    @edges.each_pair do |k, v|
+      lbl =  v[3] > 1 ? "#{v[2]}(#{v[3]})" : v[2]
+      @g.add_edge(v[0], v[1], :label => lbl, :color => "red", :weight => 10)
+    end
     @g.output(:svg => "#{file}.svg")
   end
 end
