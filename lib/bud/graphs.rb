@@ -227,8 +227,8 @@ class SpaceTime
 
     @queues = {} 
     
-    @g = GraphViz.new(:G, :type => :digraph, :rankdir => "LR", :outputorder => "nodesfirst")#, :splines => "line", :clusterrank => "none")
-    #@hdr = @g.subgraph("cluster_0")
+    @g = GraphViz.new(:G, :type => :digraph, :rankdir => "LR", :outputorder => "nodesfirst", :splines => "line")#, :clusterrank => "none")
+    @hdr = @g.subgraph("cluster_0")
     
     @subs = {}
     @head = {}
@@ -236,13 +236,13 @@ class SpaceTime
     processes.each_with_index do |p, i|
       #@head[p] = @hdr.add_node("process #{p}(#{i})")#, :color => "white", :label => "")
       @subs[p] = @g.subgraph("buster_#{i+1}")
-      @head[p] = @subs[p].add_node("process #{p}(#{i})", :group => p)#, :color => "white", :label => "")
+      @head[p] = @hdr.add_node("process #{p}(#{i})", :group => p)#, :color => "white", :label => "")
       
     end
   end
 
   def msg_edge(f, t, l)
-    lbl = f + t + l
+    lbl = "#{f}#{t}#{l}"
     if @edges[lbl]
       prev = @edges[lbl]
       @edges[lbl] = [prev[0], prev[1], prev[2], prev[3] + 1]
@@ -289,11 +289,15 @@ class SpaceTime
     end
   end
   
-  def finish(file)
+  def finish(file, fmt=nil)
     @edges.each_pair do |k, v|
       lbl =  v[3] > 1 ? "#{v[2]}(#{v[3]})" : v[2]
-      @g.add_edge(v[0], v[1], :label => lbl, :color => "red", :weight => 10)
+      @g.add_edge(v[0], v[1], :label => lbl, :color => "red", :weight => 1)
     end
-    @g.output(:svg => "#{file}.svg")
+    if fmt.nil?
+      @g.output(:svg => "#{file}.svg")
+    else
+      eval("@g.output(:#{fmt} => \"\#{file}.#{fmt}\")")
+    end
   end
 end
