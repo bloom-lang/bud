@@ -25,7 +25,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
   def call_is_attr_deref?(recv, op)
     if recv.first == :call and @bud_instance.tables.has_key? recv[2] 
-      if @bud_instance.send(recv[2]).schema.include? op
+      schema = @bud_instance.send(recv[2]).schema
+      if schema and schema.include? op
         return true
       end
     end
