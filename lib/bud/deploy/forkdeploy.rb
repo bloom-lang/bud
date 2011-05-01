@@ -9,25 +9,6 @@ require 'bud/deploy/deployer'
 module ForkDeploy
   include Deployer
 
-  def stop_bg
-    super
-    return unless @options[:deploy]
-
-    # NB: Setting the SIGCHLD handler to "IGNORE" results in waitpid() being
-    # called automatically (to cleanup zombies), at least on OSX. This is not
-    # what we want, since it would cause a subsequent waitpid() to fail.
-    Signal.trap("CHLD", "DEFAULT")
-    @dead_pids ||= []
-    pids = @child_pids - @dead_pids
-    pids.each do |p|
-      begin
-        Process.kill("TERM", p)
-        Process.waitpid(p)
-      rescue Errno::ESRCH
-      end
-     end
-  end
-
   bootstrap do
     return unless @options[:deploy]
 
@@ -45,6 +26,22 @@ module ForkDeploy
             @dead_pids << pid
           end
         rescue Errno::ECHILD
+        end
+      end
+    end
+
+    on_shutdown do
+      # NB: Setting the SIGCHLD handler to "IGNORE" results in waitpid() being
+      # called automatically (to cleanup zombies), at least on OSX. This is not
+      # what we want, since it would cause a subsequent waitpid() to fail.
+      Signal.trap("CHLD", "DEFAULT")
+      @dead_pids ||= []
+      pids = @child_pids - @dead_pids
+      pids.each do |p|
+        begin
+          Process.kill("TERM", p)
+          Process.waitpid(p)
+        rescue Errno::ESRCH
         end
       end
     end
