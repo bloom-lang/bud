@@ -1,7 +1,7 @@
 require 'bud/deploy/deployer'
 
 # An implementation of the Deployer that runs instances using forked local
-# processes (listening at 127.0.0.1 on an ephemeral port).
+# processes (listening on an ephemeral port).
 #
 # Note that this module is included in both the deployer process and in the
 # deployed instances. To write code that only runs in one type of process,
