@@ -46,7 +46,7 @@ module EC2Deploy
     unless @options[:deploy]
       # Send message to the deployer telling 'em we's up.
       File.open("deploy_ip_port", "r") do |f|
-        ready <~ [[f.readline.chop, ip_port]]
+        ready <~ [[f.readline.rstrip, ip_port]]
       end
     end
   end
@@ -70,18 +70,18 @@ module EC2Deploy
           # Group already exists; ok, maybe we created it previously.
         else
           # Add SSH permission.
-          ec2_conn[[]].conn.authorize_security_group_ingress( :group_name => "bud",
-                                                              :ip_protocol => "tcp",
-                                                              :from_port => 22,
-                                                              :to_port => 22,
-                                                              :cidr_ip => "0.0.0.0/0" )
+          ec2_conn[[]].conn.authorize_security_group_ingress(:group_name => "bud",
+                                                             :ip_protocol => "tcp",
+                                                             :from_port => 22,
+                                                             :to_port => 22,
+                                                             :cidr_ip => "0.0.0.0/0")
           # Add unlimited UDP permission from any node not in the security group.
           # XXX: make this more restrictive?
-          ec2_conn[[]].conn.authorize_security_group_ingress( :group_name => "bud",
-                                                              :ip_protocol => "udp",
-                                                              :from_port => 0,
-                                                              :to_port => 65535,
-                                                              :cidr_ip => "0.0.0.0/0" )
+          ec2_conn[[]].conn.authorize_security_group_ingress(:group_name => "bud",
+                                                             :ip_protocol => "udp",
+                                                             :from_port => 0,
+                                                             :to_port => 65535,
+                                                             :cidr_ip => "0.0.0.0/0")
         end
 
         # Finally, start up the instances.
@@ -97,8 +97,8 @@ module EC2Deploy
       if depl_idempotent [[:the_reservation, t.val]] and not all_up.include? [true]
         to_ret = nil
         begin
-          to_ret = [ec2_conn[[]].conn.describe_instances()["reservationSet"]["item"].find do |i|
-                      i["reservationId"] == ec2_insts[[]].insts["reservationId"]
+          to_ret = [ec2_conn[[]].conn.describe_instances()["reservationSet"]["item"].find do |j|
+                      j["reservationId"] == ec2_insts[[]].insts["reservationId"]
                     end]
         rescue SocketError
           print "E"
@@ -122,7 +122,7 @@ module EC2Deploy
                  end)[0] or [])
 
     all_up <+ node_up do
-      if node_up.find {|n| n.bool == false} == nil and node_up.find {|n| n.bool == true} != nil
+      if node_up.find {|n1| n1.bool == false} == nil and node_up.find {|n2| n2.bool == true} != nil
         if depl_idempotent [:nodes_all_up]
           puts "done"
           $stdout.flush

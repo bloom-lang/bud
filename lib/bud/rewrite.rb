@@ -45,7 +45,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       if recv and recv.class == Sexp
         # for CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
-        # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables, 
+        # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables
         unless @monotonic_whitelist[op] or @bud_instance.tables.has_key? op or call_is_attr_deref?(recv, op) or recv.first == :lvar
           @nm = true
         end
