@@ -698,7 +698,7 @@ module Bud
 
   def set_periodic_timer(name, id, period)
     EventMachine::PeriodicTimer.new(period) do
-      @tables[name] <+ [[id, Time.new.to_s]]
+      @tables[name] <+ [[id, Time.new]]
       tick
     end
   end
