@@ -23,6 +23,16 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     super()
   end
 
+  def call_is_attr_deref?(recv, op)
+    if recv.first == :call and @bud_instance.tables.has_key? recv[2] 
+      schema = @bud_instance.send(recv[2]).schema
+      if schema and schema.include? op
+        return true
+      end
+    end
+    return false
+  end
+
   def process_call(exp)
     recv, op, args = exp
     if recv.nil? and args == s(:arglist) and @collect
@@ -35,8 +45,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       if recv and recv.class == Sexp
         # for CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
-        # don't worry about monotone ops, table names, and accessors of iterator variables, 
-        unless @monotonic_whitelist[op] or @bud_instance.tables.has_key? op or recv.first == :lvar
+        # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables
+        unless @monotonic_whitelist[op] or @bud_instance.tables.has_key? op or call_is_attr_deref?(recv, op) or recv.first == :lvar
           @nm = true
         end
       end
@@ -125,23 +135,22 @@ end
 # Rewrite named-column refs to positional refs
 class AttrNameRewriter < SexpProcessor # :nodoc: all
   def initialize(bud_instance)
-    @bud_instance = bud_instance
     super()
     self.require_empty = false
     self.expected = Sexp
+    @iterhash ||= {}
+    @collnames = []
+    @bud_instance = bud_instance
   end
   
   # some icky special-case parsing to find mapping between collection names and iter vars
   def process_iter(exp)
-    @iterstack ||= []
-    @iterhash ||= {}
-    @collnames = []
     if exp[1] and exp[1][0] == :call 
       gather_collection_names(exp[1])
       
       # now find iter vars and match up
       if exp[2] and exp[2][0] == :lasgn and not @collnames.empty? #single-table iter
-        raise Bud::CompileError, "variable #{exp[1]} not allowed to be assigned twice" if @iterhash[exp[2][1]]
+        raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
         @iterhash[exp[2][1]] = @collnames[0]
       elsif exp[2] and exp[2][0] == :masgn and not @collnames.empty? # join iter
         next unless exp[2][1] and exp[2][1][0] == :array

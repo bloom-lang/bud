@@ -22,7 +22,7 @@ module PingClient
 end
 
 # An implementation of the Deployer that runs instances using forked local
-# processes (listening at 127.0.0.1 on an ephemeral port).
+# processes (listening on an ephemeral port).
 #
 # Note that this module is included in both the deployer process and in the
 # deployed instances. To write code that only runs in one type of process,
@@ -49,25 +49,6 @@ module ForkDeploy
     last_ping <- (new_ping * last_ping).rights(:node_id => :node_id)
   end
 
-  def stop_bg
-    super
-    return unless @options[:deploy]
-
-    # NB: Setting the SIGCHLD handler to "IGNORE" results in waitpid() being
-    # called automatically (to cleanup zombies), at least on OSX. This is not
-    # what we want, since it would cause a subsequent waitpid() to fail.
-    Signal.trap("CHLD", "DEFAULT")
-    @dead_pids ||= []
-    pids = @child_pids - @dead_pids
-    pids.each do |p|
-      begin
-        Process.kill("TERM", p)
-        Process.waitpid(p)
-      rescue Errno::ESRCH
-      end
-     end
-  end
-
   bootstrap do
     return unless @options[:deploy]
 
@@ -89,7 +70,22 @@ module ForkDeploy
       end
     end
 
-    read, write = IO.pipe
+    on_shutdown do
+      # NB: Setting the SIGCHLD handler to "IGNORE" results in waitpid() being
+      # called automatically (to cleanup zombies), at least on OSX. This is not
+      # what we want, since it would cause a subsequent waitpid() to fail.
+      Signal.trap("CHLD", "DEFAULT")
+      @dead_pids ||= []
+      pids = @child_pids - @dead_pids
+      pids.each do |p|
+        begin
+          Process.kill("TERM", p)
+          Process.waitpid(p)
+        rescue Errno::ESRCH
+        end
+      end
+    end
+
     print "Forking local processes"
     @child_pids = []
 
@@ -97,6 +93,7 @@ module ForkDeploy
     child_opts ||= {}
     deploy_addr = self.ip_port
     node_count[[]].num.times do |i|
+      read, write = IO.pipe
       @child_pids << EventMachine.fork_reactor do
         # Don't want to inherit our parent's random stuff.
         srand
@@ -108,19 +105,19 @@ module ForkDeploy
         child.instance_variable_set('@deployer_addr', deploy_addr)
         child.instance_variable_set('@node_id', i)
         child.run_bg
-        print "."
-        $stdout.flush
-        # Processes write their port to the pipe.
-        write.puts "#{child.port}"
+        # Processes write address/port to the pipe
+        write.puts child.ip_port
       end
+
+      # Read child address/port from the pipe.
+      addr = read.readline.rstrip
+      node << [i, addr]
+      read.close
+      write.close
+      print "."
+      $stdout.flush
     end
 
-    # Read ports from pipe.
-    node_count[[]].num.times do |i|
-      node << [i, "localhost:" + read.readline.rstrip]
-    end
-    read.close
-    write.close
     puts "done"
   end
 end
