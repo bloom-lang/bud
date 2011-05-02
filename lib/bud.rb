@@ -301,14 +301,14 @@ module Bud
   # loop is also shutdown; this will interfere with the execution of any other
   # Bud instances in the same process (as well as anything else that happens to
   # use EventMachine).
-  def stop_bg(stop_em=false)
+  def stop_bg(stop_em=false, do_shutdown_cb=true)
     if stop_em
-      schedule_shutdown(true)
+      schedule_shutdown(true, do_shutdown_cb)
       # Wait until EM has completely shutdown before we return.
       $em_stopped.pop
     else
       schedule_and_wait do
-        do_shutdown(false)
+        do_shutdown(false, do_shutdown_cb)
       end
     end
   end
@@ -488,7 +488,7 @@ module Bud
     raise resp if resp
   end
 
-  def do_shutdown(stop_em=false)
+  def do_shutdown(stop_em=false, do_shutdown_cb=true)
     # Ignore duplicate shutdown requests, or attempts to shutdown an instance
     # that hasn't been started yet.
     return if @instance_id == ILLEGAL_INSTANCE_ID
@@ -499,7 +499,9 @@ module Bud
       @instance_id = ILLEGAL_INSTANCE_ID
     }
 
-    @shutdown_callbacks.each {|cb| cb.call}
+    if do_shutdown_cb
+      @shutdown_callbacks.each {|cb| cb.call}
+    end
     @timers.each {|t| t.cancel}
     close_tables
     @dsock.close_connection
@@ -512,13 +514,13 @@ module Bud
   # Schedule a "graceful" shutdown for a future EM tick. If EM is not currently
   # running, shutdown immediately.
   public
-  def schedule_shutdown(stop_em=false)
+  def schedule_shutdown(stop_em=false, do_shutdown_cb=true)
     if EventMachine::reactor_running?
       EventMachine::schedule do
-        do_shutdown(stop_em)
+        do_shutdown(stop_em, do_shutdown_cb)
       end
     else
-      do_shutdown(stop_em)
+      do_shutdown(stop_em, do_shutdown_cb)
     end
   end
 
@@ -726,7 +728,11 @@ module Bud
     $signal_lock.synchronize {
       unless b.options[:no_signal_handlers] or $setup_signal_handlers
         ["INT", "TERM"].each do |signal|
-          Signal.trap(signal) { Bud.do_shutdown_signal }
+          Signal.trap(signal) {
+            # This blocks until each instance has stopped, which is unnecessary
+            Bud.shutdown_all_instances
+            EventMachine::stop_event_loop
+          }
         end
         $setup_signal_handlers = true
       end
@@ -737,13 +743,12 @@ module Bud
     }
   end
 
-  def self.do_shutdown_signal
+  def self.shutdown_all_instances(do_shutdown_cb=true)
     instances = nil
     $signal_lock.synchronize {
       instances = $bud_instances.clone
     }
 
-    instances.each_value {|b| b.schedule_shutdown }
-    EventMachine::stop_event_loop
+    instances.each_value {|b| b.stop_bg(false, do_shutdown_cb) }
   end
 end

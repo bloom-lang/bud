@@ -56,7 +56,7 @@ module ForkDeploy
         # XXX: We should shutdown the child's copy of the parent Bud instance
         # (which is inherited across the fork). For now, just reset
         # $bud_instances state.
-        $bud_instances = {}
+        Bud.shutdown_all_instances(false)
 
         # Don't want to inherit our parent's random stuff
         srand
