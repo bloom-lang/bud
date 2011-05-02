@@ -1,7 +1,7 @@
 require 'bud/deploy/deployer'
 require 'time'
 
-FT_TIMEOUT = 10
+FT_TIMEOUT = 20
 
 module PingLiveness
   state do
@@ -13,7 +13,7 @@ module PingClient
   include PingLiveness
 
   state do
-    periodic :ping_clock, 2
+    periodic :ping_clock, 5
   end
 
   bloom :send_ping do
@@ -34,16 +34,21 @@ module ForkDeploy
   state do
     table :last_ping, [:node_id] => [:tstamp]
     scratch :new_ping, last_ping.schema
+    scratch :not_live, [:node_id]
     periodic :ft_clock, 2
   end
 
   bloom :check_liveness do
-    temp :not_live <= (ft_clock * last_ping).pairs do |c, p|
-      [p.node_id] if (Time.parse(c.val) - FT_TIMEOUT < p.tstamp)
+    # NB: This rule doesn't include nodes that have never sent a ping
+    not_live <= (ft_clock * last_ping).pairs do |c, p|
+      [p.node_id] if (c.val - FT_TIMEOUT > p.tstamp)
     end
+    stdio <~ not_live {|n| ["Dead node: id = #{n.node_id}"]}
   end
 
   bloom :handle_ping do
+    # Note that we assign ping timestamps at the deployer, to avoid sensitivity
+    # to node-local clock skew.
     new_ping <= ping_chan {|p| [p.node_id, Time.new]}
     last_ping <+ new_ping
     last_ping <- (new_ping * last_ping).rights(:node_id => :node_id)

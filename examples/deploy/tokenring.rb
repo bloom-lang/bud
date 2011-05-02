@@ -32,6 +32,6 @@ module TokenRing
     token_persist <- (token_persist * next_node).lefts {|t| [t.loc]}
     # Pass on the token
     token <~ (token_persist * next_node).combos {[next_node[[]].node]}
-    stdio <~ token {["#{ip_port}: Got token!"]}
+#    stdio <~ token {["#{ip_port}: Got token!"]}
   end
 end
