@@ -25,6 +25,12 @@ require 'bud/stratify'
 require 'bud/viz'
 
 $em_stopped = Queue.new
+$signal_lock = Mutex.new
+$instance_id = 0
+$bud_instances = {}        # Map from instance id => Bud instance
+$setup_signal_handlers = false
+
+ILLEGAL_INSTANCE_ID = -1
 
 # The root Bud module. To cause an instance of Bud to begin executing, there are
 # three main options:
@@ -96,6 +102,7 @@ module Bud
     @inbound = []
     @done_bootstrap = false
     @joinstate = {}  # joins are stateful, their state needs to be kept inside the Bud instance
+    @instance_id = ILLEGAL_INSTANCE_ID # Assigned when we start running
 
     # Setup options (named arguments), along with default values
     @options = options.clone
@@ -482,18 +489,29 @@ module Bud
   end
 
   def do_shutdown(stop_em=false)
+    # Ignore duplicate shutdown requests, or attempts to shutdown an instance
+    # that hasn't been started yet.
+    return if @instance_id == ILLEGAL_INSTANCE_ID
+
+    $signal_lock.synchronize {
+      raise unless $bud_instances.has_key? @instance_id
+      $bud_instances.delete @instance_id
+      @instance_id = ILLEGAL_INSTANCE_ID
+    }
+
     @shutdown_callbacks.each {|cb| cb.call}
     @timers.each {|t| t.cancel}
     close_tables
     @dsock.close_connection
     # Note that this affects anyone else in the same process who happens to be
     # using EventMachine! This is also a non-blocking call; to block until EM
-    # has completely shutdown, use the @em_stopped queue.
+    # has completely shutdown, use the $em_stopped queue.
     EventMachine::stop_event_loop if stop_em
   end
 
   # Schedule a "graceful" shutdown for a future EM tick. If EM is not currently
   # running, shutdown immediately.
+  public
   def schedule_shutdown(stop_em=false)
     if EventMachine::reactor_running?
       EventMachine::schedule do
@@ -504,19 +522,11 @@ module Bud
     end
   end
 
+  private
   def start_bud
     raise BudError unless EventMachine::reactor_thread?
 
-    # If we get SIGINT or SIGTERM, shutdown gracefully
-    unless @options[:no_signal_handlers]
-      Signal.trap("INT") do
-        schedule_shutdown(true)
-      end
-      Signal.trap("TERM") do
-        schedule_shutdown(true)
-      end
-    end
-
+    @instance_id = Bud.init_signal_handlers(self)
     do_start_server
 
     # Initialize periodics
@@ -708,5 +718,32 @@ module Bud
       @tables[name] <+ [[id, Time.new]]
       tick
     end
+  end
+
+  # Signal handling. If multiple Bud instances are running inside a single
+  # process, we want a SIGINT or SIGTERM signal to cleanly shutdown all of them.
+  def self.init_signal_handlers(b)
+    $signal_lock.synchronize {
+      unless b.options[:no_signal_handlers] or $setup_signal_handlers
+        ["INT", "TERM"].each do |signal|
+          Signal.trap(signal) { Bud.do_shutdown_signal }
+        end
+        $setup_signal_handlers = true
+      end
+
+      $instance_id += 1
+      $bud_instances[$instance_id] = b
+      return $instance_id
+    }
+  end
+
+  def self.do_shutdown_signal
+    instances = nil
+    $signal_lock.synchronize {
+      instances = $bud_instances.clone
+    }
+
+    instances.each_value {|b| b.schedule_shutdown }
+    EventMachine::stop_event_loop
   end
 end
