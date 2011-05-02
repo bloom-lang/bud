@@ -58,4 +58,12 @@ class CallbackTest < Test::Unit::TestCase
     c.run_bg
     assert_nothing_raised {c.int_ip_port}
   end
+
+  def test_extra_stoppage
+    c = Vacuous.new
+    c.run_bg
+    5.times do
+      assert_nothing_raised { c.stop_bg }
+    end
+  end
 end
