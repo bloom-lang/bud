@@ -47,8 +47,8 @@ module ForkDeploy
   end
 
   bloom :handle_ping do
-    # Note that we assign ping timestamps at the deployer, to avoid sensitivity
-    # to node-local clock skew.
+    # We assign ping timestamps at the deployer, to avoid sensitivity to
+    # node-local clock skew.
     new_ping <= ping_chan {|p| [p.node_id, Time.new]}
     last_ping <+ new_ping
     last_ping <- (new_ping * last_ping).rights(:node_id => :node_id)
