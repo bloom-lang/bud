@@ -71,7 +71,7 @@ module Bud
   #   * <tt>:trace</tt> if true, generate +budvis+ outputs
   #   * <tt>:rtrace</tt>  if true, generate +budplot+ outputs
   #   * <tt>:dump_rewrite</tt> if true, dump results of internal rewriting of Bloom code to a file
-  # * controlling execution 
+  # * controlling execution
   #   * <tt>:lazy</tt>  if true, prevents runtime from ticking except on external calls to +tick+
   #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
   # * storage configuration
@@ -570,7 +570,7 @@ module Bud
     @tables.each_value do |t|
       t.tick
     end
-    
+
     @joinstate = {}
 
     do_bootstrap unless @done_bootstrap
@@ -676,7 +676,7 @@ module Bud
             new_e = BudError
           end
           raise new_e, "Exception during Bud evaluation.\nException: #{e.inspect}.#{src_msg}"
-        end        
+        end
       end
       @stratum_first_iter = false
       fixpoint = true
@@ -685,7 +685,7 @@ module Bud
       colls ||= @tables.keys
       colls.each do |name|
         begin
-          coll = self.send(name) 
+          coll = self.send(name)
           unless coll.delta.empty? and coll.new_delta.empty?
             coll.tick_deltas
             fixpoint = false
@@ -693,7 +693,7 @@ module Bud
         rescue
           # ignore missing tables; rebl for example deletes them mid-stream
         end
-      end      
+      end
     end while not fixpoint
   end
 
