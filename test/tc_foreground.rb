@@ -6,9 +6,7 @@ class Vacuous
 end
 
 class CallbackTest < Test::Unit::TestCase
-  def test_111foreground1
-    # note the test name.  we must run before all other tests, or run_fg will
-    # throw "eventmachine already running" :(
+  def test_foreground
     c = Vacuous.new
     assert_raise(Timeout::Error) do
       Timeout::timeout(0.1) do
@@ -40,12 +38,19 @@ class CallbackTest < Test::Unit::TestCase
     Process.kill(sig, $$)
   end
 
-  def test_already_running
+  def test_fg_bg_mix
     c1 = Vacuous.new
     c2 = Vacuous.new
     c1.run_bg
-    assert_raise(Bud::BudError) {c2.run_fg}
+    cnt = 0
+    t = Thread.new {
+      c2.run_fg
+      cnt += 1
+    }
     c1.stop_bg
+    c2.stop_bg
+    t.join
+    assert_equal(1, cnt)
   end
 
   def test_interrogate1

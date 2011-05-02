@@ -282,18 +282,18 @@ module Bud
   # Bud interpreter. This means this method won't return unless an error
   # occurs. It is often more useful to run Bud asynchronously -- see run_bg.
   #
-  # Note that run_fg cannot be invoked if run_bg has already been called in the
-  # same Ruby process.
-  #
   # Execution proceeds in time ticks, a la Dedalus.
   # * Within each tick there may be multiple strata.
   # * Within each stratum we do multiple semi-naive iterations.
   def run_fg
-    raise BudError if EventMachine::reactor_running?
+    q = Queue.new
+    on_shutdown do
+      q.push(true)
+    end
 
-    EventMachine::run {
-      start_bud
-    }
+    run_bg
+    # Block caller's thread until Bud has shutdown
+    q.pop
   end
 
   # Shutdown a Bud instance that is running asynchronously. This method blocks
@@ -316,6 +316,8 @@ module Bud
   # Register a callback that will be invoked when this instance of Bud is
   # shutting down.
   def on_shutdown(&blk)
+    # Start EM if not yet started
+    start_reactor
     schedule_and_wait do
       @shutdown_callbacks << blk
     end
