@@ -71,7 +71,7 @@ module Bud
   #   * <tt>:trace</tt> if true, generate +budvis+ outputs
   #   * <tt>:rtrace</tt>  if true, generate +budplot+ outputs
   #   * <tt>:dump_rewrite</tt> if true, dump results of internal rewriting of Bloom code to a file
-  # * controlling execution 
+  # * controlling execution
   #   * <tt>:lazy</tt>  if true, prevents runtime from ticking except on external calls to +tick+
   #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
   # * storage configuration
@@ -570,7 +570,7 @@ module Bud
     @tables.each_value do |t|
       t.tick
     end
-    
+
     @joinstate = {}
 
     do_bootstrap unless @done_bootstrap
@@ -626,8 +626,8 @@ module Bud
   end
 
   def stratum_fixpoint(strat, strat_num)
-    # This routine uses semi-naive evaluation to compute
-    # a fixpoint of the rules in strat.
+    # This routine uses semi-naive evaluation to compute a fixpoint of the rules
+    # in strat.
     #
     # As described in lib/collections.rb, each collection has three
     # sub-collections of note here:
@@ -635,13 +635,13 @@ module Bud
     #   @delta: tuples that should be used to drive derivation of new facts
     #   @new_delta: a place to store newly-derived facts
     #
-    # The first time through this loop we mark @stratum_first_iter=true,
-    # while tells the Join::each code to join up all its @storage subcollections
-    # to start. In subsequent iterations the join code uses some table's @delta
-    # to ensure that only new tuples are derived.
+    # The first time through this loop we mark @stratum_first_iter=true, which
+    # tells the Join::each code to join up all its @storage subcollections to
+    # start. In subsequent iterations the join code uses some table's @delta to
+    # ensure that only new tuples are derived.
     #
-    # Note that calling "each" on a non-Join collection will iterate through both
-    # storage and delta.
+    # Note that calling "each" on a non-Join collection will iterate through
+    # both storage and delta.
     #
     # At the end of each iteration of this loop we transition:
     # - @delta tuples are merged into @storage
@@ -649,14 +649,13 @@ module Bud
     # - @new_delta is set to empty
     #
     # XXX as a performance optimization, it would be nice to bypass the delta
-    # tables for any preds that don't participate in a rhs Join -- in that
-    # case there's pointless extra tuple movement letting tuples "graduate"
-    # through @new_delta and @delta.
+    # tables for any preds that don't participate in a rhs Join -- in that case
+    # there's pointless extra tuple movement letting tuples "graduate" through
+    # @new_delta and @delta.
 
-    # In semi-naive, the first iteration should join up tables
-    # on their storage fields; subsequent iterations do the
-    # delta-joins only.  The stratum_first_iter field here distinguishes
-    # these cases.
+    # In semi-naive, the first iteration should join up tables on their storage
+    # fields; subsequent iterations do the delta-joins only.  The
+    # stratum_first_iter field here distinguishes these cases.
     @stratum_first_iter = true
     begin
       strat.each_with_index do |r,i|
@@ -676,7 +675,7 @@ module Bud
             new_e = BudError
           end
           raise new_e, "Exception during Bud evaluation.\nException: #{e.inspect}.#{src_msg}"
-        end        
+        end
       end
       @stratum_first_iter = false
       fixpoint = true
@@ -685,7 +684,7 @@ module Bud
       colls ||= @tables.keys
       colls.each do |name|
         begin
-          coll = self.send(name) 
+          coll = self.send(name)
           unless coll.delta.empty? and coll.new_delta.empty?
             coll.tick_deltas
             fixpoint = false
@@ -693,7 +692,7 @@ module Bud
         rescue
           # ignore missing tables; rebl for example deletes them mid-stream
         end
-      end      
+      end
     end while not fixpoint
   end
 
