@@ -8,27 +8,28 @@ end
 class CallbackTest < Test::Unit::TestCase
   def test_111foreground1
     # note the test name.  we must run before all other tests, or run_fg will
-    # throw "evenmachine already running" :(
+    # throw "eventmachine already running" :(
     c = Vacuous.new
     assert_raise(Timeout::Error) do
       Timeout::timeout(0.1) do
         c.run_fg
       end
-    end    
+    end
   end
 
-  def test_11shutdown
+  def test_11shutdown_em
     # similarly, this test must be run early, because it blocks if any eventmachines
     # are left running by other tests (which seems to be the case)
     c = Vacuous.new
     c.run_bg
     assert_nothing_raised {c.stop_bg(true)}
+    assert_equal(false, EventMachine::reactor_running?)
   end
-    
+
   def test_term
     kill_with_signal("TERM")
   end
-  
+
   def test_int
     kill_with_signal("INT")
   end
@@ -57,6 +58,4 @@ class CallbackTest < Test::Unit::TestCase
     c.run_bg
     assert_nothing_raised {c.int_ip_port}
   end
-
 end
-
