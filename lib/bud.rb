@@ -626,8 +626,8 @@ module Bud
   end
 
   def stratum_fixpoint(strat, strat_num)
-    # This routine uses semi-naive evaluation to compute
-    # a fixpoint of the rules in strat.
+    # This routine uses semi-naive evaluation to compute a fixpoint of the rules
+    # in strat.
     #
     # As described in lib/collections.rb, each collection has three
     # sub-collections of note here:
@@ -635,13 +635,13 @@ module Bud
     #   @delta: tuples that should be used to drive derivation of new facts
     #   @new_delta: a place to store newly-derived facts
     #
-    # The first time through this loop we mark @stratum_first_iter=true,
-    # while tells the Join::each code to join up all its @storage subcollections
-    # to start. In subsequent iterations the join code uses some table's @delta
-    # to ensure that only new tuples are derived.
+    # The first time through this loop we mark @stratum_first_iter=true, which
+    # tells the Join::each code to join up all its @storage subcollections to
+    # start. In subsequent iterations the join code uses some table's @delta to
+    # ensure that only new tuples are derived.
     #
-    # Note that calling "each" on a non-Join collection will iterate through both
-    # storage and delta.
+    # Note that calling "each" on a non-Join collection will iterate through
+    # both storage and delta.
     #
     # At the end of each iteration of this loop we transition:
     # - @delta tuples are merged into @storage
@@ -649,14 +649,13 @@ module Bud
     # - @new_delta is set to empty
     #
     # XXX as a performance optimization, it would be nice to bypass the delta
-    # tables for any preds that don't participate in a rhs Join -- in that
-    # case there's pointless extra tuple movement letting tuples "graduate"
-    # through @new_delta and @delta.
+    # tables for any preds that don't participate in a rhs Join -- in that case
+    # there's pointless extra tuple movement letting tuples "graduate" through
+    # @new_delta and @delta.
 
-    # In semi-naive, the first iteration should join up tables
-    # on their storage fields; subsequent iterations do the
-    # delta-joins only.  The stratum_first_iter field here distinguishes
-    # these cases.
+    # In semi-naive, the first iteration should join up tables on their storage
+    # fields; subsequent iterations do the delta-joins only.  The
+    # stratum_first_iter field here distinguishes these cases.
     @stratum_first_iter = true
     begin
       strat.each_with_index do |r,i|
