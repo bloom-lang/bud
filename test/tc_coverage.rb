@@ -16,7 +16,7 @@ end
 # lib/bud.rb
 class GratuitousBud < Test::Unit::TestCase
   def test_sigint
-    pid = fork do 
+    pid = fork do
       # XXX: There must be a better way to do this
       p = Nada.new
       Thread.new {
@@ -28,7 +28,7 @@ class GratuitousBud < Test::Unit::TestCase
     Process.wait
   end
   def test_sigtrap
-    pid = fork do 
+    pid = fork do
       # XXX: There must be a better way to do this
       p = Nada.new
       Thread.new {
@@ -46,7 +46,7 @@ class ShootGarbage < Test::Unit::TestCase
     include Bud
     state {channel :c1}
   end
-  
+
   def test_shoot_garbage
     p = SimpleChannel.new(:port => 54321)
     t = Thread.new do
@@ -57,7 +57,7 @@ class ShootGarbage < Test::Unit::TestCase
     sleep 1
     t.kill
   end
-  
+
   def test_shoot_badtup
     p = SimpleChannel.new(:port => 54321)
     t = Thread.new do
