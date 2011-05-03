@@ -24,7 +24,6 @@ require 'bud/storage/zookeeper'
 require 'bud/stratify'
 require 'bud/viz'
 
-$em_stopped = Queue.new
 $signal_lock = Mutex.new
 $instance_id = 0
 $bud_instances = {}        # Map from instance id => Bud instance
@@ -304,8 +303,7 @@ module Bud
   def stop_bg(stop_em=false, do_shutdown_cb=true)
     if stop_em
       schedule_shutdown(true, do_shutdown_cb)
-      # Wait until EM has completely shutdown before we return.
-      $em_stopped.pop
+      EventMachine::reactor_thread.join
     else
       schedule_and_wait do
         do_shutdown(false, do_shutdown_cb)
@@ -461,8 +459,6 @@ module Bud
       EventMachine.run do
         q << true
       end
-      # Executed only after EventMachine::stop_event_loop is done
-      $em_stopped << true
     end
     # Block waiting for EM's event loop to start up.
     q.pop
@@ -509,7 +505,7 @@ module Bud
     @dsock.close_connection
     # Note that this affects anyone else in the same process who happens to be
     # using EventMachine! This is also a non-blocking call; to block until EM
-    # has completely shutdown, use the $em_stopped queue.
+    # has completely shutdown, join on EM::reactor_thread.
     EventMachine::stop_event_loop if stop_em
   end
 

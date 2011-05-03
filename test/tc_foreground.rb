@@ -15,12 +15,12 @@ class CallbackTest < Test::Unit::TestCase
     end
   end
 
-  def test_11shutdown_em
+  def test_shutdown_em
     # similarly, this test must be run early, because it blocks if any eventmachines
     # are left running by other tests (which seems to be the case)
     c = Vacuous.new
     c.run_bg
-    assert_nothing_raised {c.stop_bg(true)}
+    c.stop_bg(true)
     assert_equal(false, EventMachine::reactor_running?)
   end
 
