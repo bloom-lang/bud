@@ -759,10 +759,14 @@ module Bud
     end
 
     private
-    def split_locspec(l)
-      lsplit = l.split(':')
-      lsplit[1] = lsplit[1].to_i
-      return lsplit
+    def split_locspec(t, idx)
+      begin
+        lsplit = t[idx].split(':')
+        lsplit[1] = lsplit[1].to_i
+        return lsplit
+      rescue Exception => e
+        raise BudError, "Illegal location specifier in tuple #{t.inspect} for channel \"#{tabname}\": #{e.to_s}"
+      end
     end
 
     public
@@ -788,7 +792,7 @@ module Bud
         if @locspec_idx.nil?
           the_locspec = [ip, port]
         else
-          the_locspec = split_locspec(t[@locspec_idx])
+          the_locspec = split_locspec(t, @locspec_idx)
           raise BudError, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
         end
         @bud_instance.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
