@@ -15,7 +15,7 @@ class RingFork
   end
 
   bloom :pass_token_once do
-    next_node <- (next_node * token_persist).lefts {|n| n.node}
+    next_node <- (next_node * token_persist).lefts
   end
 end
 
