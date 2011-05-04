@@ -1,5 +1,19 @@
 require 'bud/deploy/deployer'
 
+module ForkDeployProtocol
+  state do
+    channel :child_ack, [:@loc, :node_id] => [:node_addr]
+  end
+end
+
+module ForkDeployChild
+  include ForkDeployProtocol
+
+  bootstrap do
+    child_ack <~ [[@deployer_addr, @node_id, ip_port]]
+  end
+end
+
 # An implementation of the Deployer that runs instances using forked local
 # processes (listening on an ephemeral port).
 #
@@ -8,6 +22,25 @@ require 'bud/deploy/deployer'
 # consult the ":deploy" Bud option (which is false in deployed children).
 module ForkDeploy
   include Deployer
+  include ForkDeployProtocol
+
+  state do
+    table :ack_buf, [:node_id] => [:node_addr]
+    scratch :ack_cnt, [] => [:num]
+    scratch :nodes_ready, [] => [:ready]
+  end
+
+  bloom :child_info do
+    ack_buf <= child_ack {|a| [a.node_id, a.node_addr]}
+    ack_cnt <= ack_buf.group(nil, count)
+    nodes_ready <= (ack_cnt * node_count).pairs do |nack, ntotal|
+      [true] if nack.num == ntotal.num
+    end
+
+    node <= (nodes_ready * ack_buf).rights do |a|
+      [a.node_id, a.node_addr]
+    end
+  end
 
   bootstrap do
     return unless @options[:deploy]
@@ -46,12 +79,11 @@ module ForkDeploy
       end
     end
 
-    print "Forking local processes"
     @child_pids = []
     child_opts = @options[:deploy_child_opts]
     child_opts ||= {}
+    deployer_addr = self.ip_port
     node_count[[]].num.times do |i|
-      read, write = IO.pipe
       @child_pids << EventMachine.fork_reactor do
         # Shutdown all the Bud instances inherited from the parent process, but
         # don't invoke their shutdown callbacks
@@ -59,23 +91,12 @@ module ForkDeploy
 
         # Don't want to inherit our parent's random stuff
         srand
+        self.class.instance_eval "include ForkDeployChild"
         child = self.class.new(child_opts)
+        child.instance_variable_set('@deployer_addr', deployer_addr)
+        child.instance_variable_set('@node_id', i)
         child.run_bg
-        # Children write their address + port to the pipe
-        write.puts child.ip_port
-        read.close
-        write.close
       end
-
-      # Read child address + port from the pipe
-      addr = read.readline.rstrip
-      node << [i, addr]
-      read.close
-      write.close
-      print "."
-      $stdout.flush
     end
-
-    puts "done"
   end
 end

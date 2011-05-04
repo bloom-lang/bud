@@ -39,7 +39,7 @@ class TestForkDeploy < Test::Unit::TestCase
 
     lines = []
     Timeout::timeout(45) do
-      (NUM_DEPLOY_FORKS + 2).times do
+      (NUM_DEPLOY_FORKS + 1).times do
         lines << read.readline
       end
     end

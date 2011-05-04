@@ -38,7 +38,7 @@ class TestThreadDeploy < Test::Unit::TestCase
 
     lines = []
     Timeout::timeout(45) do
-      (DEPLOY_NUM_NODES + 2).times do |i|
+      (DEPLOY_NUM_NODES + 1).times do |i|
         lines << read.readline
       end
     end

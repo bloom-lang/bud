@@ -13,7 +13,7 @@ module Deployer # :nodoc: all
   include CountAtomicDelivery
 
   state do
-    table :node, [:uid] => [:node]
+    table :node, [:uid] => [:addr]
     table :node_count, [] => [:num]
     table :initial_data, [:uid, :pred, :data]
     channel :dont_care, [:@loc]
@@ -48,7 +48,7 @@ module Deployer # :nodoc: all
       # XXX: initial_data is a table, but we only want to try to deliver it to
       # remote nodes once. Hence, we use depl_idempotent as a quick and dirty
       # way to achieve that.
-      [n.node, [i.pred, i.data]] if depl_idempotent [[n.node, i.pred, i.data]]
+      [n.addr, [i.pred, i.data]] if depl_idempotent [[n.addr, i.pred, i.data]]
     end
 
     # Add all tuples at once.
