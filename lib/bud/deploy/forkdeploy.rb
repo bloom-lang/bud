@@ -58,11 +58,11 @@ module ForkDeploy
     return unless @options[:deploy]
 
     Signal.trap("CHLD") do
-      # We get a SIGCHLD every time a child process changes state and there's no
-      # easy way to tell whether the child process we're getting the signal for
-      # is one of ForkDeploy's children. Hence, check if any of the forked
-      # children have exited. We also ignore Errno::ECHILD, because someone
-      # else's waitpid() could easily race with us.
+      # We receive SIGCHLD when a child process changes state; unfortunately,
+      # there's no easy way to tell whether the child process we're getting the
+      # signal for is one of ForkDeploy's children. Hence, check if any of the
+      # forked children have exited. We also ignore Errno::ECHILD, because
+      # someone else's waitpid() could easily race with us.
       @child_pids.each do |c|
         begin
           pid = Process.waitpid(c, Process::WNOHANG)
