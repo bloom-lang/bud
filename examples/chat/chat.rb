@@ -26,7 +26,7 @@ class ChatClient
 
   # format chat messages with timestamp on the right of the screen
   def pretty_print(val)
-    str = val[1].to_s + ": " + (val[3].to_s || '')
+    str = "\033[34m"+val[1].to_s + ": " + "\033[31m" + (val[3].to_s || '') + "\033[0m"
     pad = "(" + val[2].to_s + ")"
     return str + " "*[66 - str.length,2].max + pad
   end
@@ -34,12 +34,7 @@ end
 
 
 
-if ARGV.length == 2
-  server = ARGV[1]
-else
-  server = ChatProtocol::DEFAULT_ADDR
-end
-
+server = (ARGV.length == 2) ? ARGV[1] : ChatProtocol::DEFAULT_ADDR
 puts "Server address: #{server}"
 program = ChatClient.new(ARGV[0], server, :stdin => $stdin)
 program.run_fg

@@ -14,15 +14,8 @@ class ChatServer
   end
 end
 
-
-
 # ruby command-line wrangling
-if ARGV.first
-  addr = ARGV.first
-else
-  addr = ChatProtocol::DEFAULT_ADDR
-end
-
+addr = ARGV.first ? ARGV.first : ChatProtocol::DEFAULT_ADDR
 ip, port = addr.split(":")
 puts "Server address: #{ip}:#{port}"
 program = ChatServer.new(:ip => ip, :port => port.to_i)
