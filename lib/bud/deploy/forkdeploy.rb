@@ -100,7 +100,12 @@ module ForkDeploy
     node_count[[]].num.times do |i|
       read, write = IO.pipe
       @child_pids << EventMachine.fork_reactor do
-        # Don't want to inherit our parent's random stuff.
+        # XXX: We should shutdown the child's copy of the parent Bud instance
+        # (which is inherited across the fork). For now, just reset
+        # $bud_instances state.
+        Bud.shutdown_all_instances(false)
+
+        # Don't want to inherit our parent's random stuff
         srand
 
         # Add PingClient to the instance's code
@@ -110,11 +115,13 @@ module ForkDeploy
         child.instance_variable_set('@deployer_addr', deploy_addr)
         child.instance_variable_set('@node_id', i)
         child.run_bg
-        # Processes write address/port to the pipe
+        # Children write their address + port to the pipe
         write.puts child.ip_port
+        read.close
+        write.close
       end
 
-      # Read child address/port from the pipe.
+      # Read child address + port from the pipe
       addr = read.readline.rstrip
       node << [i, addr]
       read.close
