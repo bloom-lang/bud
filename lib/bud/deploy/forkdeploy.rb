@@ -53,9 +53,8 @@ module ForkDeploy
     node_count[[]].num.times do |i|
       read, write = IO.pipe
       @child_pids << EventMachine.fork_reactor do
-        # XXX: We should shutdown the child's copy of the parent Bud instance
-        # (which is inherited across the fork). For now, just reset
-        # $bud_instances state.
+        # Shutdown all the Bud instances inherited from the parent process, but
+        # don't invoke their shutdown callbacks
         Bud.shutdown_all_instances(false)
 
         # Don't want to inherit our parent's random stuff
