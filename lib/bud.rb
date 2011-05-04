@@ -729,7 +729,7 @@ module Bud
           Signal.trap(signal) {
             # This blocks until each instance has stopped, which is unnecessary
             Bud.shutdown_all_instances
-            EventMachine::stop_event_loop
+            EventMachine::stop_event_loop if EventMachine::reactor_running?
           }
         end
         $setup_signal_handlers = true
