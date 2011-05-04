@@ -9,18 +9,19 @@ class TemporalBudTest
   end
 
   bloom do
-    log <= tik
+    log <= tik {|t| [t.key, t.val - 100]}
   end
 end
-
 
 class TestTimer < Test::Unit::TestCase
   def test_timer
     b = TemporalBudTest.new
     q = Queue.new
     b.register_callback(:tik) do |t|
-      raise if t.length != 1
-      q.push(t.to_a.first)
+      assert_equal(1, t.length)
+      tup = t.to_a.first
+      assert(tup.val < Time.now)
+      q.push(tup)
     end
     b.run_bg
 

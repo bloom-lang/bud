@@ -9,34 +9,15 @@ require 'bud/deploy/deployer'
 module ForkDeploy
   include Deployer
 
-  def stop_bg
-    super
-    return unless @options[:deploy]
-
-    # NB: Setting the SIGCHLD handler to "IGNORE" results in waitpid() being
-    # called automatically (to cleanup zombies), at least on OSX. This is not
-    # what we want, since it would cause a subsequent waitpid() to fail.
-    Signal.trap("CHLD", "DEFAULT")
-    @dead_pids ||= []
-    pids = @child_pids - @dead_pids
-    pids.each do |p|
-      begin
-        Process.kill("TERM", p)
-        Process.waitpid(p)
-      rescue Errno::ESRCH
-      end
-     end
-  end
-
   bootstrap do
     return unless @options[:deploy]
 
     Signal.trap("CHLD") do
-      # We get a SIGCHLD every time a child process changes state and there's no
-      # easy way to tell whether the child process we're getting the signal for
-      # is one of ForkDeploy's children. Hence, check if any of the forked
-      # children have exited. We also ignore Errno::ECHILD, because someone
-      # else's waitpid() could easily race with us.
+      # We receive SIGCHLD when a child process changes state; unfortunately,
+      # there's no easy way to tell whether the child process we're getting the
+      # signal for is one of ForkDeploy's children. Hence, check if any of the
+      # forked children have exited. We also ignore Errno::ECHILD, because
+      # someone else's waitpid() could easily race with us.
       @child_pids.each do |c|
         begin
           pid = Process.waitpid(c, Process::WNOHANG)
@@ -49,6 +30,22 @@ module ForkDeploy
       end
     end
 
+    on_shutdown do
+      # NB: Setting the SIGCHLD handler to "IGNORE" results in waitpid() being
+      # called automatically (to cleanup zombies), at least on OSX. This is not
+      # what we want, since it would cause a subsequent waitpid() to fail.
+      Signal.trap("CHLD", "DEFAULT")
+      @dead_pids ||= []
+      pids = @child_pids - @dead_pids
+      pids.each do |p|
+        begin
+          Process.kill("TERM", p)
+          Process.waitpid(p)
+        rescue Errno::ESRCH
+        end
+      end
+    end
+
     print "Forking local processes"
     @child_pids = []
     child_opts = @options[:deploy_child_opts]
@@ -56,15 +53,22 @@ module ForkDeploy
     node_count[[]].num.times do |i|
       read, write = IO.pipe
       @child_pids << EventMachine.fork_reactor do
-        # Don't want to inherit our parent's random stuff.
+        # XXX: We should shutdown the child's copy of the parent Bud instance
+        # (which is inherited across the fork). For now, just reset
+        # $bud_instances state.
+        Bud.shutdown_all_instances(false)
+
+        # Don't want to inherit our parent's random stuff
         srand
         child = self.class.new(child_opts)
         child.run_bg
-        # Processes write address/port to the pipe
+        # Children write their address + port to the pipe
         write.puts child.ip_port
+        read.close
+        write.close
       end
 
-      # Read child address/port from the pipe.
+      # Read child address + port from the pipe
       addr = read.readline.rstrip
       node << [i, addr]
       read.close

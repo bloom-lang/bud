@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'ruby2ruby'
 
-class RuleRewriter < Ruby2Ruby # :nodoc: all 
+class RuleRewriter < Ruby2Ruby # :nodoc: all
   attr_accessor :rule_indx, :rules, :depends
 
   def initialize(seed, bud_instance)
@@ -24,7 +24,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   def call_is_attr_deref?(recv, op)
-    if recv.first == :call and @bud_instance.tables.has_key? recv[2] 
+    if recv.first == :call and @bud_instance.tables.has_key? recv[2]
       schema = @bud_instance.send(recv[2]).schema
       if schema and schema.include? op
         return true
@@ -45,7 +45,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       if recv and recv.class == Sexp
         # for CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
-        # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables, 
+        # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables
         unless @monotonic_whitelist[op] or @bud_instance.tables.has_key? op or call_is_attr_deref?(recv, op) or recv.first == :lvar
           @nm = true
         end
@@ -69,7 +69,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     @nm = false
     @temp_op = nil
   end
-  
+
   def record_rule(lhs, op, rhs_pos, rhs)
     rule_txt_orig = "#{lhs} #{op} (#{rhs})"
     rule_txt = "#{lhs} #{op} (#{rhs_pos})"
@@ -142,39 +142,39 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
     @collnames = []
     @bud_instance = bud_instance
   end
-  
+
   # some icky special-case parsing to find mapping between collection names and iter vars
   def process_iter(exp)
-    if exp[1] and exp[1][0] == :call 
+    if exp[1] and exp[1][0] == :call
       gather_collection_names(exp[1])
-      
+
       # now find iter vars and match up
       if exp[2] and exp[2][0] == :lasgn and not @collnames.empty? #single-table iter
         raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
         @iterhash[exp[2][1]] = @collnames[0]
       elsif exp[2] and exp[2][0] == :masgn and not @collnames.empty? # join iter
         next unless exp[2][1] and exp[2][1][0] == :array
-        @collnames.each_with_index do |c, i|          
+        @collnames.each_with_index do |c, i|
           next unless exp[2][1][i+1] and exp[2][1][i+1][0] == :lasgn
           @iterhash[exp[2][1][i+1][1]] = c
         end
-      end        
+      end
     end
     (1..(exp.length-1)).each {|i| exp[i] = process(exp[i])}
     exp
   end
-  
+
   def gather_collection_names(exp)
     if exp[0] == :call and exp[1].nil?
       @collnames << exp[2]
-    else 
+    else
       exp.each { |e| gather_collection_names(e) if e and e.class <= Sexp }
     end
   end
 
   def process_call(exp)
     call, recv, op, args = exp
-    
+
     if recv and recv.class == Sexp and recv.first == :lvar and recv[1] and @iterhash[recv[1]]
       if @bud_instance.respond_to?(@iterhash[recv[1]])
         if @bud_instance.send(@iterhash[recv[1]]).class <= Bud::BudCollection
