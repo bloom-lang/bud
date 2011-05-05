@@ -25,9 +25,11 @@ require 'bud/stratify'
 require 'bud/viz'
 
 $signal_lock = Mutex.new
+$signal_q = Queue.new
+$signal_thread = nil
 $instance_id = 0
 $bud_instances = {}        # Map from instance id => Bud instance
-$setup_signal_handlers = false
+$setup_signal_handler_pid = -1
 
 ILLEGAL_INSTANCE_ID = -1
 
@@ -721,15 +723,26 @@ module Bud
   # process, we want a SIGINT or SIGTERM signal to cleanly shutdown all of them.
   def self.init_signal_handlers(b)
     $signal_lock.synchronize {
-      unless b.options[:no_signal_handlers] or $setup_signal_handlers
-        ["INT", "TERM"].each do |signal|
-          Signal.trap(signal) {
-            # This blocks until each instance has stopped, which is unnecessary
+      unless b.options[:no_signal_handlers] or $setup_signal_handler_pid == Process.pid
+        $signal_thread = Thread.new {
+          loop do
+            $signal_q.pop
             Bud.shutdown_all_instances
             EventMachine::stop_event_loop if EventMachine::reactor_running?
+          end
+        }
+
+        ["INT", "TERM"].each do |signal|
+          Signal.trap(signal) {
+            if Thread.current == $signal_thread
+              Bud.shutdown_all_instances
+              EventMachine::stop_event_loop if EventMachine::reactor_running?
+            else
+              $signal_q.push(true)
+            end
           }
         end
-        $setup_signal_handlers = true
+        $setup_signal_handler_pid = Process.pid
       end
 
       $instance_id += 1
