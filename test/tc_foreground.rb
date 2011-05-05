@@ -46,6 +46,24 @@ class CallbackTest < Test::Unit::TestCase
     assert_equal(1, cnt)
   end
 
+  def test_sigint_child
+    kill_child_with_signal("INT")
+  end
+
+  def test_sigterm_child
+    kill_child_with_signal("TERM")
+  end
+
+  def kill_child_with_signal(signal)
+    pid = fork do
+      p = Vacuous.new
+      p.run_fg
+    end
+    sleep 1
+    Process.kill(signal, pid)
+    Process.waitpid(pid)
+  end
+
   def test_fg_bg_mix
     c1 = Vacuous.new
     c2 = Vacuous.new
