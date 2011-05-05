@@ -16,8 +16,6 @@ class CallbackTest < Test::Unit::TestCase
   end
 
   def test_shutdown_em
-    # similarly, this test must be run early, because it blocks if any eventmachines
-    # are left running by other tests (which seems to be the case)
     c = Vacuous.new
     c.run_bg
     c.stop_bg(true)
