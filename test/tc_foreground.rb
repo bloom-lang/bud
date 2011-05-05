@@ -34,8 +34,16 @@ class CallbackTest < Test::Unit::TestCase
 
   def kill_with_signal(sig)
     c = Vacuous.new
+    cnt = 0
+    q = Queue.new
+    c.on_shutdown do
+      cnt += 1
+      q.push(true)
+    end
     c.run_bg
     Process.kill(sig, $$)
+    q.pop
+    assert_equal(1, cnt)
   end
 
   def test_fg_bg_mix
