@@ -17,9 +17,8 @@ end
 class GratuitousBud < Test::Unit::TestCase
   def test_sigint
     pid = fork do
-      # XXX: There must be a better way to do this
       p = Nada.new
-      Thread.new { p.run_bg }
+      p.run_fg
     end
     sleep 1
     Process.kill("INT", pid)
@@ -27,9 +26,8 @@ class GratuitousBud < Test::Unit::TestCase
   end
   def test_sigterm
     pid = fork do
-      # XXX: There must be a better way to do this
       p = Nada.new
-      Thread.new { p.run_bg }
+      p.run_fg
     end
     sleep 1
     Process.kill("TERM", pid)
