@@ -3,14 +3,6 @@ require 'test_common'
 
 class Nada
   include Bud
-
-  state do
-    table :num, [:num]
-  end
-
-  bloom do
-    num <= (1..5).map{|i| [i]}
-  end
 end
 
 # lib/bud.rb
