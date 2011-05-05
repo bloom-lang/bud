@@ -280,10 +280,6 @@ module Bud
   # Run Bud in the "foreground" -- the caller's thread will be used to run the
   # Bud interpreter. This means this method won't return unless an error
   # occurs. It is often more useful to run Bud asynchronously -- see run_bg.
-  #
-  # Execution proceeds in time ticks, a la Dedalus.
-  # * Within each tick there may be multiple strata.
-  # * Within each stratum we do multiple semi-naive iterations.
   def run_fg
     q = Queue.new
     on_shutdown do
