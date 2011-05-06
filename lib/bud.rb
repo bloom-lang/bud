@@ -304,9 +304,13 @@ module Bud
   # use EventMachine).
   def stop_bg(stop_em=false, do_shutdown_cb=true)
     schedule_and_wait do
-      do_shutdown(stop_em, do_shutdown_cb)
+      do_shutdown(do_shutdown_cb)
     end
-    EventMachine::reactor_thread.join if stop_em
+
+    if stop_em
+      Bud.stop_em_loop
+      EventMachine::reactor_thread.join
+    end
   end
 
   # Register a callback that will be invoked when this instance of Bud is
@@ -488,7 +492,7 @@ module Bud
     raise resp if resp
   end
 
-  def do_shutdown(stop_em=false, do_shutdown_cb=true)
+  def do_shutdown(do_shutdown_cb=true)
     # Silently ignore duplicate shutdown requests or attempts to shutdown an
     # instance that hasn't been started yet.
     return if @instance_id == ILLEGAL_INSTANCE_ID
@@ -505,10 +509,6 @@ module Bud
     @timers.each {|t| t.cancel}
     close_tables
     @dsock.close_connection if EventMachine::reactor_running?
-    # Note that this affects anyone else in the same process who happens to be
-    # using EventMachine! This is also a non-blocking call; to block until EM
-    # has completely shutdown, join on EM::reactor_thread.
-    Bud.stop_em_loop if stop_em
   end
 
   private
@@ -728,6 +728,9 @@ module Bud
     end
   end
 
+  # Note that this affects anyone else in the same process who happens to be
+  # using EventMachine! This is also a non-blocking call; to block until EM
+  # has completely shutdown, join on EM::reactor_thread.
   def self.stop_em_loop
     EventMachine::stop_event_loop
 
