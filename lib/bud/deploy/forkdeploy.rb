@@ -3,14 +3,14 @@ require 'time'
 
 FT_TIMEOUT = 20
 
-module PingLiveness
+module AftProtocol
   state do
     channel :ping_chan, [:@loc, :node_id]
   end
 end
 
-module PingClient
-  include PingLiveness
+module AftChild
+  include AftProtocol
 
   state do
     periodic :ping_clock, 5
@@ -38,8 +38,8 @@ end
 # XXX: Currently, this code runs at both the deployment master and at all the
 # child nodes. Running at the children is obviously inefficient, but requires
 # some refactoring of the deployment infrastructure. See #147.
-module FaultToleranceMaster
-  include PingLiveness
+module AftMaster
+  include AftProtocol
 
   state do
     table :last_ping, [:node_id] => [:tstamp]
@@ -75,7 +75,7 @@ end
 module ForkDeploy
   include Deployer
   include ForkDeployProtocol
-  include FaultToleranceMaster
+  include AftMaster
 
   state do
     table :ack_buf, [:node_id] => [:node_addr]
@@ -140,7 +140,7 @@ module ForkDeploy
     node_count[[]].num.times do |i|
       @child_pids << Bud.do_fork do
         # XXX: can this be done without instance_eval?
-        self.class.instance_eval "include PingClient"
+        self.class.instance_eval "include AftChild"
         self.class.instance_eval "include ForkDeployChild"
         child = self.class.new(child_opts)
         child.instance_variable_set('@deployer_addr', deployer_addr)
