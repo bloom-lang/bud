@@ -283,9 +283,11 @@ module Bud
   # Bud interpreter. This means this method won't return unless an error
   # occurs. It is often more useful to run Bud asynchronously -- see run_bg.
   def run_fg
-    # If we're called from the EventMachine thread, blocking the current thread
-    # would imply deadlocking ourselves.
-    raise BudError if Thread.current == EventMachine::reactor_thread
+    # If we're called from the EventMachine thread (and EM is running), blocking
+    # the current thread would imply deadlocking ourselves.
+    if Thread.current == EventMachine::reactor_thread and EventMachine::reactor_running?
+      raise BudError, "Cannot invoke run_fg from inside EventMachine"
+    end
 
     q = Queue.new
     on_shutdown do
@@ -712,6 +714,9 @@ module Bud
   def self.do_fork
     Kernel.fork do
       srand
+      # This is somewhat grotty: we basically clone what EM::fork_reactor does,
+      # except that we don't want the user-supplied block to be invoked by the
+      # reactor thread.
       if EventMachine::reactor_running?
         EventMachine::stop_event_loop
         EventMachine::release_machine

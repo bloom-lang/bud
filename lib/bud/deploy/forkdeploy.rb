@@ -84,18 +84,12 @@ module ForkDeploy
     child_opts ||= {}
     deployer_addr = self.ip_port
     node_count[[]].num.times do |i|
-      @child_pids << EventMachine.fork_reactor do
-        # Shutdown all the Bud instances inherited from the parent process, but
-        # don't invoke their shutdown callbacks
-        Bud.shutdown_all_instances(false)
-
-        # Don't want to inherit our parent's random stuff
-        srand
+      @child_pids << Bud.do_fork do
         self.class.instance_eval "include ForkDeployChild"
         child = self.class.new(child_opts)
         child.instance_variable_set('@deployer_addr', deployer_addr)
         child.instance_variable_set('@node_id', i)
-        child.run_bg
+        child.run_fg
       end
     end
   end
