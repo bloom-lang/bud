@@ -24,9 +24,11 @@ class CallbackTest < Test::Unit::TestCase
 
   def test_term
     kill_with_signal("TERM")
+    kill_with_signal("TERM")
   end
 
   def test_int
+    kill_with_signal("INT")
     kill_with_signal("INT")
   end
 
@@ -42,6 +44,8 @@ class CallbackTest < Test::Unit::TestCase
     Process.kill(sig, $$)
     q.pop
     assert_equal(1, cnt)
+    # XXX: hack
+    EventMachine::reactor_thread.join
   end
 
   def test_sigint_child
@@ -53,7 +57,7 @@ class CallbackTest < Test::Unit::TestCase
   end
 
   def kill_child_with_signal(signal)
-    pid = fork do
+    pid = Bud.do_fork do
       p = Vacuous.new
       p.run_fg
     end
