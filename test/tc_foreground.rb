@@ -61,13 +61,17 @@ class CallbackTest < Test::Unit::TestCase
   end
 
   def kill_child_with_signal(signal)
+    parent = Vacuous.new
+    parent.run_bg
     pid = Bud.do_fork do
       p = Vacuous.new
       p.run_fg
     end
     sleep 1
     Process.kill(signal, pid)
-    Process.waitpid(pid)
+    _, status = Process.waitpid2(pid)
+    assert_equal(0, status)
+    parent.stop_bg
   end
 
   def test_fg_bg_mix
