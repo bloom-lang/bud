@@ -35,6 +35,9 @@ module ForkDeployChild
   end
 end
 
+# XXX: Currently, this code runs at both the deployment master and at all the
+# child nodes. Running at the children is obviously inefficient, but requires
+# some refactoring of the deployment infrastructure. See #147.
 module FaultToleranceMaster
   include PingLiveness
 
