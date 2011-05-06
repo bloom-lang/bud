@@ -15,7 +15,7 @@ class RingThread
   end
 
   bloom :pass_token_once do
-    next_node <- (next_node * token_persist).lefts {|n| n.node}
+    next_node <- (next_node * token_persist).lefts
   end
 end
 
@@ -38,7 +38,7 @@ class TestThreadDeploy < Test::Unit::TestCase
 
     lines = []
     Timeout::timeout(45) do
-      (DEPLOY_NUM_NODES + 2).times do |i|
+      (DEPLOY_NUM_NODES + 1).times do |i|
         lines << read.readline
       end
     end

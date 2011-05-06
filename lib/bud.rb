@@ -24,12 +24,14 @@ require 'bud/storage/zookeeper'
 require 'bud/stratify'
 require 'bud/viz'
 
+ILLEGAL_INSTANCE_ID = -1
+SIGNAL_CHECK_PERIOD = 0.2
+
 $signal_lock = Mutex.new
+$got_shutdown_signal = false
+$signal_handler_setup = false
 $instance_id = 0
 $bud_instances = {}        # Map from instance id => Bud instance
-$setup_signal_handlers = false
-
-ILLEGAL_INSTANCE_ID = -1
 
 # The root Bud module. To cause an instance of Bud to begin executing, there are
 # three main options:
@@ -280,11 +282,13 @@ module Bud
   # Run Bud in the "foreground" -- the caller's thread will be used to run the
   # Bud interpreter. This means this method won't return unless an error
   # occurs. It is often more useful to run Bud asynchronously -- see run_bg.
-  #
-  # Execution proceeds in time ticks, a la Dedalus.
-  # * Within each tick there may be multiple strata.
-  # * Within each stratum we do multiple semi-naive iterations.
   def run_fg
+    # If we're called from the EventMachine thread (and EM is running), blocking
+    # the current thread would imply deadlocking ourselves.
+    if Thread.current == EventMachine::reactor_thread and EventMachine::reactor_running?
+      raise BudError, "Cannot invoke run_fg from inside EventMachine"
+    end
+
     q = Queue.new
     on_shutdown do
       q.push(true)
@@ -301,13 +305,13 @@ module Bud
   # Bud instances in the same process (as well as anything else that happens to
   # use EventMachine).
   def stop_bg(stop_em=false, do_shutdown_cb=true)
+    schedule_and_wait do
+      do_shutdown(do_shutdown_cb)
+    end
+
     if stop_em
-      schedule_shutdown(true, do_shutdown_cb)
+      Bud.stop_em_loop
       EventMachine::reactor_thread.join
-    else
-      schedule_and_wait do
-        do_shutdown(false, do_shutdown_cb)
-      end
     end
   end
 
@@ -448,6 +452,7 @@ module Bud
     EventMachine::error_handler do |e|
       puts "Unexpected Bud error: #{e.inspect}"
       puts e.backtrace.join("\n")
+      Bud.shutdown_all_instances
       raise e
     end
 
@@ -457,7 +462,7 @@ module Bud
     # EventMachine's event loop.
     Thread.new do
       EventMachine.run do
-        q << true
+        q.push(true)
       end
     end
     # Block waiting for EM's event loop to start up.
@@ -467,9 +472,12 @@ module Bud
   # Schedule a block to be evaluated by EventMachine in the future, and
   # block until this has happened.
   def schedule_and_wait
-    # Try to defend against error situations in which EM has stopped, but we've
-    # been called nonetheless. This is racy, but better than nothing.
-    raise BudError, "EM not running" unless EventMachine::reactor_running?
+    # If EM isn't running, just run the user's block immediately
+    # XXX: not clear that this is the right behavior
+    unless EventMachine::reactor_running?
+      yield
+      return
+    end
 
     q = Queue.new
     EventMachine::schedule do
@@ -486,9 +494,9 @@ module Bud
     raise resp if resp
   end
 
-  def do_shutdown(stop_em=false, do_shutdown_cb=true)
-    # Ignore duplicate shutdown requests, or attempts to shutdown an instance
-    # that hasn't been started yet.
+  def do_shutdown(do_shutdown_cb=true)
+    # Silently ignore duplicate shutdown requests or attempts to shutdown an
+    # instance that hasn't been started yet.
     return if @instance_id == ILLEGAL_INSTANCE_ID
 
     $signal_lock.synchronize {
@@ -502,24 +510,7 @@ module Bud
     end
     @timers.each {|t| t.cancel}
     close_tables
-    @dsock.close_connection
-    # Note that this affects anyone else in the same process who happens to be
-    # using EventMachine! This is also a non-blocking call; to block until EM
-    # has completely shutdown, join on EM::reactor_thread.
-    EventMachine::stop_event_loop if stop_em
-  end
-
-  # Schedule a "graceful" shutdown for a future EM tick. If EM is not currently
-  # running, shutdown immediately.
-  public
-  def schedule_shutdown(stop_em=false, do_shutdown_cb=true)
-    if EventMachine::reactor_running?
-      EventMachine::schedule do
-        do_shutdown(stop_em, do_shutdown_cb)
-      end
-    else
-      do_shutdown(stop_em, do_shutdown_cb)
-    end
+    @dsock.close_connection if EventMachine::reactor_running?
   end
 
   private
@@ -720,19 +711,64 @@ module Bud
     end
   end
 
+  # Fork a new process. This is identical to Kernel#fork, except that it also
+  # cleans up Bud and EventMachine-related state. As with Kernel#fork, the
+  # caller supplies a code block that is run in the child process; the PID of
+  # the child is returned by this method.
+  def self.do_fork
+    Kernel.fork do
+      srand
+      # This is somewhat grotty: we basically clone what EM::fork_reactor does,
+      # except that we don't want the user-supplied block to be invoked by the
+      # reactor thread.
+      if EventMachine::reactor_running?
+        EventMachine::stop_event_loop
+        EventMachine::release_machine
+        EventMachine::instance_variable_set('@reactor_running', false)
+      end
+      # Shutdown all the Bud instances inherited from the parent process, but
+      # don't invoke their shutdown callbacks
+      Bud.shutdown_all_instances(false)
+
+      $got_shutdown_signal = false
+      $setup_signal_handler = false
+
+      yield
+    end
+  end
+
+  # Note that this affects anyone else in the same process who happens to be
+  # using EventMachine! This is also a non-blocking call; to block until EM
+  # has completely shutdown, join on EM::reactor_thread.
+  def self.stop_em_loop
+    EventMachine::stop_event_loop
+
+    # If another instance of Bud is started later, we'll need to reinitialize
+    # the signal handlers (since they depend on EM).
+    $signal_handler_setup = false
+  end
+
   # Signal handling. If multiple Bud instances are running inside a single
   # process, we want a SIGINT or SIGTERM signal to cleanly shutdown all of them.
   def self.init_signal_handlers(b)
     $signal_lock.synchronize {
-      unless b.options[:no_signal_handlers] or $setup_signal_handlers
+      # If we setup signal handlers and then fork a new process, we want to
+      # reinitialize the signal handler in the child process.
+      unless b.options[:no_signal_handlers] or $signal_handler_setup
+        EventMachine::PeriodicTimer.new(SIGNAL_CHECK_PERIOD) do
+          if $got_shutdown_signal
+            Bud.shutdown_all_instances
+            Bud.stop_em_loop
+            $got_shutdown_signal = false
+          end
+        end
+
         ["INT", "TERM"].each do |signal|
           Signal.trap(signal) {
-            # This blocks until each instance has stopped, which is unnecessary
-            Bud.shutdown_all_instances
-            EventMachine::stop_event_loop
+            $got_shutdown_signal = true
           }
         end
-        $setup_signal_handlers = true
+        $setup_signal_handler_pid = true
       end
 
       $instance_id += 1

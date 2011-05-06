@@ -15,7 +15,7 @@ class RingFork
   end
 
   bloom :pass_token_once do
-    next_node <- (next_node * token_persist).lefts {|n| n.node}
+    next_node <- (next_node * token_persist).lefts
   end
 end
 
@@ -39,7 +39,7 @@ class TestForkDeploy < Test::Unit::TestCase
 
     lines = []
     Timeout::timeout(45) do
-      (NUM_DEPLOY_FORKS + 2).times do
+      (NUM_DEPLOY_FORKS + 1).times do
         lines << read.readline
       end
     end

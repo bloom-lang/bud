@@ -21,6 +21,20 @@ module PingClient
   end
 end
 
+module ForkDeployProtocol
+  state do
+    channel :child_ack, [:@loc, :node_id] => [:node_addr]
+  end
+end
+
+module ForkDeployChild
+  include ForkDeployProtocol
+
+  bootstrap do
+    child_ack <~ [[@deployer_addr, @node_id, ip_port]]
+  end
+end
+
 # An implementation of the Deployer that runs instances using forked local
 # processes (listening on an ephemeral port).
 #
@@ -29,9 +43,14 @@ end
 # consult the ":deploy" Bud option (which is false in deployed children).
 module ForkDeploy
   include Deployer
+  include ForkDeployProtocol
   include PingLiveness
 
   state do
+    table :ack_buf, [:node_id] => [:node_addr]
+    scratch :ack_cnt, [] => [:num]
+    scratch :nodes_ready, [] => [:ready]
+
     table :last_ping, [:node_id] => [:tstamp]
     scratch :new_ping, last_ping.schema
     scratch :not_live, [:node_id]
@@ -52,6 +71,19 @@ module ForkDeploy
     new_ping <= ping_chan {|p| [p.node_id, Time.new]}
     last_ping <+ new_ping
     last_ping <- (new_ping * last_ping).rights(:node_id => :node_id)
+    stdio <~ new_ping {|p| ["Got ping: #{p.inspect}"]}
+  end
+
+  bloom :child_info do
+    ack_buf <= child_ack {|a| [a.node_id, a.node_addr]}
+    ack_cnt <= ack_buf.group(nil, count)
+    nodes_ready <= (ack_cnt * node_count).pairs do |nack, ntotal|
+      [true] if nack.num == ntotal.num
+    end
+
+    node <= (nodes_ready * ack_buf).rights do |a|
+      [a.node_id, a.node_addr]
+    end
   end
 
   bootstrap do
@@ -91,45 +123,21 @@ module ForkDeploy
       end
     end
 
-    print "Forking local processes"
     @child_pids = []
 
     child_opts = @options[:deploy_child_opts]
     child_opts ||= {}
-    deploy_addr = self.ip_port
+    deployer_addr = self.ip_port
     node_count[[]].num.times do |i|
-      read, write = IO.pipe
-      @child_pids << EventMachine.fork_reactor do
-        # XXX: We should shutdown the child's copy of the parent Bud instance
-        # (which is inherited across the fork). For now, just reset
-        # $bud_instances state.
-        Bud.shutdown_all_instances(false)
-
-        # Don't want to inherit our parent's random stuff
-        srand
-
-        # Add PingClient to the instance's code
+      @child_pids << Bud.do_fork do
         # XXX: can this be done without instance_eval?
         self.class.instance_eval "include PingClient"
+        self.class.instance_eval "include ForkDeployChild"
         child = self.class.new(child_opts)
-        child.instance_variable_set('@deployer_addr', deploy_addr)
+        child.instance_variable_set('@deployer_addr', deployer_addr)
         child.instance_variable_set('@node_id', i)
-        child.run_bg
-        # Children write their address + port to the pipe
-        write.puts child.ip_port
-        read.close
-        write.close
+        child.run_fg
       end
-
-      # Read child address + port from the pipe
-      addr = read.readline.rstrip
-      node << [i, addr]
-      read.close
-      write.close
-      print "."
-      $stdout.flush
     end
-
-    puts "done"
   end
 end

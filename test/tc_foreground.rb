@@ -16,8 +16,6 @@ class CallbackTest < Test::Unit::TestCase
   end
 
   def test_shutdown_em
-    # similarly, this test must be run early, because it blocks if any eventmachines
-    # are left running by other tests (which seems to be the case)
     c = Vacuous.new
     c.run_bg
     c.stop_bg(true)
@@ -26,16 +24,54 @@ class CallbackTest < Test::Unit::TestCase
 
   def test_term
     kill_with_signal("TERM")
+    kill_with_signal("TERM")
   end
 
   def test_int
+    kill_with_signal("INT")
     kill_with_signal("INT")
   end
 
   def kill_with_signal(sig)
     c = Vacuous.new
+    cnt = 0
+    q = Queue.new
+    c.on_shutdown do
+      cnt += 1
+      q.push(true)
+    end
     c.run_bg
     Process.kill(sig, $$)
+    q.pop
+    assert_equal(1, cnt)
+
+    # XXX: hack. There currently isn't a convenient way to block until the kill
+    # signal has been completely handled (on_shutdown callbacks are invoked
+    # before the end of the Bud shutdown process). Since we don't want to run
+    # another test until EM has shutdown, we can at least wait for that.
+    EventMachine::reactor_thread.join
+  end
+
+  def test_sigint_child
+    kill_child_with_signal("INT")
+  end
+
+  def test_sigterm_child
+    kill_child_with_signal("TERM")
+  end
+
+  def kill_child_with_signal(signal)
+    parent = Vacuous.new
+    parent.run_bg
+    pid = Bud.do_fork do
+      p = Vacuous.new
+      p.run_fg
+    end
+    sleep 1
+    Process.kill(signal, pid)
+    _, status = Process.waitpid2(pid)
+    assert_equal(0, status)
+    parent.stop_bg
   end
 
   def test_fg_bg_mix
