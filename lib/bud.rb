@@ -511,19 +511,6 @@ module Bud
     Bud.stop_em_loop if stop_em
   end
 
-  # Schedule a "graceful" shutdown for a future EM tick. If EM is not currently
-  # running, shutdown immediately.
-  public
-  def schedule_shutdown(stop_em=false, do_shutdown_cb=true)
-    if EventMachine::reactor_running?
-      EventMachine::schedule do
-        do_shutdown(stop_em, do_shutdown_cb)
-      end
-    else
-      do_shutdown(stop_em, do_shutdown_cb)
-    end
-  end
-
   private
   def start_bud
     raise BudError unless EventMachine::reactor_thread?
