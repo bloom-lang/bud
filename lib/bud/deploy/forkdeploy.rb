@@ -35,22 +35,10 @@ module ForkDeployChild
   end
 end
 
-# An implementation of the Deployer that runs instances using forked local
-# processes (listening on an ephemeral port).
-#
-# Note that this module is included in both the deployer process and in the
-# deployed instances. To write code that only runs in one type of process,
-# consult the ":deploy" Bud option (which is false in deployed children).
-module ForkDeploy
-  include Deployer
-  include ForkDeployProtocol
+module FaultToleranceMaster
   include PingLiveness
 
   state do
-    table :ack_buf, [:node_id] => [:node_addr]
-    scratch :ack_cnt, [] => [:num]
-    scratch :nodes_ready, [] => [:ready]
-
     table :last_ping, [:node_id] => [:tstamp]
     scratch :new_ping, last_ping.schema
     scratch :not_live, [:node_id]
@@ -62,6 +50,7 @@ module ForkDeploy
     not_live <= (ft_clock * last_ping).pairs do |c, p|
       [p.node_id] if (c.val - FT_TIMEOUT > p.tstamp)
     end
+    stdio <~ ft_clock {|c| ["Got FT clock tick (pid = #{Process.pid})"]}
     stdio <~ not_live {|n| ["Dead node: id = #{n.node_id}"]}
   end
 
@@ -71,6 +60,24 @@ module ForkDeploy
     new_ping <= ping_chan {|p| [p.node_id, Time.new]}
     last_ping <+ new_ping
     last_ping <- (new_ping * last_ping).rights(:node_id => :node_id)
+  end
+end
+
+# An implementation of the Deployer that runs instances using forked local
+# processes (listening on an ephemeral port).
+#
+# Note that this module is included in both the deployer process and in the
+# deployed instances. To write code that only runs in one type of process,
+# consult the ":deploy" Bud option (which is false in deployed children).
+module ForkDeploy
+  include Deployer
+  include ForkDeployProtocol
+  include FaultToleranceMaster
+
+  state do
+    table :ack_buf, [:node_id] => [:node_addr]
+    scratch :ack_cnt, [] => [:num]
+    scratch :nodes_ready, [] => [:ready]
   end
 
   bloom :child_info do
