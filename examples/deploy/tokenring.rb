@@ -28,6 +28,9 @@ module TokenRing
     token_persist <- (token_persist * next_node).lefts
     # Pass on the token
     token <~ (token_persist * next_node).combos {[next_node[[]].addr]}
-#    stdio <~ token {["#{ip_port}: Got token!"]}
+  end
+
+  bloom :print_token do
+    stdio <~ token {["#{ip_port}: Got token!"]}
   end
 end

@@ -71,7 +71,6 @@ module ForkDeploy
     new_ping <= ping_chan {|p| [p.node_id, Time.new]}
     last_ping <+ new_ping
     last_ping <- (new_ping * last_ping).rights(:node_id => :node_id)
-    stdio <~ new_ping {|p| ["Got ping: #{p.inspect}"]}
   end
 
   bloom :child_info do
