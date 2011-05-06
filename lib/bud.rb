@@ -711,6 +711,10 @@ module Bud
     end
   end
 
+  # Fork a new process. This is identical to Kernel#fork, except that it also
+  # cleans up Bud and EventMachine-related state. As with Kernel#fork, the
+  # caller supplies a code block that is run in the child process; the PID of
+  # the child is returned by this method.
   def self.do_fork
     Kernel.fork do
       srand
