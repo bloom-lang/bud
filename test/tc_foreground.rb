@@ -44,7 +44,11 @@ class CallbackTest < Test::Unit::TestCase
     Process.kill(sig, $$)
     q.pop
     assert_equal(1, cnt)
-    # XXX: hack
+
+    # XXX: hack. There currently isn't a convenient way to block until the kill
+    # signal has been completely handled (on_shutdown callbacks are invoked
+    # before the end of the Bud shutdown process). Since we don't want to run
+    # another test until EM has shutdown, we can at least wait for that.
     EventMachine::reactor_thread.join
   end
 
