@@ -5,33 +5,37 @@ FT_TIMEOUT = 20
 
 module AftProtocol
   state do
+    # Liveness ping messages from child => master
     channel :ping_chan, [:@loc, :node_id]
+
+    # Messaging abstraction: child => master (send), master => child (recv)
+    channel :msg_send, [:@loc, :msg_id, :recv_node, :send_node] => [:payload]
+    channel :msg_recv, [:@loc, :msg_id, :recv_node, :send_node] => [:payload]
   end
 end
+
+MSG_ID = -1
 
 module AftChild
   include AftProtocol
 
   state do
     periodic :ping_clock, 5
+    scratch :aft_send, [:recv_node] => [:payload]
+    scratch :aft_recv, [:send_node, :msg_id] => [:payload]
   end
 
   bloom :send_ping do
     ping_chan <~ ping_clock {|c| [@deployer_addr, @node_id]}
   end
-end
 
-module ForkDeployProtocol
-  state do
-    channel :child_ack, [:@loc, :node_id] => [:node_addr]
-  end
-end
+  bloom :messaging do
+    msg_send <~ aft_send {|m| [@deployer_addr, MSG_ID, m.recv_node, @node_id, m.payload]}
 
-module ForkDeployChild
-  include ForkDeployProtocol
-
-  bootstrap do
-    child_ack <~ [[@deployer_addr, @node_id, ip_port]]
+    aft_recv <= msg_recv do |m|
+      raise if m.recv_node != @node_id
+      [m.send_node, m.msg_id, m.payload]
+    end
   end
 end
 
@@ -63,6 +67,26 @@ module AftMaster
     new_ping <= ping_chan {|p| [p.node_id, Time.new]}
     last_ping <+ new_ping
     last_ping <- (new_ping * last_ping).rights(:node_id => :node_id)
+  end
+
+  bloom :message_redirect do
+    msg_send <~ (msg_recv * node).pairs(:recv_node => :uid) do |m,n|
+      [n.addr, m.msg_id, m.recv_node, m.send_node, m.payload]
+    end
+  end
+end
+
+module ForkDeployProtocol
+  state do
+    channel :child_ack, [:@loc, :node_id] => [:node_addr]
+  end
+end
+
+module ForkDeployChild
+  include ForkDeployProtocol
+
+  bootstrap do
+    child_ack <~ [[@deployer_addr, @node_id, ip_port]]
   end
 end
 
