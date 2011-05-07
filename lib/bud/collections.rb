@@ -641,7 +641,7 @@ module Bud
     def setup_preds(preds) # :nodoc: all
       allpreds = disambiguate_preds(preds)
       allpreds = canonicalize_localpreds(@rels, allpreds)
-      @localpreds = allpreds.reject { |p|  p[0][0] != @rels[0].tabname }
+      @localpreds = allpreds.reject { |p| p[0][0] != @rels[0].tabname }
       otherpreds = allpreds - @localpreds
       otherpreds = nil if otherpreds.empty?
       unless otherpreds.nil?
@@ -662,7 +662,7 @@ module Bud
             [k,v]
           elsif k.class <= Symbol
             if @origrels and @origrels.length == 2
-              [find_attr_match(k,@origrels[0]), find_attr_match(v,@origrels[1])]
+              [find_attr_match(k, @origrels[0]), find_attr_match(v, @origrels[1])]
             else
               [find_attr_match(k), find_attr_match(v)]
             end
