@@ -3,7 +3,7 @@ module Bud
     attr_accessor :rels, :origrels, :origpreds # :nodoc: all
     attr_reader :hash_tables # :nodoc: all
 
-    def initialize(rellist, bud_instance, preds=nil) # :nodoc: all
+    def initialize(rellist, bud_instance, preds=[]) # :nodoc: all
       @schema = []
       @origpreds = preds
       @bud_instance = bud_instance
@@ -24,7 +24,7 @@ module Bud
 
       # recurse to form a tree of binary BudJoins
       @rels = [rellist[0]]
-      @rels << (rellist.length == 2 ? rellist[1] : BudJoin.new(rellist[1..rellist.length-1], @bud_instance, nil))
+      @rels << (rellist.length == 2 ? rellist[1] : BudJoin.new(rellist[1..rellist.length-1], @bud_instance))
       # derive schema: one column for each table.
       # duplicated inputs get distinguishing numeral
       @schema = []
@@ -38,7 +38,7 @@ module Bud
         memo
       end
 
-      setup_preds(preds) unless preds.nil? or preds.empty?
+      setup_preds(preds) unless preds.empty?
       setup_state
     end
 
@@ -75,7 +75,7 @@ module Bud
     # similar to <tt>SELECT * FROM ... WHERE...</tt> block in SQL.
     public
     def flatten(*preds)
-      setup_preds(preds) unless preds.nil? or preds.size == 0
+      setup_preds(preds) unless preds.empty?
       flat_schema = @rels.map{|r| r.schema}.flatten(1)
       dupfree_schema = []
       # while loop here (inefficiently) ensures no collisions
@@ -147,7 +147,7 @@ module Bud
     public
     def pairs(*preds, &blk)
       @origpreds = preds
-      setup_preds(preds) unless (preds.nil? or preds.empty?)
+      setup_preds(preds) unless preds.empty?
       # given new preds, the state for the join will be different.  set it up again.
       setup_state if self.class <= Bud::BudJoin
       blk.nil? ? self : map(&blk)
@@ -259,7 +259,7 @@ module Bud
     protected
     def decomp_preds(*preds) # :nodoc:all
       # decompose each pred into a binary pred
-      return nil if preds.nil? or preds.empty? or preds == [nil]
+      return nil if preds.empty? or preds == [nil]
       newpreds = []
       preds.each do |p|
         p.each_with_index do |c, i|
@@ -271,7 +271,6 @@ module Bud
 
     protected
     def canonicalize_localpreds(rel_list, preds) # :nodoc:all
-      return if preds.nil?
       retval = preds.map do |p|
         p[1][0] == rel_list[0].tabname ? p.reverse : p
       end
