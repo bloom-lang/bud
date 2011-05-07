@@ -17,6 +17,7 @@ module TokenRing
     end
 
     # The deployer sends an initial message to the node with ID 0
+    # XXX: Do this only once, not once for each tick
     token <~ node do |n|
       [n.addr] if (@options[:deploy] and n.uid == 0)
     end
