@@ -15,6 +15,9 @@ module Deployer # :nodoc: all
   state do
     table :node, [:uid] => [:addr]
     table :node_count, [] => [:num]
+    # True for the first tick in which "node" is computed
+    scratch :node_ready, [] => [:ready]
+
     table :initial_data, [:uid, :pred, :data]
     channel :dont_care, [:@loc]
     table :dead, [:dead]

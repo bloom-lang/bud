@@ -27,19 +27,21 @@ module ForkDeploy
   state do
     table :ack_buf, [:node_id] => [:node_addr]
     scratch :ack_cnt, [] => [:num]
-    scratch :nodes_ready, [] => [:ready]
   end
 
   bloom :child_info do
     ack_buf <= child_ack {|a| [a.node_id, a.node_addr]}
     ack_cnt <= ack_buf.group(nil, count)
-    nodes_ready <= (ack_cnt * node_count).pairs do |nack, ntotal|
+    node_ready <= (ack_cnt * node_count).pairs do |nack, ntotal|
       [true] if nack.num == ntotal.num
     end
 
-    node <= (nodes_ready * ack_buf).rights do |a|
+    node <= (node_ready * ack_buf).rights do |a|
       [a.node_id, a.node_addr]
     end
+
+    # Delete stored acks, so that we don't trigger node_ready on future ticks
+    ack_buf <- (node_ready * ack_buf).rights
   end
 
   bootstrap do
