@@ -5,7 +5,6 @@ module Bud
 
     def initialize(rellist, bud_instance, preds=nil) # :nodoc: all
       @schema = []
-      otherpreds = nil
       @origpreds = preds
       @bud_instance = bud_instance
       @localpreds = nil

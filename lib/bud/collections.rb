@@ -643,8 +643,7 @@ module Bud
       allpreds = canonicalize_localpreds(@rels, allpreds)
       @localpreds = allpreds.reject { |p| p[0][0] != @rels[0].tabname }
       otherpreds = allpreds - @localpreds
-      otherpreds = nil if otherpreds.empty?
-      unless otherpreds.nil?
+      unless otherpreds.empty?
         unless @rels[1].class <= Bud::BudJoin
           raise BudError, "join predicates don't match tables being joined: #{otherpreds.inspect}"
         end
