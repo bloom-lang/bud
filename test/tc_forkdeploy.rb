@@ -48,6 +48,10 @@ class TestForkDeploy < Test::Unit::TestCase
     read.close
     write.close
 
+    ring_fork.stop_bg
+    # Assert there are no child processes left; we've closed them all
+    assert_equal(Process.waitall, [])
+
     # Token starts and ends up at the same place
     assert_equal(lines.first, lines.last)
 
@@ -58,9 +62,5 @@ class TestForkDeploy < Test::Unit::TestCase
         assert_not_equal(lines[i], lines[j])
       end
     end
-
-    ring_fork.stop_bg
-    # Assert there are no child processes left; we've closed them all
-    assert_equal(Process.waitall, [])
   end
 end
