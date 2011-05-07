@@ -500,7 +500,7 @@ module Bud
     # form a collection containing all pairs of items in +self+ and items in
     # +collection+
     public
-    def *(collection, &blk)
+    def *(collection)
       join([self, collection])
     end
 
