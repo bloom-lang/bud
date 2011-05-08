@@ -501,39 +501,3 @@ class TestJoins < Test::Unit::TestCase
     assert_equal([["#1: abc1"], ["#2: abc1"]], b.result.to_a.sort)
   end
 end
-
-class TestJoins < Test::Unit::TestCase
-  class JoinRights
-   include Bud
-
-   state do
-     table :node, [:uid] => [:addr]
-     scratch :node_cnt, []	=> [:num]
-     scratch :node_ready, [] => [:ready]
-     table :outs, [:line] => []
-   end
-
-  	bootstrap do
-  	  node <= [[0, "abc1"],
-              [1, "abc2"],
-              [2, "abc3"]]
-   end
-
-   bloom do
-     node_cnt <= node.group(nil, count)
-     node_ready <= node_cnt {|c| [true] if c.num == 3}
-
-     outs <= (node_ready * node).rights do |n|
-       ["Foo (#1): #{n.addr}"] if n.uid == 0
-     end
-     outs <= (node_ready * node).pairs do |nready, n|
-       ["Foo (#2): #{n.addr}"] if n.uid == 0
-     end
-   end
-  end
-  def test_rights
-    p = JoinRights.new
-    p.tick
-    assert_equal([["Foo (#1): abc1"], ["Foo (#2): abc1"]], p.outs.to_a.sort)
-  end
-end
