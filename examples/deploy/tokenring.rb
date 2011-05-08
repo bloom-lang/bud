@@ -17,7 +17,7 @@ module TokenRing
     end
 
     # The deployer sends an initial message to the node with ID 0
-    token <~ node do |n|
+    token <~ (node_ready * node).rights do |n|
       [n.addr] if (@options[:deploy] and n.uid == 0)
     end
   end

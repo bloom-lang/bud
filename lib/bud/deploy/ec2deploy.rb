@@ -6,7 +6,11 @@ require 'net/scp'
 require 'bud'
 require 'bud/deploy/deployer'
 
-# logic to deploy Bloom programs on EC2
+# Logic to deploy Bloom programs on EC2
+# TODO:
+#  * add support for deploy_child_opts
+#  * avoid blocking I/O calls
+#  * emit "node_ready" event when "node" is computed
 module EC2Deploy
   include Deployer
 

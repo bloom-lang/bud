@@ -30,5 +30,6 @@ module ThreadDeploy
       print "."
     end
     puts "done"
+    node_ready << [true]
   end
 end

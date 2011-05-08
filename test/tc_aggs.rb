@@ -132,14 +132,12 @@ class JoinAgg < RenameGroup
   state do
     scratch :richsal, [:sal]
     scratch :rich, emp.key_cols => emp.val_cols
-    scratch :rich_empty, emp.key_cols => emp.val_cols
     scratch :argrich, emp.key_cols => emp.val_cols
   end
 
   bloom do
     richsal <= emp.group([], max(:sal))
     rich <= (richsal * emp).matches.rights
-    rich_empty <= (richsal * emp).matches.rights(emp.ename => emp.dname)
     argrich <= emp.argmax([], emp.sal)
   end
 end
@@ -181,19 +179,19 @@ end
 
 class ChainAgg
   include Bud
-  
+
   state do
     table :t1
     table :t2
     table :t3
     table :r
   end
-  
+
   bootstrap do
     t1 <= [[1,1],[2,1]]
     r <= [['a', 'b']]
   end
-  
+
   bloom do
     t2 <= (t1 * r * r).combos {|a,b,c| a}
     t3 <= t2.argmax([], :key)
@@ -257,7 +255,6 @@ class TestAggs < Test::Unit::TestCase
     program = JoinAgg.new
     program.tick
     assert_equal([['bob', 'shoe', 11]], program.rich.to_a)
-    assert_equal([], program.rich_empty.to_a)
     assert_equal([['bob', 'shoe', 11]], program.argrich.to_a)
   end
 
@@ -272,27 +269,26 @@ class TestAggs < Test::Unit::TestCase
     p.tick
     assert(([[1,1]]) == p.t2.to_a || ([[2,1]]) == p.t2.to_a)
   end
-  
+
   def test_chain_agg
     p = ChainAgg.new
     q = Queue.new
-    
+
     p.register_callback(:t3) { q.push(true) }
     p.run_bg
     q.pop
-    assert_equal([[2,1]], p.t3.to_a) 
+    assert_equal([[2,1]], p.t3.to_a)
   end
-  
+
   class SimpleAgg
     include Bud
     state {table :t1}
     bootstrap {t1 << [[1,1]]}
     bloom {temp :t2 <= t1.group([:key])}
   end
-  
+
   def test_simple_agg
     p = SimpleAgg.new
     p.tick
   end
-  
 end
