@@ -27,7 +27,9 @@ module TokenRing
     token_persist <= token
     token_persist <- (token_persist * next_node).lefts
     # Pass on the token
-    token <~ (token_persist * next_node).combos {[next_node[[]].addr]}
+    token <~ (token_persist * next_node).pairs do |tp, nn|
+      [nn.addr]
+    end
   end
 
   bloom :print_token do
