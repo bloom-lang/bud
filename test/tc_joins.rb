@@ -498,6 +498,6 @@ class TestJoins < Test::Unit::TestCase
   def test_bug_179
     b = TestBug179.new
     b.tick
-    assert_equal([["#1: abc1"], ["#1: abc1"]], b.result.to_a.sort)
+    assert_equal([["#1: abc1"], ["#2: abc1"]], b.result.to_a.sort)
   end
 end
