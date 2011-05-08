@@ -59,4 +59,8 @@ module Deployer # :nodoc: all
       [ip_port]
     end
   end
+
+  bloom :print_ready do
+    stdio <~ node_ready {|nr| ["Child nodes ready (count = #{node_count[[]].num})"]}
+  end
 end
