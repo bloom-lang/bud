@@ -605,24 +605,32 @@ module Bud
     # that satisfy the predicates +preds+, and project only onto the attributes
     # of the first collection
     public
-    def lefts(*preds)
+    def lefts(*preds, &blk)
       unless preds.empty?
         @localpreds ||= []
         @localpreds += disambiguate_preds(preds)
       end
-      map{ |l,r| l }
+      unless blk.nil?
+        map{ |l,r| yield l }
+      else
+        map{ |l,r| l }
+      end
     end
 
     # given a * expression over 2 collections, form all combinations of items
     # that satisfy the predicates +preds+, and project only onto the attributes
     # of the second item
     public
-    def rights(*preds)
+    def rights(*preds, &blk)
       unless preds.empty?
         @localpreds ||= []
         @localpreds += disambiguate_preds(preds)
       end
-      map{ |l,r| r }
+      unless blk.nil?
+        map{ |l,r| yield r }
+      else 
+        map{ |l,r| r }
+      end
     end
 
     # given a * expression over 2 collections, form all combos of items that
