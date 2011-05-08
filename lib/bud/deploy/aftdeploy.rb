@@ -62,7 +62,7 @@ module AftMaster
   bloom :handle_ping do
     # We assign ping timestamps at the deployer, to avoid sensitivity to
     # node-local clock skew.
-    new_ping <= ping_chan {|p| [p.node_id, Time.new]}
+    new_ping <= ping_chan {|p| [p.node_id, Time.now]}
     last_ping <+ new_ping
     last_ping <- (new_ping * last_ping).rights(:node_id => :node_id)
   end

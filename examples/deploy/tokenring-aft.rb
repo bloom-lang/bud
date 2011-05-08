@@ -9,9 +9,9 @@ module TokenRingAft
   bloom :make_ring do
     initial_data <= node do |n|
       # Calculate the successor node
-      succ_id = (node_id + 1) % node_count.first.num
+      succ_id = (n.uid + 1) % node_count[[]].num
       succ_addr = [node[[succ_id]].addr]
-      [ n.uid, :next_node, [succ_id, succ_addr] ]
+      [ n.uid, :next_node, [succ_addr] ]
     end
   end
 
@@ -25,7 +25,7 @@ end
 
 module TokenRingAftChild
   state do
-    table :next_node, [] => [:node_id, :addr]
+    table :next_node, [] => [:addr]
     table :token_persist, [:loc]
   end
 
@@ -35,13 +35,14 @@ module TokenRingAftChild
     token_persist <= token
     token_persist <- (token_persist * next_node).lefts
     # Pass on the token
-    aft_send <= (token_persist * next_node).pairs do |tp, nn|
-      [(@node_id + 1) % node_count.first.num, 0]
+    # XXX: we shouldn't need to include "node_count" in the join
+    aft_send <= (token_persist * next_node * node_count).combos do |tp, nn, nc|
+      [(@node_id + 1) % nc.num, 0]
     end
   end
 
   bloom :print_token do
-    stdio <~ token {["#{ip_port}: Got token!"]}
+    stdio <~ (token_persist * next_node).pairs {["#{ip_port}: Got token!"]}
   end
 end
 
