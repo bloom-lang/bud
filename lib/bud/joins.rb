@@ -167,24 +167,22 @@ module Bud
     # that satisfy the predicates +preds+, and project only onto the attributes
     # of the first collection
     public
-    def lefts(*preds)
-      unless preds.empty?
-        @localpreds ||= []
-        @localpreds += disambiguate_preds(preds)
-      end
-      map{ |l,r| l }
+    def lefts(*preds, &blk)
+      setup_preds(preds) unless preds.empty?
+      # given new preds, the state for the join will be different.  set it up again.
+      setup_state if self.class <= Bud::BudJoin
+      map{ |l,r| blk.nil? ? l : blk.call(l) }
     end
 
     # given a * expression over 2 collections, form all combinations of items
     # that satisfy the predicates +preds+, and project only onto the attributes
     # of the second item
     public
-    def rights(*preds)
-      unless preds.empty?
-        @localpreds ||= []
-        @localpreds += disambiguate_preds(preds)
-      end
-      map{ |l,r| r }
+    def rights(*preds, &blk)
+      setup_preds(preds) unless preds.empty?
+      # given new preds, the state for the join will be different.  set it up again.
+      setup_state if self.class <= Bud::BudJoin
+      map{ |l,r| blk.nil? ? r : blk.call(r) }
     end
 
     # given a * expression over 2 collections, form all combos of items that
