@@ -12,8 +12,8 @@ module TokenRing
     initial_data <= node do |n|
       # Calculate the successor node
       succ_id = (n.uid + 1) % node_count[[]].num
-      succ_node = [node[[succ_id]].addr]
-      [ n.uid, :next_node, [succ_node] ]
+      succ_addr = [node[[succ_id]].addr]
+      [n.uid, :next_node, [succ_addr]]
     end
 
     # The deployer sends an initial message to the node with ID 0
