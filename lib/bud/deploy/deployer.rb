@@ -47,11 +47,8 @@ module Deployer # :nodoc: all
   # need to globally synchronize to ensure that "timestamp 0" gets "fully
   # evaluated" before any messages can be sent.
   bloom :distribute_data do
-    atomic_data_in <= (node * initial_data).pairs(:uid => :uid) do |n, i|
-      # XXX: initial_data is a table, but we only want to try to deliver it to
-      # remote nodes once. Hence, we use depl_idempotent as a quick and dirty
-      # way to achieve that.
-      [n.addr, [i.pred, i.data]] if depl_idempotent [[n.addr, i.pred, i.data]]
+    atomic_data_in <= (node_ready * node * initial_data).pairs(node.uid => initial_data.uid) do |nr, n, i|
+      [n.addr, [i.pred, i.data]]
     end
 
     # Add all tuples at once.
