@@ -93,7 +93,6 @@ module ForkDeploy
     deployer_addr = self.ip_port
     node_count[[]].num.times do |i|
       @child_pids << Bud.do_fork do
-        puts "In forkdeploy child: modules = #{@child_modules.inspect}"
         @child_modules.each do |m|
           # XXX: can this be done without instance_eval?
           self.class.instance_eval "include #{m}"

@@ -1,7 +1,7 @@
 require 'bud/deploy/forkdeploy'
 
 FT_TIMEOUT = 20
-MSG_ID = -1
+AFT_MSG_ID = -1
 
 module AftProtocol
   state do
@@ -28,7 +28,7 @@ module AftChild
   end
 
   bloom :messaging do
-    msg_send <~ aft_send {|m| [@deployer_addr, MSG_ID, m.recv_node, @node_id, m.payload]}
+    msg_send <~ aft_send {|m| [@deployer_addr, AFT_MSG_ID, m.recv_node, @node_id, m.payload]}
 
     aft_recv <= msg_recv do |m|
       raise if m.recv_node != @node_id
