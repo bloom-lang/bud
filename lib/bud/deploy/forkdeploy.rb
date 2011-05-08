@@ -1,5 +1,4 @@
 require 'bud/deploy/deployer'
-require 'time'
 
 module ForkDeployProtocol
   state do
