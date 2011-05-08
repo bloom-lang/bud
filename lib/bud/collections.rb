@@ -1,7 +1,7 @@
 require 'msgpack'
 
 module Bud
-  ######## 
+  ########
   #--
   # the collection types
   # each collection is partitioned into 4:
@@ -69,7 +69,7 @@ module Bud
       return [schema, key_cols]
     end
 
-    public 
+    public
     def clone_empty #:nodoc: all
       self.class.new(tabname, bud_instance, @given_schema)
     end
@@ -79,7 +79,7 @@ module Bud
     def key_cols
       @key_cols
     end
-    
+
     # subset of the schema (i.e. an array of attribute names) that is not in the key
     public
     def val_cols # :nodoc: all
@@ -164,11 +164,11 @@ module Bud
         return retval
       end
     end
-  
+
     # By default, all tuples in any rhs are in storage or delta. Tuples in
     # new_delta will get transitioned to delta in the next iteration of the
     # evaluator (but within the current time tick).
-    public 
+    public
     def each(&block) # :nodoc: all
       each_from([@storage, @delta], &block)
     end
@@ -360,7 +360,7 @@ module Bud
 
     public
     # instantaneously merge items from collection +o+ into +buf+
-    def <=(collection) 
+    def <=(collection)
       merge(collection)
     end
 
@@ -390,7 +390,7 @@ module Bud
     end
 
     # move deltas to storage, and new_deltas to deltas.
-    public 
+    public
     def tick_deltas # :nodoc: all
       # assertion: intersect(@storage, @delta) == nil
       @storage.merge!(@delta)
@@ -416,7 +416,7 @@ module Bud
         return []
       end
     end
-      
+
 
     # a generalization of argmin/argmax to arbitrary exemplary aggregates.
     # for each distinct value in the grouping key columns, return the item in that group
@@ -500,11 +500,11 @@ module Bud
     # form a collection containing all pairs of items in +self+ and items in
     # +collection+
     public
-    def *(collection, &blk)
+    def *(collection)
       join([self, collection])
     end
 
-    # SQL-style grouping.  first argument is an array of attributes to group by.  
+    # SQL-style grouping.  first argument is an array of attributes to group by.
     # Followed by a variable-length list of aggregates over attributes (e.g. +min(:x)+)
     # Attributes can be referenced as symbols, or as +collection_name.attribute_name+
     public
@@ -767,10 +767,14 @@ module Bud
     end
 
     private
-    def split_locspec(l)
-      lsplit = l.split(':')
-      lsplit[1] = lsplit[1].to_i
-      return lsplit
+    def split_locspec(t, idx)
+      begin
+        lsplit = t[idx].split(':')
+        lsplit[1] = lsplit[1].to_i
+        return lsplit
+      rescue Exception => e
+        raise BudError, "Illegal location specifier in tuple #{t.inspect} for channel \"#{tabname}\": #{e.to_s}"
+      end
     end
 
     public
@@ -780,7 +784,7 @@ module Bud
       retval
     end
 
-    public 
+    public
     def tick # :nodoc: all
       @storage = {}
       # Note that we do not clear @pending here: if the user inserted into the
@@ -788,7 +792,7 @@ module Bud
       # message at the end of the current tick.
     end
 
-    public 
+    public
     def flush # :nodoc: all
       ip = @bud_instance.ip
       port = @bud_instance.port
@@ -796,7 +800,7 @@ module Bud
         if @locspec_idx.nil?
           the_locspec = [ip, port]
         else
-          the_locspec = split_locspec(t[@locspec_idx])
+          the_locspec = split_locspec(t, @locspec_idx)
           raise BudError, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
         end
         @bud_instance.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
@@ -830,7 +834,7 @@ module Bud
     end
 
     undef merge
-    
+
     def <=(o)
       raise BudError, "Illegal use of <= with channel '#{@tabname}' on left"
     end
@@ -842,7 +846,7 @@ module Bud
       @prompt = prompt
     end
 
-    public 
+    public
     def start_stdin_reader # :nodoc: all
       # XXX: Ugly hack. Rather than sending terminal data to EM via UDP,
       # we should add the terminal file descriptor to the EM event loop.

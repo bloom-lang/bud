@@ -118,7 +118,7 @@ end
 usage unless ARGV[0]
 usage if ARGV[0] == '--help'
 
-@opts = Getopt::Std.getopts("CL")
+@opts = Getopt::Std.getopts("CLo:")
 
 snd_info = {}
 rcv_info = {}
@@ -220,5 +220,5 @@ end
 
 st = SpaceTime.new(rpd)
 st.process
-st.finish("spacetime_trace_#{clean_arg.join('-')}")
+st.finish("spacetime_trace_#{clean_arg.join('-')}", @opts["o"])
 

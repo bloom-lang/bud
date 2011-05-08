@@ -67,7 +67,7 @@ Default attributes: `[:@address, :val] => []`
 ### periodic ###
 System timer manifested as a scratch collection.<br>
 System-provided attributes: `[:key] => [:val]`<br>
-&nbsp;&nbsp;&nbsp;&nbsp; (`key` is a unique ID, `val` is a Ruby Time converted to a string.)<br>
+&nbsp;&nbsp;&nbsp;&nbsp; (`key` is a unique ID, `val` is a Ruby `Time` object.)<br>
 State declaration includes interval (in seconds).
 
 (periodic can only be used on rhs of a Bloom statement.)

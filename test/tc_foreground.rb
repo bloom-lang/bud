@@ -6,45 +6,87 @@ class Vacuous
 end
 
 class CallbackTest < Test::Unit::TestCase
-  def test_111foreground1
-    # note the test name.  we must run before all other tests, or run_fg will
-    # throw "evenmachine already running" :(
+  def test_foreground
     c = Vacuous.new
     assert_raise(Timeout::Error) do
       Timeout::timeout(0.1) do
         c.run_fg
       end
-    end    
+    end
   end
 
-  def test_11shutdown
-    # similarly, this test must be run early, because it blocks if any eventmachines
-    # are left running by other tests (which seems to be the case)
+  def test_shutdown_em
     c = Vacuous.new
     c.run_bg
-    assert_nothing_raised {c.stop_bg(true)}
+    c.stop_bg(true)
+    assert_equal(false, EventMachine::reactor_running?)
   end
-    
+
   def test_term
     kill_with_signal("TERM")
+    kill_with_signal("TERM")
   end
-  
+
   def test_int
+    kill_with_signal("INT")
     kill_with_signal("INT")
   end
 
   def kill_with_signal(sig)
     c = Vacuous.new
+    cnt = 0
+    q = Queue.new
+    c.on_shutdown do
+      cnt += 1
+      q.push(true)
+    end
     c.run_bg
     Process.kill(sig, $$)
+    q.pop
+    assert_equal(1, cnt)
+
+    # XXX: hack. There currently isn't a convenient way to block until the kill
+    # signal has been completely handled (on_shutdown callbacks are invoked
+    # before the end of the Bud shutdown process). Since we don't want to run
+    # another test until EM has shutdown, we can at least wait for that.
+    EventMachine::reactor_thread.join
   end
 
-  def test_already_running
+  def test_sigint_child
+    kill_child_with_signal("INT")
+  end
+
+  def test_sigterm_child
+    kill_child_with_signal("TERM")
+  end
+
+  def kill_child_with_signal(signal)
+    parent = Vacuous.new
+    parent.run_bg
+    pid = Bud.do_fork do
+      p = Vacuous.new
+      p.run_fg
+    end
+    sleep 1
+    Process.kill(signal, pid)
+    _, status = Process.waitpid2(pid)
+    assert_equal(0, status)
+    parent.stop_bg
+  end
+
+  def test_fg_bg_mix
     c1 = Vacuous.new
     c2 = Vacuous.new
     c1.run_bg
-    assert_raise(Bud::BudError) {c2.run_fg}
+    cnt = 0
+    t = Thread.new {
+      c2.run_fg
+      cnt += 1
+    }
     c1.stop_bg
+    c2.stop_bg
+    t.join
+    assert_equal(1, cnt)
   end
 
   def test_interrogate1
@@ -58,5 +100,11 @@ class CallbackTest < Test::Unit::TestCase
     assert_nothing_raised {c.int_ip_port}
   end
 
+  def test_extra_stoppage
+    c = Vacuous.new
+    c.run_bg
+    5.times do
+      assert_nothing_raised { c.stop_bg }
+    end
+  end
 end
-

@@ -58,10 +58,10 @@ module VizUtil #:nodoc: all
       fout.puts header
       fout.puts "<h1>Rule #{s[0]}</h1><br>"
 
-      c = convertor.convert(s[3])
+      c = convertor.convert(s[4])
       c.sub!(/^<pre>/, "<pre class=\"code\" style='font-size:20px'>\n")
       fout.puts c
-      rules[s[0]] = [s[1], s[3]]
+      rules[s[0]] = [s[1], s[4]]
       fout.close
     end
 
