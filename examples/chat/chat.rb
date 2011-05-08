@@ -24,7 +24,7 @@ class ChatClient
     stdio <~ mcast { |m| [pretty_print(m.val)] }
   end
 
-  # format chat messages with timestamp on the right of the screen
+  # format chat messages with color and timestamp on the right of the screen
   def pretty_print(val)
     str = "\033[34m"+val[1].to_s + ": " + "\033[31m" + (val[3].to_s || '') + "\033[0m"
     pad = "(" + val[2].to_s + ")"
