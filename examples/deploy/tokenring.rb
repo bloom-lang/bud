@@ -27,7 +27,7 @@ module TokenRing
     token_persist <= token
     token_persist <- (token_persist * next_node).lefts
     # Pass on the token
-    token <~ (token_persist * next_node).pairs do |tp, nn|
+    token <~ (token_persist * next_node).rights do |nn|
       [nn.addr]
     end
   end
