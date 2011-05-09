@@ -47,9 +47,9 @@ module AftChild
   end
 end
 
-NODE_LIVE = 1
-NODE_DEAD = 2
-NODE_RESPAWNING = 3
+ATTEMPT_INIT = 1
+ATTEMPT_LIVE = 2
+ATTEMPT_DEAD = 3
 
 # XXX: Currently, this code runs at both the deployment master and at all the
 # child nodes. Running at the children is obviously inefficient, but requires
@@ -58,24 +58,40 @@ module AftMaster
   include AftProtocol
 
   state do
+    # Keep track of the latest attempt to run each node
+    table :node_status, [:node_id] => [:attempt_id]
+
+    # The status of all attempts, ever. Note that once an attempt is declared
+    # "dead", we ignore all subsequent pings and messages from it.
     table :attempt_status, [:attempt_id] => [:node_id, :status, :addr, :last_ping]
+
     scratch :new_ping, [:attempt_id, :tstamp]
     scratch :not_live, [:attempt_id]
     periodic :ft_clock, 2
   end
 
   bloom :init_status do
-    attempt_status <= (node * node_ready).lefts do |n|
+    node_status <= (node * node_ready).lefts do |n|
       # Use node ID as initial attempt ID
-      [n.uid, n.uid, NODE_LIVE, n.addr, bud_clock]
+      [n.uid, n.uid]
+    end
+
+    attempt_status <= (node * node_ready).lefts do |n|
+      [n.uid, n.uid, ATTEMPT_LIVE, n.addr, bud_clock]
     end
   end
 
   bloom :check_liveness do
     not_live <= (ft_clock * attempt_status).pairs do |c, as|
-      [as.attempt_id] if (c.val - FT_TIMEOUT > as.last_ping)
+      [as.attempt_id] if (c.val - FT_TIMEOUT > as.last_ping) and as.status == ATTEMPT_LIVE
     end
     stdio <~ not_live {|n| ["Dead node: attempt id = #{n.attempt_id}"]}
+
+    # Mark the attempt as dead
+    attempt_status <+ (not_live * attempt_status).matches.rights do |as|
+      [as.attempt_id, as.node_id, ATTEMPT_DEAD, as.addr, as.last_ping]
+    end
+    attempt_status <- (not_live * attempt_status).matches.rights
   end
 
   bloom :handle_ping do
