@@ -29,7 +29,9 @@ module AftChild
 
   bloom :messaging do
     msg_send <~ aft_send {|m| [@deployer_addr, AFT_MSG_ID, m.recv_node, @node_id, m.payload]}
+    stdio <~ aft_send {|m| ["Got aft_send message from #{ip_port} (self id = #{@node_id}): #{m.inspect}"]}
 
+    stdio <~ msg_recv {|m| ["Got msg_recv message @ #{ip_port}: #{m.inspect}"]}
     aft_recv <= msg_recv do |m|
       raise if m.recv_node != @node_id
       [m.send_node, m.msg_id, m.payload]
@@ -55,7 +57,7 @@ module AftMaster
     not_live <= (ft_clock * last_ping).pairs do |c, p|
       [p.node_id] if (c.val - FT_TIMEOUT > p.tstamp)
     end
-    stdio <~ ft_clock {|c| ["Got FT clock tick (pid = #{Process.pid})"]}
+#    stdio <~ ft_clock {|c| ["Got FT clock tick (pid = #{Process.pid})"]}
     stdio <~ not_live {|n| ["Dead node: id = #{n.node_id}"]}
   end
 
@@ -68,7 +70,7 @@ module AftMaster
   end
 
   bloom :message_redirect do
-    msg_send <~ (msg_recv * node).pairs(:recv_node => :uid) do |m,n|
+    msg_recv <~ (msg_send * node).pairs(:recv_node => :uid) do |m,n|
       [n.addr, m.msg_id, m.recv_node, m.send_node, m.payload]
     end
   end
