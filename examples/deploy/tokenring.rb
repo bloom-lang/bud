@@ -12,8 +12,8 @@ module TokenRing
     initial_data <= node do |n|
       # Calculate the successor node
       succ_id = (n.uid + 1) % node_count[[]].num
-      succ_node = [node[[succ_id]].addr]
-      [ n.uid, :next_node, [succ_node] ]
+      succ_addr = node[[succ_id]].addr
+      [n.uid, :next_node, [[succ_addr]]]
     end
 
     # The deployer sends an initial message to the node with ID 0
@@ -27,7 +27,12 @@ module TokenRing
     token_persist <= token
     token_persist <- (token_persist * next_node).lefts
     # Pass on the token
-    token <~ (token_persist * next_node).pairs {[next_node[[]].addr]}
+    token <~ (token_persist * next_node).rights do |nn|
+      [nn.addr]
+    end
+  end
+
+  bloom :print_token do
     stdio <~ token {["#{ip_port}: Got token!"]}
   end
 end
