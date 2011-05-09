@@ -55,7 +55,7 @@ class RingAft
 
   def initialize(opts={})
     super
-    @child_modules << "TokenRingAftChild"
+    @child_modules << TokenRingAftChild
   end
 
   deploystrap do

@@ -82,6 +82,6 @@ module AftDeploy
 
   def initialize(opts={})
     super
-    @child_modules << "AftChild"
+    @child_modules << AftChild
   end
 end

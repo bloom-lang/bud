@@ -26,7 +26,7 @@ module ForkDeploy
 
   def initialize(opts={})
     super
-    @child_modules = ["ForkDeployChild"]
+    @child_modules = [ForkDeployChild]
     @child_pids = []
   end
 
