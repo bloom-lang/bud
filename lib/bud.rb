@@ -99,6 +99,7 @@ module Bud
     @callbacks = {}
     @callback_id = 0
     @shutdown_callbacks = []
+    @post_shutdown_callbacks = []
     @timers = []
     @budtime = 0
     @inbound = []
@@ -291,7 +292,11 @@ module Bud
     end
 
     q = Queue.new
-    on_shutdown do
+    # Note that this must be a post-shutdown callback: if this is the only
+    # thread, then the program might exit after run_fg() returns. If run_fg()
+    # blocked on a normal shutdown callback, the program might exit before the
+    # other shutdown callbacks have a chance to run.
+    post_shutdown do
       q.push(true)
     end
 
@@ -323,6 +328,16 @@ module Bud
     start_reactor
     schedule_and_wait do
       @shutdown_callbacks << blk
+    end
+  end
+
+  # Register a callback that will be invoked when *after* this instance of Bud
+  # has been shutdown.
+  def post_shutdown(&blk)
+    # Start EM if not yet started
+    start_reactor
+    schedule_and_wait do
+      @post_shutdown_callbacks << blk
     end
   end
 
@@ -512,6 +527,9 @@ module Bud
     @timers.each {|t| t.cancel}
     close_tables
     @dsock.close_connection if EventMachine::reactor_running?
+    if do_shutdown_cb
+      @post_shutdown_callbacks.each {|cb| cb.call}
+    end
   end
 
   private
