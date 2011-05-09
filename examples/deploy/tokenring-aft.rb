@@ -38,7 +38,7 @@ module TokenRingAftChild
   end
 
   bloom :print_token do
-    stdio <~ (token_persist * node_count).pairs {["#{ip_port}: Got token!"]}
+#    stdio <~ (token_persist * node_count).pairs {["#{ip_port}: Got token!"]}
   end
 end
 

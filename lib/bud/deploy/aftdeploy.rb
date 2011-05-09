@@ -1,11 +1,11 @@
 require 'bud/deploy/forkdeploy'
 
-FT_TIMEOUT = 20
+FT_TIMEOUT = 15
 
 module AftProtocol
   state do
     # Liveness ping messages from child => master
-    channel :ping_chan, [:@loc, :node_id]
+    channel :ping_chan, [:@loc, :attempt_id]
 
     # Messaging abstraction: child => master (send), master => child (recv)
     channel :msg_send, [:@loc, :msg_id, :recv_node, :send_node] => [:payload]
@@ -22,13 +22,13 @@ module AftChild
   end
 
   state do
-    periodic :ping_clock, 5
+    periodic :ping_clock, 3
     scratch :aft_send, [:recv_node] => [:payload]
     scratch :aft_recv, [:send_node, :msg_id] => [:payload]
   end
 
   bloom :send_ping do
-    ping_chan <~ ping_clock {|c| [@deployer_addr, @node_id]}
+    ping_chan <~ ping_clock {|c| [@deployer_addr, @attempt_id]}
   end
 
   bloom :messaging do
@@ -38,9 +38,6 @@ module AftChild
       raise if m.recv_node != @node_id
       [m.send_node, m.msg_id, m.payload]
     end
-
-    # stdio <~ aft_send {|m| ["Got aft_send message from #{ip_port} (self id = #{@node_id}): #{m.inspect}"]}
-    # stdio <~ msg_recv {|m| ["Got msg_recv message @ #{ip_port}: #{m.inspect}"]}
   end
 
   # XXX: It would be cleaner to assign message IDs using Bloom code.
@@ -50,6 +47,10 @@ module AftChild
   end
 end
 
+NODE_LIVE = 1
+NODE_DEAD = 2
+NODE_RESPAWNING = 3
+
 # XXX: Currently, this code runs at both the deployment master and at all the
 # child nodes. Running at the children is obviously inefficient, but requires
 # some refactoring of the deployment infrastructure. See #147.
@@ -57,26 +58,34 @@ module AftMaster
   include AftProtocol
 
   state do
-    table :last_ping, [:node_id] => [:tstamp]
-    scratch :new_ping, last_ping.schema
-    scratch :not_live, [:node_id]
+    table :attempt_status, [:attempt_id] => [:node_id, :status, :addr, :last_ping]
+    scratch :new_ping, [:attempt_id, :tstamp]
+    scratch :not_live, [:attempt_id]
     periodic :ft_clock, 2
   end
 
-  bloom :check_liveness do
-    # NB: This rule doesn't include nodes that have never sent a ping
-    not_live <= (ft_clock * last_ping).pairs do |c, p|
-      [p.node_id] if (c.val - FT_TIMEOUT > p.tstamp)
+  bloom :init_status do
+    attempt_status <= (node * node_ready).lefts do |n|
+      # Use node ID as initial attempt ID
+      [n.uid, n.uid, NODE_LIVE, n.addr, bud_clock]
     end
-    stdio <~ not_live {|n| ["Dead node: id = #{n.node_id}"]}
+  end
+
+  bloom :check_liveness do
+    not_live <= (ft_clock * attempt_status).pairs do |c, as|
+      [as.attempt_id] if (c.val - FT_TIMEOUT > as.last_ping)
+    end
+    stdio <~ not_live {|n| ["Dead node: attempt id = #{n.attempt_id}"]}
   end
 
   bloom :handle_ping do
     # We assign ping timestamps at the deployer, to avoid sensitivity to
     # node-local clock skew.
-    new_ping <= ping_chan {|p| [p.node_id, Time.now]}
-    last_ping <+ new_ping
-    last_ping <- (new_ping * last_ping).rights(:node_id => :node_id)
+    new_ping <= ping_chan {|p| [p.attempt_id, bud_clock]}
+    attempt_status <+ (attempt_status * new_ping).matches do |as, p|
+      [as.attempt_id, as.node_id, as.status, as.addr, p.tstamp]
+    end
+    attempt_status <- (attempt_status * new_ping).matches.lefts
   end
 
   bloom :message_redirect do
