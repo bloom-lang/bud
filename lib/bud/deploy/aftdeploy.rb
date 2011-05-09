@@ -29,13 +29,14 @@ module AftChild
 
   bloom :messaging do
     msg_send <~ aft_send {|m| [@deployer_addr, AFT_MSG_ID, m.recv_node, @node_id, m.payload]}
-    stdio <~ aft_send {|m| ["Got aft_send message from #{ip_port} (self id = #{@node_id}): #{m.inspect}"]}
 
-    stdio <~ msg_recv {|m| ["Got msg_recv message @ #{ip_port}: #{m.inspect}"]}
     aft_recv <= msg_recv do |m|
       raise if m.recv_node != @node_id
       [m.send_node, m.msg_id, m.payload]
     end
+
+    # stdio <~ aft_send {|m| ["Got aft_send message from #{ip_port} (self id = #{@node_id}): #{m.inspect}"]}
+    # stdio <~ msg_recv {|m| ["Got msg_recv message @ #{ip_port}: #{m.inspect}"]}
   end
 end
 
