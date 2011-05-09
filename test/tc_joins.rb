@@ -501,3 +501,35 @@ class TestJoins < Test::Unit::TestCase
     assert_equal([["#1: abc1"], ["#2: abc1"]], b.result.to_a.sort)
   end
 end
+
+class TestJoinLocalPreds
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    table :t4, [:c1, :c2]
+  end
+
+  bootstrap do
+    t1 << [1,1]
+    t1 << [2,3]
+    t2 << [3,3]
+    t2 << [4,5]
+  end
+
+  bloom do
+    t3 <= (t1 * t2).pairs(t2.key => t2.val)
+    t4 <= (t1 * t2).pairs(t1.key => t1.val)
+  end
+end
+
+class TestLocalPredJoins < Test::Unit::TestCase
+  def test_explicit
+    p = TestJoinLocalPreds.new
+    p.tick
+    assert_equal([ [[1,1], [3,3]], [[2,3], [3,3]] ], p.t3.to_a.sort)
+    assert_equal([ [[1,1], [3,3]], [[1,1], [4,5]] ], p.t4.to_a.sort)
+  end
+end

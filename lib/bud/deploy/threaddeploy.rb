@@ -22,8 +22,11 @@ module ThreadDeploy
     print "Spawning threads"
     child_opts = @options[:deploy_child_opts]
     child_opts ||= {}
+    deployer_addr = self.ip_port
     node_count[[]].num.times do |i|
       b = self.class.new(child_opts)
+      b.instance_variable_set('@deployer_addr', deployer_addr)
+      b.instance_variable_set('@node_id', i)
       b.run_bg
       @instances << b
       node << [i, b.ip_port]

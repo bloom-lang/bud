@@ -28,6 +28,7 @@ module ForkDeploy
     super
     @child_modules = [ForkDeployChild]
     @child_pids = []
+    @dead_pids = []
   end
 
   state do
@@ -63,7 +64,6 @@ module ForkDeploy
         begin
           pid = Process.waitpid(c, Process::WNOHANG)
           unless pid.nil?
-            @dead_pids ||= []
             @dead_pids << pid
           end
         rescue Errno::ECHILD
@@ -76,7 +76,6 @@ module ForkDeploy
       # called automatically (to cleanup zombies), at least on OSX. This is not
       # what we want, since it would cause a subsequent waitpid() to fail.
       Signal.trap("CHLD", "DEFAULT")
-      @dead_pids ||= []
       pids = @child_pids - @dead_pids
       pids.each do |p|
         begin
@@ -93,7 +92,6 @@ module ForkDeploy
     node_count[[]].num.times do |i|
       @child_pids << Bud.do_fork do
         @child_modules.each do |m|
-          # XXX: can this be done without instance_eval?
           self.class.instance_eval "include #{m}"
         end
         child = self.class.new(child_opts)

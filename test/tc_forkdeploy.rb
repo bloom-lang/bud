@@ -39,7 +39,7 @@ class TestForkDeploy < Test::Unit::TestCase
 
     lines = []
     Timeout::timeout(45) do
-      (NUM_DEPLOY_FORKS + 1).times do
+      (NUM_DEPLOY_FORKS + 2).times do
         lines << read.readline
       end
     end
@@ -47,19 +47,33 @@ class TestForkDeploy < Test::Unit::TestCase
     # Close pipe
     read.close
     write.close
-
     ring_fork.stop_bg
+
     # Assert there are no child processes left; we've closed them all
     assert_equal(Process.waitall, [])
 
-    # Token starts and ends up at the same place
-    assert_equal(lines.first, lines.last)
+    # First line is deploy status
+    status_str = lines.shift
+    assert_equal("Child nodes ready (count = #{NUM_DEPLOY_FORKS})\n", status_str)
 
-    # Token circulates amongst nodes
-    for i in (1..lines.size-1)
-      assert(lines[i]["Got token!"])
-      for j in (i+1..lines.size-1)
-        assert_not_equal(lines[i], lines[j])
+    # Console output from different nodes might be intermixed in output pipe
+    # (i.e., "lines" might not respect token delivery order). We just check that
+    # each node got the token the same number of times.
+    node_output = []
+    lines.each do |l|
+      m = l.match "^(\\d+): Got token!"
+      assert(m)
+      node_id = m[1].to_i
+      node_output[node_id] ||= 0
+      node_output[node_id] += 1
+    end
+
+    assert_equal(NUM_DEPLOY_FORKS, node_output.length)
+    node_output.each_with_index do |n,i|
+      if i == 0
+        assert_equal(2, n)
+      else
+        assert_equal(1, n)
       end
     end
   end
