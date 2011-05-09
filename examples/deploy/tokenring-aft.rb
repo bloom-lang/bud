@@ -30,7 +30,6 @@ module TokenRingAftChild
   state do
     table :next_node, [] => [:addr]
     table :token_persist, [:loc]
-    periodic :child_tik, 2
   end
 
   bloom :pass_token do
@@ -39,14 +38,9 @@ module TokenRingAftChild
     token_persist <= token
     token_persist <- (token_persist * next_node).lefts
     # Pass on the token
-    # XXX: we shouldn't need to include "node_count" in the join
-    aft_send <= (token_persist * next_node * node_count).combos do |tp, nn, nc|
+    aft_send <= (token_persist * node_count).pairs do |tp, nc|
       [(@node_id + 1) % nc.num, 0]
     end
-    stdio <~ (token_persist * next_node * node_count).combos do |tp, nn, nc|
-      ["Sending message (#{ip_port})"]
-    end
-    stdio <~ child_tik { ["Child tick: nn = #{next_node.to_a.inspect}, node_count = #{node_count.to_a.inspect}, token_persist = #{token_persist.to_a.inspect} (@ #{ip_port})"]}
   end
 
   bloom :print_token do
