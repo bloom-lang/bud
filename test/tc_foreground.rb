@@ -95,6 +95,9 @@ class CallbackTest < Test::Unit::TestCase
     bootstrap do
       @ack_io.puts ip_port
       @ack_io.puts "ready"
+      on_shutdown do
+        @ack_io.puts "done"
+      end
     end
   end
 
@@ -106,10 +109,6 @@ class CallbackTest < Test::Unit::TestCase
       $stdout = out_buf
       x = AckOnBoot.new
       x.instance_variable_set('@ack_io', write)
-      x.on_shutdown do
-        sleep 2
-        write.puts "done"
-      end
       x.run_fg
     end
 
@@ -123,9 +122,12 @@ class CallbackTest < Test::Unit::TestCase
     socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
     socket.send_datagram(1234, child_ip, child_port)
 
-    result = read.readline.rstrip
-    assert_equal("done", result)
+    Timeout::timeout(15) do
+      result = read.readline.rstrip
+      assert_equal("done", result)
+    end
     read.close ; write.close
+    Process.waitpid(child_pid)
   end
 
   def test_interrogate1
