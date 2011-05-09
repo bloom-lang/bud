@@ -1,7 +1,6 @@
 require 'bud/deploy/forkdeploy'
 
 FT_TIMEOUT = 20
-AFT_MSG_ID = -1
 
 module AftProtocol
   state do
@@ -17,6 +16,11 @@ end
 module AftChild
   include AftProtocol
 
+  def initialize(opts={})
+    super
+    @message_id = 0
+  end
+
   state do
     periodic :ping_clock, 5
     scratch :aft_send, [:recv_node] => [:payload]
@@ -28,7 +32,7 @@ module AftChild
   end
 
   bloom :messaging do
-    msg_send <~ aft_send {|m| [@deployer_addr, AFT_MSG_ID, m.recv_node, @node_id, m.payload]}
+    msg_send <~ aft_send {|m| [@deployer_addr, next_msg_id, m.recv_node, @node_id, m.payload]}
 
     aft_recv <= msg_recv do |m|
       raise if m.recv_node != @node_id
@@ -37,6 +41,12 @@ module AftChild
 
     # stdio <~ aft_send {|m| ["Got aft_send message from #{ip_port} (self id = #{@node_id}): #{m.inspect}"]}
     # stdio <~ msg_recv {|m| ["Got msg_recv message @ #{ip_port}: #{m.inspect}"]}
+  end
+
+  # XXX: It would be cleaner to assign message IDs using Bloom code.
+  def next_msg_id
+    @message_id += 1
+    @message_id
   end
 end
 
@@ -58,7 +68,6 @@ module AftMaster
     not_live <= (ft_clock * last_ping).pairs do |c, p|
       [p.node_id] if (c.val - FT_TIMEOUT > p.tstamp)
     end
-#    stdio <~ ft_clock {|c| ["Got FT clock tick (pid = #{Process.pid})"]}
     stdio <~ not_live {|n| ["Dead node: id = #{n.node_id}"]}
   end
 
