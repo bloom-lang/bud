@@ -100,6 +100,8 @@ module Bud
     @shutdown_callbacks = []
     @post_shutdown_callbacks = []
     @timers = []
+    @inside_tick = false
+    @tick_clock_time = nil
     @budtime = 0
     @inbound = []
     @done_bootstrap = false
@@ -586,20 +588,35 @@ module Bud
 
   # Manually trigger one timestep of Bloom execution.
   def tick
-    @tables.each_value do |t|
-      t.tick
+    begin
+      @inside_tick = true
+      @tables.each_value do |t|
+        t.tick
+      end
+
+      @joinstate = {}
+
+      do_bootstrap unless @done_bootstrap
+      receive_inbound
+
+      @strata.each_with_index { |s,i| stratum_fixpoint(s, i) }
+      @viz.do_cards if @options[:trace]
+      do_flush
+      invoke_callbacks
+      @budtime += 1
+    ensure
+      @inside_tick = false
+      @tick_clock_time = nil
     end
+  end
 
-    @joinstate = {}
-
-    do_bootstrap unless @done_bootstrap
-    receive_inbound
-
-    @strata.each_with_index { |s,i| stratum_fixpoint(s, i) }
-    @viz.do_cards if @options[:trace]
-    do_flush
-    invoke_callbacks
-    @budtime += 1
+  # Returns the wallclock time associated with the current Bud tick. That is,
+  # this value is guaranteed to remain the same for the duration of a single
+  # tick, but will likely change between ticks.
+  def bud_clock
+    raise BudError, "bud_clock undefined outside tick" unless @inside_tick
+    @tick_clock_time ||= Time.now
+    @tick_clock_time
   end
 
   private
