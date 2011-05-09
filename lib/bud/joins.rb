@@ -8,6 +8,7 @@ module Bud
       @origpreds = preds
       @bud_instance = bud_instance
       @localpreds = nil
+      @hashpreds = nil
 
       # if any elements on rellist are BudJoins, suck up their contents
       tmprels = []
@@ -127,7 +128,7 @@ module Bud
       methods.each do |left_rel|
         methods.each do |right_rel|
           next if (mode == :delta and left_rel == :storage and right_rel == :storage)
-          if @localpreds.nil? or @localpreds.empty?
+          if @hashpreds.nil? or @hashpreds.empty?
             nestloop_join(left_rel, right_rel, &block)
           else
             hash_join(left_rel, right_rel, &block)
@@ -201,7 +202,11 @@ module Bud
     def setup_preds(preds) # :nodoc: all
       allpreds = disambiguate_preds(preds)
       allpreds = canonicalize_localpreds(@rels, allpreds)
-      @localpreds = allpreds.reject { |p| p[0][0] != @rels[0].tabname }
+      @hashpreds = allpreds.reject { |p| p[0][0] != @rels[0].tabname or p[1][0] == @rels[0].tabname }
+      @localpreds = @hashpreds
+      @localpreds += allpreds.map do |p|
+        p if p[0][0] == p[1][0] and (p[0][0] == @rels[0].tabname or p[0][0] == @rels[1].tabname)
+      end.compact
       otherpreds = allpreds - @localpreds
       unless otherpreds.empty?
         unless @rels[1].class <= Bud::BudJoin
@@ -290,8 +295,16 @@ module Bud
         # check remainder of the predicates
         @localpreds.each do |pred|
           next if skips.include? pred
-          r_offset, s_index, s_offset = join_offsets(pred)
-          if r[r_offset] != s[s_index][s_offset]
+          vals = []
+          (0..1).each do |i|
+            if pred[i][0] == @rels[0].tabname
+              vals[i] = r[pred[i][1] ]
+            else
+              ix, off = join_offset(pred[i])
+              vals[i] = s[ix][off]
+            end
+          end
+          if vals[0] != vals[1]
             retval = false
             break
           end
@@ -311,28 +324,27 @@ module Bud
     end
 
     private
-    # calculate the attribute position for the left table in the join ("left_offset")
-    # the right table may itself be a nested tuple from a join, so calculate
-    # the tuple offset ("right_subtuple") and the attribute position within it
-    # ("right_offset")
-    def join_offsets(pred)
-      right_entry = pred[1]
-      right_name, right_offset = right_entry[0], right_entry[1]
-      left_entry = pred[0]
-      left_name, left_offset = left_entry[0], left_entry[1]
+    # calculate the position for a field in the result of a join:
+    # the tuple offset ("subtuple") and the attribute position within it
+    # ("offset")
+    def join_offset(entry)
+      name, offset = entry[0], entry[1]
 
-      # determine which subtuple of right collection contains the table
-      # referenced in RHS of pred.  note that right collection doesn't contain the
-      # first entry in rels, which is the left collection
-      right_subtuple = 0
+      # determine which subtuple of the collection contains the table
+      # referenced in entry.  note that origrels[0] is a base table 
+      # on the left of the join, hence we shouldn't be calling join_offset on it
+      subtuple = 0
+      if origrels[0].tabname == entry[0]
+        raise BudError, "join_offset called on the result of a single collection #{entry[0]}"
+      end
       origrels[1..origrels.length].each_with_index do |t,i|
-        if t.tabname == pred[1][0]
-          right_subtuple = i
+        if t.tabname == entry[0]
+          subtuple = i
           break
         end
       end
 
-      return left_offset, right_subtuple, right_offset
+      return subtuple, offset
     end
 
     def tick_hash_deltas
@@ -349,7 +361,9 @@ module Bud
     # semi-naive symmetric hash join on first predicate
     private
     def hash_join(left_sym, right_sym, &block)
-      left_offset, right_subtuple, right_offset = join_offsets(@localpreds.first)
+      # we know that a hashpred has been canonicalized with @rels[0] in left offset
+      left_offset = @hashpreds.first[0][1]
+      right_subtuple, right_offset = join_offset(@hashpreds.first[1])
 
       syms = [left_sym, right_sym]
 
@@ -385,7 +399,7 @@ module Bud
               left = s_tup; right = r
             end
             retval = left + right
-            yield retval if test_locals(left[0], right, @localpreds.first)
+            yield retval if test_locals(left[0], right, @hashpreds.first)
           end
         end
       end
