@@ -7,12 +7,6 @@ module TokenRingAft
   end
 
   bloom :make_ring do
-    initial_data <= node do |n|
-      # Calculate the successor node
-      succ_id = (n.uid + 1) % node_count[[]].num
-      succ_addr = node[[succ_id]].addr
-      [n.uid, :next_node, [[succ_addr]]]
-    end
     initial_data <= (node * node_count).pairs do |n, nc|
       [n.uid, :node_count, [[nc.num]]]
     end
@@ -28,7 +22,6 @@ end
 
 module TokenRingAftChild
   state do
-    table :next_node, [] => [:addr]
     table :token_persist, [:loc]
   end
 
@@ -36,7 +29,7 @@ module TokenRingAftChild
     # Persist the token for as long as necessary
     token_persist <= aft_recv { ip_port }
     token_persist <= token
-    token_persist <- (token_persist * next_node).lefts
+    token_persist <- (token_persist * node_count).lefts
     # Pass on the token
     aft_send <= (token_persist * node_count).pairs do |tp, nc|
       [(@node_id + 1) % nc.num, 0]
@@ -44,7 +37,7 @@ module TokenRingAftChild
   end
 
   bloom :print_token do
-    stdio <~ (token_persist * next_node).pairs {["#{ip_port}: Got token!"]}
+    stdio <~ (token_persist * node_count).pairs {["#{ip_port}: Got token!"]}
   end
 end
 
