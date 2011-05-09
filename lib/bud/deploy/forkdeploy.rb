@@ -92,6 +92,7 @@ module ForkDeploy
     node_count[[]].num.times do |i|
       @child_pids << Bud.do_fork do
         @child_modules.each do |m|
+          # XXX: Can this be done without "instance_eval"?
           self.class.instance_eval "include #{m}"
         end
         child = self.class.new(child_opts)
