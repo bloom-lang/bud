@@ -48,8 +48,9 @@ module AftChild
 end
 
 ATTEMPT_INIT = 1
-ATTEMPT_LIVE = 2
-ATTEMPT_DEAD = 3
+ATTEMPT_FORK = 2
+ATTEMPT_LIVE = 3
+ATTEMPT_DEAD = 4
 
 # XXX: Currently, this code runs at both the deployment master and at all the
 # child nodes. Running at the children is obviously inefficient, but requires
@@ -59,7 +60,10 @@ module AftMaster
 
   def initialize(opts={})
     super
+    @child_modules = [AftChild]
     @attempt_id_counter = 0
+    @child_pids = []
+    @dead_pids = []
   end
 
   state do
@@ -75,14 +79,70 @@ module AftMaster
     periodic :ft_clock, 2
   end
 
-  bloom :init_status do
-    node_status <= (node * node_ready).lefts do |n|
-      # Use node ID as initial attempt ID
-      [n.uid, n.uid]
+  bootstrap do
+    return unless @options[:deploy]
+
+    Signal.trap("CHLD") do
+      # We receive SIGCHLD when a child process changes state; unfortunately,
+      # there's no easy way to tell whether the child process we're getting the
+      # signal for is one of ForkDeploy's children. Hence, check if any of the
+      # forked children have exited. We also ignore Errno::ECHILD, because
+      # someone else's waitpid() could easily race with us.
+      @child_pids.each do |c|
+        begin
+          pid = Process.waitpid(c, Process::WNOHANG)
+          unless pid.nil?
+            @dead_pids << pid
+          end
+        rescue Errno::ECHILD
+        end
+      end
     end
 
-    attempt_status <= (node * node_ready).lefts do |n|
-      [n.uid, n.uid, ATTEMPT_LIVE, n.addr, bud_clock]
+    on_shutdown do
+      # NB: Setting the SIGCHLD handler to "IGNORE" results in waitpid() being
+      # called automatically (to cleanup zombies), at least on OSX. This is not
+      # what we want, since it would cause a subsequent waitpid() to fail.
+      Signal.trap("CHLD", "DEFAULT")
+      pids = @child_pids - @dead_pids
+      pids.each do |p|
+        begin
+          Process.kill("TERM", p)
+          Process.waitpid(p)
+        rescue Errno::ESRCH
+        end
+      end
+    end
+
+    # Create initial attempts for all of the configured nodes. During bootstrap,
+    # we just set their status to INIT; this is later replaced with FORK once we
+    # actually spawn the attempt processes.
+    node_count[[]].num.times do |i|
+      # Use the node ID as the initial attempt ID
+      node_status << [i, i]
+      attempt_status << [i, i, ATTEMPT_INIT, nil, nil]
+    end
+  end
+
+  def do_fork(node_id, attempt_id)
+    child_opts = @options[:deploy_child_opts]
+    child_opts ||= {}
+    deployer_addr = ip_port
+    @child_pids << Bud.do_fork do
+      @child_modules.each do |m|
+        # XXX: Can this be done without "instance_eval"?
+        self.class.instance_eval "include #{m}"
+      end
+      child = self.class.new(child_opts)
+      child.instance_variable_set('@deployer_addr', deployer_addr)
+      child.instance_variable_set('@node_id', node_id)
+      child.instance_variable_set('@attempt_id', attempt_id)
+    end
+  end
+
+  bloom :spawn_attempt do
+    spawn_attempts <= attempt_status do |s|
+      [s.attempt_id, do_fork(s.node_id, s.attempt_id)] if s.status == ATTEMPT_INIT and (spawn_attempts.has_key? s.attempt_id == false)
     end
   end
 
@@ -128,11 +188,5 @@ module AftMaster
 end
 
 module AftDeploy
-  include ForkDeploy
   include AftMaster
-
-  def initialize(opts={})
-    super
-    @child_modules << AftChild
-  end
 end

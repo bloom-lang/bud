@@ -98,8 +98,6 @@ module ForkDeploy
         child = self.class.new(child_opts)
         child.instance_variable_set('@deployer_addr', deployer_addr)
         child.instance_variable_set('@node_id', i)
-        # XXX: belongs in aft code, not here
-        child.instance_variable_set('@attempt_id', i)
         child.run_fg
       end
     end
