@@ -57,6 +57,11 @@ ATTEMPT_DEAD = 3
 module AftMaster
   include AftProtocol
 
+  def initialize(opts={})
+    super
+    @attempt_id_counter = 0
+  end
+
   state do
     # Keep track of the latest attempt to run each node
     table :node_status, [:node_id] => [:attempt_id]
@@ -83,15 +88,20 @@ module AftMaster
 
   bloom :check_liveness do
     not_live <= (ft_clock * attempt_status).pairs do |c, as|
-      [as.attempt_id] if (c.val - FT_TIMEOUT > as.last_ping) and as.status == ATTEMPT_LIVE
+      [as.attempt_id] if as.status == ATTEMPT_LIVE and (c.val - FT_TIMEOUT > as.last_ping)
     end
     stdio <~ not_live {|n| ["Dead node: attempt id = #{n.attempt_id}"]}
 
-    # Mark the attempt as dead
+    # Mark the old attempt as dead
     attempt_status <+ (not_live * attempt_status).matches.rights do |as|
       [as.attempt_id, as.node_id, ATTEMPT_DEAD, as.addr, as.last_ping]
     end
     attempt_status <- (not_live * attempt_status).matches.rights
+
+    # Create a new attempt in INIT state
+    attempt_status <+ (not_live * attempt_status).matches.rights do |as|
+      [next_attempt_id, as.node_id, ATTEMPT_INIT, nil, nil]
+    end
   end
 
   bloom :handle_ping do
@@ -108,6 +118,12 @@ module AftMaster
     msg_recv <~ (msg_send * node).pairs(:recv_node => :uid) do |m,n|
       [n.addr, m.msg_id, m.recv_node, m.send_node, m.payload]
     end
+  end
+
+  # XXX: This should be done in Bloom
+  def next_attempt_id
+    @attempt_id_counter += 1
+    @attempt_id_counter
   end
 end
 
