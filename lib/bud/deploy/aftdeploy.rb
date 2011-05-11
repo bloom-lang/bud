@@ -79,7 +79,6 @@ module AftMaster
 
     # The status of all attempts ever made
     table :attempt_status, [:attempt_id] => [:node_id, :status, :addr, :last_ping]
-    scratch :live_attempts, attempt_status.schema
 
     # Wrap side-effecting calls to fork()
     scratch :fork_req, [:attempt_id] => [:node_id]
@@ -188,9 +187,7 @@ module AftMaster
   end
 
   bloom :send_ready do
-    # XXX: bug
-    # temp :live_attempts <= attempt_status {|s| s if s.status == ATTEMPT_LIVE and done_node_ready.empty?}
-    live_attempts <= attempt_status {|s| s if s.status == ATTEMPT_LIVE and done_node_ready.empty?}
+    temp :live_attempts <= attempt_status {|s| s if s.status == ATTEMPT_LIVE and done_node_ready.empty?}
     temp :num_live <= live_attempts.group(nil, count)
     node_ready <= (num_live * node_count).pairs do |nl, nc|
       [true] if nl.first == nc.num
