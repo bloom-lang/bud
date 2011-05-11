@@ -141,7 +141,7 @@ module AftMaster
     node_count[[]].num.times do |i|
       # Use the node ID as the initial attempt ID
       node_status << [i, i]
-      attempt_status << [i, i, ATTEMPT_INIT, nil, nil]
+      attempt_status << [i, i, ATTEMPT_INIT, nil, bud_clock]
     end
   end
 
@@ -156,8 +156,8 @@ module AftMaster
       end
       child = self.class.new(child_opts)
       child.instance_variable_set('@deployer_addr', deployer_addr)
-      child.instance_variable_set('@node_id', node_id)
       child.instance_variable_set('@attempt_id', attempt_id)
+      child.instance_variable_set('@node_id', node_id)
     end
   end
 
@@ -194,8 +194,9 @@ module AftMaster
   end
 
   bloom :handle_ping do
-    # We assign ping timestamps at the deployer, to avoid sensitivity to
-    # node-local clock skew.
+    # We assign ping timestamps at the deployer, to avoid sensitivity to clock
+    # skew between child nodes. Note that we accept and apply timestamp updates
+    # for all attempts, even if they have been declared dead.
     new_ping <= ping_chan {|p| [p.attempt_id, bud_clock]}
     attempt_status <+ (attempt_status * new_ping).matches do |as, p|
       [as.attempt_id, as.node_id, as.status, as.addr, p.tstamp]
