@@ -1,6 +1,6 @@
 require 'bud/deploy/forkdeploy'
 
-FT_TIMEOUT = 15
+FT_TIMEOUT = 30
 
 module AftProtocol
   state do
@@ -30,9 +30,8 @@ module AftChild
     scratch :aft_recv, [:send_node, :msg_id] => [:payload]
   end
 
-  # Send a ping on bootup to let the master node know we're alive
   bootstrap do
-    ping_chan <~ [[@deployer_addr, @attempt_id]]
+    child_ack <~ [[@deployer_addr, @attempt_id, ip_port]]
   end
 
   bloom :send_ping do
@@ -70,7 +69,6 @@ module AftMaster
   def initialize(opts={})
     super
     @child_modules = [AftChild]
-    @attempt_id_counter = 0
     @child_pids = []
     @dead_pids = []
   end
@@ -79,13 +77,15 @@ module AftMaster
     # Keep track of the latest attempt to run each node
     table :node_status, [:node_id] => [:attempt_id]
 
-    # The status of all attempts, ever. Note that once an attempt is declared
-    # "dead", we ignore all subsequent pings and messages from it.
+    # The status of all attempts ever made
     table :attempt_status, [:attempt_id] => [:node_id, :status, :addr, :last_ping]
+    scratch :live_attempts, attempt_status.schema
 
     # Wrap side-effecting calls to fork()
     scratch :fork_req, [:attempt_id] => [:node_id]
     scratch :fork_done, [:attempt_id]
+
+    table :done_node_ready, [] => [:done]
 
     scratch :new_ping, [:attempt_id, :tstamp]
     scratch :not_live, [:attempt_id]
@@ -129,8 +129,7 @@ module AftMaster
 
     register_callback(:fork_req) do |tbl|
       tbl.each do |t|
-        pid = do_fork(t.attempt_id, t.node_id)
-        @child_pids << pid
+        @child_pids << do_fork(t.attempt_id, t.node_id)
         fork_done <+ [[t.attempt_id]]
       end
     end
@@ -149,7 +148,7 @@ module AftMaster
     child_opts = @options[:deploy_child_opts]
     child_opts ||= {}
     deployer_addr = ip_port
-    @child_pids << Bud.do_fork do
+    Bud.do_fork do
       @child_modules.each do |m|
         # XXX: Can this be done without "instance_eval"?
         self.class.instance_eval "include #{m}"
@@ -158,6 +157,7 @@ module AftMaster
       child.instance_variable_set('@deployer_addr', deployer_addr)
       child.instance_variable_set('@attempt_id', attempt_id)
       child.instance_variable_set('@node_id', node_id)
+      child.run_fg
     end
   end
 
@@ -172,12 +172,31 @@ module AftMaster
       s if s.status == ATTEMPT_INIT
     end
 
-    # Update attempt status when child ACK message received
+    stdio <~ child_ack {|a| ["Got child ack: #{a.inspect}"]}
+
+    # Update attempt status to LIVE and add child to "node" when child_ack
+    # received, unless we've already declared the attempt to be DEAD
     attempt_status <+ (attempt_status * child_ack).pairs(:attempt_id => :attempt_id) do |as, ack|
-      raise if as.status != ATTEMPT_FORK
-      [as.attempt_id, as.node_id, ATTEMPT_LIVE, ack.addr, bud_clock]
+      [as.attempt_id, as.node_id, ATTEMPT_LIVE, ack.addr, bud_clock] if as.status == ATTEMPT_FORK
     end
-    attempt_status <- (attempt_status * child_ack).lefts(:attempt_id => :attempt_id)
+    attempt_status <- (attempt_status * child_ack).lefts(:attempt_id => :attempt_id) do |as|
+      as if as.status == ATTEMPT_FORK
+    end
+    node <+ (attempt_status * child_ack).pairs(:attempt_id => :attempt_id) do |as, ack|
+      [as.node_id, ack.addr] if as.status == ATTEMPT_FORK
+    end
+  end
+
+  bloom :send_ready do
+    # XXX: bug
+    # temp :live_attempts <= attempt_status {|s| s if s.status == ATTEMPT_LIVE and done_node_ready.empty?}
+    live_attempts <= attempt_status {|s| s if s.status == ATTEMPT_LIVE and done_node_ready.empty?}
+    temp :num_live <= live_attempts.group(nil, count)
+    node_ready <= (num_live * node_count).pairs do |nl, nc|
+      [true] if nl.first == nc.num
+    end
+    # Only trigger node_ready once
+    done_node_ready <+ node_ready
   end
 
   bloom :check_liveness do
