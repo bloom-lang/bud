@@ -322,7 +322,6 @@ module Bud
           break
         end
       end
-      return @schema
     end
 
     # Copy over the schema from +o+ if available
@@ -332,8 +331,7 @@ module Bud
         # must have been initialized with defer_schema==true.  take schema from rhs
         init_schema(o.schema)
       end
-      # returns old state of @schema (nil) if nothing available
-      return @schema
+      # if nothing available, leave @schema unchanged
     end
 
     # manufacture schema of the form [:c0, :c1, ...] with width = +arity+
@@ -341,7 +339,6 @@ module Bud
     def fit_schema(arity)
       # rhs is schemaless.  create schema from first tuple merged
       init_schema((0..arity-1).map{|indx| ("c"+indx.to_s).to_sym})
-      return @schema
     end
 
     public
@@ -349,14 +346,14 @@ module Bud
       check_enumerable(o)
       establish_schema(o) if @schema.nil?
 
-      delta = o.map do |i|
+      o.each do |i|
         next if i.nil? or i == []
         i = prep_tuple(i)
         key_vals = @key_colnums.map{|k| i[k]}
         if (old = self[key_vals])
-          raise_pk_error(i, old) if old != i
+          raise_pk_error(i, old) unless old == i
         elsif (oldnew = self.new_delta[key_vals])
-          raise_pk_error(i, oldnew) if oldnew != i
+          raise_pk_error(i, oldnew) unless oldnew == i
         else
           buf[key_vals] = tuple_accessors(i)
         end
