@@ -202,11 +202,24 @@ module AftMaster
     end
     stdio <~ not_live {|n| ["Dead node: attempt id = #{n.attempt_id}"]}
 
-    # Mark the old attempt as dead
+    # Mark the old attempts as dead
     attempt_status <+ (not_live * attempt_status).matches.rights do |as|
       [as.attempt_id, as.node_id, ATTEMPT_DEAD, as.addr, as.last_ping]
     end
     attempt_status <- (not_live * attempt_status).matches.rights
+
+    # Create a new attempt for the failed nodes
+    # XXX: attempt_id assignment is a hack
+    attempt_status <+ (not_live * attempt_status).matches.rights do |as|
+      [as.attempt_id + 10, as.node_id, ATTEMPT_INIT, nil, bud_clock]
+    end
+
+    # Update "node" to point at the newly-created attempts
+    # XXX: attempt_id assignment is a hack
+    node <+ (not_live * attempt_status).matches.rights do |as|
+      [as.node_id, as.attempt_id + 10]
+    end
+    node <- (not_live * node).rights(:attempt_id => :attempt_id)
   end
 
   bloom :handle_ping do
