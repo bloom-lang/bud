@@ -313,9 +313,15 @@ module Bud
     private
     def establish_schema(o)
       # use o's schema if available
-      deduce_schema(o) if @schema.nil?
-      # else use arity of first tuple of o
-      fit_schema(o.first.size) if @schema.nil? and not o.first.nil?
+      deduce_schema(o)
+      # else use arity of first non-nil tuple of o
+      if @schema.nil?
+        o.each do |t|
+          next if t.nil?
+          fit_schema(t.size)
+          break
+        end
+      end
       return @schema
     end
 
