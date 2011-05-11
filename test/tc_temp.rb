@@ -196,7 +196,7 @@ class TempNoMapShadow
   end
 end
 
-# Check that temp works when many of the initial input tuples are nil
+# Check that schema inference works when many of the initial inputs are nil
 class TempWithPredicate
   include Bud
 
@@ -216,11 +216,29 @@ class TempWithPredicate
   end
 
   bloom do
-    temp :xyz <= t1 { |t| t if t.key == 7}
+    temp :xyz <= t1 {|t| t if t.key == 7}
     t2 <= xyz
   end
 end
 
+# Check that schema inference works for <+ rules
+class TempAtNext
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+  end
+
+  bootstrap do
+    t1 << [5, 10]
+  end
+
+  bloom do
+    temp :xyz <+ t1 {|t| [t.key + 1, t.val + 1]}
+    t2 <= xyz
+  end
+end
 
 class TestTemps < Test::Unit::TestCase
   def test_basic_temp
@@ -273,10 +291,18 @@ class TestTemps < Test::Unit::TestCase
     assert_equal([[5, 10], [10, 20]], p.t5.to_a.sort)
   end
 
-  def test_temp_predicate
+  def test_temp_pred_schema_infer
     p = TempWithPredicate.new
     p.tick
     assert_equal([[7, 11]], p.t2.to_a.sort)
+  end
+
+  def test_test_atnext_schema_infer
+    p = TempAtNext.new
+    p.tick
+    assert_equal([], p.t2.to_a.sort)
+    p.tick
+    assert_equal([[6, 11]], p.t2.to_a.sort)
   end
 
   def test_temp_in_temp

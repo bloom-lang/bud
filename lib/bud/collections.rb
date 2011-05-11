@@ -374,7 +374,7 @@ module Bud
     public
     def pending_merge(o) # :nodoc: all
       check_enumerable(o)
-      deduce_schema(o)
+      establish_schema(o) if @schema.nil?
 
       o.each {|i| do_insert(i, @pending)}
       return self
