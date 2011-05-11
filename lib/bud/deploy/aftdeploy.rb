@@ -7,6 +7,9 @@ module AftProtocol
     # Liveness ping messages from child => master
     channel :ping_chan, [:@loc, :attempt_id]
 
+    # Successful child startup (child => master)
+    channel :child_ack, [:@loc, :attempt_id] => [:addr]
+
     # Messaging abstraction: child => master (send), master => child (recv)
     channel :msg_send, [:@loc, :msg_id, :recv_node, :send_node] => [:payload]
     channel :msg_recv, [:@loc, :msg_id, :recv_node, :send_node] => [:payload]
@@ -25,6 +28,11 @@ module AftChild
     periodic :ping_clock, 3
     scratch :aft_send, [:recv_node] => [:payload]
     scratch :aft_recv, [:send_node, :msg_id] => [:payload]
+  end
+
+  # Send a ping on bootup to let the master node know we're alive
+  bootstrap do
+    ping_chan <~ [[@deployer_addr, @attempt_id]]
   end
 
   bloom :send_ping do
@@ -57,6 +65,7 @@ ATTEMPT_DEAD = 4
 # some refactoring of the deployment infrastructure. See #147.
 module AftMaster
   include AftProtocol
+  include Deployer
 
   def initialize(opts={})
     super
@@ -73,6 +82,10 @@ module AftMaster
     # The status of all attempts, ever. Note that once an attempt is declared
     # "dead", we ignore all subsequent pings and messages from it.
     table :attempt_status, [:attempt_id] => [:node_id, :status, :addr, :last_ping]
+
+    # Wrap side-effecting calls to fork()
+    scratch :fork_req, [:attempt_id] => [:node_id]
+    scratch :fork_done, [:attempt_id]
 
     scratch :new_ping, [:attempt_id, :tstamp]
     scratch :not_live, [:attempt_id]
@@ -114,6 +127,14 @@ module AftMaster
       end
     end
 
+    register_callback(:fork_req) do |tbl|
+      tbl.each do |t|
+        pid = do_fork(t.attempt_id, t.node_id)
+        @child_pids << pid
+        fork_done <+ [[t.attempt_id]]
+      end
+    end
+
     # Create initial attempts for all of the configured nodes. During bootstrap,
     # we just set their status to INIT; this is later replaced with FORK once we
     # actually spawn the attempt processes.
@@ -124,7 +145,7 @@ module AftMaster
     end
   end
 
-  def do_fork(node_id, attempt_id)
+  def do_fork(attempt_id, node_id)
     child_opts = @options[:deploy_child_opts]
     child_opts ||= {}
     deployer_addr = ip_port
@@ -140,15 +161,28 @@ module AftMaster
     end
   end
 
-  bloom :spawn_attempt do
-    spawn_attempts <= attempt_status do |s|
-      [s.attempt_id, do_fork(s.node_id, s.attempt_id)] if s.status == ATTEMPT_INIT and (spawn_attempts.has_key? s.attempt_id == false)
+  bloom :spawn_children do
+    fork_req <= attempt_status do |s|
+      [s.attempt_id, s.node_id] if s.status == ATTEMPT_INIT
     end
+    attempt_status <+ attempt_status do |s|
+      [s.attempt_id, s.node_id, ATTEMPT_FORK, s.addr, s.last_ping] if s.status == ATTEMPT_INIT
+    end
+    attempt_status <- attempt_status do |s|
+      s if s.status == ATTEMPT_INIT
+    end
+
+    # Update attempt status when child ACK message received
+    attempt_status <+ (attempt_status * child_ack).pairs(:attempt_id => :attempt_id) do |as, ack|
+      raise if as.status != ATTEMPT_FORK
+      [as.attempt_id, as.node_id, ATTEMPT_LIVE, ack.addr, bud_clock]
+    end
+    attempt_status <- (attempt_status * child_ack).lefts(:attempt_id => :attempt_id)
   end
 
   bloom :check_liveness do
     not_live <= (ft_clock * attempt_status).pairs do |c, as|
-      [as.attempt_id] if as.status == ATTEMPT_LIVE and (c.val - FT_TIMEOUT > as.last_ping)
+      [as.attempt_id] if [ATTEMPT_FORK, ATTEMPT_LIVE].include? as.status and (c.val - FT_TIMEOUT > as.last_ping)
     end
     stdio <~ not_live {|n| ["Dead node: attempt id = #{n.attempt_id}"]}
 
@@ -157,11 +191,6 @@ module AftMaster
       [as.attempt_id, as.node_id, ATTEMPT_DEAD, as.addr, as.last_ping]
     end
     attempt_status <- (not_live * attempt_status).matches.rights
-
-    # Create a new attempt in INIT state
-    attempt_status <+ (not_live * attempt_status).matches.rights do |as|
-      [next_attempt_id, as.node_id, ATTEMPT_INIT, nil, nil]
-    end
   end
 
   bloom :handle_ping do
@@ -178,12 +207,6 @@ module AftMaster
     msg_recv <~ (msg_send * node).pairs(:recv_node => :uid) do |m,n|
       [n.addr, m.msg_id, m.recv_node, m.send_node, m.payload]
     end
-  end
-
-  # XXX: This should be done in Bloom
-  def next_attempt_id
-    @attempt_id_counter += 1
-    @attempt_id_counter
   end
 end
 
