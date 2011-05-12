@@ -219,7 +219,7 @@ module Bud
     public
     def has_key?(k)
       check_enumerable(k)
-      return false if k.nil? or k.empty? or self[k].nil?
+      return false if k.nil? or self[k].nil?
       return true
     end
 
