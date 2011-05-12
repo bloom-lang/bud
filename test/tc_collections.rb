@@ -260,7 +260,6 @@ class EmptyPk
 
   bootstrap do
     t1 << ["abc", 5]
-    t1 << ["abc", 6]
   end
 end
 
@@ -421,9 +420,17 @@ class TestCollections < Test::Unit::TestCase
     assert_raise(Bud::CompileError) { DeclarationOverrideMethod.new }
   end
 
-  def test_empty_pk
+  def test_empty_pk_error
     e = EmptyPk.new
+    e.t1 << ["abc", 6]
     assert_raise(Bud::KeyConstraintError) { e.tick }
+  end
+
+  def test_empty_pk_has_key
+    e = EmptyPk.new
+    e.tick
+    assert(e.t1.has_key? [])
+    assert_equal(1, e.t1.length)
   end
   
   class SimpleRename
