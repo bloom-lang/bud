@@ -257,10 +257,6 @@ class EmptyPk
   state do
     table :t1, [] => [:foo, :bar]
   end
-
-  bootstrap do
-    t1 << ["abc", 5]
-  end
 end
 
 class TestCollections < Test::Unit::TestCase
@@ -411,7 +407,7 @@ class TestCollections < Test::Unit::TestCase
     b.tick
     assert_equal([[3,4]], b.buffer.to_a.sort)
   end
-  
+
   def test_bad_declaration
     assert_raise(Bud::CompileError) { BadDeclaration.new }
   end
@@ -422,17 +418,23 @@ class TestCollections < Test::Unit::TestCase
 
   def test_empty_pk_error
     e = EmptyPk.new
-    e.t1 << ["abc", 6]
+    e.t1 << ["xyz", 6]
+    e.tick
+    e.t1 <+ [["xyz", 6]]
+    e.tick
+    e.t1 <+ [["xxx", 2]]
     assert_raise(Bud::KeyConstraintError) { e.tick }
   end
 
   def test_empty_pk_has_key
     e = EmptyPk.new
     e.tick
+    assert_equal(false, e.t1.has_key?([]))
+    e.t1 << ["xyz", 10]
     assert(e.t1.has_key? [])
     assert_equal(1, e.t1.length)
   end
-  
+
   class SimpleRename
     include Bud
     state do
@@ -445,12 +447,12 @@ class TestCollections < Test::Unit::TestCase
       temp :t2 <= t1.rename(:bob)
     end
   end
-  
+
   def test_simple_rename
     p = SimpleRename.new
     assert_nothing_raised {p.tick}
   end
-      
+
   class FunkyPayloads
     include Bud
     state do
@@ -464,12 +466,11 @@ class TestCollections < Test::Unit::TestCase
       t2 <= c2.payloads
     end
   end
-  
+
   def test_funky_payload
     p = FunkyPayloads.new
     p.run_bg
     p.sync_callback(:c1, [["hi", "miley", p.ip_port]], :t1)
     p.sync_callback(:c2, [["guy", p.ip_port, "smiley"]], :t1)
   end
-  
 end

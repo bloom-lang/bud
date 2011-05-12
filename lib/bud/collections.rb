@@ -781,16 +781,22 @@ module Bud
           @storage.delete keycols
         end
       end
-      @storage.merge! @pending
+      @pending.each do |keycols, tuple|
+        old = @storage[keycols]
+        if old.nil?
+          @storage[keycols] = tuple
+        else
+          raise_pk_error(tuple, old) unless tuple == old
+        end
+      end
       @to_delete = []
       @pending = {}
     end
 
     superator "<-" do |o|
-      o.each do |tuple|
-        next if tuple.nil?
-        tuple = prep_tuple(tuple)
-        @to_delete << tuple
+      o.each do |t|
+        next if t.nil?
+        @to_delete << prep_tuple(t)
       end
     end
   end
