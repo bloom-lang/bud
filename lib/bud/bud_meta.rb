@@ -20,14 +20,14 @@ class BudMeta #:nodoc: all
     no_attr_rewrite_strata = Array.new(top_stratum + 2) { [] }
     @bud_instance.t_rules.each do |d|
       if d.op.to_s == '<='
-        # deductive rules are assigned to strata based on
-        # the basic datalog stratification algorithm
+        # Deductive rules are assigned to strata based on the basic Datalog
+        # stratification algorithm
         belongs_in = stratum_map[d.lhs]
         belongs_in ||= 0
         rewritten_strata[belongs_in] << d.src
         no_attr_rewrite_strata[belongs_in] << d.orig_src
       else
-        # all temporal rules are placed in the last stratum
+        # All temporal rules are placed in the last stratum
         rewritten_strata[top_stratum + 1] << d.src
         no_attr_rewrite_strata[top_stratum + 1] << d.orig_src
       end

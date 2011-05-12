@@ -218,6 +218,7 @@ module Bud
     # checks for key +k+ in the key columns
     public
     def has_key?(k)
+      check_enumerable(k)
       return false if k.nil? or k.empty? or self[k].nil?
       return true
     end
@@ -303,8 +304,8 @@ module Bud
 
     private
     def check_enumerable(o)
-      unless (o.nil? or o.class < Enumerable) and o.respond_to? 'each'
-        raise BudTypeError, "Attempt to merge non-enumerable type into BudCollection"
+      unless o.nil? or o.class < Enumerable
+        raise BudTypeError, "Collection #{tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
       end
     end
 
