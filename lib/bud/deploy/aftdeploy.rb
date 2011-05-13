@@ -1,6 +1,6 @@
 require 'bud/deploy/forkdeploy'
 
-FT_TIMEOUT = 20
+FT_TIMEOUT = 25
 
 module AftProtocol
   state do
@@ -85,6 +85,9 @@ module AftMaster
     scratch :fork_done, [:attempt_id]
 
     table :done_node_ready, [] => [:done]
+
+    # Buffer messages sent to currently-down nodes for eventual replay
+    table :msg_buf, [:msg_id, :recv_node, :send_node] => [:payload]
 
     scratch :new_ping, [:attempt_id, :tstamp]
     scratch :not_live, [:attempt_id]
@@ -184,6 +187,10 @@ module AftMaster
     node <+ (attempt_status * child_ack).pairs(:attempt_id => :attempt_id) do |as, ack|
       [as.node_id, ack.addr] if as.status == ATTEMPT_FORK
     end
+    # Replay and delete all the buffer messages for the newly-live node
+    msg_recv <~ (attempt_status * child_ack * msg_buf).combos(attempt_status.attempt_id => child_ack.attempt_id, msg_buf.recv_node => attempt_status.node_id) do |as, ack, m|
+      [ack.addr, m.msg_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_FORK
+    end
   end
 
   bloom :send_ready do
@@ -239,8 +246,14 @@ module AftMaster
   end
 
   bloom :message_redirect do
-    msg_recv <~ (msg_send * node).pairs(:recv_node => :uid) do |m,n|
-      [n.addr, m.msg_id, m.recv_node, m.send_node, m.payload]
+    msg_recv <~ (msg_send * node_status * attempt_status).combos(msg_send.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
+      [as.addr, m.msg_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_LIVE
+    end
+
+    # If the current attempt for the recipient node is not live, buffer the
+    # message for eventual replay
+    msg_buf <= (msg_send * node_status * attempt_status).combos(msg_send.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
+      [m.msg_id, m.recv_node, m.send_node, m.payload] if as.status != ATTEMPT_LIVE
     end
   end
 end
