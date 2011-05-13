@@ -33,6 +33,6 @@ module TokenRing
   end
 
   bloom :print_token do
-    stdio <~ token {["#{ip_port}: Got token!"]}
+    stdio <~ token {["#{@node_id}: Got token! (@ #{ip_port})"]}
   end
 end

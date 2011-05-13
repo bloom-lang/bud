@@ -89,6 +89,47 @@ class CallbackTest < Test::Unit::TestCase
     assert_equal(1, cnt)
   end
 
+  class AckOnBoot
+    include Bud
+
+    bootstrap do
+      @ack_io.puts ip_port
+      @ack_io.puts "ready"
+      on_shutdown do
+        @ack_io.puts "done"
+      end
+    end
+  end
+
+  def test_fg_crash_shutdown_cb
+    read, write = IO.pipe
+
+    child_pid = Bud.do_fork do
+      out_buf = StringIO.new
+      $stdout = out_buf
+      x = AckOnBoot.new
+      x.instance_variable_set('@ack_io', write)
+      x.run_fg
+    end
+
+    child_ip_port = read.readline.rstrip
+    child_ip, child_port = child_ip_port.split(":")
+    result = read.readline.rstrip
+    assert_equal("ready", result)
+
+    # Shoot garbage at the Bud instance in the child process, which should cause
+    # it to shutdown
+    socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
+    socket.send_datagram(1234, child_ip, child_port)
+
+    Timeout::timeout(15) do
+      result = read.readline.rstrip
+      assert_equal("done", result)
+    end
+    read.close ; write.close
+    Process.waitpid(child_pid)
+  end
+
   def test_interrogate1
     c = Vacuous.new
     assert_raise(Bud::BudError) {c.int_ip_port}

@@ -218,7 +218,8 @@ module Bud
     # checks for key +k+ in the key columns
     public
     def has_key?(k)
-      return false if k.nil? or k.empty? or self[k].nil?
+      check_enumerable(k)
+      return false if k.nil? or self[k].nil?
       return true
     end
 
@@ -303,8 +304,8 @@ module Bud
 
     private
     def check_enumerable(o)
-      unless (o.nil? or o.class < Enumerable) and o.respond_to? 'each'
-        raise BudTypeError, "Attempt to merge non-enumerable type into BudCollection"
+      unless o.nil? or o.class < Enumerable
+        raise BudTypeError, "Collection #{tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
       end
     end
 
@@ -313,10 +314,15 @@ module Bud
     private
     def establish_schema(o)
       # use o's schema if available
-      deduce_schema(o) if @schema.nil?
-      # else use arity of first tuple of o
-      fit_schema(o.first.size) if @schema.nil? and not o.first.nil?
-      return @schema
+      deduce_schema(o)
+      # else use arity of first non-nil tuple of o
+      if @schema.nil?
+        o.each do |t|
+          next if t.nil?
+          fit_schema(t.size)
+          break
+        end
+      end
     end
 
     # Copy over the schema from +o+ if available
@@ -326,8 +332,7 @@ module Bud
         # must have been initialized with defer_schema==true.  take schema from rhs
         init_schema(o.schema)
       end
-      # returns old state of @schema (nil) if nothing available
-      return @schema
+      # if nothing available, leave @schema unchanged
     end
 
     # manufacture schema of the form [:c0, :c1, ...] with width = +arity+
@@ -335,7 +340,6 @@ module Bud
     def fit_schema(arity)
       # rhs is schemaless.  create schema from first tuple merged
       init_schema((0..arity-1).map{|indx| ("c"+indx.to_s).to_sym})
-      return @schema
     end
 
     private
@@ -359,7 +363,7 @@ module Bud
         establish_schema(o) if @schema.nil?
 
         # it's a pity that we are massaging the tuples that already exist in the head
-        delta = o.map do |i|
+        o.each do |i|
           next if i.nil? or i == []
           i = prep_tuple(i)
           key_vals = @key_colnums.map{|k| i[k]}
@@ -379,7 +383,7 @@ module Bud
     public
     def pending_merge(o) # :nodoc: all
       check_enumerable(o)
-      deduce_schema(o)
+      establish_schema(o) if @schema.nil?
 
       o.each {|i| do_insert(i, @pending)}
       return self
@@ -788,16 +792,22 @@ module Bud
           @storage.delete keycols
         end
       end
-      @storage.merge! @pending
+      @pending.each do |keycols, tuple|
+        old = @storage[keycols]
+        if old.nil?
+          @storage[keycols] = tuple
+        else
+          raise_pk_error(tuple, old) unless tuple == old
+        end
+      end
       @to_delete = []
       @pending = {}
     end
 
     superator "<-" do |o|
-      o.each do |tuple|
-        next if tuple.nil?
-        tuple = prep_tuple(tuple)
-        @to_delete << tuple
+      o.each do |t|
+        next if t.nil?
+        @to_delete << prep_tuple(t)
       end
     end
   end
