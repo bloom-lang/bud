@@ -127,7 +127,7 @@ module Bud
 
       methods.each do |left_rel|
         methods.each do |right_rel|
-          next if (mode == :delta and left_rel == :storage and right_rel == :storage)
+          next if (mode == :both and left_rel == :storage and right_rel == :storage)
           if @hashpreds.nil? or @hashpreds.empty?
             nestloop_join(left_rel, right_rel, &block)
           else

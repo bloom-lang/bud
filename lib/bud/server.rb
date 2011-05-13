@@ -37,6 +37,7 @@ module Bud
         # other Bud instances in the same process will crash). Ignoring the
         # error isn't best though -- we should do better (#74).
         puts "Exception handling network message (channel '#{obj[0]}'): #{$!}"
+        puts caller.inspect
       end
     end
   end

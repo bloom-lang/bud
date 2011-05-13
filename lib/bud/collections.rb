@@ -250,7 +250,7 @@ module Bud
         return ((detect{|t| yield t}).nil?) ? false : true
       end
     end
-
+    
     private
     def raise_pk_error(new, old)
       keycols = key_cols.map{|k| old[schema.index(k)]}
@@ -338,21 +338,32 @@ module Bud
       return @schema
     end
 
+    private
+    def include_any_buf?(i, key_vals)
+      bufs = [@storage, @delta, @new_delta]
+      bufs.each do |b|
+        unless b.nil?
+          old = b[key_vals]
+          raise_pk_error(i, old) if old != i and not old.nil?
+          return true if old == i
+        end
+      end
+      return false
+    end
+
     public
     def merge(o, buf=@new_delta) # :nodoc: all
-      check_enumerable(o)
-      establish_schema(o) if @schema.nil?
+      unless o.nil?
+        o = o.uniq.compact if o.respond_to?(:uniq)
+        check_enumerable(o)
+        establish_schema(o) if @schema.nil?
 
-      delta = o.map do |i|
-        next if i.nil? or i == []
-        i = prep_tuple(i)
-        key_vals = @key_colnums.map{|k| i[k]}
-        if (old = self[key_vals])
-          raise_pk_error(i, old) if old != i
-        elsif (oldnew = self.new_delta[key_vals])
-          raise_pk_error(i, oldnew) if oldnew != i
-        else
-          buf[key_vals] = tuple_accessors(i)
+        # it's a pity that we are massaging the tuples that already exist in the head
+        delta = o.map do |i|
+          next if i.nil? or i == []
+          i = prep_tuple(i)
+          key_vals = @key_colnums.map{|k| i[k]}
+          buf[key_vals] = tuple_accessors(i) unless include_any_buf?(i, key_vals)
         end
       end
       return self
