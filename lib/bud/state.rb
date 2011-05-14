@@ -74,7 +74,6 @@ module Bud
   # rhs of statements only.
   def periodic(name, period=1)
     define_collection(name)
-    # stick with default schema -- [:key] => [:val]
     @tables[name] = Bud::BudPeriodic.new(name, self)
     raise BudError if @periodics.has_key? [name]
     t = [name, gen_id, period]

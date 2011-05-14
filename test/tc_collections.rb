@@ -259,6 +259,14 @@ class EmptyPk
   end
 end
 
+class InsertIntoPeriodicError
+  include Bud
+
+  state do
+    periodic :timer
+  end
+end
+
 class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
@@ -433,6 +441,21 @@ class TestCollections < Test::Unit::TestCase
     e.t1 << ["xyz", 10]
     assert(e.t1.has_key? [])
     assert_equal(1, e.t1.length)
+  end
+
+  def test_periodic_lhs_error
+    b = InsertIntoPeriodicError.new
+    b.run_bg
+    assert_raise(Bud::BudError) {
+      b.sync_do { b.timer <+ [[5, 10]] }
+    }
+    assert_raise(Bud::BudError) {
+      b.sync_do { b.timer <= [[5, 10]] }
+    }
+    assert_raise(Bud::BudError) {
+      b.sync_do { b.timer <- [[5, 10]] }
+    }
+    b.stop_bg
   end
 
   class SimpleRename
