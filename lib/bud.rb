@@ -56,8 +56,8 @@ $bud_instances = {}        # Map from instance id => Bud instance
 # :main: Bud
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
-  attr_reader :dsock
-  attr_reader :tables, :ip, :port
+  attr_reader :dsock, :ip, :port
+  attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables
   attr_reader :stratum_first_iter, :joinstate
   attr_accessor :lazy # This can be changed on-the-fly by REBL
   attr_accessor :stratum_collection_map
@@ -655,7 +655,7 @@ module Bud
   # 1. Emit outgoing tuples in channels and ZK tables.
   # 2. Commit to disk any changes made to on-disk tables.
   def do_flush
-    @channels.each { |c| @tables[c[0]].flush }
+    @channels.each_value { |c| c.flush }
     @zk_tables.each_value { |t| t.flush }
     @tc_tables.each_value { |t| t.flush }
     @dbm_tables.each_value { |t| t.flush }
@@ -741,7 +741,7 @@ module Bud
 
   def set_periodic_timer(name, id, period)
     EventMachine::PeriodicTimer.new(period) do
-      @tables[name] <+ [[id, Time.new]]
+      @tables[name].add_periodic_tuple(id)
       tick
     end
   end
