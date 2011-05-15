@@ -655,7 +655,7 @@ module Bud
   # 1. Emit outgoing tuples in channels and ZK tables.
   # 2. Commit to disk any changes made to on-disk tables.
   def do_flush
-    @channels.each { |c| @tables[c[0]].flush }
+    @channels.each_key { |c| @tables[c].flush }
     @zk_tables.each_value { |t| t.flush }
     @tc_tables.each_value { |t| t.flush }
     @dbm_tables.each_value { |t| t.flush }

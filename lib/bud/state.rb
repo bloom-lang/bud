@@ -61,7 +61,8 @@ module Bud
   def channel(name, schema=nil)
     define_collection(name)
     @tables[name] = Bud::BudChannel.new(name, self, schema)
-    @channels[name] = @tables[name].locspec_idx
+    @channels[name] = nil
+    return @tables[name]
   end
 
   # declare a collection to be read from +filename+.  rhs of statements only
