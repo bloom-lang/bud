@@ -61,8 +61,7 @@ module Bud
   def channel(name, schema=nil)
     define_collection(name)
     @tables[name] = Bud::BudChannel.new(name, self, schema)
-    @channels[name] = nil
-    return @tables[name]
+    @channels[name] = @tables[name]
   end
 
   # declare a collection to be read from +filename+.  rhs of statements only
@@ -75,10 +74,9 @@ module Bud
   # rhs of statements only.
   def periodic(name, period=1)
     define_collection(name)
-    @tables[name] = Bud::BudPeriodic.new(name, self)
     raise BudError if @periodics.has_key? [name]
-    t = [name, gen_id, period]
-    @periodics << t
+    @periodics << [name, gen_id, period]
+    @tables[name] = Bud::BudPeriodic.new(name, self)
   end
 
   def terminal(name) # :nodoc: all
@@ -88,8 +86,8 @@ module Bud
       @terminal = name
     end
     define_collection(name)
-    @channels[name] = nil
     @tables[name] = Bud::BudTerminal.new(name, [:line], self)
+    @channels[name] = @tables[name]
   end
 
   # declare a TokyoCabinet table
