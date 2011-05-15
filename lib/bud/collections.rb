@@ -344,7 +344,7 @@ module Bud
 
     private
     def include_any_buf?(i, key_vals)
-      bufs = [@storage, @delta, @new_delta]
+      bufs = [self, @delta, @new_delta]
       bufs.each do |b|
         unless b.nil?
           old = b[key_vals]
