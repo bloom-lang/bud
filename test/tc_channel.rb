@@ -271,8 +271,37 @@ class ChannelWithoutLocSpec
   end
 end
 
-class TestChannelWithoutLocSpec < Test::Unit::TestCase
+class LoopbackPayload
+  include Bud
+
+  state do
+    loopback :me
+    scratch :me_copy, me.schema
+  end
+
+  bootstrap do
+    me <~ [["hello", "world"]]
+  end
+
+  bloom do
+    me_copy <= me.payloads
+  end
+end
+
+class LoopbackTests < Test::Unit::TestCase
   def test_missing_ls
     assert_raise(Bud::BudError) { ChannelWithoutLocSpec.new }
+  end
+
+  def test_loopback_payload
+    b = LoopbackPayload.new
+    q = Queue.new
+    b.register_callback(:me_copy) do |t|
+      assert_equal([["hello", "world"]], t.to_a.sort)
+      q.push(true)
+    end
+    b.run_bg
+    q.pop
+    b.stop_bg
   end
 end

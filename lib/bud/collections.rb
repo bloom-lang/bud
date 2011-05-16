@@ -682,6 +682,8 @@ module Bud
     public
     # project to the non-address fields
     def payloads
+      return self.pro if @is_loopback
+
       if schema.size > 2
         # bundle up each tuple's non-locspec fields into an array
         retval = case @locspec_idx
