@@ -344,13 +344,13 @@ module Bud
     end
 
     private
-    def include_any_buf?(i, key_vals)
+    def include_any_buf?(t, key_vals)
       bufs = [self, @delta, @new_delta]
       bufs.each do |b|
         old = b[key_vals]
         next if old.nil?
-        if old != i
-          raise_pk_error(i, old)
+        if old != t
+          raise_pk_error(t, old)
         else
           return true
         end
@@ -366,11 +366,11 @@ module Bud
         establish_schema(o) if @schema.nil?
 
         # it's a pity that we are massaging the tuples that already exist in the head
-        o.each do |i|
-          next if i.nil? or i == []
-          i = prep_tuple(i)
-          key_vals = @key_colnums.map{|k| i[k]}
-          buf[key_vals] = tuple_accessors(i) unless include_any_buf?(i, key_vals)
+        o.each do |t|
+          next if t.nil? or t == []
+          t = prep_tuple(t)
+          key_vals = @key_colnums.map{|k| t[k]}
+          buf[key_vals] = tuple_accessors(t) unless include_any_buf?(t, key_vals)
         end
       end
       return self
