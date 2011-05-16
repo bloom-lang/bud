@@ -625,7 +625,7 @@ module Bud
   # standard "state" syntax, but we want to ensure that builtin state is
   # initialized before user-defined state.
   def builtin_state
-    channel  :localtick, [:col1]
+    loopback  :localtick, [:col1]
     @stdio = terminal :stdio
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
 

@@ -4,21 +4,21 @@ class TickleCount
   include Bud
 
   state do
-    channel :loopback, [:cnt]
+    loopback :loop_chan, [:cnt]
     channel :mcast, [:@addr, :cnt]
     scratch :loopback_done, [:nums]
     scratch :mcast_done, [:nums]
   end
 
   bootstrap do
-    loopback <~ [[0]]
+    loop_chan <~ [[0]]
   end
 
   bloom :count_to_5 do
-    loopback <~ loopback {|l| [l.cnt + 1] if l.cnt < 6}
-    loopback_done <= loopback {|l| [l.cnt] if l.cnt == 5}
+    loop_chan <~ loop_chan {|l| [l.cnt + 1] if l.cnt < 6}
+    loopback_done <= loop_chan {|l| [l.cnt] if l.cnt == 5}
 
-    mcast <~ loopback {|l| [ip_port, l.cnt] if l.cnt < 6}
+    mcast <~ loop_chan {|l| [ip_port, l.cnt] if l.cnt < 6}
     mcast_done <= mcast {|m| [m.cnt] if m.cnt == 5}
   end
 end
@@ -224,18 +224,18 @@ class ChannelBootstrap
   include Bud
 
   state do
-    channel :loopback, [:foo]
+    loopback :loop_chan, [:foo]
     table :t1
     table :t2, [:foo]
   end
 
   bootstrap do
-    loopback <~ [[1000]]
+    loop_chan <~ [[1000]]
     t1 <= [[@ip, @port]]
   end
 
   bloom do
-    t2 <= loopback
+    t2 <= loop_chan
   end
 end
 
@@ -243,7 +243,7 @@ class TestChannelBootstrap < Test::Unit::TestCase
   def test_bootstrap
     c = ChannelBootstrap.new
     q = Queue.new
-    c.register_callback(:loopback) do
+    c.register_callback(:loop_chan) do
       q.push(true)
     end
     c.run_bg
@@ -260,5 +260,19 @@ class TestChannelBootstrap < Test::Unit::TestCase
       assert_equal([[1000]], c.t2.to_a.sort)
     }
     c.stop_bg
+  end
+end
+
+class ChannelWithoutLocSpec
+  include Bud
+
+  state do
+    channel :c, [:foo, :bar]
+  end
+end
+
+class TestChannelWithoutLocSpec < Test::Unit::TestCase
+  def test_missing_ls
+    assert_raise(Bud::BudError) { ChannelWithoutLocSpec.new }
   end
 end

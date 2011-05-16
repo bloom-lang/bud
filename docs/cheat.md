@@ -64,6 +64,14 @@ Default attributes: `[:@address, :val] => []`
     channel :msgs
     channel :req_chan, [:cartnum, :storenum, :@server] => [:command, :params]
 
+### loopback ###
+A network channel that delivers tuples back to the current Bud instance.<br>
+Default attributes: `[:key] => [:val]`
+
+(Bloom statements with loopback on lhs must use async merge (`<~`).)
+
+    loopback :talk_to_self
+
 ### periodic ###
 System timer manifested as a scratch collection.<br>
 System-provided attributes: `[:key] => [:val]`<br>

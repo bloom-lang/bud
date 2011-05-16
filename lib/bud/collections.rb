@@ -606,18 +606,25 @@ module Bud
   class BudChannel < BudCollection
     attr_reader :locspec_idx # :nodoc: all
 
-    def initialize(name, bud_instance, given_schema=nil) # :nodoc: all
+    def initialize(name, bud_instance, given_schema=nil, loopback=false) # :nodoc: all
       given_schema ||= [:@address, :val]
-      the_schema, the_key_cols = parse_schema(given_schema)
-      the_val_cols = the_schema - the_key_cols
-      @locspec_idx = remove_at_sign!(the_key_cols)
-      @locspec_idx = remove_at_sign!(the_schema) if @locspec_idx.nil?
-      # If @locspec_idx is still nil, this is a loopback channel
+      @is_loopback = loopback
+      @locspec_idx = nil
 
-      # We mutate the hash key above, so we need to recreate the hash
-      # XXX: ugh, hacky
-      if given_schema.respond_to? :keys
-        given_schema = {the_key_cols => the_val_cols}
+      unless @is_loopback
+        the_schema, the_key_cols = parse_schema(given_schema)
+        the_val_cols = the_schema - the_key_cols
+        @locspec_idx = remove_at_sign!(the_key_cols)
+        @locspec_idx = remove_at_sign!(the_schema) if @locspec_idx.nil?
+        if @locspec_idx.nil?
+          raise BudError, "Missing location specifier for channel '#{name}'"
+        end
+
+        # We mutate the hash key above, so we need to recreate the hash
+        # XXX: ugh, hacky
+        if given_schema.respond_to? :keys
+          given_schema = {the_key_cols => the_val_cols}
+        end
       end
 
       super(name, bud_instance, given_schema)
@@ -645,9 +652,7 @@ module Bud
 
     public
     def clone_empty
-      retval = super
-      retval.locspec_idx = @locspec_idx
-      retval
+      self.class.new(tabname, bud_instance, @given_schema, @is_loopback)
     end
 
     public
@@ -663,7 +668,7 @@ module Bud
       ip = @bud_instance.ip
       port = @bud_instance.port
       each_from([@pending]) do |t|
-        if @locspec_idx.nil?
+        if @is_loopback
           the_locspec = [ip, port]
         else
           the_locspec = split_locspec(t, @locspec_idx)
