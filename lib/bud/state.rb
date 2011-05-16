@@ -58,10 +58,19 @@ module Bud
   end
 
   # declare a transient network collection.  default schema <tt>[:address, :val] => []</tt>
-  def channel(name, schema=nil)
+  def channel(name, schema=nil, loopback=false)
     define_collection(name)
-    @tables[name] = Bud::BudChannel.new(name, self, schema)
-    @channels[name] = @tables[name].locspec_idx
+    @tables[name] = Bud::BudChannel.new(name, self, schema, loopback)
+    @channels[name] = @tables[name]
+  end
+
+  # declare a transient network collection that delivers facts back to the
+  # current Bud instance. This is syntax sugar for a channel that always
+  # delivers to the IP/port of the current Bud instance. Default schema
+  # <tt>[:key] => [:val]</tt>
+  def loopback(name, schema=nil)
+    schema ||= {[:key] => [:val]}
+    channel(name, schema, true)
   end
 
   # declare a collection to be read from +filename+.  rhs of statements only
@@ -74,11 +83,9 @@ module Bud
   # rhs of statements only.
   def periodic(name, period=1)
     define_collection(name)
-    # stick with default schema -- [:key] => [:val]
-    @tables[name] = Bud::BudPeriodic.new(name, self)
     raise BudError if @periodics.has_key? [name]
-    t = [name, gen_id, period]
-    @periodics << t
+    @periodics << [name, gen_id, period]
+    @tables[name] = Bud::BudPeriodic.new(name, self)
   end
 
   def terminal(name) # :nodoc: all
@@ -88,8 +95,8 @@ module Bud
       @terminal = name
     end
     define_collection(name)
-    @channels[name] = nil
     @tables[name] = Bud::BudTerminal.new(name, [:line], self)
+    @channels[name] = @tables[name]
   end
 
   # declare a TokyoCabinet table

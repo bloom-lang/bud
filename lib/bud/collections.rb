@@ -228,7 +228,8 @@ module Bud
     def [](k)
       # assumes that key is in storage or delta, but not both
       # is this enforced in do_insert?
-      return @storage[k].nil? ? @delta[k] : @storage[k]
+      t = @storage[k]
+      return t.nil? ? @delta[k] : t
     end
 
     # checks for +item+ in the collection
@@ -342,21 +343,34 @@ module Bud
       init_schema((0..arity-1).map{|indx| ("c"+indx.to_s).to_sym})
     end
 
+    private
+    def include_any_buf?(t, key_vals)
+      bufs = [self, @delta, @new_delta]
+      bufs.each do |b|
+        old = b[key_vals]
+        next if old.nil?
+        if old != t
+          raise_pk_error(t, old)
+        else
+          return true
+        end
+      end
+      return false
+    end
+
     public
     def merge(o, buf=@new_delta) # :nodoc: all
-      check_enumerable(o)
-      establish_schema(o) if @schema.nil?
+      unless o.nil?
+        o = o.uniq.compact if o.respond_to?(:uniq)
+        check_enumerable(o)
+        establish_schema(o) if @schema.nil?
 
-      o.each do |i|
-        next if i.nil? or i == []
-        i = prep_tuple(i)
-        key_vals = @key_colnums.map{|k| i[k]}
-        if (old = self[key_vals])
-          raise_pk_error(i, old) unless old == i
-        elsif (oldnew = self.new_delta[key_vals])
-          raise_pk_error(i, oldnew) unless oldnew == i
-        else
-          buf[key_vals] = tuple_accessors(i)
+        # it's a pity that we are massaging the tuples that already exist in the head
+        o.each do |t|
+          next if t.nil? or t == []
+          t = prep_tuple(t)
+          key_vals = @key_colnums.map{|k| t[k]}
+          buf[key_vals] = tuple_accessors(t) unless include_any_buf?(t, key_vals)
         end
       end
       return self
@@ -575,7 +589,7 @@ module Bud
     end
 
     alias reduce inject
-    
+
     public
     def uniquify_tabname # :nodoc: all
       # just append current number of microseconds
@@ -592,18 +606,25 @@ module Bud
   class BudChannel < BudCollection
     attr_reader :locspec_idx # :nodoc: all
 
-    def initialize(name, bud_instance, given_schema=nil) # :nodoc: all
+    def initialize(name, bud_instance, given_schema=nil, loopback=false) # :nodoc: all
       given_schema ||= [:@address, :val]
-      the_schema, the_key_cols = parse_schema(given_schema)
-      the_val_cols = the_schema - the_key_cols
-      @locspec_idx = remove_at_sign!(the_key_cols)
-      @locspec_idx = remove_at_sign!(the_schema) if @locspec_idx.nil?
-      # If @locspec_idx is still nil, this is a loopback channel
+      @is_loopback = loopback
+      @locspec_idx = nil
 
-      # We mutate the hash key above, so we need to recreate the hash
-      # XXX: ugh, hacky
-      if given_schema.respond_to? :keys
-        given_schema = {the_key_cols => the_val_cols}
+      unless @is_loopback
+        the_schema, the_key_cols = parse_schema(given_schema)
+        the_val_cols = the_schema - the_key_cols
+        @locspec_idx = remove_at_sign!(the_key_cols)
+        @locspec_idx = remove_at_sign!(the_schema) if @locspec_idx.nil?
+        if @locspec_idx.nil?
+          raise BudError, "Missing location specifier for channel '#{name}'"
+        end
+
+        # We mutate the hash key above, so we need to recreate the hash
+        # XXX: ugh, hacky
+        if given_schema.respond_to? :keys
+          given_schema = {the_key_cols => the_val_cols}
+        end
       end
 
       super(name, bud_instance, given_schema)
@@ -631,9 +652,7 @@ module Bud
 
     public
     def clone_empty
-      retval = super
-      retval.locspec_idx = @locspec_idx
-      retval
+      self.class.new(tabname, bud_instance, @given_schema, @is_loopback)
     end
 
     public
@@ -649,7 +668,7 @@ module Bud
       ip = @bud_instance.ip
       port = @bud_instance.port
       each_from([@pending]) do |t|
-        if @locspec_idx.nil?
+        if @is_loopback
           the_locspec = [ip, port]
         else
           the_locspec = split_locspec(t, @locspec_idx)
@@ -663,6 +682,8 @@ module Bud
     public
     # project to the non-address fields
     def payloads
+      return self.pro if @is_loopback
+
       if schema.size > 2
         # bundle up each tuple's non-locspec fields into an array
         retval = case @locspec_idx
@@ -765,6 +786,25 @@ module Bud
   end
 
   class BudPeriodic < BudCollection # :nodoc: all
+    def <=(o)
+      raise BudError, "Illegal use of <= with periodic '#{tabname}' on left"
+    end
+
+    superator "<~" do |o|
+      raise BudError, "Illegal use of <~ with periodic '#{tabname}' on left"
+    end
+
+    superator "<-" do |o|
+      raise BudError, "Illegal use of <- with periodic '#{tabname}' on left"
+    end
+
+    superator "<+" do |o|
+      raise BudError, "Illegal use of <+ with periodic '#{tabname}' on left"
+    end
+
+    def add_periodic_tuple(id)
+      pending_merge([[id, Time.now]])
+    end
   end
 
   class BudTable < BudCollection # :nodoc: all
