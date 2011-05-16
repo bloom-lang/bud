@@ -347,10 +347,12 @@ module Bud
     def include_any_buf?(i, key_vals)
       bufs = [self, @delta, @new_delta]
       bufs.each do |b|
-        unless b.nil?
-          old = b[key_vals]
-          raise_pk_error(i, old) if old != i and not old.nil?
-          return true if old == i
+        old = b[key_vals]
+        next if old.nil?
+        if old != i
+          raise_pk_error(i, old)
+        else
+          return true
         end
       end
       return false
