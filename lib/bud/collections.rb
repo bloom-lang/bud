@@ -251,7 +251,7 @@ module Bud
         return ((detect{|t| yield t}).nil?) ? false : true
       end
     end
-    
+
     private
     def raise_pk_error(new, old)
       keycols = key_cols.map{|k| old[schema.index(k)]}
@@ -586,7 +586,7 @@ module Bud
     end
 
     alias reduce inject
-    
+
     public
     def uniquify_tabname # :nodoc: all
       # just append current number of microseconds
