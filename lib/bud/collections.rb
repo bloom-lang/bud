@@ -228,7 +228,8 @@ module Bud
     def [](k)
       # assumes that key is in storage or delta, but not both
       # is this enforced in do_insert?
-      return @storage[k].nil? ? @delta[k] : @storage[k]
+      t = @storage[k]
+      return t.nil? ? @delta[k] : t
     end
 
     # checks for +item+ in the collection
