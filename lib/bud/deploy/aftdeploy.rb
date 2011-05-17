@@ -23,10 +23,10 @@ module AftChild
 
   state do
     periodic :ping_clock, 3
-    table :next_send_id, [] => [:msg_id]
+    table :next_send_id, [] => [:send_id]
     # All messages with IDs <= recv_done_max have been delivered to user code
     # (emitted via aft_send).
-    table :recv_done_max, [] => [:msg_id]
+    table :recv_done_max, [] => [:recv_id]
     table :recv_buf, msg_recv.schema
     scratch :deliver_msg, recv_buf.schema
     loopback :do_tick, [] => [:do_it]
@@ -50,29 +50,31 @@ module AftChild
   bloom :send_msg do
     # XXX: we assume no message batching
     msg_send <~ (aft_send * next_send_id).pairs do |m, n|
-      [@deployer_addr, n.msg_id, m.recv_node, @node_id, m.payload]
+      [@deployer_addr, n.send_id, m.recv_node, @node_id, m.payload]
     end
 
-    next_send_id <+ (aft_send * next_send_id).rights {|n| [n.msg_id + 1]}
+    next_send_id <+ (aft_send * next_send_id).rights {|n| [n.send_id + 1]}
     next_send_id <- (aft_send * next_send_id).rights
   end
 
   bloom :recv_msg do
     recv_buf <= msg_recv do |m|
-      raise if m.recv_node != @node_id
+      if m.recv_node != @node_id
+        raise "Node mismatch: got #{m.recv_node}, expected #{@node_id} (@ #{ip_port})"
+      end
       m
     end
 
     deliver_msg <= (recv_buf * recv_done_max).pairs do |b, m|
-      b if b.recv_id == (m.msg_id + 1)
+      b if b.recv_id == (m.recv_id + 1)
     end
-    recv_done_max <+ (deliver_msg * recv_done_max).rights {|m| [m.msg_id + 1]}
+    recv_done_max <+ (deliver_msg * recv_done_max).rights {|m| [m.recv_id + 1]}
     recv_done_max <- (deliver_msg * recv_done_max).rights
     recv_buf <- deliver_msg
     do_tick <~ deliver_msg {|m| [true]}
 
     aft_recv <= deliver_msg do |m|
-      [m.send_node, m.msg_id, m.payload]
+      [m.send_node, m.recv_id, m.payload]
     end
   end
 end
@@ -110,8 +112,8 @@ module AftMaster
     table :done_node_ready, [] => [:done]
 
     # Buffer all messages, in case we later need to replay them
-    table :msg_buf, [:msg_id, :recv_node, :send_node] => [:payload]
-    table :next_msg_id, [] => [:msg_id]
+    table :msg_buf, [:send_id, :recv_id, :recv_node, :send_node] => [:payload]
+    table :next_recv_id, [] => [:recv_id]
 
     scratch :new_msg, msg_buf.schema
     scratch :new_ping, [:attempt_id, :tstamp]
@@ -122,7 +124,7 @@ module AftMaster
   bootstrap do
     return unless @options[:deploy]
 
-    next_msg_id <= [[0]]
+    next_recv_id <= [[0]]
 
     Signal.trap("CHLD") do
       # We receive SIGCHLD when a child process changes state; unfortunately,
@@ -216,7 +218,7 @@ module AftMaster
     end
     # Replay all buffered messages for the new attempt for this node
     msg_recv <~ (attempt_status * child_ack * msg_buf).combos(attempt_status.attempt_id => child_ack.attempt_id, msg_buf.recv_node => attempt_status.node_id) do |as, ack, m|
-      [ack.addr, m.msg_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_FORK
+      [ack.addr, m.recv_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_FORK
     end
   end
 
@@ -277,15 +279,16 @@ module AftMaster
     # the position of the message in the delivery order for the message's
     # recipient node.
     # XXX: we assume that message batching does not occur
-    new_msg <= (msg_send * next_msg_id).pairs do |m, n|
-      [n.msg_id, m.recv_node, m.send_node. m.payload]
+    # XXX: assign per-recv IDs
+    new_msg <= (msg_send * next_recv_id).pairs do |m, n|
+      [n.recv_id, m.send_id, m.recv_node, m.send_node, m.payload]
     end
-    next_msg_id <+ (msg_send * next_msg_id).rights {|n| [n.msg_id + 1]}
-    next_msg_id <- (msg_send * next_msg_id).rights
+    next_recv_id <+ (msg_send * next_recv_id).rights {|n| [n.recv_id + 1]}
+    next_recv_id <- (msg_send * next_recv_id).rights
 
     msg_buf <= new_msg
     msg_recv <~ (new_msg * node_status * attempt_status).combos(msg_send.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
-      [as.addr, m.msg_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_LIVE
+      [as.addr, m.recv_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_LIVE
     end
   end
 end
