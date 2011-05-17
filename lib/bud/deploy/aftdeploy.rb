@@ -11,7 +11,7 @@ module AftProtocol
     channel :child_ack, [:@loc, :attempt_id] => [:addr]
 
     # Messaging abstraction: child => master (send), master => child (recv)
-    channel :msg_send, [:@loc, :msg_id, :recv_node, :send_node] => [:payload]
+    channel :msg_send, [:@loc, :recv_node, :send_node] => [:payload]
     channel :msg_recv, [:@loc, :msg_id, :recv_node, :send_node] => [:payload]
   end
 end
@@ -19,14 +19,13 @@ end
 module AftChild
   include AftProtocol
 
-  def initialize(opts={})
-    super
-    @message_id = 0
-  end
-
   state do
     periodic :ping_clock, 3
     scratch :aft_send, [:recv_node] => [:payload]
+    # Note that we provide ordered delivery: messages will be emitted via
+    # aft_recv in strictly-increasing msg_id order (no gaps). However, the
+    # msg_id sequence is assigned by the master node, so it may not match the
+    # order of outgoing message sends from the sending node.
     scratch :aft_recv, [:send_node, :msg_id] => [:payload]
   end
 
@@ -39,25 +38,19 @@ module AftChild
   end
 
   bloom :messaging do
-    msg_send <~ aft_send {|m| [@deployer_addr, next_msg_id, m.recv_node, @node_id, m.payload]}
+    msg_send <~ aft_send {|m| [@deployer_addr, m.recv_node, @node_id, m.payload]}
 
     aft_recv <= msg_recv do |m|
       raise if m.recv_node != @node_id
       [m.send_node, m.msg_id, m.payload]
     end
   end
-
-  # XXX: It would be cleaner to assign message IDs using Bloom code.
-  def next_msg_id
-    @message_id += 1
-    @message_id
-  end
 end
 
-ATTEMPT_INIT = 1
-ATTEMPT_FORK = 2
-ATTEMPT_LIVE = 3
-ATTEMPT_DEAD = 4
+ATTEMPT_INIT = 1        # Attempt created, but no process spawned yet
+ATTEMPT_FORK = 2        # Process spawned, but no messages received from it yet
+ATTEMPT_LIVE = 3        # Process is currently running
+ATTEMPT_DEAD = 4        # Process is (presumed to be) dead
 
 # XXX: Currently, this code runs at both the deployment master and at all the
 # child nodes. Running at the children is obviously inefficient, but requires
@@ -74,7 +67,7 @@ module AftMaster
   end
 
   state do
-    # Keep track of the latest attempt to run each node
+    # Record the latest attempt to run each node
     table :node_status, [:node_id] => [:attempt_id]
 
     # The status of all attempts ever made
@@ -86,9 +79,11 @@ module AftMaster
 
     table :done_node_ready, [] => [:done]
 
-    # Buffer messages sent to currently-down nodes for eventual replay
+    # Buffer all messages, in case we later need to replay them
     table :msg_buf, [:msg_id, :recv_node, :send_node] => [:payload]
+    table :last_msg_id, [] => [:msg_id]
 
+    scratch :new_msg, msg_buf.schema
     scratch :new_ping, [:attempt_id, :tstamp]
     scratch :not_live, [:attempt_id]
     periodic :ft_clock, 2
@@ -96,6 +91,8 @@ module AftMaster
 
   bootstrap do
     return unless @options[:deploy]
+
+    last_msg_id << [0]
 
     Signal.trap("CHLD") do
       # We receive SIGCHLD when a child process changes state; unfortunately,
@@ -137,7 +134,7 @@ module AftMaster
     end
 
     # Create initial attempts for all of the configured nodes. During bootstrap,
-    # we just set their status to INIT; this is later replaced with FORK once we
+    # we set their status to INIT; this is later replaced with FORK once we
     # actually spawn the attempt processes.
     node_count[[]].num.times do |i|
       # Use the node ID as the initial attempt ID
@@ -187,7 +184,7 @@ module AftMaster
     node <+ (attempt_status * child_ack).pairs(:attempt_id => :attempt_id) do |as, ack|
       [as.node_id, ack.addr] if as.status == ATTEMPT_FORK
     end
-    # Replay and delete all the buffer messages for the newly-live node
+    # Replay all buffered messages for the new attempt for this node
     msg_recv <~ (attempt_status * child_ack * msg_buf).combos(attempt_status.attempt_id => child_ack.attempt_id, msg_buf.recv_node => attempt_status.node_id) do |as, ack, m|
       [ack.addr, m.msg_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_FORK
     end
@@ -215,12 +212,12 @@ module AftMaster
     end
     attempt_status <- (not_live * attempt_status).matches.rights
 
-    # Remove old attempt from "node"
+    # Remove old attempts from "node"
     node <- (node * not_live * attempt_status).combos(not_live.attempt_id => attempt_status.attempt_id, node.uid => attempt_status.node_id) do |n, nl, as|
       n
     end
 
-    # Create a new attempt for the failed nodes
+    # Create new attempts for the failed nodes
     # XXX: attempt_id assignment is a hack
     attempt_status <+ (not_live * attempt_status).matches.rights do |as|
       [as.attempt_id + 10, as.node_id, ATTEMPT_INIT, nil, bud_clock]
@@ -245,15 +242,20 @@ module AftMaster
     attempt_status <- (attempt_status * new_ping).matches.lefts
   end
 
-  bloom :message_redirect do
-    msg_recv <~ (msg_send * node_status * attempt_status).combos(msg_send.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
-      [as.addr, m.msg_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_LIVE
+  bloom :handle_messages do
+    # When we receive a message from a node, we assign a new ID. This ID fixes
+    # the position of the message in the delivery order for the message's
+    # recipient node.
+    # XXX: we assume that message batching does not occur
+    new_msg <= (msg_send * last_msg_id).pairs do |m, l|
+      [l.msg_id, m.recv_node, m.send_node. m.payload]
     end
+    last_msg_id <+ (msg_send * last_msg_id).rights {|l| [l.msg_id + 1]}
+    last_msg_id <- (msg_send * last_msg_id).rights
 
-    # If the current attempt for the recipient node is not live, buffer the
-    # message for eventual replay
-    msg_buf <= (msg_send * node_status * attempt_status).combos(msg_send.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
-      [m.msg_id, m.recv_node, m.send_node, m.payload] if as.status != ATTEMPT_LIVE
+    msg_buf <= new_msg
+    msg_recv <~ (new_msg * node_status * attempt_status).combos(msg_send.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
+      [as.addr, m.msg_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_LIVE
     end
   end
 end
