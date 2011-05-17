@@ -10,9 +10,11 @@ module AftProtocol
     # Successful child startup (child => master)
     channel :child_ack, [:@loc, :attempt_id] => [:addr]
 
-    # Messaging abstraction: child => master (send), master => child (recv)
-    channel :msg_send, [:@loc, :recv_node, :send_node] => [:payload]
-    channel :msg_recv, [:@loc, :msg_id, :recv_node, :send_node] => [:payload]
+    # Messaging abstraction: child => master (send), master => child (recv).
+    # "send_id" records the sequence of messages emitted by a given node;
+    # "recv_id" records the sequence of messages received by a given node.
+    channel :msg_send, [:@loc, :send_id, :recv_node, :send_node] => [:payload]
+    channel :msg_recv, [:@loc, :recv_id, :recv_node, :send_node] => [:payload]
   end
 end
 
@@ -21,27 +23,55 @@ module AftChild
 
   state do
     periodic :ping_clock, 3
+    table :next_send_id, [] => [:msg_id]
+    # All messages with IDs <= recv_done_max have been delivered to user code
+    # (emitted via aft_send).
+    table :recv_done_max, [] => [:msg_id]
+    table :recv_buf, msg_recv.schema
+    scratch :deliver_msg, recv_buf.schema
+    loopback :do_tick, [] => [:do_it]
+
     scratch :aft_send, [:recv_node] => [:payload]
     # Note that we provide ordered delivery: messages will be emitted via
-    # aft_recv in strictly-increasing msg_id order (no gaps). However, the
-    # msg_id sequence is assigned by the master node, so it may not match the
-    # order of outgoing message sends from the sending node.
+    # aft_recv in strictly-increasing msg_id order (no gaps).
     scratch :aft_recv, [:send_node, :msg_id] => [:payload]
   end
 
   bootstrap do
     child_ack <~ [[@deployer_addr, @attempt_id, ip_port]]
+    next_send_id <= [[0]]
+    recv_done_max <= [[-1]]
   end
 
   bloom :send_ping do
     ping_chan <~ ping_clock {|c| [@deployer_addr, @attempt_id]}
   end
 
-  bloom :messaging do
-    msg_send <~ aft_send {|m| [@deployer_addr, m.recv_node, @node_id, m.payload]}
+  bloom :send_msg do
+    # XXX: we assume no message batching
+    msg_send <~ (aft_send * next_send_id).pairs do |m, n|
+      [@deployer_addr, n.msg_id, m.recv_node, @node_id, m.payload]
+    end
 
-    aft_recv <= msg_recv do |m|
+    next_send_id <+ (aft_send * next_send_id).rights {|n| [n.msg_id + 1]}
+    next_send_id <- (aft_send * next_send_id).rights
+  end
+
+  bloom :recv_msg do
+    recv_buf <= msg_recv do |m|
       raise if m.recv_node != @node_id
+      m
+    end
+
+    deliver_msg <= (recv_buf * recv_done_max).pairs do |b, m|
+      b if b.recv_id == (m.msg_id + 1)
+    end
+    recv_done_max <+ (deliver_msg * recv_done_max).rights {|m| [m.msg_id + 1]}
+    recv_done_max <- (deliver_msg * recv_done_max).rights
+    recv_buf <- deliver_msg
+    do_tick <~ deliver_msg {|m| [true]}
+
+    aft_recv <= deliver_msg do |m|
       [m.send_node, m.msg_id, m.payload]
     end
   end
@@ -81,7 +111,7 @@ module AftMaster
 
     # Buffer all messages, in case we later need to replay them
     table :msg_buf, [:msg_id, :recv_node, :send_node] => [:payload]
-    table :last_msg_id, [] => [:msg_id]
+    table :next_msg_id, [] => [:msg_id]
 
     scratch :new_msg, msg_buf.schema
     scratch :new_ping, [:attempt_id, :tstamp]
@@ -92,7 +122,7 @@ module AftMaster
   bootstrap do
     return unless @options[:deploy]
 
-    last_msg_id << [0]
+    next_msg_id <= [[0]]
 
     Signal.trap("CHLD") do
       # We receive SIGCHLD when a child process changes state; unfortunately,
@@ -247,11 +277,11 @@ module AftMaster
     # the position of the message in the delivery order for the message's
     # recipient node.
     # XXX: we assume that message batching does not occur
-    new_msg <= (msg_send * last_msg_id).pairs do |m, l|
-      [l.msg_id, m.recv_node, m.send_node. m.payload]
+    new_msg <= (msg_send * next_msg_id).pairs do |m, n|
+      [n.msg_id, m.recv_node, m.send_node. m.payload]
     end
-    last_msg_id <+ (msg_send * last_msg_id).rights {|l| [l.msg_id + 1]}
-    last_msg_id <- (msg_send * last_msg_id).rights
+    next_msg_id <+ (msg_send * next_msg_id).rights {|n| [n.msg_id + 1]}
+    next_msg_id <- (msg_send * next_msg_id).rights
 
     msg_buf <= new_msg
     msg_recv <~ (new_msg * node_status * attempt_status).combos(msg_send.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
