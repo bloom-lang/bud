@@ -125,8 +125,6 @@ module AftMaster
   bootstrap do
     return unless @options[:deploy]
 
-    next_recv_id <= [[0]]
-
     Signal.trap("CHLD") do
       # We receive SIGCHLD when a child process changes state; unfortunately,
       # there's no easy way to tell whether the child process we're getting the
@@ -283,19 +281,16 @@ module AftMaster
     # XXX: we assume that message batching does not occur
     # XXX: don't generate new_msg if there's an existing send_id from the node
     new_msg <= (msg_send * next_recv_id).pairs(:recv_node => :node_id) do |m, n|
-      puts "new_msg gen: m = #{m.inspect}, n = #{n.inspect}"
       [n.recv_id, m.send_id, m.recv_node, m.send_node, m.payload]
     end
     # XXX: workaround for rights() bug (?)
-    next_recv_id <+ (msg_send * next_recv_id).pairs(:recv_node => :node_id) {|m, n|
-      puts "Updating next_recv_id: m = #{m.inspect}, n = #{n.inspect}"
+    next_recv_id <+ (msg_send * next_recv_id).rights(:recv_node => :node_id) {|n|
       [n.node_id, n.recv_id + 1]
     }
     next_recv_id <- (msg_send * next_recv_id).rights(:recv_node => :node_id)
 
-    msg_buf <= new_msg
+    msg_buf <= new_msg {|n| puts "Logged message: #{n.inspect}"; n}
     msg_recv <~ (new_msg * node_status * attempt_status).combos(new_msg.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
-      puts "msg_recv gen: m = #{m.inspect}"
       [as.addr, m.recv_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_LIVE
     end
   end
