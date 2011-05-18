@@ -68,7 +68,8 @@ module AftChild
     deliver_msg <= (recv_buf * recv_done_max).pairs do |b, m|
       b if b.recv_id == (m.recv_id + 1)
     end
-    recv_done_max <+ (deliver_msg * recv_done_max).rights {|m| [m.recv_id + 1]}
+    # XXX: workaround for bug #192
+    recv_done_max <+ (deliver_msg * recv_done_max).pairs {|d, k| [k.recv_id + 1]}
     recv_done_max <- (deliver_msg * recv_done_max).rights
     recv_buf <- deliver_msg
     do_tick <~ deliver_msg {|m| [true]}
@@ -287,7 +288,7 @@ module AftMaster
     next_recv_id <- (msg_send * next_recv_id).rights
 
     msg_buf <= new_msg
-    msg_recv <~ (new_msg * node_status * attempt_status).combos(msg_send.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
+    msg_recv <~ (new_msg * node_status * attempt_status).combos(new_msg.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
       [as.addr, m.recv_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_LIVE
     end
   end
