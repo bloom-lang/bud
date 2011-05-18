@@ -113,8 +113,8 @@ module AftMaster
     table :done_node_ready, [] => [:done]
 
     # Buffer all messages, in case we later need to replay them
-    table :msg_buf, [:send_id, :recv_id, :recv_node, :send_node] => [:payload]
-    table :next_recv_id, [] => [:recv_id]
+    table :msg_buf, [:recv_id, :send_id, :recv_node, :send_node] => [:payload]
+    table :next_recv_id, [:node_id] => [:recv_id]
 
     scratch :new_msg, msg_buf.schema
     scratch :new_ping, [:attempt_id, :tstamp]
@@ -173,6 +173,7 @@ module AftMaster
       # Use the node ID as the initial attempt ID
       node_status << [i, i]
       attempt_status << [i, i, ATTEMPT_INIT, nil, bud_clock]
+      next_recv_id << [i, 0]
     end
   end
 
@@ -280,15 +281,21 @@ module AftMaster
     # the position of the message in the delivery order for the message's
     # recipient node.
     # XXX: we assume that message batching does not occur
-    # XXX: assign per-recv IDs
-    new_msg <= (msg_send * next_recv_id).pairs do |m, n|
+    # XXX: don't generate new_msg if there's an existing send_id from the node
+    new_msg <= (msg_send * next_recv_id).pairs(:recv_node => :node_id) do |m, n|
+      puts "new_msg gen: m = #{m.inspect}, n = #{n.inspect}"
       [n.recv_id, m.send_id, m.recv_node, m.send_node, m.payload]
     end
-    next_recv_id <+ (msg_send * next_recv_id).rights {|n| [n.recv_id + 1]}
-    next_recv_id <- (msg_send * next_recv_id).rights
+    # XXX: workaround for rights() bug (?)
+    next_recv_id <+ (msg_send * next_recv_id).pairs(:recv_node => :node_id) {|m, n|
+      puts "Updating next_recv_id: m = #{m.inspect}, n = #{n.inspect}"
+      [n.node_id, n.recv_id + 1]
+    }
+    next_recv_id <- (msg_send * next_recv_id).rights(:recv_node => :node_id)
 
     msg_buf <= new_msg
     msg_recv <~ (new_msg * node_status * attempt_status).combos(new_msg.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
+      puts "msg_recv gen: m = #{m.inspect}"
       [as.addr, m.recv_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_LIVE
     end
   end
