@@ -47,7 +47,7 @@ module Deployer # :nodoc: all
   # need to globally synchronize to ensure that "timestamp 0" gets "fully
   # evaluated" before any messages can be sent.
   bloom :distribute_data do
-    atomic_data_in <= (node_ready * node * initial_data).pairs(node.uid => initial_data.uid) do |nr, n, i|
+    atomic_data_in <= (node_ready * node * initial_data).combos(node.uid => initial_data.uid) do |nr, n, i|
       [n.addr, [i.pred, i.data]]
     end
 
