@@ -68,8 +68,7 @@ module AftChild
     deliver_msg <= (recv_buf * recv_done_max).pairs do |b, m|
       b if b.recv_id == (m.recv_id + 1)
     end
-    # XXX: workaround for bug #192
-    recv_done_max <+ (deliver_msg * recv_done_max).pairs {|d, k| [k.recv_id + 1]}
+    recv_done_max <+ (deliver_msg * recv_done_max).rights {|m| [m.recv_id + 1]}
     recv_done_max <- (deliver_msg * recv_done_max).rights
     recv_buf <- deliver_msg
     do_tick <~ deliver_msg {|m| [true]}
