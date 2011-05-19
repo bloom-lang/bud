@@ -202,6 +202,15 @@ module Bud
     def setup_preds(preds) # :nodoc: all
       allpreds = disambiguate_preds(preds)
       allpreds = canonicalize_localpreds(@rels, allpreds)
+      # check for refs to collections that aren't being joined, Issue 191
+      unless @rels[1].class <= Bud::BudJoin
+        tabnames = @rels.map{ |r| r.tabname }
+        allpreds.each do |p|
+          unless tabnames.include? p[0][0] and tabnames.include? p[1][0]
+            raise Bud::CompileError, "illegal predicate: collection #{} is not being joined"
+          end
+        end
+      end
       @hashpreds = allpreds.reject { |p| p[0][0] != @rels[0].tabname or p[1][0] == @rels[0].tabname }
       @localpreds = @hashpreds
       @localpreds += allpreds.map do |p|
@@ -210,7 +219,7 @@ module Bud
       otherpreds = allpreds - @localpreds
       unless otherpreds.empty?
         unless @rels[1].class <= Bud::BudJoin
-          raise BudError, "join predicates don't match tables being joined: #{otherpreds.inspect}"
+          raise Bud::CompileError, "join predicates don't match tables being joined: #{otherpreds.inspect}"
         end
         @rels[1].setup_preds(otherpreds)
       end

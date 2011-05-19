@@ -254,9 +254,9 @@ module Bud
     end
 
     private
-    def raise_pk_error(new, old)
+    def raise_pk_error(new_guy, old)
       keycols = key_cols.map{|k| old[schema.index(k)]}
-      raise KeyConstraintError, "Key conflict inserting #{old.inspect} into \"#{tabname}\": existing tuple #{new.inspect}, key_cols = #{keycols.inspect}"
+      raise KeyConstraintError, "Key conflict inserting #{new_guy.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key_cols = #{keycols.inspect}"
     end
 
     private

@@ -119,6 +119,25 @@ class AmbiguousAttrRefs
   end
 end
 
+class UnJoinedTableRef
+  include Bud
+  state do
+    table :joined1
+    table :joined2
+    table :joined3
+    table :unjoined
+  end
+  bootstrap do
+    joined1 << [1,1]
+    joined2 << [2,2]
+    joined3 << [3,3]
+    unjoined << [4,4]
+  end
+  bloom do
+    temp :r4 <= (joined1*joined2*joined3).pairs(unjoined.key=>joined2.val)
+  end
+end
+
 
 class CombosBud
   include Bud
@@ -324,10 +343,12 @@ class TestJoins < Test::Unit::TestCase
     p2 = MissingAttrRefs.new
     p3 = IllegalAttrRefs.new
     p4 = AmbiguousAttrRefs.new
+    p5 = UnJoinedTableRef.new    # Issue 191
     assert_raise(Bud::CompileError) {p1.tick}
     assert_raise(Bud::CompileError) {p2.tick}
     assert_raise(Bud::CompileError) {p3.tick}
     assert_raise(Bud::CompileError) {p4.tick}
+    assert_raise(Bud::CompileError) {p5.tick}
   end
   
   def test_rename_join
@@ -531,5 +552,35 @@ class TestLocalPredJoins < Test::Unit::TestCase
     p.tick
     assert_equal([ [[1,1], [3,3]], [[2,3], [3,3]] ], p.t3.to_a.sort)
     assert_equal([ [[1,1], [3,3]], [[1,1], [4,5]] ], p.t4.to_a.sort)
+  end
+end
+
+require "rubygems"
+require "bud"
+
+class Issue192
+ include Bud
+
+ state do
+   table :intab1, [:ycol, :x]
+   table :intab2, [:x]
+   table :outtab1, [] => [:x]
+   table :outtab2, [] => [:x]
+ end
+
+ bloom do
+   outtab1 <= (intab1 * intab2).rights {|k| [k.x + 1]}
+   outtab2 <= (intab1 * intab2).pairs {|j, k| [k.x + 1]}                           
+ end
+end
+
+class TestIssue192 < Test::Unit::TestCase
+  def test_192
+    p = Issue192.new
+    p.intab1 << [-1]
+    p.intab2 << [-1]
+    p.tick;
+    assert_equal([[0]], p.outtab1.to_a)
+    assert_equal([[0]], p.outtab2.to_a)    
   end
 end
