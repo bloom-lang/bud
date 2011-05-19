@@ -119,6 +119,25 @@ class AmbiguousAttrRefs
   end
 end
 
+class UnJoinedTableRef
+  include Bud
+  state do
+    table :joined1
+    table :joined2
+    table :joined3
+    table :unjoined
+  end
+  bootstrap do
+    joined1 << [1,1]
+    joined2 << [2,2]
+    joined3 << [3,3]
+    unjoined << [4,4]
+  end
+  bloom do
+    temp :r4 <= (joined1*joined2*joined3).pairs(unjoined.key=>joined2.val)
+  end
+end
+
 
 class CombosBud
   include Bud
@@ -324,10 +343,12 @@ class TestJoins < Test::Unit::TestCase
     p2 = MissingAttrRefs.new
     p3 = IllegalAttrRefs.new
     p4 = AmbiguousAttrRefs.new
+    p5 = UnJoinedTableRef.new    # Issue 191
     assert_raise(Bud::CompileError) {p1.tick}
     assert_raise(Bud::CompileError) {p2.tick}
     assert_raise(Bud::CompileError) {p3.tick}
     assert_raise(Bud::CompileError) {p4.tick}
+    assert_raise(Bud::CompileError) {p5.tick}
   end
   
   def test_rename_join
