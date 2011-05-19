@@ -25,7 +25,7 @@ module AftChild
     periodic :ping_clock, 3
     table :next_send_id, [] => [:send_id]
     # All messages with IDs <= recv_done_max have been delivered to user code
-    # (emitted via aft_send).
+    # (emitted via aft_recv).
     table :recv_done_max, [] => [:recv_id]
     table :recv_buf, msg_recv.schema
     scratch :deliver_msg, recv_buf.schema
@@ -113,9 +113,10 @@ module AftMaster
     table :done_node_ready, [] => [:done]
 
     # Buffer all messages, in case we later need to replay them
-    table :msg_buf, [:recv_id, :send_id, :recv_node, :send_node] => [:payload]
+    table :msg_buf, [:send_node, :send_id] => [:recv_node, :recv_id, :payload]
     table :next_recv_id, [:node_id] => [:recv_id]
 
+    scratch :do_msg, msg_send.schema
     scratch :new_msg, msg_buf.schema
     scratch :new_ping, [:attempt_id, :tstamp]
     scratch :not_live, [:attempt_id]
@@ -275,21 +276,23 @@ module AftMaster
   end
 
   bloom :handle_messages do
-    # When we receive a message from a node, we assign a new ID. This ID fixes
-    # the position of the message in the delivery order for the message's
-    # recipient node.
+    # When we receive a message from a node, first check if we've already seen a
+    # previous message with the same (send_node, send_id). If not, assign the
+    # message a new recv_id. This ID fixes the position of the message in the
+    # delivery order for the message's recipient node.
     # XXX: we assume that message batching does not occur
-    # XXX: don't generate new_msg if there's an existing send_id from the node
-    new_msg <= (msg_send * next_recv_id).pairs(:recv_node => :node_id) do |m, n|
-      [n.recv_id, m.send_id, m.recv_node, m.send_node, m.payload]
+    do_msg <= msg_send do |m|
+      m unless msg_buf.has_key? [m.send_node, m.send_id]
     end
-    # XXX: workaround for rights() bug (?)
-    next_recv_id <+ (msg_send * next_recv_id).rights(:recv_node => :node_id) {|n|
+    new_msg <= (do_msg * next_recv_id).pairs(:recv_node => :node_id) do |m, n|
+      [m.send_node, m.send_id, m.recv_node, n.recv_id, m.payload]
+    end
+    next_recv_id <+ (do_msg * next_recv_id).rights(:recv_node => :node_id) {|n|
       [n.node_id, n.recv_id + 1]
     }
-    next_recv_id <- (msg_send * next_recv_id).rights(:recv_node => :node_id)
+    next_recv_id <- (do_msg * next_recv_id).rights(:recv_node => :node_id)
 
-    msg_buf <= new_msg {|n| puts "Logged message: #{n.inspect}"; n}
+    msg_buf <+ new_msg { |n| puts "Logged message: #{n.inspect}"; n }
     msg_recv <~ (new_msg * node_status * attempt_status).combos(new_msg.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
       [as.addr, m.recv_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_LIVE
     end
