@@ -149,9 +149,12 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
       gather_collection_names(exp[1])
 
       # now find iter vars and match up
-      if exp[2] and exp[2][0] == :lasgn and not @collnames.empty? #single-table iter
+      if exp[2] and exp[2][0] == :lasgn and @collnames.size == 1 #single-table iter
         raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
         @iterhash[exp[2][1]] = @collnames[0]
+      elsif exp[2] and exp[2][0] == :lasgn and @collnames.size > 1 # join iter with lefts/rights
+        @iterhash[exp[2][1]] = @collnames[0] if exp[1] and exp[1][2] == :lefts
+        @iterhash[exp[2][1]] = @collnames[1] if exp[1] and exp[1][2] == :rights
       elsif exp[2] and exp[2][0] == :masgn and not @collnames.empty? # join iter
         next unless exp[2][1] and exp[2][1][0] == :array
         @collnames.each_with_index do |c, i|

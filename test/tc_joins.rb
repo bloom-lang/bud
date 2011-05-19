@@ -554,3 +554,33 @@ class TestLocalPredJoins < Test::Unit::TestCase
     assert_equal([ [[1,1], [3,3]], [[1,1], [4,5]] ], p.t4.to_a.sort)
   end
 end
+
+require "rubygems"
+require "bud"
+
+class Issue192
+ include Bud
+
+ state do
+   table :intab1, [:y, :x]
+   table :intab2, [:x]
+   table :outtab1, [] => [:x]
+   table :outtab2, [] => [:x]
+ end
+
+ bloom do
+   outtab1 <= (intab1 * intab2).rights {|k| [k.x + 1]}
+   outtab2 <= (intab1 * intab2).pairs {|j, k| [k.x + 1]}                           
+ end
+end
+
+class TestIssue192 < Test::Unit::TestCase
+  def test_192
+    p = Issue192.new(:dump_rewrite => true)
+    p.intab1 << [-1]
+    p.intab2 << [-1]
+    p.tick;
+    assert_equal([[0]], p.outtab1.to_a)
+    assert_equal([[0]], p.outtab2.to_a)    
+  end
+end
