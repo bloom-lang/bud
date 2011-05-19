@@ -282,7 +282,14 @@ module AftMaster
     # delivery order for the message's recipient node.
     # XXX: we assume that message batching does not occur
     do_msg <= msg_send do |m|
-      m unless msg_buf.has_key? [m.send_node, m.send_id]
+      b = msg_buf[[m.send_node, m.send_id]]
+      unless b.nil?
+        # Sanity check
+        if b.recv_node != m.recv_node or b.payload != m.payload
+          raise "Replay error: previous msg #{b.inspect}, new msg = #{m.inspect}"
+        end
+      end
+      m if b.nil?
     end
     new_msg <= (do_msg * next_recv_id).pairs(:recv_node => :node_id) do |m, n|
       [m.send_node, m.send_id, m.recv_node, n.recv_id, m.payload]
