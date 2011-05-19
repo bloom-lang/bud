@@ -58,10 +58,19 @@ module Bud
   end
 
   # declare a transient network collection.  default schema <tt>[:address, :val] => []</tt>
-  def channel(name, schema=nil)
+  def channel(name, schema=nil, loopback=false)
     define_collection(name)
-    @tables[name] = Bud::BudChannel.new(name, self, schema)
+    @tables[name] = Bud::BudChannel.new(name, self, schema, loopback)
     @channels[name] = @tables[name]
+  end
+
+  # declare a transient network collection that delivers facts back to the
+  # current Bud instance. This is syntax sugar for a channel that always
+  # delivers to the IP/port of the current Bud instance. Default schema
+  # <tt>[:key] => [:val]</tt>
+  def loopback(name, schema=nil)
+    schema ||= {[:key] => [:val]}
+    channel(name, schema, true)
   end
 
   # declare a collection to be read from +filename+.  rhs of statements only

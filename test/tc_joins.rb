@@ -413,7 +413,7 @@ class TestJoins < Test::Unit::TestCase
   class LeftJoinChannel
     include Bud
     state do 
-      channel :c
+      loopback :c
       table :t
     end
     bootstrap do

@@ -58,7 +58,7 @@ module Bud
       value = self[key]
       return (value == tuple)
     end
-    
+
     def make_tuple(k_ary, v_ary)
       t = Array.new(k_ary.length + v_ary.length)
       @key_colnums.each_with_index do |k,i|

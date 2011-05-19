@@ -340,7 +340,7 @@ module Bud
       name, offset = entry[0], entry[1]
 
       # determine which subtuple of the collection contains the table
-      # referenced in entry.  note that origrels[0] is a base table 
+      # referenced in entry.  note that origrels[0] is a base table
       # on the left of the join, hence we shouldn't be calling join_offset on it
       subtuple = 0
       if origrels[0].tabname == entry[0]
