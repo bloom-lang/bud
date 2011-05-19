@@ -51,7 +51,7 @@ class TestCols < Test::Unit::TestCase
     state do
       table :t1
       table :t2
-      table :t3
+      table :t3, [:val, :key]
     end
     bootstrap do
       t1 << [1,2]
@@ -59,11 +59,11 @@ class TestCols < Test::Unit::TestCase
     end
 
     bloom do
-      t2 <= t1 {|t| [t.key, t.val] if t3.each{|t| t.key == x.key}}
+      t2 <= t1 {|t| [t.key, t.val] if t3.each{|t| t.key == t.val}}
     end
   end  
   
   def test_bad_nested_cols
-    assert_raise(Bud::CompileError) {BadNestedCols.new(:dump_rewrite => true)}
+    assert_raise(Bud::CompileError) {BadNestedCols.new}
   end
 end

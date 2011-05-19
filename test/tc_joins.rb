@@ -562,7 +562,7 @@ class Issue192
  include Bud
 
  state do
-   table :intab1, [:y, :x]
+   table :intab1, [:ycol, :x]
    table :intab2, [:x]
    table :outtab1, [] => [:x]
    table :outtab2, [] => [:x]
@@ -576,7 +576,7 @@ end
 
 class TestIssue192 < Test::Unit::TestCase
   def test_192
-    p = Issue192.new(:dump_rewrite => true)
+    p = Issue192.new
     p.intab1 << [-1]
     p.intab2 << [-1]
     p.tick;

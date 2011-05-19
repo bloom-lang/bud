@@ -153,8 +153,13 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
         raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
         @iterhash[exp[2][1]] = @collnames[0]
       elsif exp[2] and exp[2][0] == :lasgn and @collnames.size > 1 # join iter with lefts/rights
-        @iterhash[exp[2][1]] = @collnames[0] if exp[1] and exp[1][2] == :lefts
-        @iterhash[exp[2][1]] = @collnames[1] if exp[1] and exp[1][2] == :rights
+        if exp[1] and exp[1][2] == :lefts
+          @iterhash[exp[2][1]] = @collnames[0] 
+        elsif exp[1] and exp[1][2] == :rights
+          @iterhash[exp[2][1]] = @collnames[1]
+        else
+          raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
+        end
       elsif exp[2] and exp[2][0] == :masgn and not @collnames.empty? # join iter
         next unless exp[2][1] and exp[2][1][0] == :array
         @collnames.each_with_index do |c, i|
