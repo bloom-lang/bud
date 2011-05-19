@@ -224,7 +224,7 @@ class TestErrorHandling < Test::Unit::TestCase
 
   def test_bad_join_tabs
     p = BadJoinTabs.new
-    assert_raise(Bud::BudError) {p.tick}
+    assert_raise(Bud::CompileError) {p.tick}
   end
 
   class BadNextChannel
