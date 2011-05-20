@@ -10,7 +10,7 @@ require 'bud/deploy/deployer'
 # TODO:
 #  * add support for deploy_child_opts
 #  * avoid blocking I/O calls
-#  * emit "node_ready" event when "node" is computed
+#  * emit "node_ready" event when each node is ready
 module EC2Deploy
   include Deployer
 

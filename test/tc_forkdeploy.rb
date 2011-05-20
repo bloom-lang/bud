@@ -39,7 +39,7 @@ class TestForkDeploy < Test::Unit::TestCase
 
     lines = []
     Timeout::timeout(45) do
-      (NUM_DEPLOY_FORKS + 2).times do
+      ((NUM_DEPLOY_FORKS * 2) + 1).times do
         lines << read.readline
       end
     end
@@ -52,15 +52,21 @@ class TestForkDeploy < Test::Unit::TestCase
     # Assert there are no child processes left; we've closed them all
     assert_equal(Process.waitall, [])
 
-    # First line is deploy status
-    status_str = lines.shift
-    assert_equal("Child nodes ready (count = #{NUM_DEPLOY_FORKS})\n", status_str)
-
     # Console output from different nodes might be intermixed in output pipe
     # (i.e., "lines" might not respect token delivery order). We just check that
-    # each node got the token the same number of times.
+    # each node got the token the same number of times. We also check for and
+    # skip "child node ready" status indicators.
     node_output = []
+    node_ready = {}
     lines.each do |l|
+      m = l.match "Child node ready: (\\d+)"
+      if m
+        node_id = m[1].to_i
+        assert_equal(false, node_ready.has_key?(node_id))
+        node_ready[node_id] = true
+        next
+      end
+
       m = l.match "^(\\d+): Got token!"
       assert(m)
       node_id = m[1].to_i
@@ -68,7 +74,8 @@ class TestForkDeploy < Test::Unit::TestCase
       node_output[node_id] += 1
     end
 
-    assert_equal(NUM_DEPLOY_FORKS, node_output.length)
+    assert_equal(NUM_DEPLOY_FORKS, node_ready.size)
+    assert_equal(NUM_DEPLOY_FORKS, node_output.size)
     node_output.each_with_index do |n,i|
       if i == 0
         assert_equal(2, n)

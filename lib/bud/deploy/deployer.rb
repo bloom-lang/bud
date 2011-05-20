@@ -15,8 +15,9 @@ module Deployer # :nodoc: all
   state do
     table :node, [:uid] => [:addr]
     table :node_count, [] => [:num]
-    # True for the first tick in which "node" is computed
-    scratch :node_ready, [] => [:ready]
+    # At the deployer node, this collection will contain a fact for the first
+    # tick in which the given node is ready
+    scratch :node_ready, [:uid]
 
     table :initial_data, [:uid, :pred, :data]
     channel :dont_care, [:@loc]
@@ -47,7 +48,7 @@ module Deployer # :nodoc: all
   # need to globally synchronize to ensure that "timestamp 0" gets "fully
   # evaluated" before any messages can be sent.
   bloom :distribute_data do
-    atomic_data_in <= (node_ready * node * initial_data).combos(node.uid => initial_data.uid) do |nr, n, i|
+    atomic_data_in <= (node_ready * node * initial_data).combos(node_ready.uid => node.uid, node.uid => initial_data.uid) do |nr, n, i|
       [n.addr, [i.pred, i.data]]
     end
 
@@ -61,6 +62,6 @@ module Deployer # :nodoc: all
   end
 
   bloom :print_ready do
-    stdio <~ node_ready {|nr| ["Child nodes ready (count = #{node_count[[]].num})"]}
+    stdio <~ node_ready {|nr| ["Child node ready: #{nr.uid}"]}
   end
 end

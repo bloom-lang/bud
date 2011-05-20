@@ -30,9 +30,9 @@ module ThreadDeploy
       b.run_bg
       @instances << b
       node << [i, b.ip_port]
+      node_ready << [i]
       print "."
     end
     puts "done"
-    node_ready << [true]
   end
 end
