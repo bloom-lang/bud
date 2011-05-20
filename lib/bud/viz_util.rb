@@ -165,43 +165,27 @@ function gup(name) {
 END_JS
   end
 
-  def deserialize_table(tab, strict)
-    # oy.  meta only
-    ret = []
-    tab.each_pair do |k, v|
-      key = MessagePack.unpack(k)
-      time = key.shift
-      raise "non-zero budtime.  sure this is metadata?" if time != 0 and strict
-      tup = key
-      MessagePack.unpack(v).each {|val| tup << val}
-      ret << tup
-    end
-    return ret
-  end
-
-  def slurp_tables(dir)
-    tables = {}
-
-    Dir.new(dir).entries.each do |file|
-      next if file =~ /^\./
-      fn = "#{dir}/#{file}"
-      trnc = fn.gsub(/\.db\z/, "")
-      ret = DBM.open(trnc)
-      raise "db not found" unless ret
-      tables[file] = ret
-    end
-    return tables
-  end
-
-
-  def get_meta(tables)
+  def get_meta2(dir)
+    meta_tabs = {"t_table_info" => :tabinf, "t_table_schema" => :tabscm, "t_cycle" => :cycle, "t_depends" => :depends, "t_rules" => :rules}
     meta = {}
-    meta[:tabinf] = deserialize_table(tables['t_table_info_vizlog.dbm.db'], true)
-    meta[:tabscm] = deserialize_table(tables['t_table_schema_vizlog.dbm.db'], true)
-    meta[:cycle] = deserialize_table(tables['t_cycle_vizlog.dbm.db'], true)
-    meta[:depends] = deserialize_table(tables['t_depends_vizlog.dbm.db'], true)
-    meta[:rules] = deserialize_table(tables['t_rules_vizlog.dbm.db'], true)
-
+    data = []
+    ret = DBM.open("#{dir}/the_big_log.dbm")
+    ret.each_pair do |k, v|
+      key = MessagePack.unpack(k)
+      tab = key.shift
+      time = key.shift
+      # paa
+      tup = key[0]
+      MessagePack.unpack(v).each {|val| tup << val}
+      if meta_tabs[tab]
+        raise "non-zero budtime.  sure this is metadata?" if time != 0 and strict
+        meta[meta_tabs[tab]] ||= []
+        meta[meta_tabs[tab]] << tup
+        #ret << tup
+      else
+        data << [time, tab, tup]
+      end
+    end
 
     meta[:schminf] = {}
     meta[:tabscm].each do |ts|
@@ -211,26 +195,6 @@ END_JS
       end
       meta[:schminf][tab][ts[2]] = ts[1]
     end
-    return meta
-  end
-
-
-
-  def dump_tbl_data(tables)
-    tbl_data = []
-    tables.each_pair do |name, contents|
-      name = name.gsub("_vizlog.dbm.db", "")
-      contents.each_pair do |k, v|
-        key = MessagePack.unpack(k)
-        time = key[0]
-        row = key
-        MessagePack.unpack(v).each {|val| row << val}
-        unless name == "t_table_info.dbm.db" or name == "t_table_schema.dbm.db"
-          tbl_data << [time, name, row]
-        end
-      end
-      contents.close
-    end
-    return tbl_data
+    return meta, data
   end
 end

@@ -210,6 +210,34 @@ class NonTupleDelete
   end
 end
 
+class StringMerge
+  include Bud
+
+  state do
+    table :t1
+  end
+
+  bloom do
+    t1 <= ["hello", "world"]
+  end
+end
+
+class StringAsyncMerge
+  include Bud
+
+  state do
+    table :t1
+  end
+
+  bootstrap do
+    t1 <= [[5, 10]]
+  end
+
+  bloom do
+    stdio <~ t1 { "hello, world" }
+  end
+end
+
 class DupTableDef
   include Bud
 
@@ -371,6 +399,10 @@ class TestCollections < Test::Unit::TestCase
     assert_raise(Bud::BudTypeError) { p3.tick }
     p4 = NonTupleDelete.new
     assert_raise(Bud::BudTypeError) { p4.tick }
+    p5 = StringMerge.new
+    assert_raise(Bud::BudTypeError) { p5.tick }
+    p6 = StringAsyncMerge.new
+    assert_raise(Bud::BudTypeError) { p6.tick }
   end
 
   def test_types_delete
