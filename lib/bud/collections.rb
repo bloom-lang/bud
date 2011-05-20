@@ -262,7 +262,10 @@ module Bud
     private
     def prep_tuple(o)
       unless o.respond_to?(:length) and o.respond_to?(:[])
-        raise BudTypeError, "non-indexable type inserted into BudCollection #{self.tabname}: #{o.inspect}"
+        raise BudTypeError, "non-indexable type inserted into \"#{tabname}\": #{o.inspect}"
+      end
+      if o.class <= String
+        raise BudTypeError, "String value used as a fact inserted into \"#{tabname}\": #{o.inspect}"
       end
 
       if o.length < schema.length then
