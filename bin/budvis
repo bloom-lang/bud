@@ -93,10 +93,7 @@ end
 usage unless ARGV[0]
 usage if ARGV[0] == '--help'
 
-
-tables = slurp_tables(BUD_DBM_DIR)
-meta = get_meta(tables)
-data = dump_tbl_data(tables)
+meta, data = get_meta2(BUD_DBM_DIR)
 vh = VizHelper.new(meta[:tabinf], meta[:cycle], meta[:depends], meta[:rules], ARGV[0])
 data.each do |d|
   vh.full_info << d

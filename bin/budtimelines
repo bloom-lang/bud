@@ -33,34 +33,35 @@ class GlobalDepAnalyzer
   end
 end
 
-class TraceProcessor
-  include Bud
-  include TraceCardinality
-  include Depends
+module TPSchema
   state do
     table :deltas, [:bud_time, :tab, :nm]
     table :zerod_cards, [:bud_time, :table, :cnt]
     table :nm_tab, [:table]
     table :collapsible_base, [:start, :fin]
     table :collapsible, [:start, :fin]
+    scratch :collapsible_tmp, [:start, :fin]
+    scratch :lcl_best_interval, [:start, :fin]
     table :best_interval, [:start, :fin]
   end
+end
 
+module DeltaLogic
+  include TPSchema
   bloom do
     zerod_cards <= cardinalities
     zerod_cards <= (times * depends).pairs do |t, d|
-      unless cardinalities{|c| c[1]}.include? d[1]
+      unless cardinalities{|c| c[1] if c[0] == t.bud_time}.include? d[1]
         [t.bud_time, d[1], 0]
       end
     end
+
 
     nm_tab <= depends do |d|
       [d[1]] if d[4]
     end
 
-    #stdio <~ nm_tab {|t| ["NMMMMMMM #{t.inspect}"]}
-
-    deltas <= (zerod_cards * zerod_cards).pairs do |c1, c2|
+    deltas <= (zerod_cards * zerod_cards).pairs(:table => :table) do |c1, c2|
       if c1.bud_time == c2.bud_time - 1 and c1.table == c2.table and c1.cnt != c2.cnt
         if nm_tab.include? [c1.table]
           [c2.bud_time, c1.table, true]
@@ -69,35 +70,43 @@ class TraceProcessor
         end
       end
     end
+  end
+end
 
+module VanillaTraceProcessing
+  include TPSchema
+  include DeltaLogic
+
+  bloom do
     collapsible_base <= times do |t|
       unless deltas{|d| d.bud_time if d.nm}.include? t.bud_time
         [t.bud_time-1, t.bud_time]
       end
     end
-  
+
     collapsible <= collapsible_base
-    #collapsible <= (collapsible_base * collapsible).pairs(collapsible_base.fin => collapsible.start) do |b, c|
-    #  [b.start, c.fin]
-    #end
-    # note to self: create issue about NM of fin, start above
-    collapsible <= (collapsible_base * collapsible).pairs do |b, c|
-      if b.fin == c.start
-        [b.start, c.fin]
-      end
+
+    collapsible <= (collapsible_base * collapsible).pairs(:fin => :start) do |b, c|
+      puts "another collapsible row; now #{b.inspect} - #{c.inspect}"
+      [b.start, c.fin]
     end
-    
+
     best_interval <= collapsible do |c|
       unless collapsible{|c1| c1.start == c.start and c1.fin > c.fin}.any? \
        or collapsible{|c2| c2.fin == c.fin and c2.start < c.start}.any?
-        c 
+        c
       end
     end
   end
 end
 
-
-
+class SimpleTraceProcessor
+  include Bud
+  include TraceCardinality
+  include Depends
+  include VanillaTraceProcessing
+    
+end
 
 def collapse(intervals, host, time)
   return time unless @opts["C"]
@@ -130,22 +139,19 @@ da = GlobalDepAnalyzer.new
 
 ARGV.each do |arg_raw|
   elems = arg_raw.split("_")
-  arg = "#{elems[2]}#{elems[3]}"
+  arg = elems[1..3].join("_")
   clean_arg << arg
   snd_info[arg] = []
   rcv_info[arg] = []
 
-  tables = slurp_tables("#{arg_raw}/bud_")
-  meta = get_meta(tables)
-  tp = TraceProcessor.new
+  meta, data = get_meta2("#{arg_raw}/bud_")
+  tp = SimpleTraceProcessor.new
 
   meta[:depends].each do |m|
     tp.depends << m  
     da.depends << m
   end
 
-
-  data = dump_tbl_data(tables)
   data.each do |d|
     tp.full_info << d
     if meta[:tabinf].map{|m| m[0] if m[1] == "Bud::BudChannel"}.include? d[1]
@@ -159,9 +165,15 @@ ARGV.each do |arg_raw|
   end
 
   tp.tick
-  tp.tick
+
+
+  puts "entries in collapsible: #{tp.collapsible.length}"
+  puts "entries in base: #{tp.collapsible_base.length}"
+  puts "entries in deltas: #{tp.deltas.length}"
+
   intervals[arg] = []
   tp.best_interval.each do |n| 
+    puts "BEST INTERVAL[#{arg}]: #{n.inspect}"
     intervals[arg] << n
   end
 end
@@ -218,7 +230,6 @@ rpd = plot_data.map do |p|
   [p[0], p[1], p[2], collapse(intervals, p[1], p[3]), collapse(intervals, p[2], p[4]), p[5]]
 end
 
-st = SpaceTime.new(rpd)
+st = SpaceTime.new(rpd, @opts["L"])
 st.process
 st.finish("spacetime_trace_#{clean_arg.join('-')}", @opts["o"])
-

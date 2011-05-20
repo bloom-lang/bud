@@ -12,10 +12,10 @@ class VizOnline #:nodoc: all
     @bud_instance.options[:dbm_dir] = "DBM_#{@bud_instance.class}_#{bud_instance.options[:tag]}_#{bud_instance.object_id}_#{bud_instance.port}"
     @table_info = bud_instance.tables[:t_table_info]
     @table_schema = bud_instance.tables[:t_table_schema]
-    @logtab = {}
+    @logtab = new_tab("the_big_log", [:table, :time, :contents], bud_instance)
     tmp_set = []
     @bud_instance.tables.each do |name, tbl|
-      next if name.to_s =~ /_vizlog\z/
+      next if name == "the_big_log"
       # Temp collections don't have a schema until a fact has been inserted into
       # them; for now, we just include an empty schema for them in the viz
       if tbl.schema.nil?
@@ -38,10 +38,8 @@ class VizOnline #:nodoc: all
         end
       end
       lt = "#{t[0]}_vizlog".to_sym
-      @logtab[t[0]] = new_tab(lt, news, @bud_instance)
       if t[2] == "Bud::BudChannel"
         lts = "#{snd_alias}_vizlog".to_sym
-        @logtab[snd_alias] = new_tab(lts, news, @bud_instance)
         @table_info << [snd_alias, t[2]] 
       end
       @table_info << [t[0], t[2]]
@@ -59,9 +57,9 @@ class VizOnline #:nodoc: all
       if collection.class == Hash
         row = row[1]
       end
-      newrow = [@bud_instance.budtime]
-      row.each{ |r| newrow << r }
-      @logtab[tab] << newrow
+      newrow = [tab, @bud_instance.budtime, row]
+      @logtab << newrow
+
     end
   end
 
@@ -69,14 +67,13 @@ class VizOnline #:nodoc: all
     return if @bud_instance.class == Stratification or @bud_instance.class == DepAnalysis
     @bud_instance.tables.each do |t|
       tab = t[0]
-      next if tab.to_s =~ /_vizlog\z/
+      next if tab == "the_big_log"
       next if @meta_tables[tab.to_s] and @bud_instance.budtime > 0
-      next unless @logtab[tab]
-      add_rows(t[1], tab)
+      add_rows(t[1], tab) unless t[1].class == Bud::BudPeriodic
       if t[1].class == Bud::BudChannel
         add_rows(t[1].pending, "#{tab}_snd")
       end
-      @logtab[tab].tick
+      @logtab.tick
     end
   end
 end

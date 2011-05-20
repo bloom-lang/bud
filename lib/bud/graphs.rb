@@ -219,8 +219,9 @@ class GraphGen #:nodoc: all
 end
 
 class SpaceTime    
-  def initialize(input)
+  def initialize(input, links = false)
     @input = input 
+    @links = links
     processes = input.map {|i| i[1]}
     input.map{|i| processes << i[2]}
     processes.uniq!
@@ -270,7 +271,12 @@ class SpaceTime
     squeues.each do |k, v|
       v.each_with_index do |item, i|
         label = "#{k}-#{item}"
-        snd = @subs[k].add_node(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :pos => [1, i], :group => k})  
+        if @links
+          url = "DBM_#{k}_/tm_#{item}.svg"
+          #puts "URL is #{url}"
+        end
+        snd = @subs[k].add_node(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :pos => [1, i], :group => k, :URL => url})  
+
         unless @head[k].id == snd.id
           @subs[k].add_edge(@head[k], snd, :weight => 2)
           @head[k] = snd
