@@ -11,7 +11,6 @@ end
 
 module TokenRingAftChild
   state do
-    table :token_persist, [] => [:x]
     scratch :do_init, [] => [:x]
     table :done_init, [] => [:x]
   end
@@ -28,17 +27,14 @@ module TokenRingAftChild
   end
 
   bloom :pass_token do
-    # Persist the token for as long as necessary
-    token_persist <= aft_recv { [true] }
-    token_persist <- (token_persist * node_count).lefts
     # Pass on the token
-    aft_send <= (token_persist * node_count).pairs do |tp, nc|
+    aft_send <= (aft_recv * node_count).rights do |nc|
       [(@node_id + 1) % nc.num, 0]
     end
   end
 
   bloom :print_token do
-#    stdio <~ (token_persist * node_count).pairs {["#{ip_port}: Got token!"]}
+    stdio <~ aft_recv {["#{@node_id}: Got token! (@ #{ip_port})"]}
   end
 end
 
