@@ -109,8 +109,6 @@ module AftMaster
     scratch :fork_req, [:attempt_id] => [:node_id]
     scratch :fork_done, [:attempt_id]
 
-    table :done_node_ready, [] => [:done]
-
     # Buffer all messages, in case we later need to replay them
     table :msg_buf, [:send_node, :send_id] => [:recv_node, :recv_id, :payload]
     table :next_recv_id, [:node_id] => [:recv_id]
@@ -192,7 +190,7 @@ module AftMaster
     end
   end
 
-  bloom :spawn_children do
+  bloom :do_fork do
     fork_req <= attempt_status do |s|
       [s.attempt_id, s.node_id] if s.status == ATTEMPT_INIT
     end
@@ -202,9 +200,9 @@ module AftMaster
     attempt_status <- attempt_status do |s|
       s if s.status == ATTEMPT_INIT
     end
+  end
 
-    stdio <~ child_ack {|a| ["Got child ack: #{a.inspect}"]}
-
+  bloom :move_to_live do
     # Update attempt status to LIVE and add child to "node" when child_ack
     # received, unless we've already declared the attempt to be DEAD
     attempt_status <+ (attempt_status * child_ack).pairs(:attempt_id => :attempt_id) do |as, ack|
@@ -216,20 +214,14 @@ module AftMaster
     node <+ (attempt_status * child_ack).pairs(:attempt_id => :attempt_id) do |as, ack|
       [as.node_id, ack.addr] if as.status == ATTEMPT_FORK
     end
+    node_ready <+ (attempt_status * child_ack).pairs(:attempt_id => :attempt_id) do |as, ack|
+      [as.node_id] if as.status == ATTEMPT_FORK
+    end
+
     # Replay all buffered messages for the new attempt for this node
     msg_recv <~ (attempt_status * child_ack * msg_buf).combos(attempt_status.attempt_id => child_ack.attempt_id, msg_buf.recv_node => attempt_status.node_id) do |as, ack, m|
       [ack.addr, m.recv_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_FORK
     end
-  end
-
-  bloom :send_ready do
-    temp :live_attempts <= attempt_status {|s| s if s.status == ATTEMPT_LIVE and done_node_ready.empty?}
-    temp :num_live <= live_attempts.group(nil, count)
-    node_ready <= (num_live * node_count).pairs do |nl, nc|
-      [true] if nl.first == nc.num
-    end
-    # Only trigger node_ready once
-    done_node_ready <+ node_ready
   end
 
   bloom :check_liveness do
