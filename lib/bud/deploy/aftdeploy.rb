@@ -1,6 +1,6 @@
 require 'bud/deploy/forkdeploy'
 
-FT_TIMEOUT = 25
+FT_TIMEOUT = 20
 
 module AftProtocol
   state do
@@ -30,6 +30,8 @@ module AftChild
     table :recv_buf, msg_recv.schema
     scratch :deliver_msg, recv_buf.schema
     loopback :do_tick, [] => [:do_it]
+
+    table :got_atomic_data, [] => [:t]
 
     scratch :aft_send, [:recv_node] => [:payload]
     # Note that we provide ordered delivery: messages will be emitted via
@@ -65,8 +67,13 @@ module AftChild
       m
     end
 
+    # XXX: hacky. We need to ensure we don't start delivering data until the EDB
+    # (initial_data) has been received
+    got_atomic_data <+ atomic_data_out {|a| [true]}
+    do_tick <~ atomic_data_out {|a| [true]}
+
     deliver_msg <= (recv_buf * recv_done_max).pairs do |b, m|
-      b if b.recv_id == (m.recv_id + 1)
+      b if b.recv_id == (m.recv_id + 1) and not got_atomic_data.empty?
     end
     recv_done_max <+ (deliver_msg * recv_done_max).rights {|m| [m.recv_id + 1]}
     recv_done_max <- (deliver_msg * recv_done_max).rights
@@ -205,6 +212,7 @@ module AftMaster
   bloom :move_to_live do
     # Update attempt status to LIVE and add child to "node" when child_ack
     # received, unless we've already declared the attempt to be DEAD
+    # XXX: cleanup this code
     attempt_status <+ (attempt_status * child_ack).pairs(:attempt_id => :attempt_id) do |as, ack|
       [as.attempt_id, as.node_id, ATTEMPT_LIVE, ack.addr, bud_clock] if as.status == ATTEMPT_FORK
     end
@@ -290,7 +298,6 @@ module AftMaster
     }
     next_recv_id <- (do_msg * next_recv_id).rights(:recv_node => :node_id)
 
-    msg_buf <+ new_msg { |n| puts "Logged message: #{n.inspect}"; n }
     msg_recv <~ (new_msg * node_status * attempt_status).combos(new_msg.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
       [as.addr, m.recv_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_LIVE
     end
