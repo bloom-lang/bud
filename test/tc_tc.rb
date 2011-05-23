@@ -48,7 +48,7 @@ class TcTest
   end
 end
 
-BUD_DIR = "#{Dir.pwd}/bud_tmp"
+TC_BUD_DIR = "#{Dir.pwd}/bud_tmp"
 
 def setup_bud
   rm_bud_dir
@@ -62,8 +62,8 @@ def cleanup_bud(b)
 end
 
 def rm_bud_dir
-  return unless File.directory? BUD_DIR
-  FileUtils.rm_r(BUD_DIR)
+  return unless File.directory? TC_BUD_DIR
+  FileUtils.rm_r(TC_BUD_DIR)
 end
 
 class TestTc < Test::Unit::TestCase
@@ -78,7 +78,7 @@ class TestTc < Test::Unit::TestCase
   end
 
   def make_bud(truncate)
-    TcTest.new(:tc_dir => BUD_DIR, :tc_truncate => truncate, :quiet => true)
+    TcTest.new(:tc_dir => TC_BUD_DIR, :tc_truncate => truncate, :quiet => true)
   end
 
   def test_basic_ins
@@ -255,7 +255,7 @@ class TestNestedTc < Test::Unit::TestCase
   end
 
   def make_bud
-    TcNest.new(:tc_dir => BUD_DIR, :tc_truncate => true, :quiet => true)
+    TcNest.new(:tc_dir => TC_BUD_DIR, :tc_truncate => true, :quiet => true)
   end
 
   def test_basic_nest
@@ -299,7 +299,7 @@ class TestTcBootstrap < Test::Unit::TestCase
   end
 
   def make_bud
-    TcBootstrap.new(:tc_dir => BUD_DIR, :tc_truncate => false, :quiet => true)
+    TcBootstrap.new(:tc_dir => TC_BUD_DIR, :tc_truncate => false, :quiet => true)
   end
 
   def test_basic

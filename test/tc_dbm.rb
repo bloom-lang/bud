@@ -43,7 +43,7 @@ class DbmTest
   end
 end
 
-BUD_DIR = "#{Dir.pwd}/bud_tmp"
+DBM_BUD_DIR = "#{Dir.pwd}/bud_tmp"
 
 def setup_bud
   rm_bud_dir
@@ -57,8 +57,8 @@ def cleanup_bud(b)
 end
 
 def rm_bud_dir
-  return unless File.directory? BUD_DIR
-  FileUtils.rm_r(BUD_DIR)
+  return unless File.directory? DBM_BUD_DIR
+  FileUtils.rm_r(DBM_BUD_DIR)
 end
 
 class TestDbm < Test::Unit::TestCase
@@ -73,7 +73,7 @@ class TestDbm < Test::Unit::TestCase
   end
 
   def make_bud(truncate)
-    DbmTest.new(:dbm_dir => BUD_DIR, :dbm_truncate => truncate, :quiet => true)
+    DbmTest.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => truncate, :quiet => true)
   end
 
   def test_basic_ins
@@ -250,7 +250,7 @@ class TestNestedDbm < Test::Unit::TestCase
   end
 
   def make_bud
-    DbmNest.new(:dbm_dir => BUD_DIR, :dbm_truncate => true, :quiet => true)
+    DbmNest.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => true, :quiet => true)
   end
 
   def test_basic_nest
@@ -294,7 +294,7 @@ class TestDbmBootstrap < Test::Unit::TestCase
   end
 
   def make_bud
-    DbmBootstrap.new(:dbm_dir => BUD_DIR, :dbm_truncate => false, :quiet => true)
+    DbmBootstrap.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => false, :quiet => true)
   end
 
   def test_basic
