@@ -121,7 +121,7 @@ module Bud
       end
     end
 
-    # move deltas to TC, and new_deltas to deltas
+    # move deltas to on-disk storage, and new_deltas to deltas
     def tick_deltas
       merge_to_db(@delta)
       @delta = @new_delta
