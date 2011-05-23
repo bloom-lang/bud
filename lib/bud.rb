@@ -83,6 +83,7 @@ module Bud
   #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
   # * storage configuration
   #   * <tt>:dbm_dir</tt> filesystem directory to hold DBM-backed collections
+  #   * <tt>:dbm_truncate</tt> if true, DBM-backed collections are opened with +OTRUNC+
   #   * <tt>:tc_dir</tt>  filesystem directory to hold TokyoCabinet-backed collections
   #   * <tt>:tc_truncate</tt> if true, TokyoCabinet-backed collections are opened with +OTRUNC+
   # * deployment

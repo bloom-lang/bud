@@ -116,6 +116,22 @@ class TestDbm < Test::Unit::TestCase
     assert_equal(3, @t.t1.length)
   end
 
+  def test_truncate
+    @t.in_buf << ['1', '2', '3', '4']
+    @t.in_buf << ['1', '3', '3', '4']
+    assert_nothing_raised(RuntimeError) {@t.tick}
+    assert_equal(2, @t.t1.length)
+
+    @t.close_tables
+    @t = make_bud(true)
+
+    assert_equal(0, @t.t1.length)
+    @t.in_buf << ['1', '2', '3', '4']
+    @t.in_buf << ['1', '3', '3', '4']
+    assert_nothing_raised(RuntimeError) {@t.tick}
+    assert_equal(2, @t.t1.length)
+  end
+
   def test_persist
     @t.in_buf << [1, 2, 3, 4]
     @t.in_buf << [5, 10, 3, 4]
