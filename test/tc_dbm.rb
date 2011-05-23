@@ -80,7 +80,7 @@ class TestDbm < Test::Unit::TestCase
     assert_equal(0, @t.t1.length)
     @t.in_buf << ['1', '2', '3', '4']
     @t.in_buf << ['1', '3', '3', '4']
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(2, @t.t1.length)
     assert(@t.t1.include? ['1', '2', '3', '4'])
     assert(@t.t1.has_key? ['1', '2'])
@@ -95,7 +95,7 @@ class TestDbm < Test::Unit::TestCase
 
   def test_key_conflict
     @t.in_buf << ['1', '2', '3', '4']
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     @t.in_buf << ['1', '2', '3', '5']
     assert_raise(Bud::KeyConstraintError) {@t.tick}
   end
@@ -112,14 +112,14 @@ class TestDbm < Test::Unit::TestCase
     @t.t1 << ['1', '2', '3', '4']
     @t.t1 << ['1', '2', '3', '4']
 
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(3, @t.t1.length)
   end
 
   def test_truncate
     @t.in_buf << ['1', '2', '3', '4']
     @t.in_buf << ['1', '3', '3', '4']
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(2, @t.t1.length)
 
     @t.close_tables
@@ -128,30 +128,30 @@ class TestDbm < Test::Unit::TestCase
     assert_equal(0, @t.t1.length)
     @t.in_buf << ['1', '2', '3', '4']
     @t.in_buf << ['1', '3', '3', '4']
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(2, @t.t1.length)
   end
 
   def test_persist
     @t.in_buf << [1, 2, 3, 4]
     @t.in_buf << [5, 10, 3, 4]
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(2, @t.t1.length)
 
     10.times do |i|
       @t.close_tables
       @t = make_bud(false)
       @t.in_buf << [6, 10 + i, 3, 4]
-      assert_nothing_raised(RuntimeError) {@t.tick}
+      @t.tick
       assert_equal(3 + i, @t.t1.length)
     end
   end
 
   def test_pending_ins
     @t.pending_buf << ['1', '2', '3', '4']
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(0, @t.t1.length)
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(1, @t.t1.length)
   end
 
@@ -165,44 +165,44 @@ class TestDbm < Test::Unit::TestCase
     @t.t1 << ['1', '2', '3', '4']
     @t.t1 << ['1', '3', '3', '4']
     @t.t1 << ['2', '4', '3', '4']
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(3, @t.t1.length)
 
     @t.del_buf << ['2', '4', '3', '4'] # should delete
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(3, @t.t1.length)
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(2, @t.t1.length)
 
     @t.del_buf << ['1', '3', '3', '5'] # shouldn't delete
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(2, @t.t1.length)
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(2, @t.t1.length)
 
     @t.del_buf << ['1', '3', '3', '4'] # should delete
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(2, @t.t1.length)
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(1, @t.t1.length)
   end
 
   def test_chain
     @t.chain_start << [5, 10]
     @t.chain_start << [10, 15]
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(2, @t.t2.length)
     assert_equal(2, @t.t3.length)
     assert_equal(2, @t.t4.length)
     assert_equal([10,18], @t.t4[[10]])
 
     @t.chain_del << [5,10]
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(2, @t.chain_start.length)
     assert_equal(2, @t.t2.length)
     assert_equal(2, @t.t3.length)
     assert_equal(2, @t.t4.length)
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(1, @t.chain_start.length)
     assert_equal(1, @t.t2.length)
     assert_equal(1, @t.t3.length)
@@ -215,13 +215,13 @@ class TestDbm < Test::Unit::TestCase
     @t.join_t2 << [12, 70, 150]
     @t.join_t2 << [6, 20, 30]
 
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(4, @t.cart_prod.length)
 
     @t.join_t2 << [6, 20, 30] # dup
     @t.join_t2 << [18, 70, 150]
 
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
     assert_equal(6, @t.cart_prod.length)
   end
 
@@ -230,7 +230,7 @@ class TestDbm < Test::Unit::TestCase
     @t.join_t1 << [15, 50, 120]
     @t.join_t2 << [12, 70, 150]
     @t.join_t2 << [6, 20, 30]
-    assert_nothing_raised(RuntimeError) {@t.tick}
+    @t.tick
 
     assert_equal(1, @t.join_res.length)
   end
