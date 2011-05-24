@@ -71,20 +71,20 @@ end
 class TestDelta < Test::Unit::TestCase
   def test_transitivity
     program = DeltaTest.new
-    assert_nothing_raised(RuntimeError) {program.tick}
+    program.tick
     assert_equal(2, program.result.length)
   end
 
   def test_one
     program = DeltaJoinTest.new
-    assert_nothing_raised(RuntimeError) {program.tick}
+    program.tick
     assert_equal(6, program.path.length)
     assert_equal(6, program.hashpath.length)
   end
 
   def test_three
     program = Delta3JoinTest.new
-    assert_nothing_raised(RuntimeError) {program.tick}
+    program.tick
     assert_equal(6, program.path.length)
     assert_equal(6, program.hashpath.length)
   end

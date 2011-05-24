@@ -10,7 +10,7 @@ include VizUtil
 
 def is_module?(m)
   begin
-    return (eval("defined?(#{m}") == "constant")
+    return (eval("defined?(#{m})") == "constant")
   rescue SyntaxError
     return false
   end

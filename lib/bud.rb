@@ -82,8 +82,10 @@ module Bud
   #   * <tt>:lazy</tt>  if true, prevents runtime from ticking except on external calls to +tick+
   #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
   # * storage configuration
-  #   * <tt>:tc_dir</tt>  filesystem directory to hold TokyoCabinet data stores
-  #   * <tt>:tc_truncate</tt> if true, TokyoCabinet collections are opened with +OTRUNC+
+  #   * <tt>:dbm_dir</tt> filesystem directory to hold DBM-backed collections
+  #   * <tt>:dbm_truncate</tt> if true, DBM-backed collections are opened with +OTRUNC+
+  #   * <tt>:tc_dir</tt>  filesystem directory to hold TokyoCabinet-backed collections
+  #   * <tt>:tc_truncate</tt> if true, TokyoCabinet-backed collections are opened with +OTRUNC+
   # * deployment
   #   * <tt>:deploy</tt>  enable deployment
   #   * <tt>:deploy_child_opts</tt> option hash to pass to deployed instances

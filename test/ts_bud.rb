@@ -27,3 +27,7 @@ require 'tc_terminal'
 require 'tc_timer'
 require 'tc_threaddeploy'
 require 'tc_wc'
+
+if defined? Bud::HAVE_TOKYOCABINET
+  require 'tc_tc'
+end
