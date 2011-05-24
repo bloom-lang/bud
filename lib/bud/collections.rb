@@ -463,30 +463,43 @@ module Bud
         if memo[pkey_cols].nil?
           memo[pkey_cols] = {:agg=>agg.send(:init, p[colnum]), :tups => [p]}
         else
-          newval = agg.send(:trans, memo[pkey_cols][:agg], p[colnum])
-          if memo[pkey_cols][:agg] == newval
-            if agg.send(:tie, memo[pkey_cols][:agg], p[colnum])
-              memo[pkey_cols][:tups] << p
-            end
-          else
-            memo[pkey_cols] = {:agg=>newval, :tups=>[p]}
+          memo[pkey_cols][:agg], argflag = \
+             agg.send(:trans, memo[pkey_cols][:agg], p[colnum])
+          if argflag == :keep or agg.send(:tie, memo[pkey_cols][:agg], p[colnum])
+            memo[pkey_cols][:tups] << p 
+          elsif argflag == :replace
+            memo[pkey_cols][:tups] = [p]
+          elsif argflag.class <= Array and argflag[0] == :delete
+            memo[pkey_cols][:tups] -= argflag[1..-1] 
           end
         end
         memo
       end
 
+      # now we need to finalize the agg per group
+      finalaggs = {}
       finals = []
-      outs = tups.each_value do |t|
-        ties = t[:tups].map do |tie|
-          finals << tie
+      tups.each do |k,v|
+        finalaggs[k] = agg.send(:final, v[:agg])
+      end
+      
+      # and winnow the tups to match
+      finalaggs.each do |k,v|
+        tups[k][:tups].each do |t|
+          finals << t if (t[colnum] == v)
         end
       end
 
-      # merge directly into retval.storage, so that the temp tuples get picked up
-      # by the lhs of the rule
-      retval = BudScratch.new('argagg_temp', bud_instance, @given_schema)
-      retval.uniquify_tabname
-      retval.merge(finals, retval.storage)
+      require 'ruby-debug'; debugger if finals.length == 0 and agg_in.length > 0
+      if block_given?
+        finals.map{|r| yield r}
+      else
+        # merge directly into retval.storage, so that the temp tuples get picked up
+        # by the lhs of the rule
+        retval = BudScratch.new('argagg_temp', bud_instance, @given_schema)
+        retval.uniquify_tabname
+        retval.merge(finals, retval.storage)
+      end
     end
 
     # for each distinct value in the grouping key columns, return the item in that group
@@ -562,7 +575,7 @@ module Bud
           if memo[pkey_cols][i].nil?
             memo[pkey_cols][i] = agg.send(:init, colval)
           else
-            memo[pkey_cols][i] = agg.send(:trans, memo[pkey_cols][i], colval)
+            memo[pkey_cols][i], ignore = agg.send(:trans, memo[pkey_cols][i], colval)
           end
         end
         memo
