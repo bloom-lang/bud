@@ -490,7 +490,6 @@ module Bud
         end
       end
 
-      require 'ruby-debug'; debugger if finals.length == 0 and agg_in.length > 0
       if block_given?
         finals.map{|r| yield r}
       else
