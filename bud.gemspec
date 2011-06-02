@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name = "bud"
   s.version = "0.0.4"
-  s.date = "2011-04-08"
+  s.date = "2011-06-01"
   s.authors = ["Peter Alvaro", "Neil Conway", "Joseph M. Hellerstein", "William R. Marczak"]
   s.email = ["bloomdevs@gmail.com"]
   s.summary = "A prototype Bloom DSL for distributed programming."
@@ -34,5 +34,6 @@ Gem::Specification.new do |s|
 
   # Optional dependencies -- if we can't find these libraries, certain features
   # will be disabled.
+  # s.add_dependency 'tokyocabinet'
   # s.add_dependency 'zookeeper'
 end
