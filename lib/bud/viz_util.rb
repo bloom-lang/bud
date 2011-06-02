@@ -186,6 +186,10 @@ END_JS
         data << [time, tab, tup]
       end
     end
+    
+    meta_tabs.each_value do |tab|
+      meta[tab] ||= [] 
+    end
 
     meta[:schminf] = {}
     meta[:tabscm].each do |ts|

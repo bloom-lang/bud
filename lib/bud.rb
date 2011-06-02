@@ -80,6 +80,7 @@ module Bud
   #   * <tt>:trace</tt> if true, generate +budvis+ outputs
   #   * <tt>:rtrace</tt>  if true, generate +budplot+ outputs
   #   * <tt>:dump_rewrite</tt> if true, dump results of internal rewriting of Bloom code to a file
+  #   * <tt>:metrics</tt> if true, dumps a hash of internal performance metrics
   # * controlling execution
   #   * <tt>:lazy</tt>  if true, prevents runtime from ticking except on external calls to +tick+
   #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
