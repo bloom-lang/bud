@@ -757,7 +757,7 @@ module Bud
               socket.send_datagram([tabname, tup].to_msgpack, ip, port)
             end
           end
-        rescue
+        rescue Exception
           puts "terminal reader thread failed: #{$!}"
           print $!.backtrace.join("\n")
           exit
