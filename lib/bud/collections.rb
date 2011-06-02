@@ -173,10 +173,26 @@ module Bud
       each_from([@storage, @delta], &block)
     end
 
+    public
+    def tick_metrics
+      strat_num = bud_instance.this_stratum
+      rule_num = bud_instance.this_rule
+      addr = nil
+      addr = bud_instance.ip_port unless bud_instance.port.nil?
+      rule_txt = nil
+      if strat_num.class == Fixnum and rule_num.class == Fixnum and bud_instance.rule_orig_src and bud_instance.rule_orig_src[strat_num][rule_num]
+        rule_txt = bud_instance.rule_orig_src[strat_num][rule_num].tr("\n", ' ').gsub(',', '\,')
+      end
+      bud_instance.metrics[:collections] ||= {}
+      bud_instance.metrics[:collections][[addr, strat_num, rule_num, tabname, rule_txt]] ||= 0
+      bud_instance.metrics[:collections][[addr, strat_num, rule_num, tabname, rule_txt]] += 1
+    end
+    
     private
     def each_from(bufs, &block) # :nodoc: all
       bufs.each do |b|
         b.each_value do |v|
+          tick_metrics if bud_instance.options[:metrics]
           yield v
         end
       end
@@ -778,7 +794,7 @@ module Bud
     public
     def tick #:nodoc: all
       @storage = {}
-      raise BudError unless @pending.empty?
+      raise BudError, "orphaned pending tuples in terminal" unless @pending.empty?
     end
 
     undef merge
@@ -890,6 +906,7 @@ module Bud
       while (l = @fd.gets)
         t = tuple_accessors([@linenum, l.strip])
         @linenum += 1
+        tick_metrics if bud_instance.options[:metrics]
         yield t
       end
     end

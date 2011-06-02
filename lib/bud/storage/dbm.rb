@@ -81,6 +81,7 @@ module Bud
           each_storage(&block)
         else
           b.each_value do |v|
+            tick_metrics if bud_instance.options[:metrics]
             yield v
           end
         end
@@ -91,6 +92,7 @@ module Bud
       @dbm.each do |k,v|
         k_ary = MessagePack.unpack(k)
         v_ary = MessagePack.unpack(v)
+        tick_metrics if bud_instance.options[:metrics]
         yield make_tuple(k_ary, v_ary)
       end
     end
