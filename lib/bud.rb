@@ -697,7 +697,6 @@ module Bud
     @stratum_first_iter = true
     begin
       strat.each_with_index do |r,i|
-        fixpoint = false
         begin
           r.call
         rescue Exception => e
