@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = "bud"
-  s.version = "0.0.4"
+  s.version = "0.0.5"
   s.date = "2011-06-01"
   s.authors = ["Peter Alvaro", "Neil Conway", "Joseph M. Hellerstein", "William R. Marczak"]
   s.email = ["bloomdevs@gmail.com"]
