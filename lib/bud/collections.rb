@@ -180,12 +180,9 @@ module Bud
       addr = nil
       addr = bud_instance.ip_port unless bud_instance.port.nil?
       rule_txt = nil
-      if strat_num.class == Fixnum and rule_num.class == Fixnum and bud_instance.rule_orig_src and bud_instance.rule_orig_src[strat_num][rule_num]
-        rule_txt = bud_instance.rule_orig_src[strat_num][rule_num].tr("\n", ' ').gsub(',', '\,')
-      end
       bud_instance.metrics[:collections] ||= {}
-      bud_instance.metrics[:collections][[addr, strat_num, rule_num, tabname, rule_txt]] ||= 0
-      bud_instance.metrics[:collections][[addr, strat_num, rule_num, tabname, rule_txt]] += 1
+      bud_instance.metrics[:collections][[addr, tabname, strat_num, rule_num]] ||= 0
+      bud_instance.metrics[:collections][[addr, tabname, strat_num, rule_num]] += 1
     end
     
     private

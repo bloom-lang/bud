@@ -723,16 +723,16 @@ module Bud
       strat.each_with_index do |r,i|
         @this_rule = i
         fixpoint = false
+        rule_src = @rule_orig_src[strat_num][i] unless @rule_orig_src[strat_num].nil?
         begin
           if options[:metrics]
             metrics[:rules] ||= {}
-            metrics[:rules][[strat_num, i]] ||= 0
-            metrics[:rules][[strat_num, i]] += 1
+            metrics[:rules][[strat_num, i, rule_src]] ||= 0
+            metrics[:rules][[strat_num, i, rule_src]] += 1
           end
           r.call
         rescue Exception => e
           # Don't report source text for certain rules (old-style rule blocks)
-          rule_src = @rule_orig_src[strat_num][i] unless @rule_orig_src[strat_num].nil?
           src_msg = ""
           unless rule_src == ""
             src_msg = "\nRule: #{rule_src}"
