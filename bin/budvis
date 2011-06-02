@@ -56,7 +56,7 @@ class VizHelper
 
     fout.puts "<html><title>#{tab} @ #{time}</title>"
     fout.puts "<table border=1>"
-    fout.puts "<tr>" + schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>"
+    fout.puts "<tr>" + schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>" unless schema.nil?
     fout.close
     return str
   end

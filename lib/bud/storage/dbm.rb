@@ -22,7 +22,7 @@ module Bud
 
       db_fname = "#{dirname}/#{name}.dbm"
       flags = DBM::WRCREAT
-      if bud_instance.options[:dbm_newdb] == true
+      if bud_instance.options[:dbm_truncate] == true
         flags |= DBM::NEWDB
       end
       @dbm = DBM.open(db_fname, 0666, flags)
@@ -81,6 +81,7 @@ module Bud
           each_storage(&block)
         else
           b.each_value do |v|
+            tick_metrics if bud_instance.options[:metrics]
             yield v
           end
         end
@@ -91,6 +92,7 @@ module Bud
       @dbm.each do |k,v|
         k_ary = MessagePack.unpack(k)
         v_ary = MessagePack.unpack(v)
+        tick_metrics if bud_instance.options[:metrics]
         yield make_tuple(k_ary, v_ary)
       end
     end
@@ -121,7 +123,7 @@ module Bud
       end
     end
 
-    # move deltas to TC, and new_deltas to deltas
+    # move deltas to on-disk storage, and new_deltas to deltas
     def tick_deltas
       merge_to_db(@delta)
       @delta = @new_delta

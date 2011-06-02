@@ -177,6 +177,23 @@ class ChoiceAgg
   end
 end
 
+class RandAgg
+  include Bud
+
+  state do
+    scratch :t1
+    scratch :t2
+  end
+
+  bootstrap do
+    100.times {|x| t1 << [x, x+1]}
+  end
+
+  bloom do
+    t2 <= t1.argagg(:choose_rand, [], :key)
+  end
+end
+
 class ChainAgg
   include Bud
 
@@ -270,6 +287,13 @@ class TestAggs < Test::Unit::TestCase
     assert(([[1,1]]) == p.t2.to_a || ([[2,1]]) == p.t2.to_a)
   end
 
+  def test_rand_agg
+    p = RandAgg.new
+    p.tick
+    assert(p.t1.length == 100)
+    assert_equal(p.t2.first[0] + 1, p.t2.first[1])
+  end
+  
   def test_chain_agg
     p = ChainAgg.new
     q = Queue.new

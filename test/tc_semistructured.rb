@@ -21,7 +21,7 @@ end
 class TestSemi < Test::Unit::TestCase
   def test_semi
     p = Semi.new
-    assert_nothing_raised(RuntimeError) { p.tick }
+    p.tick
     # if we kept all the extra stuff, we can "walk" the struct to find things
     assert(p.stuff.first.length > p.stuff.schema.length)
     assert_equal([1,2, [3, 4]], p.stuff.first)

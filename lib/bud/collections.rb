@@ -173,10 +173,23 @@ module Bud
       each_from([@storage, @delta], &block)
     end
 
+    public
+    def tick_metrics
+      strat_num = bud_instance.this_stratum
+      rule_num = bud_instance.this_rule
+      addr = nil
+      addr = bud_instance.ip_port unless bud_instance.port.nil?
+      rule_txt = nil
+      bud_instance.metrics[:collections] ||= {}
+      bud_instance.metrics[:collections][[addr, tabname, strat_num, rule_num]] ||= 0
+      bud_instance.metrics[:collections][[addr, tabname, strat_num, rule_num]] += 1
+    end
+    
     private
     def each_from(bufs, &block) # :nodoc: all
       bufs.each do |b|
         b.each_value do |v|
+          tick_metrics if bud_instance and bud_instance.options[:metrics]
           yield v
         end
       end
@@ -463,30 +476,42 @@ module Bud
         if memo[pkey_cols].nil?
           memo[pkey_cols] = {:agg=>agg.send(:init, p[colnum]), :tups => [p]}
         else
-          newval = agg.send(:trans, memo[pkey_cols][:agg], p[colnum])
-          if memo[pkey_cols][:agg] == newval
-            if agg.send(:tie, memo[pkey_cols][:agg], p[colnum])
-              memo[pkey_cols][:tups] << p
-            end
-          else
-            memo[pkey_cols] = {:agg=>newval, :tups=>[p]}
+          memo[pkey_cols][:agg], argflag = \
+             agg.send(:trans, memo[pkey_cols][:agg], p[colnum])
+          if argflag == :keep or agg.send(:tie, memo[pkey_cols][:agg], p[colnum])
+            memo[pkey_cols][:tups] << p 
+          elsif argflag == :replace
+            memo[pkey_cols][:tups] = [p]
+          elsif argflag.class <= Array and argflag[0] == :delete
+            memo[pkey_cols][:tups] -= argflag[1..-1] 
           end
         end
         memo
       end
 
+      # now we need to finalize the agg per group
+      finalaggs = {}
       finals = []
-      outs = tups.each_value do |t|
-        ties = t[:tups].map do |tie|
-          finals << tie
+      tups.each do |k,v|
+        finalaggs[k] = agg.send(:final, v[:agg])
+      end
+      
+      # and winnow the tups to match
+      finalaggs.each do |k,v|
+        tups[k][:tups].each do |t|
+          finals << t if (t[colnum] == v)
         end
       end
 
-      # merge directly into retval.storage, so that the temp tuples get picked up
-      # by the lhs of the rule
-      retval = BudScratch.new('argagg_temp', bud_instance, @given_schema)
-      retval.uniquify_tabname
-      retval.merge(finals, retval.storage)
+      if block_given?
+        finals.map{|r| yield r}
+      else
+        # merge directly into retval.storage, so that the temp tuples get picked up
+        # by the lhs of the rule
+        retval = BudScratch.new('argagg_temp', bud_instance, @given_schema)
+        retval.uniquify_tabname
+        retval.merge(finals, retval.storage)
+      end
     end
 
     # for each distinct value in the grouping key columns, return the item in that group
@@ -562,7 +587,7 @@ module Bud
           if memo[pkey_cols][i].nil?
             memo[pkey_cols][i] = agg.send(:init, colval)
           else
-            memo[pkey_cols][i] = agg.send(:trans, memo[pkey_cols][i], colval)
+            memo[pkey_cols][i], ignore = agg.send(:trans, memo[pkey_cols][i], colval)
           end
         end
         memo
@@ -745,7 +770,7 @@ module Bud
               socket.send_datagram([tabname, tup].to_msgpack, ip, port)
             end
           end
-        rescue
+        rescue Exception
           puts "terminal reader thread failed: #{$!}"
           print $!.backtrace.join("\n")
           exit
@@ -766,7 +791,7 @@ module Bud
     public
     def tick #:nodoc: all
       @storage = {}
-      raise BudError unless @pending.empty?
+      raise BudError, "orphaned pending tuples in terminal" unless @pending.empty?
     end
 
     undef merge
@@ -878,6 +903,7 @@ module Bud
       while (l = @fd.gets)
         t = tuple_accessors([@linenum, l.strip])
         @linenum += 1
+        tick_metrics if bud_instance.options[:metrics]
         yield t
       end
     end

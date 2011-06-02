@@ -17,6 +17,7 @@ require 'tc_interface'
 require 'tc_joins'
 require 'tc_mapvariants'
 require 'tc_meta'
+require 'tc_metrics'
 require 'tc_module'
 require 'tc_nest'
 require 'tc_rebl'
@@ -27,3 +28,7 @@ require 'tc_terminal'
 require 'tc_timer'
 require 'tc_threaddeploy'
 require 'tc_wc'
+
+if defined? Bud::HAVE_TOKYOCABINET
+  require 'tc_tc'
+end
