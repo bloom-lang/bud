@@ -10,7 +10,7 @@ class TcTest
   include Bud
 
   state do
-    tctable :t1, [:k1, :k2] => [:v1, :v2]
+    sync :t1, :tokyo, [:k1, :k2] => [:v1, :v2]
     table :in_buf, [:k1, :k2, :v1, :v2]
     table :del_buf, [:k1, :k2, :v1, :v2]
     table :pending_buf, [:k1, :k2] => [:v1, :v2]
@@ -19,11 +19,11 @@ class TcTest
     scratch :t2, [:k] => [:v]
     scratch :t3, [:k] => [:v]
     scratch :t4, [:k] => [:v]
-    tctable :chain_start, [:k] => [:v]
-    tctable :chain_del, [:k] => [:v]
+    sync :chain_start, :tokyo, [:k] => [:v]
+    sync :chain_del, :tokyo, [:k] => [:v]
 
-    tctable :join_t1, [:k] => [:v1, :v2]
-    tctable :join_t2, [:k] => [:v1, :v2]
+    sync :join_t1, :tokyo, [:k] => [:v1, :v2]
+    sync :join_t2, :tokyo, [:k] => [:v1, :v2]
     scratch :cart_prod, [:k, :v1]
     scratch :join_res, [:k, :v1]
   end
@@ -247,7 +247,7 @@ class TcNest
   state {
     scratch :in_buf, [:k1, :k2] => [:v1]
     table :t1, [:k1] => [:v1]
-    tctable :t2, [:k1, :k2] => [:v1, :v2]
+    sync :t2, :tokyo, [:k1, :k2] => [:v1, :v2]
   }
 
   bootstrap do
@@ -294,7 +294,7 @@ class TcBootstrap
   include Bud
 
   state do
-    tctable :t1
+    sync :t1, :tokyo
   end
 
   bootstrap do

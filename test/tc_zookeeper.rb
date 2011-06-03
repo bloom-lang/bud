@@ -27,7 +27,7 @@ class ZkMirror
   include Bud
 
   state do
-    zktable :t1, ZK_ROOT
+    sync :t1, :zookeeper, :path=>ZK_ROOT, :addr=>'localhost:2181'
     table :dummy
     scratch :t1_is_empty
   end

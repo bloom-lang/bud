@@ -90,27 +90,17 @@ Statements with stdio on lhs must use async merge (`<~`).<br>
 Using `stdio` on the lhs of an async merge results in writing to the `IO` object specified by the `:stdout` Bud option (`$stdout` by default).<br>
 To use `stdio` on rhs, instantiate Bud with `:stdin` option set to an `IO` object (e.g., `$stdin`).<br>
 
-### dbm_table ###
-Table collection mapped to a [DBM] (http://en.wikipedia.org/wiki/Dbm) store.<br>
-Default attributes: `[:key] => [:val]`
+### sync ###
+Persistent collection mapped to an external storage engine, with synchronous write-flushing each timestep.  Supported storage engines: `:dbm`, `:zookeeper`, `:tokyo`.<br>
+Default attributes: `[:key] => [:val]`.
 
-    dbm_table :t1
-    dbm_table :t2, [:k1, :k2] => [:v1, :v2]
+    sync :s1, :dbm
+    sync :s2, :tokyo, [:k1, :k2] => [:v1, :v2]
+    sync :s3, :zookeeper, :path=>"/foo/bar", :addr => 'localhost:2181'
 
-### tctable ###
-Table collection mapped to a [Tokyo Cabinet](http://fallabs.com/tokyocabinet/) store.<br>
-Default attributes: `[:key] => [:val]`
+Zookeeper is a special case: it does not take attributes, but does require a :path, and can also optionally take an :addr specification (default: `addr => 'localhost:2181'`).
 
-    tctable :t1
-    tctable :t2, [:k1, :k2] => [:v1, :v2]
-
-### zktable ###
-Table collection mapped to an [Apache Zookeeper](http://hadoop.apache.org/zookeeper/) store.<br>
-System-provided attributes: `[:key] => [:val]`<br>
-State declaration includes Zookeeper path and optional TCP string (default: "localhost:2181")<br>
-
-    zktable :foo, "/bat"
-    zktable :bar, "/dat", "localhost:2182"
+Further info: [DBM](http://en.wikipedia.org/wiki/Dbm), [Tokyo Cabinet](http://fallabs.com/tokyocabinet/), [Apache Zookeeper](http://hadoop.apache.org/zookeeper/).
 
 
 ## Bloom Statements ##

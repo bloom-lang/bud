@@ -8,7 +8,7 @@ class TcBench
   include Bud
 
   state do
-    tctable :t1, [:key]
+    sync :t1, :tokyo, [:key]
     scratch :done
   end
 
