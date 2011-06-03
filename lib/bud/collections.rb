@@ -412,7 +412,18 @@ module Bud
     superator "<+" do |o|
       pending_merge o
     end
-
+    
+    public
+    superator "<+-" do |o|
+      self <+ o
+      self <- o.map {|i| self[@key_cols.map{|n| i[@schema.index(n)] unless @schema.index(n).nil?}]}
+    end
+    
+    public 
+    superator "<-+" do |o|
+      self <+- o
+    end
+    
     # Called at the end of each timestep: prepare the collection for the next
     # timestep.
     public
