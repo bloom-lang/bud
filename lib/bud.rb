@@ -57,10 +57,10 @@ $bud_instances = {}        # Map from instance id => Bud instance
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
   attr_reader :dsock, :ip, :port
-  attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables
+  attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
   attr_reader :stratum_first_iter, :joinstate
   attr_accessor :lazy # This can be changed on-the-fly by REBL
-  attr_accessor :stratum_collection_map
+  attr_accessor :stratum_collection_map, :rewritten_strata, :no_attr_rewrite_strata
 
   # options to the Bud runtime are passed in a hash, with the following keys
   # * network configuration
@@ -109,6 +109,8 @@ module Bud
     @done_bootstrap = false
     @joinstate = {}  # joins are stateful, their state needs to be kept inside the Bud instance
     @instance_id = ILLEGAL_INSTANCE_ID # Assigned when we start running
+    @sources = {}
+    @sinks = {}
 
     # Setup options (named arguments), along with default values
     @options = options.clone
