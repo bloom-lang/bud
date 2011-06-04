@@ -274,7 +274,7 @@ class LibRebl
       if not @state.empty?
         @rebl_class.class_eval("state do\n" + @state.values.join("\n") + "\nend")
       end
-    rescue
+    rescue Exception
       raise
     end
 
@@ -312,7 +312,7 @@ class LibRebl
       @ip = @rebl_class_inst.ip
       @port = @rebl_class_inst.port
       puts "Listening on #{@rebl_class_inst.ip_port}" if not @old_inst
-    rescue
+    rescue Exception
       # The above two need to be atomic, or we're in trouble.
       puts "unrecoverable error, please file a bug: #{$!}"
       abort

@@ -21,7 +21,6 @@ module Bud
     end
 
     def message_received(obj)
-      # puts "#{@bud.ip_port} <= #{obj.inspect}"
       unless (obj.class <= Array and obj.length == 2 and not
               @bud.tables[obj[0].to_sym].nil? and obj[1].class <= Array)
         raise BudError, "Bad inbound message of class #{obj.class}: #{obj.inspect}"
@@ -37,7 +36,6 @@ module Bud
         # other Bud instances in the same process will crash). Ignoring the
         # error isn't best though -- we should do better (#74).
         puts "Exception handling network message (channel '#{obj[0]}'): #{$!}"
-        puts caller.join("\n")
       end
     end
   end

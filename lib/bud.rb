@@ -59,8 +59,10 @@ module Bud
   attr_reader :dsock, :ip, :port
   attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
   attr_reader :stratum_first_iter, :joinstate
+  attr_reader :this_stratum, :this_rule, :rule_orig_src
   attr_accessor :lazy # This can be changed on-the-fly by REBL
   attr_accessor :stratum_collection_map, :rewritten_strata, :no_attr_rewrite_strata
+  attr_accessor :metrics
 
   # options to the Bud runtime are passed in a hash, with the following keys
   # * network configuration
@@ -78,6 +80,7 @@ module Bud
   #   * <tt>:trace</tt> if true, generate +budvis+ outputs
   #   * <tt>:rtrace</tt>  if true, generate +budplot+ outputs
   #   * <tt>:dump_rewrite</tt> if true, dump results of internal rewriting of Bloom code to a file
+  #   * <tt>:metrics</tt> if true, dumps a hash of internal performance metrics
   # * controlling execution
   #   * <tt>:lazy</tt>  if true, prevents runtime from ticking except on external calls to +tick+
   #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
@@ -111,6 +114,7 @@ module Bud
     @instance_id = ILLEGAL_INSTANCE_ID # Assigned when we start running
     @sources = {}
     @sinks = {}
+    @metrics = {}
 
     # Setup options (named arguments), along with default values
     @options = options.clone
@@ -308,6 +312,7 @@ module Bud
     run_bg
     # Block caller's thread until Bud has shutdown
     q.pop
+    report_metrics if options[:metrics]
   end
 
   # Shutdown a Bud instance that is running asynchronously. This method blocks
@@ -323,6 +328,13 @@ module Bud
     if stop_em
       Bud.stop_em_loop
       EventMachine::reactor_thread.join
+    end
+    report_metrics if options[:metrics]
+  end
+  
+  def report_metrics
+    metrics.each do |k,v|
+      puts "#{k.inspect}, #{v.inspect}"
     end
   end
 
@@ -593,11 +605,12 @@ module Bud
   # Manually trigger one timestep of Bloom execution.
   def tick
     begin
+      starttime = Time.now if options[:metrics]
       @inside_tick = true
       @tables.each_value do |t|
         t.tick
       end
-
+      
       @joinstate = {}
 
       do_bootstrap unless @done_bootstrap
@@ -611,6 +624,16 @@ module Bud
     ensure
       @inside_tick = false
       @tick_clock_time = nil
+    end
+    if options[:metrics]
+      elapsed = Time.now - starttime
+      @metrics[:tickstats] ||= {:timestep=>0, :mean=>0, :meansq=>0}
+      stats = @metrics[:tickstats]
+      stats[:timestep] += 1
+      stats[:mean] = ((stats[:timestep]-1)*stats[:mean] + elapsed)/stats[:timestep]
+      stats[:meansq] = ((stats[:timestep]-1)*stats[:meansq] + elapsed**2)/stats[:timestep]
+      diff = stats[:timestep]*stats[:meansq] - stats[:timestep]*(stats[:mean]**2)
+      stats[:stddev] = Math.sqrt(diff / (stats[:timestep] - 1)) if stats[:timestep] > 1
     end
   end
 
@@ -698,13 +721,20 @@ module Bud
     # stratum_first_iter field here distinguishes these cases.
     @stratum_first_iter = true
     begin
+      @this_stratum = strat_num
       strat.each_with_index do |r,i|
+        @this_rule = i
         fixpoint = false
+        rule_src = @rule_orig_src[strat_num][i] unless @rule_orig_src[strat_num].nil?
         begin
+          if options[:metrics]
+            metrics[:rules] ||= {}
+            metrics[:rules][[strat_num, i, rule_src]] ||= 0
+            metrics[:rules][[strat_num, i, rule_src]] += 1
+          end
           r.call
         rescue Exception => e
           # Don't report source text for certain rules (old-style rule blocks)
-          rule_src = @rule_orig_src[strat_num][i] unless @rule_orig_src[strat_num].nil?
           src_msg = ""
           unless rule_src == ""
             src_msg = "\nRule: #{rule_src}"
