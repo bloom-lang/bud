@@ -121,6 +121,11 @@ delete:
 
 * `left <- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
 
+update:
+
+* `left <+- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)<br>
+deferred insert of items on rhs, deletion of items with matching keys on lhs.
+
 ### Collection Methods ###
 Standard Ruby methods used on a BudCollection `bc`:
 
