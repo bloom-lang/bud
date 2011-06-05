@@ -58,7 +58,11 @@ class VizOnline #:nodoc: all
         row = row[1]
       end
       newrow = [tab, @bud_instance.budtime, row]
-      @logtab << newrow
+      begin
+        @logtab << newrow
+      rescue
+        raise "ERROR!  #{@logtab} << #{newrow}"
+      end
 
     end
   end
