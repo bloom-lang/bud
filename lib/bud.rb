@@ -56,7 +56,7 @@ $bud_instances = {}        # Map from instance id => Bud instance
 # :main: Bud
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
-  attr_reader :dsock, :ip, :port
+  attr_reader :dsock
   attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
   attr_reader :stratum_first_iter, :joinstate
   attr_reader :this_stratum, :this_rule, :rule_orig_src
@@ -115,6 +115,7 @@ module Bud
     @sources = {}
     @sinks = {}
     @metrics = {}
+    @endtime = nil
 
     # Setup options (named arguments), along with default values
     @options = options.clone
@@ -588,12 +589,18 @@ module Bud
   # forwarding, and external_ip:local_port would be if you're in a DMZ, for
   # example.
   def ip_port
-    raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0 and not @options[:ext_port]
-
+    raise BudError, "ip_port called before port defined" if port.nil?
+    ip.to_s + ":" + port.to_s
+  end
+  
+  def ip
     ip = options[:ext_ip] ? "#{@options[:ext_ip]}" : "#{@ip}"
-    port = options[:ext_port] ? "#{@options[:ext_port]}" :
+  end
+  
+  def port
+    return nil if @port.nil? and @options[:port] == 0 and not @options[:ext_port]
+    return options[:ext_port] ? "#{@options[:ext_port]}" :
       (@port.nil? ? "#{@options[:port]}" : "#{@port}")
-    ip + ":" + port
   end
 
   # Returns the internal IP and port.  See ip_port.
@@ -605,7 +612,11 @@ module Bud
   # Manually trigger one timestep of Bloom execution.
   def tick
     begin
-      starttime = Time.now if options[:metrics]
+      starttime = Time.now if options[:metrics] 
+      if options[:metrics] and not @endtime.nil?
+        @metrics[:betweentickstats] ||= {:timestep=>0, :mean=>0, :meansq=>0}
+        @metrics[:betweentickstats] = running_stats(@metrics[:betweentickstats], starttime - @endtime)
+      end
       @inside_tick = true
       @tables.each_value do |t|
         t.tick
@@ -625,16 +636,19 @@ module Bud
       @inside_tick = false
       @tick_clock_time = nil
     end
-    if options[:metrics]
-      elapsed = Time.now - starttime
+    if options[:metrics]  
+      @endtime = Time.now    
       @metrics[:tickstats] ||= {:timestep=>0, :mean=>0, :meansq=>0}
-      stats = @metrics[:tickstats]
-      stats[:timestep] += 1
-      stats[:mean] = ((stats[:timestep]-1)*stats[:mean] + elapsed)/stats[:timestep]
-      stats[:meansq] = ((stats[:timestep]-1)*stats[:meansq] + elapsed**2)/stats[:timestep]
-      diff = stats[:timestep]*stats[:meansq] - stats[:timestep]*(stats[:mean]**2)
-      stats[:stddev] = Math.sqrt(diff / (stats[:timestep] - 1)) if stats[:timestep] > 1
+      @metrics[:tickstats] ||= running_stats(@metrics[:tickstats], @endtime - starttime)
     end
+  end
+  
+  def running_stats(stats, elapsed)
+    stats[:timestep] += 1
+    stats[:mean] = ((stats[:timestep]-1)*stats[:mean] + elapsed)/stats[:timestep]
+    stats[:meansq] = ((stats[:timestep]-1)*stats[:meansq] + elapsed**2)/stats[:timestep]
+    diff = stats[:timestep]*stats[:meansq] - stats[:timestep]*(stats[:mean]**2)
+    stats[:stddev] = Math.sqrt(diff / (stats[:timestep] - 1)) if stats[:timestep] > 1
   end
 
   # Returns the wallclock time associated with the current Bud tick. That is,

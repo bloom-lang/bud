@@ -78,7 +78,7 @@ class TestTc < Test::Unit::TestCase
   end
 
   def make_bud(truncate)
-    TcTest.new(:tc_dir => TC_BUD_DIR, :tc_truncate => truncate, :quiet => true)
+    TcTest.new(:tc_dir => TC_BUD_DIR, :tc_truncate => truncate, :quiet => true, :port => 54321)
   end
 
   def test_basic_ins
@@ -271,7 +271,7 @@ class TestNestedTc < Test::Unit::TestCase
   end
 
   def make_bud
-    TcNest.new(:tc_dir => TC_BUD_DIR, :tc_truncate => true, :quiet => true)
+    TcNest.new(:tc_dir => TC_BUD_DIR, :tc_truncate => true, :quiet => true, :port => 54321)
   end
 
   def test_basic_nest
@@ -315,7 +315,7 @@ class TestTcBootstrap < Test::Unit::TestCase
   end
 
   def make_bud
-    TcBootstrap.new(:tc_dir => TC_BUD_DIR, :tc_truncate => false, :quiet => true)
+    TcBootstrap.new(:tc_dir => TC_BUD_DIR, :tc_truncate => false, :quiet => true, :port => 54321)
   end
 
   def test_basic
