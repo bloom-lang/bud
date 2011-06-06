@@ -484,8 +484,14 @@ module Bud
     return if EventMachine::reactor_running?
 
     EventMachine::error_handler do |e|
-      puts "Unexpected Bud error: #{e.inspect}"
-      puts e.backtrace.join("\n")
+      # Only print a backtrace if a non-BudError is raised (this presumably
+      # indicates an unexpected failure).
+      if e.class <= BudError
+        puts "#{e.class}: #{e}"
+      else
+        puts "Unexpected Bud error: #{e.inspect}"
+        puts e.backtrace.join("\n")
+      end
       Bud.shutdown_all_instances
       raise e
     end
