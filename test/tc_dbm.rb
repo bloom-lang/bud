@@ -73,7 +73,7 @@ class TestDbm < Test::Unit::TestCase
   end
 
   def make_bud(truncate)
-    DbmTest.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => truncate, :quiet => true)
+    DbmTest.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => truncate, :quiet => true, :port => 65432)
   end
 
   def test_basic_ins
@@ -266,7 +266,7 @@ class TestNestedDbm < Test::Unit::TestCase
   end
 
   def make_bud
-    DbmNest.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => true, :quiet => true)
+    DbmNest.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => true, :quiet => true, :port=>65432)
   end
 
   def test_basic_nest
@@ -310,7 +310,7 @@ class TestDbmBootstrap < Test::Unit::TestCase
   end
 
   def make_bud
-    DbmBootstrap.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => false, :quiet => true)
+    DbmBootstrap.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => false, :quiet => true, :port => 65432)
   end
 
   def test_basic

@@ -6,11 +6,14 @@ module Bud
     def initialize(name, bud_instance, given_schema)
       dbm_dir = bud_instance.options[:dbm_dir]
       raise BudError, "dbm support must be enabled via 'dbm_dir'" unless dbm_dir
+      if bud_instance.port.nil?
+        raise BudError, "use of dbm storage requires an explicit port to be specified in Bud initialization options"
+      end
+
       unless File.exists?(dbm_dir)
         Dir.mkdir(dbm_dir)
         puts "Created directory: #{dbm_dir}" unless bud_instance.options[:quiet]
       end
-
       dirname = "#{dbm_dir}/bud_#{bud_instance.port}"
       unless File.exists?(dirname)
         Dir.mkdir(dirname)
