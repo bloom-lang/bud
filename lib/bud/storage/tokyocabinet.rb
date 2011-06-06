@@ -10,6 +10,10 @@ module Bud
     def initialize(name, bud_instance, given_schema)
       tc_dir = bud_instance.options[:tc_dir]
       raise BudError, "TC support must be enabled via 'tc_dir'" unless tc_dir
+      if bud_instance.port.nil?
+        raise BudError, "use of dbm storage requires an explicit port to be specified in Bud initialization options"
+      end
+
       unless File.exists?(tc_dir)
         Dir.mkdir(tc_dir)
         puts "Created directory: #{tc_dir}" unless bud_instance.options[:quiet]

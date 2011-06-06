@@ -38,10 +38,32 @@ module Bud
     scratch(name, schema)
   end
 
-  # declare a persistent collection.  default schema <tt>[:key] => [:val]</tt>
+  # declare an in-memory, non-transient collection.  default schema <tt>[:key] => [:val]</tt>. 
   def table(name, schema=nil)
     define_collection(name)
     @tables[name] = Bud::BudTable.new(name, self, schema)
+  end
+  
+  # declare a syncronously-flushed persistent collection.  default schema <tt>[:key] => [:val]</tt>. 
+  def sync(name, storage, schema=nil)
+    define_collection(name)
+    case storage
+    when :dbm
+      @tables[name] = Bud::BudDbmTable.new(name, self, schema)
+      @dbm_tables[name] = @tables[name]
+    when :tokyo
+      @tables[name] = Bud::BudTcTable.new(name, self, schema)
+      @tc_tables[name] = @tables[name]
+    when :zookeeper
+      # treat "schema" as a hash of options
+      options = schema
+      raise BudError, "Zookeeper tables require a :path option" if options[:path].nil?
+      options[:addr] ||= "localhost:2181"
+      @tables[name] = Bud::BudZkTable.new(name, options[:path], options[:addr], self)
+      @zk_tables[name] = @tables[name]
+    else
+      raise BudError, "Unknown storage engine #{storage.to_s}"
+    end
   end
 
   # declare a transient collection.  default schema <tt>[:key] => [:val]</tt>
@@ -97,26 +119,5 @@ module Bud
     define_collection(name)
     @tables[name] = Bud::BudTerminal.new(name, [:line], self)
     @channels[name] = @tables[name]
-  end
-
-  # declare a TokyoCabinet table
-  def tctable(name, schema=nil)
-    define_collection(name)
-    @tables[name] = Bud::BudTcTable.new(name, self, schema)
-    @tc_tables[name] = @tables[name]
-  end
-  
-  # declare a dbm table
-  def dbm_table(name, schema=nil)
-    define_collection(name)
-    @tables[name] = Bud::BudDbmTable.new(name, self, schema)
-    @dbm_tables[name] = @tables[name]
-  end
-
-  # declare an Apache ZooKeeper table
-  def zktable(name, path, addr="localhost:2181")
-    define_collection(name)
-    @tables[name] = Bud::BudZkTable.new(name, path, addr, self)
-    @zk_tables[name] = @tables[name]
   end
 end

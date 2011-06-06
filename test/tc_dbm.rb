@@ -5,7 +5,7 @@ class DbmTest
   include Bud
 
   state do
-    dbm_table :t1, [:k1, :k2] => [:v1, :v2]
+    sync :t1, :dbm, [:k1, :k2] => [:v1, :v2]
     table :in_buf, [:k1, :k2, :v1, :v2]
     table :del_buf, [:k1, :k2, :v1, :v2]
     table :pending_buf, [:k1, :k2] => [:v1, :v2]
@@ -14,11 +14,11 @@ class DbmTest
     scratch :t2, [:k] => [:v]
     scratch :t3, [:k] => [:v]
     scratch :t4, [:k] => [:v]
-    dbm_table :chain_start, [:k] => [:v]
-    dbm_table :chain_del, [:k] => [:v]
+    sync :chain_start, :dbm, [:k] => [:v]
+    sync :chain_del, :dbm, [:k] => [:v]
 
-    dbm_table :join_t1, [:k] => [:v1, :v2]
-    dbm_table :join_t2, [:k] => [:v1, :v2]
+    sync :join_t1, :dbm, [:k] => [:v1, :v2]
+    sync :join_t2, :dbm, [:k] => [:v1, :v2]
     scratch :cart_prod, [:k, :v1]
     scratch :join_res, [:k, :v1]
   end
@@ -73,7 +73,7 @@ class TestDbm < Test::Unit::TestCase
   end
 
   def make_bud(truncate)
-    DbmTest.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => truncate, :quiet => true)
+    DbmTest.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => truncate, :quiet => true, :port => 65432)
   end
 
   def test_basic_ins
@@ -242,7 +242,7 @@ class DbmNest
   state {
     scratch :in_buf, [:k1, :k2] => [:v1]
     table :t1, [:k1] => [:v1]
-    dbm_table :t2, [:k1, :k2] => [:v1, :v2]
+    sync :t2, :dbm, [:k1, :k2] => [:v1, :v2]
   }
 
   bootstrap do
@@ -266,7 +266,7 @@ class TestNestedDbm < Test::Unit::TestCase
   end
 
   def make_bud
-    DbmNest.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => true, :quiet => true)
+    DbmNest.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => true, :quiet => true, :port=>65432)
   end
 
   def test_basic_nest
@@ -289,7 +289,7 @@ class DbmBootstrap
   include Bud
 
   state do
-    dbm_table :t1
+    sync :t1, :dbm
   end
 
   bootstrap do
@@ -310,7 +310,7 @@ class TestDbmBootstrap < Test::Unit::TestCase
   end
 
   def make_bud
-    DbmBootstrap.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => false, :quiet => true)
+    DbmBootstrap.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => false, :quiet => true, :port => 65432)
   end
 
   def test_basic

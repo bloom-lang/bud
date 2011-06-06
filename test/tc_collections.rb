@@ -529,3 +529,29 @@ class TestCollections < Test::Unit::TestCase
     p.sync_callback(:c2, [["guy", p.ip_port, "smiley"]], :t1)
   end
 end
+
+class TestUpsert < Test::Unit::TestCase
+  class UpsertTest
+    include Bud
+    state do
+      table :t1
+      table :t2
+    end
+    bootstrap do
+      t1 << [1,'a']
+      t2 << [2,'x']
+    end
+    bloom do
+      t1 <+- [[1,'b']]
+      t2 <-+ [[2, 'y']]
+    end
+  end
+  
+  def test_upsert
+    p = UpsertTest.new
+    p.tick
+    p.tick
+    assert_equal([[1,'b']], p.t1.to_a)
+    assert_equal([[2,'y']], p.t2.to_a)
+  end
+end
