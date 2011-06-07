@@ -55,30 +55,6 @@ class VizHelper
     end
   end
 
-  def start_table(dir, tab, time, schema)
-    str = "#{dir}/#{tab}_#{time}.html"
-    fout = File.new(str, "w")
-
-    fout.puts "<html><title>#{tab} @ #{time}</title>"
-    fout.puts "<table border=1>"
-    fout.puts "<tr>" + schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>" unless schema.nil?
-    fout.close
-    return str
-  end
-
-  def end_table(stream)
-    fp = File.open(stream, "a")
-    fp.puts "</table>"
-    fp.close
-  end
-
-  def write_table_content(fn, row)
-    stream = File.open(fn, "a")
-    stream.puts "<tr>"
-    stream.puts row.map{|c| "<td>#{c.to_s}</td>"}.join(" ")
-    stream.puts "</tr>"
-    stream.close
-  end
 end
 
 
@@ -269,4 +245,30 @@ END_JS
     end
     return meta, data
   end
+
+  def start_table(dir, tab, time, schema)
+    str = "#{dir}/#{tab}_#{time}.html"
+    fout = File.new(str, "w")
+
+    fout.puts "<html><title>#{tab} @ #{time}</title>"
+    fout.puts "<table border=1>"
+    fout.puts "<tr>" + schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>" unless schema.nil?
+    fout.close
+    return str
+  end
+
+  def end_table(stream)
+    fp = File.open(stream, "a")
+    fp.puts "</table>"
+    fp.close
+  end
+
+  def write_table_content(fn, row)
+    stream = File.open(fn, "a")
+    stream.puts "<tr>"
+    stream.puts row.map{|c| "<td>#{c.to_s}</td>"}.join(" ")
+    stream.puts "</tr>"
+    stream.close
+  end
+
 end
