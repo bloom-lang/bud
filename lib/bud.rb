@@ -333,10 +333,17 @@ module Bud
     report_metrics if options[:metrics]
   end
   
-  def report_metrics
-    metrics.each do |k,v|
-      puts "#{k.inspect}, #{v.inspect}"
+  def print_unfolded_hash(thing, depth)
+    depth.times {print "\t"}
+    if thing.class <= Hash
+      thing.each{|k,v| print "#{k.inspect}"; print_unfolded_hash(v, depth+1)}
+    else
+      puts "#{thing.inspect}"
     end
+  end
+  
+  def report_metrics
+    print_unfolded_hash(metrics, 0)
   end
 
   # Register a callback that will be invoked when this instance of Bud is
@@ -639,7 +646,7 @@ module Bud
     if options[:metrics]  
       @endtime = Time.now    
       @metrics[:tickstats] ||= {:timestep=>0, :mean=>0, :meansq=>0}
-      @metrics[:tickstats] ||= running_stats(@metrics[:tickstats], @endtime - starttime)
+      @metrics[:tickstats] = running_stats(@metrics[:tickstats], @endtime - starttime)
     end
   end
   
@@ -649,6 +656,7 @@ module Bud
     stats[:meansq] = ((stats[:timestep]-1)*stats[:meansq] + elapsed**2)/stats[:timestep]
     diff = stats[:timestep]*stats[:meansq] - stats[:timestep]*(stats[:mean]**2)
     stats[:stddev] = Math.sqrt(diff / (stats[:timestep] - 1)) if stats[:timestep] > 1
+    stats
   end
 
   # Returns the wallclock time associated with the current Bud tick. That is,
