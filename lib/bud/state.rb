@@ -54,6 +54,14 @@ module Bud
     when :tokyo
       @tables[name] = Bud::BudTcTable.new(name, self, schema)
       @tc_tables[name] = @tables[name]
+    else
+      raise BudError, "Unknown synchronous storage engine #{storage.to_s}"
+    end
+  end
+  
+  def store(name, storage, schema=nil)
+    define_collection(name)
+    case storage
     when :zookeeper
       # treat "schema" as a hash of options
       options = schema
@@ -62,7 +70,7 @@ module Bud
       @tables[name] = Bud::BudZkTable.new(name, options[:path], options[:addr], self)
       @zk_tables[name] = @tables[name]
     else
-      raise BudError, "Unknown storage engine #{storage.to_s}"
+      raise BudError, "Unknown async storage engine #{storage.to_s}"
     end
   end
 
