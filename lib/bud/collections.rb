@@ -135,7 +135,7 @@ module Bud
     # project the collection to its key attributes
     public
     def keys
-      self.map{|t| (0..self.key_cols.length-1).map{|i| t[i]}}
+      self.map{|t| @key_colnums.map {|i| t[i]}}
     end
 
     # project the collection to its non-key attributes
@@ -250,7 +250,7 @@ module Bud
     def include?(item)
       return true if key_cols.nil? or (key_cols.empty? and length > 0)
       return false if item.nil? or item.empty?
-      key = key_cols.map{|k| item[schema.index(k)]}
+      key = @key_colnums.map{|i| item[i]}
       return (item == self[key])
     end
 
@@ -268,7 +268,7 @@ module Bud
 
     private
     def raise_pk_error(new_guy, old)
-      keycols = key_cols.map{|k| old[schema.index(k)]}
+      keycols = @key_colnums.map{|i| old[i]}
       raise KeyConstraintError, "Key conflict inserting #{new_guy.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key_cols = #{keycols.inspect}"
     end
 
@@ -416,9 +416,9 @@ module Bud
     public
     superator "<+-" do |o|
       self <+ o
-      self <- o.map do |i|
-        unless i.nil?
-          self[@key_cols.map{|n| i[@schema.index(n)] unless @schema.index(n).nil?}]
+      self <- o.map do |t|
+        unless t.nil?
+          self[@key_colnums.map{|k| t[k]}]
         end
       end
     end

@@ -546,10 +546,12 @@ class TestUpsert < Test::Unit::TestCase
       t2 <-+ [[2, 'y']]
     end
   end
-  
+
   def test_upsert
     p = UpsertTest.new
     p.tick
+    assert_equal([[1,'a']], p.t1.to_a)
+    assert_equal([[2,'x']], p.t2.to_a)
     p.tick
     assert_equal([[1,'b']], p.t1.to_a)
     assert_equal([[2,'y']], p.t2.to_a)
