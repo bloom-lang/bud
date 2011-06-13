@@ -181,8 +181,8 @@ module Bud
       addr = bud_instance.ip_port unless bud_instance.port.nil?
       rule_txt = nil
       bud_instance.metrics[:collections] ||= {}
-      bud_instance.metrics[:collections][[addr, tabname, strat_num, rule_num]] ||= 0
-      bud_instance.metrics[:collections][[addr, tabname, strat_num, rule_num]] += 1
+      bud_instance.metrics[:collections][{:addr=>addr, :tabname=>tabname, :strat_num=>strat_num, :rule_num=>rule_num}] ||= 0
+      bud_instance.metrics[:collections][{:addr=>addr, :tabname=>tabname, :strat_num=>strat_num, :rule_num=>rule_num}] += 1
     end
     
     private

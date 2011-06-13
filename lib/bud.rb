@@ -15,6 +15,7 @@ require 'bud/deploy/forkdeploy'
 require 'bud/deploy/threaddeploy'
 require 'bud/errors'
 require 'bud/joins'
+require 'bud/metrics'
 require 'bud/rtrace'
 require 'bud/server'
 require 'bud/state'
@@ -333,19 +334,6 @@ module Bud
     report_metrics if options[:metrics]
   end
   
-  def print_unfolded_hash(thing, depth)
-    depth.times {print "\t"}
-    if thing.class <= Hash
-      thing.each{|k,v| print "#{k.inspect}"; print_unfolded_hash(v, depth+1)}
-    else
-      puts "#{thing.inspect}"
-    end
-  end
-  
-  def report_metrics
-    print_unfolded_hash(metrics, 0)
-  end
-
   # Register a callback that will be invoked when this instance of Bud is
   # shutting down.
   def on_shutdown(&blk)
@@ -627,7 +615,7 @@ module Bud
     begin
       starttime = Time.now if options[:metrics] 
       if options[:metrics] and not @endtime.nil?
-        @metrics[:betweentickstats] ||= {:timestep=>0, :mean=>0, :meansq=>0}
+        @metrics[:betweentickstats] ||= initialize_stats
         @metrics[:betweentickstats] = running_stats(@metrics[:betweentickstats], starttime - @endtime)
       end
       @inside_tick = true
@@ -650,21 +638,12 @@ module Bud
       @tick_clock_time = nil
     end
     if options[:metrics]  
-      @endtime = Time.now    
-      @metrics[:tickstats] ||= {:timestep=>0, :mean=>0, :meansq=>0}
+      @endtime = Time.now   
+      @metrics[:tickstats] ||= initialize_stats
       @metrics[:tickstats] = running_stats(@metrics[:tickstats], @endtime - starttime)
     end
   end
   
-  def running_stats(stats, elapsed)
-    stats[:timestep] += 1
-    stats[:mean] = ((stats[:timestep]-1)*stats[:mean] + elapsed)/stats[:timestep]
-    stats[:meansq] = ((stats[:timestep]-1)*stats[:meansq] + elapsed**2)/stats[:timestep]
-    diff = stats[:timestep]*stats[:meansq] - stats[:timestep]*(stats[:mean]**2)
-    stats[:stddev] = Math.sqrt(diff / (stats[:timestep] - 1)) if stats[:timestep] > 1
-    stats
-  end
-
   # Returns the wallclock time associated with the current Bud tick. That is,
   # this value is guaranteed to remain the same for the duration of a single
   # tick, but will likely change between ticks.
@@ -757,8 +736,8 @@ module Bud
         begin
           if options[:metrics]
             metrics[:rules] ||= {}
-            metrics[:rules][[strat_num, i, rule_src]] ||= 0
-            metrics[:rules][[strat_num, i, rule_src]] += 1
+            metrics[:rules][{:strat_num => strat_num, :rule_num => i, :rule_src => rule_src}] ||= 0
+            metrics[:rules][{:strat_num => strat_num, :rule_num => i, :rule_src => rule_src}] += 1
           end
           r.call
         rescue Exception => e
