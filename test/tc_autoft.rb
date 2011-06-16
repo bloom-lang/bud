@@ -1,9 +1,5 @@
 require 'test_common'
 
-# TODO:
-# * init token as an event
-# * test failure / node death
-
 # This protocol is used to initiate events that are outside the scope of auto-ft
 # (e.g., we don't want "please shutdown" messages to be replayed after node
 # failure).
@@ -66,6 +62,10 @@ class TokenLineAft
   def initialize(opts={})
     super
     @child_modules << TokenLineChild
+  end
+
+  deploystrap do
+    node_count << [10]
   end
 
   bloom :setup_edb do
