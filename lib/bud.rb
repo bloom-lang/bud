@@ -633,10 +633,12 @@ module Bud
       do_flush
       invoke_callbacks
       @budtime += 1
+      @inbound.clear
     ensure
       @inside_tick = false
       @tick_clock_time = nil
     end
+
     if options[:metrics]  
       @endtime = Time.now   
       @metrics[:tickstats] ||= initialize_stats
@@ -675,14 +677,13 @@ module Bud
     table :t_table_schema, [:tab_name, :col_name, :ord, :loc]
   end
 
-  # Handle any inbound tuples off the wire and then clear. Received messages are
-  # placed directly into the storage of the appropriate local channel.
+  # Handle any inbound tuples off the wire. Received messages are placed
+  # directly into the storage of the appropriate local channel. The inbound
+  # queue is cleared at the end of the tick.
   def receive_inbound
     @inbound.each do |msg|
-      #      puts "dequeueing tuple #{msg[1].inspect} into #{msg[0]} @ #{ip_port}"
       tables[msg[0].to_sym] << msg[1]
     end
-    @inbound = []
   end
 
   # "Flush" any tuples that need to be flushed. This does two things:
