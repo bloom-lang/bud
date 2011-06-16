@@ -97,7 +97,8 @@ class ReblShell
       line = Readline::readline('rebl> ') unless noreadline
       line = gets if noreadline
       do_exit if line.nil?
-      line = line.lstrip.rstrip
+      line.strip!
+      return if line.empty?
       Readline::HISTORY.push(line) unless noreadline
       split_line = line.split(" ")
       if line[0..0] == @@escape_char then

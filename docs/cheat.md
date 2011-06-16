@@ -91,16 +91,25 @@ Using `stdio` on the lhs of an async merge results in writing to the `IO` object
 To use `stdio` on rhs, instantiate Bud with `:stdin` option set to an `IO` object (e.g., `$stdin`).<br>
 
 ### sync ###
-Persistent collection mapped to an external storage engine, with synchronous write-flushing each timestep.  Supported storage engines: `:dbm`, `:zookeeper`, `:tokyo`.<br>
+Persistent collection mapped to an external storage engine, with synchronous write-flushing each timestep.  Supported storage engines: `:dbm` and `:tokyo`.<br>
 Default attributes: `[:key] => [:val]`.
 
     sync :s1, :dbm
     sync :s2, :tokyo, [:k1, :k2] => [:v1, :v2]
-    sync :s3, :zookeeper, :path=>"/foo/bar", :addr => 'localhost:2181'
 
-Zookeeper is a special case: it does not take attributes, but does require a :path, and can also optionally take an :addr specification (default: `addr => 'localhost:2181'`).
+Further info: [DBM](http://en.wikipedia.org/wiki/Dbm), [Tokyo Cabinet](http://fallabs.com/tokyocabinet/).
 
-Further info: [DBM](http://en.wikipedia.org/wiki/Dbm), [Tokyo Cabinet](http://fallabs.com/tokyocabinet/), [Apache Zookeeper](http://hadoop.apache.org/zookeeper/).
+### store ###
+Persistent collection mapped to an external storage engine, with asynchronous write-flushing.  Supported storage engines: `:zookeeper`.<br>
+Default attributes: `[:key] => [:val]`.
+
+Statements with a store on lhs must use async merge (`<~`).<br>
+
+Zookeeper is a special case: it does not take attributes as it trailing arguments.  Instead it requires a :path, and can also optionally take an :addr specification (default: `addr => 'localhost:2181'`).
+
+    store :s3, :zookeeper, :path=>"/foo/bar", :addr => 'localhost:2181'
+
+Further info: [Apache Zookeeper](http://hadoop.apache.org/zookeeper/).
 
 
 ## Bloom Statements ##
