@@ -324,7 +324,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_terminal
-    assert_raise(Bud::BudError) {p = BadTerminal.new}
+    assert_raise(Bud::BudError) { BadTerminal.new }
   end
 
   module SyntaxBase
