@@ -35,4 +35,4 @@ Bloom.
 
 Finally, the Bud gem ships with RubyDoc on the language constructs and runtime
 hooks provided by the Bud module. To see rdoc, run `gem server` from a command
-line and open [http://0.0.0.0:8808/](http://0.0.0.0:8808/))
+line and open [http://0.0.0.0:8808/](http://0.0.0.0:8808/)
