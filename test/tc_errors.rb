@@ -257,7 +257,7 @@ class TestErrorHandling < Test::Unit::TestCase
   class BadFileReader1
     include Bud
     state do
-      file_reader :fd, '/tmp/foo'+Process.pid.to_s
+      file_reader :fd, "/tmp/foo#{Process.pid}"
     end
     bloom do
       fd <= [['no!']]
@@ -265,7 +265,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_file_reader_1
-    File.open('/tmp/foo'+Process.pid.to_s, 'a')
+    File.open("/tmp/foo#{Process.pid}", 'a')
     p = BadFileReader1.new
     assert_raise(Bud::CompileError) {p.tick}
   end
@@ -273,7 +273,7 @@ class TestErrorHandling < Test::Unit::TestCase
   class BadFileReader2
     include Bud
     state do
-      file_reader :fd, '/tmp/foo'+Process.pid.to_s
+      file_reader :fd, "/tmp/foo#{Process.pid}"
     end
     bloom do
       fd <+ [['no!']]
@@ -281,7 +281,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_file_reader_2
-    File.open('/tmp/foo'+Process.pid.to_s, 'a')
+    File.open("/tmp/foo#{Process.pid}", 'a')
     p = BadFileReader2.new
     assert_raise(Bud::CompileError) {p.tick}
   end
@@ -289,7 +289,7 @@ class TestErrorHandling < Test::Unit::TestCase
   class BadFileReader3
     include Bud
     state do
-      file_reader :fd, '/tmp/foo'+Process.pid.to_s
+      file_reader :fd, "/tmp/foo#{Process.pid}"
     end
     bloom do
       fd <~ [['no!']]
@@ -297,7 +297,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_file_reader_3
-    File.open('/tmp/foo'+Process.pid.to_s, 'a')
+    File.open("/tmp/foo#{Process.pid}", 'a')
     p = BadFileReader3.new
     assert_raise(Bud::BudError) {p.tick}
   end
@@ -324,7 +324,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_terminal
-    assert_raise(Bud::BudError) {p = BadTerminal.new}
+    assert_raise(Bud::BudError) { BadTerminal.new }
   end
 
   module SyntaxBase

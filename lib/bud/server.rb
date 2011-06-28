@@ -17,6 +17,20 @@ module Bud
         message_received(obj)
       end
 
+      begin
+        @bud.tick unless @bud.lazy
+      rescue Exception
+        # If we raise an exception here, EM dies, which causes problems (e.g.,
+        # other Bud instances in the same process will crash). Ignoring the
+        # error isn't best though -- we should do better (#74).
+        puts "Exception handling network messages: #{$!}"
+        puts "Inbound messages:"
+        @bud.inbound.each do |m|
+          puts "    #{m[1].inspect} (channel: #{m[0]})"
+        end
+        @bud.inbound.clear
+      end
+
       @bud.rtracer.sleep if @bud.options[:rtrace]
     end
 
@@ -27,16 +41,7 @@ module Bud
       end
 
       @bud.rtracer.recv(obj) if @bud.options[:rtrace]
-
       @bud.inbound << obj
-      begin
-        @bud.tick unless @bud.lazy
-      rescue Exception
-        # If we raise an exception here, EM dies, which causes problems (e.g.,
-        # other Bud instances in the same process will crash). Ignoring the
-        # error isn't best though -- we should do better (#74).
-        puts "Exception handling network message (channel '#{obj[0]}'): #{$!}"
-      end
     end
   end
 end
