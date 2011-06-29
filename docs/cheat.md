@@ -117,7 +117,7 @@ Further info: [Apache Zookeeper](http://hadoop.apache.org/zookeeper/).
 
 Left-hand-side (lhs) is a named `BudCollection` object.<br>
 Right-hand-side (rhs) is a Ruby expression producing a `BudCollection` or `Array` of `Arrays`.<br>
-BloomOp is one of the 4 operators listed below.
+BloomOp is one of the 5 operators listed below.
 
 ### Bloom Operators ###
 merges:
@@ -130,10 +130,14 @@ delete:
 
 * `left <- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
 
-update:
+update/upsert:
 
 * `left <+- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)<br>
-deferred insert of items on rhs, deletion of items with matching keys on lhs.
+deferred insert of items on rhs and deferred deletion of items with matching
+keys on lhs. That is, for each fact produced by the rhs, the upsert operator
+removes any existing tuples that match on the lhs collection's key columns
+before inserting the corresponding rhs fact. Note that both the removal and
+insertion operators happen atomically in the next timestep.
 
 ### Collection Methods ###
 Standard Ruby methods used on a BudCollection `bc`:
