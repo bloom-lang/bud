@@ -255,7 +255,7 @@ Like `pairs`, but implicitly includes a block that projects down to the left ite
 Like `pairs`, but implicitly includes a block that projects down to the right item in each pair.
 
 `flatten`:<br>
-`flatten` is a bit like SQL's `SELECT *`: it produces a collection of concatenated objects, with a schema that is the concatenation of the schemas in tablelist (with duplicate names disambiguated.) Useful for chaining to operators that expect input collections with schemas, e.g. group:
+`flatten` is a bit like SQL's `SELECT *`: it produces a collection of concatenated objects, with a schema that is the concatenation of the schemas in tablelist (with duplicate names disambiguated). Useful for chaining to operators that expect input collections with schemas, e.g., `group`:
 
     out <= (r * s).matches.flatten.group([:a], max(:b))
 
