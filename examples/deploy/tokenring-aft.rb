@@ -17,6 +17,7 @@ module TokenRingAftChild
 
   # The node with ID 0 starts with the token
   bloom :init_token do
+    # XXX: use node_ready?
     do_init <= node_count do |nc|
       [true] if @node_id == 0 and done_init.empty?
     end

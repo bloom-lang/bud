@@ -34,8 +34,8 @@ module AftChild
     table :got_atomic_data, [] => [:t]
 
     scratch :aft_send, [:recv_node] => [:payload]
-    # Note that we provide ordered delivery: messages will be emitted via
-    # aft_recv in strictly-increasing msg_id order (no gaps).
+    # Note that we provide ordered, reliable delivery: messages will be emitted
+    # via aft_recv in strictly-increasing msg_id order (no gaps).
     scratch :aft_recv, [:send_node, :msg_id] => [:payload]
   end
 
@@ -228,6 +228,7 @@ module AftMaster
 
     # Replay all buffered messages for the new attempt for this node
     msg_recv <~ (attempt_status * child_ack * msg_buf).combos(attempt_status.attempt_id => child_ack.attempt_id, msg_buf.recv_node => attempt_status.node_id) do |as, ack, m|
+      puts "Resending message: #{[ack.addr, m.recv_id, m.recv_node, m.send_node, m.payload].inspect}" if as.status == ATTEMPT_FORK
       [ack.addr, m.recv_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_FORK
     end
   end
@@ -283,6 +284,7 @@ module AftMaster
     do_msg <= msg_send do |m|
       b = msg_buf[[m.send_node, m.send_id]]
       unless b.nil?
+        puts "Skipped duplicate message: #{m.inspect}"
         # Sanity check
         if b.recv_node != m.recv_node or b.payload != m.payload
           raise "Replay error: previous msg #{b.inspect}, new msg = #{m.inspect}"
@@ -297,6 +299,7 @@ module AftMaster
       [n.node_id, n.recv_id + 1]
     }
     next_recv_id <- (do_msg * next_recv_id).rights(:recv_node => :node_id)
+    msg_buf <+ new_msg
 
     msg_recv <~ (new_msg * node_status * attempt_status).combos(new_msg.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
       [as.addr, m.recv_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_LIVE
