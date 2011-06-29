@@ -35,7 +35,7 @@ module TokenRingAftChild
   end
 
   bloom :print_token do
-    stdio <~ aft_recv {["#{@node_id}: Got token! (@ #{ip_port})"]}
+    stdio <~ aft_recv {["#{@node_id}: Got token! (@ #{ip_port}, pid = #{Process.pid})"]}
   end
 end
 

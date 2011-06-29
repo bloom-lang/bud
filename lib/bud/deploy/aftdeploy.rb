@@ -201,11 +201,8 @@ module AftMaster
     fork_req <= attempt_status do |s|
       [s.attempt_id, s.node_id] if s.status == ATTEMPT_INIT
     end
-    attempt_status <+ attempt_status do |s|
+    attempt_status <+- attempt_status do |s|
       [s.attempt_id, s.node_id, ATTEMPT_FORK, s.addr, s.last_ping] if s.status == ATTEMPT_INIT
-    end
-    attempt_status <- attempt_status do |s|
-      s if s.status == ATTEMPT_INIT
     end
   end
 
@@ -213,11 +210,8 @@ module AftMaster
     # Update attempt status to LIVE and add child to "node" when child_ack
     # received, unless we've already declared the attempt to be DEAD
     # XXX: cleanup this code
-    attempt_status <+ (attempt_status * child_ack).pairs(:attempt_id => :attempt_id) do |as, ack|
+    attempt_status <+- (attempt_status * child_ack).pairs(:attempt_id => :attempt_id) do |as, ack|
       [as.attempt_id, as.node_id, ATTEMPT_LIVE, ack.addr, bud_clock] if as.status == ATTEMPT_FORK
-    end
-    attempt_status <- (attempt_status * child_ack).lefts(:attempt_id => :attempt_id) do |as|
-      as if as.status == ATTEMPT_FORK
     end
     node <+ (attempt_status * child_ack).pairs(:attempt_id => :attempt_id) do |as, ack|
       [as.node_id, ack.addr] if as.status == ATTEMPT_FORK
@@ -240,10 +234,9 @@ module AftMaster
     stdio <~ not_live {|n| ["Dead node: attempt id = #{n.attempt_id}"]}
 
     # Mark the old attempts as dead
-    attempt_status <+ (not_live * attempt_status).matches.rights do |as|
+    attempt_status <+- (not_live * attempt_status).matches.rights do |as|
       [as.attempt_id, as.node_id, ATTEMPT_DEAD, as.addr, as.last_ping]
     end
-    attempt_status <- (not_live * attempt_status).matches.rights
 
     # Remove old attempts from "node"
     node <- (node * not_live * attempt_status).combos(not_live.attempt_id => attempt_status.attempt_id, node.uid => attempt_status.node_id) do |n, nl, as|
@@ -258,10 +251,9 @@ module AftMaster
 
     # Update "node_status" to point at the newly-created attempts
     # XXX: attempt_id assignment is a hack
-    node_status <+ (not_live * attempt_status).matches.rights do |as|
+    node_status <+- (not_live * attempt_status).matches.rights do |as|
       [as.node_id, as.attempt_id + 10]
     end
-    node_status <- (not_live * node_status).matches.rights
   end
 
   bloom :handle_ping do
