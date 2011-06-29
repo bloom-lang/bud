@@ -94,11 +94,11 @@ class TokenLineAft
     }
   end
 
-  def setup_ack_req {
+  def setup_ack_req
     sync_do {
       do_ack_req <+ [[100000]]
     }
-  }
+  end
 end
 
 class TestAutoFt < Test::Unit::TestCase
