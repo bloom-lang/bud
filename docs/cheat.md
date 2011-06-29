@@ -113,11 +113,12 @@ Further info: [Apache Zookeeper](http://hadoop.apache.org/zookeeper/).
 
 
 ## Bloom Statements ##
-*lhs BloomOp rhs*
+### Statement Syntax ###
+*lhs bloom_op rhs*
 
-Left-hand-side (lhs) is a named `BudCollection` object.<br>
-Right-hand-side (rhs) is a Ruby expression producing a `BudCollection` or `Array` of `Arrays`.<br>
-BloomOp is one of the 4 operators listed below.
+Left-hand-side (*lhs*) is a named `BudCollection` object.<br>
+Right-hand-side (*rhs*) is a Ruby expression producing a `BudCollection` or `Array` of `Arrays`.<br>
+The operator (*bloom_op*) is one of the 5 operators listed below.
 
 ### Bloom Operators ###
 merges:
@@ -130,10 +131,16 @@ delete:
 
 * `left <- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)
 
-update:
+update/upsert:
 
-* `left <+- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)<br>
-deferred insert of items on rhs, deletion of items with matching keys on lhs.
+* `left <+- right` &nbsp;&nbsp;&nbsp; (*deferred*)<br>
+deferred insert of items on rhs and deferred deletion of items with matching
+keys on lhs.
+
+That is, for each fact produced by the rhs, the upsert operator removes any
+existing tuples that match on the lhs collection's key columns before inserting
+the corresponding rhs fact. Note that both the removal and insertion operators
+happen atomically in the next timestep.
 
 ### Collection Methods ###
 Standard Ruby methods used on a BudCollection `bc`:
@@ -141,7 +148,7 @@ Standard Ruby methods used on a BudCollection `bc`:
 implicit map:
 
     t1 <= bc {|t| [t.col1 + 4, t.col2.chomp]} # formatting/projection
-    t2 <= bc {|t| t if t.col = 5}             # selection
+    t2 <= bc {|t| t if t.col == 5}            # selection
     
 `flat_map`:
 
@@ -248,7 +255,7 @@ Like `pairs`, but implicitly includes a block that projects down to the left ite
 Like `pairs`, but implicitly includes a block that projects down to the right item in each pair.
 
 `flatten`:<br>
-`flatten` is a bit like SQL's `SELECT *`: it produces a collection of concatenated objects, with a schema that is the concatenation of the schemas in tablelist (with duplicate names disambiguated.) Useful for chaining to operators that expect input collections with schemas, e.g. group:
+`flatten` is a bit like SQL's `SELECT *`: it produces a collection of concatenated objects, with a schema that is the concatenation of the schemas in tablelist (with duplicate names disambiguated). Useful for chaining to operators that expect input collections with schemas, e.g., `group`:
 
     out <= (r * s).matches.flatten.group([:a], max(:b))
 
