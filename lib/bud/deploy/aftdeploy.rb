@@ -269,10 +269,9 @@ module AftMaster
     # skew between child nodes. Note that we accept and apply timestamp updates
     # for all attempts, even if they have been declared dead.
     new_ping <= ping_chan {|p| [p.attempt_id, bud_clock]}
-    attempt_status <+ (attempt_status * new_ping).matches do |as, p|
+    attempt_status <+- (attempt_status * new_ping).matches do |as, p|
       [as.attempt_id, as.node_id, as.status, as.addr, p.tstamp]
     end
-    attempt_status <- (attempt_status * new_ping).matches.lefts
   end
 
   bloom :handle_messages do
@@ -295,10 +294,9 @@ module AftMaster
     new_msg <= (do_msg * next_recv_id).pairs(:recv_node => :node_id) do |m, n|
       [m.send_node, m.send_id, m.recv_node, n.recv_id, m.payload]
     end
-    next_recv_id <+ (do_msg * next_recv_id).rights(:recv_node => :node_id) {|n|
+    next_recv_id <+- (do_msg * next_recv_id).rights(:recv_node => :node_id) do |n|
       [n.node_id, n.recv_id + 1]
-    }
-    next_recv_id <- (do_msg * next_recv_id).rights(:recv_node => :node_id)
+    end
     msg_buf <+ new_msg
 
     msg_recv <~ (new_msg * node_status * attempt_status).combos(new_msg.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
