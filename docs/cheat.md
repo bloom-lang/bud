@@ -113,11 +113,12 @@ Further info: [Apache Zookeeper](http://hadoop.apache.org/zookeeper/).
 
 
 ## Bloom Statements ##
-*lhs BloomOp rhs*
+### Statement Syntax ###
+*lhs bloom_op rhs*
 
-Left-hand-side (lhs) is a named `BudCollection` object.<br>
-Right-hand-side (rhs) is a Ruby expression producing a `BudCollection` or `Array` of `Arrays`.<br>
-BloomOp is one of the 5 operators listed below.
+Left-hand-side (*lhs*) is a named `BudCollection` object.<br>
+Right-hand-side (*rhs*) is a Ruby expression producing a `BudCollection` or `Array` of `Arrays`.<br>
+The operator (*bloom_op*) is one of the 5 operators listed below.
 
 ### Bloom Operators ###
 merges:
@@ -132,12 +133,14 @@ delete:
 
 update/upsert:
 
-* `left <+- right` &nbsp;&nbsp;&nbsp;&nbsp; (*deferred*)<br>
+* `left <+- right` &nbsp;&nbsp;&nbsp; (*deferred*)<br>
 deferred insert of items on rhs and deferred deletion of items with matching
-keys on lhs. That is, for each fact produced by the rhs, the upsert operator
-removes any existing tuples that match on the lhs collection's key columns
-before inserting the corresponding rhs fact. Note that both the removal and
-insertion operators happen atomically in the next timestep.
+keys on lhs.
+
+That is, for each fact produced by the rhs, the upsert operator removes any
+existing tuples that match on the lhs collection's key columns before inserting
+the corresponding rhs fact. Note that both the removal and insertion operators
+happen atomically in the next timestep.
 
 ### Collection Methods ###
 Standard Ruby methods used on a BudCollection `bc`:
@@ -145,7 +148,7 @@ Standard Ruby methods used on a BudCollection `bc`:
 implicit map:
 
     t1 <= bc {|t| [t.col1 + 4, t.col2.chomp]} # formatting/projection
-    t2 <= bc {|t| t if t.col = 5}             # selection
+    t2 <= bc {|t| t if t.col == 5}            # selection
     
 `flat_map`:
 
