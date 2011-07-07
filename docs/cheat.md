@@ -197,7 +197,7 @@ implicit map:
 
 ## SQL-style grouping/aggregation (and then some) ##
 
-* `bc.group([:col1, :col2], min(:col3))`.  *akin to min(col3) GROUP BY (col1,col2)*
+* `bc.group([:col1, :col2], min(:col3))`.  *akin to min(col3) GROUP BY col1,col2*
   * exemplary aggs: `min`, `max`, `choose`
   * summary aggs: `sum`, `avg`, `count`
   * structural aggs: `accum`
