@@ -315,4 +315,32 @@ class TestAggs < Test::Unit::TestCase
     p = SimpleAgg.new
     p.tick
   end
+
+  class ArgminDups
+    include Bud
+
+    state do
+      scratch :t1, [:a, :b, :c]
+      scratch :t2, [:a, :b, :c]
+      scratch :t3, [:a, :b, :c]
+    end
+
+    bloom do
+      t2 <= t1.argmin([], :a)
+      t3 <= t2.argmin([], :b)
+    end
+  end
+
+  def test_argmin_dups
+    a = ArgminDups.new
+    a.t1 <+ [[1, 2, 3], [5, 5, 5]]
+    a.tick
+    assert_equal([[1, 2, 3]], a.t2.to_a)
+    assert_equal([[1, 2, 3]], a.t3.to_a)
+
+    a.t1 <+ [[1, 2, 4], [1, 3, 5]]
+    a.tick
+    assert_equal([[1, 2, 4], [1, 3, 5]], a.t2.to_a.sort)
+    assert_equal([[1, 2, 4]], a.t3.to_a.sort)
+  end
 end
