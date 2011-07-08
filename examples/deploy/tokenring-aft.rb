@@ -29,8 +29,9 @@ module TokenRingAftChild
 
   bloom :pass_token do
     # Pass on the token
-    aft_send <= (aft_recv * node_count).rights do |nc|
-      [(@node_id + 1) % nc.num, 0]
+    aft_send <= (aft_recv * node_count).pairs do |r, nc|
+      puts "Passing on token => #{(@node_id + 1) % nc.num} (recv_msg = #{r.inspect})" if @node_id == 0
+      [(@node_id + 1) % nc.num, r.payload + 1]
     end
   end
 

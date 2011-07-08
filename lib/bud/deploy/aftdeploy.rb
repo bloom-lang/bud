@@ -23,17 +23,22 @@ module AftChild
 
   state do
     periodic :ping_clock, 3
-    table :next_send_id, [] => [:send_id]
     # All messages with IDs <= recv_done_max have been delivered to user code
-    # (emitted via aft_recv).
+    # (i.e., emitted via aft_recv).
     table :recv_done_max, [] => [:recv_id]
     table :recv_buf, msg_recv.schema
     scratch :deliver_msg, recv_buf.schema
     loopback :do_tick, [] => [:do_it]
 
+    table :next_send_id, [] => [:send_id]
+    table :send_buf, [:recv_node, :payload, :tstamp]
+    scratch :sent_min_time, send_buf.schema
+    scratch :sent_min_payload, send_buf.schema
+    scratch :to_send, send_buf.schema
+
     table :got_atomic_data, [] => [:t]
 
-    scratch :aft_send, [:recv_node] => [:payload]
+    scratch :aft_send, [:recv_node, :payload]
     # Note that we provide ordered, reliable delivery: messages will be emitted
     # via aft_recv in strictly-increasing msg_id order (no gaps).
     scratch :aft_recv, [:send_node, :msg_id] => [:payload]
@@ -49,14 +54,24 @@ module AftChild
     ping_chan <~ ping_clock {|c| [@deployer_addr, @attempt_id]}
   end
 
+  # Deliver outgoing messages to the "msg_send" channel. We assign messages IDs
+  # based on their transmission order. To ensure a deterministic assignment of
+  # IDs to messages (in the presence of message batching), we assign one message
+  # ID per timestep. We buffer messages and assign a new ID to the message with
+  # minimal [budtime, payload, recv_node].
   bloom :send_msg do
-    # XXX: we assume no message batching
-    msg_send <~ (aft_send * next_send_id).pairs do |m, n|
+    send_buf <= aft_send {|s| [s.recv_node, s.payload, @budtime]}
+    sent_min_time <= send_buf.argmin([], :tstamp)
+    sent_min_payload <= sent_min_time.argmin([], :payload)
+    to_send <= sent_min_payload.argmin([], :recv_node)
+    send_buf <- to_send
+
+    msg_send <~ (to_send * next_send_id).pairs do |m, n|
       [@deployer_addr, n.send_id, m.recv_node, @node_id, m.payload]
     end
 
-    next_send_id <+ (aft_send * next_send_id).rights {|n| [n.send_id + 1]}
-    next_send_id <- (aft_send * next_send_id).rights
+    next_send_id <+ (to_send * next_send_id).rights {|n| [n.send_id + 1]}
+    next_send_id <- (to_send * next_send_id).rights
   end
 
   bloom :recv_msg do
@@ -286,12 +301,16 @@ module AftMaster
     new_msg <= (do_msg * next_recv_id).pairs(:recv_node => :node_id) do |m, n|
       [m.send_node, m.send_id, m.recv_node, n.recv_id, m.payload]
     end
+    # XXX: recv_id assignment is a hack
     next_recv_id <+- (do_msg * next_recv_id).rights(:recv_node => :node_id) do |n|
       [n.node_id, n.recv_id + 1]
     end
     msg_buf <+ new_msg
 
+    # If there's a live attempt for the target node, immediately try to deliver
+    # the message
     msg_recv <~ (new_msg * node_status * attempt_status).combos(new_msg.recv_node => node_status.node_id, node_status.attempt_id => attempt_status.attempt_id) do |m, ns, as|
+      puts "Sending message => node 0 (recv_id = #{m.recv_id}); m = #{m.inspect}" if m.recv_node == 0
       [as.addr, m.recv_id, m.recv_node, m.send_node, m.payload] if as.status == ATTEMPT_LIVE
     end
   end
