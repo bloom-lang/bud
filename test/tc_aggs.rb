@@ -315,4 +315,81 @@ class TestAggs < Test::Unit::TestCase
     p = SimpleAgg.new
     p.tick
   end
+
+  class ArgminDups
+    include Bud
+
+    state do
+      scratch :t1, [:a, :b, :c]
+      scratch :t2, [:a, :b, :c]
+      scratch :t3, [:a, :b, :c]
+    end
+
+    bloom do
+      t2 <= t1.argmin([], :a)
+      t3 <= t2.argmin([], :b)
+    end
+  end
+
+  def test_argmin_dups
+    a = ArgminDups.new
+    a.t1 <+ [[1, 2, 3], [5, 5, 5]]
+    a.tick
+    assert_equal([[1, 2, 3]], a.t2.to_a)
+    assert_equal([[1, 2, 3]], a.t3.to_a)
+
+    a.t1 <+ [[1, 2, 4], [1, 3, 5]]
+    a.tick
+    assert_equal([[1, 2, 4], [1, 3, 5]], a.t2.to_a.sort)
+    assert_equal([[1, 2, 4]], a.t3.to_a.sort)
+  end
+
+  class SerializerTest
+    include Bud
+
+    state do
+      table :buf, [:a, :b, :tstamp]
+      scratch :t_in, [:a, :b]
+      scratch :t_in_later, [:a, :b]
+      scratch :t_out, [:a, :b]
+      scratch :buf_min_time, buf.schema
+      scratch :buf_min_a, buf.schema
+      scratch :buf_min_b, buf.schema
+    end
+
+    bloom do
+      t_in <+ t_in_later
+      buf <= t_in {|i| [i.a, i.b, @budtime]}
+      buf_min_time <= buf.argmin([], :tstamp)
+      buf_min_a <= buf_min_time.argmin([], :a)
+      buf_min_b <= buf_min_a.argmin([], :b)
+      buf <- buf_min_b
+      t_out <= buf_min_b {|t| [t.a, t.b]}
+    end
+  end
+
+  def test_serializer
+    expected = [[5, 10], [3, 2], [3, 3], [6, 6], [6, 7], [7, 1], [7, 2], [9, 1], [0, 0], [0, 1]]
+    cb_cnt = 0
+    s = SerializerTest.new
+    s.register_callback(:t_out) do |tbl|
+      e = expected[cb_cnt]
+      assert_equal([e], tbl.to_a.sort)
+      cb_cnt += 1
+    end
+    s.run_bg
+    s.sync_do {
+      s.t_in <+ [[5, 10]]
+    }
+    s.sync_do {
+      s.t_in <+ [[3, 2]]
+    }
+    s.sync_do {
+      s.t_in <+ [[7, 1], [6, 6], [6, 7], [3, 3], [7, 2], [9, 1]]
+      s.t_in_later <+ [[0, 0], [0, 1]]
+    }
+    10.times { s.sync_do }
+    assert_equal(expected.length, cb_cnt)
+    s.stop_bg
+  end
 end

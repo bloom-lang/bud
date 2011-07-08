@@ -468,8 +468,8 @@ module Bud
 
 
     # a generalization of argmin/argmax to arbitrary exemplary aggregates.
-    # for each distinct value in the grouping key columns, return the item in that group
-    # that has the value of the exemplary aggregate +aggname+
+    # for each distinct value of the grouping key columns, return the items in that group
+    # that have the value of the exemplary aggregate +aggname+
     public
     def argagg(aggname, gbkey_cols, collection)
       agg = bud_instance.send(aggname, nil)[0]
@@ -529,15 +529,17 @@ module Bud
       end
     end
 
-    # for each distinct value in the grouping key columns, return the item in that group
-    # that has the minimum value of the attribute +col+
+    # for each distinct value of the grouping key columns, return the items in
+    # that group that have the minimum value of the attribute +col+. Note that
+    # multiple tuples might be returned.
     public
     def argmin(gbkey_cols, col)
       argagg(:min, gbkey_cols, col)
     end
 
-    # for each distinct value in the grouping key columns, return the item in that group
-    # that has the maximum value of the attribute +col+
+    # for each distinct value of the grouping key columns, return the item in
+    # that group that has the maximum value of the attribute +col+. Note that
+    # multiple tuples might be returned.
     public
     def argmax(gbkey_cols, col)
       argagg(:max, gbkey_cols, col)
