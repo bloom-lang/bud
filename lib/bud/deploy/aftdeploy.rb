@@ -70,8 +70,7 @@ module AftChild
       [@deployer_addr, n.send_id, m.recv_node, @node_id, m.payload]
     end
 
-    next_send_id <+ (to_send * next_send_id).rights {|n| [n.send_id + 1]}
-    next_send_id <- (to_send * next_send_id).rights
+    next_send_id <+- (to_send * next_send_id).rights {|n| [n.send_id + 1]}
   end
 
   bloom :recv_msg do
@@ -90,8 +89,7 @@ module AftChild
     deliver_msg <= (recv_buf * recv_done_max).pairs do |b, m|
       b if b.recv_id == (m.recv_id + 1) and not got_atomic_data.empty?
     end
-    recv_done_max <+ (deliver_msg * recv_done_max).rights {|m| [m.recv_id + 1]}
-    recv_done_max <- (deliver_msg * recv_done_max).rights
+    recv_done_max <+- (deliver_msg * recv_done_max).rights {|m| [m.recv_id + 1]}
     recv_buf <- deliver_msg
     do_tick <~ deliver_msg {|m| [true]}
 
