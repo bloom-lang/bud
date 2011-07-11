@@ -305,7 +305,8 @@ module Bud
     protected
     def canonicalize_localpreds(rel_list, preds) # :nodoc:all
       retval = preds.map do |p|
-        p[1][0] == rel_list[0].tabname ? p.reverse : p
+        # reverse if rhs is rel_list[0], *unless* it's a self-join!
+        (p[1][0] == rel_list[0].tabname and p[1][0] != p[0][0]) ? p.reverse : p
       end
     end
 
