@@ -9,6 +9,7 @@ module Bud
       @bud_instance = bud_instance
       @localpreds = nil
       @hashpreds = nil
+      @selfjoins = []
 
       # if any elements on rellist are BudJoins, suck up their contents
       tmprels = []
@@ -22,6 +23,18 @@ module Bud
       end
       rellist = tmprels
       @origrels = rellist
+
+      # check for self-joins: we currently only handle 2 instances of the same table per rule
+      counts = @origrels.reduce({}) do |memo, r|
+        memo[r.tabname] ||= 0
+        memo[r.tabname] += 1
+        memo
+      end
+      counts.each do |name, cnt| 
+        raise Bud::CompileError, "#{cnt} instances of #{name} in rule; only one self-join currently allowed per rule" if cnt > 2
+        @selfjoins << name if cnt == 2
+      end
+      
 
       # recurse to form a tree of binary BudJoins
       @rels = [rellist[0]]
@@ -211,8 +224,16 @@ module Bud
           end
         end
       end
-      @hashpreds = allpreds.reject { |p| p[0][0] != @rels[0].tabname or p[1][0] == @rels[0].tabname }
+      @hashpreds = allpreds.reject {|p| p[0][0] != @rels[0].tabname}
       @localpreds = @hashpreds
+      
+      # only allow preds on the same table name if they're on a self-joined table
+      @localpreds.each do |p| 
+        if p[0][0] == p[1][0] and not @selfjoins.include? p[0][0]
+          raise Bud::CompileError, "single-table predicate on #{p[0][0]} disallowed in joins" 
+        end
+      end
+      
       @localpreds += allpreds.map do |p|
         p if p[0][0] == p[1][0] and (p[0][0] == @rels[0].tabname or p[0][0] == @rels[1].tabname)
       end.compact
@@ -303,7 +324,8 @@ module Bud
       if (@localpreds and skips and @localpreds.length > skips.length)
         # check remainder of the predicates
         @localpreds.each do |pred|
-          next if skips.include? pred
+          # skip skips, and self-join preds
+          next if (skips.include? pred or pred[0][0] == pred[1][0])
           vals = []
           (0..1).each do |i|
             if pred[i][0] == @rels[0].tabname
@@ -340,12 +362,8 @@ module Bud
       name, offset = entry[0], entry[1]
 
       # determine which subtuple of the collection contains the table
-      # referenced in entry.  note that origrels[0] is a base table
-      # on the left of the join, hence we shouldn't be calling join_offset on it
+      # referenced in entry.  
       subtuple = 0
-      if origrels[0].tabname == entry[0]
-        raise BudError, "join_offset called on the result of a single collection #{entry[0]}"
-      end
       origrels[1..origrels.length].each_with_index do |t,i|
         if t.tabname == entry[0]
           subtuple = i
