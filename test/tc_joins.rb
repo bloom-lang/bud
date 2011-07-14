@@ -26,7 +26,7 @@ class StarJoin
     r51 <= (r1*r2).pairs([r1.val,r2.key]) {|r,s| [r.key, s.vat]}
     r52 <= (r1*r2).pairs(r2.key => r1.val) {|r,s| [r.key, s.vat]}
     r7 <= (r1*r2).matches {|r,s| [r.key, s.vat]}
-    r8 <= (r1*r1*r1*r2*r2*r2).matches {|r1,r2,r3,s1,s2,s3| [r1.key, s1.vat]}
+    r8 <= (r1*r1*r2*r2).matches {|r1,r2,s1,s2| [r1.key, s1.vat]}
     r9 <= (r1*r2).lefts(:val => :key)
     r11 <= (r1*r2).rights(:val => :key)
   end
@@ -548,15 +548,11 @@ end
 
 class TestLocalPredJoins < Test::Unit::TestCase
   def test_explicit
-    p = TestJoinLocalPreds.new
-    p.tick
-    assert_equal([ [[1,1], [3,3]], [[2,3], [3,3]] ], p.t3.to_a.sort)
-    assert_equal([ [[1,1], [3,3]], [[1,1], [4,5]] ], p.t4.to_a.sort)
+    assert_raise(Bud::CompileError) {p = TestJoinLocalPreds.new; p.tick}
+    # assert_equal([ [[1,1], [3,3]], [[2,3], [3,3]] ], p.t3.to_a.sort)
+    # assert_equal([ [[1,1], [3,3]], [[1,1], [4,5]] ], p.t4.to_a.sort)
   end
 end
-
-require "rubygems"
-require "bud"
 
 class Issue192
  include Bud
@@ -582,5 +578,22 @@ class TestIssue192 < Test::Unit::TestCase
     p.tick;
     assert_equal([[0]], p.outtab1.to_a)
     assert_equal([[0]], p.outtab2.to_a)    
+  end
+end
+
+
+class TestIssue220 < Test::Unit::TestCase
+  class TripleJoin
+    include Bud
+    state do
+      scratch :foo
+    end
+    bloom do
+      stdio <~ (foo*foo*foo).combos(:key=>:val){|f1, f2, f3| [f1.val,f2.val,f3.val]}
+      foo <= [[1,0]]
+    end
+  end
+  def test_triple_join
+    assert_raise(Bud::CompileError){p = TripleJoin.new; p.tick}
   end
 end
