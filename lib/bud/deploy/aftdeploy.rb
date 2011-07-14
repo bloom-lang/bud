@@ -259,6 +259,10 @@ module AftMaster
       n
     end
 
+    # We want to assign new attempts for the failed nodes. The new attempt IDs
+    # must be unique, but otherwise their order doesn't matter (determinism
+    # would be nice though).
+
     # Create new attempts for the failed nodes
     # XXX: attempt_id assignment is a hack
     attempt_status <+ (not_live * attempt_status).matches.rights do |as|
