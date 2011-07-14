@@ -133,6 +133,9 @@ module AftMaster
     table :msg_buf, [:send_node, :send_id] => [:recv_node, :recv_id, :payload]
     table :next_recv_id, [:node_id] => [:recv_id]
 
+    table :msg_send_buf, msg_send.schema
+    scratch :msg_send_uniq, msg_send.schema
+    scratch :msg_send_min_sender, msg_send.schema
     scratch :do_msg, msg_send.schema
     scratch :new_msg, msg_buf.schema
     scratch :new_ping, [:attempt_id, :tstamp]
@@ -284,8 +287,7 @@ module AftMaster
     # previous message with the same (send_node, send_id). If not, assign the
     # message a new recv_id. This ID fixes the position of the message in the
     # delivery order for the message's recipient node.
-    # XXX: we assume that message batching does not occur
-    do_msg <= msg_send do |m|
+    msg_send_uniq <= msg_send do |m|
       b = msg_buf[[m.send_node, m.send_id]]
       unless b.nil?
         puts "Skipped duplicate message: #{m.inspect}"
@@ -296,10 +298,16 @@ module AftMaster
       end
       m if b.nil?
     end
+    msg_send_buf <= msg_send_uniq
+    # The message hasn't been seen before, so assign a new recv_id to it. We can
+    # do this in batches, provided we process at most one message for each
+    # receiver per timestep.
+    msg_send_min_sender <= msg_send_buf.argmin([:recv_node], :send_node)
+    do_msg <= msg_send_min_sender.argmin([:recv_node], :send_id)
+    msg_send_buf <- do_msg
     new_msg <= (do_msg * next_recv_id).pairs(:recv_node => :node_id) do |m, n|
       [m.send_node, m.send_id, m.recv_node, n.recv_id, m.payload]
     end
-    # XXX: recv_id assignment is a hack
     next_recv_id <+- (do_msg * next_recv_id).rights(:recv_node => :node_id) do |n|
       [n.node_id, n.recv_id + 1]
     end
