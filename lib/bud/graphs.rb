@@ -27,9 +27,7 @@ class GraphGen #:nodoc: all
     cycle.each do |c|
       # assumption: !(c[2] and !c[3]), or stratification would have bombed out
       if c[2] and c[3]
-        if !@redcycle[c[0]]
-          @redcycle[c[0]] = []
-        end
+        @redcycle[c[0]] ||= []
         @redcycle[c[0]] << c[1]
       end
     end
@@ -240,7 +238,6 @@ class SpaceTime
       #@head[p] = @hdr.add_node("process #{p}(#{i})")#, :color => "white", :label => "")
       @subs[p] = @g.subgraph("buster_#{i+1}")
       @head[p] = @hdr.add_node("process #{p}(#{i})", :group => p)#, :color => "white", :label => "")
-
     end
   end
 
@@ -258,8 +255,8 @@ class SpaceTime
     @edges = {}
     queues = {}
     @input.each do |i|
-      queues[i[1]] = [] unless queues[i[1]]
-      queues[i[2]] = [] unless queues[i[2]]
+      queues[i[1]] ||= []
+      queues[i[2]] ||= []
       queues[i[1]] << i[3]
       queues[i[2]] << i[4]
     end
@@ -299,7 +296,7 @@ class SpaceTime
 
   def finish(file, fmt=nil)
     @edges.each_pair do |k, v|
-      lbl =  v[3] > 1 ? "#{v[2]}(#{v[3]})" : v[2]
+      lbl = v[3] > 1 ? "#{v[2]}(#{v[3]})" : v[2]
       @g.add_edge(v[0], v[1], :label => lbl, :color => "red", :weight => 1)
     end
     if fmt.nil?
