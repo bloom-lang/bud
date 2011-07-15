@@ -940,4 +940,12 @@ module Enumerable
     scr.merge(self, scr.storage)
     scr
   end
+
+  public
+  # We rewrite "map" calls in Bloom blocks to invoke the "pro" method
+  # instead. This is fine when applied to a BudCollection; when applied to a
+  # normal Enumerable, just treat pro as an alias for map.
+  def pro(&blk)
+    map(&blk)
+  end
 end
