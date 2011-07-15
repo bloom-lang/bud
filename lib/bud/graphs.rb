@@ -31,14 +31,14 @@ class GraphGen #:nodoc: all
           @redcycle[c[0]] = []
         end
         @redcycle[c[0]] << c[1]
-      end      
+      end
     end
-    
+
     @nodes = {}
     @edges = {}
     @labels = {}
   end
-  
+
   def name_bag(predicate, bag)
     if bag[predicate]
       return bag
@@ -46,10 +46,10 @@ class GraphGen #:nodoc: all
       bag[predicate] = true
       res = bag
       if @redcycle[predicate].nil?
-        return res 
+        return res
       end
       @redcycle[predicate].each do |rp|
-        res = name_bag(rp, res)      
+        res = name_bag(rp, res)
       end
     end
 
@@ -65,7 +65,7 @@ class GraphGen #:nodoc: all
       return str
     else
       return predicate
-    end 
+    end
   end
 
   def process(depends)
@@ -92,11 +92,13 @@ class GraphGen #:nodoc: all
 
   def addonce(node, negcluster, inhead=false)
     if !@nodes[node]
-      @nodes[node] = @graph.add_node(node)
+      @nodes[node] = @graph.add_node("n_#{node}")
       if @cards and @cards[node]
-        @nodes[node].label = node +"\n (#{@cards[node].to_s})"
+        @nodes[node].label = "#{node}\n (#{@cards[node].to_s})"
+      else
+        @nodes[node].label = node
       end
-    end 
+    end
 
     if @budtime == -1
       @nodes[node].URL = "#{node}.html" if inhead
@@ -105,7 +107,7 @@ class GraphGen #:nodoc: all
     end
 
     if negcluster
-      # cleaning 
+      # cleaning
       res = node
       # pretty-printing issues
       node.split(", ").each_with_index do |p, i|
@@ -190,7 +192,7 @@ class GraphGen #:nodoc: all
       end
     end
 
-    unless depanalysis.nil? 
+    unless depanalysis.nil?
       depanalysis.source.each {|s| addedge("S", s.pred, false, false, false)}
       depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false)}
 
@@ -218,19 +220,19 @@ class GraphGen #:nodoc: all
   end
 end
 
-class SpaceTime    
+class SpaceTime
   def initialize(input, links = false)
-    @input = input 
+    @input = input
     @links = links
     processes = input.map {|i| i[1]}
     input.map{|i| processes << i[2]}
     processes.uniq!
 
-    @queues = {} 
-    
+    @queues = {}
+
     @g = GraphViz.new(:G, :type => :digraph, :rankdir => "LR", :outputorder => "nodesfirst", :splines => "line")#, :clusterrank => "none")
     @hdr = @g.subgraph("cluster_0")
-    
+
     @subs = {}
     @head = {}
     last = nil
@@ -238,7 +240,7 @@ class SpaceTime
       #@head[p] = @hdr.add_node("process #{p}(#{i})")#, :color => "white", :label => "")
       @subs[p] = @g.subgraph("buster_#{i+1}")
       @head[p] = @hdr.add_node("process #{p}(#{i})", :group => p)#, :color => "white", :label => "")
-      
+
     end
   end
 
@@ -251,7 +253,7 @@ class SpaceTime
       @edges[lbl] = [f, t, l, 1]
     end
   end
-  
+
   def process
     @edges = {}
     queues = {}
@@ -275,7 +277,7 @@ class SpaceTime
           url = "DBM_#{k}_/tm_#{item}.svg"
           #puts "URL is #{url}"
         end
-        snd = @subs[k].add_node(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :pos => [1, i], :group => k, :URL => url})  
+        snd = @subs[k].add_node(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :pos => [1, i], :group => k, :URL => url})
 
         unless @head[k].id == snd.id
           @subs[k].add_edge(@head[k], snd, :weight => 2)
@@ -294,7 +296,7 @@ class SpaceTime
       msg_edge(snd_label, rcv_label, i[5])
     end
   end
-  
+
   def finish(file, fmt=nil)
     @edges.each_pair do |k, v|
       lbl =  v[3] > 1 ? "#{v[2]}(#{v[3]})" : v[2]
