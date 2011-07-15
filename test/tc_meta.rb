@@ -187,12 +187,12 @@ class TestMeta < Test::Unit::TestCase
     end
     fp.close
   
-    assert_match(/upd -> \"interm, mystate\" \[label=\" \+\/\-\",.+?arrowhead=veeodot/, content)
-    assert_match("S -> upd", content)
-    assert_match("S -> req", content)
-    assert_match("sinkhole -> \"??\"", content)
-    assert_no_match(/upd -> \"\?\?\"/, content)
-    assert_no_match(/req -> \"\?\?\"/, content)
+    assert_match(/n_upd -> \"n_interm, mystate\" \[label=\" \+\/\-\",.+?arrowhead=veeodot/, content)
+    assert_match("n_S -> n_upd", content)
+    assert_match("n_S -> n_req", content)
+    assert_match("n_sinkhole -> \"n_\?\?\"", content)
+    assert_no_match(/n_upd -> \"n_\?\?\"/, content)
+    assert_no_match(/n_req -> \"n_\?\?\"/, content)
     `rm -r #{dir}`
     program.stop_bg
   end

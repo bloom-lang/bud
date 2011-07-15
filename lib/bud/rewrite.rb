@@ -115,7 +115,9 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     drain(exp)
   end
 
-  # Look for top-level map on a base-table on rhs, and rewrite to pro
+  # We want to rewrite "map" calls on BudCollections to "pro" calls. It is hard
+  # to do this accurately (issue #225), so we just replace map calls liberally
+  # and define Enumerable#pro as an alias for "map".
   def map2pro(exp)
     if exp[1] and exp[1][0] and exp[1][0] == :iter \
       and exp[1][1] and exp[1][1][1] and exp[1][1][1][0] == :call

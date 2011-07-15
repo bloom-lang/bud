@@ -74,3 +74,26 @@ class TestMapVariants < Test::Unit::TestCase
     assert_raise(LocalJumpError, p.tick)
   end
 end
+
+class TestProEnumerable < Test::Unit::TestCase
+  class SortIdAssign
+    include Bud
+
+    state do
+      interface input, :in_t, [:payload]
+      interface output, :out_t, [:ident] => [:payload]
+    end
+
+    bloom do
+      out_t <= in_t.sort.each_with_index.map {|a, i| [i, a]}
+    end
+  end
+
+  def test_sort_pro
+    p = SortIdAssign.new
+    p.run_bg
+    r = p.sync_callback(:in_t, [[5], [1], [100], [6]], :out_t)
+    assert_equal([[0, [1]], [1, [5]], [2, [6]], [3, [100]]], r.to_a.sort)
+    p.stop_bg
+  end
+end
