@@ -138,8 +138,13 @@ module AftMaster
     scratch :msg_send_min_sender, msg_send.schema
     scratch :do_msg, msg_send.schema
     scratch :new_msg, msg_buf.schema
+
     scratch :new_ping, [:attempt_id, :tstamp]
     scratch :not_live, [:attempt_id]
+    scratch :not_live_ords, [:ord_id, :attempt_id]
+    scratch :not_live_cnt, [] => [:cnt]
+    scratch :new_attempt_ids, [:new_id, :old_id]
+    table :next_attempt_id, [] => [:next_id]
     periodic :ft_clock, 2
   end
 
@@ -194,6 +199,8 @@ module AftMaster
       attempt_status << [i, i, ATTEMPT_INIT, nil, bud_clock]
       next_recv_id << [i, 0]
     end
+
+    next_attempt_id << [node_count[[]].num]
   end
 
   def do_fork(attempt_id, node_id)
@@ -260,19 +267,24 @@ module AftMaster
     end
 
     # We want to assign new attempts for the failed nodes. The new attempt IDs
-    # must be unique, but otherwise their order doesn't matter (determinism
-    # would be nice though).
+    # should be unique and deterministic, so we use a sort (non-monotonic barrier)
+    # to assign an arbitrary number of IDs within one timestep.
+    not_live_ords <= not_live.sort.each_with_index.map {|a, i| [i, a.attempt_id]}
+    new_attempt_ids <= (not_live_ords * next_attempt_id).pairs do |o, n|
+      [o.ord_id + n.next_id, o.attempt_id]
+    end
+    not_live_cnt <= not_live.group(nil, count)
+    next_attempt_id <+- (next_attempt_id * not_live_cnt).pairs do |a, c|
+      [a.next_id + c.cnt]
+    end
 
-    # Create new attempts for the failed nodes
-    # XXX: attempt_id assignment is a hack
-    attempt_status <+ (not_live * attempt_status).matches.rights do |as|
-      [as.attempt_id + 10, as.node_id, ATTEMPT_INIT, nil, bud_clock]
+    attempt_status <+ (new_attempt_ids * attempt_status).pairs(:old_id => :attempt_id) do |n, as|
+      [n.new_id, as.node_id, ATTEMPT_INIT, nil, bud_clock]
     end
 
     # Update "node_status" to point at the newly-created attempts
-    # XXX: attempt_id assignment is a hack
-    node_status <+- (not_live * attempt_status).matches.rights do |as|
-      [as.node_id, as.attempt_id + 10]
+    node_status <+- (new_attempt_ids * attempt_status).pairs(:old_id => :attempt_id) do |n, as|
+      [as.node_id, n.new_id]
     end
   end
 
