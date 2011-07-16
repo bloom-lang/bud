@@ -127,7 +127,6 @@ module AftMaster
 
     # Wrap side-effecting calls to fork()
     scratch :fork_req, [:attempt_id] => [:node_id]
-    scratch :fork_done, [:attempt_id]
 
     # Buffer all messages, in case we later need to replay them
     table :msg_buf, [:send_node, :send_id] => [:recv_node, :recv_id, :payload]
@@ -183,10 +182,9 @@ module AftMaster
       end
     end
 
-    register_callback(:fork_req) do |tbl|
-      tbl.each do |t|
+    register_callback(:fork_req) do |req_tbl|
+      req_tbl.each do |t|
         @child_pids << do_fork(t.attempt_id, t.node_id)
-        fork_done <+ [[t.attempt_id]]
       end
     end
 
