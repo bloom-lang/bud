@@ -203,11 +203,11 @@ module Bud
     # satisfy +preds+, and for any item from the 1st collection that has no
     # matches in the 2nd, nil-pad it and include it in the output.
     public
-    def outer(*preds)
+    def outer(*preds, &blk)
       @origpreds = preds
       @localpreds = disambiguate_preds(preds)
       self.extend(Bud::BudOuterJoin)
-      map
+      blk.nil? ? self : map(&blk)
     end
 
     # extract predicates on rellist[0] and recurse to right side with remainder
@@ -438,12 +438,12 @@ module Bud
     public
     def each(&block) # :nodoc:all
       super(&block)
-      # previous line finds all the matches.
-      # now its time to ``preserve'' the outer tuples with no matches.
-      # this is totally inefficient: we should fold the identification of non-matches
-      # into the join algorithms.  Another day.
-      # our trick: for each tuple of the outer, generate a singleton relation
-      # and join with inner.  If result is empty, preserve tuple.
+      # Previous line finds all the matches.  Now its time to ``preserve'' the
+      # outer tuples with no matches.  Our trick: for each tuple of the outer,
+      # generate a singleton relation and join with inner.  If result is empty,
+      # preserve tuple.
+      # XXX: This is totally inefficient: we should fold the identification of
+      # non-matches into the join algorithms.  Another day.
       @rels[0].each do |r|
         t = @origrels[0].clone_empty
         # need to uniquify the tablename here to avoid sharing join state with original

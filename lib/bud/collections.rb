@@ -656,6 +656,12 @@ module Bud
       @is_loopback = loopback
       @locspec_idx = nil
 
+      # We're going to mutate the caller's given_schema (to remove the location
+      # specifier), so make a deep copy first. We also save a ref to the
+      # unmodified given_schema.
+      @raw_schema = given_schema
+      given_schema = Marshal.load(Marshal.dump(given_schema))
+
       unless @is_loopback
         the_schema, the_key_cols = parse_schema(given_schema)
         the_val_cols = the_schema - the_key_cols
@@ -697,7 +703,7 @@ module Bud
 
     public
     def clone_empty
-      self.class.new(tabname, bud_instance, @given_schema, @is_loopback)
+      self.class.new(tabname, bud_instance, @raw_schema, @is_loopback)
     end
 
     public

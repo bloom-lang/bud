@@ -581,7 +581,6 @@ class TestIssue192 < Test::Unit::TestCase
   end
 end
 
-
 class TestIssue220 < Test::Unit::TestCase
   class TripleJoin
     include Bud
@@ -595,5 +594,39 @@ class TestIssue220 < Test::Unit::TestCase
   end
   def test_triple_join
     assert_raise(Bud::CompileError){p = TripleJoin.new; p.tick}
+  end
+end
+
+class OjChannel
+  include Bud
+
+  state do
+    table :user_db, [:user] => [:password]
+    channel :req, [:@addr, :client, :user] => [:password]
+    channel :resp, [:@addr, :user] => [:password]
+  end
+
+  bootstrap do
+    user_db <= [["nrc", "qwerty"], ["jmh", "password"]]
+  end
+
+  bloom do
+    resp <~ (req * user_db).outer(:user => :user) do |r, u|
+      [r.client, r.user, r.password == u.password]
+    end
+  end
+end
+
+class OjChannelTest < Test::Unit::TestCase
+  def test_oj_channel
+    o = OjChannel.new
+    o.run_bg
+    rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "nrc", "qwerty"]], :resp)
+    assert_equal([[o.ip_port, "nrc", true]], rv.to_a.sort)
+    rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "jmh", "qwerty"]], :resp)
+    assert_equal([[o.ip_port, "jmh", false]], rv.to_a.sort)
+    rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "franklin", "qwerty"]], :resp)
+    assert_equal([[o.ip_port, "franklin", false]], rv.to_a.sort)
+    o.stop_bg
   end
 end
