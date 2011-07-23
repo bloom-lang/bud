@@ -205,7 +205,7 @@ module Bud
     public
     def outer(*preds, &blk)
       @origpreds = preds
-      @localpreds = disambiguate_preds(preds)
+      setup_preds(preds)
       self.extend(Bud::BudOuterJoin)
       blk.nil? ? self : map(&blk)
     end
