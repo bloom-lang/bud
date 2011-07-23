@@ -52,7 +52,7 @@ module Bud
         memo
       end
 
-      setup_preds(preds) unless preds.empty?
+      setup_preds(preds)
       setup_state
     end
 
@@ -89,7 +89,7 @@ module Bud
     # similar to <tt>SELECT * FROM ... WHERE...</tt> block in SQL.
     public
     def flatten(*preds)
-      setup_preds(preds) unless preds.empty?
+      setup_preds(preds)
       flat_schema = @rels.map{|r| r.schema}.flatten(1)
       dupfree_schema = []
       # while loop here (inefficiently) ensures no collisions
@@ -161,7 +161,7 @@ module Bud
     public
     def pairs(*preds, &blk)
       @origpreds = preds
-      setup_preds(preds) unless preds.empty?
+      setup_preds(preds)
       # given new preds, the state for the join will be different.  set it up again.
       setup_state if self.class <= Bud::BudJoin
       blk.nil? ? self : map(&blk)
@@ -182,7 +182,7 @@ module Bud
     # of the first collection
     public
     def lefts(*preds, &blk)
-      setup_preds(preds) unless preds.empty?
+      setup_preds(preds)
       # given new preds, the state for the join will be different.  set it up again.
       setup_state if self.class <= Bud::BudJoin
       map{ |l,r| blk.nil? ? l : blk.call(l) }
@@ -193,7 +193,7 @@ module Bud
     # of the second item
     public
     def rights(*preds, &blk)
-      setup_preds(preds) unless preds.empty?
+      setup_preds(preds)
       # given new preds, the state for the join will be different.  set it up again.
       setup_state if self.class <= Bud::BudJoin
       map{ |l,r| blk.nil? ? r : blk.call(r) }
@@ -213,6 +213,7 @@ module Bud
     # extract predicates on rellist[0] and recurse to right side with remainder
     protected
     def setup_preds(preds) # :nodoc: all
+      return if preds.empty?
       allpreds = disambiguate_preds(preds)
       allpreds = canonicalize_localpreds(@rels, allpreds)
       # check for refs to collections that aren't being joined, Issue 191
