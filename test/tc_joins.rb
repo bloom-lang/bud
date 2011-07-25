@@ -273,9 +273,9 @@ class TestJoins < Test::Unit::TestCase
     program.tick
     simple_outs = program.simple_out
     assert_equal(7, simple_outs.length)
-    assert_equal(1, simple_outs.select { |t| t[0] == 'a'} .length)
-    assert_equal(2, simple_outs.select { |t| t[0] == 'b'} .length)
-    assert_equal(4, simple_outs.select { |t| t[0] == 'c'} .length)
+    assert_equal(1, simple_outs.count { |t| t[0] == 'a'})
+    assert_equal(2, simple_outs.count { |t| t[0] == 'b'})
+    assert_equal(4, simple_outs.count { |t| t[0] == 'c'})
   end
 
   def test_secondary_join_predicates
@@ -283,9 +283,9 @@ class TestJoins < Test::Unit::TestCase
     program.tick
     match_outs = program.match_out
     assert_equal(4, match_outs.length)
-    assert_equal(1, match_outs.select { |t| t[0] == 'a'} .length)
-    assert_equal(1, match_outs.select { |t| t[0] == 'b'} .length)
-    assert_equal(2, match_outs.select { |t| t[0] == 'c'} .length)
+    assert_equal(1, match_outs.count { |t| t[0] == 'a'})
+    assert_equal(1, match_outs.count { |t| t[0] == 'b'})
+    assert_equal(2, match_outs.count { |t| t[0] == 'c'})
   end
 
   def test_3_joins
