@@ -664,12 +664,18 @@ module Bud
 
       unless @is_loopback
         the_schema, the_key_cols = parse_schema(given_schema)
+        spec_count = the_schema.count {|s| s.to_s.start_with? "@"}
+        if spec_count == 0
+          raise BudError, "Missing location specifier for channel '#{name}'"
+        end
+        if spec_count > 1
+          raise BudError, "Multiple location specifiers for channel '#{name}'"
+        end
+
         the_val_cols = the_schema - the_key_cols
         @locspec_idx = remove_at_sign!(the_key_cols)
         @locspec_idx = remove_at_sign!(the_schema) if @locspec_idx.nil?
-        if @locspec_idx.nil?
-          raise BudError, "Missing location specifier for channel '#{name}'"
-        end
+        raise BudError if @locspec_idx.nil?     # Shouldn't happen
 
         # We mutate the hash key above, so we need to recreate the hash
         # XXX: ugh, hacky

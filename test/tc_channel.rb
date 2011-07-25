@@ -271,6 +271,14 @@ class ChannelWithoutLocSpec
   end
 end
 
+class ChannelWithMultiLocSpecs
+  include Bud
+
+  state do
+    channel :c, [:@foo] => [:bar, :@baz]
+  end
+end
+
 class LoopbackPayload
   include Bud
 
@@ -291,6 +299,10 @@ end
 class LoopbackTests < Test::Unit::TestCase
   def test_missing_ls
     assert_raise(Bud::BudError) { ChannelWithoutLocSpec.new }
+  end
+
+  def test_dup_ls
+    assert_raise(Bud::BudError) { ChannelWithMultiLocSpecs.new }
   end
 
   def test_loopback_payload
