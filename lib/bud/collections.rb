@@ -674,8 +674,10 @@ module Bud
 
         the_val_cols = the_schema - the_key_cols
         @locspec_idx = remove_at_sign!(the_key_cols)
-        @locspec_idx = remove_at_sign!(the_schema) if @locspec_idx.nil?
-        raise BudError if @locspec_idx.nil?     # Shouldn't happen
+        if @locspec_idx.nil?
+          val_idx = remove_at_sign!(the_val_cols)
+          @locspec_idx = val_idx + the_key_cols.length
+        end
 
         # We mutate the hash key above, so we need to recreate the hash
         # XXX: ugh, hacky
