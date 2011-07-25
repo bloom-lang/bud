@@ -69,7 +69,7 @@ class TestRebl < Test::Unit::TestCase
         $stdout = STDOUT
       end
     end
-    assert_equal(the_line, "hit\n")
+    assert_equal("hit\n", the_line)
 
     # Now perform a stop on both nodes
     assert_nothing_raised do
@@ -96,7 +96,7 @@ class TestRebl < Test::Unit::TestCase
         $stdout = STDOUT
       end
     end
-    assert_equal(the_line, "hit\n")
+    assert_equal("hit\n", the_line)
 
     # Now perform a stop on both nodes
     assert_nothing_raised do

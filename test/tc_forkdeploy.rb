@@ -50,7 +50,7 @@ class TestForkDeploy < Test::Unit::TestCase
     ring_fork.stop_bg
 
     # Assert there are no child processes left; we've closed them all
-    assert_equal(Process.waitall, [])
+    assert_equal([], Process.waitall)
 
     # Console output from different nodes might be intermixed in output pipe
     # (i.e., "lines" might not respect token delivery order). We just check that
