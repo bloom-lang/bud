@@ -103,7 +103,8 @@ module Bud
     @zk_tables = {}
     @callbacks = {}
     @callback_id = 0
-    @shutdown_callbacks = []
+    @shutdown_callbacks = {}
+    @shutdown_callback_id = 0
     @post_shutdown_callbacks = []
     @timers = []
     @inside_tick = false
@@ -336,11 +337,24 @@ module Bud
   
   # Register a callback that will be invoked when this instance of Bud is
   # shutting down.
+  # XXX: The naming of this method (and cancel_shutdown_cb) is inconsistent
+  # with the naming of register_callback and friends.
   def on_shutdown(&blk)
     # Start EM if not yet started
     start_reactor
+    rv = nil
     schedule_and_wait do
-      @shutdown_callbacks << blk
+      rv = @shutdown_callback_id
+      @shutdown_callbacks[@shutdown_callback_id] = blk
+      @shutdown_callback_id += 1
+    end
+    return rv
+  end
+
+  def cancel_shutdown_cb(id)
+    schedule_and_wait do
+      raise Bud::BudError unless @shutdown_callbacks.has_key? id
+      @shutdown_callbacks.delete(id)
     end
   end
 
@@ -443,6 +457,14 @@ module Bud
     cb = register_callback(out_tbl) do |c|
       q.push c.to_a
     end
+
+    # If the runtime shuts down before we see anything in the output collection,
+    # make sure we hear about it so we can raise an error
+    # XXX: Using two separate callbacks here is ugly.
+    shutdown_cb = on_shutdown do
+      q.push nil
+    end
+
     unless in_tbl.nil?
       sync_do {
         t = @tables[in_tbl]
@@ -454,7 +476,12 @@ module Bud
       }
     end
     result = q.pop
+    if result.nil?
+      # Don't try to unregister the callbacks first: runtime is already shutdown
+      raise BudError, "Bud instance shutdown before sync_callback completed"
+    end
     unregister_callback(cb)
+    cancel_shutdown_cb(shutdown_cb)
     return result
   end
 
@@ -541,7 +568,7 @@ module Bud
     }
 
     if do_shutdown_cb
-      @shutdown_callbacks.each {|cb| cb.call}
+      @shutdown_callbacks.each_value {|cb| cb.call}
     end
     @timers.each {|t| t.cancel}
     close_tables
