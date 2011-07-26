@@ -279,6 +279,16 @@ class ChannelWithMultiLocSpecs
   end
 end
 
+class LocSpecTests < Test::Unit::TestCase
+  def test_missing_ls
+    assert_raise(Bud::BudError) { ChannelWithoutLocSpec.new }
+  end
+
+  def test_dup_ls
+    assert_raise(Bud::BudError) { ChannelWithMultiLocSpecs.new }
+  end
+end
+
 class LoopbackPayload
   include Bud
 
@@ -297,14 +307,6 @@ class LoopbackPayload
 end
 
 class LoopbackTests < Test::Unit::TestCase
-  def test_missing_ls
-    assert_raise(Bud::BudError) { ChannelWithoutLocSpec.new }
-  end
-
-  def test_dup_ls
-    assert_raise(Bud::BudError) { ChannelWithMultiLocSpecs.new }
-  end
-
   def test_loopback_payload
     b = LoopbackPayload.new
     q = Queue.new
