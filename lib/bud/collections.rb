@@ -150,19 +150,15 @@ module Bud
       self.map{|t| [t.inspect]}
     end
 
-    # akin to map, but modified for efficiency in Bloom statements
+    # projection
     public
     def pro(&blk)
-      if @bud_instance.stratum_first_iter
-        return map(&blk)
-      else
-        retval = []
-        each_from([@delta]) do |t|
-          newitem = blk.call(t)
-          retval << newitem unless newitem.nil?
-        end
-        return retval
-      end
+      # if @bud_instance.stratum_first_iter
+      puts "adding pusher.pro to #{tabname}"
+      pusher, delta_pusher = to_push_elem
+      pusher_pro = pusher.pro(&blk)
+      delta_pusher.wire_to(pusher_pro)
+      pusher_pro
     end
 
     # By default, all tuples in any rhs are in storage or delta. Tuples in
@@ -294,7 +290,7 @@ module Bud
       return o
     end
 
-    private
+    public
     def do_insert(o, store)
       return if o.nil? # silently ignore nils resulting from map predicates failing
       o = prep_tuple(o)
@@ -309,7 +305,7 @@ module Bud
     end
 
     public
-    def insert(o) # :nodoc: all
+    def insert(o, source=nil) # :nodoc: all
       # puts "insert: #{o.inspect} into #{tabname}"
       do_insert(o, @storage)
     end
@@ -375,18 +371,24 @@ module Bud
     end
 
     public
-    def merge(o, buf=@new_delta) # :nodoc: all
-      unless o.nil?
-        o = o.uniq.compact if o.respond_to?(:uniq)
-        check_enumerable(o)
-        establish_schema(o) if @schema.nil?
-
-        # it's a pity that we are massaging the tuples that already exist in the head
-        o.each do |t|
-          next if t.nil? or t == []
-          t = prep_tuple(t)
-          key_vals = @key_colnums.map{|k| t[k]}
-          buf[key_vals] = tuple_accessors(t) unless include_any_buf?(t, key_vals)
+    def merge(o, buf=@delta) # :nodoc: all
+      if o.class <= Bud::PushElement
+        o.wire_to self
+      elsif o.class <= Bud::BudCollection
+          o.pro.wire_to self
+      else
+        unless o.nil?
+          o = o.uniq.compact if o.respond_to?(:uniq)
+          check_enumerable(o)
+          establish_schema(o) if @schema.nil?
+      
+          # it's a pity that we are massaging the tuples that already exist in the head
+          o.each do |t|
+            next if t.nil? or t == []
+            t = prep_tuple(t)
+            key_vals = @key_colnums.map{|k| t[k]}
+            buf[key_vals] = tuple_accessors(t) unless include_any_buf?(t, key_vals)
+          end
         end
       end
       return self
@@ -401,12 +403,21 @@ module Bud
     # buffer items to be merged atomically at end of this timestep
     public
     def pending_merge(o) # :nodoc: all
-      check_enumerable(o)
-      establish_schema(o) if @schema.nil?
+      if o.class <= Bud::PushElement
+        o.wire_to_pending self
+      elsif o.class <= Bud::BudCollection
+        o.pro.wire_to_pending self
+      else
+        check_enumerable(o)
+        establish_schema(o) if @schema.nil?
 
-      o.each {|i| do_insert(i, @pending)}
+        o.each {|i| do_insert(i, @pending)}
+      end
       return self
     end
+
+    public
+    def flush ; end
 
     public
     superator "<+" do |o|
@@ -416,11 +427,7 @@ module Bud
     public
     superator "<+-" do |o|
       self <+ o
-      self <- o.map do |t|
-        unless t.nil?
-          self[@key_colnums.map{|k| t[k]}]
-        end
-      end
+      self <- o
     end
     
     public 
@@ -446,10 +453,26 @@ module Bud
       @delta = @new_delta
       @new_delta = {}
     end
+    
+    public
+    def to_push_elem
+      # if no push source yet, set one up
+      unless @bud_instance.scanners[tabname]
+        @bud_instance.scanners[tabname] = Bud::ScannerElement.new(tabname, @bud_instance, self)
+        @bud_instance.push_sources[tabname] = @bud_instance.scanners[tabname]
+        @bud_instance.delta_scanners[tabname] = Bud::DeltaScannerElement.new(tabname, @bud_instance, self)
+        @bud_instance.push_sources[tabname] = @bud_instance.delta_scanners[tabname]
+      end
+      return @bud_instance.scanners[tabname], @bud_instance.delta_scanners[tabname]
+    end
 
     private
     def method_missing(sym, *args, &block)
-      @storage.send sym, *args, &block
+      begin
+        @storage.send sym, *args, &block
+      rescue
+        raise NoMethodError, "no method #{sym} in class #{self.class.name}"
+      end
     end
 
     ######## aggs
@@ -467,67 +490,75 @@ module Bud
     end
 
 
-    # a generalization of argmin/argmax to arbitrary exemplary aggregates.
-    # for each distinct value of the grouping key columns, return the items in that group
-    # that have the value of the exemplary aggregate +aggname+
     public
     def argagg(aggname, gbkey_cols, collection)
-      agg = bud_instance.send(aggname, nil)[0]
-      raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
-      keynames = gbkey_cols.map do |k|
-        if k.class == Symbol
-          k.to_s
-        else
-          k[2]
-        end
-      end
-      if collection.class == Symbol
-        colnum = self.send(collection.to_s)[1]
-      else
-        colnum = collection[1]
-      end
-      tups = agg_in.inject({}) do |memo,p|
-        pkey_cols = keynames.map{|n| p.send(n.to_sym)}
-        if memo[pkey_cols].nil?
-          memo[pkey_cols] = {:agg=>agg.send(:init, p[colnum]), :tups => [p]}
-        else
-          memo[pkey_cols][:agg], argflag = \
-             agg.send(:trans, memo[pkey_cols][:agg], p[colnum])
-          if argflag == :keep or agg.send(:tie, memo[pkey_cols][:agg], p[colnum])
-            memo[pkey_cols][:tups] << p 
-          elsif argflag == :replace
-            memo[pkey_cols][:tups] = [p]
-          elsif argflag.class <= Array and argflag[0] == :delete
-            memo[pkey_cols][:tups] -= argflag[1..-1] 
-          end
-        end
-        memo
-      end
-
-      # now we need to finalize the agg per group
-      finalaggs = {}
-      finals = []
-      tups.each do |k,v|
-        finalaggs[k] = agg.send(:final, v[:agg])
-      end
-      
-      # and winnow the tups to match
-      finalaggs.each do |k,v|
-        tups[k][:tups].each do |t|
-          finals << t if (t[colnum] == v)
-        end
-      end
-
-      if block_given?
-        finals.map{|r| yield r}
-      else
-        # merge directly into retval.storage, so that the temp tuples get picked up
-        # by the lhs of the rule
-        retval = BudScratch.new('argagg_temp', bud_instance, @given_schema)
-        retval.uniquify_tabname
-        retval.merge(finals, retval.storage)
-      end
+      elem, delta_elem = to_push_elem
+      retval = elem.argagg(aggname,gbkey_cols,collection)
+      delta_elem.wire_to(retval)
+      retval
     end
+    # 
+    # # a generalization of argmin/argmax to arbitrary exemplary aggregates.
+    # # for each distinct value of the grouping key columns, return the items in that group
+    # # that have the value of the exemplary aggregate +aggname+
+    # public
+    # def argagg(aggname, gbkey_cols, collection)
+    #   agg = bud_instance.send(aggname, nil)[0]
+    #   raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
+    #   keynames = gbkey_cols.map do |k|
+    #     if k.class == Symbol
+    #       k.to_s
+    #     else
+    #       k[2]
+    #     end
+    #   end
+    #   if collection.class == Symbol
+    #     colnum = self.send(collection.to_s)[1]
+    #   else
+    #     colnum = collection[1]
+    #   end
+    #   tups = agg_in.inject({}) do |memo,p|
+    #     pkey_cols = keynames.map{|n| p.send(n.to_sym)}
+    #     if memo[pkey_cols].nil?
+    #       memo[pkey_cols] = {:agg=>agg.send(:init, p[colnum]), :tups => [p]}
+    #     else
+    #       memo[pkey_cols][:agg], argflag = \
+    #          agg.send(:trans, memo[pkey_cols][:agg], p[colnum])
+    #       if argflag == :keep or agg.send(:tie, memo[pkey_cols][:agg], p[colnum])
+    #         memo[pkey_cols][:tups] << p 
+    #       elsif argflag == :replace
+    #         memo[pkey_cols][:tups] = [p]
+    #       elsif argflag.class <= Array and argflag[0] == :delete
+    #         memo[pkey_cols][:tups] -= argflag[1..-1] 
+    #       end
+    #     end
+    #     memo
+    #   end
+    # 
+    #   # now we need to finalize the agg per group
+    #   finalaggs = {}
+    #   finals = []
+    #   tups.each do |k,v|
+    #     finalaggs[k] = agg.send(:final, v[:agg])
+    #   end
+    #   
+    #   # and winnow the tups to match
+    #   finalaggs.each do |k,v|
+    #     tups[k][:tups].each do |t|
+    #       finals << t if (t[colnum] == v)
+    #     end
+    #   end
+    # 
+    #   if block_given?
+    #     finals.map{|r| yield r}
+    #   else
+    #     # merge directly into retval.storage, so that the temp tuples get picked up
+    #     # by the lhs of the rule
+    #     retval = BudScratch.new('argagg_temp', bud_instance, @given_schema)
+    #     retval.uniquify_tabname
+    #     retval.merge(finals, retval.storage)
+    #   end
+    # end
 
     # for each distinct value of the grouping key columns, return the items in
     # that group that have the minimum value of the attribute +col+. Note that
@@ -554,84 +585,95 @@ module Bud
       end
     end
 
-    def join(collections, *preds, &blk)
-      # since joins are stateful, we want to allocate them once and store in this Bud instance
-      # we ID them on their tablenames, preds, and block
-      return wrap_map(BudJoin.new(collections, @bud_instance, preds), &blk)
-    end
+    # def join(collections, *preds, &blk)
+    #   # since joins are stateful, we want to allocate them once and store in this Bud instance
+    #   # we ID them on their tablenames, preds, and block
+    #   return wrap_map(BudJoin.new(collections, @bud_instance, preds), &blk)
+    # end
 
     # form a collection containing all pairs of items in +self+ and items in
     # +collection+
     public
     def *(collection)
-      join([self, collection])
+      elem1, delta1 = to_push_elem
+      j = elem1.join(collection)
+      delta1.wire_to(j)
+      return j
+      # join([self, collection])
     end
 
-    # SQL-style grouping.  first argument is an array of attributes to group by.
-    # Followed by a variable-length list of aggregates over attributes (e.g. +min(:x)+)
-    # Attributes can be referenced as symbols, or as +collection_name.attribute_name+
-    public
     def group(key_cols, *aggpairs)
-      key_cols = [] if key_cols.nil?
-      keynames = key_cols.map do |k|
-        if k.class == Symbol
-          k
-        elsif k[2] and k[2].class == Symbol
-          k[2]
-        else
-          raise Bud::CompileError, "Invalid grouping key"
-        end
-      end
-      aggcolsdups = aggpairs.map{|ap| ap[0].class.name.split("::").last}
-      aggcols = []
-      aggcolsdups.each_with_index do |n, i|
-        aggcols << "#{n.downcase}_#{i}".to_sym
-      end
-      aggpairs = aggpairs.map do |ap|
-        if ap[1].class == Symbol
-          colnum = ap[1].nil? ? nil : self.send(ap[1].to_s)[1]
-        else
-          colnum = ap[1].nil? ? nil : ap[1][1]
-        end
-        [ap[0], colnum]
-      end
-      tups = agg_in.inject({}) do |memo, p|
-        pkey_cols = keynames.map{|n| p.send(n)}
-        memo[pkey_cols] = [] if memo[pkey_cols].nil?
-        aggpairs.each_with_index do |ap, i|
-          agg = ap[0]
-          colval = ap[1].nil? ? nil : p[ap[1]]
-          if memo[pkey_cols][i].nil?
-            memo[pkey_cols][i] = agg.send(:init, colval)
-          else
-            memo[pkey_cols][i], ignore = agg.send(:trans, memo[pkey_cols][i], colval)
-          end
-        end
-        memo
-      end
-
-      result = tups.inject([]) do |memo, t|
-        finals = []
-        aggpairs.each_with_index do |ap, i|
-          finals << ap[0].send(:final, t[1][i])
-        end
-        memo << t[0] + finals
-      end
-      if block_given?
-        result.map{|r| yield r}
-      else
-        # merge directly into retval.storage, so that the temp tuples get picked up
-        # by the lhs of the rule
-        if aggcols.empty?
-          schema = keynames
-        else
-          schema = { keynames => aggcols }
-        end
-        retval = BudScratch.new('temp_group', bud_instance, schema)
-        retval.uniquify_tabname
-        retval.merge(result, retval.storage)
-      end
+      elem, delta1 = to_push_elem
+      g = elem.group(key_cols, *aggpairs)
+      delta1.wire_to(g)
+      return g
     end
+
+    # # SQL-style grouping.  first argument is an array of attributes to group by.
+    # # Followed by a variable-length list of aggregates over attributes (e.g. +min(:x)+)
+    # # Attributes can be referenced as symbols, or as +collection_name.attribute_name+
+    # public
+    # def group(key_cols, *aggpairs)
+    #   key_cols = [] if key_cols.nil?
+    #   keynames = key_cols.map do |k|
+    #     if k.class == Symbol
+    #       k
+    #     elsif k[2] and k[2].class == Symbol
+    #       k[2]
+    #     else
+    #       raise Bud::CompileError, "Invalid grouping key"
+    #     end
+    #   end
+    #   aggcolsdups = aggpairs.map{|ap| ap[0].class.name.split("::").last}
+    #   aggcols = []
+    #   aggcolsdups.each_with_index do |n, i|
+    #     aggcols << "#{n.downcase}_#{i}".to_sym
+    #   end
+    #   aggpairs = aggpairs.map do |ap|
+    #     if ap[1].class == Symbol
+    #       colnum = ap[1].nil? ? nil : self.send(ap[1].to_s)[1]
+    #     else
+    #       colnum = ap[1].nil? ? nil : ap[1][1]
+    #     end
+    #     [ap[0], colnum]
+    #   end
+    #   tups = agg_in.inject({}) do |memo, p|
+    #     pkey_cols = keynames.map{|n| p.send(n)}
+    #     memo[pkey_cols] = [] if memo[pkey_cols].nil?
+    #     aggpairs.each_with_index do |ap, i|
+    #       agg = ap[0]
+    #       colval = ap[1].nil? ? nil : p[ap[1]]
+    #       if memo[pkey_cols][i].nil?
+    #         memo[pkey_cols][i] = agg.send(:init, colval)
+    #       else
+    #         memo[pkey_cols][i], ignore = agg.send(:trans, memo[pkey_cols][i], colval)
+    #       end
+    #     end
+    #     memo
+    #   end
+    # 
+    #   result = tups.inject([]) do |memo, t|
+    #     finals = []
+    #     aggpairs.each_with_index do |ap, i|
+    #       finals << ap[0].send(:final, t[1][i])
+    #     end
+    #     memo << t[0] + finals
+    #   end
+    #   if block_given?
+    #     result.map{|r| yield r}
+    #   else
+    #     # merge directly into retval.storage, so that the temp tuples get picked up
+    #     # by the lhs of the rule
+    #     if aggcols.empty?
+    #       schema = keynames
+    #     else
+    #       schema = { keynames => aggcols }
+    #     end
+    #     retval = BudScratch.new('temp_group', bud_instance, schema)
+    #     retval.uniquify_tabname
+    #     retval.merge(result, retval.storage)
+    #   end
+    # end
 
     alias reduce inject
 
@@ -744,7 +786,11 @@ module Bud
     end
 
     superator "<~" do |o|
-      pending_merge o
+      if o.class <= PushElement
+        o.wire_to_pending self
+      else
+        pending_merge(o)
+      end
     end
 
     superator "<+" do |o|
@@ -819,7 +865,11 @@ module Bud
     end
 
     superator "<~" do |o|
-      pending_merge(o)
+      if o.class <= PushElement
+        o.wire_to_pending self
+      else
+        pending_merge(o)
+      end
     end
 
     private
@@ -877,12 +927,20 @@ module Bud
       @to_delete = []
       @pending = {}
     end
-
+    
+    public 
+    def pending_delete(t)
+      if o.class <= Bud::PushElement
+         o.wire_to_delete self
+       elsif o.class <= Bud::BudCollection
+         o.pro.wire_to_delete self
+       else
+         @to_delete << prep_tuple(t) unless t.nil?
+       end
+    end
+    
     superator "<-" do |o|
-      o.each do |t|
-        next if t.nil?
-        @to_delete << prep_tuple(t)
-      end
+      pending_delete(o)
     end
   end
 

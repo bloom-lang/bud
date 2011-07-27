@@ -25,6 +25,10 @@ require 'bud/storage/zookeeper'
 require 'bud/stratify'
 require 'bud/viz'
 
+require 'bud/executor/elements.rb'
+require 'bud/executor/group.rb'
+require 'bud/executor/join.rb'
+
 ILLEGAL_INSTANCE_ID = -1
 SIGNAL_CHECK_PERIOD = 0.2
 
@@ -59,6 +63,7 @@ module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
   attr_reader :dsock
   attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
+  attr_reader :push_sources, :push_elems, :scanners, :delta_scanners, :done_wiring
   attr_reader :stratum_first_iter, :joinstate
   attr_reader :this_stratum, :this_rule, :rule_orig_src
   attr_accessor :lazy # This can be changed on-the-fly by REBL
@@ -98,6 +103,10 @@ module Bud
     @table_meta = []
     @rewritten_strata = []
     @channels = {}
+    @push_sources = {}
+    @push_elems = {}
+    @scanners = {}
+    @delta_scanners = {}
     @tc_tables = {}
     @dbm_tables = {}
     @zk_tables = {}
@@ -111,6 +120,7 @@ module Bud
     @budtime = 0
     @inbound = []
     @done_bootstrap = false
+    @done_wiring = false
     @joinstate = {}  # joins are stateful, their state needs to be kept inside the Bud instance
     @instance_id = ILLEGAL_INSTANCE_ID # Assigned when we start running
     @sources = {}
@@ -146,7 +156,7 @@ module Bud
     end
 
     # Load the rules as a closure. Each element of @strata is an array of
-    # lambdas, one for each rewritten rule in that strata. Note that legacy Bud
+    # lambdas, one for each rewritten rule in that stratum. Note that legacy Bud
     # code (with user-specified stratification) assumes that @strata is a simple
     # array, so we need to convert it before loading the rewritten strata.
     @strata = []
@@ -255,6 +265,11 @@ module Bud
     bootstrap
 
     @done_bootstrap = true
+  end
+  
+  def do_wiring
+    @strata.each_with_index { |s,i| stratum_fixpoint(s, i) }
+    @done_wiring = true
   end
 
   def do_rewrite
@@ -626,9 +641,27 @@ module Bud
       @joinstate = {}
 
       do_bootstrap unless @done_bootstrap
+      do_wiring unless @done_wiring
       receive_inbound
 
-      @strata.each_with_index { |s,i| stratum_fixpoint(s, i) }
+      @scanners.each_value {|s| s << [:go]}
+
+      # @strata.each_with_index { |s,i| stratum_fixpoint(s, i) }
+      # flush buffered push tuples
+      fixpoint = false
+      until fixpoint
+        fixpoint = true
+        delta_scanners.each_value{|d| d << [:go]}
+        push_sources.each_value {|p| p.end}
+        # check for fixpoint on the push joins
+        push_elems.each_value do |p| 
+          if p.class <= Bud::PushSHJoin and p.found_delta==true
+            fixpoint = false 
+            p.tick_deltas
+          end
+        end
+      end
+      
       @viz.do_cards if @options[:trace]
       do_flush
       invoke_callbacks
@@ -728,8 +761,8 @@ module Bud
     # fields; subsequent iterations do the delta-joins only.  The
     # stratum_first_iter field here distinguishes these cases.
     @stratum_first_iter = true
+    @this_stratum = strat_num  
     begin
-      @this_stratum = strat_num
       strat.each_with_index do |r,i|
         @this_rule = i
         fixpoint = false
@@ -741,13 +774,13 @@ module Bud
             metrics[:rules][{:strat_num => strat_num, :rule_num => i, :rule_src => rule_src}] += 1
           end
           r.call
+          # flush buffered tuples in push elements
         rescue Exception => e
           # Don't report source text for certain rules (old-style rule blocks)
           src_msg = ""
           unless rule_src == ""
             src_msg = "\nRule: #{rule_src}"
           end
-
           new_e = e
           unless new_e.class <= BudError
             new_e = BudError
@@ -755,8 +788,9 @@ module Bud
           raise new_e, "Exception during Bud evaluation.\nException: #{e.inspect}.#{src_msg}"
         end
       end
+
+      fixpoint = true        
       @stratum_first_iter = false
-      fixpoint = true
       # tick collections in this stratum; if we don't have info on that, tick all collections
       colls = @stratum_collection_map[strat_num] if @stratum_collection_map
       colls ||= @tables.keys
