@@ -76,7 +76,7 @@ module Bud
       val_cols.each_with_index do |c,i|
         t[schema.index(c)] = v_ary[i]
       end
-      tuple_accessors(t)
+      t
     end
 
     def each(&block)

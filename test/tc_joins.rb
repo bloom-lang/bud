@@ -339,16 +339,11 @@ class TestJoins < Test::Unit::TestCase
   end
 
   def test_bad_star_joins
-    p1 = MixedAttrRefs.new
-    p2 = MissingAttrRefs.new
-    p3 = IllegalAttrRefs.new
-    p4 = AmbiguousAttrRefs.new
-    p5 = UnJoinedTableRef.new    # Issue 191
-    assert_raise(Bud::CompileError) {p1.tick}
-    assert_raise(Bud::CompileError) {p2.tick}
-    assert_raise(Bud::CompileError) {p3.tick}
-    assert_raise(Bud::CompileError) {p4.tick}
-    assert_raise(Bud::CompileError) {p5.tick}
+    assert_raise(Bud::CompileError) {p1 = MixedAttrRefs.new}
+    assert_raise(Bud::CompileError) {p2 = MissingAttrRefs.new}
+    assert_raise(Bud::CompileError) {p3 = IllegalAttrRefs.new}
+    assert_raise(Bud::CompileError) {p4 = AmbiguousAttrRefs.new}
+    assert_raise(Bud::CompileError) {p5 = UnJoinedTableRef.new}    # Issue 191
   end
   
   def test_rename_join
@@ -382,7 +377,7 @@ class TestJoins < Test::Unit::TestCase
   
   def test_flatten_joins
     p = FlattenJoins.new
-    p.tick; p.tick
+    p.tick
     assert_equal(2, p.out.length)
     assert_equal(1, p.out2.length)
   end
@@ -453,7 +448,7 @@ class TestJoins < Test::Unit::TestCase
   
   def test_shared_join
     p = SharedJoin.new
-    p.tick; p.tick
+    p.tick
     assert_equal([[1, 1, 1], [2, 1, 1], [3, 2, 2], [3, 3, 2]], p.out1.to_a.sort)
     assert_equal([[1, 1], [2, 1], [3, 2]], p.out2.to_a.sort)
   end
@@ -480,7 +475,7 @@ class TestJoins < Test::Unit::TestCase
   
   def test_cascaded_match_joins
     p = CascadedMatchJoins.new
-    p.tick; p.tick
+    p.tick
     assert_equal([[1,2]], p.outleft.to_a)
     assert_equal([[1,3]], p.outright.to_a)
     assert_equal(p.outleft.to_a, p.outlpairs.to_a)

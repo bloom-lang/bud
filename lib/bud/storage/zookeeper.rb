@@ -94,7 +94,7 @@ module Bud
         data = get_r[:data]
         # XXX: For now, conflate empty string values with nil values
         data ||= ""
-        new_children[c] = tuple_accessors([c, data])
+        new_children[c] = [c, data]
       end
 
       # We successfully fetched all the children of @zk_path; arrange to install

@@ -94,12 +94,6 @@ module Bud
     @channels[name] = @tables[name]
   end
   
-  def pusher(name, schema=nil)
-    define_collection(name)
-    @tables[name] = Bud::PushElement.new(name, self, schema)
-    @push_sources[name] = @tables[name]
-  end
-
   # declare a transient network collection that delivers facts back to the
   # current Bud instance. This is syntax sugar for a channel that always
   # delivers to the IP/port of the current Bud instance. Default schema

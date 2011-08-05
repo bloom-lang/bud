@@ -75,9 +75,11 @@ module Bud
       preds = []
       rels.each do |r|
         rels.each do |s|
-          matches = r.schema & s.schema
-          matches.each do |c|
-            preds << [bud_instance.send(r.tabname).send(c), bud_instance.send(s.tabname).send(c)] unless r.tabname.to_s >= s.tabname.to_s
+          unless r.tabname.to_s >= s.tabname.to_s
+            matches = r.schema & s.schema
+            matches.each do |c|
+              preds << [r.send(c), s.send(c)] 
+            end
           end
         end
       end

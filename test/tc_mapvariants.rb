@@ -90,6 +90,7 @@ class TestProEnumerable < Test::Unit::TestCase
   end
 
   def test_sort_pro
+    assert(false, "this test hangs")
     p = SortIdAssign.new
     p.run_bg
     r = p.sync_callback(:in_t, [[5], [1], [100], [6]], :out_t)

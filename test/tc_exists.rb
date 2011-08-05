@@ -20,6 +20,7 @@ end
 
 class TestExists < Test::Unit::TestCase
   def test_conv
+    assert(false, "hangs on this test")
     p = ExistTest.new
     p.run_bg
 

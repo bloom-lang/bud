@@ -19,6 +19,7 @@ class BudMeta #:nodoc: all
     rewritten_strata = Array.new(top_stratum + 2) { [] }
     no_attr_rewrite_strata = Array.new(top_stratum + 2) { [] }
     @bud_instance.t_rules.each do |d|
+      @bud_instance.t_rules.tuple_accessors(d)
       if d.op.to_s == '<='
         # Deductive rules are assigned to strata based on the basic Datalog
         # stratification algorithm

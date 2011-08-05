@@ -7,6 +7,8 @@ class BabyBud
     scratch :scrtch, [:k1, :k2] => [:v1, :v2]
     scratch :scrtch2, [:k1, :k2]
     table :tbl, [:k1, :k2] => [:v1, :v2]
+    scratch :the_keys
+    scratch :the_vals
   end
 
   bootstrap do
@@ -21,6 +23,8 @@ class BabyBud
     scrtch <+ [['c', 'd', 5, 6]]
     tbl <+ [['c', 'd', 5, 6]]
     tbl <- [['a', 'b', 1, 2]]
+    the_keys <= tbl.keys
+    the_vals <= tbl.values
   end
 end
 
@@ -66,10 +70,12 @@ class Grep
   state do
     file_reader :text, 'text/ulysses.txt'
     table :matches, [:lineno, :text]
+    table :text_out, [:lineno, :text]
   end
 
   bloom do
-    matches <= text.map{|t| t if t.text =~ pattern}
+    text_out <= text
+    matches <= text {|t| t if t.text =~ pattern}
   end
 end
 
@@ -89,23 +95,6 @@ class Union
 
   bloom do
     union <= (delta_link <= link)
-  end
-end
-
-class DeleteKey
-  include Bud
-
-  state do
-    table :t1, [:k] => [:v]
-    table :del_buf, [:k, :v]
-  end
-
-  bootstrap do
-    t1 << [5, 10]
-  end
-
-  bloom do
-    t1 <- del_buf
   end
 end
 
@@ -153,24 +142,6 @@ class BendTypes
 
   bootstrap do
     t1 <= {1=>'a', 2=>'b'}
-  end
-end
-
-class BendTypesDelete
-  include Bud
-
-  state do
-    table :t1, [:k1, :k2]
-    table :t2, [:k1, :k2]
-  end
-
-  bootstrap do
-    t1 << [5, nil]
-    t1 << [5, 10]
-  end
-
-  bloom do
-    t1 <- t2.map {|t| [t.k1]}
   end
 end
 
@@ -247,24 +218,6 @@ class DupTableDef
   end
 end
 
-class DelBug
-  include Bud
-
-  state do
-    table :buffer
-    table :to_delete
-  end
-
-  bootstrap do
-    buffer <= [[1,2], [3,4]]
-    to_delete <= [[3,4], [5,6]]
-  end
-
-  bloom do
-    buffer <- to_delete.map {|t| t if t.val != 4}
-  end
-end
-
 class BadDeclaration
   include Bud
   state do
@@ -301,13 +254,13 @@ class TestCollections < Test::Unit::TestCase
     program.tick
     assert_equal(1, program.scrtch2.length)
     program.tick
-    assert_equal([["[\"c\", \"d\", 5, 6]"]], program.scrtch.inspected)
+    assert_equal([["c", "d", 5, 6]], program.scrtch.to_a)
     assert_equal(0, program.scrtch2.length)
     assert_equal(2, program.tbl.length)
-    assert_equal([["c", "d"], ["z", "y"]].sort, program.tbl.keys.sort)
-    assert_equal([[5,6], [9,8]].sort, program.tbl.values.sort)
+    assert_equal([["c", "d"], ["z", "y"]].sort, program.the_keys.to_a.sort)
+    assert_equal([[5,6], [9,8]].sort, program.the_vals.to_a.sort)
   end
-
+  
   def test_tuple_accessors
     program = BabyBud.new
     program.tick
@@ -351,6 +304,23 @@ class TestCollections < Test::Unit::TestCase
     s.tick
     assert_equal(2, s.union.length)
     assert_equal([["a", "b", 4], ["a", "b", 1]], s.union.to_a)
+  end
+
+  class DeleteKey
+    include Bud
+
+    state do
+      table :t1, [:k] => [:v]
+      table :del_buf, [:k, :v]
+    end
+
+    bootstrap do
+      t1 << [5, 10]
+    end
+
+    bloom do
+      t1 <- del_buf
+    end
   end
 
   def test_delete_key
@@ -405,6 +375,24 @@ class TestCollections < Test::Unit::TestCase
     assert_raise(Bud::BudTypeError) { p6.tick }
   end
 
+  class BendTypesDelete
+    include Bud
+
+    state do
+      table :t1, [:k1, :k2]
+      table :t2, [:k1, :k2]
+    end
+
+    bootstrap do
+      t1 << [5, nil]
+      t1 << [5, 10]
+    end
+
+    bloom do
+      t1 <- t2 {|t| [t.k1]}
+    end
+  end
+
   def test_types_delete
     p = BendTypesDelete.new
     p.run_bg
@@ -434,6 +422,24 @@ class TestCollections < Test::Unit::TestCase
 
   def test_dup_table_def
     assert_raise(Bud::CompileError) { DupTableDef.new }
+  end
+
+  class DelBug
+    include Bud
+
+    state do
+      table :buffer
+      table :to_delete
+    end
+
+    bootstrap do
+      buffer <= [[1,2], [3,4]]
+      to_delete <= [[3,4], [5,6]]
+    end
+
+    bloom do
+      buffer <- to_delete {|t| t if t.val != 4}
+    end
   end
 
   def test_filter_and_delete
@@ -534,26 +540,56 @@ class TestUpsert < Test::Unit::TestCase
   class UpsertTest
     include Bud
     state do
-      table :t1
+      table :joe
       table :t2
+      scratch :t1d
+      scratch :t2d
     end
     bootstrap do
-      t1 << [1,'a']
+      joe << [1,'a']
       t2 << [2,'x']
+      t1d << [1,'b']
+      t2d << [2,'y']
     end
     bloom do
-      t1 <+- [[1,'b']]
-      t2 <-+ [[2, 'y']]
+      joe <+- t1d
+      t2 <-+ t2d
     end
   end
 
   def test_upsert
     p = UpsertTest.new
     p.tick
-    assert_equal([[1,'a']], p.t1.to_a)
+    assert_equal([[1,'a']], p.joe.to_a)
     assert_equal([[2,'x']], p.t2.to_a)
     p.tick
-    assert_equal([[1,'b']], p.t1.to_a)
+    assert_equal([[1,'b']], p.joe.to_a)
     assert_equal([[2,'y']], p.t2.to_a)
+  end
+end
+  
+class TestTransitivity < Test::Unit::TestCase
+  class TransitivityTest
+    include Bud
+    state do
+      scratch :t1, [:a, :b]
+      scratch :t2, [:c, :d]
+      scratch :t3, [:e, :f]
+    end
+    bootstrap do
+      t1 << [1,1]
+    end
+    bloom do
+      t2 <= t1
+      t3 <= t2
+    end
+  end
+  
+  def test_transitivity
+    p = TransitivityTest.new
+    p.tick
+    assert_equal([[1,1]], p.t1.to_a)
+    assert_equal([[1,1]], p.t2.to_a)
+    assert_equal([[1,1]], p.t3.to_a)
   end
 end

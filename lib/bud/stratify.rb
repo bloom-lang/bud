@@ -19,6 +19,7 @@ class Stratification # :nodoc: all
   def declaration
     strata[0] = lambda {
       depends_clean <= depends do |d|
+        depends.tuple_accessors(d)
         is_temporal = (d.op.to_s =~ /<[\+\-\~]/)
         [d.head, d.body, d.neg, is_temporal]
       end
@@ -26,13 +27,17 @@ class Stratification # :nodoc: all
       # Compute the transitive closure of "depends_clean" to detect cycles in
       # the deductive fragment of the program.
       depends_tc <= depends_clean do |d|
+        depends_clean.tuple_accessors(d)
         [d.head, d.body, d.body, d.neg, d.temporal]
       end
       depends_tc <= (depends_clean * depends_tc).pairs(:body => :head) do |b, r|
+        depends_clean.tuple_accessors(b)
+        depends_tc.tuple_accessors(r)
         [b.head, r.body, b.body, (b.neg or r.neg), (b.temporal or r.temporal)]
       end
 
       cycle <= depends_tc do |d|
+        depends_tc.tuple_accessors(d)
         if d.head == d.body
           if d.neg and !d.temporal
             raise Bud::CompileError, "unstratifiable program: #{d.inspect}"
@@ -57,6 +62,8 @@ class Stratification # :nodoc: all
       # deductive rules (<=). Temporal rules are placed in an extra "top"
       # stratum afterward.
       stratum_base <= (depends * stratum_base).pairs(:body => :predicate) do |d, s|
+        depends.tuple_accessors(d)
+        stratum_base.tuple_accessors(s)
         if d.op.to_s == '<='
           if d.neg
             # BUMP

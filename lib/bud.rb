@@ -63,7 +63,7 @@ module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
   attr_reader :dsock
   attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
-  attr_reader :push_sources, :push_elems, :scanners, :delta_scanners, :done_wiring
+  attr_reader :push_sources, :push_elems, :push_joins, :scanners, :delta_scanners, :merge_targets, :done_wiring
   attr_reader :stratum_first_iter, :joinstate
   attr_reader :this_stratum, :this_rule, :rule_orig_src
   attr_accessor :lazy # This can be changed on-the-fly by REBL
@@ -86,6 +86,7 @@ module Bud
   #   * <tt>:trace</tt> if true, generate +budvis+ outputs
   #   * <tt>:rtrace</tt>  if true, generate +budplot+ outputs
   #   * <tt>:dump_rewrite</tt> if true, dump results of internal rewriting of Bloom code to a file
+  #   * <tt>:print_wiring</tt> if true, print the wiring diagram of the program to stdout
   #   * <tt>:metrics</tt> if true, dumps a hash of internal performance metrics
   # * controlling execution
   #   * <tt>:lazy</tt>  if true, prevents runtime from ticking except on external calls to +tick+
@@ -103,10 +104,7 @@ module Bud
     @table_meta = []
     @rewritten_strata = []
     @channels = {}
-    @push_sources = {}
     @push_elems = {}
-    @scanners = {}
-    @delta_scanners = {}
     @tc_tables = {}
     @dbm_tables = {}
     @zk_tables = {}
@@ -127,6 +125,9 @@ module Bud
     @sinks = {}
     @metrics = {}
     @endtime = nil
+    
+    # XXX This variable is unused in the Push executor
+    @stratum_first_iter = false
 
     # Setup options (named arguments), along with default values
     @options = options.clone
@@ -180,6 +181,13 @@ module Bud
         @rule_orig_src[i] << @no_attr_rewrite_strata[i][j]
       end
     end
+    # now that we know how many strata there are, initialize per-stratum state
+    @scanners = @strata.length.times.map{{}}
+    @delta_scanners = @strata.length.times.map{{}}
+    @push_sources = @strata.length.times.map{{}}
+    @push_joins = @strata.length.times.map{[]}
+    @merge_targets = @strata.length.times.map{{}}
+    do_wiring
   end
 
   private
@@ -253,7 +261,7 @@ module Bud
     end
   end
 
-  # Evaluate all bootstrap blocks
+  # Evaluate all bootstrap blocks and tick deltas
   def do_bootstrap
     self.class.ancestors.reverse.each do |anc|
       anc.instance_methods(false).each do |m|
@@ -264,12 +272,18 @@ module Bud
     end
     bootstrap
 
+    tables.each_value{|t| t.tick_deltas; t.tick_deltas}
     @done_bootstrap = true
   end
   
   def do_wiring
-    @strata.each_with_index { |s,i| stratum_fixpoint(s, i) }
+    @strata.each_with_index { |s,i| eval_rules(s, i) }
     @done_wiring = true
+    if @options[:print_wiring]
+      @push_sources.each do |strat| 
+        strat.each_value{|src| src.print_wiring}
+      end
+    end
   end
 
   def do_rewrite
@@ -575,6 +589,7 @@ module Bud
 
     # Initialize periodics
     @periodics.each do |p|
+      @periodics.tuple_accessors(p)      
       @timers << set_periodic_timer(p.pername, p.ident, p.period)
     end
 
@@ -634,32 +649,54 @@ module Bud
         @metrics[:betweentickstats] = running_stats(@metrics[:betweentickstats], starttime - @endtime)
       end
       @inside_tick = true
-      @tables.each_value do |t|
-        t.tick
-      end
       
       @joinstate = {}
 
-      do_bootstrap unless @done_bootstrap
+      unless @done_bootstrap
+        do_bootstrap
+      else
+        @tables.each_value do |t|
+          t.tick
+        end
+      end
       do_wiring unless @done_wiring
       receive_inbound
 
-      @scanners.each_value {|s| s << [:go]}
-
-      # @strata.each_with_index { |s,i| stratum_fixpoint(s, i) }
-      # flush buffered push tuples
-      fixpoint = false
-      until fixpoint
-        fixpoint = true
-        delta_scanners.each_value{|d| d << [:go]}
-        push_sources.each_value {|p| p.end}
-        # check for fixpoint on the push joins
-        push_elems.each_value do |p| 
-          if p.class <= Bud::PushSHJoin and p.found_delta==true
-            fixpoint = false 
-            p.tick_deltas
+      # compute fixpoint for each stratum in order
+      @strata.each_with_index do |s,i|
+        fixpoint = false
+        first_iter = true
+        until fixpoint
+          # puts "stratum #{i} iteration"
+          fixpoint = true
+          if first_iter
+            # push in the stored tuples from previous fixpoint
+            @scanners[i].each_value {|s| s << [:go]}
+          else
+            # push in any deltas from last iteration
+            delta_scanners[i].each_value{|d| d << [:go]} unless first_iter
           end
+          # flush any tuples in the pipes
+          push_sources[i].each_value {|p| p.flush}
+          # tick deltas on any merge targets and look for more deltas
+          merge_targets[i].each_key do |t| 
+            fixpoint = false if t.tick_deltas
+          end
+          # check to see if any joins saw a delta
+          push_joins[i].each do |p| 
+            if p.found_delta==true
+              fixpoint = false 
+              p.tick_deltas
+            end
+          end
+          first_iter = false
         end
+        # push end-of-fixpoint
+        push_sources[i].each_value{|p| p.end}
+        merge_targets[i].each_key do |t| 
+          t.flush_deltas
+        end
+        
       end
       
       @viz.do_cards if @options[:trace]
@@ -729,83 +766,27 @@ module Bud
     @dbm_tables.each_value { |t| t.flush }
   end
 
-  def stratum_fixpoint(strat, strat_num)
-    # This routine uses semi-naive evaluation to compute a fixpoint of the rules
-    # in strat.
-    #
-    # As described in lib/collections.rb, each collection has three
-    # sub-collections of note here:
-    #   @storage: the "main" storage of tuples
-    #   @delta: tuples that should be used to drive derivation of new facts
-    #   @new_delta: a place to store newly-derived facts
-    #
-    # The first time through this loop we mark @stratum_first_iter=true, which
-    # tells the Join::each code to join up all its @storage subcollections to
-    # start. In subsequent iterations the join code uses some table's @delta to
-    # ensure that only new tuples are derived.
-    #
-    # Note that calling "each" on a non-Join collection will iterate through
-    # both storage and delta.
-    #
-    # At the end of each iteration of this loop we transition:
-    # - @delta tuples are merged into @storage
-    # - @new_delta tuples are moved into @delta
-    # - @new_delta is set to empty
-    #
-    # XXX as a performance optimization, it would be nice to bypass the delta
-    # tables for any preds that don't participate in a rhs Join -- in that case
-    # there's pointless extra tuple movement letting tuples "graduate" through
-    # @new_delta and @delta.
-
-    # In semi-naive, the first iteration should join up tables on their storage
-    # fields; subsequent iterations do the delta-joins only.  The
-    # stratum_first_iter field here distinguishes these cases.
-    @stratum_first_iter = true
+  def eval_rules(strat, strat_num)
+    # This routine evals the rules in a given stratum, which results in a wiring of PushElements
     @this_stratum = strat_num  
-    begin
-      strat.each_with_index do |r,i|
-        @this_rule = i
-        fixpoint = false
-        rule_src = @rule_orig_src[strat_num][i] unless @rule_orig_src[strat_num].nil?
-        begin
-          if options[:metrics]
-            metrics[:rules] ||= {}
-            metrics[:rules][{:strat_num => strat_num, :rule_num => i, :rule_src => rule_src}] ||= 0
-            metrics[:rules][{:strat_num => strat_num, :rule_num => i, :rule_src => rule_src}] += 1
-          end
-          r.call
-          # flush buffered tuples in push elements
-        rescue Exception => e
-          # Don't report source text for certain rules (old-style rule blocks)
-          src_msg = ""
-          unless rule_src == ""
-            src_msg = "\nRule: #{rule_src}"
-          end
-          new_e = e
-          unless new_e.class <= BudError
-            new_e = BudError
-          end
-          raise new_e, "Exception during Bud evaluation.\nException: #{e.inspect}.#{src_msg}"
+    strat.each_with_index do |r,i|
+      @this_rule = i
+      rule_src = @rule_orig_src[strat_num][i] unless @rule_orig_src[strat_num].nil?
+      begin
+        r.call
+      rescue Exception => e
+        # Don't report source text for certain rules (old-style rule blocks)
+        src_msg = ""
+        unless rule_src == ""
+          src_msg = "\nRule: #{rule_src}"
         end
-      end
-
-      fixpoint = true        
-      @stratum_first_iter = false
-      # tick collections in this stratum; if we don't have info on that, tick all collections
-      colls = @stratum_collection_map[strat_num] if @stratum_collection_map
-      colls ||= @tables.keys
-      colls.each do |name|
-        begin
-          coll = self.send(name)
-          unless coll.delta.empty? and coll.new_delta.empty?
-            coll.tick_deltas
-            fixpoint = false
-          end
-        rescue
-          # ignore missing tables; rebl for example deletes them mid-stream
+        new_e = e
+        unless new_e.class <= BudError
+          new_e = BudError
         end
+        raise new_e, "Exception during Bud wiring.\nException: #{e.inspect}.#{src_msg}"
       end
-    end while not fixpoint
+    end
   end
 
   private

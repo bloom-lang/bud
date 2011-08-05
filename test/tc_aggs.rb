@@ -295,6 +295,7 @@ class TestAggs < Test::Unit::TestCase
   end
   
   def test_chain_agg
+    assert(false, "hangs in test_chain_agg")
     p = ChainAgg.new
     q = Queue.new
 

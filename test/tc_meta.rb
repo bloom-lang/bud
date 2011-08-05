@@ -218,6 +218,7 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_spacetime
+    assert(false, "this test hangs")
     inp = [
       [:ping, :a, :b, 1, 3],
       [:pong, :b, :a, 4, 2],
@@ -229,6 +230,7 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_spacetime2
+    assert(false, "this test hangs")
     inp = [
       [:ping, :a, :b, 1, 3],
       [:ping, :b, :c, 4, 11],
@@ -239,6 +241,7 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_spacetime3
+    assert(false, "this test hangs")
     inp = [
       [:ping1, :a, :b, 1, 3],
       [:ping2, :a, :b, 1, 4],
