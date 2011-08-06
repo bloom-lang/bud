@@ -14,8 +14,8 @@ module Bud
   class BudCollection
     include Enumerable
 
-    attr_accessor :bud_instance, :locspec_idx # :nodoc: all
-    attr_reader :schema, :tabname # :nodoc: all
+    attr_accessor :bud_instance, :locspec_idx, :tabname  # :nodoc: all
+    attr_reader :schema # :nodoc: all
     attr_reader :storage, :delta, :new_delta, :pending # :nodoc: all
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
@@ -152,18 +152,23 @@ module Bud
 
     # projection
     public
-    def pro(the_name = tabname, &blk)
+    def pro(the_name = tabname, the_schema = schema, &blk)
       # if @bud_instance.stratum_first_iter
       # puts "adding pusher.pro to #{tabname}"
-      pusher, delta_pusher = to_push_elem
+      pusher, delta_pusher = to_push_elem(the_name, the_schema)
       pusher_pro = pusher.pro(&blk)
+      pusher_pro.name = the_name
+      pusher_pro.tabname = the_name
+      pusher_pro.schema = the_schema
       delta_pusher.wire_to(pusher_pro)
       pusher_pro
     end
     
-    def rename(name, *schema)
-      pro(name)
+    def rename(the_name, the_schema=nil, &blk)
+      bud_instance.scratch(the_name, the_schema)
+      pro(the_name, the_schema, &blk)
     end
+    
     # By default, all tuples in any rhs are in storage or delta. Tuples in
     # new_delta will get transitioned to delta in the next iteration of the
     # evaluator (but within the current time tick).
@@ -335,7 +340,6 @@ module Bud
     # empty, will leave @schema as is.
     private
     def establish_schema(o)
-      require 'ruby-debug'; debugger
       # use o's schema if available
       deduce_schema(o)
       # else use arity of first non-nil tuple of o
@@ -459,13 +463,13 @@ module Bud
     end
     
     public
-    def to_push_elem(the_name=tabname)
+    def to_push_elem(the_name=tabname, the_schema=schema)
       # if no push source yet, set one up
       unless @bud_instance.scanners[@bud_instance.this_stratum][the_name]
-        @bud_instance.scanners[@bud_instance.this_stratum][the_name] = Bud::ScannerElement.new(the_name, @bud_instance, self)
+        @bud_instance.scanners[@bud_instance.this_stratum][the_name] = Bud::ScannerElement.new(the_name, @bud_instance, self, the_schema)
         @bud_instance.push_sources[@bud_instance.this_stratum][the_name] = @bud_instance.scanners[@bud_instance.this_stratum][the_name]
-        @bud_instance.delta_scanners[@bud_instance.this_stratum][the_name] = Bud::DeltaScannerElement.new(the_name, @bud_instance, self)
-        @bud_instance.push_sources[@bud_instance.this_stratum][the_name] = @bud_instance.delta_scanners[@bud_instance.this_stratum][the_name]
+        @bud_instance.delta_scanners[@bud_instance.this_stratum][the_name] = Bud::DeltaScannerElement.new(the_name, @bud_instance, self, the_schema)
+        @bud_instance.push_sources[@bud_instance.this_stratum][[the_name,:delta]] = @bud_instance.delta_scanners[@bud_instance.this_stratum][the_name]
       end
       return @bud_instance.scanners[@bud_instance.this_stratum][the_name], @bud_instance.delta_scanners[@bud_instance.this_stratum][the_name]
     end
@@ -890,29 +894,21 @@ module Bud
     end
   end
 end
-
-module Enumerable
-  public
-  # monkeypatch to Enumerable to rename collections and their schemas
-  def rename(new_tabname, new_schema=nil)
-    budi = (respond_to?(:bud_instance)) ? bud_instance : nil
-    if new_schema.nil? and respond_to?(:schema)
-      new_schema = schema
-    end
-    scr = Bud::BudScratch.new(new_tabname.to_s, budi, new_schema)
-    unless budi.nil?
-      scr.extend @schema_access
-    end
-    scr.uniquify_tabname
-    scr.merge(self, scr.storage)
-    scr
-  end
-
-  public
-  # We rewrite "map" calls in Bloom blocks to invoke the "pro" method
-  # instead. This is fine when applied to a BudCollection; when applied to a
-  # normal Enumerable, just treat pro as an alias for map.
-  def pro(&blk)
-    map(&blk)
-  end
-end
+# 
+# module Enumerable
+#   public
+#   # monkeypatch to Enumerable to rename collections and their schemas
+#   def rename(new_tabname, new_schema=nil)
+#     scr = Bud::BudScratch.new(new_tabname.to_s, nil, new_schema)
+#     scr.merge(self, scr.storage)
+#     scr
+#   end
+# 
+#   public
+#   # We rewrite "map" calls in Bloom blocks to invoke the "pro" method
+#   # instead. This is fine when applied to a BudCollection; when applied to a
+#   # normal Enumerable, just treat pro as an alias for map.
+#   def pro(&blk)
+#     map(&blk)
+#   end
+# end

@@ -48,7 +48,7 @@ class Stratification # :nodoc: all
       end
     
       # we initially assign all predicates to stratum 0
-      stratum_base <= depends {|d| [d.body, 0]}
+      stratum_base <= depends {|d| depends.tuple_accessors(d); [d.body, 0]}
     }
 
     strata[1] = lambda {

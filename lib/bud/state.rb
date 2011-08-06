@@ -23,7 +23,10 @@ module Bud
   end
 
   public
-	
+  def do_define_collection(name, &blk)
+	  define_collection(name, &blk)
+  end
+  
   def input # :nodoc: all
     true
   end

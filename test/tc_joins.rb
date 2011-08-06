@@ -173,23 +173,17 @@ class CombosBud
   end
 
   bloom do
-    temp :j2 <= (r * s_tab).pairs(:x => :x)
-    simple_out <= j2 {|t1,t2| [t1.x, t1.y1, t2.y1] }
+    simple_out <= (r * s_tab).pairs(:x => :x) {|t1,t2| [t1.x, t1.y1, t2.y1] }
 
-    temp :k <= (r * s_tab).pairs(:x => :x, :y1 => :y1)
-    match_out <= k { |t1,t2| [t1.x, t1.y1, t2.y1] }
+    match_out <= (r * s_tab).pairs(:x => :x, :y1 => :y1) { |t1,t2| [t1.x, t1.y1, t2.y1] }
 
-    temp :l <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x)
-    chain_out <= l { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
+    chain_out <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x) { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
-    temp :n <= (r * s_tab * t).matches
-    nat_out <= n.map { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
+    nat_out <= (r * s_tab * t).matches { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
-    temp :newtab <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x)
-    temp :newtab_out <= newtab { |a,b,c| [a.x, b.x, c.x, a.y1, b.y1, c.y1] }
+    temp :newtab_out <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x) { |a,b,c| [a.x, b.x, c.x, a.y1, b.y1, c.y1] }
 
-    temp :loj <= (mismatches * s_tab).outer(:x => :x)
-    loj_out <= loj.map { |t1, t2| [t1.x, t2.x, t1.y1, t2.y1] }
+    loj_out <= (mismatches * s_tab).outer(:x => :x) { |t1, t2| [t1.x, t2.x, t1.y1, t2.y1] }
   end
 end
 

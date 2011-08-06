@@ -287,8 +287,7 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_dup_keys
-    program = DupKeyBud.new
-    assert_raise(Bud::KeyConstraintError) { program.tick }
+    assert_raise(Bud::KeyConstraintError) { program = DupKeyBud.new }
   end
 
   def test_grep
@@ -363,14 +362,10 @@ class TestCollections < Test::Unit::TestCase
     p1 = BendTypes.new
     p1.tick
     assert_equal(1, p1.t1.first.key)
-    p2 = NonEnumerable.new
-    assert_raise(Bud::BudTypeError) { p2.tick }
-    p3 = NonTuple.new
-    assert_raise(Bud::BudTypeError) { p3.tick }
-    p4 = NonTupleDelete.new
-    assert_raise(Bud::BudTypeError) { p4.tick }
-    p5 = StringMerge.new
-    assert_raise(Bud::BudTypeError) { p5.tick }
+    assert_raise(Bud::BudTypeError) { p2 = NonEnumerable.new }
+    assert_raise(Bud::BudTypeError) { p3 = NonTuple.new }
+    assert_raise(Bud::BudTypeError) { p4 = NonTupleDelete.new}
+    assert_raise(Bud::BudTypeError) { p5 = StringMerge.new}
     p6 = StringAsyncMerge.new
     assert_raise(Bud::BudTypeError) { p6.tick }
   end
