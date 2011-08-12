@@ -90,6 +90,22 @@ Statements with stdio on lhs must use async merge (`<~`).<br>
 Using `stdio` on the lhs of an async merge results in writing to the `IO` object specified by the `:stdout` Bud option (`$stdout` by default).<br>
 To use `stdio` on rhs, instantiate Bud with `:stdin` option set to an `IO` object (e.g., `$stdin`).<br>
 
+Statements with stdio on lhs must use async merge (`<~`).<br>
+Using `stdio` on the lhs of an async merge results in writing to the `IO` object specified by the `:stdout` Bud option (`$stdout` by default).<br>
+To use `stdio` on rhs, instantiate Bud with `:stdin` option set to an `IO` object (e.g., `$stdin`).<br>
+
+### signals ###
+Built-in read-only scratch collection for receiving OS signals.<br>
+System-provided attributes: `[:key] => []`
+
+Currently catches only SIGINT ("INT") and SIGTERM ("TERM").  If Bud option `:signal_handling=>:bloom` is set, the signal is trapped and Bloom rules
+are responsible to deal with the content of `signals`.
+
+### halt ###
+Built-in scratch collection to be used on the lhs of a rule; permanently halts the Bud instance upon first insertion.  
+
+If the item `[:kill]` is inserted, the Bud OS process (including all Bud instances) is also halted.
+
 ### sync ###
 Persistent collection mapped to an external storage engine, with synchronous write-flushing each timestep.  Supported storage engines: `:dbm` and `:tokyo`.<br>
 Default attributes: `[:key] => [:val]`.

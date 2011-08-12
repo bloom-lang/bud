@@ -708,7 +708,7 @@ module Bud
   def builtin_state
     loopback  :localtick, [:col1]
     @stdio = terminal :stdio
-    scratch :signals, [:key]
+    readonly :signals, [:key]
     scratch :halt, [:key]
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
 
@@ -894,7 +894,7 @@ module Bud
         ["INT", "TERM"].each do |signal|
           Signal.trap(signal) {
             $got_shutdown_signal = true
-            b.sync_do{b.signals <+ [[signal]]}
+            b.sync_do{b.signals.pending_merge([[signal]])}
           }
         end
         $setup_signal_handler_pid = true

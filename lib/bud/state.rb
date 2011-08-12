@@ -79,6 +79,11 @@ module Bud
     define_collection(name)
     @tables[name] = Bud::BudScratch.new(name, self, schema)
   end
+  
+  def readonly(name, schema=nil)
+    define_collection(name)
+    @tables[name] = Bud::BudReadOnly.new(name, self, schema)
+  end
 
   # declare a scratch in a bloom statement lhs.  schema inferred from rhs.
   def temp(name)
