@@ -12,4 +12,7 @@ module Bud
   # Raised when the input program fails to compile (e.g., due to illegal
   # syntax).
   class CompileError < BudError; end
+  
+  # Raised when evaluation halts with outstanding callbacks
+  class BudShutdownWithCallbacksError < BudError; end
 end

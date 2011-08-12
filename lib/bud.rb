@@ -117,8 +117,9 @@ module Bud
     @sources = {}
     @sinks = {}
     @metrics = {}
+    @halted = false
     @endtime = nil
-
+    
     # Setup options (named arguments), along with default values
     @options = options.clone
     @lazy = @options[:lazy] ||= false
@@ -287,6 +288,9 @@ module Bud
   # This instance of Bud will continue to execute until stop_bg is called.
   def run_bg
     start_reactor
+    @halt_cb = register_callback(:halt) do
+      stop_bg
+    end
     # Wait for Bud to start up before returning
     schedule_and_wait do
       start_bud
@@ -324,6 +328,9 @@ module Bud
   # Bud instances in the same process (as well as anything else that happens to
   # use EventMachine).
   def stop_bg(stop_em=false, do_shutdown_cb=true)
+    # the halt callback calls stop_bg again, so unregister it here and void calling ourself
+    unregister_halt_callback
+    
     schedule_and_wait do
       do_shutdown(do_shutdown_cb)
     end
@@ -447,6 +454,13 @@ module Bud
       @callbacks.delete(id)
     end
   end
+  
+  def unregister_halt_callback
+    unless @halted == true
+      unregister_callback(@halt_cb)
+      @halted = true
+    end
+  end
 
   # sync_callback supports synchronous interaction with Bud modules.  The caller
   # supplies the name of an input collection, a set of tuples to insert, and an
@@ -478,7 +492,7 @@ module Bud
     result = q.pop
     if result.nil?
       # Don't try to unregister the callbacks first: runtime is already shutdown
-      raise BudError, "Bud instance shutdown before sync_callback completed"
+      raise BudShutdownWithCallbacksError, "Bud instance shutdown before sync_callback completed"
     end
     unregister_callback(cb)
     cancel_shutdown_cb(shutdown_cb)
@@ -690,6 +704,8 @@ module Bud
   def builtin_state
     loopback  :localtick, [:col1]
     @stdio = terminal :stdio
+    @signals = scratch :signals, [:key]
+    @halt = scratch :halt, [:key]
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
 
     # for BUD reflection
