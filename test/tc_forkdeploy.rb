@@ -44,10 +44,12 @@ class TestForkDeploy < Test::Unit::TestCase
       end
     end
 
-    # Close pipe
+    ring_fork.stop_bg
+
+    # We can close pipe now that ring_fork is stopped
     read.close
     write.close
-    ring_fork.stop_bg
+
 
     # Assert there are no child processes left; we've closed them all
     assert_equal([], Process.waitall)
