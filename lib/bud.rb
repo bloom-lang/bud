@@ -119,7 +119,7 @@ module Bud
     @metrics = {}
     @halted = false
     @endtime = nil
-    
+
     # Setup options (named arguments), along with default values
     @options = options.clone
     @lazy = @options[:lazy] ||= false
@@ -334,7 +334,7 @@ module Bud
   def stop_bg(stop_em=false, do_shutdown_cb=true)
     # the halt callback calls stop_bg again, so unregister it here and avoid calling ourself
     unregister_halt_callback
-    
+
     schedule_and_wait do
       do_shutdown(do_shutdown_cb)
     end
@@ -345,7 +345,7 @@ module Bud
     end
     report_metrics if options[:metrics]
   end
-  
+
   # Register a callback that will be invoked when this instance of Bud is
   # shutting down.
   # XXX: The naming of this method (and cancel_shutdown_cb) is inconsistent
@@ -458,13 +458,6 @@ module Bud
       @callbacks.delete(id)
     end
   end
-  
-  def unregister_halt_callback
-    unless @halted == true
-      unregister_callback(@halt_cb)
-      @halted = true
-    end
-  end
 
   # sync_callback supports synchronous interaction with Bud modules.  The caller
   # supplies the name of an input collection, a set of tuples to insert, and an
@@ -509,6 +502,13 @@ module Bud
   end
 
   private
+
+  def unregister_halt_callback
+    unless @halted == true
+      unregister_callback(@halt_cb)
+      @halted = true
+    end
+  end
 
   def invoke_callbacks
     @callbacks.each_value do |cb|
@@ -638,11 +638,11 @@ module Bud
     raise BudError, "ip_port called before port defined" if port.nil?
     ip.to_s + ":" + port.to_s
   end
-  
+
   def ip
     ip = options[:ext_ip] ? "#{@options[:ext_ip]}" : "#{@ip}"
   end
-  
+
   def port
     return nil if @port.nil? and @options[:port] == 0 and not @options[:ext_port]
     return options[:ext_port] ? "#{@options[:ext_port]}" :
@@ -658,7 +658,7 @@ module Bud
   # Manually trigger one timestep of Bloom execution.
   def tick
     begin
-      starttime = Time.now if options[:metrics] 
+      starttime = Time.now if options[:metrics]
       if options[:metrics] and not @endtime.nil?
         @metrics[:betweentickstats] ||= initialize_stats
         @metrics[:betweentickstats] = running_stats(@metrics[:betweentickstats], starttime - @endtime)
@@ -667,7 +667,7 @@ module Bud
       @tables.each_value do |t|
         t.tick
       end
-      
+
       @joinstate = {}
 
       do_bootstrap unless @done_bootstrap
@@ -684,13 +684,13 @@ module Bud
       @tick_clock_time = nil
     end
 
-    if options[:metrics]  
-      @endtime = Time.now   
+    if options[:metrics]
+      @endtime = Time.now
       @metrics[:tickstats] ||= initialize_stats
       @metrics[:tickstats] = running_stats(@metrics[:tickstats], @endtime - starttime)
     end
   end
-  
+
   # Returns the wallclock time associated with the current Bud tick. That is,
   # this value is guaranteed to remain the same for the duration of a single
   # tick, but will likely change between ticks.
@@ -712,7 +712,7 @@ module Bud
     scratch :halt, [:key]
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
 
-    # for BUD reflection
+    # for Bud reflection
     table :t_rules, [:rule_id] => [:lhs, :op, :src, :orig_src]
     table :t_depends, [:rule_id, :lhs, :op, :body] => [:nm]
     table :t_depends_tc, [:head, :body, :via, :neg, :temporal]

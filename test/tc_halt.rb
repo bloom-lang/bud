@@ -1,8 +1,6 @@
-# simple word count
 require 'test_common'
-require 'timeout'
 
-class Exits
+class Halts
   include Bud
 
   state do
@@ -13,15 +11,16 @@ class Exits
   bootstrap do
     tbl << [1]
   end
+
   bloom do
     halt <= tbl{|t| t if t.key == 2}
     tbl <+ tbl{|t| [t.key+1]}
   end
 end
 
-class TestExit < Test::Unit::TestCase
-  def test_exit
-    program = Exits.new
+class TestHalt < Test::Unit::TestCase
+  def test_halt
+    program = Halts.new
     program.run_bg
     assert_raise(Bud::BudShutdownWithCallbacksError) {4.times{program.delta(:tbl)}}
   end

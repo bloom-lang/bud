@@ -840,6 +840,7 @@ module Bud
     def get_out_io
       rv = @bud_instance.options[:stdout]
       rv ||= $stdout
+      raise BudError, "attempting to write to terminal #{tabname} that was already closed" if rv.closed?
       rv
     end
   end
