@@ -75,7 +75,7 @@ module Bud
   # * operating system interaction
   #   * <tt>:stdin</tt>  if non-nil, reading from the +stdio+ collection results in reading from this +IO+ handle
   #   * <tt>:stdout</tt> writing to the +stdio+ collection results in writing to this +IO+ handle; defaults to <tt>$stdout</tt>
-  #   * <tt>:no_signal_handlers</tt> if true, runtime ignores +SIGINT+ and +SIGTERM+
+  #   * <tt>:signal_handling</tt> how to handle +SIGINT+ and +SIGTERM+.  If :none, these signals are ignored.  If :bloom, they're passed into the built-in scratch called +signals+.  Else shutdown all bud instances.
   # * tracing and output
   #   * <tt>:quiet</tt> if true, suppress certain messages
   #   * <tt>:trace</tt> if true, generate +budvis+ outputs
@@ -288,8 +288,12 @@ module Bud
   # This instance of Bud will continue to execute until stop_bg is called.
   def run_bg
     start_reactor
-    @halt_cb = register_callback(:halt) do
+    @halt_cb = register_callback(:halt) do |t|
       stop_bg
+      if t.first.key == :kill
+        Bud.shutdown_all_instances
+        Bud.stop_em_loop 
+      end
     end
     # Wait for Bud to start up before returning
     schedule_and_wait do
@@ -328,7 +332,7 @@ module Bud
   # Bud instances in the same process (as well as anything else that happens to
   # use EventMachine).
   def stop_bg(stop_em=false, do_shutdown_cb=true)
-    # the halt callback calls stop_bg again, so unregister it here and void calling ourself
+    # the halt callback calls stop_bg again, so unregister it here and avoid calling ourself
     unregister_halt_callback
     
     schedule_and_wait do
@@ -476,7 +480,7 @@ module Bud
     # make sure we hear about it so we can raise an error
     # XXX: Using two separate callbacks here is ugly.
     shutdown_cb = on_shutdown do
-      q.push nil
+      q.push :callback
     end
 
     unless in_tbl.nil?
@@ -490,13 +494,13 @@ module Bud
       }
     end
     result = q.pop
-    if result.nil?
+    if result == :callback
       # Don't try to unregister the callbacks first: runtime is already shutdown
       raise BudShutdownWithCallbacksError, "Bud instance shutdown before sync_callback completed"
     end
     unregister_callback(cb)
     cancel_shutdown_cb(shutdown_cb)
-    return result
+    return (result == :callback) ? nil : result
   end
 
   # A common special case for sync_callback: block on a delta to a table.
@@ -704,8 +708,8 @@ module Bud
   def builtin_state
     loopback  :localtick, [:col1]
     @stdio = terminal :stdio
-    @signals = scratch :signals, [:key]
-    @halt = scratch :halt, [:key]
+    scratch :signals, [:key]
+    scratch :halt, [:key]
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
 
     # for BUD reflection
@@ -874,11 +878,15 @@ module Bud
     $signal_lock.synchronize {
       # If we setup signal handlers and then fork a new process, we want to
       # reinitialize the signal handler in the child process.
-      unless b.options[:no_signal_handlers] or $signal_handler_setup
+      unless b.options[:signal_handling] == :none or $signal_handler_setup
         EventMachine::PeriodicTimer.new(SIGNAL_CHECK_PERIOD) do
           if $got_shutdown_signal
-            Bud.shutdown_all_instances
-            Bud.stop_em_loop
+            if b.options[:signal_handling] == :bloom
+              Bud.tick_all_instances
+            else
+              Bud.shutdown_all_instances
+              Bud.stop_em_loop
+            end
             $got_shutdown_signal = false
           end
         end
@@ -886,6 +894,7 @@ module Bud
         ["INT", "TERM"].each do |signal|
           Signal.trap(signal) {
             $got_shutdown_signal = true
+            b.sync_do{b.signals <+ [[signal]]}
           }
         end
         $setup_signal_handler_pid = true
@@ -897,6 +906,15 @@ module Bud
     }
   end
 
+  def self.tick_all_instances
+    instances = nil
+    $signal_lock.synchronize {
+      instances = $bud_instances.clone
+    }
+
+    instances.each_value {|b| b.sync_do }
+  end    
+  
   def self.shutdown_all_instances(do_shutdown_cb=true)
     instances = nil
     $signal_lock.synchronize {

@@ -280,7 +280,7 @@ class LibRebl
     end
 
     @old_inst = @rebl_class_inst
-    @rebl_class_inst = @rebl_class.new(:no_signal_handlers => true, :ip => @ip,
+    @rebl_class_inst = @rebl_class.new(:signal_handling => :none, :ip => @ip,
                                        :port => @port, :lazy => true)
 
     # Copy the tables over.
