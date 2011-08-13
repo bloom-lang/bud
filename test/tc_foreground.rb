@@ -84,31 +84,17 @@ class CallbackTest < Test::Unit::TestCase
   end
 
   def test_sigint_child
-    kill_child_with_signal("INT")
-    bloom_child_with_signal("INT")
+    kill_child_with_signal(Vacuous, "INT")
+    kill_child_with_signal(Hooverous, "INT")
   end
 
   def test_sigterm_child
-    kill_child_with_signal("TERM")
-    bloom_child_with_signal("TERM")
+    kill_child_with_signal(Vacuous, "TERM")
+    kill_child_with_signal(Hooverous, "TERM")
   end
 
-  def kill_child_with_signal(signal)
-    parent = Vacuous.new
-    parent.run_bg
-    pid = Bud.do_fork do
-      p = Vacuous.new
-      p.run_fg
-    end
-    sleep 1
-    Process.kill(signal, pid)
-    _, status = Process.waitpid2(pid)
-    assert_equal(0, status)
-    parent.stop_bg
-  end
-
-  def bloom_child_with_signal(signal)
-    parent = Hooverous.new
+  def kill_child_with_signal(parent_class, signal)
+    parent = parent_class.new
     parent.run_bg
     pid = Bud.do_fork do
       p = Vacuous.new
