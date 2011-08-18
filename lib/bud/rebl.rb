@@ -4,7 +4,7 @@ require 'rubygems'
 require 'bud'
 require 'abbrev'
 
-TABLE_TYPES = ["table", "scratch", "channel"]
+TABLE_TYPES = ["table", "scratch", "channel", "loopback", "periodic", "sync", "store"]
 
 # The class to which rebl adds user-specified rules and declarations.
 class ReblClass
