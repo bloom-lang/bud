@@ -8,7 +8,7 @@ end
 class Hooverous
   include Bud
   state {table :gotsignal, [:key]}
-  bloom do 
+  bloom do
     gotsignal <= signals
     halt <= signals{[:kill]}
   end
@@ -23,7 +23,7 @@ class CallbackTest < Test::Unit::TestCase
       end
     end
   end
-  
+
   def test_shutdown_em
     c = Vacuous.new
     c.run_bg
@@ -61,9 +61,9 @@ class CallbackTest < Test::Unit::TestCase
     # another test until EM has shutdown, we can at least wait for that.
     EventMachine::reactor_thread.join
   end
-  
+
   def bloom_signal(sig)
-    c = Hooverous.new(:signal_handling=>:bloom)
+    c = Hooverous.new(:signal_handling => :bloom)
     cnt = 0
     q = Queue.new
     c.on_shutdown do
@@ -72,7 +72,7 @@ class CallbackTest < Test::Unit::TestCase
     end
     c.run_bg
     Process.kill(sig, $$)
-    gotsig=q.pop
+    gotsig = q.pop
     assert_equal(1, cnt)
     assert_equal(sig, gotsig)
 
@@ -84,17 +84,17 @@ class CallbackTest < Test::Unit::TestCase
   end
 
   def test_sigint_child
-    kill_child_with_signal("INT")
-    bloom_child_with_signal("INT")
+    kill_child_with_signal(Vacuous, "INT")
+    kill_child_with_signal(Hooverous, "INT")
   end
 
   def test_sigterm_child
-    kill_child_with_signal("TERM")
-    bloom_child_with_signal("INT")
+    kill_child_with_signal(Vacuous, "TERM")
+    kill_child_with_signal(Hooverous, "TERM")
   end
 
-  def kill_child_with_signal(signal)
-    parent = Vacuous.new
+  def kill_child_with_signal(parent_class, signal)
+    parent = parent_class.new
     parent.run_bg
     pid = Bud.do_fork do
       p = Vacuous.new
@@ -107,19 +107,6 @@ class CallbackTest < Test::Unit::TestCase
     parent.stop_bg
   end
 
-  def bloom_child_with_signal(signal)
-    parent = Hooverous.new
-    parent.run_bg
-    pid = Bud.do_fork do
-      p = Vacuous.new
-      p.run_fg
-    end
-    sleep 1
-    Process.kill(signal, pid)
-    _, status = Process.waitpid2(pid)
-    assert_equal(0, status)
-    parent.stop_bg
-  end
   def test_fg_bg_mix
     c1 = Vacuous.new
     c2 = Vacuous.new
