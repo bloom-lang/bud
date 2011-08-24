@@ -135,6 +135,8 @@ class BudMeta #:nodoc: all
         next
       end
 
+      next if i == 1 and n.sexp_type == :nil # a block got rewritten to an empty block
+        
       # Check for a common case
       if n.sexp_type == :lasgn
         return [n, "Illegal operator: '='"]

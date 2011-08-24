@@ -8,11 +8,11 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     @bud_instance = bud_instance
     @ops = {:<< => 1, :< => 1, :<= => 1}
     @monotonic_whitelist = {
-          :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1,
-          :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
-          :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
-          :schema => 1, :keys => 1, :values => 1, :payloads => 1, :~ => 1
-      }
+      :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1,
+      :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
+      :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
+      :schema => 1, :keys => 1, :values => 1, :payloads => 1, :~ => 1
+    }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
     @nm = false
@@ -317,6 +317,7 @@ class TempExpander < SexpProcessor # :nodoc: all
     super()
     self.require_empty = false
     self.expected = Sexp
+    @keyword = :temp
 
     @tmp_tables = []
     @did_work = false
@@ -324,7 +325,6 @@ class TempExpander < SexpProcessor # :nodoc: all
 
   def process_defn(exp)
     tag, name, args, scope = exp
-
     if name.to_s =~ /^__bloom__.+/
       block = scope[1]
 
@@ -339,33 +339,39 @@ class TempExpander < SexpProcessor # :nodoc: all
         # correct the misparsing.
         if n.sexp_type == :iter
           iter_body = n.sexp_body
-
-          if iter_body.first.sexp_type == :call
-            call_node = iter_body.first
-
-            _, recv, meth, meth_args = call_node
-            if meth == :temp and recv.nil?
-              _, lhs, op, rhs = meth_args.sexp_body.first
-
-              old_rhs_body = rhs.sexp_body
-              rhs[1] = s(:iter)
-              rhs[1] += old_rhs_body
-              rhs[1] += iter_body[1..-1]
-              block[i] = n = call_node
-              @did_work = true
-            end
+          new_n = fix_temp_decl(iter_body)
+          unless new_n.nil?
+            block[i] = n = new_n
+            @did_work = true
           end
         end
 
         _, recv, meth, meth_args = n
-        if meth == :temp and recv.nil?
-          block[i] = rewrite_temp(n)
+        if meth == @keyword and recv.nil?         
+          block[i] = rewrite_me(n)
           @did_work = true
         end
       end
     end
-
     s(tag, name, args, scope)
+  end
+
+  def fix_temp_decl(iter_body)
+    if iter_body.first.sexp_type == :call
+      call_node = iter_body.first
+
+      _, recv, meth, meth_args = call_node
+      if meth == @keyword and recv.nil?
+        _, lhs, op, rhs = meth_args.sexp_body.first
+
+        old_rhs_body = rhs.sexp_body
+        rhs[1] = s(:iter)
+        rhs[1] += old_rhs_body
+        rhs[1] += iter_body[1..-1]
+        return call_node
+      end
+    end
+    return nil
   end
 
   def get_state_meth(klass)
@@ -377,12 +383,12 @@ class TempExpander < SexpProcessor # :nodoc: all
       block << s(:call, nil, :temp, args)
     end
 
-    meth_name = Module.make_state_meth_name(klass).to_s + "__tmp"
+    meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
     return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
   end
 
   private
-  def rewrite_temp(exp)
+  def rewrite_me(exp)
     _, recv, meth, args = exp
 
     raise Bud::CompileError unless recv == nil
@@ -396,6 +402,106 @@ class TempExpander < SexpProcessor # :nodoc: all
     @tmp_tables << tmp_name
     new_recv = s(:call, nil, tmp_name, s(:arglist))
     return s(:call, new_recv, nest_op, nest_args)
+  end
+end
+
+# We do four things here for each "with" block
+# 1) Remove it from the AST
+# 2) Use rewrite_me in the parent class to get the collection name pushed onto @tmp_tables.
+# 3) Extract the definition of the "with" collection and push it onto @with_defns
+# 4) Extract the rules in the body of the "with" block and push it onto @with_rules
+
+class WithExpander < TempExpander
+  attr_reader :with_rules, :with_defns
+  def initialize
+    super()
+    @keyword = :with
+    @with_rules = []
+    @with_defns = []
+  end
+
+  def process_defn(exp)
+    tag, name, args, scope = exp
+    if name.to_s =~ /^__bloom__.+/
+      block = scope[1]
+
+      block.each_with_index do |n,i|
+        if i == 0
+          raise Bud::CompileError if n != :block
+          next
+        end
+
+        # temp declarations are misparsed if the RHS contains certain constructs
+        # (e.g., group, "do |f| ... end" rather than "{|f| ... }").  Rewrite to
+        # correct the misparsing.
+        if n.sexp_type == :iter
+          block[i] = nil
+          n = fix_temp_decl(n)
+          @with_defns.push n
+          @did_work = true unless n.nil?
+        end
+
+        _, recv, meth, meth_args = n
+        if meth == @keyword and recv.nil?
+          block[i] = nil
+          n = rewrite_me(n)
+          @with_defns.push n
+          @did_work = true unless n.nil?
+        end
+      end
+    end
+    block.compact! unless block.nil? # remove the nils that got pulled out
+
+    return s(tag, name, args, scope)
+  end
+
+  def get_state_meth(klass)
+    return if @tmp_tables.empty?
+    block = s(:block)
+
+    t = @tmp_tables.pop
+    args = s(:arglist, s(:lit, t.to_sym))
+    block << s(:call, nil, :temp, args)
+
+    meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
+    return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
+  end
+  
+  private
+  def rewrite_me(exp)
+    _, recv, meth, args = exp
+
+    raise Bud::CompileError unless recv == nil
+    nest_call = args.sexp_body.first
+    raise Bud::CompileError unless nest_call.sexp_type == :call
+
+    nest_recv, nest_op, nest_args = nest_call.sexp_body
+    raise Bud::CompileError unless nest_recv.sexp_type == :lit
+
+    tmp_name = nest_recv.sexp_body.first
+    @tmp_tables.push tmp_name
+    nest_block = args.sexp_body[1]
+    if nest_block.first == :call
+      # a one-rule block doesn't get wrapped in a block.  wrap it ourselves.
+      nest_block = s(:block, nest_block)
+    end
+    @with_rules.push nest_block
+    new_recv = s(:call, nil, tmp_name, s(:arglist))
+    return s(:call, new_recv, nest_op, nest_args)
+  end  
+  
+  undef get_state_meth
+  
+  public
+  def get_state_meth(klass)
+    return if @tmp_tables.empty?
+    block = s(:block)
+
+    args = s(:arglist, s(:lit, @tmp_tables.pop.to_sym))
+    block << s(:call, nil, :temp, args)
+
+    meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
+    return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
   end
 end
 
@@ -450,10 +556,24 @@ module ModuleRewriter # :nodoc: all
   # the import site. Note that additional rewrites are needed to ensure that
   # code in the import site that accesses module contents does the right thing;
   # see Bud#rewrite_local_methods.
+  
+  @@with_id = 0 # upon initialize
+  def self.with_id
+    @@with_id
+  end
+  
+  def self.incr_with_id
+    @@with_id += 1
+  end
+  
   def self.do_import(import_site, mod, local_name)
-    ast = get_module_ast(mod)
+    # ast_process_withs modifies its argument as a side-effect 
+    # and returns a matching ast.
+    # hence we run it before the other rewrites.
+    ast = ast_process_withs(mod)
     ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
     ast = ast_process_temps(ast, mod)
+    
     ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     rename_tbl = {}
     ast = ast_rename_methods(ast, local_name, rename_tbl)
@@ -463,7 +583,6 @@ module ModuleRewriter # :nodoc: all
     str = Ruby2Ruby.new.process(ast)
     rv = import_site.module_eval str
     raise Bud::BudError unless rv.nil?
-
     return new_mod_name
   end
 
@@ -488,15 +607,16 @@ module ModuleRewriter # :nodoc: all
   def self.get_raw_parse_tree(klass)
     pt = RawParseTree.new(false)
     klassname = klass.name
+    klassname = klass.to_s if klassname.empty? #("anon_" + Process.pid.to_s + "_" + klass.object_id.to_s) if klassname.empty
     klassname = klassname.to_sym
 
     code = if Class === klass then
-             sc = klass.superclass
-             sc_name = ((sc.nil? or sc.name.empty?) ? "nil" : sc.name).intern
-             [:class, klassname, [:const, sc_name]]
-           else
-             [:module, klassname]
-           end
+      sc = klass.superclass
+      sc_name = ((sc.nil? or sc.name.empty?) ? "nil" : sc.name).intern
+      [:class, klassname, [:const, sc_name]]
+    else
+      [:module, klassname]
+    end
 
     method_names = klass.private_instance_methods false
     # protected methods are included in instance_methods, go figure!
@@ -544,8 +664,62 @@ module ModuleRewriter # :nodoc: all
       # Insert the new extra state method into the module's AST
       ast << new_meth
     end
-
     return ast
+  end
+  
+  def self.ast_mangle_with(w,klass)
+    r2r = Ruby2Ruby.new
+    
+    while st = w.get_state_meth(klass)
+      # generate the module
+      tmpmod = Module.new
+
+      # add a state block to define a temp for the collection name
+      state_src = r2r.process(st)        
+      tmpmod.module_eval(state_src)
+
+      # add a bloom block
+      bloom_blk = s(:defn, :__bloom__rules, s(:args), s(:scope, s(:block)))
+      inblk = bloom_blk[3][1]
+
+      # add in the rule that was in the "with" definition
+      newdefn = w.with_defns.pop
+      inblk << newdefn unless newdefn.nil?
+
+      # add in all the rules from the body of the "with" block
+      newrules = w.with_rules.pop
+      newrules.each_with_index do |ast, i|
+        inblk << ast unless i == 0
+      end
+      bloom_src = r2r.process(bloom_blk)
+
+      # eval all that Ruby we generated and import new Module into our code
+      tmpmod.module_eval(bloom_src)
+      modname = "with__"+ModuleRewriter.with_id.to_s
+      klass.import tmpmod => modname.to_sym
+
+      ModuleRewriter.incr_with_id
+    end
+  end
+    
+  def self.ast_process_withs(mod)
+      # strategy to handle withs:
+      # 1) run WithExpander#process to delete the "with" blocks and extract their contents
+      # 2) get the state and rules mangled appropriately into modules
+      # 3) run mod.import on each
+      # 4) call self.get_raw_parse_tree on the result to generate an AST
+
+      ast = get_module_ast(mod)
+      w = WithExpander.new
+      ast = w.process(ast)
+      mod_s, name_s, blocks = ast[0], ast[1], ast[2..-1]
+      tag, name, args, scope = blocks[0]
+      
+      self.ast_mangle_with(w,mod) 
+      
+      retval = Unifier.new.process(self.get_raw_parse_tree(mod))
+      return retval
+      # return s(mod_s, name_s, *blocks)
   end
 
   # Rename the given module's name to be a mangle of import site, imported

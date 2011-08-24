@@ -64,7 +64,7 @@ module Bud
   attr_accessor :lazy # This can be changed on-the-fly by REBL
   attr_accessor :stratum_collection_map, :rewritten_strata, :no_attr_rewrite_strata
   attr_accessor :metrics
-
+  
   # options to the Bud runtime are passed in a hash, with the following keys
   # * network configuration
   #   * <tt>:ip</tt>   IP address string for this instance
@@ -187,6 +187,7 @@ module Bud
     u = Unifier.new
     ref_expander = NestedRefRewriter.new(klass.bud_import_table)
     tmp_expander = TempExpander.new
+    with_expander = WithExpander.new
     r2r = Ruby2Ruby.new
 
     klass.instance_methods(false).each do |m|
@@ -194,24 +195,28 @@ module Bud
       ast = u.process(ast)
       ast = ref_expander.process(ast)
       ast = tmp_expander.process(ast)
+      ast = with_expander.process(ast)
 
-      if (ref_expander.did_work or tmp_expander.did_work)
+      if (ref_expander.did_work or tmp_expander.did_work or with_expander.did_work)
         new_source = r2r.process(ast)
         klass.module_eval new_source # Replace previous method def
       end
 
       ref_expander.did_work = false
       tmp_expander.did_work = false
+      with_expander.did_work = false
     end
 
     # If we found any temp statements in the klass's rule blocks, add a state
     # block with declarations for the corresponding temp collections.
-    s = tmp_expander.get_state_meth(klass)
-    if s
-      state_src = r2r.process(s)
+    st = tmp_expander.get_state_meth(klass)
+    if st
+      state_src = r2r.process(st)
       klass.module_eval(state_src)
     end
 
+    ModuleRewriter.ast_mangle_with(with_expander,klass)
+    
     # Always rewrite anonymous classes
     @done_rewrite[klass.name] = true unless klass.name == ""
   end

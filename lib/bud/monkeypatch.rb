@@ -12,7 +12,7 @@ class Module
     # module X points to X's own nested import table.
     @bud_import_tbl ||= {}
     child_tbl = mod.bud_import_table
-    raise Bud::CompileError if @bud_import_tbl.has_key? local_name
+    raise Bud::CompileError, "import symbol #{local_name} already in use" if @bud_import_tbl.has_key? local_name
     @bud_import_tbl[local_name] = child_tbl.clone # XXX: clone needed?
 
     rewritten_mod_name = ModuleRewriter.do_import(self, mod, local_name)

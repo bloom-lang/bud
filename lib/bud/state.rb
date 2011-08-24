@@ -21,7 +21,7 @@ module Bud
       end
     end
   end
-
+  
   public
 	
   def input # :nodoc: all
@@ -91,7 +91,7 @@ module Bud
     # defer schema definition until merge
     @tables[name] = Bud::BudTemp.new(name, self, nil, true)
   end
-
+  
   # declare a transient network collection.  default schema <tt>[:address, :val] => []</tt>
   def channel(name, schema=nil, loopback=false)
     define_collection(name)
