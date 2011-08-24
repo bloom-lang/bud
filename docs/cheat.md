@@ -278,7 +278,7 @@ Like `pairs`, but implicitly includes a block that projects down to the right it
 `outer(`*hash pairs*`)`:<br>
 Left Outer Join.  Like `pairs`, but objects in the first collection will be produced nil-padded if they have no match in the second collection.
 
-## Temp Collections ##
+## Temp Collections and With Blocks ##
 `temp`<br>
 Temp collections are scratches defined within a `bloom` block:
 
@@ -287,6 +287,16 @@ Temp collections are scratches defined within a `bloom` block:
 The schema of a temp collection in inherited from the rhs; if the rhs has no
 schema, a simple one is manufactured to suit the data found in the rhs at
 runtime: `[c0, c1, ...]`.
+
+`with`<br>
+With statements define a temp collection that can be referenced only within the scope of the associated block.  They are useful when you "fork" in a dataflow into two lhs destinations:
+
+    with :biggies <= request {|r| r if r.quantity > 100}, begin
+      to_process <= (biggies * known_good).lefts(:key=>:key)
+      denied <= biggies.notin(known_good, :key=>key)
+    end
+
+The advantage of using `with` over `temp` is modularity: all the rules referencing `biggies` have to be bundled together, making it easier to see that the contents of `request` with quantity > 100 are handled properly.  
 
 ## Bud Modules ##
 A Bud module combines state (collections) and logic (Bloom rules). Using modules allows your program to be decomposed into a collection of smaller units.
