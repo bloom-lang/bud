@@ -434,9 +434,9 @@ module Bud
   # runtime is blocked while the callback is invoked, it can also examine any
   # other Bud state freely.)
   #
-  # Note that registering callbacks on persistent collections (e.g., tables and
-  # stores) is probably not a wise thing to do: as long as any tuples are stored
-  # in the collection, the callback will be invoked at the end of every tick.
+  # Note that registering callbacks on persistent collections (e.g., tables,
+  # syncs and stores) is probably not wise: as long as any tuples are stored in
+  # the collection, the callback will be invoked at the end of every tick.
   def register_callback(tbl_name, &block)
     # We allow callbacks to be added before or after EM has been started. To
     # simplify matters, we start EM if it hasn't been started yet.
