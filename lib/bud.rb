@@ -64,7 +64,7 @@ module Bud
   attr_accessor :lazy # This can be changed on-the-fly by REBL
   attr_accessor :stratum_collection_map, :rewritten_strata, :no_attr_rewrite_strata
   attr_accessor :metrics
-  
+
   # options to the Bud runtime are passed in a hash, with the following keys
   # * network configuration
   #   * <tt>:ip</tt>   IP address string for this instance
@@ -197,7 +197,7 @@ module Bud
       ast = tmp_expander.process(ast)
       ast = with_expander.process(ast)
 
-      if (ref_expander.did_work or tmp_expander.did_work or with_expander.did_work)
+      if ref_expander.did_work or tmp_expander.did_work or with_expander.did_work
         new_source = r2r.process(ast)
         klass.module_eval new_source # Replace previous method def
       end
@@ -215,8 +215,8 @@ module Bud
       klass.module_eval(state_src)
     end
 
-    ModuleRewriter.ast_mangle_with(with_expander,klass)
-    
+    ModuleRewriter.ast_mangle_with(with_expander, klass)
+
     # Always rewrite anonymous classes
     @done_rewrite[klass.name] = true unless klass.name == ""
   end
@@ -297,7 +297,7 @@ module Bud
       stop_bg
       if t.first.key == :kill
         Bud.shutdown_all_instances
-        Bud.stop_em_loop 
+        Bud.stop_em_loop
       end
     end
     # Wait for Bud to start up before returning
@@ -918,8 +918,8 @@ module Bud
     }
 
     instances.each_value {|b| b.sync_do }
-  end    
-  
+  end
+
   def self.shutdown_all_instances(do_shutdown_cb=true)
     instances = nil
     $signal_lock.synchronize {
