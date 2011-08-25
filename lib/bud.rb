@@ -417,9 +417,9 @@ module Bud
   end
 
   # Shutdown any persistent tables used by the current Bud instance. If you are
-  # running Bud via tick() and using +tctable+ collections, you should call this
-  # after you're finished using Bud. Programs that use Bud via run_fg() or
-  # run_bg() don't need to call this manually.
+  # running Bud via tick() and +sync+ collections backed by Tokyo Cabinet, you
+  # should call this after you're finished using Bud. Programs that use Bud via
+  # run_fg() or run_bg() don't need to call this manually.
   def close_tables
     @tables.each_value do |t|
       t.close
@@ -435,9 +435,8 @@ module Bud
   # other Bud state freely.)
   #
   # Note that registering callbacks on persistent collections (e.g., tables and
-  # tctables) is probably not a wise thing to do: as long as any tuples are
-  # stored in the collection, the callback will be invoked at the end of every
-  # tick.
+  # stores) is probably not a wise thing to do: as long as any tuples are stored
+  # in the collection, the callback will be invoked at the end of every tick.
   def register_callback(tbl_name, &block)
     # We allow callbacks to be added before or after EM has been started. To
     # simplify matters, we start EM if it hasn't been started yet.
