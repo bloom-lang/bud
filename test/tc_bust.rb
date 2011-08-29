@@ -10,6 +10,7 @@ class ReblServer
 
   state do
     table :foo, [:bar, :baz, :qux]
+    scratch :bax, [:bar, :baz, :qux]
   end
 end
 
@@ -62,6 +63,26 @@ class TestBust < Test::Unit::TestCase
       end
       assert_equal(result.first[0], 3)
       assert_equal(result.first[1], [['a', 'b', 'c']])
+      assert_equal(result.first[2], false)
+
+      assert_nothing_raised do
+        result = client.sync_callback(:rest_req, [[4, :post, :form,
+                                                   "#{host}/bax",
+                                                   {:qux => 'd', :bar => 'a',
+                                                     :baz => 'b'}]],
+                                      :rest_response)
+      end
+      assert_equal(result.first[0], 4)
+      assert_equal(result.first[2], false)
+
+      assert_nothing_raised do
+        result = client.sync_callback(:rest_req, [[5, :get, :json,
+                                                   "#{host}/bax",
+                                                   {:qux => 'd'}]],
+                                      :rest_response)
+      end
+      assert_equal(result.first[0], 5)
+      assert_equal(result.first[1], [['a', 'b', 'd']])
       assert_equal(result.first[2], false)
     ensure
       $stdout = STDOUT
