@@ -283,6 +283,9 @@ class LibRebl
     @rebl_class_inst = @rebl_class.new(:signal_handling => :none, :ip => @ip,
                                        :port => @port, :lazy => true)
 
+    # Stop the old instance
+    @old_inst.stop_bg if @old_inst
+
     # Copy the tables over.
     if @old_inst
       @rebl_class_inst.tables.merge!(@old_inst.tables.reject do |k,v|
@@ -303,7 +306,6 @@ class LibRebl
 
     # Run lazily in background, shutting down old instance.
     begin
-      @old_inst.stop_bg if @old_inst
       # Lazify the instance upon a breakpoint (no effect if instance is
       # already lazy)
       @rebl_class_inst.register_callback(:rebl_breakpoint) do
