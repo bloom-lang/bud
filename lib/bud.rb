@@ -837,7 +837,7 @@ module Bud
   def set_periodic_timer(name, id, period)
     EventMachine::PeriodicTimer.new(period) do
       @tables[name].add_periodic_tuple(id)
-      tick
+      tick unless @bud.lazy
     end
   end
 
