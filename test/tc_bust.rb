@@ -42,8 +42,8 @@ class TestBust < Test::Unit::TestCase
                                                      :qux => 'c'}]],
                                       :rest_response)
       end
-      assert_equal(result.first[0], 1)
-      assert_equal(result.first[2], false)
+      assert_equal(1, result.first[0])
+      assert_equal(false, result.first[2])
 
       assert_nothing_raised do
         result = client.sync_callback(:rest_req, [[2, :post, :form,
@@ -52,8 +52,8 @@ class TestBust < Test::Unit::TestCase
                                                      :baz => 'b'}]],
                                       :rest_response)
       end
-      assert_equal(result.first[0], 2)
-      assert_equal(result.first[2], false)
+      assert_equal(2, result.first[0])
+      assert_equal(false, result.first[2])
 
       assert_nothing_raised do
         result = client.sync_callback(:rest_req, [[3, :get, :json,
@@ -61,9 +61,9 @@ class TestBust < Test::Unit::TestCase
                                                    {:qux => 'c'}]],
                                       :rest_response)
       end
-      assert_equal(result.first[0], 3)
-      assert_equal(result.first[1], [['a', 'b', 'c']])
-      assert_equal(result.first[2], false)
+      assert_equal(3, result.first[0])
+      assert_equal([['a', 'b', 'c']], result.first[1])
+      assert_equal(false, result.first[2])
 
       assert_nothing_raised do
         result = client.sync_callback(:rest_req, [[4, :post, :form,
@@ -72,8 +72,8 @@ class TestBust < Test::Unit::TestCase
                                                      :baz => 'b'}]],
                                       :rest_response)
       end
-      assert_equal(result.first[0], 4)
-      assert_equal(result.first[2], false)
+      assert_equal(4, result.first[0])
+      assert_equal(false, result.first[2])
 
       assert_nothing_raised do
         result = client.sync_callback(:rest_req, [[5, :get, :json,
@@ -81,9 +81,9 @@ class TestBust < Test::Unit::TestCase
                                                    {:qux => 'd'}]],
                                       :rest_response)
       end
-      assert_equal(result.first[0], 5)
-      assert_equal(result.first[1], [['a', 'b', 'd']])
-      assert_equal(result.first[2], false)
+      assert_equal(5, result.first[0])
+      assert_equal([['a', 'b', 'd']], result.first[1])
+      assert_equal(false, result.first[2])
     ensure
       $stdout = STDOUT
     end
