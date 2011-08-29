@@ -84,11 +84,7 @@ module Bust
               tuple_to_insert[index] = v[0]
             end
             # actually insert the puppy
-            if (eval "@bud." + table_name).class == Bud::BudScratch
-              @bud.async_do { (eval "@bud." + table_name) <+ [tuple_to_insert] }
-            else
-              @bud.async_do { (eval "@bud." + table_name) << tuple_to_insert }
-            end
+            @bud.async_do { (eval "@bud." + table_name) <+ [tuple_to_insert] }
             @session.print success
           end
         rescue Exception
