@@ -726,14 +726,18 @@ module Bud
     def flush # :nodoc: all
       ip = @bud_instance.ip
       port = @bud_instance.port
-      each_from([@pending]) do |t|
-        if @is_loopback
-          the_locspec = [ip, port]
-        else
-          the_locspec = split_locspec(t, @locspec_idx)
-          raise BudError, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
+      if @pending.length > 0 and @bud_instance.dsock.nil?
+        raise BudError, "cannot flush channel #{tabname} without running Bud via run_bg or run_fg"
+      else
+        each_from([@pending]) do |t|
+          if @is_loopback
+            the_locspec = [ip, port]
+          else
+            the_locspec = split_locspec(t, @locspec_idx)
+            raise BudError, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
+          end
+          @bud_instance.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
         end
-        @bud_instance.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
       end
       @pending.clear
     end
