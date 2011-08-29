@@ -61,6 +61,7 @@ module Bud
   attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
   attr_reader :stratum_first_iter, :joinstate
   attr_reader :this_stratum, :this_rule, :rule_orig_src
+  attr_reader :running_async
   attr_accessor :lazy # This can be changed on-the-fly by REBL
   attr_accessor :stratum_collection_map, :rewritten_strata, :no_attr_rewrite_strata
   attr_accessor :metrics
@@ -119,6 +120,8 @@ module Bud
     @metrics = {}
     @halted = false
     @endtime = nil
+    @running_async = false
+    @bud_started = false
 
     # Setup options (named arguments), along with default values
     @options = options.clone
@@ -292,17 +295,21 @@ module Bud
   #
   # This instance of Bud will continue to execute until stop_bg is called.
   def run_bg
-    start_reactor
-    @halt_cb = register_callback(:halt) do |t|
-      stop_bg
-      if t.first.key == :kill
-        Bud.shutdown_all_instances
-        Bud.stop_em_loop
-      end
+    if @running_async
+      raise BudError, "run_bg called on already-running Bud instance"
     end
+
+    start_reactor
     # Wait for Bud to start up before returning
     schedule_and_wait do
-      start_bud
+      start_bud unless @bud_started
+      @running_async = true
+    end
+  end
+
+  def pause_bg
+    schedule_and_wait do
+      @running_async = false
     end
   end
 
@@ -332,11 +339,11 @@ module Bud
     report_metrics if options[:metrics]
   end
 
-  # Shutdown a Bud instance that is running asynchronously. This method blocks
-  # until Bud has been shutdown. If +stop_em+ is true, the EventMachine event
-  # loop is also shutdown; this will interfere with the execution of any other
-  # Bud instances in the same process (as well as anything else that happens to
-  # use EventMachine).
+  # Shutdown a Bud instance and release any resources that it was using. This
+  # method blocks until Bud has been shutdown. If +stop_em+ is true, the
+  # EventMachine event loop is also shutdown; this will interfere with the
+  # execution of any other Bud instances in the same process (as well as
+  # anything else that happens to use EventMachine).
   def stop_bg(stop_em=false, do_shutdown_cb=true)
     # the halt callback calls stop_bg again, so unregister it here and avoid
     # calling ourself
@@ -403,7 +410,7 @@ module Bud
     schedule_and_wait do
       yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
-      tick
+      tick_internal
     end
   end
 
@@ -414,17 +421,7 @@ module Bud
     EventMachine::schedule do
       yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
-      tick
-    end
-  end
-
-  # Shutdown any persistent tables used by the current Bud instance. If you are
-  # running Bud via tick() and +sync+ collections backed by Tokyo Cabinet, you
-  # should call this after you're finished using Bud. Programs that use Bud via
-  # run_fg() or run_bg() don't need to call this manually.
-  def close_tables
-    @tables.each_value do |t|
-      t.close
+      tick_internal
     end
   end
 
@@ -510,7 +507,7 @@ module Bud
   private
 
   def unregister_halt_callback
-    unless @halted == true
+    unless @halted
       unregister_callback(@halt_cb)
       @halted = true
     end
@@ -595,8 +592,12 @@ module Bud
       @shutdown_callbacks.each_value {|cb| cb.call}
     end
     @timers.each {|t| t.cancel}
-    close_tables
-    @dsock.close_connection if EventMachine::reactor_running?
+    @tables.each_value {|t| t.close}
+    if EventMachine::reactor_running? and @bud_started
+      @dsock.close_connection
+    end
+    @bud_started = false
+    @running_async = false
     if do_shutdown_cb
       @post_shutdown_callbacks.each {|cb| cb.call}
     end
@@ -608,10 +609,11 @@ module Bud
 
     @instance_id = Bud.init_signal_handlers(self)
     do_start_server
+    @bud_started = true
 
     # Initialize periodics
     @periodics.each do |p|
-      @timers << set_periodic_timer(p.pername, p.ident, p.period)
+      @timers << make_periodic_timer(p.pername, p.period)
     end
 
     # Arrange for Bud to read from stdin if enabled. Note that we can't do this
@@ -619,8 +621,16 @@ module Bud
     @stdio.start_stdin_reader if @options[:stdin]
     @zk_tables.each_value {|t| t.start_watchers}
 
-    # Compute a fixpoint; this will also invoke any bootstrap blocks.
-    tick unless @lazy
+    @halt_cb = register_callback(:halt) do |t|
+      stop_bg
+      if t.first.key == :kill
+        Bud.shutdown_all_instances
+        Bud.stop_em_loop
+      end
+    end
+
+    # Compute a fixpoint; this will invoke any bootstrap blocks.
+    tick_internal unless @lazy
 
     @rtracer.sleep if options[:rtrace]
   end
@@ -661,8 +671,22 @@ module Bud
     @port.nil? ? "#{@ip}:#{@options[:port]}" : "#{@ip}:#{@port}"
   end
 
-  # Manually trigger one timestep of Bloom execution.
+  # From client code, manually trigger a timestep of Bloom execution.
   def tick
+    start_reactor
+    schedule_and_wait do
+      unless @bud_started
+        # We'll perform a tick during the startup process
+        start_bud
+      else
+        tick_internal
+      end
+    end
+  end
+
+  # One timestep of Bloom execution. This MUST be invoked from the EventMachine
+  # thread; it is not intended to be called directly by client code.
+  def tick_internal
     begin
       starttime = Time.now if options[:metrics]
       if options[:metrics] and not @endtime.nil?
@@ -716,7 +740,7 @@ module Bud
     @stdio = terminal :stdio
     readonly :signals, [:key]
     scratch :halt, [:key]
-    @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
+    @periodics = table :periodics_tbl, [:pername] => [:period]
 
     # for Bud reflection
     table :t_rules, [:rule_id] => [:lhs, :op, :src, :orig_src]
@@ -834,10 +858,11 @@ module Bud
     Time.new.to_i.to_s << rand.to_s
   end
 
-  def set_periodic_timer(name, id, period)
+  def make_periodic_timer(name, period)
     EventMachine::PeriodicTimer.new(period) do
-      @tables[name].add_periodic_tuple(id)
-      tick unless @bud.lazy
+      # XXX: change to use @inbound
+      @tables[name].add_periodic_tuple(gen_id)
+      tick_internal unless (@lazy or not @running_async)
     end
   end
 
@@ -918,6 +943,7 @@ module Bud
       instances = $bud_instances.clone
     }
 
+    # XXX: should be tick(), right?
     instances.each_value {|b| b.sync_do }
   end
 

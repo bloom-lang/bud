@@ -55,9 +55,7 @@ def setup_bud
 end
 
 def cleanup_bud(b)
-  unless b.nil?
-    b.close_tables
-  end
+  b.stop_bg unless b.nil?
   rm_bud_dir
 end
 
@@ -127,7 +125,7 @@ class TestTc < Test::Unit::TestCase
     @t.tick
     assert_equal(2, @t.t1.length)
 
-    @t.close_tables
+    @t.stop_bg
     @t = make_bud(true)
 
     assert_equal(0, @t.t1.length)
@@ -144,7 +142,7 @@ class TestTc < Test::Unit::TestCase
     assert_equal(2, @t.t1.length)
 
     10.times do |i|
-      @t.close_tables
+      @t.stop_bg
       @t = make_bud(false)
       @t.in_buf << [6, 10 + i, 3, 4]
       @t.tick

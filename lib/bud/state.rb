@@ -119,7 +119,7 @@ module Bud
   def periodic(name, period=1)
     define_collection(name)
     raise BudError if @periodics.has_key? [name]
-    @periodics << [name, gen_id, period]
+    @periodics << [name, period]
     @tables[name] = Bud::BudPeriodic.new(name, self)
   end
 

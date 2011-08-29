@@ -181,4 +181,13 @@ class CallbackTest < Test::Unit::TestCase
       assert_nothing_raised { c.stop_bg }
     end
   end
+
+  def test_extra_startage
+    c = Vacuous.new
+    c.run_bg
+    5.times do
+      assert_raise(Bud::BudError) { c.run_bg }
+    end
+    c.stop_bg
+  end
 end

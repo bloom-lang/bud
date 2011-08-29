@@ -557,31 +557,3 @@ class TestUpsert < Test::Unit::TestCase
     assert_equal([[2,'y']], p.t2.to_a)
   end
 end
-
-class TestIssue237 < Test::Unit::TestCase
-  class Issue237
-  	include Bud
-
-  	state do
-  		loopback :lb, [:a, :b] => []
-  		table :t, [:a, :b] => []
-  		table :ft, [:a, :b] => []
-  	end
-
-  	bloom :initialisations do
-  		t <+- [["A", "B"], ["B", "C"], ["C", "D"]]
-  		ft <+- [["D", "E"]]
-  	end
-
-  	bloom :useLoopback do
-  		lb <~ ft
-  		t <+- lb
-  		stdio <~ t.inspected
-  	end
-  end
-
-  def test_issue_237 
-    o = Issue237.new
-    assert_raise(Bud::BudError) {o.tick; o.tick}
-  end
-end

@@ -24,7 +24,7 @@ class TickleCount
 end
 
 class TestTickle < Test::Unit::TestCase
-  def test_tickle_count
+  def test_tickle_run_bg
     c = TickleCount.new
     q = Queue.new
     c.register_callback(:loopback_done) do |t|
@@ -38,6 +38,27 @@ class TestTickle < Test::Unit::TestCase
 
     c.run_bg
     q.pop ; q.pop
+    c.stop_bg
+  end
+
+  def test_tickle_single_step
+    c = TickleCount.new
+    q = Queue.new
+    c.register_callback(:loopback_done) do |t|
+      assert_equal([5], t.to_a.flatten)
+      q.push(t.to_a.flatten)
+    end
+    c.register_callback(:mcast_done) do |t|
+      q.push(t.to_a.flatten)
+    end
+    15.times do
+      c.tick
+      sleep 0.1
+    end
+    res1 = q.pop
+    res2 = q.pop
+    assert_equal([5], res1)
+    assert_equal([5], res2)
     c.stop_bg
   end
 end

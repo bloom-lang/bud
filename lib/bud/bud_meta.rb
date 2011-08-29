@@ -36,7 +36,7 @@ class BudMeta #:nodoc: all
     @depanalysis = DepAnalysis.new
     @bud_instance.t_depends_tc.each {|d| @depanalysis.depends_tc << d}
     @bud_instance.t_provides.each {|p| @depanalysis.providing << p}
-    3.times { @depanalysis.tick }
+    3.times { @depanalysis.tick_internal }
 
     @depanalysis.underspecified.each do |u|
       puts "Warning: underspecified dataflow: #{u.inspect}"
@@ -179,7 +179,7 @@ class BudMeta #:nodoc: all
   def stratify
     strat = Stratification.new
     @bud_instance.t_depends.each {|d| strat.depends << d}
-    strat.tick
+    strat.tick_internal
 
     # Copy computed data back into Bud runtime
     strat.stratum.each {|s| @bud_instance.t_stratum << s}

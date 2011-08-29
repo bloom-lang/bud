@@ -31,6 +31,23 @@ class TestTimer < Test::Unit::TestCase
     end
     b.stop_bg
   end
+
+  def test_timer_tick
+    b = TemporalBudTest.new
+    tick_cnt = 0
+    b.register_callback(:tik) do |t|
+      tick_cnt += 1
+    end
+
+    b.tick
+    sleep 0.4
+    b.tick
+    assert_equal(1, tick_cnt)
+    sleep 0.4
+    b.tick
+    assert_equal(2, tick_cnt)
+    b.stop_bg
+  end
 end
 
 class BudClockExample
