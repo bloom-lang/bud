@@ -283,7 +283,11 @@ class LibRebl
     @rebl_class_inst = @rebl_class.new(:signal_handling => :none, :ip => @ip,
                                        :port => @port, :lazy => true)
 
-    # Stop the old instance
+    # Stop the old instance. We want to copy the old instance's state over to
+    # the new instance and then startup the new instance. Any network messages
+    # received before the new instance has been started will be lost, but that
+    # can't easily be avoided; the best we can do is ensure we get a consistent
+    # snapshot of the old instance's state.
     @old_inst.stop_bg if @old_inst
 
     # Copy the tables over.
