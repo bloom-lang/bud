@@ -307,8 +307,9 @@ module Bud
   end
 
   # Run Bud in the "foreground" -- the caller's thread will be used to run the
-  # Bud interpreter. This means this method won't return unless an error
-  # occurs. It is often more useful to run Bud asynchronously -- see run_bg.
+  # Bud interpreter. This means this method won't return unless an error occurs
+  # or Bud is halted. It is often more useful to run Bud in a different thread:
+  # see run_bg.
   def run_fg
     # If we're called from the EventMachine thread (and EM is running), blocking
     # the current thread would imply deadlocking ourselves.
@@ -337,7 +338,8 @@ module Bud
   # Bud instances in the same process (as well as anything else that happens to
   # use EventMachine).
   def stop_bg(stop_em=false, do_shutdown_cb=true)
-    # the halt callback calls stop_bg again, so unregister it here and avoid calling ourself
+    # the halt callback calls stop_bg again, so unregister it here and avoid
+    # calling ourself
     unregister_halt_callback
 
     schedule_and_wait do
