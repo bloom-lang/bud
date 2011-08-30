@@ -51,7 +51,12 @@ class TestTickle < Test::Unit::TestCase
     c.register_callback(:mcast_done) do |t|
       q.push(t.to_a.flatten)
     end
-    15.times do
+    5.times do
+      c.tick
+      sleep 0.1
+    end
+    assert(q.empty?)
+    10.times do
       c.tick
       sleep 0.1
     end
@@ -327,6 +332,24 @@ class LoopbackPayload
   end
 end
 
+class SimpleLoopback
+  include Bud
+
+  state do
+    loopback :me
+    scratch :done
+  end
+
+  bootstrap do
+    me <~ [["foo", 1]]
+  end
+
+  bloom do
+    me <~ me {|t| [t.key, t.val + 1] if t.val <= 60}
+    done <= me {|t| t if t.val > 60}
+  end
+end
+
 class LoopbackTests < Test::Unit::TestCase
   def test_loopback_payload
     b = LoopbackPayload.new
@@ -338,5 +361,26 @@ class LoopbackTests < Test::Unit::TestCase
     b.run_bg
     q.pop
     b.stop_bg
+  end
+
+  def test_loopback_tick
+    s = SimpleLoopback.new
+    q = Queue.new
+    s.register_callback(:done) do |t|
+      q.push(t.to_a)
+    end
+    s.tick
+    assert_equal([], s.me.to_a)
+    sleep 0.2
+    s.tick
+    assert_equal([["foo", 1]], s.me.to_a)
+    sleep 0.2
+    s.tick
+    assert_equal([["foo", 2]], s.me.to_a)
+    assert(q.empty?)
+    s.run_bg
+    rv = q.pop
+    assert_equal([["foo", 61]], rv)
+    s.stop_bg
   end
 end
