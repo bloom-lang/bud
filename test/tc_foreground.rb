@@ -236,7 +236,7 @@ class TestPause < Test::Unit::TestCase
     b.run_bg
     rv = q.pop
     assert_equal([50], rv.flatten)
-    b.pause_bg
+    b.pause
     b.unregister_callback(cb_id)
 
     b.s1 <+ [[1]]
