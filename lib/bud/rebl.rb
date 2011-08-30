@@ -213,12 +213,12 @@ class LibRebl
 
   # Runs the bud instance (until a breakpoint, or stop() is called)
   def run
-    @rebl_class_inst.sync_do {@rebl_class_inst.lazy = false}
+    @rebl_class_inst.run_bg
   end
 
   # Stops the bud instance (and then performs another tick)
   def stop
-    @rebl_class_inst.sync_do {@rebl_class_inst.lazy = true}
+    @rebl_class_inst.pause_bg
   end
 
   # Ticks the bud instance a specified integer number of times.
@@ -281,7 +281,7 @@ class LibRebl
 
     @old_inst = @rebl_class_inst
     @rebl_class_inst = @rebl_class.new(:signal_handling => :none, :ip => @ip,
-                                       :port => @port, :lazy => true)
+                                       :port => @port)
 
     # Stop the old instance. We want to copy the old instance's state over to
     # the new instance and then startup the new instance. Any network messages
@@ -313,12 +313,13 @@ class LibRebl
       # Lazify the instance upon a breakpoint (no effect if instance is
       # already lazy)
       @rebl_class_inst.register_callback(:rebl_breakpoint) do
-        @rebl_class_inst.lazy = true
+        @rebl_class_inst.pause_bg
       end
-      @rebl_class_inst.run_bg
+      # @rebl_class_inst.run_bg(false)
       @ip = @rebl_class_inst.ip
       @port = @rebl_class_inst.port
-      puts "Listening on #{@rebl_class_inst.ip_port}" if not @old_inst
+      # puts "Listening on #{@rebl_class_inst.ip_port}" if not @old_inst
+      puts "Listening on #{@ip}:#{@port}" if not @old_inst
     rescue Exception
       # The above two need to be atomic, or we're in trouble.
       puts "unrecoverable error, please file a bug: #{$!}"

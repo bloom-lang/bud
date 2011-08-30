@@ -62,7 +62,6 @@ module Bud
   attr_reader :stratum_first_iter, :joinstate
   attr_reader :this_stratum, :this_rule, :rule_orig_src
   attr_reader :running_async
-  attr_accessor :lazy # This can be changed on-the-fly by REBL
   attr_accessor :stratum_collection_map, :rewritten_strata, :no_attr_rewrite_strata
   attr_accessor :metrics
 
@@ -84,7 +83,6 @@ module Bud
   #   * <tt>:dump_rewrite</tt> if true, dump results of internal rewriting of Bloom code to a file
   #   * <tt>:metrics</tt> if true, dumps a hash of internal performance metrics
   # * controlling execution
-  #   * <tt>:lazy</tt>  if true, prevents runtime from ticking except on external calls to +tick+
   #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
   # * storage configuration
   #   * <tt>:dbm_dir</tt> filesystem directory to hold DBM-backed collections
@@ -125,7 +123,6 @@ module Bud
 
     # Setup options (named arguments), along with default values
     @options = options.clone
-    @lazy = @options[:lazy] ||= false
     @options[:ip] ||= "127.0.0.1"
     @ip = @options[:ip]
     @options[:port] ||= 0
@@ -630,7 +627,7 @@ module Bud
     end
 
     # Compute a fixpoint; this will invoke any bootstrap blocks.
-    tick_internal unless @lazy
+    tick_internal
 
     @rtracer.sleep if options[:rtrace]
   end
@@ -862,7 +859,7 @@ module Bud
     EventMachine::PeriodicTimer.new(period) do
       # XXX: change to use @inbound
       @tables[name].add_periodic_tuple(gen_id)
-      tick_internal unless (@lazy or not @running_async)
+      tick_internal unless not @running_async
     end
   end
 
