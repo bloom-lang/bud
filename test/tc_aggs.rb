@@ -390,6 +390,6 @@ class TestAggs < Test::Unit::TestCase
     }
     10.times { s.sync_do }
     assert_equal(expected.length, cb_cnt)
-    s.stop_bg
+    s.stop
   end
 end

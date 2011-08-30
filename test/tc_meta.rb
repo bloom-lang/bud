@@ -163,7 +163,7 @@ class TestMeta < Test::Unit::TestCase
     program.sync_do{}
     
     write_graphs({}, program.t_cycle, program.t_depends, program.t_rules, "#{dir}/test_viz", dir, :dot, false, nil, 1, {})
-    program.stop_bg
+    program.stop
   end
 
   def test_plotting
@@ -194,7 +194,7 @@ class TestMeta < Test::Unit::TestCase
     assert_no_match(/n_upd -> \"n_\?\?\"/, content)
     assert_no_match(/n_req -> \"n_\?\?\"/, content)
     `rm -r #{dir}`
-    program.stop_bg
+    program.stop
   end
 
   def test_underspecified

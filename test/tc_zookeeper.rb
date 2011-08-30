@@ -76,7 +76,7 @@ class TestZk < Test::Unit::TestCase
     b.sync_do {
       assert_equal(tuples.sort, b.t1.to_a.sort)
     }
-    b.stop_bg
+    b.stop
   end
 
   def test_mirror
@@ -124,8 +124,8 @@ class TestZk < Test::Unit::TestCase
       assert_equal([], b2.t1.to_a.sort)
     }
 
-    b1.stop_bg
-    b2.stop_bg
+    b1.stop
+    b2.stop
   end
 
   def test_ephemeral
@@ -154,14 +154,14 @@ class TestZk < Test::Unit::TestCase
     c = b2.register_callback(:t1) do |t|
       q.push(true) if t.length == 1
     end
-    b1.stop_bg
+    b1.stop
     q.pop
     b2.unregister_callback(c)
     b2.sync_do {
       assert_equal([["baz", "xyz"]], b2.t1.to_a.sort)
     }
 
-    b2.stop_bg
+    b2.stop
   end
 
   def test_sequence
@@ -186,6 +186,6 @@ class TestZk < Test::Unit::TestCase
                    b.t1.to_a.sort)
     }
 
-    b.stop_bg
+    b.stop
   end
 end

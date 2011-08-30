@@ -46,7 +46,7 @@ class TestThreadDeploy < Test::Unit::TestCase
     # Close pipe
     read.close
     write.close
-    deployer.stop_bg
+    deployer.stop
 
     # Console output from different nodes might be intermixed in output pipe
     # (i.e., "lines" might not respect token delivery order). We just check that

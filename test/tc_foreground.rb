@@ -27,7 +27,7 @@ class CallbackTest < Test::Unit::TestCase
   def test_shutdown_em
     c = Vacuous.new
     c.run_bg
-    c.stop_bg(true)
+    c.stop(true)
     assert_equal(false, EventMachine::reactor_running?)
   end
 
@@ -104,7 +104,7 @@ class CallbackTest < Test::Unit::TestCase
     Process.kill(signal, pid)
     _, status = Process.waitpid2(pid)
     assert_equal(0, status)
-    parent.stop_bg
+    parent.stop
   end
 
   def test_fg_bg_mix
@@ -116,8 +116,8 @@ class CallbackTest < Test::Unit::TestCase
       c2.run_fg
       cnt += 1
     }
-    c1.stop_bg
-    c2.stop_bg
+    c1.stop
+    c2.stop
     t.join
     assert_equal(1, cnt)
   end
@@ -178,7 +178,7 @@ class CallbackTest < Test::Unit::TestCase
     c = Vacuous.new
     c.run_bg
     5.times do
-      assert_nothing_raised { c.stop_bg }
+      assert_nothing_raised { c.stop }
     end
   end
 
@@ -188,6 +188,6 @@ class CallbackTest < Test::Unit::TestCase
     5.times do
       assert_raise(Bud::BudError) { c.run_bg }
     end
-    c.stop_bg
+    c.stop
   end
 end

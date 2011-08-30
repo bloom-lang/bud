@@ -33,10 +33,9 @@ class TestSFree < Test::Unit::TestCase
       p.send_me <+ [[p.ip_port, [[123, 2], "I think I'll go for a walk"]]]
     }
 
-    # Wait for two messages
     2.times { q.pop }
 
-    p.stop_bg
+    p.stop
     assert_equal(2, p.notes.length)
     assert_equal(123, p.notes.first.key[0])
     assert_equal('what a lovely day', p.notes.first.val)

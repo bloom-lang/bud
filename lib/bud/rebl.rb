@@ -181,7 +181,7 @@ class ReblShell
     rescue Exception
       puts "Error when saving permanent history: #{$!}"
     end
-    @rebl_class_inst.stop_bg if @rebl_class_inst
+    @rebl_class_inst.stop if @rebl_class_inst
     puts "\n" + @@exit_message
     exit!
   end
@@ -288,7 +288,7 @@ class LibRebl
     # received before the new instance has been started will be lost, but that
     # can't easily be avoided; the best we can do is ensure we get a consistent
     # snapshot of the old instance's state.
-    @old_inst.stop_bg if @old_inst
+    @old_inst.stop if @old_inst
 
     # Copy the tables over.
     if @old_inst

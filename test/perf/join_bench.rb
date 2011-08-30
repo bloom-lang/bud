@@ -36,4 +36,4 @@ t = Benchmark.measure do
   }
 end
 puts "Time taken for 10 joins: #{t}"
-b.stop_bg
+b.stop
