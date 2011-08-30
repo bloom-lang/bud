@@ -352,7 +352,7 @@ module Bud
   # execution of any other Bud instances in the same process (as well as
   # anything else that happens to use EventMachine).
   def stop(stop_em=false, do_shutdown_cb=true)
-    # The halt callback calls stop itself(), so unregister it here and avoid
+    # The halt callback calls stop() itself, so unregister it here and avoid
     # calling ourself
     # XXX: why is this necessary?
     unregister_halt_callback
@@ -403,11 +403,10 @@ module Bud
   end
 
   # Given a block, evaluate that block inside the background Ruby thread at some
-  # time in the future. Because the block is evaluate inside the background Ruby
-  # thread, the block can safely examine Bud state. Naturally, this method can
-  # only be used when Bud is running in the background. Note that calling
-  # sync_do blocks the caller until the block has been evaluated; for a
-  # non-blocking version, see async_do.
+  # time in the future, and then perform a Bloom tick. Because the block is
+  # evaluate inside the background Ruby thread, the block can safely examine Bud
+  # state. Note that calling sync_do blocks the caller until the block has been
+  # evaluated; for a non-blocking version, see async_do.
   #
   # Note that the block is invoked after one Bud timestep has ended but before
   # the next timestep begins. Hence, synchronous accumulation (<=) into a Bud
@@ -869,8 +868,7 @@ module Bud
 
   def make_periodic_timer(name, period)
     EventMachine::PeriodicTimer.new(period) do
-      # XXX: change to use @inbound
-      @tables[name].add_periodic_tuple(gen_id)
+      @inbound << [name, [gen_id, Time.now]]
       tick_internal unless (@lazy or not @running_async)
     end
   end
@@ -952,7 +950,6 @@ module Bud
       instances = $bud_instances.clone
     }
 
-    # XXX: should be tick(), right?
     instances.each_value {|b| b.sync_do }
   end
 

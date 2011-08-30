@@ -861,10 +861,6 @@ module Bud
     superator "<+" do |o|
       raise BudError, "Illegal use of <+ with periodic '#{tabname}' on left"
     end
-
-    def add_periodic_tuple(id)
-      pending_merge([[id, Time.now]])
-    end
   end
 
   class BudTable < BudCollection # :nodoc: all
