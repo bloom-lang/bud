@@ -109,7 +109,7 @@ module Bud
       }
 
       # If we have new data, force a new Bud tick in the near future
-      if need_tick and not @bud_instance.lazy and @bud_instance.running_async
+      if need_tick and @bud_instance.running_async
         EventMachine::schedule {
           @bud_instance.tick_internal
         }

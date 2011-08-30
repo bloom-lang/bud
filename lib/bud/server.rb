@@ -18,7 +18,7 @@ module Bud
       end
 
       begin
-        @bud.tick_internal unless (@bud.lazy or not @bud.running_async)
+        @bud.tick_internal if @bud.running_async
       rescue Exception
         # If we raise an exception here, EM dies, which causes problems (e.g.,
         # other Bud instances in the same process will crash). Ignoring the

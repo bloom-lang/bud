@@ -218,7 +218,7 @@ class LibRebl
 
   # Stops the bud instance (and then performs another tick)
   def stop
-    @rebl_class_inst.pause_bg
+    @rebl_class_inst.pause
   end
 
   # Ticks the bud instance a specified integer number of times.
@@ -313,13 +313,12 @@ class LibRebl
       # Lazify the instance upon a breakpoint (no effect if instance is
       # already lazy)
       @rebl_class_inst.register_callback(:rebl_breakpoint) do
-        @rebl_class_inst.pause_bg
+        @rebl_class_inst.pause
       end
-      # @rebl_class_inst.run_bg(false)
+      @rebl_class_inst.start
       @ip = @rebl_class_inst.ip
       @port = @rebl_class_inst.port
-      # puts "Listening on #{@rebl_class_inst.ip_port}" if not @old_inst
-      puts "Listening on #{@ip}:#{@port}" if not @old_inst
+      puts "Listening on #{@rebl_class_inst.ip_port}" if not @old_inst
     rescue Exception
       # The above two need to be atomic, or we're in trouble.
       puts "unrecoverable error, please file a bug: #{$!}"

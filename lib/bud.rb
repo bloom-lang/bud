@@ -302,8 +302,41 @@ module Bud
     start_reactor
     # Wait for Bud to start up before returning
     schedule_and_wait do
-      start_bud unless @bud_started
+      start unless @bud_started
       @running_async = true
+    end
+
+    # Compute a fixpoint; this will invoke any bootstrap blocks.
+    tick_internal
+    @rtracer.sleep if options[:rtrace]
+  end
+
+  def start
+    start_reactor
+    schedule_and_wait do
+      raise BudError unless EventMachine::reactor_thread?
+
+      @instance_id = Bud.init_signal_handlers(self)
+      do_start_server
+      @bud_started = true
+
+      # Initialize periodics
+      @periodics.each do |p|
+        @timers << make_periodic_timer(p.pername, p.period)
+      end
+
+      # Arrange for Bud to read from stdin if enabled. Note that we can't do this
+      # earlier because we need to wait for EventMachine startup.
+      @stdio.start_stdin_reader if @options[:stdin]
+      @zk_tables.each_value {|t| t.start_watchers}
+      
+      @halt_cb = register_callback(:halt) do |t|
+        stop
+        if t.first.key == :kill
+          Bud.shutdown_all_instances
+          Bud.stop_em_loop
+        end
+      end
     end
   end
 
@@ -462,7 +495,7 @@ module Bud
   # Unregister the callback that has the given ID.
   def unregister_callback(id)
     schedule_and_wait do
-      raise Bud::BudError unless @callbacks.has_key? id
+      raise Bud::BudError, "Missing callback: #{id.inspect}}" unless @callbacks.has_key? id
       @callbacks.delete(id)
     end
   end
@@ -608,38 +641,6 @@ module Bud
     end
   end
 
-  private
-  def start_bud
-    raise BudError unless EventMachine::reactor_thread?
-
-    @instance_id = Bud.init_signal_handlers(self)
-    do_start_server
-    @bud_started = true
-
-    # Initialize periodics
-    @periodics.each do |p|
-      @timers << make_periodic_timer(p.pername, p.period)
-    end
-
-    # Arrange for Bud to read from stdin if enabled. Note that we can't do this
-    # earlier because we need to wait for EventMachine startup.
-    @stdio.start_stdin_reader if @options[:stdin]
-    @zk_tables.each_value {|t| t.start_watchers}
-
-    @halt_cb = register_callback(:halt) do |t|
-      stop
-      if t.first.key == :kill
-        Bud.shutdown_all_instances
-        Bud.stop_em_loop
-      end
-    end
-
-    # Compute a fixpoint; this will invoke any bootstrap blocks.
-    tick_internal
-
-    @rtracer.sleep if options[:rtrace]
-  end
-
   def do_start_server
     @dsock = EventMachine::open_datagram_socket(@ip, @options[:port],
                                                 BudServer, self)
@@ -678,14 +679,9 @@ module Bud
 
   # From client code, manually trigger a timestep of Bloom execution.
   def tick
-    start_reactor
     schedule_and_wait do
-      unless @bud_started
-        # We'll perform a tick during the startup process
-        start_bud
-      else
-        tick_internal
-      end
+      start unless @bud_started
+      tick_internal
     end
   end
 
@@ -866,7 +862,7 @@ module Bud
   def make_periodic_timer(name, period)
     EventMachine::PeriodicTimer.new(period) do
       @inbound << [name, [gen_id, Time.now]]
-      tick_internal unless not @running_async
+      tick_internal if @running_async
     end
   end
 
