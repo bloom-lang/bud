@@ -35,8 +35,8 @@ module Bud
     end
 
     def message_received(obj)
-      unless (obj.class <= Array and obj.length == 2 and not
-              @bud.tables[obj[0].to_sym].nil? and obj[1].class <= Array)
+      unless (obj.class <= Array and obj.length == 2 and
+              @bud.tables.include?(obj[0].to_sym) and obj[1].class <= Array)
         raise BudError, "Bad inbound message of class #{obj.class}: #{obj.inspect}"
       end
 
