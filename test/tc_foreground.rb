@@ -191,3 +191,75 @@ class CallbackTest < Test::Unit::TestCase
     c.stop
   end
 end
+
+class ThreePhase
+  include Bud
+
+  state do
+    loopback :c1
+    scratch :s1, [] => [:v]
+    loopback :c2
+
+    scratch :c1_done, [] => [:v]
+    scratch :s1_done, [] => [:v]
+    scratch :c2_done, [] => [:v]
+  end
+
+  bootstrap do
+    c1 <~ [["foo", 1]]
+  end
+
+  bloom :p1 do
+    c1 <~ c1 {|t| [t.key, t.val + 1] if t.val < 50}
+    c1_done <= c1 {|t| [t.val] if t.val >= 50}
+  end
+
+  bloom :p2 do
+    s1 <+ s1 {|s| [s.v + 1] if s.v < 3}
+    s1_done <= s1 {|s| [s.v] if s.v >= 3}
+  end
+
+  bloom :p3 do
+    c2 <~ s1_done {|t| ["foo", 0]}
+    c2 <~ c2 {|t| [t.key, t.val + 1] if t.val < 17}
+    c2_done <= c2 {|t| [t.val] if t.val >= 17}
+  end
+end
+
+class TestPause < Test::Unit::TestCase
+  def test_pause_threephase
+    b = ThreePhase.new
+    q = Queue.new
+    cb_id = b.register_callback(:c1_done) do |t|
+      q.push(t.to_a)
+    end
+    b.run_bg
+    rv = q.pop
+    assert_equal([50], rv.flatten)
+    b.pause_bg
+    b.unregister_callback(cb_id)
+
+    b.s1 <+ [[1]]
+    b.tick
+    assert_equal([[1]], b.s1.to_a)
+    assert(b.s1_done.empty?)
+
+    b.tick
+    assert_equal([[2]], b.s1.to_a)
+    assert(b.s1_done.empty?)
+
+    b.tick
+    assert_equal([[3]], b.s1.to_a)
+    assert_equal([[3]], b.s1_done.to_a)
+
+    b.register_callback(:c2_done) do |t|
+      q.push(t.to_a)
+    end
+    b.run_bg
+    b.sync_do # might need to force another tick
+    rv = q.pop
+    assert_equal([17], rv.flatten)
+
+    b.stop
+  end
+end

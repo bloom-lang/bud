@@ -310,6 +310,10 @@ module Bud
     end
   end
 
+  # Pause an instance of Bud that is running asynchronously. That is, this
+  # method allows a Bud instance operating in run_bg or run_fg mode to be
+  # switched to "single-stepped" mode; timesteps can be manually invoked via
+  # tick(). To switch back to running Bud asynchronously, call run_bg().
   def pause_bg
     schedule_and_wait do
       @running_async = false
