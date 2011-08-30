@@ -25,10 +25,7 @@ class TestTimer < Test::Unit::TestCase
     end
     b.run_bg
 
-    r = []
-    5.times do
-      r << q.pop
-    end
+    5.times { q.pop }
     b.stop_bg
   end
 
