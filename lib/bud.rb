@@ -38,10 +38,11 @@ $bud_instances = {}        # Map from instance id => Bud instance
 # three main options:
 #
 # 1. Synchronously. To do this, instantiate your program and then call tick()
-#    one or more times; each call evaluates a single Bud timestep. Note that in
-#    this mode, network communication (channels) and timers cannot be used. This
-#    is mostly intended for "one-shot" programs that compute a single result and
-#    then terminate.
+#    one or more times; each call evaluates a single Bud timestep. In this mode,
+#    any network messages or timer events that occur will be buffered until the
+#    next call to tick(). This is mostly intended for "one-shot" programs that
+#    compute a single result and then terminate, or for interactively
+#    "single-stepping" through the execution of an event-driven system.
 # 2. In a separate thread in the foreground. To do this, instantiate your
 #    program and then call run_fg(). The Bud interpreter will then run, handling
 #    network events and evaluating new timesteps as appropriate. The run_fg()
@@ -50,9 +51,11 @@ $bud_instances = {}        # Map from instance id => Bud instance
 #    program and then call run_bg(). The Bud interpreter will run
 #    asynchronously. To interact with Bud (e.g., insert additional data or
 #    inspect the state of a Bud collection), use the sync_do and async_do
-#    methods. To shutdown the Bud interpreter, use stop_bg().
+#    methods.
 #
-# Most programs should use method #3.
+# Most programs should use method #3. Note that in all three cases, the stop()
+# method should be used to shutdown a Bud instance and release any resources it
+# is using.
 #
 # :main: Bud
 module Bud
@@ -290,7 +293,7 @@ module Bud
   # when interacting with it. For example, it is not safe to directly examine
   # Bud collections from the caller's thread (see async_do and sync_do).
   #
-  # This instance of Bud will continue to execute until stop_bg is called.
+  # This instance of Bud will run until stop() is called.
   def run_bg
     if @running_async
       raise BudError, "run_bg called on already-running Bud instance"
@@ -304,7 +307,11 @@ module Bud
     end
   end
 
-  def pause_bg
+  # Pause an instance of Bud that is running asynchronously. That is, this
+  # method allows a Bud instance operating in run_bg or run_fg mode to be
+  # switched to "single-stepped" mode; timesteps can be manually invoked via
+  # tick(). To switch back to running Bud asynchronously, call run_bg().
+  def pause
     schedule_and_wait do
       @running_async = false
     end
@@ -341,9 +348,10 @@ module Bud
   # EventMachine event loop is also shutdown; this will interfere with the
   # execution of any other Bud instances in the same process (as well as
   # anything else that happens to use EventMachine).
-  def stop_bg(stop_em=false, do_shutdown_cb=true)
-    # the halt callback calls stop_bg again, so unregister it here and avoid
+  def stop(stop_em=false, do_shutdown_cb=true)
+    # The halt callback calls stop() itself, so unregister it here and avoid
     # calling ourself
+    # XXX: why is this necessary?
     unregister_halt_callback
 
     schedule_and_wait do
@@ -356,6 +364,7 @@ module Bud
     end
     report_metrics if options[:metrics]
   end
+  alias :stop_bg :stop
 
   # Register a callback that will be invoked when this instance of Bud is
   # shutting down.
@@ -391,11 +400,10 @@ module Bud
   end
 
   # Given a block, evaluate that block inside the background Ruby thread at some
-  # time in the future. Because the block is evaluate inside the background Ruby
-  # thread, the block can safely examine Bud state. Naturally, this method can
-  # only be used when Bud is running in the background. Note that calling
-  # sync_do blocks the caller until the block has been evaluated; for a
-  # non-blocking version, see async_do.
+  # time in the future, and then perform a Bloom tick. Because the block is
+  # evaluate inside the background Ruby thread, the block can safely examine Bud
+  # state. Note that calling sync_do blocks the caller until the block has been
+  # evaluated; for a non-blocking version, see async_do.
   #
   # Note that the block is invoked after one Bud timestep has ended but before
   # the next timestep begins. Hence, synchronous accumulation (<=) into a Bud
@@ -619,7 +627,7 @@ module Bud
     @zk_tables.each_value {|t| t.start_watchers}
 
     @halt_cb = register_callback(:halt) do |t|
-      stop_bg
+      stop
       if t.first.key == :kill
         Bud.shutdown_all_instances
         Bud.stop_em_loop
@@ -857,8 +865,7 @@ module Bud
 
   def make_periodic_timer(name, period)
     EventMachine::PeriodicTimer.new(period) do
-      # XXX: change to use @inbound
-      @tables[name].add_periodic_tuple(gen_id)
+      @inbound << [name, [gen_id, Time.now]]
       tick_internal unless not @running_async
     end
   end
@@ -940,7 +947,6 @@ module Bud
       instances = $bud_instances.clone
     }
 
-    # XXX: should be tick(), right?
     instances.each_value {|b| b.sync_do }
   end
 
@@ -950,6 +956,6 @@ module Bud
       instances = $bud_instances.clone
     }
 
-    instances.each_value {|b| b.stop_bg(false, do_shutdown_cb) }
+    instances.each_value {|b| b.stop(false, do_shutdown_cb) }
   end
 end

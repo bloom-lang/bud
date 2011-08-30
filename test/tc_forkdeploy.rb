@@ -44,7 +44,7 @@ class TestForkDeploy < Test::Unit::TestCase
       end
     end
 
-    ring_fork.stop_bg
+    ring_fork.stop
     # We can close pipe now that ring_fork is stopped
     read.close
     write.close

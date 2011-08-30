@@ -16,7 +16,7 @@ class TestErrorHandling < Test::Unit::TestCase
       }
     }
 
-    b.stop_bg
+    b.stop
   end
 
   class IllegalOp
@@ -181,7 +181,7 @@ class TestErrorHandling < Test::Unit::TestCase
       }
     }
 
-    e.stop_bg
+    e.stop
   end
 
   class BadGroupingCols

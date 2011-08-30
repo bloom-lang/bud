@@ -20,10 +20,10 @@ class TestTerminal < Test::Unit::TestCase
     t = TerminalTester.new(:stdin => input_buf)
     t.run_bg
     t.register_callback(:saw_input) do |tbl|
-      assert_equal(1, tbl.length)
-      q.push(true)
+      q.push(tbl.length)
     end
-    q.pop
-    t.stop_bg
+    rv = q.pop
+    assert_equal(1, rv)
+    t.stop
   end
 end

@@ -86,7 +86,7 @@ class CallbackTest < Test::Unit::TestCase
     }
     assert_equal(2, call_tick.cnt)
     assert_equal(3, tuple_tick.cnt)
-    c.stop_bg
+    c.stop
   end
 
   def test_cb_at_next
@@ -104,7 +104,7 @@ class CallbackTest < Test::Unit::TestCase
     c.sync_do
     assert_equal(1, tick.cnt)
 
-    c.stop_bg
+    c.stop
   end
 
   def test_missing_cb_error
@@ -123,14 +123,14 @@ class CallbackTest < Test::Unit::TestCase
     c.sync_callback(:t1, tuples, :c1) do |cb|
       assert_equal(1, cb.length)
     end
-    c.stop_bg
+    c.stop
   end
 
   def test_delta
     c = TickingCallback.new
     c.run_bg
     Timeout::timeout(3) {c.delta(:tic)}
-    c.stop_bg
+    c.stop
   end
 
   def add_cb(b)
@@ -158,7 +158,7 @@ class CallbackTest < Test::Unit::TestCase
     }
     assert_equal(1, tick1.cnt)
     assert_equal(2, tick2.cnt)
-    c.stop_bg
+    c.stop
   end
 
   def test_callback_with_channel
@@ -176,7 +176,7 @@ class CallbackTest < Test::Unit::TestCase
     end
     c.run_bg
     assert_equal(0, cnt)
-    c.stop_bg
+    c.stop
     assert_equal(1, cnt)
   end
 end

@@ -26,7 +26,7 @@ class TestTimer < Test::Unit::TestCase
     b.run_bg
 
     5.times { q.pop }
-    b.stop_bg
+    b.stop
   end
 
   def test_timer_tick
@@ -43,7 +43,7 @@ class TestTimer < Test::Unit::TestCase
     sleep 0.4
     b.tick
     assert_equal(2, tick_cnt)
-    b.stop_bg
+    b.stop
   end
 end
 
@@ -70,7 +70,7 @@ class TestBudClock < Test::Unit::TestCase
       b.in_tbl <+ [[5]]
       b.in_tbl2 <+ [[5]]
     }
-    b.stop_bg
+    b.stop
     assert_equal(1, b.t1.length)
   end
 
@@ -82,6 +82,6 @@ class TestBudClock < Test::Unit::TestCase
         puts "Current Bud clock: #{b.bud_clock}"
       }
     end
-    b.stop_bg
+    b.stop
   end
 end

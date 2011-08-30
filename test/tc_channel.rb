@@ -38,7 +38,7 @@ class TestTickle < Test::Unit::TestCase
 
     c.run_bg
     q.pop ; q.pop
-    c.stop_bg
+    c.stop
   end
 
   def test_tickle_single_step
@@ -64,7 +64,7 @@ class TestTickle < Test::Unit::TestCase
     res2 = q.pop
     assert_equal([5], res1)
     assert_equal([5], res2)
-    c.stop_bg
+    c.stop
   end
 end
 
@@ -128,7 +128,7 @@ class TestRing < Test::Unit::TestCase
       # XXX: we need to do a final tick here to ensure that each Bud instance
       # applies pending <+ and <- derivations. See issue #50.
       r.sync_do
-      r.stop_bg
+      r.stop
       assert_equal([30 + i], r.last_cnt.first)
     end
   end
@@ -209,8 +209,8 @@ class TestChannelWithKey < Test::Unit::TestCase
       }
     }
 
-    p1.stop_bg
-    p2.stop_bg
+    p1.stop
+    p2.stop
   end
 end
 
@@ -241,8 +241,8 @@ class TestChannelAddrInVal < Test::Unit::TestCase
       assert_equal([[10, target_addr, 20], [50, target_addr, 100]], p2.recv.to_a.sort)
     }
 
-    p1.stop_bg
-    p2.stop_bg
+    p1.stop
+    p2.stop
   end
 end
 
@@ -285,7 +285,7 @@ class TestChannelBootstrap < Test::Unit::TestCase
     c.sync_do {
       assert_equal([[1000]], c.t2.to_a.sort)
     }
-    c.stop_bg
+    c.stop
   end
 end
 
@@ -360,7 +360,7 @@ class LoopbackTests < Test::Unit::TestCase
     end
     b.run_bg
     q.pop
-    b.stop_bg
+    b.stop
   end
 
   def test_loopback_tick
@@ -381,6 +381,6 @@ class LoopbackTests < Test::Unit::TestCase
     s.run_bg
     rv = q.pop
     assert_equal([["foo", 61]], rv)
-    s.stop_bg
+    s.stop
   end
 end

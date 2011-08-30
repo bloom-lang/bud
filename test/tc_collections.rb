@@ -386,7 +386,7 @@ class TestCollections < Test::Unit::TestCase
       assert_equal(2, rv.t4.length)
     }
 
-    rv.stop_bg
+    rv.stop
   end
 
   def test_types
@@ -416,7 +416,7 @@ class TestCollections < Test::Unit::TestCase
     p.sync_do {
       assert_equal([[5, 10]], p.t1.to_a.sort)
     }
-    p.stop_bg
+    p.stop
   end
 
   def test_bootstrap_derive
@@ -429,7 +429,7 @@ class TestCollections < Test::Unit::TestCase
       }
     end
 
-    b.stop_bg
+    b.stop
   end
 
   def test_dup_table_def
@@ -487,7 +487,7 @@ class TestCollections < Test::Unit::TestCase
     assert_raise(Bud::BudError) {
       b.sync_do { b.timer <- [[5, 10]] }
     }
-    b.stop_bg
+    b.stop
   end
 
   class SimpleRename
