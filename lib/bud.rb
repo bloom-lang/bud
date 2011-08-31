@@ -295,47 +295,57 @@ module Bud
   #
   # This instance of Bud will run until stop() is called.
   def run_bg
-    if @running_async
-      raise BudError, "run_bg called on already-running Bud instance"
-    end
+    start
 
-    start_reactor
-    # Wait for Bud to start up before returning
     schedule_and_wait do
-      start unless @bud_started
+      if @running_async
+        raise BudError, "run_bg called on already-running Bud instance"
+      end
       @running_async = true
+
+      # Consume any events received while we weren't running async
+      tick_internal
     end
 
-    # Compute a fixpoint; this will invoke any bootstrap blocks.
-    tick_internal
     @rtracer.sleep if options[:rtrace]
   end
 
-  def start
+  # Startup a Bud instance. This starts EventMachine (if needed) and binds to a
+  # UDP server socket. If do_tick is true, we also execute a single Bloom
+  # timestep. Regardless, calling this method does NOT cause Bud to begin
+  # executing timesteps asynchronously (see run_bg).
+  def start(do_tick=false)
     start_reactor
     schedule_and_wait do
-      raise BudError unless EventMachine::reactor_thread?
+      do_startup unless @bud_started
+      tick_internal if do_tick
+    end
+  end
 
-      @instance_id = Bud.init_signal_handlers(self)
-      do_start_server
-      @bud_started = true
+  private
+  def do_startup
+    raise BudError, "EventMachine not started" unless EventMachine::reactor_running?
+    raise BudError unless EventMachine::reactor_thread?
 
-      # Initialize periodics
-      @periodics.each do |p|
-        @timers << make_periodic_timer(p.pername, p.period)
-      end
+    @instance_id = Bud.init_signal_handlers(self)
+    do_start_server
+    @bud_started = true
 
-      # Arrange for Bud to read from stdin if enabled. Note that we can't do this
-      # earlier because we need to wait for EventMachine startup.
-      @stdio.start_stdin_reader if @options[:stdin]
-      @zk_tables.each_value {|t| t.start_watchers}
+    # Initialize periodics
+    @periodics.each do |p|
+      @timers << make_periodic_timer(p.pername, p.period)
+    end
+
+    # Arrange for Bud to read from stdin if enabled. Note that we can't do this
+    # earlier because we need to wait for EventMachine startup.
+    @stdio.start_stdin_reader if @options[:stdin]
+    @zk_tables.each_value {|t| t.start_watchers}
       
-      @halt_cb = register_callback(:halt) do |t|
-        stop
-        if t.first.key == :kill
-          Bud.shutdown_all_instances
-          Bud.stop_em_loop
-        end
+    @halt_cb = register_callback(:halt) do |t|
+      stop
+      if t.first.key == :kill
+        Bud.shutdown_all_instances
+        Bud.stop_em_loop
       end
     end
   end
@@ -344,6 +354,7 @@ module Bud
   # method allows a Bud instance operating in run_bg or run_fg mode to be
   # switched to "single-stepped" mode; timesteps can be manually invoked via
   # tick(). To switch back to running Bud asynchronously, call run_bg().
+  public
   def pause
     schedule_and_wait do
       @running_async = false
@@ -679,10 +690,7 @@ module Bud
 
   # From client code, manually trigger a timestep of Bloom execution.
   def tick
-    schedule_and_wait do
-      start unless @bud_started
-      tick_internal
-    end
+    start(true)
   end
 
   # One timestep of Bloom execution. This MUST be invoked from the EventMachine

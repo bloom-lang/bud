@@ -318,7 +318,7 @@ class LibRebl
       @rebl_class_inst.start
       @ip = @rebl_class_inst.ip
       @port = @rebl_class_inst.port
-      puts "Listening on #{@rebl_class_inst.ip_port}" if not @old_inst
+      puts "Listening on #{@ip}:#{@port}" unless @old_inst
     rescue Exception
       # The above two need to be atomic, or we're in trouble.
       puts "unrecoverable error, please file a bug: #{$!}"
