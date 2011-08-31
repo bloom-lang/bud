@@ -190,6 +190,11 @@ class CallbackTest < Test::Unit::TestCase
     end
     c.stop
   end
+
+  def test_stop_no_start
+    c = Vacuous.new
+    assert_nothing_raised { c.stop }
+  end
 end
 
 class ThreePhase

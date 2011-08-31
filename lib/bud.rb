@@ -119,7 +119,6 @@ module Bud
     @sources = {}
     @sinks = {}
     @metrics = {}
-    @halted = false
     @endtime = nil
     @running_async = false
     @bud_started = false
@@ -556,10 +555,7 @@ module Bud
   private
 
   def unregister_halt_callback
-    unless @halted
-      unregister_callback(@halt_cb)
-      @halted = true
-    end
+    unregister_callback(@halt_cb) if @bud_started
   end
 
   def invoke_callbacks
