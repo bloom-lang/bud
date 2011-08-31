@@ -506,7 +506,7 @@ module Bud
   # Unregister the callback that has the given ID.
   def unregister_callback(id)
     schedule_and_wait do
-      raise Bud::BudError, "Missing callback: #{id.inspect}}" unless @callbacks.has_key? id
+      raise Bud::BudError, "Missing callback: #{id.inspect}" unless @callbacks.has_key? id
       @callbacks.delete(id)
     end
   end
