@@ -392,11 +392,6 @@ module Bud
   # execution of any other Bud instances in the same process (as well as
   # anything else that happens to use EventMachine).
   def stop(stop_em=false, do_shutdown_cb=true)
-    # The halt callback calls stop() itself, so unregister it here and avoid
-    # calling ourself
-    # XXX: why is this necessary?
-    unregister_halt_callback
-
     schedule_and_wait do
       do_shutdown(do_shutdown_cb)
     end
@@ -554,10 +549,6 @@ module Bud
 
   private
 
-  def unregister_halt_callback
-    unregister_callback(@halt_cb) if @bud_started
-  end
-
   def invoke_callbacks
     @callbacks.each_value do |cb|
       tbl_name, block = cb
@@ -633,6 +624,7 @@ module Bud
       @instance_id = ILLEGAL_INSTANCE_ID
     }
 
+    unregister_callback(@halt_cb)
     if do_shutdown_cb
       @shutdown_callbacks.each_value {|cb| cb.call}
     end
