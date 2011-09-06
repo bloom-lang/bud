@@ -168,7 +168,7 @@ module Bud
     end
 
     alias combos pairs
-
+    
     # the natural join: given a * expression over n collections, form all
     # combinations of items that have the same values in matching fields
     public
@@ -208,6 +208,20 @@ module Bud
       setup_preds(preds)
       self.extend(Bud::BudOuterJoin)
       blk.nil? ? self : map(&blk)
+    end
+    
+    # AntiJoin
+    public
+    def nopairs(*preds, &blk)
+      @origpreds = preds
+      setup_preds(preds)
+      setup_state if self.class <= Bud::BudJoin
+      if @bud_instance.stratum_first_iter
+        @matches = map { |r, s| (blk.nil?) ? r : blk.call(r,s) }.compact
+        @rels[0].map {|r| (@matches.include? r) ? nil : r}.compact
+      else
+        []
+      end
     end
 
     # extract predicates on rellist[0] and recurse to right side with remainder
@@ -351,7 +365,9 @@ module Bud
       @rels[0].each_from_sym([left_rel]) do |r|
         @rels[1].each_from_sym([right_rel]) do |s|
           s = [s] if origrels.length == 2
-          yield([r] + s) if test_locals(r, s)
+          if test_locals(r, s)
+              yield([r] + s)
+          end
         end
       end
     end
@@ -413,28 +429,32 @@ module Bud
           r = [r] unless probe_ix == 1 and origrels.length > 2
           attrval = (probe_ix == 0) ? r[0][left_offset] : r[right_subtuple][right_offset]
 
-          # insert into the prober's hashtable only if symmetric ...
+          # insert into the prober's hashtable only if symmetric
           if probe_sym == other_sym
             @hash_tables[probe_ix][probe_sym][attrval] ||= []
             @hash_tables[probe_ix][probe_sym][attrval] << r
           end
 
           # ...and probe the other hashtable
-          next if @hash_tables[other_ix][other_sym][attrval].nil?
-          @hash_tables[other_ix][other_sym][attrval].each do |s_tup|
-            if probe_ix == 0
-              left = r; right = s_tup
-            else
-              left = s_tup; right = r
+          if @hash_tables[other_ix][other_sym][attrval].nil?
+            next
+          else
+            @hash_tables[other_ix][other_sym][attrval].each do |s_tup|
+              if probe_ix == 0
+                left = r; right = s_tup
+              else
+                left = s_tup; right = r
+              end
+              retval = left + right
+              yield retval if test_locals(left[0], right, @hashpreds.first)
             end
-            retval = left + right
-            yield retval if test_locals(left[0], right, @hashpreds.first)
           end
         end
       end
     end
   end
 
+  # intended to be used to extend a BudJoin instance
   module BudOuterJoin
     public
     def each(&block) # :nodoc:all

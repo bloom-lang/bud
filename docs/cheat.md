@@ -210,7 +210,7 @@ implicit map:
     stdio <~ requests do |r|
       [r.inspect] if msgs.exists?{|m| r.ident == m.ident}
     end
-
+    
 ## SQL-style grouping/aggregation (and then some) ##
 
 * `bc.group([:col1, :col2], min(:col3))`.  *akin to min(col3) GROUP BY col1,col2*
@@ -276,7 +276,13 @@ Like `pairs`, but implicitly includes a block that projects down to the right it
     out <= (r * s).matches.flatten.group([:a], max(:b))
 
 `outer(`*hash pairs*`)`:<br>
-Left Outer Join.  Like `pairs`, but objects in the first collection will be produced nil-padded if they have no match in the second collection.
+Left Outer Join.  Like `pairs`, but items in the first collection will be produced nil-padded if they have no match in the second collection.
+
+`nopairs(`*hash pairs*`)` *optional ruby block*:<br>
+Anti-Join.  Like `lefts`, but items in the first collection are returned only if there is no item in the second collection that both matches on the hash pairs and produces a non-nil output from the block (if any).  
+
+    # output elements of r that have no matches in s with odd values
+    out <= (r * s).nopairs(:key=>:key) {|t1, t2| true if t2.val%2 == 1}
 
 ## Temp Collections and With Blocks ##
 `temp`<br>
@@ -293,7 +299,7 @@ With statements define a temp collection that can be referenced only within the 
 
     with :biggies <= request {|r| r if r.quantity > 100}, begin
       to_process <= (biggies * known_good).lefts(:key=>:key)
-      denied <= biggies.notin(known_good, :key=>key)
+      denied <= (biggies * known_good).nopairs(:key=>key)
     end
 
 The advantage of using `with` over `temp` is modularity: all the rules referencing `biggies` have to be bundled together, making it easier to see that the contents of `request` with quantity > 100 are handled properly.  
