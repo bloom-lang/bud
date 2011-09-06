@@ -25,7 +25,7 @@ A `state` block contains Bud collection definitions. A Bud collection is a *set*
 of *facts*; each fact is an array of Ruby values. Note that collections do not
 contain duplicates (inserting a duplicate fact into a collection is ignored).
 
-Like a table in a relational databas, a subset of the columns in a collection
+Like a table in a relational database, a subset of the columns in a collection
 makeup the collection's _key_. Attempting to insert two facts into a collection
 that agree on the key columns (but are not duplicates) results in a runtime
 exception.
@@ -121,7 +121,7 @@ Default attributes: `[:key] => [:val]`.
 
 Statements with a store on lhs must use async merge (`<~`).<br>
 
-Zookeeper is a special case: it does not take attributes as it trailing arguments.  Instead it requires a :path, and can also optionally take an :addr specification (default: `addr => 'localhost:2181'`).
+Zookeeper is a special case: it does not take attributes as it trailing arguments.  Instead it requires a `:path` and can optionally take an `:addr` specification (default: `addr => 'localhost:2181'`).
 
     store :s3, :zookeeper, :path=>"/foo/bar", :addr => 'localhost:2181'
 
@@ -307,7 +307,7 @@ The advantage of using `with` over `temp` is modularity: all the rules referenci
 ## Bud Modules ##
 A Bud module combines state (collections) and logic (Bloom rules). Using modules allows your program to be decomposed into a collection of smaller units.
 
-Definining a Bud module is identical to defining a Ruby module, except that the module can use the `bloom`, `bootstrap`, and `state` blocks described above.
+Defining a Bud module is identical to defining a Ruby module, except that the module can use the `bloom`, `bootstrap`, and `state` blocks described above.
 
 There are two ways to use a module *B* in another Bloom module *A*:
 

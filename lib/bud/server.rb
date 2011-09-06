@@ -18,7 +18,7 @@ module Bud
       end
 
       begin
-        @bud.tick unless @bud.lazy
+        @bud.tick_internal if @bud.running_async
       rescue Exception
         # If we raise an exception here, EM dies, which causes problems (e.g.,
         # other Bud instances in the same process will crash). Ignoring the
@@ -35,8 +35,8 @@ module Bud
     end
 
     def message_received(obj)
-      unless (obj.class <= Array and obj.length == 2 and not
-              @bud.tables[obj[0].to_sym].nil? and obj[1].class <= Array)
+      unless (obj.class <= Array and obj.length == 2 and
+              @bud.tables.include?(obj[0].to_sym) and obj[1].class <= Array)
         raise BudError, "Bad inbound message of class #{obj.class}: #{obj.inspect}"
       end
 

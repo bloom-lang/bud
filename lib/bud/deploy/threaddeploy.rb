@@ -16,7 +16,7 @@ module ThreadDeploy
 
     @instances = []
     on_shutdown do
-      @instances.each {|b| b.stop_bg}
+      @instances.each {|b| b.stop}
     end
 
     print "Spawning threads"

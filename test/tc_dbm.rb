@@ -50,9 +50,7 @@ def setup_bud
 end
 
 def cleanup_bud(b)
-  unless b.nil?
-    b.close_tables
-  end
+  b.stop unless b.nil?
   rm_bud_dir
 end
 
@@ -122,7 +120,7 @@ class TestDbm < Test::Unit::TestCase
     @t.tick
     assert_equal(2, @t.t1.length)
 
-    @t.close_tables
+    @t.stop
     @t = make_bud(true)
 
     assert_equal(0, @t.t1.length)
@@ -139,7 +137,7 @@ class TestDbm < Test::Unit::TestCase
     assert_equal(2, @t.t1.length)
 
     10.times do |i|
-      @t.close_tables
+      @t.stop
       @t = make_bud(false)
       @t.in_buf << [6, 10 + i, 3, 4]
       @t.tick
@@ -266,7 +264,7 @@ class TestNestedDbm < Test::Unit::TestCase
   end
 
   def make_bud
-    DbmNest.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => true, :quiet => true, :port=>65432)
+    DbmNest.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => true, :quiet => true, :port => 65432)
   end
 
   def test_basic_nest
@@ -281,7 +279,7 @@ class TestNestedDbm < Test::Unit::TestCase
       assert_equal([10, 20, 30, [5, 10]], @t.t2.first)
     }
 
-    @t.stop_bg
+    @t.stop
   end
 end
 
@@ -319,7 +317,7 @@ class TestDbmBootstrap < Test::Unit::TestCase
       @t.sync_do {
         assert_equal([[5, 10], [10, 15]], @t.t1.to_a.sort)
       }
-      @t.stop_bg
+      @t.stop
     end
 
     check_t

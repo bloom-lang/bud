@@ -24,4 +24,15 @@ class TestHalt < Test::Unit::TestCase
     program.run_bg
     assert_raise(Bud::BudShutdownWithCallbacksError) {4.times{program.delta(:tbl)}}
   end
+
+  def test_halt_fg
+    run_fg_finished = false
+    t = Thread.new do
+      program = Halts.new
+      program.run_fg
+      run_fg_finished = true
+    end
+    t.join
+    assert(run_fg_finished)
+  end
 end

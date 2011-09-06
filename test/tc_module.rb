@@ -361,7 +361,7 @@ class TestModules < Test::Unit::TestCase
     t = IncludeT1User.new
     t.run_bg
     t.do_check
-    t.stop_bg
+    t.stop
   end
 
   module OuterModule
@@ -419,7 +419,7 @@ class TestModules < Test::Unit::TestCase
     c.sync_do {
       assert_equal([[5, 10]], c.t1.to_a.sort)
     }
-    c.stop_bg
+    c.stop
   end
 
   def test_module_method_override
@@ -427,7 +427,7 @@ class TestModules < Test::Unit::TestCase
     c.run_bg
     c.sync_do
     c.do_check
-    c.stop_bg
+    c.stop
   end
 
   def test_module_temp_collection

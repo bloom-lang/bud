@@ -24,7 +24,7 @@ class TickleCount
 end
 
 class TestTickle < Test::Unit::TestCase
-  def test_tickle_count
+  def test_tickle_run_bg
     c = TickleCount.new
     q = Queue.new
     c.register_callback(:loopback_done) do |t|
@@ -38,7 +38,33 @@ class TestTickle < Test::Unit::TestCase
 
     c.run_bg
     q.pop ; q.pop
-    c.stop_bg
+    c.stop
+  end
+
+  def test_tickle_single_step
+    c = TickleCount.new
+    q = Queue.new
+    c.register_callback(:loopback_done) do |t|
+      assert_equal([5], t.to_a.flatten)
+      q.push(t.to_a.flatten)
+    end
+    c.register_callback(:mcast_done) do |t|
+      q.push(t.to_a.flatten)
+    end
+    5.times do
+      c.tick
+      sleep 0.1
+    end
+    assert(q.empty?)
+    10.times do
+      c.tick
+      sleep 0.1
+    end
+    res1 = q.pop
+    res2 = q.pop
+    assert_equal([5], res1)
+    assert_equal([5], res2)
+    c.stop
   end
 end
 
@@ -102,7 +128,7 @@ class TestRing < Test::Unit::TestCase
       # XXX: we need to do a final tick here to ensure that each Bud instance
       # applies pending <+ and <- derivations. See issue #50.
       r.sync_do
-      r.stop_bg
+      r.stop
       assert_equal([30 + i], r.last_cnt.first)
     end
   end
@@ -183,8 +209,8 @@ class TestChannelWithKey < Test::Unit::TestCase
       }
     }
 
-    p1.stop_bg
-    p2.stop_bg
+    p1.stop
+    p2.stop
   end
 end
 
@@ -215,8 +241,8 @@ class TestChannelAddrInVal < Test::Unit::TestCase
       assert_equal([[10, target_addr, 20], [50, target_addr, 100]], p2.recv.to_a.sort)
     }
 
-    p1.stop_bg
-    p2.stop_bg
+    p1.stop
+    p2.stop
   end
 end
 
@@ -259,7 +285,7 @@ class TestChannelBootstrap < Test::Unit::TestCase
     c.sync_do {
       assert_equal([[1000]], c.t2.to_a.sort)
     }
-    c.stop_bg
+    c.stop
   end
 end
 
@@ -306,6 +332,24 @@ class LoopbackPayload
   end
 end
 
+class SimpleLoopback
+  include Bud
+
+  state do
+    loopback :me
+    scratch :done
+  end
+
+  bootstrap do
+    me <~ [["foo", 1]]
+  end
+
+  bloom do
+    me <~ me {|t| [t.key, t.val + 1] if t.val <= 60}
+    done <= me {|t| t if t.val > 60}
+  end
+end
+
 class LoopbackTests < Test::Unit::TestCase
   def test_loopback_payload
     b = LoopbackPayload.new
@@ -316,6 +360,27 @@ class LoopbackTests < Test::Unit::TestCase
     end
     b.run_bg
     q.pop
-    b.stop_bg
+    b.stop
+  end
+
+  def test_loopback_tick
+    s = SimpleLoopback.new
+    q = Queue.new
+    s.register_callback(:done) do |t|
+      q.push(t.to_a)
+    end
+    s.tick
+    assert_equal([], s.me.to_a)
+    sleep 0.2
+    s.tick
+    assert_equal([["foo", 1]], s.me.to_a)
+    sleep 0.2
+    s.tick
+    assert_equal([["foo", 2]], s.me.to_a)
+    assert(q.empty?)
+    s.run_bg
+    rv = q.pop
+    assert_equal([["foo", 61]], rv)
+    s.stop
   end
 end

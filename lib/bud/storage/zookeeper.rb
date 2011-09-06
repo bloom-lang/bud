@@ -9,7 +9,7 @@ module Bud
   class BudZkTable < BudCollection # :nodoc: all
     def initialize(name, zk_path, zk_addr, bud_instance)
       unless defined? HAVE_ZOOKEEPER
-        raise BudError, "zookeeper gem is not installed: zktables cannot be used"
+        raise BudError, "zookeeper gem is not installed: zookeeper-backed stores cannot be used"
       end
 
       # schema = {[:key] => [:val]}
@@ -109,9 +109,9 @@ module Bud
       }
 
       # If we have new data, force a new Bud tick in the near future
-      if need_tick and not @bud_instance.lazy
+      if need_tick and @bud_instance.running_async
         EventMachine::schedule {
-          @bud_instance.tick
+          @bud_instance.tick_internal
         }
       end
     end
@@ -164,15 +164,15 @@ module Bud
     end
 
     superator "<+" do |o|
-      raise BudError, "Illegal use of <+ with zktable '#{@tabname}' on left"
+      raise BudError, "Illegal use of <+ with zookeeper store '#{@tabname}' on left"
     end
 
     def <=(o)
-      raise BudError, "Illegal use of <= with zktable '#{@tabname}' on left"
+      raise BudError, "Illegal use of <= with zookeeper store '#{@tabname}' on left"
     end
 
     def <<(o)
-      raise BudError, "Illegal use of << with zktable '#{@tabname}' on left"
+      raise BudError, "Illegal use of << with zookeeper store '#{@tabname}' on left"
     end
   end
 end

@@ -63,6 +63,6 @@ class InterfaceTest < Test::Unit::TestCase
       results = c.result.to_a.sort
       assert_equal([[2, false], [3, true]], results)
     }
-    c.stop_bg
+    c.stop
   end
 end

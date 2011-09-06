@@ -24,5 +24,5 @@ b.run_bg
 b.sync_do {
   b.t1 <+ [[0]]
 }
-b.stop_bg
+b.stop
 FileUtils.rm_r(dir)

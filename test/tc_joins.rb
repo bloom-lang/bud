@@ -627,7 +627,7 @@ class OjChannelTest < Test::Unit::TestCase
     assert_equal([[o.ip_port, "jmh", false]], rv.to_a.sort)
     rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "franklin", "qwerty"]], :resp)
     assert_equal([[o.ip_port, "franklin", false]], rv.to_a.sort)
-    o.stop_bg
+    o.stop
   end
 end
 

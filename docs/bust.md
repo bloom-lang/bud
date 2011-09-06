@@ -66,7 +66,7 @@ and the include line:
 
     include RestClient
 
-To make requests, insert into the rest_req interface, whose defintion is reproduced below:
+To make requests, insert into the rest_req interface, whose definition is reproduced below:
 
     interface input, :rest_req, [:rid, :verb, :form, :url, :params]
 
