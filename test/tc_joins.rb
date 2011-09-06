@@ -642,7 +642,7 @@ class AntiJoinTest < Test::Unit::TestCase
       scratch :sillyblock_out
       scratch :realblock_out
     end
-    bootstrap {emp <= [[:bob, 1], [:betsy, 1], [:caitlin, 0]]}
+    bootstrap {emp <= [['bob', 1], ['betsy', 1], ['caitlin', 0]]}
     bloom do
       mgrs <= emp {|e| [e.key] if e.val > 0}
       outsie <= (emp*mgrs).nopairs(:key=>:name)
@@ -650,7 +650,7 @@ class AntiJoinTest < Test::Unit::TestCase
         e if e.key == m.name
       end
       sillyblock_out <= (emp*mgrs).nopairs(:key=>:name) do |e,m| 
-        e if e.key == :bob
+        e if e.key == 'bob'
       end
     end
   end
@@ -658,9 +658,9 @@ class AntiJoinTest < Test::Unit::TestCase
   def test_silly_anti
     o = SillyAnti.new(:dump_rewrite=>true)
     o.tick
-    assert_equal([[:betsy], [:bob]], o.mgrs.to_a)
-    assert_equal([[:caitlin, 0]], o.outsie.to_a)
-    assert_equal([[:caitlin, 0]], o.realblock_out.to_a)
-    assert_equal([[:betsy,1], [:caitlin, 0]], o.sillyblock_out.to_a)
+    assert_equal([['betsy'], ['bob']], o.mgrs.to_a.sort)
+    assert_equal([['caitlin', 0]], o.outsie.to_a)
+    assert_equal([['caitlin', 0]], o.realblock_out.to_a)
+    assert_equal([['betsy', 1], ['caitlin', 0]], o.sillyblock_out.to_a.sort)
   end
 end
