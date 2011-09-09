@@ -292,7 +292,6 @@ class TestAggs < Test::Unit::TestCase
   def test_rand_agg
     p = RandAgg.new
     p.tick
-    require 'ruby-debug'; debugger
     assert(p.t1.length == 100)
     assert(p.choices.first.val >= 1)
     assert(p.choices.first.val <= 100)

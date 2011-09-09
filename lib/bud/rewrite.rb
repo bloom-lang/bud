@@ -437,7 +437,8 @@ class WithExpander < TempExpander
         # correct the misparsing.
         if n.sexp_type == :iter
           block[i] = nil
-          n = fix_temp_decl(n)
+          iter_body = n.sexp_body
+          n = fix_temp_decl(iter_body)
           @with_defns.push n
           @did_work = true unless n.nil?
         end
