@@ -183,6 +183,7 @@ class RandAgg
   state do
     scratch :t1
     scratch :t2
+    table :choices, [:val]
   end
 
   bootstrap do
@@ -191,6 +192,7 @@ class RandAgg
 
   bloom do
     t2 <= t1.argagg(:choose_rand, [], :key)
+    choices <= t1.group([], choose_rand(:key))
   end
 end
 
@@ -290,7 +292,10 @@ class TestAggs < Test::Unit::TestCase
   def test_rand_agg
     p = RandAgg.new
     p.tick
+    require 'ruby-debug'; debugger
     assert(p.t1.length == 100)
+    assert(p.choices.first.val >= 1)
+    assert(p.choices.first.val <= 100)
     assert_equal(p.t2.first[0] + 1, p.t2.first[1])
   end
   
