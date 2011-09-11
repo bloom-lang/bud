@@ -227,8 +227,10 @@ or shorthand (`:attr1 => :attr2`).
   * exemplary aggs: `min`, `max`, `choose`
   * summary aggs: `sum`, `avg`, `count`
   * structural aggs: `accum`
-* `bc.argmax([:col1], :col2)` &nbsp;&nbsp;&nbsp;&nbsp; *returns the bc tuples per col1 that have highest col2*
-* `bc.argmin([:col1], :col2)`
+* `bc.argmax([:attr1], :attr2)` &nbsp;&nbsp;&nbsp;&nbsp; *returns the bc items per attr1 that have highest attr2*
+* `bc.argmin([:attr1], :attr2)`
+* `bc.argagg(:exemplary_agg_name, [:attr1], :attr2))`.  *generalizes argmin/max: returns the bc items per attr1 that are chosen by the exemplary
+aggregate named*
 
 ### Built-in Aggregates: ###
 
