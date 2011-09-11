@@ -211,6 +211,16 @@ implicit map:
       [r.inspect] if msgs.exists?{|m| r.ident == m.ident}
     end
     
+`bc.notin(bc2, `*optional hash pairs*`)` *optional ruby block*:<br>
+Output each item of `bc` such that (a) it has no match in `bc2` on the hash-pairs attributes, or (b) there is no matching item in `bc2` that leads to a non-nil return value from the block.  
+Hash pairs can be fully qualified (`bc.attr1 => bc2.attr2`) 
+or shorthand (`:attr1 => :attr2`).
+
+    # output items from foo if (a) there is no matching key in bar, or
+    # (b) all matching keys in bar have a smaller value
+    stdio <~ foo.notin(bar, :key=>:key) {|f, b| true if f.val <= b.val}
+
+    
 ## SQL-style grouping/aggregation (and then some) ##
 
 * `bc.group([:col1, :col2], min(:col3))`.  *akin to min(col3) GROUP BY col1,col2*
@@ -277,12 +287,6 @@ Like `pairs`, but implicitly includes a block that projects down to the right it
 
 `outer(`*hash pairs*`)`:<br>
 Left Outer Join.  Like `pairs`, but items in the first collection will be produced nil-padded if they have no match in the second collection.
-
-`nopairs(`*hash pairs*`)` *optional ruby block*:<br>
-Anti-Join.  Like `lefts`, but items in the first collection are returned only if there is no item in the second collection that both matches on the hash pairs and produces a non-nil output from the block (if any).  
-
-    # output elements of r that have no matches in s with odd values
-    out <= (r * s).nopairs(:key=>:key) {|t1, t2| true if t2.val%2 == 1}
 
 ## Temp Collections and With Blocks ##
 `temp`<br>

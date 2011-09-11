@@ -557,3 +557,39 @@ class TestUpsert < Test::Unit::TestCase
     assert_equal([[2,'y']], p.t2.to_a)
   end
 end
+
+class NotInTest < Test::Unit::TestCase
+  class SillyAnti
+    include Bud
+    
+    state do
+      table :emp
+      scratch :mgrs, [:name]
+      scratch :outsie
+      scratch :sillyblock_out
+      scratch :realblock_out
+      scratch :emptiness
+    end
+    bootstrap {emp <= [['bob', 1], ['betsy', 1], ['caitlin', 0]]}
+    bloom do
+      mgrs <= emp {|e| [e.key] if e.val > 0}
+      outsie <= emp.notin(mgrs,:key=>:name)
+      realblock_out <= emp.notin(mgrs) do |e,m|
+        e if e.key == m.name
+      end
+      sillyblock_out <= emp.notin(mgrs, :key=>:name) do |e,m| 
+        e if e.key == 'bob'
+      end
+    end
+  end
+
+  def test_silly_anti
+    o = SillyAnti.new
+    o.tick
+    assert_equal([['betsy'], ['bob']], o.mgrs.to_a.sort)
+    assert_equal([['caitlin', 0]], o.outsie.to_a)
+    assert_equal([['caitlin', 0]], o.realblock_out.to_a)
+    assert_equal([['betsy', 1], ['caitlin', 0]], o.sillyblock_out.to_a.sort)
+  end
+end
+

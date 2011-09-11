@@ -211,9 +211,14 @@ module Bud
     end
     
     # AntiJoin
+    # note: unlike other join methods (e.g. lefts) all we do with the return value
+    # of block is check whether it's nil.  Putting "projection" logic in the block
+    # has no effect on the output.
     public
-    def nopairs(*preds, &blk)
+    def anti(*preds, &blk)
       @origpreds = preds
+      # no projection involved here, so we can propagate the schema
+      @schema = rels[0].schema
       setup_preds(preds)
       setup_state if self.class <= Bud::BudJoin
       if @bud_instance.stratum_first_iter

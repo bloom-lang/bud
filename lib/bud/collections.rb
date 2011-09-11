@@ -566,6 +566,14 @@ module Bud
     def *(collection)
       join([self, collection])
     end
+    
+    # AntiJoin
+    public
+    def notin(coll,*preds, &blk)
+      @origpreds = preds
+      @schema = schema
+      return BudJoin.new([self,coll], @bud_instance).anti(*preds,&blk)
+    end    
 
     # SQL-style grouping.  first argument is an array of attributes to group by.
     # Followed by a variable-length list of aggregates over attributes (e.g. +min(:x)+)
