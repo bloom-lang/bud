@@ -2,7 +2,7 @@
 
 ## General Bloom Syntax Rules ##
 Bloom programs are unordered sets of statements.<br>
-Statements are delimited by semicolons (;) or newlines. <br>
+Statements are delimited by semicolons (;) or newlines.<br>
 As in Ruby, backslash is used to escape a newline.<br>
 
 ## Simple embedding of Bud in a Ruby Class ##
