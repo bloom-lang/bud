@@ -655,7 +655,7 @@ module Bud
       unless @done_bootstrap
         do_bootstrap
       else
-        @tables.each_value do |t|
+        (@tables.values+@push_elems.values).each do |t|
           t.tick
         end
       end

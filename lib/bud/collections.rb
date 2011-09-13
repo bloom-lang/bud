@@ -32,11 +32,11 @@ module Bud
       init_deltas
     end
 
-    private
+    public
     def init_schema(given_schema)
       given_schema ||= {[:key]=>[:val]}
       @given_schema = given_schema
-      @schema, @key_cols = parse_schema(given_schema)
+      @schema, @key_cols = BudCollection.parse_schema(given_schema)
       @key_colnums = key_cols.map {|k| schema.index(k)}
       setup_accessors
     end
@@ -46,7 +46,7 @@ module Bud
     # key_cols were specified). Return a pair: [list of columns in entire tuple,
     # list of key columns]
     private
-    def parse_schema(given_schema)
+    def self.parse_schema(given_schema)
       if given_schema.respond_to? :keys
         raise BudError, "invalid schema for #{tabname}" if given_schema.length != 1
         key_cols = given_schema.keys.first
@@ -63,7 +63,7 @@ module Bud
         end
       end
       if schema.uniq.length < schema.length
-        raise BudError, "schema for #{tabname} contains duplicate names"
+        raise BudError, "schema #{given_schema} contains duplicate names"
       end
 
       return [schema, key_cols]
@@ -91,8 +91,8 @@ module Bud
     #    j = join link, path, {link.to => path.from}
     private
     def setup_accessors
-      s = @schema
-      s.each do |colname|
+      sc = @schema
+      sc.each do |colname|
         reserved = eval "defined?(#{colname})"
         unless (reserved.nil? or
           (reserved == "method" and method(colname).arity == -1 and (eval("#{colname}"))[0] == self.tabname))
@@ -102,7 +102,7 @@ module Bud
 
       # set up schema accessors, which are class methods
       @schema_access = Module.new do
-        s.each_with_index do |c, i|
+        sc.each_with_index do |c, i|
           define_method c do
             [@tabname, i, c]
           end
@@ -112,7 +112,7 @@ module Bud
 
       # now set up a Module for tuple accessors, which are instance methods
       @tupaccess = Module.new do
-        s.each_with_index do |colname, offset|
+        sc.each_with_index do |colname, offset|
           define_method colname do
             self[offset]
           end
@@ -157,17 +157,49 @@ module Bud
       # puts "adding pusher.pro to #{tabname}"
       pusher, delta_pusher = to_push_elem(the_name, the_schema)
       pusher_pro = pusher.pro(&blk)
-      pusher_pro.name = the_name
+      pusher_pro.elem_name = the_name
       pusher_pro.tabname = the_name
       pusher_pro.schema = the_schema
       delta_pusher.wire_to(pusher_pro)
       pusher_pro
     end
     
-    def rename(the_name, the_schema=nil, &blk)
-      bud_instance.scratch(the_name, the_schema)
-      pro(the_name, the_schema, &blk)
+    # ruby 1.9 defines flat_map to return "a new array with the concatenated results of running
+    # <em>block</em> once for every element". So we wire the input to a pro(&blk), and wire the output
+    # of that pro to a group that does accum.
+    public
+    def flat_map(&blk)
+      pusher = self.pro(&blk)
+      elem = Bud::PushElement.new(tabname, @bud_instance)
+      pusher.wire_to(elem)
+      f = Proc.new do |t| 
+        t.each do |i| 
+          elem.push_out(i,false)
+        end
+        nil
+      end
+      elem.set_block(&f)
+      @bud_instance.push_elems[[self.object_id,:flatten]] = elem
+      return elem
     end
+    
+    public 
+    def sort(&blk)
+      pusher = self.pro
+      pusher.sort(@name, @bud_instance, @schema, &blk)
+    end
+    
+    def rename(the_name, the_schema=nil)
+      bud_instance.scratch(the_name, the_schema)
+      retval = pro(the_name, the_schema)
+      retval.init_schema(the_schema)
+      retval
+    end
+    
+    # def to_enum
+    #   pusher = self.pro
+    #   pusher.to_enum
+    # end
     
     # By default, all tuples in any rhs are in storage or delta. Tuples in
     # new_delta will get transitioned to delta in the next iteration of the
@@ -565,7 +597,14 @@ module Bud
       col.class <= Symbol ? self.send(col) : col
     end
 
-    alias reduce inject
+    # alias reduce inject
+    def reduce(initial, &blk)
+      elem1, delta1 = to_push_elem
+      red_elem = elem1.reduce(initial, &blk)
+      delta1.wire_to(red_elem)
+      return red_elem
+    end    
+    
 
     public
     def uniquify_tabname # :nodoc: all
@@ -589,7 +628,7 @@ module Bud
       @locspec_idx = nil
 
       unless @is_loopback
-        the_schema, the_key_cols = parse_schema(given_schema)
+        the_schema, the_key_cols = BudCollection.parse_schema(given_schema)
         the_val_cols = the_schema - the_key_cols
         @locspec_idx = remove_at_sign!(the_key_cols)
         @locspec_idx = remove_at_sign!(the_schema) if @locspec_idx.nil?
@@ -894,21 +933,21 @@ module Bud
     end
   end
 end
-# 
-# module Enumerable
-#   public
-#   # monkeypatch to Enumerable to rename collections and their schemas
-#   def rename(new_tabname, new_schema=nil)
-#     scr = Bud::BudScratch.new(new_tabname.to_s, nil, new_schema)
-#     scr.merge(self, scr.storage)
-#     scr
-#   end
-# 
-#   public
-#   # We rewrite "map" calls in Bloom blocks to invoke the "pro" method
-#   # instead. This is fine when applied to a BudCollection; when applied to a
-#   # normal Enumerable, just treat pro as an alias for map.
-#   def pro(&blk)
-#     map(&blk)
-#   end
-# end
+
+module Enumerable
+  # public
+  # # monkeypatch to Enumerable to rename collections and their schemas
+  # def rename(new_tabname, new_schema=nil)
+  #   scr = Bud::BudScratch.new(new_tabname.to_s, nil, new_schema)
+  #   scr.merge(self, scr.storage)
+  #   scr
+  # end
+
+  public
+  # We rewrite "map" calls in Bloom blocks to invoke the "pro" method
+  # instead. This is fine when applied to a BudCollection; when applied to a
+  # normal Enumerable, just treat pro as an alias for map.
+  def pro(&blk)
+    map(&blk)
+  end
+end

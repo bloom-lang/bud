@@ -7,8 +7,8 @@ class WordCount1
 
   attr_reader :pattern
 
-  def initialize(pattern)
-    super()
+  def initialize(pattern, *options)
+    super(*options)
     @pattern = pattern
   end
 
@@ -40,8 +40,8 @@ class WordCount2
 
   attr_reader :pattern
 
-  def initialize(pattern)
-    super()
+  def initialize(pattern, *options)
+    super(*options)
     @pattern = pattern
   end
 

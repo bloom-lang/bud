@@ -371,7 +371,7 @@ class TestJoins < Test::Unit::TestCase
   
   def test_flatten_joins
     p = FlattenJoins.new
-    p.tick
+    p.tick; p.tick
     assert_equal(2, p.out.length)
     assert_equal(1, p.out2.length)
   end
@@ -442,7 +442,7 @@ class TestJoins < Test::Unit::TestCase
   
   def test_shared_join
     p = SharedJoin.new
-    p.tick
+    p.tick;p.tick
     assert_equal([[1, 1, 1], [2, 1, 1], [3, 2, 2], [3, 3, 2]], p.out1.to_a.sort)
     assert_equal([[1, 1], [2, 1], [3, 2]], p.out2.to_a.sort)
   end

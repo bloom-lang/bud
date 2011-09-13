@@ -22,6 +22,8 @@ class AllMapsAreOne
     scratch :clout, [:val]
     scratch :inski
   end
+  
+  bootstrap {inski <= [[1,1], [2,2], [3,3]]}
 
   bloom do
     out <= inski {|i| [i.val]}
@@ -61,13 +63,10 @@ class TestMapVariants < Test::Unit::TestCase
   end
   def test_all_maps
     p = AllMapsAreOne.new
-    p.inski <+ [[1,1],
-                [2,2],
-                [3,3]]
     p.tick
     assert_equal(3, p.out.length)
-    assert_equal(p.out.inspected, p.snout.inspected)
-    assert_equal(p.out.inspected, p.clout.inspected)
+    assert_equal(p.out.to_a, p.snout.to_a)
+    assert_equal(p.out.to_a, p.clout.to_a)
   end
   def test_still_annoying
     p = StillAnnoying.new
@@ -90,7 +89,6 @@ class TestProEnumerable < Test::Unit::TestCase
   end
 
   def test_sort_pro
-    assert(false, "this test hangs")
     p = SortIdAssign.new
     p.run_bg
     r = p.sync_callback(:in_t, [[5], [1], [100], [6]], :out_t)
