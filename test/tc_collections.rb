@@ -301,7 +301,7 @@ class TestCollections < Test::Unit::TestCase
     program.tick
     assert_equal(1, program.scrtch2.length)
     program.tick
-    assert_equal([["[\"c\", \"d\", 5, 6]"]], program.scrtch.inspected)
+    assert_equal([["c", "d", 5, 6]], program.scrtch.to_a)
     assert_equal(0, program.scrtch2.length)
     assert_equal(2, program.tbl.length)
     assert_equal([["c", "d"], ["z", "y"]].sort, program.tbl.keys.sort)
