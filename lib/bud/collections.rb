@@ -14,7 +14,9 @@ module Bud
   class BudCollection
     include Enumerable
 
-    attr_accessor :bud_instance, :locspec_idx # :nodoc: all
+    # This needs to be an accessor to allow REBL to update it after cloning a
+    # Bud instance.
+    attr_accessor :bud_instance # :nodoc: all
     attr_reader :schema, :tabname # :nodoc: all
     attr_reader :storage, :delta, :new_delta, :pending # :nodoc: all
 
