@@ -133,4 +133,9 @@ module Bud
     @tables[name] = Bud::BudTerminal.new(name, [:line], self)
     @channels[name] = @tables[name]
   end
+
+  def max(name)
+    define_collection(name)
+    @tables[name] = MaxLattice.new
+  end
 end

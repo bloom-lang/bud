@@ -946,6 +946,38 @@ module Bud
   end
 end
 
+class BudLattice
+end
+
+class MaxLattice < BudLattice
+  def initialize
+    @v = nil
+  end
+
+  def reveal
+    @v
+  end
+
+  def <=(o)
+    if o.class <= MaxLattice
+      o_v = o.instance_variable_get('@v')
+      @v = [@v, o_v].max
+    elsif o.class <= Enumerable
+      o_max = o.max
+      @v = [@v, o_max].max
+    else
+      raise BudTypeError, "Illegal RHS for MaxLattice merge: #{o.class}"
+    end
+  end
+
+  def gt_k(k)
+    return @v > k
+  end
+end
+
+class CountLattice < BudLattice
+end
+
 module Enumerable
   public
   # monkeypatch to Enumerable to rename collections and their schemas

@@ -5,40 +5,40 @@ class SimpleMax
 
   state do
     max :m
-    scratch :s, [:val]
+    scratch :inputt, [:val]
     scratch :done, [:t]
   end
 
   bloom do
-    m <= s
-    done <= Max.gt_k(10) {|t| [true]}
+    m <= inputt
+    done <= m.gt_k(10) {|t| [true]}
   end
 end
 
-class MaxOfMax
-  include Bud
+# class MaxOfMax
+#   include Bud
 
-  state do
-    max :m1
-    max :m2
-    max :m3
-    scratch :s, [:val]
-    scratch :done, [:t]
-  end
+#   state do
+#     max :m1
+#     max :m2
+#     max :m3
+#     scratch :s, [:val]
+#     scratch :done, [:t]
+#   end
 
-  bloom do
-    m1 <= s {|t| t if t.val % 2 == 0}
-    m2 <= s {|t| t if t.val % 2 == 1}
-    m3 <= m1
-    m3 <= m2
-    done <= Max.gt_k(10) {|t| [true]}
-  end
-end
+#   bloom do
+#     m1 <= s {|t| t if t.val % 2 == 0}
+#     m2 <= s {|t| t if t.val % 2 == 1}
+#     m3 <= m1
+#     m3 <= m2
+#     done <= Max.gt_k(10) {|t| [true]}
+#   end
+# end
 
-class TestMaxLattice
+class TestMaxLattice < Test::Unit::TestCase
   def test_simple_max
     i = SimpleMax.new
-    i.s <+ [[1], [2], [3]]
+    i.inputt <+ [[1], [2], [3]]
     i.tick
     assert(i.done.empty?)
   end
