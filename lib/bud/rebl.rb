@@ -233,7 +233,7 @@ class LibRebl
     elsif not @rebl_class_inst.tables.has_key? c.to_sym
       puts "Error: non-existent collection \"#{c}\""
     else
-      tups = @rebl_class_inst.instance_eval("#{c}.inspected")
+      tups = @rebl_class_inst.tables[c.to_sym].inspected
       puts(tups.empty? ? "(empty)" : tups.sort.join("\n"))
     end
   end
