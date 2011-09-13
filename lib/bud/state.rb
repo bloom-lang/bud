@@ -3,7 +3,7 @@ module Bud
   private
   def define_collection(name, &block)
     # Don't allow duplicate collection definitions
-    if @tables.has_key? name
+    if @tables.has_key? name or @lattices.has_key? name
       raise Bud::CompileError, "collection already exists: #{name}"
     end
 
@@ -134,8 +134,14 @@ module Bud
     @channels[name] = @tables[name]
   end
 
+  def define_lattice(name)
+    if @tables.has_key? name or @lattices.has_key? name
+      raise Bud::CompileError, "collection already exists: #{name}"
+    end
+  end
+
   def max(name)
-    define_collection(name)
-    @tables[name] = MaxLattice.new
+    define_lattice(name)
+    @lattices[name] = MaxLattice.new(name)
   end
 end

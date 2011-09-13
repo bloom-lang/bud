@@ -947,10 +947,12 @@ module Bud
 end
 
 class BudLattice
+  attr_reader :tabname
 end
 
 class MaxLattice < BudLattice
-  def initialize
+  def initialize(name)
+    @tabname = name
     @v = nil
   end
 

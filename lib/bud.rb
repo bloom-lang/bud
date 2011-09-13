@@ -61,7 +61,7 @@ $bud_instances = {}        # Map from instance id => Bud instance
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
   attr_reader :dsock
-  attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
+  attr_reader :tables, :lattices, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
   attr_reader :stratum_first_iter, :joinstate
   attr_reader :this_stratum, :this_rule, :rule_orig_src
   attr_reader :running_async
@@ -97,6 +97,7 @@ module Bud
   #   * <tt>:deploy_child_opts</tt> option hash to pass to deployed instances
   def initialize(options={})
     @tables = {}
+    @lattices = {}
     @table_meta = []
     @rewritten_strata = []
     @channels = {}
