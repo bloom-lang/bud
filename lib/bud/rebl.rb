@@ -228,8 +228,14 @@ class LibRebl
 
   # Dumps the contents of a table at the current time.
   def dump(c)
-    tups = @rebl_class_inst.instance_eval("#{c}.inspected")
-    puts(tups.empty? ? "(empty)" : tups.sort.join("\n"))
+    if c.nil?
+      puts "Error: dump must be passed a collection name"
+    elsif not @rebl_class_inst.tables.has_key? c.to_sym
+      puts "Error: non-existent collection \"#{c}\""
+    else
+      tups = @rebl_class_inst.instance_eval("#{c}.inspected")
+      puts(tups.empty? ? "(empty)" : tups.sort.join("\n"))
+    end
   end
 
   # Declares a new collection.
