@@ -44,7 +44,7 @@ module Bud
     @tables[name] = Bud::BudTable.new(name, self, schema)
   end
   
-  # declare a syncronously-flushed persistent collection.  default schema <tt>[:key] => [:val]</tt>. 
+  # declare a syncronously-flushed persistent collection.  default schema <tt>[:key] => [:val]</tt>.
   def sync(name, storage, schema=nil)
     define_collection(name)
     case storage
