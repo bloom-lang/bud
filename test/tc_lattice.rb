@@ -43,7 +43,7 @@ class TestMaxLattice < Test::Unit::TestCase
     assert(i.done.empty?)
     i.inputt <+ [[12]]
     i.tick
-    assert(not i.done.empty?)
+    assert_equal(false, i.done.empty?)
   end
 
   def test_max_of_max
