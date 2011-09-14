@@ -31,7 +31,7 @@ It is important to understand how the Bloom collection operators fit into these 
 
 ## Atomicity: Timesteps and Deferred Operators ##
 
-The only instantaneous Bloom operator is a merge (`<=`), which can only introduce additional items into a collection--it can not delete or change existing items.  As a result, all state within a Bloom timestep is *immutable*: once an item is in a collection at timestep *T*, it stays in that collection throughout timestep *T*.  (And forever after, the fact that the item was in that collection at timestep *T* remains true.)
+The only instantaneous Bloom operator is a merge (`<=`), which can only introduce additional items into a collection--it cannot delete or change existing items.  As a result, all state within a Bloom timestep is *immutable*: once an item is in a collection at timestep *T*, it stays in that collection throughout timestep *T*.  (And forever after, the fact that the item was in that collection at timestep *T* remains true.)
 
 To get atomic state change in Bloom, you exploit the combination of two language features: 
 

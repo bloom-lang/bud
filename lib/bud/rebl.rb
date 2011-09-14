@@ -23,32 +23,32 @@ class ReblShell
   @@escape_char = '/'
   @@commands =
     {"tick" => [lambda {|lib,argv| lib.tick([Integer(argv[1]), 1].max)},
-                "tick [x]:\texecutes x (or 1) timesteps"],
+                "tick [x]\texecutes x (or 1) timesteps"],
 
     "run" => [lambda {|lib,_| lib.run},
-              "run:\ttick until quiescence, a breakpoint, or #{@@escape_char}stop"],
+              "run\ttick until quiescence, a breakpoint, or #{@@escape_char}stop"],
 
     "stop" => [lambda {|lib,_| lib.stop},
-               "stop:\tstop ticking"],
+               "stop\tstop ticking"],
 
     "lsrules" => [lambda {|lib,_| lib.rules.sort{|a,b| a[0] <=> b[0]}.each {|k,v| puts "#{k}: "+v}},
-                  "lsrules:\tlist rules"],
+                  "lsrules\tlist rules"],
 
     "rmrule" => [lambda {|lib,argv| lib.del_rule(Integer(argv[1]))},
-                 "rmrule x:\tremove rule number x"],
+                 "rmrule x\tremove rule number x"],
 
     "lscollections" => [lambda {|lib,_| lib.state.sort{|a,b| a[0] <=> b[0]}.each {|k,v| puts "#{k}: "+v}},
-                        "lscollections:\tlist collections"],
+                        "lscollections\tlist collections"],
 
     "dump" => [lambda {|lib,argv| lib.dump(argv[1])},
-               "dump c:\tdump contents of collection c"],
+               "dump c\tdump contents of collection c"],
 
-    "exit" => [lambda {|_,_| do_exit}, "exit:\texit rebl"],
+    "exit" => [lambda {|_,_| do_exit}, "exit\texit rebl"],
 
-    "quit" => [lambda {|_,_| do_exit}, "quit:\texit rebl"],
+    "quit" => [lambda {|_,_| do_exit}, "quit\texit rebl"],
 
     "help" => [lambda {|_,_| pretty_help},
-               "help:\tprint this help message"]}
+               "help\tprint this help message"]}
   @@abbrevs = @@commands.keys.abbrev
   @@exit_message = "Rebellion quashed."
 
@@ -151,7 +151,7 @@ class ReblShell
     cmd_list.each do |c|
       v = @@commands[c]
       puts @@escape_char +
-        v[1].gsub(/\t/, " "*(maxlen + 3 - v[1].split(':')[0].size))
+        v[1].gsub(/\t/, " "*(maxlen + 4 - v[1].split("\t")[0].size))
     end
     puts "\nbreakpoints:"
     puts "a breakpoint is a rule with the 'breakpoint' scratch on the left of "+
@@ -228,8 +228,20 @@ class LibRebl
 
   # Dumps the contents of a table at the current time.
   def dump(c)
-    tups = @rebl_class_inst.instance_eval("#{c}.inspected")
-    puts(tups.empty? ? "(empty)" : tups.sort.join("\n"))
+    if c.nil?
+      puts "Error: dump must be passed a collection name"
+    elsif not @rebl_class_inst.tables.has_key? c.to_sym
+      puts "Error: non-existent collection \"#{c}\""
+    else
+      tups = @rebl_class_inst.tables[c.to_sym].to_a.sort
+      if tups.empty?
+        puts "(empty)"
+      else
+        tups.each do |t|
+          puts t.inspect
+        end
+      end
+    end
   end
 
   # Declares a new collection.
@@ -246,6 +258,10 @@ class LibRebl
   # Deactivates a rule at the current time; any tuples derived by the rule at
   # a previous time are still available.
   def del_rule(rid)
+    unless @rules.has_key? rid
+      puts "No rule with ID #{rid}"
+      return
+    end
     @rules.delete(rid)
     reinstantiate
   end

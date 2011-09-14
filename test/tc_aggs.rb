@@ -293,8 +293,8 @@ class TestAggs < Test::Unit::TestCase
     p = RandAgg.new
     p.tick
     assert(p.t1.length == 100)
-    assert(p.choices.first.val >= 1)
-    assert(p.choices.first.val <= 100)
+    assert(p.choices.first.val >= 0)
+    assert(p.choices.first.val <= 99)
     assert_equal(p.t2.first[0] + 1, p.t2.first[1])
   end
   

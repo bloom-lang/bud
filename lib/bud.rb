@@ -180,11 +180,14 @@ module Bud
 
   # Rewrite methods defined in the given klass to expand module references and
   # temp collections. Imported modules are rewritten during the import process;
-  # we rewrite the main Bud class and any included modules here. Note that we
-  # only rewrite each distinct Class once.
+  # we rewrite the main class associated with this Bud instance and any included
+  # modules here. Note that we only rewrite each distinct Class once, and we
+  # skip methods defined by the Bud (Ruby) module directly (since we can be sure
+  # those won't reference Bloom modules).
   def self.rewrite_local_methods(klass)
     @done_rewrite ||= {}
     return if @done_rewrite.has_key? klass.name
+    return if klass.name == self.name   # Skip methods defined in the Bud module
 
     u = Unifier.new
     ref_expander = NestedRefRewriter.new(klass.bud_import_table)
