@@ -4,7 +4,7 @@ class SimpleMax
   include Bud
 
   state do
-    max :m
+    lat_max :m
     scratch :inputt, [:val]
     scratch :done, [:t]
   end
@@ -19,9 +19,9 @@ end
 #   include Bud
 
 #   state do
-#     max :m1
-#     max :m2
-#     max :m3
+#     lat_max :m1
+#     lat_max :m2
+#     lat_max :m3
 #     scratch :s, [:val]
 #     scratch :done, [:t]
 #   end

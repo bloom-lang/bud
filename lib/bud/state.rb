@@ -140,7 +140,7 @@ module Bud
     end
   end
 
-  def max(name)
+  def lat_max(name)
     define_lattice(name)
     @lattices[name] = MaxLattice.new(name)
   end
