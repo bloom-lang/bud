@@ -138,6 +138,10 @@ module Bud
     if @tables.has_key? name or @lattices.has_key? name
       raise Bud::CompileError, "collection already exists: #{name}"
     end
+    self.singleton_class.send(:define_method, name) do |*args, &blk|
+      raise unless blk.nil?
+      return @lattices[name]
+    end
   end
 
   def lat_max(name)

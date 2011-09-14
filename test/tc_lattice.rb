@@ -11,7 +11,7 @@ class SimpleMax
 
   bloom do
     m <= inputt
-    done <= m.gt_k(10) {|t| [true]}
+    done <= m.gt_k(10) { [true] }
   end
 end
 
@@ -41,6 +41,9 @@ class TestMaxLattice < Test::Unit::TestCase
     i.inputt <+ [[1], [2], [3]]
     i.tick
     assert(i.done.empty?)
+    i.inputt <+ [[12]]
+    i.tick
+    assert(not i.done.empty?)
   end
 
   def test_max_of_max

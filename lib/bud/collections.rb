@@ -965,17 +965,26 @@ class MaxLattice < BudLattice
   def <=(o)
     if o.class <= MaxLattice
       o_v = o.instance_variable_get('@v')
+      @v ||= o_v
       @v = [@v, o_v].max
     elsif o.class <= Enumerable
-      o_max = o.max
+      first_cols = o.map {|t| t[0]}
+      o_max = first_cols.max
+      @v ||= o_max
       @v = [@v, o_max].max
     else
       raise BudTypeError, "Illegal RHS for MaxLattice merge: #{o.class}"
     end
+    puts "v = #{@v.inspect}"
   end
 
-  def gt_k(k)
-    return @v > k
+  def gt_k(k, &blk)
+    if @v and @v > k
+      puts "RESULT = true"
+      return blk.call
+    else
+      puts "RESULT = false"
+    end
   end
 end
 
