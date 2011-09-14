@@ -149,7 +149,7 @@ module Bud
     # map each item in the collection into a string, suitable for placement in stdio
     public
     def inspected
-      self.map{|t| [t.inspect]}
+      [["#{@tabname}: [#{self.map{|t| "\n  (#{t.map{|v| v.inspect}.join ", "})"}}]"]]
     end
 
     # akin to map, but modified for efficiency in Bloom statements

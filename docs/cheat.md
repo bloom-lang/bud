@@ -82,6 +82,13 @@ State declaration includes interval (in seconds).
 
     periodic :timer, 0.1
 
+Note that because periodics are just a simple wrapper over the system clock, Bud
+provides few semantic guarantees about the behavior of periodics. In particular,
+periodics execute in a best-effort manner (there is no guarantee of timely
+delivery of a periodic tuple), and the system clock value stored in the `val`
+field may not be monotonically increasing (e.g., if the system clock is changed
+in the midst of Bud execution).
+
 ### stdio ###
 Built-in scratch collection for performing terminal I/O.<br>
 System-provided attributes: `[:line] => []`
