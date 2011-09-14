@@ -185,7 +185,7 @@ class BudMeta #:nodoc: all
     strat.stratum.each {|s| @bud_instance.t_stratum << s}
     @bud_instance.stratum_collection_map = strat.stratum.inject({}) do |memo, t|
       memo[t[1]] ||= []
-      memo[t[1]] << t[0]
+      memo[t[1]] << t[0].to_sym
       memo
     end
     strat.depends_tc.each {|d| @bud_instance.t_depends_tc << d}

@@ -838,14 +838,13 @@ module Bud
       colls = @stratum_collection_map[strat_num] if @stratum_collection_map
       colls ||= @tables.keys
       colls.each do |name|
-        begin
-          coll = self.send(name)
-          unless coll.delta.empty? and coll.new_delta.empty?
-            coll.tick_deltas
-            fixpoint = false
-          end
-        rescue
-          # ignore missing tables; rebl for example deletes them mid-stream
+        coll = @tables[name]
+        # ignore missing tables; rebl for example deletes them mid-stream
+        next if coll.nil?
+
+        unless coll.delta.empty? and coll.new_delta.empty?
+          coll.tick_deltas
+          fixpoint = false
         end
       end
     end while not fixpoint
