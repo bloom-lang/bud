@@ -950,6 +950,13 @@ end
 
 class BudLattice
   attr_reader :tabname
+  attr_reader :got_delta
+
+  @got_delta = false
+
+  def tick_deltas
+    @got_delta = false
+  end
 end
 
 class MaxLattice < BudLattice
@@ -962,18 +969,18 @@ class MaxLattice < BudLattice
     @v
   end
 
-  def <=(o)
-    if o.class <= MaxLattice
-      o_v = o.instance_variable_get('@v')
-      @v ||= o_v
-      @v = [@v, o_v].max
-    elsif o.class <= Enumerable
-      first_cols = o.map {|t| t[0]}
-      o_max = first_cols.max
-      @v ||= o_max
-      @v = [@v, o_max].max
+  def <=(i)
+    if i.class <= MaxLattice
+      input_v = i.instance_variable_get('@v')
+    elsif i.class <= Enumerable
+      first_cols = i.map {|t| t[0]}
+      input_v = first_cols.max
     else
       raise BudTypeError, "Illegal RHS for MaxLattice merge: #{o.class}"
+    end
+    if @v.nil? or input_v > @v
+      @v = input_v
+      got_delta = true
     end
     puts "v = #{@v.inspect}"
   end
