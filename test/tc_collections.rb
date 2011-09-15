@@ -68,14 +68,14 @@ class Grep
   end
 
   state do
-    file_reader :text, 'text/ulysses.txt'
+    file_reader :txt, 'text/ulysses.txt'
     table :matches, [:lineno, :text]
     table :text_out, [:lineno, :text]
   end
 
   bloom do
-    text_out <= text
-    matches <= text {|t| t if t.text =~ pattern}
+    text_out <= txt
+    matches <= txt {|t| t if t.text =~ pattern}
   end
 end
 
