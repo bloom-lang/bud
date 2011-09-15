@@ -8,12 +8,15 @@ class Stratification # :nodoc: all
     # Data inserted by client (Bud rewrite code)
     table :depends, [:rule, :head, :op, :body, :neg]
 
+    # Intermediate state
     scratch :depends_clean, [:head, :body, :neg, :temporal]
     scratch :depends_tc, [:head, :body, :via, :neg, :temporal]
+    scratch :stratum_base, [:predicate, :stratum]
+
+    # Output state
     scratch :cycle, [:predicate, :via, :neg, :temporal]
-    table :stratum_base, [:predicate, :stratum]
-    table :stratum, [:predicate, :stratum]
-    table :top_strat, [:stratum]
+    scratch :stratum, [:predicate, :stratum]
+    scratch :top_strat, [:stratum]
   end
 
   def declaration
