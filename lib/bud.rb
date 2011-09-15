@@ -844,8 +844,8 @@ module Bud
         next if coll.nil?
 
         unless coll.delta.empty? and coll.new_delta.empty?
+          fixpoint = false unless coll.new_delta.empty?
           coll.tick_deltas
-          fixpoint = false
         end
       end
     end while not fixpoint
