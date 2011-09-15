@@ -7,13 +7,11 @@ class SimpleMax
     lat_max :m
     scratch :inputt, [:val]
     scratch :done, [:t]
-    scratch :done_copy, done.schema
   end
 
   bloom do
     m <= inputt
     done <= m.gt_k(10) { [[true]] }
-    done_copy <= done
   end
 end
 
@@ -41,9 +39,9 @@ class TestMaxLattice < Test::Unit::TestCase
   def test_simple_max
     i = SimpleMax.new
     assert_equal(2, i.strata.length)
-    strat_content = i.stratum_collection_map[0]
-    assert(strat_content.include? :m)
-    assert(strat_content.include? :done)
+    strat_zero = i.stratum_collection_map[0]
+    assert(strat_zero.include? :m)
+    assert(strat_zero.include? :done)
     i.inputt <+ [[1], [2], [3]]
     i.tick
     assert(i.done.empty?)

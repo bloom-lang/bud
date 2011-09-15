@@ -11,7 +11,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1,
       :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
       :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
-      :schema => 1, :keys => 1, :values => 1, :payloads => 1, :~ => 1
+      :schema => 1, :keys => 1, :values => 1, :payloads => 1, :~ => 1,
+      :gt_k => 1 # XXX: hack
     }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
@@ -89,8 +90,9 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def do_table(exp)
     t = exp[1].to_s
     # If we're called on a "table-like" part of the AST that doesn't correspond
-    # to an extant table, ignore it.
-    @tables[t] = @nm if @bud_instance.tables.has_key? t.to_sym
+    # to an extant collection or lattice, ignore it.
+    @tables[t] = @nm if @bud_instance.tables.has_key? t.to_sym or
+                        @bud_instance.lattices.has_key? t.to_sym
     drain(exp)
     return t
   end
