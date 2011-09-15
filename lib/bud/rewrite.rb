@@ -153,7 +153,6 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
   def process_iter(exp)
     if exp[1] and exp[1][0] == :call
       @collnames = gather_collection_names(exp[1])
-      require 'ruby-debug'; debugger if @collnames.include? :text
       # now find iter vars and match up
       if exp[1] and exp[1][1] and exp[1][1][2] and exp[1][1][2] == :* # join iter
         if exp[2] and exp[2][0] == :lasgn # join iter with lefts/rights
@@ -169,7 +168,6 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
             raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
           end
         elsif exp[2] and exp[2][0] == :masgn # join (possibly n-ary, n>2)
-          require 'ruby-debug'; debugger
           next unless exp[2][1] and exp[2][1][0] == :array
           @collnames.each_with_index do |c, i|
             next unless exp[2][1][i+1] and exp[2][1][i+1][0] == :lasgn
@@ -221,10 +219,8 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
     if @bud_instance.tables[op] and @iterhash.length > 0
       ## CHALLENGE: MAKE ITERSTACK MATCH ITERHASH
       ## THEN LET RENAME MOD ITERSTACK.LAST
-      blockvar = @iterstack.pop
-      # require 'ruby-debug'; debugger
+      blockvar = @iterstack[0]
       unless @iterhash[blockvar] and @iterhash[blockvar] == op
-        require 'ruby-debug'; debugger
         raise Bud::BudError, "iterstack failed to match"
       end
       collname = true
