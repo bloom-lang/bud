@@ -840,12 +840,20 @@ module Bud
       colls ||= @tables.keys
       colls.each do |name|
         coll = @tables[name]
-        # ignore missing tables; rebl for example deletes them mid-stream
-        next if coll.nil?
+        if coll.nil?
+          lat = @lattices[name]
+          # ignore missing tables; rebl for example deletes them mid-stream
+          next if lat.nil?
 
-        unless coll.delta.empty? and coll.new_delta.empty?
-          fixpoint = false unless coll.new_delta.empty?
-          coll.tick_deltas
+          if lat.got_delta
+            lat.tick_deltas
+            fixpoint = false
+          end
+        else
+          unless coll.delta.empty? and coll.new_delta.empty?
+            fixpoint = false unless coll.new_delta.empty?
+            coll.tick_deltas
+          end
         end
       end
     end while not fixpoint

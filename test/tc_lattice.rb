@@ -11,7 +11,7 @@ class SimpleMax
 
   bloom do
     m <= inputt
-    done <= m.gt_k(10) { [true] }
+    done <= m.gt_k(10) { [[true]] }
   end
 end
 

@@ -980,17 +980,13 @@ class MaxLattice < BudLattice
     end
     if @v.nil? or input_v > @v
       @v = input_v
-      got_delta = true
+      @got_delta = true
     end
-    puts "v = #{@v.inspect}"
   end
 
   def gt_k(k, &blk)
     if @v and @v > k
-      puts "RESULT = true"
       return blk.call
-    else
-      puts "RESULT = false"
     end
   end
 end
