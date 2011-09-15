@@ -182,11 +182,11 @@ class BudMeta #:nodoc: all
     strat.tick_internal
 
     # Copy computed data back into Bud runtime
-    strat.stratum.each {|s| @bud_instance.t_stratum << s}
-    @bud_instance.stratum_collection_map = strat.stratum.inject({}) do |memo, t|
-      memo[t[1]] ||= []
-      memo[t[1]] << t[0].to_sym
-      memo
+    @bud_instance.stratum_collection_map = []
+    strat.stratum.each do |s|
+      @bud_instance.t_stratum << s
+      @bud_instance.stratum_collection_map[s[1]] ||= []
+      @bud_instance.stratum_collection_map[s[1]] << s[0].to_sym
     end
     strat.depends_tc.each {|d| @bud_instance.t_depends_tc << d}
     strat.cycle.each {|c| @bud_instance.t_cycle << c}
