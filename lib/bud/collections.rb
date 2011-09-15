@@ -969,6 +969,11 @@ class MaxLattice < BudLattice
     @v
   end
 
+  # XXX: We currently update @v in-place, and set @got_delta whenever @v is
+  # changed. stratum_fixpoint() will then call tick_deltas(), which merely
+  # resets the @got_delta flag. Instead, we could defer changing @v until
+  # tick_deltas(), which would be closer to the normal collection
+  # behavior. Which is right?
   def <=(i)
     if i.class <= MaxLattice
       input_v = i.instance_variable_get('@v')
