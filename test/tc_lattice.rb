@@ -52,6 +52,9 @@ class TestMaxLattice < Test::Unit::TestCase
     assert_equal(false, i.done.empty?)
   end
 
+  def test_max_reveal_nm
+  end
+
   def test_max_of_max
   end
 end
