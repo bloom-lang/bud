@@ -55,12 +55,17 @@ class MaxLattice < BudLattice
     if i.class <= MaxLattice
       input_v = i.instance_variable_get('@v')
     elsif i.class <= Enumerable
-      first_cols = i.map {|t| t[0]}
-      input_v = first_cols.max
+      input_v = nil
+      i.each do |t|
+        next if t.nil? or t == []
+        if input_v.nil? or t[0] > input_v
+          input_v = t[0]
+        end
+      end
     else
       raise BudTypeError, "Illegal RHS for MaxLattice merge: #{o.class}"
     end
-    if @v.nil? or input_v > @v
+    if input_v and (@v.nil? or input_v > @v)
       @v = input_v
       @got_delta = true
     end
