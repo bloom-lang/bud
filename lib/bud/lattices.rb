@@ -43,7 +43,7 @@ class MaxLattice < BudLattice
   end
 
   def reveal
-    @v
+    [[@v]]
   end
 
   # XXX: We currently update @v in-place, and set @got_delta whenever @v is

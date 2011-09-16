@@ -15,6 +15,16 @@ class SimpleMax
   end
 end
 
+class SimpleMaxReveal < SimpleMax
+  state do
+    scratch :current_val, [:v]
+  end
+
+  bloom do
+    current_val <= m.reveal
+  end
+end
+
 # class MaxOfMax
 #   include Bud
 
@@ -51,6 +61,22 @@ class TestMaxLattice < Test::Unit::TestCase
   end
 
   def test_max_reveal_nm
+    i = SimpleMaxReveal.new
+    assert_equal(3, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    assert(strat_zero.include? :m)
+    assert(strat_zero.include? :done)
+    assert_equal(false, strat_zero.include?(:current_val))
+    strat_one = i.stratum_collection_map[1]
+    assert(strat_one.include? :current_val)
+    i.inputt <+ [[1], [2], [3]]
+    i.tick
+    assert(i.done.empty?)
+    assert_equal([[3]], i.current_val.to_a)
+    i.inputt <+ [[12]]
+    i.tick
+    assert_equal(false, i.done.empty?)
+    assert_equal([[12]], i.current_val.to_a)
   end
 
   def test_max_of_max
