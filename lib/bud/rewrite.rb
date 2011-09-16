@@ -141,107 +141,61 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
     self.require_empty = false
     self.expected = Sexp
     @iterhash ||= {}
-    @iterstack = []
     @collnames = []
     @bud_instance = bud_instance
-    @rename_schemas = {}
-    @unary_ops = {:map=> 1, :pro=>1, :flat_map=>1, :each=>1}
-    @r2r = Ruby2Ruby.new
   end
 
   # some icky special-case parsing to find mapping between collection names and iter vars
   def process_iter(exp)
     if exp[1] and exp[1][0] == :call
-      @collnames = gather_collection_names(exp[1])
+      gather_collection_names(exp[1])
+
       # now find iter vars and match up
-      if exp[1] and exp[1][1] and exp[1][1][2] and exp[1][1][2] == :* # join iter
-        if exp[2] and exp[2][0] == :lasgn # join iter with lefts/rights
-          if exp[1] and exp[1][2] == :lefts
-            @iterhash[exp[2][1]] = @collnames[0] 
-            @iterstack.push(-1)
-            @iterstack.push(exp[2][1])
-          elsif exp[1] and exp[1][2] == :rights
-            @iterhash[exp[2][1]] = @collnames[1]
-            @iterstack.push(-1)
-            @iterstack.push(exp[2][1])
-          else
-            raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
-          end
-        elsif exp[2] and exp[2][0] == :masgn # join (possibly n-ary, n>2)
-          next unless exp[2][1] and exp[2][1][0] == :array
-          @collnames.each_with_index do |c, i|
-            next unless exp[2][1][i+1] and exp[2][1][i+1][0] == :lasgn
-            @iterhash[exp[2][1][i+1][1]] = c
-          end
-          (@exp[2][1].length..1).each do |i|
-            @iterstack.push(exp[2][1][i-1][1])
-          end
-        end
-      elsif exp[2] and exp[2][0] == :lasgn and (@unary_ops[exp[1][2]] == 1 or @bud_instance.tables[exp[1][2]]) #single-table iter
+      if exp[2] and exp[2][0] == :lasgn and @collnames.size == 1 #single-table iter
         raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
         @iterhash[exp[2][1]] = @collnames[0]
-        @iterstack.push(exp[2][1])
-      elsif exp[2] and exp[2][0] == :masgn #special-case for reduce
-        if exp[1][2] and exp[1][2] == :reduce and exp[2][1][2] and exp[2][1][2][0] == :lasgn
-          @iterhash[exp[2][1][2][1]] = @collnames[0]
-          @iterstack.push(exp[2][1][2][1])
+      elsif exp[2] and exp[2][0] == :lasgn and @collnames.size > 1 # join iter with lefts/rights
+        if exp[1] and exp[1][2] == :lefts
+          @iterhash[exp[2][1]] = @collnames[0] 
+        elsif exp[1] and exp[1][2] == :rights
+          @iterhash[exp[2][1]] = @collnames[1]
+        else
+          raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
+        end
+      elsif exp[2] and exp[2][0] == :masgn and not @collnames.empty? # join iter
+        next unless exp[2][1] and exp[2][1][0] == :array
+        @collnames.each_with_index do |c, i|
+          next unless exp[2][1][i+1] and exp[2][1][i+1][0] == :lasgn
+          @iterhash[exp[2][1][i+1][1]] = c
         end
       end
     end
-    (1..(exp.length-1)).each do |i| 
-      exp[i] = process(exp[i])
-    end
+    (1..(exp.length-1)).each {|i| exp[i] = process(exp[i])}
     exp
   end
 
   def gather_collection_names(exp)
-    retval = []
-    if exp[0] == :call and exp[1].nil? and @bud_instance.tables[exp[2]]
-      retval << exp[2]
+    if exp[0] == :call and exp[1].nil?
+      @collnames << exp[2]
     else
-      exp.each { |e| retval += gather_collection_names(e) if e and e.class <= Sexp }
+      exp.each { |e| gather_collection_names(e) if e and e.class <= Sexp }
     end
-    return retval
   end
 
   def process_call(exp)
     call, recv, op, args = exp
-    collname = false
 
-    # if op == :rename # special case
-    #   if args[0] == :arglist and args[1][0] == :lit
-    #     # clone the schema so we can turn it back into Ruby
-    #     schema = Marshal.load( Marshal.dump(args[2]) )
-    #     @collnames[-1] = args[1][1]
-    #     @rename_schemas[args[1][1]] = args[2].nil? ? [] : Bud::BudCollection.parse_schema(eval(@r2r.process(schema)))[0]
-    #     # exp[1][1][3][1][1]
-    #   end
-    if @bud_instance.tables[op] and @iterhash.length > 0
-      ## CHALLENGE: MAKE ITERSTACK MATCH ITERHASH
-      ## THEN LET RENAME MOD ITERSTACK.LAST
-      blockvar = @iterstack[0]
-      unless @iterhash[blockvar] and @iterhash[blockvar] == op
-        raise Bud::BudError, "iterstack failed to match"
-      end
-      collname = true
-    end
-    
     if recv and recv.class == Sexp and recv.first == :lvar and recv[1] and @iterhash[recv[1]]
-      schema = nil
       if @bud_instance.respond_to?(@iterhash[recv[1]])
         if @bud_instance.send(@iterhash[recv[1]]).class <= Bud::BudCollection
           schema = @bud_instance.send(@iterhash[recv[1]]).schema
-        end
-      elsif @rename_schemas[@iterhash[recv[1]]]
-        schema = @rename_schemas[@iterhash[recv[1]]]
-      end
-      unless schema.nil?
-        if op != :[] and @bud_instance.send(@iterhash[recv[1]]).respond_to?(op)
-          # if the op is an attribute name in the schema, col is its index
-          col = schema.index(op) unless schema.nil?
-          unless col.nil?
-            op = :[]
-            args = s(:arglist, s(:lit, col))
+          if op != :[] and @bud_instance.send(@iterhash[recv[1]]).respond_to?(op)
+            # if the op is an attribute name in the schema, col is its index
+            col = schema.index(op) unless schema.nil?
+            unless col.nil?
+              op = :[]
+              args = s(:arglist, s(:lit, col))
+            end
           end
         end
         return s(call, recv, op, args)
