@@ -379,7 +379,7 @@ module Bud
     public
     def merge(o, buf=@new_delta) # :nodoc: all
       unless o.nil?
-        o = o.uniq.compact if o.respond_to?(:uniq)
+        o = o.uniq if o.respond_to?(:uniq)
         check_enumerable(o)
         establish_schema(o) if @schema.nil?
 
