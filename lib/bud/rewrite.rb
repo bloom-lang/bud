@@ -11,8 +11,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1,
       :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
       :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
-      :schema => 1, :keys => 1, :values => 1, :payloads => 1, :~ => 1,
-      :gt_k => 1 # XXX: hack
+      :schema => 1, :keys => 1, :values => 1, :payloads => 1, :~ => 1
     }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
@@ -44,8 +43,9 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       if recv and recv.class == Sexp
         # for CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
-        # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables
-        unless @monotonic_whitelist[op] or @bud_instance.tables.has_key? op or call_is_attr_deref?(recv, op) or recv.first == :lvar
+        # don't worry about monotone ops, safe lattice morphisms, table names,
+        # table.attr calls, or accessors of iterator variables
+        unless @monotonic_whitelist[op] or is_lattice_morph(exp) or @bud_instance.tables.has_key? op or call_is_attr_deref?(recv, op) or recv.first == :lvar
           @nm = true
         end
       end
@@ -54,6 +54,15 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       end
       super
     end
+  end
+
+  def is_lattice_morph(exp)
+    recv, op, args = exp
+    return false unless recv.sexp_type == :call
+    _, lat_name, _ = recv.sexp_body
+    lattice = @bud_instance.lattices[lat_name]
+    return false if lattice.nil?
+    return lattice.class.morphs.has_key? op
   end
 
   def collect_rhs(exp)

@@ -965,6 +965,15 @@ class BudLattice
     @@lattice_kinds
   end
 
+  def self.morphs
+    @morphs || {}
+  end
+
+  def self.morph(name)
+    @morphs ||= {}
+    @morphs[name] = true
+  end
+
   def initialize(tabname)
     @tabname = tabname
     @got_delta = false
@@ -1007,6 +1016,7 @@ class MaxLattice < BudLattice
     end
   end
 
+  morph :gt_k
   def gt_k(k, &blk)
     if @v and @v > k
       return blk.call

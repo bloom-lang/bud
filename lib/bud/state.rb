@@ -148,6 +148,13 @@ module Bud
   # of lattice.
   def load_lattice_defs
     BudLattice.lattice_kinds.each do |lattice_name, klass|
+      # Sanity check morphism annotations
+      klass.morphs.each_key do |m|
+        unless klass.instance_methods(false).include? m.to_s
+          puts "Warning: undefined morphism \"#{m}\" in lattice #{lattice_name}"
+        end
+      end
+
       self.singleton_class.send(:define_method, lattice_name) do |collection_name|
         define_lattice(collection_name)
         @lattices[collection_name] = klass.new(collection_name)
