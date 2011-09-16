@@ -72,11 +72,10 @@ class MaxLattice < BudLattice
     [[@v]]
   end
 
+  # XXX: should this return a BoolLattice instance?
   morph :gt_k
-  def gt_k(k, &blk)
-    if @v and @v > k
-      return blk.call
-    end
+  def gt_k(k)
+    yield if @v and @v > k
   end
 end
 
