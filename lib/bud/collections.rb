@@ -952,7 +952,19 @@ class BudLattice
   attr_reader :tabname
   attr_reader :got_delta
 
+  @@lattice_kinds = {}
   @got_delta = false
+
+  def self.lattice_name(name)
+    if @@lattice_kinds.has_key? name
+      raise Bud::CompileError, "Duplicate lattice definition: #{name}"
+    end
+    @@lattice_kinds[name] = self
+  end
+
+  def self.lattice_kinds
+    @@lattice_kinds
+  end
 
   def tick_deltas
     @got_delta = false
@@ -960,6 +972,8 @@ class BudLattice
 end
 
 class MaxLattice < BudLattice
+  lattice_name :lat_max
+
   def initialize(name)
     @tabname = name
     @v = nil

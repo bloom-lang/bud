@@ -144,8 +144,14 @@ module Bud
     end
   end
 
-  def lat_max(name)
-    define_lattice(name)
-    @lattices[name] = MaxLattice.new(name)
+  # Define methods to implement the state declarations for every registered kind
+  # of lattice.
+  def load_lattice_defs
+    BudLattice.lattice_kinds.each do |lattice_name, klass|
+      self.singleton_class.send(:define_method, lattice_name) do |collection_name|
+        define_lattice(collection_name)
+        @lattices[collection_name] = klass.new(collection_name)
+      end
+    end
   end
 end

@@ -229,6 +229,7 @@ module Bud
 
   # Invoke all the user-defined state blocks and initialize builtin state.
   def init_state
+    load_lattice_defs
     builtin_state
     call_state_methods
   end
