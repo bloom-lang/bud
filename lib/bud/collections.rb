@@ -953,7 +953,6 @@ class BudLattice
   attr_reader :got_delta
 
   @@lattice_kinds = {}
-  @got_delta = false
 
   def self.lattice_name(name)
     if @@lattice_kinds.has_key? name
@@ -966,6 +965,11 @@ class BudLattice
     @@lattice_kinds
   end
 
+  def initialize(tabname)
+    @tabname = tabname
+    @got_delta = false
+  end
+
   def tick_deltas
     @got_delta = false
   end
@@ -975,7 +979,7 @@ class MaxLattice < BudLattice
   lattice_name :lat_max
 
   def initialize(name)
-    @tabname = name
+    super(name)
     @v = nil
   end
 
@@ -1008,9 +1012,6 @@ class MaxLattice < BudLattice
       return blk.call
     end
   end
-end
-
-class CountLattice < BudLattice
 end
 
 module Enumerable
