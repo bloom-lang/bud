@@ -1,3 +1,4 @@
+# XXX: make this a module?
 class BudLattice
   attr_reader :tabname
   attr_reader :got_delta
@@ -38,12 +39,8 @@ class MaxLattice < BudLattice
   lattice_name :lat_max
 
   def initialize(name)
-    super(name)
+    super
     @v = nil
-  end
-
-  def reveal
-    [[@v]]
   end
 
   # XXX: We currently update @v in-place, and set @got_delta whenever @v is
@@ -63,7 +60,7 @@ class MaxLattice < BudLattice
         end
       end
     else
-      raise BudTypeError, "Illegal RHS for MaxLattice merge: #{o.class}"
+      raise BudTypeError, "Illegal RHS for MaxLattice merge: #{i.class}"
     end
     if input_v and (@v.nil? or input_v > @v)
       @v = input_v
@@ -71,10 +68,56 @@ class MaxLattice < BudLattice
     end
   end
 
+  def reveal
+    [[@v]]
+  end
+
   morph :gt_k
   def gt_k(k, &blk)
     if @v and @v > k
       return blk.call
     end
+  end
+end
+
+class BoolLattice < BudLattice
+  lattice_name :lat_bool
+
+  def initialize(name)
+    super
+    @v = false
+  end
+
+  def <=(i)
+    return if @v
+    if i.class <= BoolLattice
+      input_v = i.instance_variable_get('@v')
+    elsif i.class <= Enumerable
+      input_v = false
+      i.each do |t|
+        next if t.nil? or t == []
+        raise BudTypeError unless (t.class <= TrueClass or t.class <= FalseClass)
+        if t == true
+          input_v = true
+          break
+        end
+      end
+    else
+      raise BudTypeError, "Illegal RHS for BoolLattice merge: #{o.class}"
+    end
+
+    if input_v == true
+      @v = input_v
+      @got_delta = true
+    end
+  end
+
+  def reveal
+    [[@v]]
+  end
+
+  morph :when_true
+  def when_true
+    yield if @v
   end
 end

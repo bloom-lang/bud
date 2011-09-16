@@ -90,3 +90,36 @@ class TestMaxLattice < Test::Unit::TestCase
     assert_equal(false, i.done.empty?)
   end
 end
+
+class SimpleBool
+  include Bud
+
+  state do
+    lat_bool :b
+    scratch :inputt, [:val]
+    scratch :done, [:t]
+  end
+
+  bloom do
+    b <= inputt {|t| true if t[0] == "remedy"}
+    done <= b.when_true { [["yay"]] }
+  end
+end
+
+class TestBoolLattice < Test::Unit::TestCase
+  def test_bool
+    i = SimpleBool.new
+    assert(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:b, :done].each {|r| assert(strat_zero.include? r)}
+    i.inputt <+ [["bica"], ["cole"]]
+    i.tick
+    assert(i.done.empty?)
+    i.inputt <+ [["remedy"]]
+    i.tick
+    assert_equal(false, i.done.empty?)
+    i.inputt <+ [["philz"]]
+    i.tick
+    assert_equal(false, i.done.empty?)
+  end
+end
