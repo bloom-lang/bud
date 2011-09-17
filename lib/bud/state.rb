@@ -155,9 +155,16 @@ module Bud
         end
       end
 
-      self.singleton_class.send(:define_method, lattice_name) do |collection_name|
+      # We want to define the lattice state declaration function and give it a
+      # default parameter; in Ruby 1.8, that can only be done using "*args"
+      self.singleton_class.send(:define_method, lattice_name) do |*args|
+        collection_name = args[0]
+        opts = args[1] || {}
+        opts = opts.clone       # Be paranoid
+        opts[:scratch] ||= false
+
         define_lattice(collection_name)
-        @lattices[collection_name] = klass.new(collection_name)
+        @lattices[collection_name] = klass.new(collection_name, opts[:scratch])
       end
     end
   end

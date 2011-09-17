@@ -3,8 +3,15 @@ require 'test_common'
 class SimpleMax
   include Bud
 
+  def initialize(use_scratch=false)
+    @use_scratch = use_scratch
+    # NB: Calling super() after we set @use_scratch is important, since
+    # Bud#initialize invokes the state methods.
+    super()
+  end
+
   state do
-    lat_max :m
+    lat_max :m, :scratch => @use_scratch
     scratch :inputt, [:val]
     scratch :done, [:t]
   end
@@ -56,7 +63,9 @@ class TestMaxLattice < Test::Unit::TestCase
     assert(i.done.empty?)
     i.inputt <+ [[12]]
     i.tick
-    assert_equal(false, i.done.empty?)
+    assert_equal([[true]], i.done.to_a)
+    i.tick
+    assert_equal([[true]], i.done.to_a)
   end
 
   def test_max_reveal_nm
@@ -75,6 +84,24 @@ class TestMaxLattice < Test::Unit::TestCase
     i.tick
     assert_equal(false, i.done.empty?)
     assert_equal([[12]], i.current_val.to_a)
+  end
+
+  def test_max_scratch
+    i = SimpleMax.new(true)
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:m, :done].each {|r| assert(strat_zero.include? r) }
+    i.inputt <+ [[8], [12]]
+    i.tick
+    assert_equal([[true]], i.done.to_a)
+    i.tick
+    assert(i.done.empty?)
+    i.inputt <+ [[6]]
+    i.tick
+    assert(i.done.empty?)
+    i.inputt <+ [[1], [14]]
+    i.tick
+    assert_equal([[true]], i.done.to_a)
   end
 
   def test_max_of_max

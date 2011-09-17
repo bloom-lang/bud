@@ -254,7 +254,7 @@ module Bud
     end
 
     meth_map.keys.sort.each do |i|
-      meth_map[i].each {|m| m.call}
+      meth_map[i].each {|m| m.call }
     end
   end
 
@@ -699,6 +699,9 @@ module Bud
       @inside_tick = true
       @tables.each_value do |t|
         t.tick
+      end
+      @lattices.each_value do |l|
+        l.reset if l.is_scratch
       end
 
       @joinstate = {}

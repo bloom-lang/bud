@@ -1,6 +1,7 @@
 # XXX: make this a module?
 class BudLattice
   attr_reader :tabname
+  attr_reader :is_scratch
   attr_reader :got_delta
 
   @@lattice_kinds = {}
@@ -25,9 +26,11 @@ class BudLattice
     @morphs[name] = true
   end
 
-  def initialize(tabname)
+  def initialize(tabname, is_scratch)
     @tabname = tabname
+    @is_scratch = is_scratch
     @got_delta = false
+    reset
   end
 
   def tick_deltas
@@ -38,8 +41,7 @@ end
 class MaxLattice < BudLattice
   lattice_name :lat_max
 
-  def initialize(name)
-    super
+  def reset
     @v = nil
   end
 
@@ -82,8 +84,7 @@ end
 class BoolLattice < BudLattice
   lattice_name :lat_bool
 
-  def initialize(name)
-    super
+  def reset
     @v = false
   end
 
