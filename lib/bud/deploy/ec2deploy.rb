@@ -160,7 +160,7 @@ module EC2Deploy
               # Update the Bud gem
               channel = session.open_channel do |ch|
                 channel.request_pty do |_, success|
-                  raise "Couldn't open a PTY on #{t.node}" if !success
+                  raise "couldn't open a PTY on #{t.node}" if !success
                 end
                 channel.exec("sudo gem update --no-ri --no-rdoc bud")
               end

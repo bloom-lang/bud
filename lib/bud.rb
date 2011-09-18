@@ -371,7 +371,7 @@ module Bud
     # If we're called from the EventMachine thread (and EM is running), blocking
     # the current thread would imply deadlocking ourselves.
     if Thread.current == EventMachine::reactor_thread and EventMachine::reactor_running?
-      raise BudError, "Cannot invoke run_fg from inside EventMachine"
+      raise BudError, "cannot invoke run_fg from inside EventMachine"
     end
 
     q = Queue.new
@@ -489,7 +489,7 @@ module Bud
     cb_id = nil
     schedule_and_wait do
       unless @tables.has_key? tbl_name
-        raise Bud::BudError, "No such table: #{tbl_name}"
+        raise Bud::BudError, "no such table: #{tbl_name}"
       end
 
       raise Bud::BudError if @callbacks.has_key? @callback_id
@@ -503,7 +503,7 @@ module Bud
   # Unregister the callback that has the given ID.
   def unregister_callback(id)
     schedule_and_wait do
-      raise Bud::BudError, "Missing callback: #{id.inspect}" unless @callbacks.has_key? id
+      raise Bud::BudError, "missing callback: #{id.inspect}" unless @callbacks.has_key? id
       @callbacks.delete(id)
     end
   end
@@ -829,7 +829,7 @@ module Bud
           unless new_e.class <= BudError
             new_e = BudError
           end
-          raise new_e, "Exception during Bud evaluation.\nException: #{e.inspect}.#{src_msg}"
+          raise new_e, "exception during Bud evaluation.\nException: #{e.inspect}.#{src_msg}"
         end
       end
       @stratum_first_iter = false

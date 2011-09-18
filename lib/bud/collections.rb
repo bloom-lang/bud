@@ -71,7 +71,7 @@ module Bud
       schema = key_cols + val_cols
       schema.each do |s|
         if s.class != Symbol
-          raise BudError, "Invalid schema element \"#{s}\", type \"#{s.class}\""
+          raise BudError, "invalid schema element \"#{s}\", type \"#{s.class}\""
         end
       end
       if schema.uniq.length < schema.length
@@ -281,7 +281,7 @@ module Bud
     private
     def raise_pk_error(new_guy, old)
       keycols = @key_colnums.map{|i| old[i]}
-      raise KeyConstraintError, "Key conflict inserting #{new_guy.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key_cols = #{keycols.inspect}"
+      raise KeyConstraintError, "key conflict inserting #{new_guy.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key_cols = #{keycols.inspect}"
     end
 
     private
@@ -334,7 +334,7 @@ module Bud
     private
     def check_enumerable(o)
       unless o.nil? or o.class < Enumerable
-        raise BudTypeError, "Collection #{tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
+        raise BudTypeError, "collection #{tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
       end
     end
 
@@ -599,7 +599,7 @@ module Bud
         elsif k[2] and k[2].class == Symbol
           k[2]
         else
-          raise Bud::CompileError, "Invalid grouping key"
+          raise Bud::CompileError, "invalid grouping key"
         end
       end
       aggcolsdups = aggpairs.map{|ap| ap[0].class.name.split("::").last}
@@ -686,10 +686,10 @@ module Bud
         the_schema, the_key_cols = parse_schema(given_schema)
         spec_count = the_schema.count {|s| s.to_s.start_with? "@"}
         if spec_count == 0
-          raise BudError, "Missing location specifier for channel '#{name}'"
+          raise BudError, "missing location specifier for channel '#{name}'"
         end
         if spec_count > 1
-          raise BudError, "Multiple location specifiers for channel '#{name}'"
+          raise BudError, "multiple location specifiers for channel '#{name}'"
         end
 
         the_val_cols = the_schema - the_key_cols
@@ -725,7 +725,7 @@ module Bud
         lsplit[1] = lsplit[1].to_i
         return lsplit
       rescue Exception => e
-        raise BudError, "Illegal location specifier in tuple #{t.inspect} for channel \"#{tabname}\": #{e.to_s}"
+        raise BudError, "illegal location specifier in tuple #{t.inspect} for channel \"#{tabname}\": #{e.to_s}"
       end
     end
 
@@ -782,13 +782,13 @@ module Bud
     end
 
     superator "<+" do |o|
-      raise BudError, "Illegal use of <+ with channel '#{@tabname}' on left"
+      raise BudError, "illegal use of <+ with channel '#{@tabname}' on left"
     end
 
     undef merge
 
     def <=(o)
-      raise BudError, "Illegal use of <= with channel '#{@tabname}' on left"
+      raise BudError, "illegal use of <= with channel '#{@tabname}' on left"
     end
   end
 
@@ -849,7 +849,7 @@ module Bud
 
     public
     def <=(o) #:nodoc: all
-      raise BudError, "Illegal use of <= with terminal '#{@tabname}' on left"
+      raise BudError, "illegal use of <= with terminal '#{@tabname}' on left"
     end
 
     superator "<~" do |o|
@@ -867,19 +867,19 @@ module Bud
 
   class BudPeriodic < BudCollection # :nodoc: all
     def <=(o)
-      raise BudError, "Illegal use of <= with periodic '#{tabname}' on left"
+      raise BudError, "illegal use of <= with periodic '#{tabname}' on left"
     end
 
     superator "<~" do |o|
-      raise BudError, "Illegal use of <~ with periodic '#{tabname}' on left"
+      raise BudError, "illegal use of <~ with periodic '#{tabname}' on left"
     end
 
     superator "<-" do |o|
-      raise BudError, "Illegal use of <- with periodic '#{tabname}' on left"
+      raise BudError, "illegal use of <- with periodic '#{tabname}' on left"
     end
 
     superator "<+" do |o|
-      raise BudError, "Illegal use of <+ with periodic '#{tabname}' on left"
+      raise BudError, "illegal use of <+ with periodic '#{tabname}' on left"
     end
   end
 
@@ -919,11 +919,11 @@ module Bud
 
   class BudReadOnly < BudScratch # :nodoc: all
     superator "<+" do |o|
-      raise CompileError, "Illegal use of <+ with read-only collection '#{@tabname}' on left"
+      raise CompileError, "illegal use of <+ with read-only collection '#{@tabname}' on left"
     end
     public
     def merge(o)  #:nodoc: all
-      raise CompileError, "Illegal use of <= with read-only collection '#{@tabname}' on left"
+      raise CompileError, "illegal use of <= with read-only collection '#{@tabname}' on left"
     end
   end
 

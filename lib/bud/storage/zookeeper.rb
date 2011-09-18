@@ -164,15 +164,15 @@ module Bud
     end
 
     superator "<+" do |o|
-      raise BudError, "Illegal use of <+ with zookeeper store '#{@tabname}' on left"
+      raise BudError, "illegal use of <+ with zookeeper store '#{@tabname}' on left"
     end
 
     def <=(o)
-      raise BudError, "Illegal use of <= with zookeeper store '#{@tabname}' on left"
+      raise BudError, "illegal use of <= with zookeeper store '#{@tabname}' on left"
     end
 
     def <<(o)
-      raise BudError, "Illegal use of << with zookeeper store '#{@tabname}' on left"
+      raise BudError, "illegal use of << with zookeeper store '#{@tabname}' on left"
     end
   end
 end
