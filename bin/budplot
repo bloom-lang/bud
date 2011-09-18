@@ -8,7 +8,7 @@ require 'bud/viz_util'
 
 include VizUtil
 
-def is_module?(m)
+def is_constant?(m)
   begin
     return (eval("defined?(#{m})") == "constant")
   rescue SyntaxError
@@ -16,16 +16,43 @@ def is_module?(m)
   end
 end
 
-def process(mods)
+def make_instance(mods)
+  # If we're given a single identifier that names a class, just return an
+  # instance of that class. Otherwise, define a bogus class that includes all
+  # the module names specified by the user and return an instance.
   mods.each do |m|
-    unless is_module? m
-      puts "Error: unable to find definition for module \"#{m}\""
+    unless is_constant? m
+      puts "Error: unable to find definition for module or class \"#{m}\""
+      exit
+    end
+
+    mod_klass = eval m
+    puts "m = #{m}; class = #{mod_klass.class}; length = #{mods.length}"
+    if mod_klass.class == Class
+      if mods.length == 1
+        return mod_klass.new
+      else
+        puts "Error: cannot intermix classes and modules"
+        exit
+      end
+    elsif mod_klass.class != Module
+      puts "Error: \"#{m}\" is not a module or class name"
       exit
     end
   end
 
-  classdef = "class FooBar\ninclude Bud\n" + mods.map{|m| "include #{m}"}.join("\n") + "\nend\n FooBar.new"
-  d = eval(classdef)
+  def_lines = ["class FooBar",
+               "include Bud",
+               mods.map {|m| "include #{m}"},
+               "end"
+              ]
+  class_def = def_lines.flatten.join("\n")
+  eval(class_def)
+  FooBar.new
+end
+
+def process(mods)
+  d = make_instance(mods)
 
   interfaces = {}
   d.t_provides.each do |name, is_input|
@@ -93,7 +120,7 @@ def do_table(f, info)
 end
 
 if ARGV.length < 2
-  puts "Usage: budplot LIST_OF_FILES LIST_OF_MODULES"
+  puts "Usage: budplot LIST_OF_FILES LIST_OF_MODULES_OR_CLASSES"
   exit
 end
 
@@ -102,7 +129,7 @@ end
 modules = []
 ARGV.each do |arg|
   if File.exists? arg
-    eval "require '#{arg}'"
+    require arg
   else
     modules << arg
   end

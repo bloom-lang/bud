@@ -35,7 +35,7 @@ module Bud
         flags |= TokyoCabinet::HDB::OTRUNC
       end
       if !@hdb.open(db_fname, flags)
-        raise BudError, "Failed to open TokyoCabinet DB '#{db_fname}': #{@hdb.errmsg}"
+        raise BudError, "failed to open TokyoCabinet DB '#{db_fname}': #{@hdb.errmsg}"
       end
       @hdb.tranbegin
     end

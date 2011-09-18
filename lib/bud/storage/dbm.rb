@@ -30,7 +30,7 @@ module Bud
       end
       @dbm = DBM.open(db_fname, 0666, flags)
       if @dbm.nil?
-        raise BudError, "Failed to open dbm database '#{db_fname}': #{@dbm.errmsg}"
+        raise BudError, "failed to open dbm database '#{db_fname}': #{@dbm.errmsg}"
       end
     end
 

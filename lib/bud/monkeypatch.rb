@@ -41,7 +41,7 @@ class Module
       @block_id += 1
     else
       unless block_name.class <= Symbol
-        raise Bud::CompileError, "Bloom block names must be a symbol: #{block_name}"
+        raise Bud::CompileError, "bloom block names must be a symbol: #{block_name}"
       end
     end
 
@@ -53,7 +53,7 @@ class Module
     # Don't allow duplicate named bloom blocks to be defined within a single
     # module; this indicates a likely programmer error.
     if instance_methods(false).include? meth_name
-      raise Bud::CompileError, "Duplicate named bloom block: '#{block_name}' in #{self}"
+      raise Bud::CompileError, "duplicate named bloom block: '#{block_name}' in #{self}"
     end
     define_method(meth_name.to_sym, &block)
   end

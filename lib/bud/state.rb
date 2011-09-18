@@ -55,7 +55,7 @@ module Bud
       @tables[name] = Bud::BudTcTable.new(name, self, schema)
       @tc_tables[name] = @tables[name]
     else
-      raise BudError, "Unknown synchronous storage engine #{storage.to_s}"
+      raise BudError, "unknown synchronous storage engine #{storage.to_s}"
     end
   end
   
@@ -70,7 +70,7 @@ module Bud
       @tables[name] = Bud::BudZkTable.new(name, options[:path], options[:addr], self)
       @zk_tables[name] = @tables[name]
     else
-      raise BudError, "Unknown async storage engine #{storage.to_s}"
+      raise BudError, "unknown async storage engine #{storage.to_s}"
     end
   end
 
