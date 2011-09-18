@@ -37,6 +37,16 @@ module Bud
     private
     def init_schema(given_schema)
       given_schema ||= {[:key]=>[:val]}
+
+      # Check that no location specifiers appear in the schema. In the case of
+      # channels, the location specifier has already been stripped from the
+      # user-specified schema.
+      given_schema.each do |s|
+        if s.to_s.start_with? "@"
+          raise BudError, "illegal use of location specifier (@) in column #{s} of non-channel collection #{tabname}"
+        end
+      end
+
       @given_schema = given_schema
       @schema, @key_cols = parse_schema(given_schema)
       @key_colnums = key_cols.map {|k| schema.index(k)}
@@ -44,9 +54,9 @@ module Bud
     end
 
     # The user-specified schema might come in two forms: a hash of Array =>
-    # Array (key_cols => remaining columns), or simply an Array of columns (if no
-    # key_cols were specified). Return a pair: [list of columns in entire tuple,
-    # list of key columns]
+    # Array (key_cols => remaining columns), or simply an Array of columns (if
+    # no key_cols were specified). Return a pair: [list of (all) columns, list
+    # of key columns]
     private
     def parse_schema(given_schema)
       if given_schema.respond_to? :keys

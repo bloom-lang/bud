@@ -279,6 +279,13 @@ class DeclarationOverrideMethod
   end
 end
 
+class LocSpecNonChannel
+  include Bud
+  state do
+    scratch :foo, [:@a] => [:b]
+  end
+end
+
 class EmptyPk
   include Bud
 
@@ -454,6 +461,10 @@ class TestCollections < Test::Unit::TestCase
 
   def test_declaration_override_method
     assert_raise(Bud::CompileError) { DeclarationOverrideMethod.new }
+  end
+
+  def test_loc_spec_non_channel
+    assert_raise(Bud::BudError) { LocSpecNonChannel.new }
   end
 
   def test_empty_pk_error
