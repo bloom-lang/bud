@@ -62,7 +62,7 @@ class MaxLattice < BudLattice
         end
       end
     else
-      raise BudTypeError, "Illegal RHS for MaxLattice merge: #{i.class}"
+      raise Bud::BudTypeError, "Illegal RHS for MaxLattice merge: #{i.class}"
     end
     if input_v and (@v.nil? or input_v > @v)
       @v = input_v
