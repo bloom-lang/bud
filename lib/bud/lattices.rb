@@ -54,12 +54,13 @@ class VectorLattice < BudLattice
   def <=(i)
     if i.class <= VectorLattice
       input_v = i.instance_variable_get('@v')
-      input_v.each_with_index do |l, i|
-        if @v[i]
-          @v[i] <= l
-          @got_delta ||= @v[i].got_delta
+      input_v.each_with_index do |l, idx|
+        puts "#{tabname}: <= with from #{i.tabname}"
+        if @v[idx]
+          @v[idx] <= l
+          @got_delta ||= @v[idx].got_delta
         else
-          @v[i] = l
+          @v[idx] = l
           @got_delta = true
         end
       end
@@ -74,15 +75,19 @@ class VectorLattice < BudLattice
 
     @v.each do |l|
       # XXX: check that "meth_name" for l is a morphism
-      r = l.send(:meth_name, *args)
+      puts "Invoking #{meth_name} with args = #{args.inspect} on #{l.tabname}"
+      r = l.send(meth_name, *args)
       return nil unless r
     end
+
+    return [[true]]
   end
 
   def VectorLattice.wrap(a, b)
     r = VectorLattice.new("#{a.tabname}__#{b.tabname}__tmp", true)
-    r_v = r.instance_variable_get('@v')
+    puts "VectorLattice.wrap: r = #{r.tabname}"
     r_v = [a, b]
+    r.instance_variable_set('@v', r_v)
     r
   end
 end

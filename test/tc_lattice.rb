@@ -40,6 +40,7 @@ class MaxOfMax
     lat_max :m2
     lat_max :m3
     scratch :inputt, [:val]
+    # XXX: make this lat_bool?
     scratch :done, [:t]
   end
 
@@ -59,10 +60,16 @@ class ComposeLattice
     lat_max :m1
     lat_max :m2
     lat_vec :m3
+    scratch :inputt, [:val]
+    # XXX: make this lat_bool?
+    scratch :done, [:t]
   end
 
   bloom do
+    m1 <= inputt {|t| t if t.val % 2 == 0}
+    m1 <= inputt {|t| t if t.val % 2 == 1}
     m3 <= (m1 * m2)
+    done <= m3.all?(:gt_k, 10)
   end
 end
 
@@ -133,7 +140,10 @@ class TestMaxLattice < Test::Unit::TestCase
 
   def test_compose
     i = ComposeLattice.new
+    # XXX: check stratification
+    i.inputt <+ [[4], [12]]
     i.tick
+    assert(i.done.empty?)
   end
 end
 
