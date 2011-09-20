@@ -36,6 +36,55 @@ class BudLattice
   def tick_deltas
     @got_delta = false
   end
+
+  def *(i)
+    VectorLattice.wrap(self, i)
+  end
+end
+
+class VectorLattice < BudLattice
+  lattice_name :lat_vec
+
+  def reset
+    # XXX: not necessary?
+    @v.each {|i| i.reset} if @v
+    @v = []
+  end
+
+  def <=(i)
+    if i.class <= VectorLattice
+      input_v = i.instance_variable_get('@v')
+      input_v.each_with_index do |l, i|
+        if @v[i]
+          @v[i] <= l
+          @got_delta ||= @v[i].got_delta
+        else
+          @v[i] = l
+          @got_delta = true
+        end
+      end
+    else
+      raise Bud::BudTypeError
+    end
+  end
+
+  morph :all?
+  def all?(*args)
+    meth_name = args.shift
+
+    @v.each do |l|
+      # XXX: check that "meth_name" for l is a morphism
+      r = l.send(:meth_name, *args)
+      return nil unless r
+    end
+  end
+
+  def VectorLattice.wrap(a, b)
+    r = VectorLattice.new("#{a.tabname}__#{b.tabname}__tmp", true)
+    r_v = r.instance_variable_get('@v')
+    r_v = [a, b]
+    r
+  end
 end
 
 class MaxLattice < BudLattice

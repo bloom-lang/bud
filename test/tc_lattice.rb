@@ -52,6 +52,20 @@ class MaxOfMax
   end
 end
 
+class ComposeLattice
+  include Bud
+
+  state do
+    lat_max :m1
+    lat_max :m2
+    lat_vec :m3
+  end
+
+  bloom do
+    m3 <= (m1 * m2)
+  end
+end
+
 class TestMaxLattice < Test::Unit::TestCase
   def test_simple_max
     i = SimpleMax.new
@@ -115,6 +129,11 @@ class TestMaxLattice < Test::Unit::TestCase
     i.inputt <+ [[12]]
     i.tick
     assert_equal(false, i.done.empty?)
+  end
+
+  def test_compose
+    i = ComposeLattice.new
+    i.tick
   end
 end
 
