@@ -83,7 +83,11 @@ module Bud
       each_from([@delta], &block)
       each_storage(&block)
     end
-
+    
+    def each_raw(&block)
+      each_storage(&block)
+    end
+    
     def each_from(bufs, &block)
       bufs.each do |b|
         if b == @storage then
@@ -135,12 +139,30 @@ module Bud
       merge_to_hdb(@delta)
       @delta = @new_delta
       @new_delta = {}
+      return !(@delta == {})
+    end
+    
+    public 
+    def flush_deltas
+      merge_to_hdb(@delta)
+      merge_to_hdb(@new_delta)
+      @delta = {}
+      @new_delta = {}
     end
 
+    # This is verbatim from BudTable.  Need to DRY up.  Should we be a subclass of BudTable?
+    public 
+    def pending_delete(o)
+      if o.class <= Bud::PushElement
+         o.wire_to_delete self
+       elsif o.class <= Bud::BudCollection
+         o.pro.wire_to_delete self
+       else
+         @to_delete = @to_delete + o.map{|t| prep_tuple(t) unless t.nil?}
+       end
+    end
     superator "<-" do |o|
-      o.each do |tuple|
-        @to_delete << tuple unless tuple.nil?
-      end
+      pending_delete(o)
     end
 
     def insert(tuple)
