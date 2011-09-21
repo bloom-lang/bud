@@ -157,7 +157,7 @@ class PushTests < Test::Unit::TestCase
     p.tick
     p.r1 <+ [[1,'a'],[1,'b'],[2,'b'],[2,'a']]
     p.tick
-    assert_equal([[1,'b']], p.result.to_a)
+    assert_equal([[1,'a'],[1,'b']], p.result.to_a)
   end
   class PushInspected
     include Bud
