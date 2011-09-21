@@ -69,9 +69,9 @@ module Bud
       end
 
       cols = key_cols + val_cols
-      cols.each do |s|
-        if s.class != Symbol
-          raise BudError, "invalid schema element \"#{s}\", type \"#{s.class}\""
+      cols.each do |c|
+        if c.class != Symbol
+          raise BudError, "invalid schema element \"#{c}\", type \"#{c.class}\""
         end
       end
       if cols.uniq.length < cols.length
@@ -89,11 +89,12 @@ module Bud
     # produces the schema in a format that is useful as the schema specification for another table
     public
     def schema
-      return nil if @cols.nil? or @cols.length < 1
-      { key_cols => val_cols }
+      return nil if @cols.nil?
+      return key_cols if val_cols.empty?
+      return { key_cols => val_cols }
     end
 
-    # subset of the schema (i.e. an array of attribute names) that is not in the key
+    # the columns of the collection's schema that are not part of the key
     public
     def val_cols # :nodoc: all
       @cols - @key_cols
@@ -683,8 +684,8 @@ module Bud
       given_schema = Marshal.load(Marshal.dump(given_schema))
 
       unless @is_loopback
-        the_schema, the_key_cols = parse_schema(given_schema)
-        spec_count = the_schema.count {|s| s.to_s.start_with? "@"}
+        the_cols, the_key_cols = parse_schema(given_schema)
+        spec_count = the_cols.count {|c| c.to_s.start_with? "@"}
         if spec_count == 0
           raise BudError, "missing location specifier for channel '#{name}'"
         end
@@ -692,7 +693,7 @@ module Bud
           raise BudError, "multiple location specifiers for channel '#{name}'"
         end
 
-        the_val_cols = the_schema - the_key_cols
+        the_val_cols = the_cols - the_key_cols
         @locspec_idx = remove_at_sign!(the_key_cols)
         if @locspec_idx.nil?
           val_idx = remove_at_sign!(the_val_cols)
