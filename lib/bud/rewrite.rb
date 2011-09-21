@@ -174,19 +174,24 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
     exp
   end
 
+  def register_scratch(name, schemahash)
+    # define a scratch with the name and schema in this rename block
+    hash, key_array, val_array = schemahash
+    key_array ||= []
+    val_array ||= []
+    key_cols = key_array.map{|i| i[1] if i.class <= Sexp}.compact
+    val_cols = val_array.map{|i| i[1] if i.class <= Sexp}.compact
+    @bud_instance.scratch(name, key_cols=>val_cols)
+  end
+
   def gather_collection_names(exp)
     if exp[0] == :call and exp[1].nil?
       @collnames << exp[2]
     elsif exp[2] and exp[2] == :rename
-      # define a scratch with the name and schema in this rename block
       arglist, namelit, schemahash = exp[3]
-      name = namelit[1]
-      hash, key_array, val_array = exp[3][2]
-      key_cols = key_array.map{|i| i[1] if i.class <= Sexp}.compact
-      val_cols = val_array.map{|i| i[1] if i.class <= Sexp}.compact
-      @bud_instance.scratch(name, key_cols=>val_cols)
+      register_scratch(namelit[1], schemahash)
       # and add name to @collnames
-      @collnames << name
+      @collnames << namelit[1]
     else
       exp.each { |e| gather_collection_names(e) if e and e.class <= Sexp }
     end
@@ -195,6 +200,10 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
   def process_call(exp)
     call, recv, op, args = exp
 
+    if op == :rename
+      arglist, namelit, schemahash = args
+      register_scratch(namelit[1], schemahash)
+    end
     if recv and recv.class == Sexp and recv.first == :lvar and recv[1] and @iterhash[recv[1]]
       if @bud_instance.respond_to?(@iterhash[recv[1]])
         if @bud_instance.send(@iterhash[recv[1]]).class <= Bud::BudCollection
