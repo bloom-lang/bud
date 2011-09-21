@@ -52,7 +52,7 @@ module Bud
         agg_input = item[ap[1]]
         if @groups[key].nil?
           agg = ap[0].send(:init, agg_input)
-          @winners[key] = item
+          @winners[key] = [item]
         else
           agg_result = ap[0].send(:trans, @groups[key][agg_ix], agg_input)
           agg = agg_result[0]
@@ -60,9 +60,9 @@ module Bud
           when :ignore
             # do nothing
           when :replace
-            @winners[key] = item
+            @winners[key] = [item]
           when :keep
-            (@winners[key] ||= []) << item
+            @winners[key] << item 
           else
             raise "strange result from argagg finalizer" unless agg_result[1].class == Array and agg_result[1][0] == :delete
             agg_result[1][1..-1].each do |t|
@@ -77,7 +77,7 @@ module Bud
     end 
     
     def local_flush#_end(source)
-      @groups.keys.each {|g| push_out(@winners[g], false)}
+      @groups.keys.each {|g| @winners[g].each{|t| push_out(t, false)}}
       @groups = {}
     end
   end

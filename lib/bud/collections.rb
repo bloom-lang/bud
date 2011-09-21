@@ -190,7 +190,8 @@ module Bud
     end
     
     def rename(the_name, the_schema=nil)
-      bud_instance.scratch(the_name, the_schema)
+      # a scratch with this name should have been defined during rewriting
+      raise(BudError, "rename failed to define a scratch named #{the_name}") unless @bud_instance.respond_to? the_name
       retval = pro(the_name, the_schema)
       retval.init_schema(the_schema)
       retval
@@ -477,6 +478,7 @@ module Bud
     end
 
     # move deltas to storage, and new_deltas to deltas.
+    # return true if new deltas were found
     public
     def tick_deltas # :nodoc: all
       # assertion: intersect(@storage, @delta) == nil

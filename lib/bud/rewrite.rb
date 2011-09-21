@@ -177,6 +177,16 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
   def gather_collection_names(exp)
     if exp[0] == :call and exp[1].nil?
       @collnames << exp[2]
+    elsif exp[2] and exp[2] == :rename
+      # define a scratch with the name and schema in this rename block
+      arglist, namelit, schemahash = exp[3]
+      name = namelit[1]
+      hash, key_array, val_array = exp[3][2]
+      key_cols = key_array.map{|i| i[1] if i.class <= Sexp}.compact
+      val_cols = val_array.map{|i| i[1] if i.class <= Sexp}.compact
+      @bud_instance.scratch(name, key_cols=>val_cols)
+      # and add name to @collnames
+      @collnames << name
     else
       exp.each { |e| gather_collection_names(e) if e and e.class <= Sexp }
     end
