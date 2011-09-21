@@ -2,7 +2,7 @@ require 'bud/executor/elements'
 
 module Bud
   class PushGroup < PushElement
-    def initialize(elem_name, bud_instance, keys_in, aggpairs_in, schema_in, &blk)
+    def initialize(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
       @groups = {}
       if keys_in.nil?
         @keys = [] 
@@ -11,7 +11,7 @@ module Bud
       end
       # ap[1] is nil for Count
       @aggpairs = aggpairs_in.map{|ap| ap[1].nil? ? [ap[0]] : [ap[0], ap[1][1]]}
-      super(elem_name, bud_instance, schema_in, &blk)
+      super(elem_name, bud_instance, collection_name, schema_in, &blk)
     end
   
     def insert(item, source)
@@ -40,9 +40,9 @@ module Bud
   end
   
   class PushArgAgg < PushGroup
-    def initialize(elem_name, bud_instance, keys_in, aggpairs_in, schema_in, &blk)
+    def initialize(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
       raise "Multiple aggpairs #{aggpairs_in.map{|a| a.class.name}} in ArgAgg; only one allowed" if aggpairs_in.length > 1
-      super(elem_name, bud_instance, keys_in, aggpairs_in, schema_in, &blk)
+      super(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
       @agg = @aggpairs[0][0]
       @aggcol = @aggpairs[0][1]
       @winners = {}

@@ -56,17 +56,17 @@ module Bud
         val_cols = []
       end
 
-      schema = key_cols + val_cols
-      schema.each do |s|
+      the_schema = key_cols + val_cols
+      the_schema.each do |s|
         if s.class != Symbol
           raise BudError, "Invalid schema element \"#{s}\", type \"#{s.class}\""
         end
       end
-      if schema.uniq.length < schema.length
+      if the_schema.uniq.length < the_schema.length
         raise BudError, "schema #{given_schema} contains duplicate names"
       end
 
-      return [schema, key_cols]
+      return [the_schema, key_cols]
     end
 
     public
@@ -170,7 +170,7 @@ module Bud
     public
     def flat_map(&blk)
       pusher = self.pro(&blk)
-      elem = Bud::PushElement.new(tabname, @bud_instance)
+      elem = Bud::PushElement.new(tabname, @bud_instance, tabname)
       pusher.wire_to(elem)
       f = Proc.new do |t| 
         t.each do |i| 

@@ -15,7 +15,7 @@ module Bud
     attr_accessor :elem_name, :schema
     attr_reader :arity, :inputs, :found_delta, :refcount, :wired_by
     
-    def initialize(name_in, bud_instance, given_schema=nil, defer_schema=false, &blk)
+    def initialize(name_in, bud_instance, collection_name=nil, given_schema=nil, defer_schema=false, &blk)
       super(name_in, bud_instance, given_schema, defer_schema)
       @blk = blk
       @outputs = []
@@ -26,6 +26,7 @@ module Bud
       @elem_name = name_in
       @found_delta = false
       @refcount = 1
+      @collection_name = collection_name
     end
     def wiring?
       @bud_instance.done_wiring == false
@@ -52,12 +53,6 @@ module Bud
       end
     end
       
-    def self.count
-      @@count
-    end
-    def self.reset_count
-      @@count=0
-    end
     def set_block(&blk)
       @blk = blk
     end
@@ -103,7 +98,21 @@ module Bud
     def push_out(item, do_block=true)
       raise "no output specified for PushElement #{@elem_name}" if @blk.nil? and @outputs == [] and @pendings == [] and @deletes == [] and @delete_keys == []
       unless item.nil? or item == []
-        (item = @blk.nil? ? item : @blk.call(item)) if do_block
+        begin
+          (item = @blk.nil? ? item : @blk.call(item)) if do_block
+        rescue NoMethodError => err
+          # perhaps the rewriter failed to replace a column name with an array index.
+          # let's try to do it here.
+          # XXX it's not 100% clear that @collection_name is being set right -- i.e. that the BudCollection
+          # with @collection_name will have the right schema.
+          if @collection_name and @bud_instance.send(@collection_name) \
+            and @bud_instance.send(@collection_name).schema and @bud_instance.send(@collection_name).schema.include? err.name
+            @bud_instance.send(@collection_name).tuple_accessors(item)
+            (item = @blk.nil? ? item : @blk.call(item)) if do_block
+          else
+            raise NoMethodError.new(err.name), "No method #{err.name} for Array #{item.inspect} (element collection name: #{@collection_name}"
+          end
+        end
         @outputs.each do |ou| 
           if ou.class <= Bud::PushElement
             the_name = ou.elem_name
@@ -170,7 +179,7 @@ module Bud
     public
     def pro(the_name = @elem_name, the_schema = @schema, &blk)
       # if @bud_instance.push_elems[[self.object_id,:pro,blk]].nil?
-        elem = Bud::PushElement.new('project' + object_id.to_s, @bud_instance)
+        elem = Bud::PushElement.new('project' + object_id.to_s, @bud_instance, @collection_name)
         elem.init_schema(the_schema) unless the_schema.nil?
         self.wire_to(elem)
         elem.set_block(&blk)
@@ -184,7 +193,7 @@ module Bud
     
     public
     def each_with_index(the_name = elem_name, the_schema = schema, &blk)
-      elem = Bud::PushElement.new('each_with_index' + object_id.to_s, @bud_instance)
+      elem = Bud::PushElement.new('each_with_index' + object_id.to_s, @bud_instance, @collection_name)
       self.wire_to(elem)
       ix = 0
       elem.set_block do |t|
@@ -251,7 +260,7 @@ module Bud
       
       aggpairs = aggpairs.map{|ap| ap[1].nil? ? [ap[0]] : [ap[0], canonicalize_col(ap[1])]}
       # if @bud_instance.push_elems[[self.object_id, :group, keycols, aggpairs, blk]].nil?
-        g = Bud::PushGroup.new('grp'+Time.new.tv_usec.to_s, @bud_instance, keycols, aggpairs, the_schema, &blk)
+        g = Bud::PushGroup.new('grp'+Time.new.tv_usec.to_s, @bud_instance, @collection_name, keycols, aggpairs, the_schema, &blk)
         self.wire_to(g)
         @bud_instance.push_elems[[self.object_id, :group, keycols, aggpairs, blk]] = g
       # end
@@ -272,7 +281,7 @@ module Bud
       end
       aggpairs = [[agg,collection]]
       # if @bud_instance.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]].nil?
-        aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, @bud_instance, gbkey_cols, aggpairs, @schema, &blk)
+        aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, @bud_instance, @collection_name, gbkey_cols, aggpairs, @schema, &blk)
         self.wire_to(aa)
         @bud_instance.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]] = aa
       # end
@@ -316,7 +325,7 @@ module Bud
     
     def reduce(initial, &blk)
       @memo = initial
-      retval = Bud::PushReduce.new('reduce'+Time.new.tv_usec.to_s, @bud_instance, @schema, initial, &blk)
+      retval = Bud::PushReduce.new('reduce'+Time.new.tv_usec.to_s, @bud_instance, @collection_name, @schema, initial, &blk)
       self.wire_to(retval)
       retval
     end
@@ -348,10 +357,10 @@ module Bud
   end  
   
   class PushPredicate < PushElement
-    def initialize(pred_symbol, elem_name=nil, bud_instance=nil, schema_in=nil, &blk)
+    def initialize(pred_symbol, elem_name=nil, collection_name=nil, bud_instance=nil, schema_in=nil, &blk)
       @pred_symbol = pred_symbol
       @in_buf = []
-      super(elem_name, bud_instance, schema_in, &blk)
+      super(elem_name, bud_instance, collection_name, schema_in, &blk)
     end
   
     def insert(item, source)
@@ -364,9 +373,9 @@ module Bud
   end
   
   class PushSort < PushElement
-    def initialize(elem_name=nil, bud_instance=nil, schema_in=nil, &blk)
+    def initialize(elem_name=nil, bud_instance=nil, collection_name=nil, schema_in=nil, &blk)
       @sortbuf = []
-      super(elem_name, bud_instance, schema_in, &blk)
+      super(elem_name, bud_instance, collection_name, schema_in, &blk)
     end
   
     def insert(item, source)
@@ -387,7 +396,7 @@ module Bud
     attr_reader :collection
     def initialize(elem_name, bud_instance, collection_in, schema=collection_in.schema, &blk)
       # puts self.class
-      super(elem_name, bud_instance, schema)
+      super(elem_name, bud_instance, collection_in.tabname, schema)
       @collection = collection_in
     end
     def insert(dummy, source=nil)
@@ -406,10 +415,10 @@ module Bud
   end
   
   class PushReduce < PushElement
-    def initialize(elem_name, bud_instance, schema_in, initial, &blk)
+    def initialize(elem_name, bud_instance, collection_name, schema_in, initial, &blk)
       @memo = initial
       @blk = blk
-      super(elem_name, bud_instance, schema)
+      super(elem_name, bud_instance, collection_name, schema)
     end
     def insert(i, source=nil)
       @memo = @blk.call(@memo,i)
