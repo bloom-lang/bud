@@ -244,7 +244,7 @@ module Bud
         aggcols << "#{n.downcase}_#{i}".to_sym
       end      
       if aggcols.empty?
-        the_schema = keycols
+        the_schema = keynames
       else
         the_schema = { keynames => aggcols }
       end
