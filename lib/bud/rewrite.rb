@@ -119,12 +119,18 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   # to do this accurately (issue #225), so we just replace map calls liberally
   # and define Enumerable#pro as an alias for "map".
   def map2pro(exp)
+    # the non-superator case
     if exp[1] and exp[1][0] and exp[1][0] == :iter \
       and exp[1][1] and exp[1][1][1] and exp[1][1][1][0] == :call
       if exp[1][1][2] == :map
         exp[1][1][2] = :pro
       end
-    end
+    # the superator case
+    elsif exp[1] and exp[1][0] == :call and (exp[1][2] == :~ or exp[1][2] == :+)
+      if exp[1][1] and exp[1][1][1] and exp[1][1][1][2] == :map
+        exp[1][1][1][2] = :pro
+      end
+    end  
     exp
   end
 
