@@ -42,6 +42,8 @@ module Bud
     def trans(the_state, val)
       if the_state < val 
         return the_state, :ignore
+      elsif the_state == val
+        return the_state, :keep
       else 
         return val, :replace
       end
