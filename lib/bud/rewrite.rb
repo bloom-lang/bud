@@ -162,11 +162,18 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
         else
           raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
         end
-      elsif exp[2] and exp[2][0] == :masgn and not @collnames.empty? # join iter
+      elsif exp[2] and exp[2][0] == :masgn and not @collnames.empty? # join or reduce iter
         next unless exp[2][1] and exp[2][1][0] == :array
-        @collnames.each_with_index do |c, i|
-          next unless exp[2][1][i+1] and exp[2][1][i+1][0] == :lasgn
-          @iterhash[exp[2][1][i+1][1]] = c
+        if exp[1][2] == :reduce
+          unless @collnames.length == 1
+            raise BudError, "reduce should only one associated collection, but has #{@collnames.inspect}"
+          end
+          @iterhash[exp[2][1][2][1]] = @collnames.first
+        else #join
+          @collnames.each_with_index do |c, i|
+            next unless exp[2][1][i+1] and exp[2][1][i+1][0] == :lasgn
+            @iterhash[exp[2][1][i+1][1]] = c
+          end
         end
       end
     end
