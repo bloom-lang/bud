@@ -17,7 +17,7 @@ module Bud
     # This needs to be an accessor to allow REBL to update it after cloning a
     # Bud instance.
     attr_accessor :bud_instance # :nodoc: all
-    attr_reader :schema, :tabname # :nodoc: all
+    attr_reader :cols, :key_cols, :tabname # :nodoc: all
     attr_reader :storage, :delta, :new_delta, :pending # :nodoc: all
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
@@ -48,8 +48,8 @@ module Bud
       end
 
       @given_schema = given_schema
-      @schema, @key_cols = parse_schema(given_schema)
-      @key_colnums = key_cols.map {|k| schema.index(k)}
+      @cols, @key_cols = parse_schema(given_schema)
+      @key_colnums = key_cols.map {|k| @cols.index(k)}
       setup_accessors
     end
 
@@ -68,17 +68,17 @@ module Bud
         val_cols = []
       end
 
-      schema = key_cols + val_cols
-      schema.each do |s|
+      cols = key_cols + val_cols
+      cols.each do |s|
         if s.class != Symbol
           raise BudError, "invalid schema element \"#{s}\", type \"#{s.class}\""
         end
       end
-      if schema.uniq.length < schema.length
+      if cols.uniq.length < cols.length
         raise BudError, "schema for #{tabname} contains duplicate names"
       end
 
-      return [schema, key_cols]
+      return [cols, key_cols]
     end
 
     public
@@ -86,16 +86,17 @@ module Bud
       self.class.new(tabname, bud_instance, @given_schema)
     end
 
-    # subset of the schema (i.e. an array of attribute names) that forms the key
+    # produces the schema in a format that is useful as the schema specification for another table
     public
-    def key_cols
-      @key_cols
+    def schema
+      return nil if @cols.nil? or @cols.length < 1
+      { key_cols => val_cols }
     end
 
     # subset of the schema (i.e. an array of attribute names) that is not in the key
     public
     def val_cols # :nodoc: all
-      schema - key_cols
+      @cols - @key_cols
     end
 
     # define methods to turn 'table.col' into a [table,col] pair
@@ -103,7 +104,7 @@ module Bud
     #    j = join link, path, {link.to => path.from}
     private
     def setup_accessors
-      s = @schema
+      s = @cols
       s.each do |colname|
         reserved = eval "defined?(#{colname})"
         unless (reserved.nil? or
@@ -141,7 +142,7 @@ module Bud
     # generate a tuple with the schema of this collection and nil values in each attribute
     public
     def null_tuple
-      tuple_accessors(Array.new(@schema.length))
+      tuple_accessors(Array.new(@cols.length))
     end
 
     # project the collection to its key attributes
@@ -153,7 +154,7 @@ module Bud
     # project the collection to its non-key attributes
     public
     def values
-      self.map{|t| (self.key_cols.length..self.schema.length-1).map{|i| t[i]}}
+      self.map{|t| (self.key_cols.length..self.cols.length-1).map{|i| t[i]}}
     end
 
     # map each item in the collection into a string, suitable for placement in stdio
@@ -196,7 +197,7 @@ module Bud
       bud_instance.metrics[:collections][{:addr=>addr, :tabname=>tabname, :strat_num=>strat_num, :rule_num=>rule_num}] ||= 0
       bud_instance.metrics[:collections][{:addr=>addr, :tabname=>tabname, :strat_num=>strat_num, :rule_num=>rule_num}] += 1
     end
-    
+
     private
     def each_from(bufs, &block) # :nodoc: all
       bufs.each do |b|
@@ -293,15 +294,15 @@ module Bud
         raise BudTypeError, "String value used as a fact inserted into \"#{tabname}\": #{o.inspect}"
       end
 
-      if o.length < schema.length then
+      if o.length < cols.length then
         # if this tuple has too few fields, pad with nil's
         old = o.clone
-        (o.length..schema.length-1).each{|i| o << nil}
+        (o.length..cols.length-1).each{|i| o << nil}
         # puts "in #{@tabname}, converted #{old.inspect} to #{o.inspect}"
-      elsif o.length > schema.length then
+      elsif o.length > cols.length then
         # if this tuple has more fields than usual, bundle up the
         # extras into an array
-        o = (0..(schema.length - 1)).map{|c| o[c]} << (schema.length..(o.length - 1)).map{|c| o[c]}
+        o = (0..(cols.length - 1)).map{|c| o[c]} << (cols.length..(o.length - 1)).map{|c| o[c]}
       end
       return o
     end
@@ -339,13 +340,13 @@ module Bud
     end
 
     # Assign self a schema, by hook or by crook.  If +o+ is schemaless *and*
-    # empty, will leave @schema as is.
+    # empty, will leave @cols as is.
     private
     def establish_schema(o)
       # use o's schema if available
       deduce_schema(o)
       # else use arity of first non-nil tuple of o
-      if @schema.nil?
+      if @cols.nil?
         o.each do |t|
           next if t.nil?
           fit_schema(t.size)
@@ -357,11 +358,11 @@ module Bud
     # Copy over the schema from +o+ if available
     private
     def deduce_schema(o)
-      if @schema.nil? and o.class <= Bud::BudCollection and not o.schema.nil?
+      if @cols.nil? and o.class <= Bud::BudCollection and not o.cols.nil?
         # must have been initialized with defer_schema==true.  take schema from rhs
-        init_schema(o.schema)
+        init_schema(o.cols)
       end
-      # if nothing available, leave @schema unchanged
+      # if nothing available, leave @cols unchanged
     end
 
     # manufacture schema of the form [:c0, :c1, ...] with width = +arity+
@@ -391,7 +392,7 @@ module Bud
       unless o.nil?
         o = o.uniq if o.respond_to?(:uniq)
         check_enumerable(o)
-        establish_schema(o) if @schema.nil?
+        establish_schema(o) if @cols.nil?
 
         # it's a pity that we are massaging the tuples that already exist in the head
         o.each do |t|
@@ -414,7 +415,7 @@ module Bud
     public
     def pending_merge(o) # :nodoc: all
       check_enumerable(o)
-      establish_schema(o) if @schema.nil?
+      establish_schema(o) if @cols.nil?
 
       o.each {|i| do_insert(i, @pending)}
       return self
@@ -424,7 +425,7 @@ module Bud
     superator "<+" do |o|
       pending_merge o
     end
-    
+
     public
     superator "<+-" do |o|
       self <+ o
@@ -434,12 +435,12 @@ module Bud
         end
       end
     end
-    
-    public 
+
+    public
     superator "<-+" do |o|
       self <+- o
     end
-    
+
     # Called at the end of each timestep: prepare the collection for the next
     # timestep.
     public
@@ -506,11 +507,11 @@ module Bud
           memo[pkey_cols][:agg], argflag = \
              agg.send(:trans, memo[pkey_cols][:agg], p[colnum])
           if argflag == :keep or agg.send(:tie, memo[pkey_cols][:agg], p[colnum])
-            memo[pkey_cols][:tups] << p 
+            memo[pkey_cols][:tups] << p
           elsif argflag == :replace
             memo[pkey_cols][:tups] = [p]
           elsif argflag.class <= Array and argflag[0] == :delete
-            memo[pkey_cols][:tups] -= argflag[1..-1] 
+            memo[pkey_cols][:tups] -= argflag[1..-1]
           end
         end
         memo
@@ -522,7 +523,7 @@ module Bud
       tups.each do |k,v|
         finalaggs[k] = agg.send(:final, v[:agg])
       end
-      
+
       # and winnow the tups to match
       finalaggs.each do |k,v|
         tups[k][:tups].each do |t|
@@ -578,14 +579,13 @@ module Bud
     def *(collection)
       join([self, collection])
     end
-    
+
     # AntiJoin
     public
-    def notin(coll,*preds, &blk)
+    def notin(coll, *preds, &blk)
       @origpreds = preds
-      @schema = schema
       return BudJoin.new([self,coll], @bud_instance).anti(*preds,&blk)
-    end    
+    end
 
     # SQL-style grouping.  first argument is an array of attributes to group by.
     # Followed by a variable-length list of aggregates over attributes (e.g. +min(:x)+)
@@ -763,11 +763,11 @@ module Bud
     def payloads
       return self.pro if @is_loopback
 
-      if schema.size > 2
+      if cols.size > 2
         # bundle up each tuple's non-locspec fields into an array
         retval = case @locspec_idx
           when 0 then self.pro{|t| t[1..(t.size-1)]}
-          when (schema.size - 1) then self.pro{|t| t[0..(t.size-2)]}
+          when (cols.size - 1) then self.pro{|t| t[0..(t.size-2)]}
           else self.pro{|t| t[0..(@locspec_idx-1)] + t[@locspec_idx+1..(t.size-1)]}
         end
       else

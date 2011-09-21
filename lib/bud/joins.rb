@@ -30,11 +30,11 @@ module Bud
         memo[r.tabname] += 1
         memo
       end
-      counts.each do |name, cnt| 
+      counts.each do |name, cnt|
         raise Bud::CompileError, "#{cnt} instances of #{name} in rule; only one self-join currently allowed per rule" if cnt > 2
         @selfjoins << name if cnt == 2
       end
-      
+
 
       # recurse to form a tree of binary BudJoins
       @rels = [rellist[0]]
@@ -75,7 +75,7 @@ module Bud
       preds = []
       rels.each do |r|
         rels.each do |s|
-          matches = r.schema & s.schema
+          matches = r.cols & s.cols
           matches.each do |c|
             preds << [bud_instance.send(r.tabname).send(c), bud_instance.send(s.tabname).send(c)] unless r.tabname.to_s >= s.tabname.to_s
           end
@@ -90,7 +90,7 @@ module Bud
     public
     def flatten(*preds)
       setup_preds(preds)
-      flat_schema = @rels.map{|r| r.schema}.flatten(1)
+      flat_schema = @rels.map{|r| r.cols}.flatten(1)
       dupfree_schema = []
       # while loop here (inefficiently) ensures no collisions
       while dupfree_schema == [] or dupfree_schema.uniq.length < dupfree_schema.length
@@ -169,7 +169,7 @@ module Bud
     end
 
     alias combos pairs
-    
+
     # the natural join: given a * expression over n collections, form all
     # combinations of items that have the same values in matching fields
     public
@@ -210,7 +210,7 @@ module Bud
       self.extend(Bud::BudOuterJoin)
       blk.nil? ? self : map(&blk)
     end
-    
+
     # AntiJoin
     # note: unlike other join methods (e.g. lefts) all we do with the return value
     # of block is check whether it's nil.  Putting "projection" logic in the block
@@ -219,7 +219,7 @@ module Bud
     def anti(*preds, &blk)
       @origpreds = preds
       # no projection involved here, so we can propagate the schema
-      @schema = rels[0].schema
+      @cols = rels[0].cols
       setup_preds(preds)
       setup_state if self.class <= Bud::BudJoin
       if @bud_instance.stratum_first_iter
@@ -247,14 +247,14 @@ module Bud
       end
       @hashpreds = allpreds.reject {|p| p[0][0] != @rels[0].tabname}
       @localpreds = @hashpreds
-      
+
       # only allow preds on the same table name if they're on a self-joined table
-      @localpreds.each do |p| 
+      @localpreds.each do |p|
         if p[0][0] == p[1][0] and not @selfjoins.include? p[0][0]
-          raise Bud::CompileError, "single-table predicate on #{p[0][0]} disallowed in joins" 
+          raise Bud::CompileError, "single-table predicate on #{p[0][0]} disallowed in joins"
         end
       end
-      
+
       @localpreds += allpreds.map do |p|
         p if p[0][0] == p[1][0] and (p[0][0] == @rels[0].tabname or p[0][0] == @rels[1].tabname)
       end.compact
@@ -386,7 +386,7 @@ module Bud
       name, offset = entry[0], entry[1]
 
       # determine which subtuple of the collection contains the table
-      # referenced in entry.  
+      # referenced in entry.
       subtuple = 0
       origrels[1..origrels.length].each_with_index do |t,i|
         if t.tabname == entry[0]

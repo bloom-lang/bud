@@ -40,7 +40,7 @@ class VizOnline #:nodoc: all
       lt = "#{t[0]}_vizlog".to_sym
       if t[2] == "Bud::BudChannel"
         lts = "#{snd_alias}_vizlog".to_sym
-        @table_info << [snd_alias, t[2]] 
+        @table_info << [snd_alias, t[2]]
       end
       @table_info << [t[0], t[2]]
     end
