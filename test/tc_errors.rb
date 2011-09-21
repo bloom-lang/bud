@@ -175,7 +175,7 @@ class TestErrorHandling < Test::Unit::TestCase
     e = EvalError.new
     e.run_bg
 
-    assert_raise(Bud::BudError) {
+    assert_raise(ZeroDivisionError) {
       e.sync_do {
         e.t1 <+ [[5, 0]]
       }
@@ -201,8 +201,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_grouping_cols
-    p = BadGroupingCols.new
-    assert_raise(Bud::CompileError) {p.tick}
+    assert_raise(Bud::BudError) {p = BadGroupingCols.new}
   end
 
   class BadJoinTabs
@@ -223,8 +222,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_join_tabs
-    p = BadJoinTabs.new
-    assert_raise(Bud::CompileError) {p.tick}
+    assert_raise(Bud::CompileError) {p = BadJoinTabs.new}
   end
 
   class BadNextChannel
@@ -238,8 +236,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_next_channel
-    p = BadNextChannel.new
-    assert_raise(Bud::BudError) {p.tick}
+    assert_raise(Bud::BudError) {p = BadNextChannel.new}
   end
 
   class BadStdio
@@ -250,8 +247,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_stdio
-    p = BadStdio.new
-    assert_raise(Bud::BudError) {p.tick}
+    assert_raise(Bud::BudError) {p = BadStdio.new}
   end
 
   class BadFileReader1
@@ -266,8 +262,7 @@ class TestErrorHandling < Test::Unit::TestCase
 
   def test_bad_file_reader_1
     File.open("/tmp/foo#{Process.pid}", 'a')
-    p = BadFileReader1.new
-    assert_raise(Bud::CompileError) {p.tick}
+    assert_raise(Bud::CompileError){p = BadFileReader1.new}
   end
 
   class BadFileReader2
@@ -282,8 +277,7 @@ class TestErrorHandling < Test::Unit::TestCase
 
   def test_bad_file_reader_2
     File.open("/tmp/foo#{Process.pid}", 'a')
-    p = BadFileReader2.new
-    assert_raise(Bud::CompileError) {p.tick}
+    assert_raise(Bud::CompileError) {p = BadFileReader2.new}
   end
 
   class BadFileReader3
@@ -298,8 +292,7 @@ class TestErrorHandling < Test::Unit::TestCase
 
   def test_bad_file_reader_3
     File.open("/tmp/foo#{Process.pid}", 'a')
-    p = BadFileReader3.new
-    assert_raise(Bud::BudError) {p.tick}
+    assert_raise(Bud::BudError) {p = BadFileReader3.new}
   end
 
   class BadOp
