@@ -189,7 +189,6 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
       @collnames << exp[2]
     elsif exp[2] and exp[2] == :rename
       arglist, namelit, schemahash = exp[3]
-      register_scratch(namelit[1], schemahash)
       # and add name to @collnames
       @collnames << namelit[1]
     else
