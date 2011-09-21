@@ -15,7 +15,7 @@ module ParentModule
   end
 
   def t1_val_sum
-    t1.values.flatten.reduce(:+)
+    t1.to_a.map{|t| t[1]}.reduce(:+)
   end
 end
 
