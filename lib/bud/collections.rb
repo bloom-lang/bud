@@ -421,8 +421,10 @@ module Bud
     def merge(o, buf=@delta) # :nodoc: all
       @bud_instance.merge_targets[@bud_instance.this_stratum][self] = true if o.class <= Bud::BudCollection
       if o.class <= Bud::PushElement
+        deduce_schema(o) if @schema.nil?
         o.wire_to self
       elsif o.class <= Bud::BudCollection
+        deduce_schema(o) if @schema.nil?
         o.pro.wire_to self
       else
         unless o.nil?

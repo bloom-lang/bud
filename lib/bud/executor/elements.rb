@@ -110,7 +110,7 @@ module Bud
             @bud_instance.send(@collection_name).tuple_accessors(item)
             (item = @blk.nil? ? item : @blk.call(item)) if do_block
           else
-            raise NoMethodError.new(err.name), "No method #{err.name} for Array #{item.inspect} (element collection name: #{@collection_name}"
+            raise NoMethodError.new(err.name), "No method #{err.name} for Array #{item.inspect} (element collection name: #{@collection_name})"
           end
         end
         @outputs.each do |ou| 

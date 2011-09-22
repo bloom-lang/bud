@@ -243,8 +243,9 @@ end
 class TestTemps < Test::Unit::TestCase
   def test_basic_temp
     p = BasicTemp.new
-    p.inski <+ [[1,1], [2,2], [3,3]]
-    p.tick
+    p.run_bg
+    p.sync_do{p.inski <+ [[1,1], [2,2], [3,3]]}
+    p.stop_bg
     assert_equal(3, p.out.length)
     assert_equal([[1], [2], [3]], p.out.map{|o| [o.val]}.sort)
   end
@@ -258,18 +259,21 @@ class TestTemps < Test::Unit::TestCase
   end
   def test_temp_next
     p = TempNext.new
-    p.inski <+ [[1,1,2,2],
-                [2,2,3,3],
-                [3,3,4,4]]
-    p.wait <+  [[5,5,6,6],
-                [7,7,8,8],
-                [9,9,9,9]]
-    p.tick
+    p.run_bg
+    p.sync_do do 
+      p.inski <+ [[1,1,2,2],
+                  [2,2,3,3],
+                  [3,3,4,4]]
+      p.wait <+  [[5,5,6,6],
+                  [7,7,8,8],
+                  [9,9,9,9]]
+    end
     assert_equal(3, p.out.length)
     assert_equal([[1], [2], [3]], p.out.map{|o| [o.c1]}.sort)
-    p.tick
+    p.sync_do
     assert_equal(3, p.out.length)
     assert_equal([[5], [7], [9]], p.out.map{|o| [o.c1]}.sort)
+    p.stop_bg
   end
   def test_dup_tmp
     assert_raise(Bud::CompileError) {DupTemp.new}
