@@ -205,8 +205,6 @@ class PushTests < Test::Unit::TestCase
     end
     bootstrap{t_in <= [[1,1],[2,2]]}
     bloom do
-      # This rule fails during rewriting, which fails to rewrite column references
-      # of nested Bloom expressions (like t_in.pro)
       t_out1 <= (t_in*t_in).lefts do |t1|
         ['inc', 'inc'] if t_in.pro{|t| [t.key]}.include? 1
       end

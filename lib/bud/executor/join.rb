@@ -297,14 +297,14 @@ module Bud
         @found_delta = true
         #and probe
         # puts "probing #{item.inspect} into @source[#{1-offset}] on key #{the_key.inspect}"
-        matches = @hash_tables[1-offset][the_key]
-        process_matches(item, matches, offset) unless matches.nil?
+        the_matches = @hash_tables[1-offset][the_key]
+        process_matches(item, the_matches, offset) unless the_matches.nil?
       end
     end
     
     private
-    def process_matches(item, matches, offset)
-      matches.each do |m|
+    def process_matches(item, the_matches, offset)
+      the_matches.each do |m|
         # puts "    found match #{m.inspect}"
         result = [nil,nil]
         result[offset] = item
@@ -439,8 +439,8 @@ module Bud
       rels.each_with_index do |r,i|
         rels.each_with_index do |s,j|
           unless i >= j
-            matches = r.schema & s.schema
-            matches.each do |c|
+            the_matches = r.schema & s.schema
+            the_matches.each do |c|
               preds << [r.send(c), s.send(c)] 
             end
           end
@@ -477,12 +477,12 @@ module Bud
         @found_delta = true
         #and probe
         # puts "probing #{item.inspect} into @source[#{1-offset}] on key #{the_key.inspect}"
-        matches = @hash_tables[1-offset][the_key]
-        if matches.nil? and offset == 0 # only doing Left Outer Join right now
+        the_matches = @hash_tables[1-offset][the_key]
+        if the_matches.nil? and offset == 0 # only doing Left Outer Join right now
           @missing_keys << the_key
         else
           @missing_keys.delete(the_key) # no longer missing no matter which side this tuple is
-          process_matches(item, matches, offset) unless matches.nil?
+          process_matches(item, the_matches, offset) unless the_matches.nil?
         end
       end  
     end
