@@ -25,8 +25,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
   def call_is_attr_deref?(recv, op)
     if recv.first == :call and @bud_instance.tables.has_key? recv[2]
-      schema = @bud_instance.tables[recv[2]].cols
-      return true if schema and schema.include? op
+      cols = @bud_instance.tables[recv[2]].cols
+      return true if cols and cols.include? op
     end
     return false
   end
@@ -187,10 +187,10 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
     if recv and recv.class == Sexp and recv.first == :lvar and recv[1] and @iterhash[recv[1]]
       if @bud_instance.respond_to?(@iterhash[recv[1]])
         if @bud_instance.send(@iterhash[recv[1]]).class <= Bud::BudCollection
-          schema = @bud_instance.send(@iterhash[recv[1]]).cols
+          cols = @bud_instance.send(@iterhash[recv[1]]).cols
           if op != :[] and @bud_instance.send(@iterhash[recv[1]]).respond_to?(op)
             # if the op is an attribute name in the schema, col is its index
-            col = schema.index(op) unless schema.nil?
+            col = cols.index(op) unless cols.nil?
             unless col.nil?
               op = :[]
               args = s(:arglist, s(:lit, col))
