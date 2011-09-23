@@ -223,7 +223,11 @@ module Bud
       setup_preds(preds)
       setup_state if self.class <= Bud::BudJoin
       if @bud_instance.stratum_first_iter
-        @matches = map { |r, s| (blk.nil?) ? r : blk.call(r,s) }.compact
+        if blk.nil?
+          @matches = map
+        else
+          @matches = map { |r, s| !(blk.call(r,s).nil?) ? r : nil }.compact
+        end
         @rels[0].map {|r| (@matches.include? r) ? nil : r}.compact
       else
         []

@@ -630,3 +630,27 @@ class OjChannelTest < Test::Unit::TestCase
     o.stop
   end
 end
+
+class AntiJoinTest < Test::Unit::TestCase
+  class SimpleAnti
+    include Bud
+    state do
+      table :foo, [:c1, :c2]
+      table :bar, [:c1, :c2]
+      table :outsie, [:c1, :c2]
+    end
+    bootstrap do
+      foo <= [["alex", 1], ["joe", 2], ["jonathan", 3]]
+      bar <= [["joe", 0], ["joe", 1], ["alex", 1]]
+    end
+    bloom do
+      outsie <= foo.notin(bar, :c1=>:c1) {|f, b| true if f.c2 <= b.c2}
+    end
+  end
+
+  def test_simple_anti
+    o = SimpleAnti.new
+    o.tick
+    assert_equal([["joe", 2], ["jonathan", 3]], o.outsie.to_a.sort)
+  end
+end
