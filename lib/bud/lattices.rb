@@ -37,6 +37,9 @@ class BudLattice
     @got_delta = false
   end
 
+  # XXX: This returns a new tree of vector lattices on every invocation. It
+  # would be better to construct a single tree on the first call and then
+  # memoize it.
   def *(i)
     VectorLattice.wrap(self, i)
   end
@@ -77,7 +80,12 @@ class VectorLattice < BudLattice
       if l.class <= VectorLattice
         r = l.all?(meth_name, *args)
       else
-        # XXX: check that "meth_name" for l is a morphism
+        # Check that "meth_name" is a morphism for this element of the vector;
+        # otherwise, throw a runtime exception. Doing this at runtime is
+        # somewhat bogus, but hard to avoid due to Ruby's lack of static typing.
+        unless l.class.morphs.has_key? meth_name
+          raise Bud::BudTypeError, "\"#{meth_name}\" is not a morphism for #{l.class}"
+        end
         r = l.send(meth_name, *args)
       end
       return false unless r

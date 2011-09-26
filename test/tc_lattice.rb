@@ -96,6 +96,22 @@ class ComposeTreeLattice
   end
 end
 
+class ComposeLatticeUnsafeError
+  include Bud
+
+  state do
+    lat_bool :m1
+    lat_bool :m2
+    lat_vec :m3
+    lat_bool :done
+  end
+
+  bloom do
+    m3 <= (m1 * m2)
+    done <= m3.all?(:reveal)
+  end
+end
+
 class TestMaxLattice < Test::Unit::TestCase
   def test_simple_max
     i = SimpleMax.new
@@ -178,7 +194,9 @@ class TestMaxLattice < Test::Unit::TestCase
     assert_equal([[true]], i.done.to_set)
   end
 
-  def test_compose_nm
+  def test_compose_nm_error
+    i = ComposeLatticeUnsafeError.new
+    assert_raise(Bud::BudTypeError) { i.tick }
   end
 
   def test_compose_tree
