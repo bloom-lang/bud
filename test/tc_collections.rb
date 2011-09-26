@@ -287,7 +287,8 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_dup_keys
-    assert_raise(Bud::KeyConstraintError) { program = DupKeyBud.new }
+    program = DupKeyBud.new
+    assert_raise(Bud::KeyConstraintError) { program.tick }
   end
 
   def test_grep
@@ -362,10 +363,14 @@ class TestCollections < Test::Unit::TestCase
     p1 = BendTypes.new
     p1.tick
     assert_equal(1, p1.t1.first.key)
-    assert_raise(Bud::BudTypeError) { p2 = NonEnumerable.new }
-    assert_raise(Bud::BudTypeError) { p3 = NonTuple.new }
-    assert_raise(Bud::BudTypeError) { p4 = NonTupleDelete.new}
-    assert_raise(Bud::BudTypeError) { p5 = StringMerge.new}
+    p2 = NonEnumerable.new
+    assert_raise(Bud::BudTypeError) { p2.tick }    
+    p3 = NonTuple.new
+    assert_raise(Bud::BudTypeError) { p3.tick }
+    p4 = NonTupleDelete.new
+    assert_raise(Bud::BudTypeError) { p4.tick }
+    p5 = StringMerge.new
+    assert_raise(Bud::BudTypeError) { p5.tick }
     p6 = StringAsyncMerge.new
     assert_raise(Bud::BudTypeError) { p6.tick }
   end
@@ -586,5 +591,40 @@ class TestTransitivity < Test::Unit::TestCase
     assert_equal([[1,1]], p.t1.to_a)
     assert_equal([[1,1]], p.t2.to_a)
     assert_equal([[1,1]], p.t3.to_a)
+  end
+end
+
+class TestCollExpr < Test::Unit::TestCase
+  class CollExprTest
+    include Bud
+    state do 
+      table :his
+      coll_expr :e, lambda {[[budtime, 'hi']]}
+    end
+    bloom {his <= e}
+  end
+  
+  def test_coll_expr
+    p = CollExprTest.new
+    p.tick;p.tick;p.tick
+    assert_equal([[0,'hi'],[1,'hi'],[2,'hi']], p.his.to_a.sort)
+  end
+end
+
+class TestConstants < Test::Unit::TestCase
+  class StrOut
+    include Bud
+    state { table :his}
+    bloom do
+      his <= [[budtime, 'hi']]
+    end
+  end
+  
+  def test_str_out
+    p = StrOut.new
+    p.tick
+    p.tick
+    p.tick
+    assert_equal([[0,'hi'],[1,'hi'],[2,'hi']], p.his.to_a.sort)
   end
 end

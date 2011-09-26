@@ -201,7 +201,8 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_grouping_cols
-    assert_raise(Bud::BudError) {p = BadGroupingCols.new}
+    p = BadGroupingCols.new
+    assert_raise(Bud::BudError) {p.tick}
   end
 
   class BadJoinTabs
@@ -222,7 +223,8 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_join_tabs
-    assert_raise(Bud::CompileError) {p = BadJoinTabs.new}
+    p = BadJoinTabs.new
+    assert_raise(Bud::CompileError) {p.tick}
   end
 
   class BadNextChannel
@@ -236,7 +238,8 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_next_channel
-    assert_raise(Bud::BudError) {p = BadNextChannel.new}
+    p = BadNextChannel.new
+    assert_raise(Bud::BudError) {p.tick}
   end
 
   class BadStdio
@@ -247,7 +250,8 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_stdio
-    assert_raise(Bud::BudError) {p = BadStdio.new}
+    p = BadStdio.new
+    assert_raise(Bud::BudError) {p.tick}
   end
 
   class BadFileReader1
@@ -262,7 +266,8 @@ class TestErrorHandling < Test::Unit::TestCase
 
   def test_bad_file_reader_1
     File.open("/tmp/foo#{Process.pid}", 'a')
-    assert_raise(Bud::CompileError){p = BadFileReader1.new}
+    p = BadFileReader1.new
+    assert_raise(Bud::CompileError){p.tick}
   end
 
   class BadFileReader2
@@ -277,7 +282,8 @@ class TestErrorHandling < Test::Unit::TestCase
 
   def test_bad_file_reader_2
     File.open("/tmp/foo#{Process.pid}", 'a')
-    assert_raise(Bud::CompileError) {p = BadFileReader2.new}
+    p = BadFileReader2.new
+    assert_raise(Bud::CompileError) {p.tick}
   end
 
   class BadFileReader3
@@ -292,7 +298,8 @@ class TestErrorHandling < Test::Unit::TestCase
 
   def test_bad_file_reader_3
     File.open("/tmp/foo#{Process.pid}", 'a')
-    assert_raise(Bud::BudError) {p = BadFileReader3.new}
+    p = BadFileReader3.new
+    assert_raise(Bud::BudError) {p.tick}
   end
 
   class BadOp

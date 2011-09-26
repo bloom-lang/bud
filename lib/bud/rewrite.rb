@@ -59,6 +59,18 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
   def collect_rhs(exp)
     @collect = true
+    # rewrite constant array expressions to lambdas
+    if exp[0] and exp[0] == :arglist 
+      # the <= case
+      if exp[1] and exp[1][0] == :array
+        exp = s(exp[0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, exp[1]))
+      # the superator case
+      elsif exp[1] and exp[1][0] == :call \
+        and exp[1][1] and exp[1][1][0] and exp[1][1][0] == :array \
+        and exp[1][2] and (exp[1][2] == :+@ or exp[1][2] == :-@)
+        exp = s(exp[0], s(exp[1][0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, exp[1][1]), exp[1][2], exp[1][3]))
+      end
+    end
     rhs = process exp
     @collect = false
     return rhs

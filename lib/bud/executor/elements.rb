@@ -36,18 +36,30 @@ module Bud
     end
     
     public
-    def print_wiring(depth=0)
+    def print_wiring(depth=0, accum = "")
       depth.times {print "  "}
-      puts "#{object_id.to_i % 10000}: #{elem_name} (#{self.class})"
-      (@outputs+@pendings+@deletes+@delete_keys).each do |o|
-        if o.respond_to?(:print_wiring) 
-          o.print_wiring(depth+1) 
-        else
-          (depth+1).times {print "  "}
-          if o.class <= Bud::BudCollection
-            puts "#{o.object_id.to_i % 10000}: #{o.tabname} (#{o.class})"
+      puts "#{accum} #{object_id.to_i % 10000}: #{elem_name} (#{self.class})"
+      [@outputs, @pendings, @deletes, @delete_keys].each do |kind|
+        case kind
+        when @outputs
+          next_accum = "=> "
+        when @pendings
+          next_accum = "+> "
+        when @deletes, @delete_keys
+          next_accum = "-> "
+        end  
+        
+        kind.each do |o|
+          if o.respond_to?(:print_wiring) 
+            o.print_wiring(depth+1, next_accum) 
           else
-            puts "#{o.object_id.to_i % 10000}: (#{o.class.name})"
+            (depth+1).times {print "  "}
+            print "#{next_accum} "
+            if o.class <= Bud::BudCollection
+              puts "#{o.object_id.to_i % 10000}: #{o.tabname} (#{o.class})"
+            else
+              puts "#{o.object_id.to_i % 10000}: (#{o.class.name})"
+            end
           end
         end
       end

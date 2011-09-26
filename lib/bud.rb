@@ -65,7 +65,7 @@ module Bud
   attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
   attr_reader :push_sources, :push_elems, :push_joins, :scanners, :delta_scanners, :merge_targets, :done_wiring
   attr_reader :stratum_first_iter, :joinstate
-  attr_reader :this_stratum, :this_rule, :rule_orig_src
+  attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap, :done_wiring
   attr_accessor :lazy # This can be changed on-the-fly by REBL
   attr_accessor :stratum_collection_map, :rewritten_strata, :no_attr_rewrite_strata
   attr_accessor :metrics
@@ -187,7 +187,8 @@ module Bud
     @push_sources = @strata.length.times.map{{}}
     @push_joins = @strata.length.times.map{[]}
     @merge_targets = @strata.length.times.map{{}}
-    do_wiring
+
+    # do_wiring
   end
 
   private
@@ -636,7 +637,7 @@ module Bud
 
   # Returns the internal IP and port.  See ip_port.
   def int_ip_port
-    raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0
+    raise BudError, "int_ip_port called before port defined" if @port.nil? and @options[:port] == 0
     @port.nil? ? "#{@ip}:#{@options[:port]}" : "#{@ip}:#{@port}"
   end
 

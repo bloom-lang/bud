@@ -3,6 +3,17 @@ require 'stringio'
 require 'bud/rebl'
 require 'timeout'
 
+def capture_stdout
+  $stdout = StringIO.new("", "w")
+  begin
+    yield 
+    $stdout.string
+  ensure
+    $stdout = STDOUT
+  end
+end
+
+
 class ReblTester
   attr_reader :lib
 
@@ -11,11 +22,13 @@ class ReblTester
   end
 
   def exec_rebl(str)
-    out = StringIO.new
-    $stdout = out
-    $stdin = StringIO.new(str)
-    ReblShell::rebl_loop(@lib, true)
-    return out.string
+    # out = StringIO.new
+    # $stdout = out
+    out = capture_stdout do
+      $stdin = StringIO.new(str)
+      ReblShell::rebl_loop(@lib, true)
+    end
+    return out #.string
   ensure
     $stdout = STDOUT
   end
@@ -35,13 +48,12 @@ class TestRebl < Test::Unit::TestCase
     assert_nothing_raised do
       begin
         # Ignore the welcome messages.
-        $stdout = StringIO.new
-        rt1 = ReblTester.new
-        rt2 = ReblTester.new
-        ip_port1 = "#{rt1.lib.ip}:#{rt1.lib.port}"
-        ip_port2 = "#{rt2.lib.ip}:#{rt2.lib.port}"
-      ensure
-        $stdout = STDOUT
+        capture_stdout do
+          rt1 = ReblTester.new
+          rt2 = ReblTester.new
+          ip_port1 = "#{rt1.lib.ip}:#{rt1.lib.port}"
+          ip_port2 = "#{rt2.lib.ip}:#{rt2.lib.port}"
+        end
       end
     end
 
@@ -62,7 +74,7 @@ class TestRebl < Test::Unit::TestCase
         read, $stdout = IO.pipe
         $stdin = StringIO.new("/run")
         ReblShell::rebl_loop(rt1.lib, true)
-        Timeout::timeout(30) do
+        Timeout::timeout(5) do
           the_line = read.readline
         end
       ensure

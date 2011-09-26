@@ -153,6 +153,7 @@ class CombosBud
     scratch :flip_out, [:x1, :x2, :x3, :y1, :y2, :y3]
     scratch :nat_out, [:x1, :x2, :x3, :y1, :y2, :y3]
     scratch :loj_out, [:x1, :x2, :y1, :y2]
+    scratch :newtab_out, [:x1, :x2, :x3, :y1, :y2, :y3]
   end
 
   bootstrap do
@@ -181,7 +182,7 @@ class CombosBud
 
     nat_out <= (r * s_tab * t).matches { |t1, t2, t3| [t1.x, t2.x, t3.x, t1.y1, t2.y1, t3.y1] }
 
-    temp :newtab_out <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x) { |a,b,c| [a.x, b.x, c.x, a.y1, b.y1, c.y1] }
+    newtab_out <= (r * s_tab * t).combos(r.x => s_tab.x, s_tab.x => t.x) { |a,b,c| [a.x, b.x, c.x, a.y1, b.y1, c.y1] }
 
     loj_out <= (mismatches * s_tab).outer(:x => :x) { |t1, t2| [t1.x, t2.x, t1.y1, t2.y1] }
   end
@@ -333,11 +334,16 @@ class TestJoins < Test::Unit::TestCase
   end
 
   def test_bad_star_joins
-    assert_raise(Bud::CompileError) {p1 = MixedAttrRefs.new}
-    assert_raise(Bud::CompileError) {p2 = MissingAttrRefs.new}
-    assert_raise(Bud::CompileError) {p3 = IllegalAttrRefs.new}
-    assert_raise(Bud::CompileError) {p4 = AmbiguousAttrRefs.new}
-    assert_raise(Bud::CompileError) {p5 = UnJoinedTableRef.new}    # Issue 191
+    p1 = MixedAttrRefs.new
+    assert_raise(Bud::CompileError) {p1.tick}
+    p2 = MissingAttrRefs.new
+    assert_raise(Bud::CompileError) {p2.tick}
+    p3 = IllegalAttrRefs.new
+    assert_raise(Bud::CompileError) {p3.tick}
+    p4 = AmbiguousAttrRefs.new
+    assert_raise(Bud::CompileError) {p4.tick}
+    p5 = UnJoinedTableRef.new
+    assert_raise(Bud::CompileError) {p5.tick}    # Issue 191
   end
   
   def test_rename_join
@@ -425,6 +431,8 @@ class TestJoins < Test::Unit::TestCase
       table :t1
       table :t2
       table :t3
+      scratch :out1, [:key1, :key2] => [:val]
+      scratch :out2
     end
     bootstrap do
       t1 <+ [[1,1]]
@@ -435,8 +443,8 @@ class TestJoins < Test::Unit::TestCase
       t2 <+ [[3,2]]
     end
     bloom do
-      temp :out1 <= (t1 * t2).pairs(:val=>:val) {|a,b| [a.key, b.key, a.val]}
-      temp :out2 <= (t1 * t2).pairs(:val=>:val) {|a,b| [a.key, a.val]}
+      out1 <= (t1 * t2).pairs(:val=>:val) {|a,b| [a.key, b.key, a.val]}
+      out2 <= (t1 * t2).pairs(:val=>:val) {|a,b| [a.key, a.val]}
     end
   end
   

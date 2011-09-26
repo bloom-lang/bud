@@ -63,7 +63,7 @@ module Bud
         end
       end
       if the_schema.uniq.length < the_schema.length
-        raise BudError, "schema #{given_schema} contains duplicate names"
+        raise BudError, "schema #{given_schema.inspect} contains duplicate names"
       end
 
       return [the_schema, key_cols]
@@ -163,7 +163,7 @@ module Bud
       delta_pusher.wire_to(pusher_pro)
       pusher_pro
     end
-    
+
     # ruby 1.9 defines flat_map to return "a new array with the concatenated results of running
     # <em>block</em> once for every element". So we wire the input to a pro(&blk), and wire the output
     # of that pro to a group that does accum.
@@ -182,13 +182,13 @@ module Bud
       @bud_instance.push_elems[[self.object_id,:flatten]] = elem
       return elem
     end
-    
+
     public 
     def sort(&blk)
       pusher = self.pro
       pusher.sort(@name, @bud_instance, @schema, &blk)
     end
-    
+
     def rename(the_name, the_schema=nil)
       # a scratch with this name should have been defined during rewriting
       raise(BudError, "rename failed to define a scratch named #{the_name}") unless @bud_instance.respond_to? the_name
@@ -196,12 +196,12 @@ module Bud
       retval.init_schema(the_schema)
       retval
     end
-    
+
     # def to_enum
     #   pusher = self.pro
     #   pusher.to_enum
     # end
-    
+
     # By default, all tuples in any rhs are in storage or delta. Tuples in
     # new_delta will get transitioned to delta in the next iteration of the
     # evaluator (but within the current time tick).
@@ -209,7 +209,7 @@ module Bud
     def each(&block) # :nodoc: all
       each_from([@storage, @delta], &block)
     end
-    
+
     public
     def each_raw(&block)
       @storage.each_value(&block)
@@ -226,7 +226,7 @@ module Bud
       bud_instance.metrics[:collections][{:addr=>addr, :tabname=>tabname, :strat_num=>strat_num, :rule_num=>rule_num}] ||= 0
       bud_instance.metrics[:collections][{:addr=>addr, :tabname=>tabname, :strat_num=>strat_num, :rule_num=>rule_num}] += 1
     end
-    
+
     private
     def each_from(bufs, &block) # :nodoc: all
       bufs.each do |b|
@@ -364,7 +364,7 @@ module Bud
 
     private
     def check_enumerable(o)
-      unless o.nil? or o.class < Enumerable
+      unless o.nil? or o.class < Enumerable or o.class <= Proc
         raise BudTypeError, "Collection #{tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
       end
     end
@@ -419,13 +419,16 @@ module Bud
 
     public
     def merge(o, buf=@delta) # :nodoc: all
-      @bud_instance.merge_targets[@bud_instance.this_stratum][self] = true if o.class <= Bud::BudCollection
+      @bud_instance.merge_targets[@bud_instance.this_stratum][self] = true if @bud_instance.done_bootstrap
       if o.class <= Bud::PushElement
         deduce_schema(o) if @schema.nil?
         o.wire_to self
       elsif o.class <= Bud::BudCollection
         deduce_schema(o) if @schema.nil?
         o.pro.wire_to self
+      elsif o.class <= Proc and @bud_instance.done_bootstrap and not @bud_instance.done_wiring and not o.nil?
+        tbl = register_coll_expr(o)
+        tbl.pro.wire_to self
       else
         unless o.nil?
           o = o.uniq.compact if o.respond_to?(:uniq)
@@ -435,6 +438,21 @@ module Bud
         end
       end
       return self
+    end
+
+    # def prep_coll_expr(o)
+    #   o = o.uniq.compact if o.respond_to?(:uniq)
+    #   check_enumerable(o)
+    #   establish_schema(o) if @schema.nil?
+    #   o
+    # end
+
+    def register_coll_expr(expr)
+      # require 'ruby-debug'; debugger
+      coll_name = ("expr_"+expr.object_id.to_s)
+      @bud_instance.coll_expr(coll_name.to_sym, expr, (1..@schema.length).map{|i| ("c"+i.to_s).to_sym})
+      coll = @bud_instance.send(coll_name)
+      coll
     end
 
     public
@@ -450,13 +468,16 @@ module Bud
         o.wire_to_pending self
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to_pending self
+      elsif o.class <= Proc and @bud_instance.done_bootstrap and not @bud_instance.done_wiring
+        tbl = register_coll_expr(o) unless o.nil?
+        tbl.pro.wire_to_pending self
       else
         unless o.nil?
-           o = o.uniq.compact if o.respond_to?(:uniq)
-           check_enumerable(o)
-           establish_schema(o) if @schema.nil?
-           o.each {|i| do_insert(i, @pending)}
-         end
+          o = o.uniq.compact if o.respond_to?(:uniq)
+          check_enumerable(o)
+          establish_schema(o) if @schema.nil?
+          o.each{|i| self.do_insert(i, @pending)}
+        end
       end
       return self
     end
@@ -468,7 +489,7 @@ module Bud
     superator "<+" do |o|
       pending_merge o
     end
-    
+
     # Called at the end of each timestep: prepare the collection for the next
     # timestep.
     public
@@ -489,7 +510,7 @@ module Bud
       @new_delta = {}
       return !(@delta == {})
     end
-    
+
     public
     def flush_deltas
       @storage.merge!(@delta)
@@ -497,7 +518,7 @@ module Bud
       @delta = {}
       @new_delta = {}
     end
-    
+
     public
     def to_push_elem(the_name=tabname, the_schema=schema)
       # if no push source yet, set one up
@@ -596,7 +617,7 @@ module Bud
       delta1.wire_to(g)
       return g
     end
-    
+
     def canonicalize_col(col)
       col.class <= Symbol ? self.send(col) : col
     end
@@ -608,7 +629,7 @@ module Bud
       delta1.wire_to(red_elem)
       return red_elem
     end    
-    
+
 
     public
     def uniquify_tabname # :nodoc: all
@@ -707,9 +728,9 @@ module Bud
       if schema.size > 2
         # bundle up each tuple's non-locspec fields into an array
         retval = case @locspec_idx
-          when 0 then self.pro{|t| t[1..(t.size-1)]}
-          when (schema.size - 1) then self.pro{|t| t[0..(t.size-2)]}
-          else self.pro{|t| t[0..(@locspec_idx-1)] + t[@locspec_idx+1..(t.size-1)]}
+        when 0 then self.pro{|t| t[1..(t.size-1)]}
+        when (schema.size - 1) then self.pro{|t| t[0..(t.size-2)]}
+        else self.pro{|t| t[0..(@locspec_idx-1)] + t[@locspec_idx+1..(t.size-1)]}
         end
       else
         # just return each tuple's non-locspec field value
@@ -865,31 +886,49 @@ module Bud
       @to_delete_by_key = []
       @pending = {}
     end
-    
+
     public 
     def pending_delete(o)
       if o.class <= Bud::PushElement
-         o.wire_to_delete self
-       elsif o.class <= Bud::BudCollection
-         o.pro.wire_to_delete self
-       else
-         @to_delete = @to_delete + o.map{|t| prep_tuple(t) unless t.nil?}
-       end
+        o.wire_to_delete self
+      elsif o.class <= Bud::BudCollection
+        o.pro.wire_to_delete self
+      elsif o.class <= Proc and @bud_instance.done_bootstrap and not @bud_instance.done_wiring
+        tbl = register_coll_expr(o)
+        tbl.pro.wire_to_delete self
+      else
+        unless o.nil?
+          o = o.uniq.compact if o.respond_to?(:uniq)
+          check_enumerable(o)
+          establish_schema(o) if @schema.nil?
+          o.each{|i| @to_delete << prep_tuple(i)}
+        end
+      end
     end
     superator "<-" do |o|
       pending_delete(o)
     end
-        
+
     public
     def pending_delete_keys(o)
       if o.class <= Bud::PushElement
         o.wire_to_delete_by_key self
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to_delete_by_key self
+      elsif o.class <= Proc and @bud_instance.done_bootstrap and not @bud_instance.done_wiring
+        tbl = register_coll_expr(o)
+        tbl.pro.wire_to_delete_by_key self
       else
-        @to_delete_by_key = @to_delete_by_key + o.map{|t| prep_tuple(t) unless t.nil?}
+        unless o.nil?
+          o = o.uniq.compact if o.respond_to?(:uniq)
+          check_enumerable(o)
+          establish_schema(o) if @schema.nil?
+          o.each{|i| @to_delete_by_key << prep_tuple(i)}
+        end
       end
+      o
     end
+
     public
     superator "<+-" do |o|
       pending_delete_keys(o)
@@ -911,6 +950,23 @@ module Bud
     end
   end
 
+  class BudCollExpr < BudReadOnly # :nodoc: all
+    def initialize(name, bud_instance, expr, given_schema=nil, defer_schema=false)
+      super(name, bud_instance, given_schema, defer_schema)
+      @expr = expr
+    end
+
+    public
+    def each(&block)
+      @expr.call.each {|i| yield i}
+    end
+
+    public
+    def each_raw(&block)
+      each(&block)
+    end    
+  end
+
   class BudFileReader < BudReadOnly # :nodoc: all
     def initialize(name, filename, delimiter, bud_instance) # :nodoc: all
       super(name, bud_instance, {[:lineno] => [:text]})
@@ -930,7 +986,7 @@ module Bud
         yield t
       end
     end
-    
+
     public
     def each(&blk)
       each_raw {|l| tuple_accessors(blk.call(l))}

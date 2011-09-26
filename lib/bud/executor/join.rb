@@ -380,7 +380,7 @@ module Bud
 
     public 
     def rights(*preds, &blk)
-      @schema = blk.nil? ? @bud_instance.tables[@schema[1]] : nil
+      @schema = blk.nil? ? @bud_instance.tables[@rels[1].tabname].schema : nil
       setup_accessors if blk.nil?
       pairs(*preds) do |x,y| 
         blk.nil? ? y : blk.call(y)
@@ -389,7 +389,7 @@ module Bud
     
     public 
     def lefts(*preds, &blk)
-      @schema = blk.nil? ? @bud_instance.tables[@schema[0]] : nil
+      @schema = blk.nil? ? @bud_instance.tables[@rels[0].tabname].schema : nil
       setup_accessors if blk.nil?
       pairs(*preds) do |x,y| 
         blk.nil? ? x : blk.call(x)
