@@ -179,7 +179,9 @@ class TestMaxLattice < Test::Unit::TestCase
 
   def test_compose
     i = ComposeLattice.new
-    # XXX: check stratification
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:m1, :m2, :m3, :done].each {|r| assert(strat_zero.include? r) }
     i.inputt <+ [[4]]
     i.tick
     assert(i.done.to_set.empty?)
@@ -201,7 +203,9 @@ class TestMaxLattice < Test::Unit::TestCase
 
   def test_compose_tree
     i = ComposeTreeLattice.new
-    # XXX: check stratification
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:m1, :m2, :m3, :m4, :m5, :done].each {|r| assert(strat_zero.include? r) }
     i.inputt <+ [[3]]
     i.tick
     assert(i.done.to_set.empty?)
