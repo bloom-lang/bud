@@ -73,6 +73,29 @@ class ComposeLattice
   end
 end
 
+class ComposeTreeLattice
+  include Bud
+
+  state do
+    scratch :inputt, [:val]
+    lat_max :m1
+    lat_max :m2
+    lat_max :m3
+    lat_max :m4
+    lat_vec :m5
+    lat_bool :done
+  end
+
+  bloom do
+    m1 <= inputt {|t| t if t.val % 4 == 0}
+    m2 <= inputt {|t| t if t.val % 4 == 1}
+    m3 <= inputt {|t| t if t.val % 4 == 2}
+    m4 <= inputt {|t| t if t.val % 4 == 3}
+    m5 <= (m1 * m2 * m3 * m4)
+    done <= m5.all?(:gt_k, 10)
+  end
+end
+
 class TestMaxLattice < Test::Unit::TestCase
   def test_simple_max
     i = SimpleMax.new
@@ -141,10 +164,13 @@ class TestMaxLattice < Test::Unit::TestCase
   def test_compose
     i = ComposeLattice.new
     # XXX: check stratification
-    i.inputt <+ [[4], [5]]
+    i.inputt <+ [[4]]
     i.tick
     assert(i.done.to_set.empty?)
-    i.inputt <+ [[12]]
+    i.inputt <+ [[5]]
+    i.tick
+    assert(i.done.to_set.empty?)
+    i.inputt <+ [[12], [6], [9]]
     i.tick
     assert(i.done.to_set.empty?)
     i.inputt <+ [[13]]
@@ -153,6 +179,23 @@ class TestMaxLattice < Test::Unit::TestCase
   end
 
   def test_compose_nm
+  end
+
+  def test_compose_tree
+    i = ComposeTreeLattice.new
+    # XXX: check stratification
+    i.inputt <+ [[3]]
+    i.tick
+    assert(i.done.to_set.empty?)
+    i.inputt <+ [[0], [1], [2]]
+    i.tick
+    assert(i.done.to_set.empty?)
+    i.inputt <+ [[12], [13], [14]]
+    i.tick
+    assert(i.done.to_set.empty?)
+    i.inputt <+ [[2], [15]]
+    i.tick
+    assert_equal([[true]], i.done.to_set)
   end
 end
 

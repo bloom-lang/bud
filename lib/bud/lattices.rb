@@ -73,8 +73,13 @@ class VectorLattice < BudLattice
     meth_name = args.shift
 
     @v.each do |l|
-      # XXX: check that "meth_name" for l is a morphism
-      r = l.send(meth_name, *args)
+      # Recurse for embedded vectors
+      if l.class <= VectorLattice
+        r = l.all?(meth_name, *args)
+      else
+        # XXX: check that "meth_name" for l is a morphism
+        r = l.send(meth_name, *args)
+      end
       return false unless r
     end
 
