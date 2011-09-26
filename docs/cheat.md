@@ -158,12 +158,10 @@ update/upsert:
 
 * `left <+- right` &nbsp;&nbsp;&nbsp; (*deferred*)<br>
 deferred insert of items on rhs and deferred deletion of items with matching
-keys on lhs.
-
-That is, for each fact produced by the rhs, the upsert operator removes any
-existing tuples that match on the lhs collection's key columns before inserting
-the corresponding rhs fact. Note that both the removal and insertion operators
-happen atomically in the next timestep.
+keys on lhs. That is, for each fact produced by the rhs, the upsert operator
+removes any existing tuples that match on the lhs collection's key columns
+before inserting the corresponding rhs fact. Note that both the removal and
+insertion operations happen atomically in the next timestep.
 
 ### Collection Methods ###
 Standard Ruby methods used on a BudCollection `bc`:
@@ -196,13 +194,17 @@ implicit map:
     end
 
 ## BudCollection-Specific Methods ##
+`bc.schema`: returns the schema of `bc` (Hash of key column names => non-key column names)<br>
+
+`bc.cols`: returns the column names in `bc` as an Array<br>
+
+`bc.key_cols`: returns the key column names in `bc` as an Array<br>
+
+`bc.val_cols`: returns the non-key column names in `bc` as an Array<br>
+
 `bc.keys`: projects `bc` to key columns<br>
 
 `bc.values`: projects `bc` to non-key columns<br>
-
-`bc.inspected`: shorthand for `bc {|t| [t.inspect]}`
-
-    stdio <~ bc.inspected
 
 `chan.payloads`: projects `chan` to non-address columns. Only defined for channels.
 
@@ -210,6 +212,10 @@ implicit map:
     msgs <~ requests {|r| "127.0.0.1:12345", r}
     # at receiver
     requests <= msgs.payloads
+
+`bc.inspected`: returns a human-readable version of the contents of `bc`
+
+    stdio <~ bc.inspected
 
 `bc.exists?`: test for non-empty collection.  Can optionally pass in a block.
 
