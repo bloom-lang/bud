@@ -19,7 +19,7 @@ module Bust
     # copied from peter's code; this should probably be in the Bud runtime or in
     # some meta module
     @tables.each do |t|
-      t_table_schema << [t[0], t[1].schema.clone]
+      t_table_schema << [t[0], t[1].cols.clone]
       t_table_info << [t[0], t[1].class.to_s]
     end
 
@@ -77,7 +77,7 @@ module Bust
             # instantiate a new tuple
             tuple_to_insert = []
             @body.each do |k, v|
-              index = (eval "@bud." + table_name).schema.find_index(k.to_sym)
+              index = (eval "@bud." + table_name).cols.find_index(k.to_sym)
               for i in (tuple_to_insert.size..index)
                 tuple_to_insert << nil
               end

@@ -302,6 +302,21 @@ class InsertIntoPeriodicError
   end
 end
 
+class SchemaPreserveKeys
+  include Bud
+
+  state do
+    scratch :inputt, [:a, :b]
+    scratch :t1, [:a] => [:b]
+    scratch :t2, t1.schema
+  end
+
+  bloom do
+    t1 <= inputt
+    t2 <= inputt
+  end
+end
+
 class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
@@ -517,6 +532,13 @@ class TestCollections < Test::Unit::TestCase
   def test_simple_rename
     p = SimpleRename.new
     assert_nothing_raised {p.tick}
+  end
+
+  def test_schema_preserve_keys
+    s = SchemaPreserveKeys.new
+    assert_equal({[:a] => [:b]}, s.t2.schema)
+    s.inputt <+ [[5, 10], [5, 11]]
+    assert_raise(Bud::KeyConstraintError) { s.tick }
   end
 
   class FunkyPayloads
