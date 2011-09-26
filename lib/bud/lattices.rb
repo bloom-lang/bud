@@ -46,8 +46,7 @@ class VectorLattice < BudLattice
   lattice_name :lat_vec
 
   def reset
-    # XXX: not necessary?
-    @v.each {|i| i.reset} if @v
+    @v.each {|i| i.reset} if @v     # XXX: not necessary?
     @v = []
   end
 
@@ -55,7 +54,6 @@ class VectorLattice < BudLattice
     if i.class <= VectorLattice
       input_v = i.instance_variable_get('@v')
       input_v.each_with_index do |l, idx|
-        puts "#{tabname}: <= with from #{i.tabname}"
         if @v[idx]
           @v[idx] <= l
           @got_delta ||= @v[idx].got_delta
@@ -71,21 +69,20 @@ class VectorLattice < BudLattice
 
   morph :all?
   def all?(*args)
+    return false if @v.empty?
     meth_name = args.shift
 
     @v.each do |l|
       # XXX: check that "meth_name" for l is a morphism
-      puts "Invoking #{meth_name} with args = #{args.inspect} on #{l.tabname}"
       r = l.send(meth_name, *args)
-      return nil unless r
+      return false unless r
     end
 
-    return [[true]]
+    return true
   end
 
   def VectorLattice.wrap(a, b)
     r = VectorLattice.new("#{a.tabname}__#{b.tabname}__tmp", true)
-    puts "VectorLattice.wrap: r = #{r.tabname}"
     r_v = [a, b]
     r.instance_variable_set('@v', r_v)
     r
@@ -105,6 +102,7 @@ class MaxLattice < BudLattice
   # tick_deltas(), which would be closer to the normal collection
   # behavior. Which is right?
   def <=(i)
+    return if i.nil?
     if i.class <= MaxLattice
       input_v = i.instance_variable_get('@v')
     elsif i.class <= Enumerable
@@ -128,10 +126,9 @@ class MaxLattice < BudLattice
     [[@v]]
   end
 
-  # XXX: should this return a BoolLattice instance?
   morph :gt_k
   def gt_k(k)
-    yield if @v and @v > k
+    @v and @v > k
   end
 end
 
@@ -143,21 +140,23 @@ class BoolLattice < BudLattice
   end
 
   def <=(i)
-    return if @v
+    return if @v or i.nil?
     if i.class <= BoolLattice
       input_v = i.instance_variable_get('@v')
     elsif i.class <= Enumerable
       input_v = false
       i.each do |t|
         next if t.nil? or t == []
-        raise BudTypeError unless (t.class <= TrueClass or t.class <= FalseClass)
+        raise Bud::BudTypeError unless (t.class <= TrueClass or t.class <= FalseClass)
         if t == true
           input_v = true
           break
         end
       end
+    elsif (i.class <= TrueClass or i.class <= FalseClass)
+      input_v = i
     else
-      raise BudTypeError, "Illegal RHS for BoolLattice merge: #{o.class}"
+      raise Bud::BudTypeError, "Illegal RHS for BoolLattice merge: #{i.class}"
     end
 
     if input_v == true
@@ -167,11 +166,16 @@ class BoolLattice < BudLattice
   end
 
   def reveal
-    [[@v]]
+    @v
   end
 
-  morph :when_true
-  def when_true
-    yield if @v
+  morph :to_set
+  def to_set
+    return [] unless @v
+    if block_given?
+      yield
+    else
+      [[true]]
+    end
   end
 end
