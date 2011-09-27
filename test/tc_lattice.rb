@@ -253,3 +253,30 @@ class TestBoolLattice < Test::Unit::TestCase
     assert_equal(false, i.done.empty?)
   end
 end
+
+class SimpleMultiSet
+  include Bud
+
+  state do
+    scratch :inputt, [:v1, :v2]
+    lat_ms :s1
+    scratch :result, [:v1, :v2]
+    scratch :result_cnt, [:v1, :v2] => [:cnt]
+  end
+
+  bloom do
+    s1 <= inputt
+    result <= s1.to_set
+    result_cnt <= s1.to_set {|v, cnt| v + [cnt]}
+  end
+end
+
+class TestMultiSetLattice < Test::Unit::TestCase
+  # XXX: broken due to lack of idempotence of merge for multisets
+  def ntest_ms
+    i = SimpleMultiSet.new
+    i.inputt <+ [[1, 2], [1, 3], [8, 2]]
+    i.tick
+    i.assert_equal([[1, 2], [1, 3], [8, 2]], i.result.to_a.sort)
+  end
+end

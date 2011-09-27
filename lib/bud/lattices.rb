@@ -211,9 +211,29 @@ class MultiSetLattice < BudLattice
         @v[key] += val
         @got_delta = true
       end
+    elsif i.class <= Enumerable
+      i.each do |key|
+        @v[key] ||= 0
+        @v[key] += 1
+        @got_delta = true
+      end
     else
       raise Bud::BudTypeError
     end
+  end
+
+  morph :to_set
+  def to_set
+    rv = []
+    @v.each do |key,val|
+      next if val <= 0
+      if block_given?
+        rv << (yield [key, val])
+      else
+        rv << key
+      end
+    end
+    return rv
   end
 
   def reveal
