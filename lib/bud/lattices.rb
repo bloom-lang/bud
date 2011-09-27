@@ -192,3 +192,31 @@ class BoolLattice < BudLattice
     end
   end
 end
+
+class MultiSetLattice < BudLattice
+  lattice_name :lat_ms
+
+  def reset
+    @v = {}
+  end
+
+  # XXX: we need to ensure this is idempotent.
+  def <=(i)
+    return if i.nil?
+
+    if i.class <= MultiSetLattice
+      input_v = i.instance_variable_get('@v')
+      input_v.each do |key,val|
+        @v[key] ||= 0
+        @v[key] += val
+        @got_delta = true
+      end
+    else
+      raise Bud::BudTypeError
+    end
+  end
+
+  def reveal
+    @v
+  end
+end
