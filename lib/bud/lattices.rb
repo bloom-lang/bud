@@ -99,8 +99,8 @@ class VectorLattice < BudLattice
         r = l.all?(meth_name, *args)
       else
         # Check that "meth_name" is a morphism for this element of the vector;
-        # otherwise, throw a runtime exception. Doing this at runtime is
-        # somewhat bogus, but hard to avoid due to Ruby's lack of static typing.
+        # Doing this at runtime is somewhat bogus but hard to avoid due to
+        # Ruby's lack of static typing.
         unless l.class.morphs.has_key? meth_name
           raise Bud::BudTypeError, "\"#{meth_name}\" is not a morphism for #{l.class}"
         end
