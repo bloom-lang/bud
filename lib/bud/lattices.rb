@@ -30,11 +30,29 @@ class BudLattice
     @tabname = tabname
     @is_scratch = is_scratch
     @got_delta = false
+    @pending = []
     reset
   end
 
   def tick_deltas
     @got_delta = false
+  end
+
+  def tick
+    reset if @is_scratch
+    @pending.each do |p|
+      self <= p
+    end
+    @pending.clear
+  end
+
+  # XXX: An alternative implementation of the pending buffer would be to use
+  # another instance of the lattice itself to "store" the pending values:
+  # merging a pending value would merge into the "pending" lattice, and at the
+  # end of each timestep we'd merge the pending lattice into the primary lattice
+  # and reset the pending lattice.
+  superator "<+" do |i|
+    @pending << i
   end
 
   # XXX: This returns a new tree of vector lattices on every invocation. It
@@ -201,6 +219,8 @@ class MultiSetLattice < BudLattice
   end
 
   # XXX: we need to ensure this is idempotent.
+  # XXX: this will be idempotent if we define merge as taking the max of each
+  # element's multiplicities, but then we need another way to do "multiset sum".
   def <=(i)
     return if i.nil?
 

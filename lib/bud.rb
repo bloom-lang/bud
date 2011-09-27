@@ -701,7 +701,7 @@ module Bud
         t.tick
       end
       @lattices.each_value do |l|
-        l.reset if l.is_scratch
+        l.tick
       end
 
       @joinstate = {}
