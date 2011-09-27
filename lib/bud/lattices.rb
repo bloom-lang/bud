@@ -218,30 +218,35 @@ class MultiSetLattice < BudLattice
     @v = {}
   end
 
-  # XXX: we need to ensure this is idempotent.
-  # XXX: this will be idempotent if we define merge as taking the max of each
-  # element's multiplicities, but then we need another way to do "multiset sum".
   def <=(i)
     return if i.nil?
 
     if i.class <= MultiSetLattice
       input_v = i.instance_variable_get('@v')
       input_v.each do |key,val|
-        @v[key] ||= 0
-        @v[key] += val
-        @got_delta = true
+        raise Bud::BudError if val < 0
+        if @v.has_key?(key) == false or @v[key] < val
+          @v[key] = val
+          @got_delta = true
+        end
       end
     elsif i.class <= Enumerable
-      i.each do |key|
-        @v[key] ||= 0
-        @v[key] += 1
-        @got_delta = true
+      i.each do |t|
+        raise Bud::BudError if t.length != 2
+        key, val = t
+        if @v.has_key?(key) == false or @v[key] < val
+          @v[key] = val
+          @got_delta = true
+        end
       end
     else
       raise Bud::BudTypeError
     end
   end
 
+  # By default, we produce a set containing the elements of the multiset and
+  # omit their multiplicities. That is inconsistent with <= with Enumerable
+  # input; perhaps this should be fixed.
   morph :to_set
   def to_set
     rv = []

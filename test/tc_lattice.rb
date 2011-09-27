@@ -256,26 +256,31 @@ class SimpleMultiSet
   include Bud
 
   state do
-    scratch :inputt, [:v1, :v2]
     lat_ms :s1
-    scratch :result, [:v1, :v2]
-    scratch :result_cnt, [:v1, :v2] => [:cnt]
+    lat_ms :s2
+    lat_ms :s3
+    scratch :result, [:v1, :v2, :v3]
+    scratch :result_cnt, [:v1, :v2, :v3] => [:cnt]
   end
 
   bloom do
-    s1 <= inputt
-    result <= s1.to_set
-    result_cnt <= s1.to_set {|v, cnt| v + [cnt]}
+    s3 <= s1
+    s3 <= s2
+    result <= s3.to_set
+    result_cnt <= s3.to_set {|v, cnt| v + [cnt]}
   end
 end
 
 class TestMultiSetLattice < Test::Unit::TestCase
-  # XXX: broken due to lack of idempotence of merge for multisets
   def test_ms
-    return
     i = SimpleMultiSet.new
-    i.inputt <+ [[1, 2], [1, 3], [8, 2]]
+    i.s1 <+ [[[1,2,3], 2], [[1,2,4], 1]]
     i.tick
-    i.assert_equal([[1, 2], [1, 3], [8, 2]], i.result.to_a.sort)
+    assert_equal([[1,2,3], [1,2,4]], i.result.to_a.sort)
+    assert_equal([[1,2,3,2], [1,2,4,1]], i.result_cnt.to_a.sort)
+    i.s2 <+ [[[1,2,3], 1], [[5, 5, 5], 3], [[1, 2, 4], 4]]
+    i.tick
+    assert_equal([[1,2,3], [1,2,4], [5,5,5]], i.result.to_a.sort)
+    assert_equal([[1,2,3,2], [1,2,4,4], [5,5,5,3]], i.result_cnt.to_a.sort)
   end
 end
