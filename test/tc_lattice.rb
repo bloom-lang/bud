@@ -11,13 +11,11 @@ class SimpleMax
   end
 
   state do
-    scratch :inputt, [:val]
     lat_max :m, :scratch => @use_scratch
     lat_bool :done, :scratch => true
   end
 
   bloom do
-    m <= inputt
     done <= m.gt_k(10)
   end
 end
@@ -118,10 +116,10 @@ class TestMaxLattice < Test::Unit::TestCase
     assert_equal(2, i.strata.length)
     strat_zero = i.stratum_collection_map[0]
     [:m, :done].each {|r| assert(strat_zero.include? r) }
-    i.inputt <+ [[1], [2], [3]]
+    i.m <+ [[1], [2], [3]]
     i.tick
     assert(i.done.to_set.empty?)
-    i.inputt <+ [[12]]
+    i.m <+ [[12]]
     i.tick
     assert_equal([[true]], i.done.to_set)
     i.tick
@@ -133,15 +131,15 @@ class TestMaxLattice < Test::Unit::TestCase
     assert_equal(2, i.strata.length)
     strat_zero = i.stratum_collection_map[0]
     [:m, :done].each {|r| assert(strat_zero.include? r) }
-    i.inputt <+ [[8], [12]]
+    i.m <+ [[8], [12]]
     i.tick
     assert_equal([[true]], i.done.to_set)
     i.tick
     assert(i.done.to_set.empty?)
-    i.inputt <+ [[6]]
+    i.m <+ [[6]]
     i.tick
     assert(i.done.to_set.empty?)
-    i.inputt <+ [[1], [14]]
+    i.m <+ [[1], [14]]
     i.tick
     assert_equal([[true]], i.done.to_set)
   end
@@ -154,11 +152,11 @@ class TestMaxLattice < Test::Unit::TestCase
     assert_equal(false, strat_zero.include?(:current_val))
     strat_one = i.stratum_collection_map[1]
     assert(strat_one.include? :current_val)
-    i.inputt <+ [[1], [2], [3]]
+    i.m <+ [[1], [2], [3]]
     i.tick
     assert(i.done.to_set.empty?)
     assert_equal([[3]], i.current_val.to_a)
-    i.inputt <+ [[12]]
+    i.m <+ [[12]]
     i.tick
     assert_equal([[true]], i.done.to_set)
     assert_equal([[12]], i.current_val.to_a)
