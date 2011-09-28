@@ -30,7 +30,7 @@ class BudLattice
     @tabname = tabname
     @is_scratch = is_scratch
     @got_delta = false
-    @pending = []
+    @pending = nil
     reset
   end
 
@@ -40,19 +40,15 @@ class BudLattice
 
   def tick
     reset if @is_scratch
-    @pending.each do |p|
-      self <= p
+    if @pending
+      self <= @pending
+      @pending.reset
     end
-    @pending.clear
   end
 
-  # XXX: An alternative implementation of the pending buffer would be to use
-  # another instance of the lattice itself to "store" the pending values:
-  # merging a pending value would merge into the "pending" lattice, and at the
-  # end of each timestep we'd merge the pending lattice into the primary lattice
-  # and reset the pending lattice.
   superator "<+" do |i|
-    @pending << i
+    @pending ||= self.class.new("#{tabname}__pending", true)
+    @pending <= i
   end
 
   # XXX: This returns a new tree of vector lattices on every invocation. It

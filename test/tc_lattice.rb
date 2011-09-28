@@ -11,11 +11,13 @@ class SimpleMax
   end
 
   state do
+    scratch :m_at_next, [:val]
     lat_max :m, :scratch => @use_scratch
     lat_bool :done, :scratch => true
   end
 
   bloom do
+    m <+ m_at_next
     done <= m.gt_k(10)
   end
 end
@@ -122,6 +124,19 @@ class TestMaxLattice < Test::Unit::TestCase
     i.m <+ [[12]]
     i.tick
     assert_equal([[true]], i.done.to_set)
+    i.tick
+    assert_equal([[true]], i.done.to_set)
+  end
+
+  def test_max_at_next
+    i = SimpleMax.new
+    i.m <+ [[5, 6, 7]]
+    i.m_at_next <+ [[7], [8]]
+    i.tick
+    assert(i.done.to_set.empty?)
+    i.m_at_next <+ [[14], [2]]
+    i.tick
+    assert(i.done.to_set.empty?)
     i.tick
     assert_equal([[true]], i.done.to_set)
   end
