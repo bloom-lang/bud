@@ -343,13 +343,23 @@ There are two ways to use a module *B* in another Bloom module *A*:
      (facts inserted into a collection defined in `b1` won't also be inserted
      into `b2`'s copy of the collection).
 
+In practice, a Bloom program is often composed of a collection of modules (which
+may themselves include or import sub-modules) and one "top-level class" that
+includes/imports those modules as well as the `Bud` module. An instance of this
+top-level class represents an instance of the Bud interpreter; it is on this
+top-level class that the `run_fg` method should be invoked, for example.
+
+Note that to enable the Bloom DSL for a collection of Ruby code, it is
+sufficient to include the `Bud` module *once* in the top-level class. That is,
+you should *not* include `Bud` in every Bloom module that you write.
+
 ## Skeleton of a Bud Module ##
 
     require 'rubygems'
     require 'bud'
 
     module YourModule
-      include Bud
+      import SubModule => :sub_m
 
       state do
         ...
@@ -368,3 +378,7 @@ There are two ways to use a module *B* in another Bloom module *A*:
       end
     end
 
+    class TopLevelClass
+      include Bud
+      include YourModule
+    end
