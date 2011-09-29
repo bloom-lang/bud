@@ -7,12 +7,13 @@ class BasicWith
     scratch :inski
     scratch :tmpy, [:val]
   end
-  bootstrap {inski <= [[1,2]]; tmpy <= [[:a],[:b]]}
+  bootstrap {inski <= [[1,2]]; tmpy <= [[5],[20]]}
   bloom :rules do
     with :tmpy <= inski {|i| i}, begin
       out <= tmpy {|t| [t.val]}
       out <= tmpy {|t| [t.key]}
     end
+    tmpy <= out
   end
 end
 
@@ -56,6 +57,7 @@ class TestWith < Test::Unit::TestCase
     c = BasicWith.new
     c.tick
     assert_equal([[1],[2]], c.out.to_a.sort)
+    assert_equal([[1], [2], [5], [20]], c.tmpy.to_a.sort)
   end
   def test_nested_fancy
     c = With.new
