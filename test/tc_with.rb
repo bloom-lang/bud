@@ -27,7 +27,7 @@ module WithMod
   bootstrap {inski <= [[1,2]]; tmpy <= [[:a],[:b]]}
 
   bloom :rules do
-    with :tmpy <= inski {|i| i}, begin
+    with :tmpy <= inski, begin
       out <= tmpy {|t| [t.val]}
       out <= tmpy {|t| [t.key]}
     end
