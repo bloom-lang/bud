@@ -584,7 +584,6 @@ module Bud
     # AntiJoin
     public
     def notin(coll, *preds, &blk)
-      @origpreds = preds
       return BudJoin.new([self,coll], @bud_instance).anti(*preds,&blk)
     end
 

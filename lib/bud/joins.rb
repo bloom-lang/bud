@@ -217,21 +217,19 @@ module Bud
     # has no effect on the output.
     public
     def anti(*preds, &blk)
+      return [] unless @bud_instance.stratum_first_iter
       @origpreds = preds
       # no projection involved here, so we can propagate the schema
       @cols = rels[0].cols
       setup_preds(preds)
       setup_state if self.class <= Bud::BudJoin
-      if @bud_instance.stratum_first_iter
-        if blk.nil?
-          @matches = map
-        else
-          @matches = map { |r, s| !(blk.call(r,s).nil?) ? r : nil }.compact
-        end
-        @rels[0].map {|r| (@matches.include? r) ? nil : r}.compact
+      if blk.nil?
+        @matches = map { |r, s| r }
       else
-        []
+        @matches = map { |r, s| !(blk.call(r,s).nil?) ? r : nil }.compact
       end
+      # XXX: @matches is an Array, which makes include? O(n)
+      @rels[0].map {|r| (@matches.include? r) ? nil : r}.compact
     end
 
     # extract predicates on rellist[0] and recurse to right side with remainder

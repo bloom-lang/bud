@@ -594,7 +594,7 @@ end
 class NotInTest < Test::Unit::TestCase
   class SillyAnti
     include Bud
-    
+
     state do
       table :emp
       scratch :mgrs, [:name]
@@ -606,11 +606,11 @@ class NotInTest < Test::Unit::TestCase
     bootstrap {emp <= [['bob', 1], ['betsy', 1], ['caitlin', 0]]}
     bloom do
       mgrs <= emp {|e| [e.key] if e.val > 0}
-      outsie <= emp.notin(mgrs,:key=>:name)
+      outsie <= emp.notin(mgrs, :key => :name)
       realblock_out <= emp.notin(mgrs) do |e,m|
         e if e.key == m.name
       end
-      sillyblock_out <= emp.notin(mgrs, :key=>:name) do |e,m| 
+      sillyblock_out <= emp.notin(mgrs, :key => :name) do |e,m|
         e if e.key == 'bob'
       end
     end
@@ -625,4 +625,3 @@ class NotInTest < Test::Unit::TestCase
     assert_equal([['betsy', 1], ['caitlin', 0]], o.sillyblock_out.to_a.sort)
   end
 end
-
