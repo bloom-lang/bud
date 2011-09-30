@@ -233,8 +233,8 @@ Output the facts in `bc` that do not appear in `bc2`, as follows. First, we form
      be fully qualified (`bc.attr1 => bc2.attr2`) or shorthand (`:attr1 =>
      :attr2`).
 
-  2. If a code block is specified, invoke the code block on every matching pair
-     of tuples in the join result. Any matches for which the block returns `nil`
+  2. If a code block is specified, invoke the block on every pair of matching
+     tuples in the join result. Any matches for which the block returns `nil`
      are removed from `t`.
 
 Finally, we output every tuple of `bc` that does *not* appear in `t`.
