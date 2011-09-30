@@ -232,6 +232,13 @@ module Bud
       @rels[0].map {|r| (@matches.include? r) ? nil : r}
     end
 
+    private
+    def check_join_pred(pred, join_rels)
+      unless join_rels.include? pred[0]
+        raise Bud::CompileError, "illegal predicate: collection #{pred[0]} is not being joined"
+      end
+    end
+
     # extract predicates on rellist[0] and recurse to right side with remainder
     protected
     def setup_preds(preds) # :nodoc: all
@@ -242,9 +249,8 @@ module Bud
       unless @rels[1].class <= Bud::BudJoin
         tabnames = @rels.map{ |r| r.tabname }
         allpreds.each do |p|
-          unless tabnames.include? p[0][0] and tabnames.include? p[1][0]
-            raise Bud::CompileError, "illegal predicate: collection #{} is not being joined"
-          end
+          check_join_pred(p[0], tabnames)
+          check_join_pred(p[1], tabnames)
         end
       end
       @hashpreds = allpreds.reject {|p| p[0][0] != @rels[0].tabname}
