@@ -189,7 +189,9 @@ implicit map:
 
 `bc.include?`:
 
-    t5 <= bc do |t| # like SQL's NOT IN
+    # This is similar to SQL's NOT IN; note that Bud provides a "notin"
+    # collection method that should probably be preferred to this approach.
+    t5 <= bc do |t|
         t unless t2.include?([t.col1, t.col2])
     end
 
@@ -209,7 +211,7 @@ implicit map:
 `chan.payloads`: projects `chan` to non-address columns. Only defined for channels.
 
     # at sender
-    msgs <~ requests {|r| "127.0.0.1:12345", r}
+    msgs <~ requests {|r| ["127.0.0.1:12345", r]}
     # at receiver
     requests <= msgs.payloads
 
@@ -224,10 +226,18 @@ implicit map:
       [r.inspect] if msgs.exists?{|m| r.ident == m.ident}
     end
     
-`bc.notin(bc2, `*optional hash pairs*`)` *optional ruby block*:<br>
-Output each item of `bc` such that (a) it has no match in `bc2` on the hash-pairs attributes, or (b) there is no matching item in `bc2` that leads to a non-nil return value from the block.  
-Hash pairs can be fully qualified (`bc.attr1 => bc2.attr2`) 
-or shorthand (`:attr1 => :attr2`).
+`bc.notin(bc2, `*optional hash pairs*`, `*optional ruby block*`)`:<br>
+Output the facts in `bc` that do not appear in `bc2`, as follows. First, we form a temporary collection `t` as follows:
+
+  1. Join `bc` and `bc2` according to the specified hash pairs. Hash pairs can
+     be fully qualified (`bc.attr1 => bc2.attr2`) or shorthand (`:attr1 =>
+     :attr2`).
+
+  2. If a code block is specified, invoke the code block on every matching pair
+     of tuples in the join result. Any matches for which the block returns `nil`
+     are removed from `t`.
+
+Finally, we output every tuple of `bc` that does *not* appear in `t`.
 
     # output items from foo if (a) there is no matching key in bar, or
     # (b) all matching keys in bar have a smaller value
