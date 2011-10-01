@@ -220,16 +220,23 @@ module Bud
       return [] unless @bud_instance.stratum_first_iter
       @origpreds = preds
       # no projection involved here, so we can propagate the schema
-      @cols = rels[0].cols
+      @cols = @rels[0].cols
       setup_preds(preds)
       setup_state if self.class <= Bud::BudJoin
       if blk.nil?
         @matches = map { |r, s| r }
       else
-        @matches = map { |r, s| !(blk.call(r,s).nil?) ? r : nil }.compact
+        @matches = map { |r, s| r unless blk.call(r, s).nil? }.compact
       end
       # XXX: @matches is an Array, which makes include? O(n)
-      @rels[0].map {|r| (@matches.include? r) ? nil : r}.compact
+      @rels[0].map {|r| (@matches.include? r) ? nil : r}
+    end
+
+    private
+    def check_join_pred(pred, join_rels)
+      unless join_rels.include? pred[0]
+        raise Bud::CompileError, "illegal predicate: collection #{pred[0]} is not being joined"
+      end
     end
 
     # extract predicates on rellist[0] and recurse to right side with remainder
@@ -242,9 +249,8 @@ module Bud
       unless @rels[1].class <= Bud::BudJoin
         tabnames = @rels.map{ |r| r.tabname }
         allpreds.each do |p|
-          unless tabnames.include? p[0][0] and tabnames.include? p[1][0]
-            raise Bud::CompileError, "illegal predicate: collection #{} is not being joined"
-          end
+          check_join_pred(p[0], tabnames)
+          check_join_pred(p[1], tabnames)
         end
       end
       @hashpreds = allpreds.reject {|p| p[0][0] != @rels[0].tabname}

@@ -584,7 +584,7 @@ module Bud
     # AntiJoin
     public
     def notin(coll, *preds, &blk)
-      return BudJoin.new([self,coll], @bud_instance).anti(*preds,&blk)
+      return BudJoin.new([self, coll], @bud_instance).anti(*preds, &blk)
     end
 
     # SQL-style grouping.  first argument is an array of attributes to group by.
