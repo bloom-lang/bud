@@ -1,6 +1,5 @@
 # XXX: make this a module?
 class BasicLattice < Bud::BudLattice
-  attr_reader :tabname
   attr_reader :is_scratch
   attr_reader :got_delta
 
@@ -27,8 +26,7 @@ class BasicLattice < Bud::BudLattice
   end
 
   def initialize(tabname, bud_instance, is_scratch)
-    @tabname = tabname
-    @bud_instance = bud_instance
+    super(tabname, bud_instance)
     @is_scratch = is_scratch
     @got_delta = false
     @pending = nil
