@@ -11,7 +11,10 @@ module Bud
   # - new_delta will hold the lhs tuples currently being produced during s-n
   #++
 
-  class BudCollection
+  class BudLattice
+  end
+
+  class BudCollection < BudLattice
     include Enumerable
 
     # This needs to be an accessor to allow REBL to update it after cloning a

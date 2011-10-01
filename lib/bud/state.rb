@@ -147,7 +147,7 @@ module Bud
   # Define methods to implement the state declarations for every registered kind
   # of lattice.
   def load_lattice_defs
-    BudLattice.lattice_kinds.each do |lattice_name, klass|
+    BasicLattice.lattice_kinds.each do |lattice_name, klass|
       # Sanity check morphism annotations
       klass.morphs.each_key do |m|
         unless klass.instance_methods(false).include? m.to_s

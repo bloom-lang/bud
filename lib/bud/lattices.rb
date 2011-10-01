@@ -1,5 +1,5 @@
 # XXX: make this a module?
-class BudLattice
+class BasicLattice < Bud::BudLattice
   attr_reader :tabname
   attr_reader :is_scratch
   attr_reader :got_delta
@@ -59,7 +59,7 @@ class BudLattice
   end
 end
 
-class VectorLattice < BudLattice
+class VectorLattice < BasicLattice
   lattice_name :lat_vec
 
   def reset
@@ -116,7 +116,7 @@ class VectorLattice < BudLattice
   end
 end
 
-class MaxLattice < BudLattice
+class MaxLattice < BasicLattice
   lattice_name :lat_max
 
   def reset
@@ -159,7 +159,7 @@ class MaxLattice < BudLattice
   end
 end
 
-class BoolLattice < BudLattice
+class BoolLattice < BasicLattice
   lattice_name :lat_bool
 
   def reset
@@ -207,7 +207,7 @@ class BoolLattice < BudLattice
   end
 end
 
-class MultiSetLattice < BudLattice
+class MultiSetLattice < BasicLattice
   lattice_name :lat_ms
 
   def reset
