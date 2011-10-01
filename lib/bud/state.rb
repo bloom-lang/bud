@@ -164,7 +164,7 @@ module Bud
         opts[:scratch] ||= false
 
         define_lattice(collection_name)
-        @lattices[collection_name] = klass.new(collection_name, opts[:scratch])
+        @lattices[collection_name] = klass.new(collection_name, self, opts[:scratch])
       end
     end
   end
