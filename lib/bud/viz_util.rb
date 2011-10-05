@@ -214,9 +214,7 @@ END_JS
     meta = {}
     data = []
 
-    
     dir = Dir.glob("#{dir}/bud*").first
-
     ret = DBM.open("#{dir}/the_big_log.dbm")
     ret.each_pair do |k, v|
       key = MessagePack.unpack(k)
