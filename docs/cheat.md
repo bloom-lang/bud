@@ -158,12 +158,10 @@ update/upsert:
 
 * `left <+- right` &nbsp;&nbsp;&nbsp; (*deferred*)<br>
 deferred insert of items on rhs and deferred deletion of items with matching
-keys on lhs.
-
-That is, for each fact produced by the rhs, the upsert operator removes any
-existing tuples that match on the lhs collection's key columns before inserting
-the corresponding rhs fact. Note that both the removal and insertion operators
-happen atomically in the next timestep.
+keys on lhs. That is, for each fact produced by the rhs, the upsert operator
+removes any existing tuples that match on the lhs collection's key columns
+before inserting the corresponding rhs fact. Note that both the removal and
+insertion operations happen atomically in the next timestep.
 
 ### Collection Methods ###
 Standard Ruby methods used on a BudCollection `bc`:
@@ -191,25 +189,35 @@ implicit map:
 
 `bc.include?`:
 
-    t5 <= bc do |t| # like SQL's NOT IN
+    # This is similar to SQL's NOT IN; note that Bud provides a "notin"
+    # collection method that should probably be preferred to this approach.
+    t5 <= bc do |t|
         t unless t2.include?([t.col1, t.col2])
     end
 
 ## BudCollection-Specific Methods ##
+`bc.schema`: returns the schema of `bc` (Hash of key column names => non-key column names)<br>
+
+`bc.cols`: returns the column names in `bc` as an Array<br>
+
+`bc.key_cols`: returns the key column names in `bc` as an Array<br>
+
+`bc.val_cols`: returns the non-key column names in `bc` as an Array<br>
+
 `bc.keys`: projects `bc` to key columns<br>
 
 `bc.values`: projects `bc` to non-key columns<br>
 
-`bc.inspected`: shorthand for `bc {|t| [t.inspect]}`
-
-    stdio <~ bc.inspected
-
 `chan.payloads`: projects `chan` to non-address columns. Only defined for channels.
 
     # at sender
-    msgs <~ requests {|r| "127.0.0.1:12345", r}
+    msgs <~ requests {|r| ["127.0.0.1:12345", r]}
     # at receiver
     requests <= msgs.payloads
+
+`bc.inspected`: returns a human-readable version of the contents of `bc`
+
+    stdio <~ bc.inspected
 
 `bc.exists?`: test for non-empty collection.  Can optionally pass in a block.
 
@@ -218,10 +226,18 @@ implicit map:
       [r.inspect] if msgs.exists?{|m| r.ident == m.ident}
     end
     
-`bc.notin(bc2, `*optional hash pairs*`)` *optional ruby block*:<br>
-Output each item of `bc` such that (a) it has no match in `bc2` on the hash-pairs attributes, or (b) there is no matching item in `bc2` that leads to a non-nil return value from the block.  
-Hash pairs can be fully qualified (`bc.attr1 => bc2.attr2`) 
-or shorthand (`:attr1 => :attr2`).
+`bc.notin(bc2, `*optional hash pairs*`, `*optional ruby block*`)`:<br>
+Output the facts in `bc` that do not appear in `bc2`, as follows. First, we form a temporary collection `t` as follows:
+
+  1. Join `bc` and `bc2` according to the specified hash pairs. Hash pairs can
+     be fully qualified (`bc.attr1 => bc2.attr2`) or shorthand (`:attr1 =>
+     :attr2`).
+
+  2. If a code block is specified, invoke the block on every pair of matching
+     tuples in the join result. Any matches for which the block returns `nil`
+     are removed from `t`.
+
+Finally, we output every tuple of `bc` that does *not* appear in `t`.
 
     # output items from foo if (a) there is no matching key in bar, or
     # (b) all matching keys in bar have a smaller value
@@ -337,13 +353,23 @@ There are two ways to use a module *B* in another Bloom module *A*:
      (facts inserted into a collection defined in `b1` won't also be inserted
      into `b2`'s copy of the collection).
 
+In practice, a Bloom program is often composed of a collection of modules (which
+may themselves include or import sub-modules) and one "top-level class" that
+includes/imports those modules as well as the `Bud` module. An instance of this
+top-level class represents an instance of the Bud interpreter; it is on this
+top-level class that the `run_fg` method should be invoked, for example.
+
+Note that to enable the Bloom DSL for a collection of Ruby code, it is
+sufficient to include the `Bud` module *once* in the top-level class. That is,
+you should *not* include `Bud` in every Bloom module that you write.
+
 ## Skeleton of a Bud Module ##
 
     require 'rubygems'
     require 'bud'
 
     module YourModule
-      include Bud
+      import SubModule => :sub_m
 
       state do
         ...
@@ -362,3 +388,7 @@ There are two ways to use a module *B* in another Bloom module *A*:
       end
     end
 
+    class TopLevelClass
+      include Bud
+      include YourModule
+    end

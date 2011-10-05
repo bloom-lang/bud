@@ -74,7 +74,7 @@ module Bud
         t[k] = k_ary[i]
       end
       val_cols.each_with_index do |c,i|
-        t[schema.index(c)] = v_ary[i]
+        t[cols.index(c)] = v_ary[i]
       end
       tuple_accessors(t)
     end
@@ -121,7 +121,7 @@ module Bud
     end
 
     def merge_tuple(key, tuple)
-      val = val_cols.map{|c| tuple[schema.index(c)]}
+      val = val_cols.map{|c| tuple[cols.index(c)]}
       key_s = MessagePack.pack(key)
       val_s = MessagePack.pack(val)
       if @hdb.putkeep(key_s, val_s) == false
@@ -158,7 +158,7 @@ module Bud
         cols_str = @hdb[k_str]
         unless cols_str.nil?
           hdb_cols = MessagePack.unpack(cols_str)
-          delete_cols = val_cols.map{|c| tuple[schema.index(c)]}
+          delete_cols = val_cols.map{|c| tuple[cols.index(c)]}
           if hdb_cols == delete_cols
             @hdb.delete k_str
           end

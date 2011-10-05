@@ -486,9 +486,37 @@ class TestModules < Test::Unit::TestCase
       end"
     end
   end
+
+  module IncludesBud
+    include Bud
+    state { table :t1 }
+  end
+
+  module IncludesBudInParent
+    include IncludesBud
+    state { table :t2 }
+  end
+
+  def test_import_bud_module
+    # We can't safely import a module that has already included Bud
+    assert_raise(Bud::CompileError) do
+      eval "
+      class TestImportOfIncludesBud
+        include Bud
+        import IncludesBud => :b
+      end"
+    end
+
+    assert_raise(Bud::CompileError) do
+      eval "
+      class TestImportOfIncludesBudInParent
+        include Bud
+        import IncludesBudInParent => :p
+      end"
+    end
+  end
 end
 
 # Testing TODO:
-# * Temp collections in modules (+ in classes)
 # * Qualified names in (a)sync_do
 # * Rename instance variables in modules?

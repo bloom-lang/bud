@@ -302,6 +302,21 @@ class InsertIntoPeriodicError
   end
 end
 
+class SchemaPreserveKeys
+  include Bud
+
+  state do
+    scratch :inputt, [:a, :b]
+    scratch :t1, [:a] => [:b]
+    scratch :t2, t1.schema
+  end
+
+  bloom do
+    t1 <= inputt
+    t2 <= inputt
+  end
+end
+
 class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
@@ -519,6 +534,13 @@ class TestCollections < Test::Unit::TestCase
     assert_nothing_raised {p.tick}
   end
 
+  def test_schema_preserve_keys
+    s = SchemaPreserveKeys.new
+    assert_equal({[:a] => [:b]}, s.t2.schema)
+    s.inputt <+ [[5, 10], [5, 11]]
+    assert_raise(Bud::KeyConstraintError) { s.tick }
+  end
+
   class FunkyPayloads
     include Bud
     state do
@@ -572,7 +594,7 @@ end
 class NotInTest < Test::Unit::TestCase
   class SillyAnti
     include Bud
-    
+
     state do
       table :emp
       scratch :mgrs, [:name]
@@ -584,11 +606,11 @@ class NotInTest < Test::Unit::TestCase
     bootstrap {emp <= [['bob', 1], ['betsy', 1], ['caitlin', 0]]}
     bloom do
       mgrs <= emp {|e| [e.key] if e.val > 0}
-      outsie <= emp.notin(mgrs,:key=>:name)
+      outsie <= emp.notin(mgrs, :key => :name)
       realblock_out <= emp.notin(mgrs) do |e,m|
         e if e.key == m.name
       end
-      sillyblock_out <= emp.notin(mgrs, :key=>:name) do |e,m| 
+      sillyblock_out <= emp.notin(mgrs, :key => :name) do |e,m|
         e if e.key == 'bob'
       end
     end
@@ -603,4 +625,3 @@ class NotInTest < Test::Unit::TestCase
     assert_equal([['betsy', 1], ['caitlin', 0]], o.sillyblock_out.to_a.sort)
   end
 end
-

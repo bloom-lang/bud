@@ -6,6 +6,12 @@ class Module
     mod, local_name = spec.first
     raise Bud::CompileError unless (mod.class <= Module and local_name.class <= Symbol)
 
+    # Attempting to import a module that has already included the Bud module
+    # results in problems (and is a bad idea anyway), so disallow it.
+    if mod.included_modules.include? Bud
+      raise Bud::CompileError, "cannot import #{mod} because it has already included Bud"
+    end
+
     # To correctly expand qualified references to an imported module, we keep a
     # table with the local bind names of all the modules imported by this
     # module. To handle nested references (a.b.c.d etc.), the import table for
