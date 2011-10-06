@@ -144,7 +144,7 @@ ARGV.each do |arg_raw|
   snd_info[arg] = []
   rcv_info[arg] = []
 
-  meta, data = get_meta2("#{arg_raw}/bud_")
+  meta, data = get_meta2("#{arg_raw}")
   tp = SimpleTraceProcessor.new
 
   meta[:depends].each do |m|

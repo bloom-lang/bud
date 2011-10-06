@@ -117,7 +117,7 @@ module VizUtil #:nodoc: all
       code[v[0]] = "\n# RULE #{k}\n " + code[v[0]] + "\n" + v[1]
     end
     gv_obj.nodes.each_pair do |k, v|
-      fout = File.new("#{output_base}/#{k}.html", "w+")
+      fout = File.new("#{output_base}/#{k[0..55]}.html", "w+")
       fout.puts header
       k.split(", ").each do |i|
         unless code[i].nil?
@@ -213,6 +213,8 @@ END_JS
     meta_tabs = {"t_table_info" => :tabinf, "t_table_schema" => :tabscm, "t_cycle" => :cycle, "t_depends" => :depends, "t_rules" => :rules}
     meta = {}
     data = []
+
+    dir = Dir.glob("#{dir}/bud*").first
     ret = DBM.open("#{dir}/the_big_log.dbm")
     ret.each_pair do |k, v|
       key = MessagePack.unpack(k)

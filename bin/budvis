@@ -7,7 +7,7 @@ require 'bud/viz_util'
 
 include VizUtil
 
-BUD_DBM_DIR = "#{ARGV[0]}/bud_"
+BUD_DBM_DIR = "#{ARGV[0]}"
 
 
 def usage
