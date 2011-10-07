@@ -307,11 +307,13 @@ class SimpleMergeMap
     lat_map :m1
     lat_map :m2
     lat_map :m3
+    scratch :m3_keys, [:k]
   end
 
   bloom do
     m3 <= m1
     m3 <= m2
+    m3_keys <= m3.keys {|k| [k]}
   end
 end
 
@@ -321,6 +323,7 @@ class TestMergeMap < Test::Unit::TestCase
     i.m1 <+ [["foo", MaxLattice.wrap(5, i)]]
     i.m2 <+ [["bar", MaxLattice.wrap(7, i)], ["foo", MaxLattice.wrap(4, i)]]
     i.tick
+    assert_equal([["bar"], ["foo"]], i.m3_keys.to_a.sort)
     r = i.m3.to_set.sort
     assert_equal(["bar", 7], [r[0][0], r[0][1].reveal])
     assert_equal(["foo", 5], [r[1][0], r[1][1].reveal])
