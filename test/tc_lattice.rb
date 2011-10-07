@@ -323,6 +323,6 @@ class TestMergeMap < Test::Unit::TestCase
     i.tick
     r = i.m3.to_set.sort
     assert_equal(["bar", 7], [r[0][0], r[0][1].reveal])
-    assert_equal(["foo", 5], [r[0][0], r[0][1].reveal])
+    assert_equal(["foo", 5], [r[1][0], r[1][1].reveal])
   end
 end

@@ -284,7 +284,15 @@ class MergeMapLattice < BasicLattice
       @v[key] <= val
       @got_delta ||= @v[key].got_delta
     end
-    puts "got_delta = true" if @got_delta
+  end
+
+  # XXX: inefficient
+  public
+  def tick_deltas
+    super
+    @v.each_value do |val|
+      val.tick_deltas
+    end
   end
 
   public
