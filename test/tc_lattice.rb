@@ -320,6 +320,9 @@ end
 class TestMergeMap < Test::Unit::TestCase
   def test_mm_multiset
     i = SimpleMergeMap.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:m1, :m2, :m3, :m3_keys].each {|r| assert(strat_zero.include? r) }
     i.m1 <+ [["foo", MaxLattice.wrap(5, i)]]
     i.m2 <+ [["bar", MaxLattice.wrap(7, i)], ["foo", MaxLattice.wrap(4, i)]]
     i.tick
