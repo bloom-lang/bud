@@ -290,6 +290,10 @@ class MergeMapLattice < BasicLattice
   public
   def tick_deltas
     super
+    # XXX: potential bug. Suppose a lattice value is inserted as a MergeMap
+    # key. In a subsequent timestep, the lattice value is updated via some other
+    # means, but the dataflow that connects the lattice to the MergeMap has
+    # subsequently been disconnected (e.g., because a join predicate now fails).
     @v.each_value do |val|
       val.tick_deltas
     end
@@ -310,6 +314,22 @@ class MergeMapLattice < BasicLattice
         merge_item(key, val)
       end
     end
+  end
+
+  morph :all?
+  def all?(*args)
+    return false if @v.empty?
+    meth_name = args.shift
+
+    @v.each_value do |val|
+      unless val.class.morphs.has_key? meth_name
+        raise Bud::BudTypeError
+      end
+      r = val.send(meth_name, *args)
+      return false unless r
+    end
+
+    return true
   end
 
   morph :keys
@@ -333,8 +353,6 @@ class MergeMapLattice < BasicLattice
     end
     rv
   end
-
-  # XXX: other morphisms?
 end
 
 # TODO

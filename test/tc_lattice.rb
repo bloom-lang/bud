@@ -317,6 +317,21 @@ class SimpleMergeMap
   end
 end
 
+class MergeMapPred
+  include Bud
+
+  state do
+    scratch :in_t, [:k, :v]
+    lat_map :h
+    lat_bool :done
+  end
+
+  bloom do
+    h <= in_t {|t| [t.k, MaxLattice.wrap(t.v, self)]}
+    done <= h.all?(:gt_k, 5)
+  end
+end
+
 class TestMergeMap < Test::Unit::TestCase
   def test_mm_multiset
     i = SimpleMergeMap.new
@@ -330,5 +345,20 @@ class TestMergeMap < Test::Unit::TestCase
     r = i.m3.to_set.sort
     assert_equal(["bar", 7], [r[0][0], r[0][1].reveal])
     assert_equal(["foo", 5], [r[1][0], r[1][1].reveal])
+  end
+
+  def test_mm_multiset_pred
+    i = MergeMapPred.new
+    i.tick
+    assert_equal(false, i.done.reveal)
+    i.in_t <+ [["foo", 2], ["bar", 3]]
+    i.tick
+    assert_equal(false, i.done.reveal)
+    i.in_t <+ [["baz", 1], ["bar", 6]]
+    i.tick
+    assert_equal(false, i.done.reveal)
+    i.in_t <+ [["baxxx", 7], ["baz", 10], ["foo", 12]]
+    i.tick
+    assert_equal(true, i.done.reveal)
   end
 end
