@@ -321,6 +321,7 @@ class MergeMapLattice < BasicLattice
     return false if @v.empty?
     meth_name = args.shift
 
+    # XXX: recurse into nested lattices?
     @v.each_value do |val|
       unless val.class.morphs.has_key? meth_name
         raise Bud::BudTypeError
