@@ -7,7 +7,7 @@ class BasicLattice < Bud::BudLattice
 
   def self.lattice_name(name)
     if @@lattice_kinds.has_key? name
-      raise Bud::CompileError, "Duplicate lattice definition: #{name}"
+      raise Bud::CompileError, "duplicate lattice definition: #{name}"
     end
     @@lattice_kinds[name] = self
   end
@@ -140,7 +140,7 @@ class MaxLattice < BasicLattice
         end
       end
     else
-      raise Bud::BudTypeError, "Illegal RHS for MaxLattice merge: #{i.class}"
+      raise Bud::BudTypeError, "illegal RHS for MaxLattice merge: #{i.class}"
     end
     if input_v and (@v.nil? or input_v > @v)
       @v = input_v
@@ -149,12 +149,18 @@ class MaxLattice < BasicLattice
   end
 
   def reveal
-    [[@v]]
+    @v
   end
 
   morph :gt_k
   def gt_k(k)
     @v and @v > k
+  end
+
+  def MaxLattice.wrap(val, bud_instance)
+    r = MaxLattice.new("tmp_#{rand.to_s[0,6]}", bud_instance, true)
+    r.instance_variable_set('@v', val)
+    r
   end
 end
 
@@ -182,7 +188,7 @@ class BoolLattice < BasicLattice
     elsif (i.class <= TrueClass or i.class <= FalseClass)
       input_v = i
     else
-      raise Bud::BudTypeError, "Illegal RHS for BoolLattice merge: #{i.class}"
+      raise Bud::BudTypeError, "illegal RHS for BoolLattice merge: #{i.class}"
     end
 
     if input_v == true
@@ -219,7 +225,7 @@ class MultiSetLattice < BasicLattice
     if i.class <= MultiSetLattice
       input_v = i.instance_variable_get('@v')
       input_v.each do |key,val|
-        raise Bud::BudError if val < 0
+        raise Bud::BudError if val <= 0
         if @v.has_key?(key) == false or @v[key] < val
           @v[key] = val
           @got_delta = true
@@ -242,11 +248,12 @@ class MultiSetLattice < BasicLattice
   # By default, we produce a set containing the elements of the multiset and
   # omit their multiplicities. That is inconsistent with <= with Enumerable
   # input; perhaps this should be fixed.
+  # XXX: Returning cardinalities of elements is unsafe, and would make this not
+  # a morphism.
   morph :to_set
   def to_set
     rv = []
     @v.each do |key,val|
-      next if val <= 0
       if block_given?
         rv << (yield [key, val])
       else
@@ -259,4 +266,70 @@ class MultiSetLattice < BasicLattice
   def reveal
     @v
   end
+end
+
+class MergeMapLattice < BasicLattice
+  lattice_name :lat_map
+
+  def reset
+    @v = {}
+  end
+
+  private
+  def merge_item(key, val)
+    if @v.has_key?(key) == false
+      @v[key] = val
+      @got_delta = true
+    else
+      @v[key] <= val
+      @got_delta ||= @v[key].got_delta
+    end
+    puts "got_delta = true" if @got_delta
+  end
+
+  public
+  def <=(i)
+    if i.class <= MergeMapLattice
+      input_v = i.instance_variable_get('@v')
+      input_v.each do |key,val|
+        merge_item(key, val)
+      end
+    elsif i.class <= Enumerable
+      i.each do |t|
+        raise Bud::BudError if t.length != 2
+        key, val = t
+        raise Bud::BudError unless val.class <= Bud::BudLattice
+        merge_item(key, val)
+      end
+    end
+  end
+
+  morph :keys
+  def keys
+    return @v.keys unless block_given?
+
+    rv = []
+    @v.each_key do |key|
+      rv << (yield key)
+    end
+    rv
+  end
+
+  morph :to_set
+  def to_set
+    return @v.to_a unless block_given?
+
+    rv = []
+    @v.each do |key,val|
+      rv << (yield [key, val])
+    end
+    rv
+  end
+
+  # XXX: other morphisms?
+end
+
+# TODO
+class CountingSetLattice < BasicLattice
+  lattice_name :lat_cs
 end

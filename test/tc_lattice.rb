@@ -28,7 +28,7 @@ class SimpleMaxReveal < SimpleMax
   end
 
   bloom do
-    current_val <= m.reveal
+    current_val <= [[m.reveal]]
   end
 end
 
@@ -297,5 +297,32 @@ class TestMultiSetLattice < Test::Unit::TestCase
     i.tick
     assert_equal([[1,2,3], [1,2,4], [5,5,5]], i.result.to_a.sort)
     assert_equal([[1,2,3,2], [1,2,4,4], [5,5,5,3]], i.result_cnt.to_a.sort)
+  end
+end
+
+class SimpleMergeMap
+  include Bud
+
+  state do
+    lat_map :m1
+    lat_map :m2
+    lat_map :m3
+  end
+
+  bloom do
+    m3 <= m1
+    m3 <= m2
+  end
+end
+
+class TestMergeMap < Test::Unit::TestCase
+  def test_mm_multiset
+    i = SimpleMergeMap.new
+    i.m1 <+ [["foo", MaxLattice.wrap(5, i)]]
+    i.m2 <+ [["bar", MaxLattice.wrap(7, i)], ["foo", MaxLattice.wrap(4, i)]]
+    i.tick
+    r = i.m3.to_set.sort
+    assert_equal(["bar", 7], [r[0][0], r[0][1].reveal])
+    assert_equal(["foo", 5], [r[0][0], r[0][1].reveal])
   end
 end
