@@ -365,9 +365,10 @@ class TempExpander < SexpProcessor # :nodoc: all
         _, lhs, op, rhs = meth_args.sexp_body.first
 
         old_rhs_body = rhs.sexp_body
-        rhs[1] = s(:iter)
-        rhs[1] += old_rhs_body
-        rhs[1] += iter_body[1..-1]
+        new_rhs_body = [:iter]
+        new_rhs_body += old_rhs_body
+        new_rhs_body += iter_body[1..-1]
+        rhs[1] = Sexp.from_array(new_rhs_body)
         return call_node
       end
     end
