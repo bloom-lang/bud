@@ -11,7 +11,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1,
       :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
       :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
-      :schema => 1, :keys => 1, :values => 1, :cols => 1, :key_cols => 1, 
+      :schema => 1, :keys => 1, :values => 1, :cols => 1, :key_cols => 1,
       :val_cols => 1, :payloads => 1, :~ => 1
     }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
@@ -156,7 +156,7 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
       elsif exp[2] and exp[2][0] == :lasgn and @collnames.size > 1 and exp[1] # join iter with lefts/rights
         case exp[1][2]
         when :lefts
-          @iterhash[exp[2][1]] = @collnames[0] 
+          @iterhash[exp[2][1]] = @collnames[0]
         when :rights
           @iterhash[exp[2][1]] = @collnames[1]
         else
@@ -347,7 +347,7 @@ class TempExpander < SexpProcessor # :nodoc: all
         end
 
         _, recv, meth, meth_args = n
-        if meth == @keyword and recv.nil?         
+        if meth == @keyword and recv.nil?
           block[i] = rewrite_me(n)
           @did_work = true
         end
@@ -468,7 +468,7 @@ class WithExpander < TempExpander
     meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
     return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
   end
-  
+
   private
   def rewrite_me(exp)
     _, recv, meth, args = exp
@@ -490,10 +490,10 @@ class WithExpander < TempExpander
     @with_rules.push nest_block
     new_recv = s(:call, nil, tmp_name, s(:arglist))
     return s(:call, new_recv, nest_op, nest_args)
-  end  
-  
+  end
+
   undef get_state_meth
-  
+
   public
   def get_state_meth(klass)
     return if @tmp_tables.empty?
@@ -558,24 +558,24 @@ module ModuleRewriter # :nodoc: all
   # the import site. Note that additional rewrites are needed to ensure that
   # code in the import site that accesses module contents does the right thing;
   # see Bud#rewrite_local_methods.
-  
+
   @@with_id = 0 # upon initialize
   def self.with_id
     @@with_id
   end
-  
+
   def self.incr_with_id
     @@with_id += 1
   end
-  
+
   def self.do_import(import_site, mod, local_name)
-    # ast_process_withs modifies its argument as a side-effect 
+    # ast_process_withs modifies its argument as a side-effect
     # and returns a matching ast.
     # hence we run it before the other rewrites.
     ast = ast_process_withs(mod)
     ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
     ast = ast_process_temps(ast, mod)
-    
+
     ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     rename_tbl = {}
     ast = ast_rename_methods(ast, local_name, rename_tbl)
@@ -668,16 +668,16 @@ module ModuleRewriter # :nodoc: all
     end
     return ast
   end
-  
+
   def self.ast_mangle_with(w,klass)
     r2r = Ruby2Ruby.new
-    
+
     while st = w.get_state_meth(klass)
       # generate the module
       tmpmod = Module.new
 
       # add a state block to define a temp for the collection name
-      state_src = r2r.process(st)        
+      state_src = r2r.process(st)
       tmpmod.module_eval(state_src)
 
       # add a bloom block
@@ -697,13 +697,13 @@ module ModuleRewriter # :nodoc: all
 
       # eval all that Ruby we generated and import new Module into our code
       tmpmod.module_eval(bloom_src)
-      modname = "with__"+ModuleRewriter.with_id.to_s
+      modname = "with__#{ModuleRewriter.with_id.to_s}"
       klass.import tmpmod => modname.to_sym
 
       ModuleRewriter.incr_with_id
     end
   end
-    
+
   def self.ast_process_withs(mod)
       # strategy to handle withs:
       # 1) run WithExpander#process to delete the "with" blocks and extract their contents
@@ -716,9 +716,9 @@ module ModuleRewriter # :nodoc: all
       ast = w.process(ast)
       mod_s, name_s, blocks = ast[0], ast[1], ast[2..-1]
       tag, name, args, scope = blocks[0]
-      
-      self.ast_mangle_with(w,mod) 
-      
+
+      self.ast_mangle_with(w, mod)
+
       retval = Unifier.new.process(self.get_raw_parse_tree(mod))
       return retval
       # return s(mod_s, name_s, *blocks)
