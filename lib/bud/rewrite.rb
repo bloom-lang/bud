@@ -583,14 +583,14 @@ module ModuleRewriter # :nodoc: all
 
     str = Ruby2Ruby.new.process(ast)
     rv = import_site.module_eval str
-    raise Bud::BudError unless rv.nil?
+    raise Bud::CompileError unless rv.nil?
     return new_mod_name
   end
 
   def self.get_module_ast(mod)
     raw_ast = get_raw_parse_tree(mod)
     unless raw_ast.first == :module
-      raise Bud::BudError, "import must be used with a Module"
+      raise Bud::CompileError, "import must be used with a Module"
     end
 
     return Unifier.new.process(raw_ast)
@@ -729,7 +729,7 @@ module ModuleRewriter # :nodoc: all
   # "bootstrap", and "bloom" methods).
   def self.ast_rename_module(ast, importer, importee, local_name)
     mod_name = ast.sexp_body.first
-    raise Bud::BudError if mod_name.to_s != importee.to_s
+    raise Bud::CompileError if mod_name.to_s != importee.to_s
 
     # If the importer or importee modules are nested inside an outer module,
     # strip off the outer module name before using for name mangling purposes
@@ -751,7 +751,7 @@ module ModuleRewriter # :nodoc: all
   # given module's AST. Returns a table mapping old => new names.
   def self.ast_rename_state(ast, local_name, rename_tbl)
     # Find all the state blocks in the AST
-    raise Bud::BudError unless ast.sexp_type == :module
+    raise Bud::CompileError unless ast.sexp_type == :module
 
     ast.sexp_body.each do |b|
       next unless b.class <= Sexp
@@ -760,17 +760,17 @@ module ModuleRewriter # :nodoc: all
       def_name, args, scope = b.sexp_body
       next unless /^__state\d+__/.match def_name.to_s
 
-      raise Bud::BudError unless scope.sexp_type == :scope
+      raise Bud::CompileError unless scope.sexp_type == :scope
       state_block = scope.sexp_body.first
-      raise Bud::BudError unless state_block.sexp_type == :block
+      raise Bud::CompileError unless state_block.sexp_type == :block
       next unless state_block.sexp_body
 
       # Look for collection definition statements inside the block
       state_block.sexp_body.each do |e|
-        raise Bud::BudError unless e.sexp_type == :call
+        raise Bud::CompileError unless e.sexp_type == :call
 
         recv, meth_name, args = e.sexp_body
-        raise Bud::BudError unless args.sexp_type == :arglist
+        raise Bud::CompileError unless args.sexp_type == :arglist
 
         if meth_name == :interface
           tbl_name_node = args.sexp_body[1]
@@ -778,7 +778,7 @@ module ModuleRewriter # :nodoc: all
           tbl_name_node = args.sexp_body[0]
         end
 
-        raise Bud::BudError unless tbl_name_node.sexp_type == :lit
+        raise Bud::CompileError unless tbl_name_node.sexp_type == :lit
         tbl_name = tbl_name_node.sexp_body.first
 
         new_tbl_name = "#{local_name}__#{tbl_name}".to_sym
