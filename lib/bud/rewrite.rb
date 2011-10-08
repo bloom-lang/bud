@@ -778,7 +778,9 @@ module ModuleRewriter # :nodoc: all
           tbl_name_node = args.sexp_body[0]
         end
 
-        raise Bud::CompileError unless tbl_name_node.sexp_type == :lit
+        if tbl_name_node.nil? or tbl_name_node.sexp_type != :lit
+          raise Bud::CompileError, "syntax error in state block"
+        end
         tbl_name = tbl_name_node.sexp_body.first
 
         new_tbl_name = "#{local_name}__#{tbl_name}".to_sym
