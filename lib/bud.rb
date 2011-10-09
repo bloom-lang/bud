@@ -5,6 +5,10 @@ require 'socket'
 require 'superators'
 require 'thread'
 
+# Ruby2Ruby 1.3.1 is buggy (see issue #250)
+gem 'ruby2ruby', '< 1.3.1'
+require 'ruby2ruby'
+
 require 'bud/monkeypatch'
 
 require 'bud/aggs'

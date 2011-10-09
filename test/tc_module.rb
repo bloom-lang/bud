@@ -477,7 +477,7 @@ class TestModules < Test::Unit::TestCase
   end
 
   def test_import_class
-    assert_raise(Bud::BudError) do
+    assert_raise(Bud::CompileError) do
       eval "
       class DummyClass; end
       class DummyImporter

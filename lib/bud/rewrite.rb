@@ -1,5 +1,4 @@
 require 'rubygems'
-require 'ruby2ruby'
 
 class RuleRewriter < Ruby2Ruby # :nodoc: all
   attr_accessor :rule_indx, :rules, :depends
@@ -11,7 +10,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1,
       :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
       :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
-      :schema => 1, :keys => 1, :values => 1, :cols => 1, :key_cols => 1, 
+      :schema => 1, :keys => 1, :values => 1, :cols => 1, :key_cols => 1,
       :val_cols => 1, :payloads => 1, :~ => 1
     }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
@@ -167,7 +166,7 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
       elsif exp[2] and exp[2][0] == :lasgn and @collnames.size > 1 and exp[1] # join iter with lefts/rights
         case exp[1][2]
         when :lefts
-          @iterhash[exp[2][1]] = @collnames[0] 
+          @iterhash[exp[2][1]] = @collnames[0]
         when :rights
           @iterhash[exp[2][1]] = @collnames[1]
         else
@@ -358,7 +357,7 @@ class TempExpander < SexpProcessor # :nodoc: all
         end
 
         _, recv, meth, meth_args = n
-        if meth == @keyword and recv.nil?         
+        if meth == @keyword and recv.nil?
           block[i] = rewrite_me(n)
           @did_work = true
         end
@@ -376,9 +375,10 @@ class TempExpander < SexpProcessor # :nodoc: all
         _, lhs, op, rhs = meth_args.sexp_body.first
 
         old_rhs_body = rhs.sexp_body
-        rhs[1] = s(:iter)
-        rhs[1] += old_rhs_body
-        rhs[1] += iter_body[1..-1]
+        new_rhs_body = [:iter]
+        new_rhs_body += old_rhs_body
+        new_rhs_body += iter_body[1..-1]
+        rhs[1] = Sexp.from_array(new_rhs_body)
         return call_node
       end
     end
@@ -478,7 +478,7 @@ class WithExpander < TempExpander
     meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
     return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
   end
-  
+
   private
   def rewrite_me(exp)
     _, recv, meth, args = exp
@@ -500,10 +500,10 @@ class WithExpander < TempExpander
     @with_rules.push nest_block
     new_recv = s(:call, nil, tmp_name, s(:arglist))
     return s(:call, new_recv, nest_op, nest_args)
-  end  
-  
+  end
+
   undef get_state_meth
-  
+
   public
   def get_state_meth(klass)
     return if @tmp_tables.empty?
@@ -568,24 +568,24 @@ module ModuleRewriter # :nodoc: all
   # the import site. Note that additional rewrites are needed to ensure that
   # code in the import site that accesses module contents does the right thing;
   # see Bud#rewrite_local_methods.
-  
+
   @@with_id = 0 # upon initialize
   def self.with_id
     @@with_id
   end
-  
+
   def self.incr_with_id
     @@with_id += 1
   end
-  
+
   def self.do_import(import_site, mod, local_name)
-    # ast_process_withs modifies its argument as a side-effect 
+    # ast_process_withs modifies its argument as a side-effect
     # and returns a matching ast.
     # hence we run it before the other rewrites.
     ast = ast_process_withs(mod)
     ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
     ast = ast_process_temps(ast, mod)
-    
+
     ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
     rename_tbl = {}
     ast = ast_rename_methods(ast, local_name, rename_tbl)
@@ -594,14 +594,14 @@ module ModuleRewriter # :nodoc: all
 
     str = Ruby2Ruby.new.process(ast)
     rv = import_site.module_eval str
-    raise Bud::BudError unless rv.nil?
+    raise Bud::CompileError unless rv.nil?
     return new_mod_name
   end
 
   def self.get_module_ast(mod)
     raw_ast = get_raw_parse_tree(mod)
     unless raw_ast.first == :module
-      raise Bud::BudError, "import must be used with a Module"
+      raise Bud::CompileError, "import must be used with a Module"
     end
 
     return Unifier.new.process(raw_ast)
@@ -678,16 +678,16 @@ module ModuleRewriter # :nodoc: all
     end
     return ast
   end
-  
+
   def self.ast_mangle_with(w,klass)
     r2r = Ruby2Ruby.new
-    
+
     while st = w.get_state_meth(klass)
       # generate the module
       tmpmod = Module.new
 
       # add a state block to define a temp for the collection name
-      state_src = r2r.process(st)        
+      state_src = r2r.process(st)
       tmpmod.module_eval(state_src)
 
       # add a bloom block
@@ -707,13 +707,13 @@ module ModuleRewriter # :nodoc: all
 
       # eval all that Ruby we generated and import new Module into our code
       tmpmod.module_eval(bloom_src)
-      modname = "with__"+ModuleRewriter.with_id.to_s
+      modname = "with__#{ModuleRewriter.with_id.to_s}"
       klass.import tmpmod => modname.to_sym
 
       ModuleRewriter.incr_with_id
     end
   end
-    
+
   def self.ast_process_withs(mod)
       # strategy to handle withs:
       # 1) run WithExpander#process to delete the "with" blocks and extract their contents
@@ -726,9 +726,9 @@ module ModuleRewriter # :nodoc: all
       ast = w.process(ast)
       mod_s, name_s, blocks = ast[0], ast[1], ast[2..-1]
       tag, name, args, scope = blocks[0]
-      
-      self.ast_mangle_with(w,mod) 
-      
+
+      self.ast_mangle_with(w, mod)
+
       retval = Unifier.new.process(self.get_raw_parse_tree(mod))
       return retval
       # return s(mod_s, name_s, *blocks)
@@ -740,7 +740,7 @@ module ModuleRewriter # :nodoc: all
   # "bootstrap", and "bloom" methods).
   def self.ast_rename_module(ast, importer, importee, local_name)
     mod_name = ast.sexp_body.first
-    raise Bud::BudError if mod_name.to_s != importee.to_s
+    raise Bud::CompileError if mod_name.to_s != importee.to_s
 
     # If the importer or importee modules are nested inside an outer module,
     # strip off the outer module name before using for name mangling purposes
@@ -762,7 +762,7 @@ module ModuleRewriter # :nodoc: all
   # given module's AST. Returns a table mapping old => new names.
   def self.ast_rename_state(ast, local_name, rename_tbl)
     # Find all the state blocks in the AST
-    raise Bud::BudError unless ast.sexp_type == :module
+    raise Bud::CompileError unless ast.sexp_type == :module
 
     ast.sexp_body.each do |b|
       next unless b.class <= Sexp
@@ -771,17 +771,17 @@ module ModuleRewriter # :nodoc: all
       def_name, args, scope = b.sexp_body
       next unless /^__state\d+__/.match def_name.to_s
 
-      raise Bud::BudError unless scope.sexp_type == :scope
+      raise Bud::CompileError unless scope.sexp_type == :scope
       state_block = scope.sexp_body.first
-      raise Bud::BudError unless state_block.sexp_type == :block
+      raise Bud::CompileError unless state_block.sexp_type == :block
       next unless state_block.sexp_body
 
       # Look for collection definition statements inside the block
       state_block.sexp_body.each do |e|
-        raise Bud::BudError unless e.sexp_type == :call
+        raise Bud::CompileError unless e.sexp_type == :call
 
         recv, meth_name, args = e.sexp_body
-        raise Bud::BudError unless args.sexp_type == :arglist
+        raise Bud::CompileError unless args.sexp_type == :arglist
 
         if meth_name == :interface
           tbl_name_node = args.sexp_body[1]
@@ -789,7 +789,9 @@ module ModuleRewriter # :nodoc: all
           tbl_name_node = args.sexp_body[0]
         end
 
-        raise Bud::BudError unless tbl_name_node.sexp_type == :lit
+        if tbl_name_node.nil? or tbl_name_node.sexp_type != :lit
+          raise Bud::CompileError, "syntax error in state block"
+        end
         tbl_name = tbl_name_node.sexp_body.first
 
         new_tbl_name = "#{local_name}__#{tbl_name}".to_sym
