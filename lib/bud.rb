@@ -65,7 +65,8 @@ $bud_instances = {}        # Map from instance id => Bud instance
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
   attr_reader :dsock
-  attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
+  attr_reader :builtin_tables, :tables
+  attr_reader :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
   attr_reader :stratum_first_iter, :joinstate
   attr_reader :this_stratum, :this_rule, :rule_orig_src
   attr_reader :running_async
@@ -100,8 +101,8 @@ module Bud
   #   * <tt>:deploy</tt>  enable deployment
   #   * <tt>:deploy_child_opts</tt> option hash to pass to deployed instances
   def initialize(options={})
+    @builtin_tables = {}
     @tables = {}
-    @table_meta = []
     @rewritten_strata = []
     @channels = {}
     @tc_tables = {}
@@ -737,16 +738,19 @@ module Bud
   private
 
   # Builtin BUD state (predefined collections). We could define this using the
-  # standard "state" syntax, but we want to ensure that builtin state is
+  # standard state block syntax, but we want to ensure that builtin state is
   # initialized before user-defined state.
   def builtin_state
+    # We expect there to be no previously-defined tables
+    raise BudError unless @tables.empty?
+
     loopback  :localtick, [:col1]
     @stdio = terminal :stdio
     readonly :signals, [:key]
     scratch :halt, [:key]
     @periodics = table :periodics_tbl, [:pername] => [:period]
 
-    # for Bud reflection
+    # For Bud reflection
     table :t_rules, [:rule_id] => [:lhs, :op, :src, :orig_src]
     table :t_depends, [:rule_id, :lhs, :op, :body] => [:nm]
     table :t_depends_tc, [:head, :body, :via, :neg, :temporal]
@@ -756,6 +760,9 @@ module Bud
     table :t_cycle, [:predicate, :via, :neg, :temporal]
     table :t_table_info, [:tab_name, :tab_type]
     table :t_table_schema, [:tab_name, :col_name, :ord, :loc]
+
+    # Identify builtin tables as such
+    @builtin_tables = @tables.clone
   end
 
   # Handle any inbound tuples off the wire. Received messages are placed

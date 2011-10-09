@@ -160,9 +160,9 @@ class TestMeta < Test::Unit::TestCase
     dir = scratch_dir
 
     program.run_bg
-    program.sync_do{}
+    program.sync_do
     
-    write_graphs({}, program.t_cycle, program.t_depends, program.t_rules, "#{dir}/test_viz", dir, :dot, false, nil, 1, {})
+    write_graphs({}, program.builtin_tables, program.t_cycle, program.t_depends, program.t_rules, "#{dir}/test_viz", dir, :dot, false, nil, 1, {})
     program.stop
   end
 
