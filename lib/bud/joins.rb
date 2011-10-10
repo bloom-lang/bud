@@ -84,6 +84,19 @@ module Bud
       preds.uniq
     end
 
+    private_class_method
+    def self.positionwise_preds(bud_instance, rels)
+      preds = []
+      rels.each do |r|
+        rels.each do |s|
+          [r.cols.length, s.cols.length].min.times do |c|
+            preds << [bud_instance.send(r.tabname).send(r.cols[c]), bud_instance.send(s.tabname).send(s.cols[c])] unless r.tabname.to_s >= s.tabname.to_s
+          end
+        end
+      end
+      preds.uniq
+    end
+
     # flatten joined items into arrays, with attribute accessors inherited
     # from the input collections, disambiguated via suffix indexes as needed.
     # similar to <tt>SELECT * FROM ... WHERE...</tt> block in SQL.
@@ -221,20 +234,24 @@ module Bud
       @origpreds = preds
       # no projection involved here, so we can propagate the schema
       @cols = @rels[0].cols
+      if preds == [] and blk.nil? and @cols.length == @rels[1].cols.length
+        preds = BudJoin::positionwise_preds(@bud_instance, rels)
+      end
       setup_preds(preds)
       setup_state if self.class <= Bud::BudJoin
       if blk.nil?
-        if preds.nil? or preds == []
-          # looking for r's that don't have an exact match in s
-          return @rels[0].map {|r| (@rels[1].include? r) ? nil : r}.compact
+        if preds == [] # mismatched schemas -- no matches to be excluded
+          @exclude = [] 
         else
-          @matches = map { |r, s| r }
+          # exclude those tuples of r that have a match
+          @exclude = map { |r, s| r }
         end
       else
-        @matches = map { |r, s| r unless blk.call(r, s).nil? }.compact
+        # exclude tuples of r that pass the blk call
+        @exclude = map { |r, s| r unless blk.call(r, s).nil? }.compact
       end
-      # XXX: @matches is an Array, which makes include? O(n)
-      @rels[0].map {|r| (@matches.include? r) ? nil : r}
+      # XXX: @exclude is an Array, which makes include? O(n)
+      @rels[0].map {|r| (@exclude.include? r) ? nil : r}
     end
 
     private
