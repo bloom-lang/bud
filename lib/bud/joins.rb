@@ -224,7 +224,12 @@ module Bud
       setup_preds(preds)
       setup_state if self.class <= Bud::BudJoin
       if blk.nil?
-        @matches = map { |r, s| r }
+        if preds.nil? or preds == []
+          # looking for r's that don't have an exact match in s
+          return @rels[0].map {|r| (@rels[1].include? r) ? nil : r}.compact
+        else
+          @matches = map { |r, s| r }
+        end
       else
         @matches = map { |r, s| r unless blk.call(r, s).nil? }.compact
       end
