@@ -77,7 +77,7 @@ class TestBudClock < Test::Unit::TestCase
   def test_bud_clock_outside_tick
     b = BudClockExample.new
     b.run_bg
-    assert_raise(Bud::BudError) do
+    assert_raise(Bud::Error) do
       b.sync_do {
         puts "Current Bud clock: #{b.bud_clock}"
       }

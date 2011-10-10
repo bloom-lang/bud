@@ -195,7 +195,7 @@ class TestChannelWithKey < Test::Unit::TestCase
     }
 
     # Check that inserting into a channel via <= is rejected
-    assert_raise(Bud::BudError) {
+    assert_raise(Bud::Error) {
       p1.sync_do {
         p1.c <= [[target_addr, 60, 110]]
       }
@@ -307,11 +307,11 @@ end
 
 class LocSpecTests < Test::Unit::TestCase
   def test_missing_ls
-    assert_raise(Bud::BudError) { ChannelWithoutLocSpec.new }
+    assert_raise(Bud::Error) { ChannelWithoutLocSpec.new }
   end
 
   def test_dup_ls
-    assert_raise(Bud::BudError) { ChannelWithMultiLocSpecs.new }
+    assert_raise(Bud::Error) { ChannelWithMultiLocSpecs.new }
   end
 end
 

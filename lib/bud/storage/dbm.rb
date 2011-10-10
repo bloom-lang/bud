@@ -5,9 +5,9 @@ module Bud
   class BudDbmTable < BudCollection # :nodoc: all
     def initialize(name, bud_instance, given_schema)
       dbm_dir = bud_instance.options[:dbm_dir]
-      raise BudError, "dbm support must be enabled via 'dbm_dir'" unless dbm_dir
+      raise Bud::Error, "dbm support must be enabled via 'dbm_dir'" unless dbm_dir
       if bud_instance.port.nil?
-        raise BudError, "use of dbm storage requires an explicit port to be specified in Bud initialization options"
+        raise Bud::Error, "use of dbm storage requires an explicit port to be specified in Bud initialization options"
       end
 
       unless File.exists?(dbm_dir)
@@ -30,7 +30,7 @@ module Bud
       end
       @dbm = DBM.open(db_fname, 0666, flags)
       if @dbm.nil?
-        raise BudError, "failed to open dbm database '#{db_fname}': #{@dbm.errmsg}"
+        raise Bud::Error, "failed to open dbm database '#{db_fname}': #{@dbm.errmsg}"
       end
     end
 

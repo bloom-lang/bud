@@ -9,9 +9,9 @@ module Bud
   class BudTcTable < BudCollection # :nodoc: all
     def initialize(name, bud_instance, given_schema)
       tc_dir = bud_instance.options[:tc_dir]
-      raise BudError, "TC support must be enabled via 'tc_dir'" unless tc_dir
+      raise Bud::Error, "TC support must be enabled via 'tc_dir'" unless tc_dir
       if bud_instance.port.nil?
-        raise BudError, "use of dbm storage requires an explicit port to be specified in Bud initialization options"
+        raise Bud::Error, "use of dbm storage requires an explicit port to be specified in Bud initialization options"
       end
 
       unless File.exists?(tc_dir)
@@ -35,7 +35,7 @@ module Bud
         flags |= TokyoCabinet::HDB::OTRUNC
       end
       if !@hdb.open(db_fname, flags)
-        raise BudError, "failed to open TokyoCabinet DB '#{db_fname}': #{@hdb.errmsg}"
+        raise Bud::Error, "failed to open TokyoCabinet DB '#{db_fname}': #{@hdb.errmsg}"
       end
       @hdb.tranbegin
     end

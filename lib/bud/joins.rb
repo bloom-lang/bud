@@ -120,7 +120,7 @@ module Bud
     public
     # map each (nested) item in the collection into a string, suitable for placement in stdio
     def inspected
-      raise BudError, "join left unconverted to binary" if @rels.length > 2
+      raise Bud::Error, "join left unconverted to binary" if @rels.length > 2
       tabnames = @origrels.map {|r| r.tabname.to_s}.join " * "
       [["(#{tabnames}): [#{self.map{|r1, r2| "\n  (#{r1.inspect}, #{r2.inspect})"}}]"]]
     end
