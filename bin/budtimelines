@@ -36,7 +36,7 @@ end
 module TPSchema
   state do
     table :deltas, [:bud_time, :tab, :nm]
-    table :zerod_cards, [:bud_time, :table, :cnt]
+    table :zerod_cards, [:bud_time, :table, :cnt, :pred]
     table :nm_tab, [:table]
     table :collapsible_base, [:start, :fin]
     table :collapsible, [:start, :fin]
@@ -49,19 +49,18 @@ end
 module DeltaLogic
   include TPSchema
   bloom do
-    zerod_cards <= cardinalities
+    zerod_cards <= cardinalities{|c| c + [c.bud_time-1]}
     zerod_cards <= (times * depends).pairs do |t, d|
       unless cardinalities{|c| c[1] if c[0] == t.bud_time}.include? d[1]
-        [t.bud_time, d[1], 0]
+        [t.bud_time, d[1], 0, t.bud_time - 1]
       end
     end
-
 
     nm_tab <= depends do |d|
       [d[1]] if d[4]
     end
 
-    deltas <= (zerod_cards * zerod_cards).pairs(:table => :table) do |c1, c2|
+    deltas <= (zerod_cards * zerod_cards).pairs(:table => :table, :bud_time => :pred) do |c1, c2|
       if c1.bud_time == c2.bud_time - 1 and c1.table == c2.table and c1.cnt != c2.cnt
         if nm_tab.include? [c1.table]
           [c2.bud_time, c1.table, true]
@@ -77,26 +76,22 @@ module VanillaTraceProcessing
   include TPSchema
   include DeltaLogic
 
-  bloom do
-    collapsible_base <= times do |t|
-      unless deltas{|d| d.bud_time if d.nm}.include? t.bud_time
-        [t.bud_time-1, t.bud_time]
-      end
-    end
+  state do
+    scratch :tp, times.schema
+    scratch :bi1, best_interval.schema
+  end
 
+  bloom do
+    tp <= times.notin(deltas, :bud_time => :bud_time) {|t, d| true if d.nm}
+    collapsible_base <= tp {|t| [t.bud_time-1, t.bud_time]}
     collapsible <= collapsible_base
 
     collapsible <= (collapsible_base * collapsible).pairs(:fin => :start) do |b, c|
-      puts "another collapsible row; now #{b.inspect} - #{c.inspect}"
       [b.start, c.fin]
     end
 
-    best_interval <= collapsible do |c|
-      unless collapsible{|c1| c1.start == c.start and c1.fin > c.fin}.any? \
-       or collapsible{|c2| c2.fin == c.fin and c2.start < c.start}.any?
-        c
-      end
-    end
+    bi1 <= collapsible.notin(collapsible, :start => :start) {|c1, c2| true if c2.fin > c1.fin}
+    best_interval <= bi1.notin(collapsible, :fin => :fin) {|c1, c2| true if c2.start < c1.start}
   end
 end
 
@@ -139,7 +134,7 @@ da = GlobalDepAnalyzer.new
 
 ARGV.each do |arg_raw|
   elems = arg_raw.split("_")
-  arg = elems[1..3].join("_")
+  arg = elems[1..4].join("_")
   clean_arg << arg
   snd_info[arg] = []
   rcv_info[arg] = []
@@ -166,7 +161,6 @@ ARGV.each do |arg_raw|
 
   tp.tick
 
-
   puts "entries in collapsible: #{tp.collapsible.length}"
   puts "entries in base: #{tp.collapsible_base.length}"
   puts "entries in deltas: #{tp.deltas.length}"
@@ -182,7 +176,11 @@ da.tick
 nmreach = {}
 da.depends_tc.each do |d|
   nmreach[d[0]] = {} unless nmreach[d[0]]
-  nmreach[d[0]][d[1]] = d[3]
+  if nmreach[d[0]][d[1]]
+    nmreach[d[0]][d[1]] = d[3] or nmreach[d[0]][d[1]]
+  else
+    nmreach[d[0]][d[1]] = d[3]
+  end
 end
 
 # our local intervals relations are too optimistic.  to say that intervals[foo] = [2, 5]

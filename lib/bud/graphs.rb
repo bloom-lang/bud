@@ -263,7 +263,7 @@ class SpaceTime
 
     squeues = {}
     queues.each_pair do |k, v|
-      squeues[k] = v.sort{|a, b| a <=> b}
+      squeues[k] = v.sort{|a, b| a.to_i <=> b.to_i}
     end
 
     # create the nodes and the timeline edges first.
@@ -271,8 +271,7 @@ class SpaceTime
       v.each_with_index do |item, i|
         label = "#{k}-#{item}"
         if @links
-          url = "DBM_#{k}_/tm_#{item}.svg"
-          #puts "URL is #{url}"
+          url = "DBM_#{k}/tm_#{item}.svg"
         end
         snd = @subs[k].add_node(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :pos => [1, i], :group => k, :URL => url})
 
