@@ -333,6 +333,11 @@ class MergeMapLattice < BasicLattice
     return true
   end
 
+  morph :[]
+  def [](k)
+    @v[k]
+  end
+
   morph :keys
   def keys
     return @v.keys unless block_given?
