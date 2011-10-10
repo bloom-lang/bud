@@ -110,7 +110,6 @@ def do_table(f, info)
   info.sort{|a, b| a[0].to_s <=> b[0].to_s}.each do |tbl_name, tbl_impl|
     next if tbl_impl.schema.nil?
     key_s = tbl_impl.key_cols.join(", ")
-    key_s = "[]" if key_s == ""
     val_s = tbl_impl.val_cols.join(", ")
     f.puts "<tr><td><b>#{tbl_name}</b></td>"
     f.puts "<td>#{key_s}</td><td>#{val_s}</td></tr>"
