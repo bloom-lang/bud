@@ -51,7 +51,7 @@ module Bud
       # user-specified schema.
       given_schema.each do |s|
         if s.to_s.start_with? "@"
-          raise BudError, "illegal use of location specifier (@) in column #{s} of non-channel collection #{tabname}"
+          raise Bud::Error, "illegal use of location specifier (@) in column #{s} of non-channel collection #{tabname}"
         end
       end
 
@@ -68,7 +68,7 @@ module Bud
     private
     def parse_schema(given_schema)
       if given_schema.respond_to? :keys
-        raise BudError, "invalid schema for #{tabname}" if given_schema.length != 1
+        raise Bud::Error, "invalid schema for #{tabname}" if given_schema.length != 1
         key_cols = given_schema.keys.first
         val_cols = given_schema.values.first
       else
@@ -79,11 +79,11 @@ module Bud
       cols = key_cols + val_cols
       cols.each do |c|
         if c.class != Symbol
-          raise BudError, "invalid schema element \"#{c}\", type \"#{c.class}\""
+          raise Bud::Error, "invalid schema element \"#{c}\", type \"#{c.class}\""
         end
       end
       if cols.uniq.length < cols.length
-        raise BudError, "schema for #{tabname} contains duplicate names"
+        raise Bud::Error, "schema for #{tabname} contains duplicate names"
       end
 
       return [cols, key_cols]
@@ -118,7 +118,7 @@ module Bud
         reserved = eval "defined?(#{colname})"
         unless (reserved.nil? or
           (reserved == "method" and method(colname).arity == -1 and (eval(colname))[0] == self.tabname))
-          raise BudError, "symbol :#{colname} reserved, cannot be used as column name for #{tabname}"
+          raise Bud::Error, "symbol :#{colname} reserved, cannot be used as column name for #{tabname}"
         end
       end
 
@@ -224,7 +224,7 @@ module Bud
         when :storage then @storage
         when :delta then @delta
         when :new_delta then @new_delta
-        else raise BudError, "bad symbol passed into each_from_sym"
+        else raise Bud::Error, "bad symbol passed into each_from_sym"
         end
       end
       each_from(bufs, &block)
@@ -297,10 +297,10 @@ module Bud
     private
     def prep_tuple(o)
       unless o.respond_to?(:length) and o.respond_to?(:[])
-        raise BudTypeError, "non-indexable type inserted into \"#{tabname}\": #{o.inspect}"
+        raise Bud::TypeError, "non-indexable type inserted into \"#{tabname}\": #{o.inspect}"
       end
       if o.class <= String
-        raise BudTypeError, "String value used as a fact inserted into \"#{tabname}\": #{o.inspect}"
+        raise Bud::TypeError, "String value used as a fact inserted into \"#{tabname}\": #{o.inspect}"
       end
 
       if o.length < cols.length then
@@ -344,7 +344,7 @@ module Bud
     private
     def check_enumerable(o)
       unless o.nil? or o.class < Enumerable
-        raise BudTypeError, "collection #{tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
+        raise Bud::TypeError, "collection #{tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
       end
     end
 
@@ -456,8 +456,8 @@ module Bud
     def tick  # :nodoc: all
       @storage = @pending
       @pending = {}
-      raise BudError, "orphaned tuples in @delta for #{@tabname}" unless @delta.empty?
-      raise BudError, "orphaned tuples in @new_delta for #{@tabname}" unless @new_delta.empty?
+      raise Bud::Error, "orphaned tuples in @delta for #{@tabname}" unless @delta.empty?
+      raise Bud::Error, "orphaned tuples in @new_delta for #{@tabname}" unless @new_delta.empty?
     end
 
     # move deltas to storage, and new_deltas to deltas.
@@ -495,7 +495,7 @@ module Bud
     public
     def argagg(aggname, gbkey_cols, collection)
       agg = bud_instance.send(aggname, nil)[0]
-      raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
+      raise Bud::Error, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
       keynames = gbkey_cols.map do |k|
         if k.class == Symbol
           k.to_s
@@ -694,10 +694,10 @@ module Bud
         the_cols, the_key_cols = parse_schema(given_schema)
         spec_count = the_cols.count {|c| c.to_s.start_with? "@"}
         if spec_count == 0
-          raise BudError, "missing location specifier for channel '#{name}'"
+          raise Bud::Error, "missing location specifier for channel '#{name}'"
         end
         if spec_count > 1
-          raise BudError, "multiple location specifiers for channel '#{name}'"
+          raise Bud::Error, "multiple location specifiers for channel '#{name}'"
         end
 
         the_val_cols = the_cols - the_key_cols
@@ -733,7 +733,7 @@ module Bud
         lsplit[1] = lsplit[1].to_i
         return lsplit
       rescue Exception => e
-        raise BudError, "illegal location specifier in tuple #{t.inspect} for channel \"#{tabname}\": #{e.to_s}"
+        raise Bud::Error, "illegal location specifier in tuple #{t.inspect} for channel \"#{tabname}\": #{e.to_s}"
       end
     end
 
@@ -759,7 +759,7 @@ module Bud
           the_locspec = [ip, port]
         else
           the_locspec = split_locspec(t, @locspec_idx)
-          raise BudError, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
+          raise Bud::Error, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
         end
         @bud_instance.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
       end
@@ -790,13 +790,13 @@ module Bud
     end
 
     superator "<+" do |o|
-      raise BudError, "illegal use of <+ with channel '#{@tabname}' on left"
+      raise Bud::Error, "illegal use of <+ with channel '#{@tabname}' on left"
     end
 
     undef merge
 
     def <=(o)
-      raise BudError, "illegal use of <= with channel '#{@tabname}' on left"
+      raise Bud::Error, "illegal use of <= with channel '#{@tabname}' on left"
     end
   end
 
@@ -850,14 +850,14 @@ module Bud
     public
     def tick #:nodoc: all
       @storage = {}
-      raise BudError, "orphaned pending tuples in terminal" unless @pending.empty?
+      raise Bud::Error, "orphaned pending tuples in terminal" unless @pending.empty?
     end
 
     undef merge
 
     public
     def <=(o) #:nodoc: all
-      raise BudError, "illegal use of <= with terminal '#{@tabname}' on left"
+      raise Bud::Error, "illegal use of <= with terminal '#{@tabname}' on left"
     end
 
     superator "<~" do |o|
@@ -868,26 +868,26 @@ module Bud
     def get_out_io
       rv = @bud_instance.options[:stdout]
       rv ||= $stdout
-      raise BudError, "attempting to write to terminal #{tabname} that was already closed" if rv.closed?
+      raise Bud::Error, "attempting to write to terminal #{tabname} that was already closed" if rv.closed?
       rv
     end
   end
 
   class BudPeriodic < BudCollection # :nodoc: all
     def <=(o)
-      raise BudError, "illegal use of <= with periodic '#{tabname}' on left"
+      raise Bud::Error, "illegal use of <= with periodic '#{tabname}' on left"
     end
 
     superator "<~" do |o|
-      raise BudError, "illegal use of <~ with periodic '#{tabname}' on left"
+      raise Bud::Error, "illegal use of <~ with periodic '#{tabname}' on left"
     end
 
     superator "<-" do |o|
-      raise BudError, "illegal use of <- with periodic '#{tabname}' on left"
+      raise Bud::Error, "illegal use of <- with periodic '#{tabname}' on left"
     end
 
     superator "<+" do |o|
-      raise BudError, "illegal use of <+ with periodic '#{tabname}' on left"
+      raise Bud::Error, "illegal use of <+ with periodic '#{tabname}' on left"
     end
   end
 

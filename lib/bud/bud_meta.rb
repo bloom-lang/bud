@@ -57,7 +57,7 @@ class BudMeta #:nodoc: all
   def binaryrel2map(rel)
     map = {}
     rel.each do |s|
-      raise Bud::BudError unless s.length == 2
+      raise Bud::Error unless s.length == 2
       map[s[0]] = s[1]
     end
     return map

@@ -55,7 +55,7 @@ module Bud
       @tables[name] = Bud::BudTcTable.new(name, self, schema)
       @tc_tables[name] = @tables[name]
     else
-      raise BudError, "unknown synchronous storage engine #{storage.to_s}"
+      raise Bud::Error, "unknown synchronous storage engine #{storage.to_s}"
     end
   end
   
@@ -65,12 +65,12 @@ module Bud
     when :zookeeper
       # treat "schema" as a hash of options
       options = schema
-      raise BudError, "Zookeeper tables require a :path option" if options[:path].nil?
+      raise Bud::Error, "Zookeeper tables require a :path option" if options[:path].nil?
       options[:addr] ||= "localhost:2181"
       @tables[name] = Bud::BudZkTable.new(name, options[:path], options[:addr], self)
       @zk_tables[name] = @tables[name]
     else
-      raise BudError, "unknown async storage engine #{storage.to_s}"
+      raise Bud::Error, "unknown async storage engine #{storage.to_s}"
     end
   end
 
@@ -118,14 +118,14 @@ module Bud
   # rhs of statements only.
   def periodic(name, period=1)
     define_collection(name)
-    raise BudError if @periodics.has_key? [name]
+    raise Bud::Error if @periodics.has_key? [name]
     @periodics << [name, period]
     @tables[name] = Bud::BudPeriodic.new(name, self)
   end
 
   def terminal(name) # :nodoc: all
     if defined?(@terminal) && @terminal != name
-      raise Bud::BudError, "can't register IO collection #{name} in addition to #{@terminal}"
+      raise Bud::Error, "can't register IO collection #{name} in addition to #{@terminal}"
     else
       @terminal = name
     end

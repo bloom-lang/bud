@@ -109,7 +109,7 @@ class CallbackTest < Test::Unit::TestCase
 
   def test_missing_cb_error
     c = SimpleCb.new
-    assert_raise(Bud::BudError) do
+    assert_raise(Bud::Error) do
       c.register_callback(:crazy) do
         raise RuntimeError
       end

@@ -165,7 +165,7 @@ class CallbackTest < Test::Unit::TestCase
 
   def test_interrogate1
     c = Vacuous.new
-    assert_raise(Bud::BudError) {c.int_ip_port}
+    assert_raise(Bud::Error) {c.int_ip_port}
   end
 
   def test_interrogate2
@@ -186,7 +186,7 @@ class CallbackTest < Test::Unit::TestCase
     c = Vacuous.new
     c.run_bg
     5.times do
-      assert_raise(Bud::BudError) { c.run_bg }
+      assert_raise(Bud::Error) { c.run_bg }
     end
     c.stop
   end

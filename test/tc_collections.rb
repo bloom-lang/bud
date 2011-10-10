@@ -352,7 +352,7 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_dup_columns
-    assert_raise(Bud::BudError) {program = DupColBud.new}
+    assert_raise(Bud::Error) {program = DupColBud.new}
   end
 
   def test_dup_keys
@@ -416,15 +416,15 @@ class TestCollections < Test::Unit::TestCase
     p1.tick
     assert_equal(1, p1.t1.first.key)
     p2 = NonEnumerable.new
-    assert_raise(Bud::BudTypeError) { p2.tick }
+    assert_raise(Bud::TypeError) { p2.tick }
     p3 = NonTuple.new
-    assert_raise(Bud::BudTypeError) { p3.tick }
+    assert_raise(Bud::TypeError) { p3.tick }
     p4 = NonTupleDelete.new
-    assert_raise(Bud::BudTypeError) { p4.tick }
+    assert_raise(Bud::TypeError) { p4.tick }
     p5 = StringMerge.new
-    assert_raise(Bud::BudTypeError) { p5.tick }
+    assert_raise(Bud::TypeError) { p5.tick }
     p6 = StringAsyncMerge.new
-    assert_raise(Bud::BudTypeError) { p6.tick }
+    assert_raise(Bud::TypeError) { p6.tick }
   end
 
   def test_types_delete
@@ -479,7 +479,7 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_loc_spec_non_channel
-    assert_raise(Bud::BudError) { LocSpecNonChannel.new }
+    assert_raise(Bud::Error) { LocSpecNonChannel.new }
   end
 
   def test_empty_pk_error
@@ -504,13 +504,13 @@ class TestCollections < Test::Unit::TestCase
   def test_periodic_lhs_error
     b = InsertIntoPeriodicError.new
     b.run_bg
-    assert_raise(Bud::BudError) {
+    assert_raise(Bud::Error) {
       b.sync_do { b.timer <+ [[5, 10]] }
     }
-    assert_raise(Bud::BudError) {
+    assert_raise(Bud::Error) {
       b.sync_do { b.timer <= [[5, 10]] }
     }
-    assert_raise(Bud::BudError) {
+    assert_raise(Bud::Error) {
       b.sync_do { b.timer <- [[5, 10]] }
     }
     b.stop

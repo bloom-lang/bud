@@ -165,7 +165,7 @@ module Bud
     @rule_orig_src = []
     declaration
     @strata.each_with_index do |s,i|
-      raise BudError if s.class <= Array
+      raise Bud::Error if s.class <= Array
       @strata[i] = [s]
       # Don't try to record source text for old-style rule blocks
       @rule_src[i] = [""]
@@ -309,7 +309,7 @@ module Bud
 
     schedule_and_wait do
       if @running_async
-        raise BudError, "run_bg called on already-running Bud instance"
+        raise Bud::Error, "run_bg called on already-running Bud instance"
       end
       @running_async = true
 
@@ -334,8 +334,8 @@ module Bud
 
   private
   def do_startup
-    raise BudError, "EventMachine not started" unless EventMachine::reactor_running?
-    raise BudError unless EventMachine::reactor_thread?
+    raise Bud::Error, "EventMachine not started" unless EventMachine::reactor_running?
+    raise Bud::Error unless EventMachine::reactor_thread?
 
     @instance_id = Bud.init_signal_handlers(self)
     do_start_server
@@ -379,7 +379,7 @@ module Bud
     # If we're called from the EventMachine thread (and EM is running), blocking
     # the current thread would imply deadlocking ourselves.
     if Thread.current == EventMachine::reactor_thread and EventMachine::reactor_running?
-      raise BudError, "cannot invoke run_fg from inside EventMachine"
+      raise Bud::Error, "cannot invoke run_fg from inside EventMachine"
     end
 
     q = Queue.new
@@ -433,7 +433,7 @@ module Bud
 
   def cancel_shutdown_cb(id)
     schedule_and_wait do
-      raise Bud::BudError unless @shutdown_callbacks.has_key? id
+      raise Bud::Error unless @shutdown_callbacks.has_key? id
       @shutdown_callbacks.delete(id)
     end
   end
@@ -497,10 +497,10 @@ module Bud
     cb_id = nil
     schedule_and_wait do
       unless @tables.has_key? tbl_name
-        raise Bud::BudError, "no such table: #{tbl_name}"
+        raise Bud::Error, "no such table: #{tbl_name}"
       end
 
-      raise Bud::BudError if @callbacks.has_key? @callback_id
+      raise Bud::Error if @callbacks.has_key? @callback_id
       @callbacks[@callback_id] = [tbl_name, block]
       cb_id = @callback_id
       @callback_id += 1
@@ -511,7 +511,7 @@ module Bud
   # Unregister the callback that has the given ID.
   def unregister_callback(id)
     schedule_and_wait do
-      raise Bud::BudError, "missing callback: #{id.inspect}" unless @callbacks.has_key? id
+      raise Bud::Error, "missing callback: #{id.inspect}" unless @callbacks.has_key? id
       @callbacks.delete(id)
     end
   end
@@ -546,7 +546,7 @@ module Bud
     result = q.pop
     if result == :callback
       # Don't try to unregister the callbacks first: runtime is already shutdown
-      raise BudShutdownWithCallbacksError, "Bud instance shutdown before sync_callback completed"
+      raise Bud::ShutdownWithCallbacksError, "Bud instance shutdown before sync_callback completed"
     end
     unregister_callback(cb)
     cancel_shutdown_cb(shutdown_cb)
@@ -574,9 +574,9 @@ module Bud
     return if EventMachine::reactor_running?
 
     EventMachine::error_handler do |e|
-      # Only print a backtrace if a non-BudError is raised (this presumably
+      # Only print a backtrace if a non-Bud::Error is raised (this presumably
       # indicates an unexpected failure).
-      if e.class <= BudError
+      if e.class <= Bud::Error
         puts "#{e.class}: #{e}"
       else
         puts "Unexpected Bud error: #{e.inspect}"
@@ -667,7 +667,7 @@ module Bud
   # forwarding, and external_ip:local_port would be if you're in a DMZ, for
   # example.
   def ip_port
-    raise BudError, "ip_port called before port defined" if port.nil?
+    raise Bud::Error, "ip_port called before port defined" if port.nil?
     ip.to_s + ":" + port.to_s
   end
 
@@ -683,7 +683,7 @@ module Bud
 
   # Returns the internal IP and port.  See ip_port.
   def int_ip_port
-    raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0
+    raise Bud::Error, "ip_port called before port defined" if @port.nil? and @options[:port] == 0
     @port.nil? ? "#{@ip}:#{@options[:port]}" : "#{@ip}:#{@port}"
   end
 
@@ -736,7 +736,7 @@ module Bud
   # this value is guaranteed to remain the same for the duration of a single
   # tick, but will likely change between ticks.
   def bud_clock
-    raise BudError, "bud_clock undefined outside tick" unless @inside_tick
+    raise Bud::Error, "bud_clock undefined outside tick" unless @inside_tick
     @tick_clock_time ||= Time.now
     @tick_clock_time
   end
@@ -748,7 +748,7 @@ module Bud
   # initialized before user-defined state.
   def builtin_state
     # We expect there to be no previously-defined tables
-    raise BudError unless @tables.empty?
+    raise Bud::Error unless @tables.empty?
 
     loopback  :localtick, [:col1]
     @stdio = terminal :stdio
@@ -843,8 +843,8 @@ module Bud
           end
 
           new_e = e
-          unless new_e.class <= BudError
-            new_e = BudError
+          unless new_e.class <= Bud::Error
+            new_e = Bud::Error
           end
           raise new_e, "exception during Bud evaluation.\nException: #{e.inspect}.#{src_msg}"
         end
