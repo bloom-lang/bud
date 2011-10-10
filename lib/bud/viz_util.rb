@@ -51,10 +51,10 @@ class VizHelper
       end
 
       d = "#{@dir}/tm_#{time.bud_time}"
-      write_graphs(@t_tabinf, @t_cycle, @t_depends, @t_rules, d, @dir, nil, false, nil, time.bud_time, card_info)
+      write_graphs(@t_tabinf, builtin_tables, @t_cycle, @t_depends, @t_rules, d,
+                   @dir, nil, false, nil, time.bud_time, card_info)
     end
   end
-
 end
 
 
@@ -65,12 +65,15 @@ module VizUtil #:nodoc: all
       tab = t[0].to_s
       tabinf[tab] = t[1].class.to_s
     end
-    write_graphs(tabinf, bud_instance.t_cycle, bud_instance.t_depends, bud_instance.t_rules, viz_name, output_base, fmt, collapse, bud_instance.meta_parser.depanalysis)
+    write_graphs(tabinf, bud_instance.builtin_tables, bud_instance.t_cycle,
+                 bud_instance.t_depends, bud_instance.t_rules, viz_name,
+                 output_base, fmt, collapse, bud_instance.meta_parser.depanalysis)
   end
 
-  def write_graphs(tabinf, cycle, depends, rules, viz_name, output_base, fmt, collapse, depanalysis=nil, budtime=-1, card_info=nil)
+  def write_graphs(tabinf, builtin_tables, cycle, depends, rules, viz_name,
+                   output_base, fmt, collapse, depanalysis=nil, budtime=-1, card_info=nil)
     staging = "#{viz_name}.staging"
-    gv = GraphGen.new(tabinf, cycle, staging, budtime, collapse, card_info)
+    gv = GraphGen.new(tabinf, builtin_tables, cycle, staging, budtime, collapse, card_info)
     gv.process(depends)
     dump(rules, output_base, gv)
     gv.finish(depanalysis, fmt)
@@ -272,5 +275,4 @@ END_JS
     stream.puts "</tr>"
     stream.close
   end
-
 end

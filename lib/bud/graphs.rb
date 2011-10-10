@@ -5,7 +5,7 @@ require 'graphviz'
 class GraphGen #:nodoc: all
   attr_reader :nodes
 
-  def initialize(tableinfo, cycle, name, budtime, collapse=false, cardinalities={})
+  def initialize(tableinfo, builtin_tables, cycle, name, budtime, collapse=false, cardinalities={})
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
     @graph.node[:fontname] = "Times-Roman"
     @graph.node[:fontsize] = 18
@@ -15,9 +15,9 @@ class GraphGen #:nodoc: all
     @name = name
     @collapse = collapse
     @budtime = budtime
-    @internals = {'localtick' => 1, 'stdio' => 1}
+    @builtin_tables = builtin_tables
 
-    # map: table -> type
+    # map: table name -> type
     @tabinf = {}
     tableinfo.each do |ti|
       @tabinf[ti[0].to_s] = ti[1]
@@ -75,8 +75,7 @@ class GraphGen #:nodoc: all
       head = d[1]
       body = d[3]
 
-      # hack attack
-      if @internals[head] or @internals[body]
+      if @builtin_tables.has_key?(head.to_sym) or @builtin_tables.has_key?(body.to_sym)
         next
       end
 
@@ -182,11 +181,11 @@ class GraphGen #:nodoc: all
     @nodes["T"].penwidth = 3
 
     @tabinf.each_pair do |k, v|
-      unless @nodes[name_of(k.to_s)] or k.to_s =~ /_tbl/ or @internals[k.to_s] or (k.to_s =~ /^t_/ and @budtime != 0)
-        addonce(k.to_s, false)
+      unless @nodes[name_of(k)] or @builtin_tables[k.to_sym]
+        addonce(k, false)
       end
       if v == "Bud::BudPeriodic"
-        addedge("S", k.to_s, false, false, false)
+        addedge("S", k, false, false, false)
       end
     end
 

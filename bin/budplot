@@ -27,7 +27,6 @@ def make_instance(mods)
     end
 
     mod_klass = eval m
-    puts "m = #{m}; class = #{mod_klass.class}; length = #{mods.length}"
     if mod_klass.class == Class
       if mods.length == 1
         return mod_klass.new
@@ -66,10 +65,10 @@ def process(mods)
   d.tables.each do |t|
     tab = t[0].to_s
     tabinf[tab] = t[1].class.to_s
+    next if d.builtin_tables.has_key? t[0]
+
     if interfaces[tab].nil?
-      unless tab =~ /^t_/ or tab == "stdio" or tab == "localtick"
-        priv << t
-      end
+      priv << t
     else
       if interfaces[tab]
         inp << t
