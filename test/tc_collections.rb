@@ -625,3 +625,61 @@ class NotInTest < Test::Unit::TestCase
     assert_equal([['betsy', 1], ['caitlin', 0]], o.sillyblock_out.to_a.sort)
   end
 end
+
+class NotInTest2 < Test::Unit::TestCase
+  class SimpleNotIn
+    include Bud
+    state do
+      table :foo, [:c1, :c2]
+      table :bar, [:c1, :c2]
+      table :outsie, [:c1, :c2]
+    end
+    bootstrap do
+      foo <= [["alex", 1], ["joe", 2], ["jonathan", 3]]
+      bar <= [["joe", 0], ["joe", 1], ["alex", 1]]
+    end
+    bloom do
+      outsie <= foo.notin(bar, :c1=>:c1) {|f, b| true if f.c2 <= b.c2}
+    end
+  end
+
+  def test_simple_notin
+    o = SimpleNotIn.new
+    o.tick
+    assert_equal([["joe", 2], ["jonathan", 3]], o.outsie.to_a.sort)
+  end
+end
+
+class BlocklessNotInTest < Test::Unit::TestCase
+  class BlocklessNotIn
+    include Bud
+    state do
+      table :foo, [:c1, :c2]
+      table :bar, [:c3, :c4]
+      table :bigfoo, [:c5, :c6, :c7]
+      table :outsie, [:c1, :c2]
+      table :outsie2, [:c1, :c2]
+      table :outsie3, [:c1, :c2]
+      table :outsie4, [:c1, :c2]
+    end
+    bootstrap do
+      foo <= [["alex", 1], ["jonathan", 2], ["jonathan", 3]]
+      bigfoo <= [["alex", 1], ["jonathan", 2, 2], ["jonathan", 3, 3]]
+      bar <= [["jonathan", 2], ["alex", 1]]
+    end
+    bloom do
+      outsie <= foo.notin(bar)
+      outsie2 <= foo.notin(bar, :c1=>:c3)
+      outsie3 <= foo.notin(bar, :c2=>:c4)
+      outsie4 <= foo.notin(bigfoo)
+    end
+  end
+  def test_blockless_notin
+    o = BlocklessNotIn.new
+    o.tick
+    assert_equal([["jonathan", 3]], o.outsie.to_a)
+    assert_equal([], o.outsie2.to_a)
+    assert_equal([["jonathan", 3]], o.outsie3.to_a)
+    assert_equal(o.foo.to_a.sort, o.outsie4.to_a.sort)
+  end
+end
