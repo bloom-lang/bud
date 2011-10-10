@@ -211,7 +211,7 @@ class TestMaxLattice < Test::Unit::TestCase
 
   def test_compose_nm_error
     i = ComposeLatticeUnsafeError.new
-    assert_raise(Bud::BudTypeError) { i.tick }
+    assert_raise(Bud::TypeError) { i.tick }
   end
 
   def test_compose_tree

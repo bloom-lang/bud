@@ -79,7 +79,7 @@ class VectorLattice < BasicLattice
         end
       end
     else
-      raise Bud::BudTypeError
+      raise Bud::TypeError
     end
   end
 
@@ -97,7 +97,7 @@ class VectorLattice < BasicLattice
         # Doing this at runtime is somewhat bogus but hard to avoid due to
         # Ruby's lack of static typing.
         unless l.class.morphs.has_key? meth_name
-          raise Bud::BudTypeError, "\"#{meth_name}\" is not a morphism for #{l.class}"
+          raise Bud::TypeError, "\"#{meth_name}\" is not a morphism for #{l.class}"
         end
         r = l.send(meth_name, *args)
       end
@@ -140,7 +140,7 @@ class MaxLattice < BasicLattice
         end
       end
     else
-      raise Bud::BudTypeError, "illegal RHS for MaxLattice merge: #{i.class}"
+      raise Bud::TypeError, "illegal RHS for MaxLattice merge: #{i.class}"
     end
     if input_v and (@v.nil? or input_v > @v)
       @v = input_v
@@ -179,7 +179,7 @@ class BoolLattice < BasicLattice
       input_v = false
       i.each do |t|
         next if t.nil? or t == []
-        raise Bud::BudTypeError unless (t.class <= TrueClass or t.class <= FalseClass)
+        raise Bud::TypeError unless (t.class <= TrueClass or t.class <= FalseClass)
         if t == true
           input_v = true
           break
@@ -188,7 +188,7 @@ class BoolLattice < BasicLattice
     elsif (i.class <= TrueClass or i.class <= FalseClass)
       input_v = i
     else
-      raise Bud::BudTypeError, "illegal RHS for BoolLattice merge: #{i.class}"
+      raise Bud::TypeError, "illegal RHS for BoolLattice merge: #{i.class}"
     end
 
     if input_v == true
@@ -241,7 +241,7 @@ class MultiSetLattice < BasicLattice
         end
       end
     else
-      raise Bud::BudTypeError
+      raise Bud::TypeError
     end
   end
 
@@ -324,7 +324,7 @@ class MergeMapLattice < BasicLattice
     # XXX: recurse into nested lattices?
     @v.each_value do |val|
       unless val.class.morphs.has_key? meth_name
-        raise Bud::BudTypeError
+        raise Bud::TypeError
       end
       r = val.send(meth_name, *args)
       return false unless r
