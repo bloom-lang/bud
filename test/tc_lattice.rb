@@ -327,7 +327,7 @@ class MergeMapPred
   end
 
   bloom do
-    h <= in_t {|t| [t.k, MaxLattice.wrap(t.v, self)]}
+    h <= in_t {|t| [t.k, MaxLattice.wrap(t.v)]}
     done <= h.all?(:gt_k, 5)
   end
 end
@@ -338,8 +338,8 @@ class TestMergeMap < Test::Unit::TestCase
     assert_equal(2, i.strata.length)
     strat_zero = i.stratum_collection_map[0]
     [:m1, :m2, :m3, :m3_keys].each {|r| assert(strat_zero.include? r) }
-    i.m1 <+ [["foo", MaxLattice.wrap(5, i)]]
-    i.m2 <+ [["bar", MaxLattice.wrap(7, i)], ["foo", MaxLattice.wrap(4, i)]]
+    i.m1 <+ [["foo", MaxLattice.wrap(5)]]
+    i.m2 <+ [["bar", MaxLattice.wrap(7)], ["foo", MaxLattice.wrap(4)]]
     i.tick
     assert_equal([["bar"], ["foo"]], i.m3_keys.to_a.sort)
     r = i.m3.to_set.sort

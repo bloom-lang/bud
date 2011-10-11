@@ -25,8 +25,8 @@ class BasicLattice < Bud::BudLattice
     @morphs[name] = true
   end
 
-  def initialize(tabname, bud_instance, is_scratch)
-    super(tabname, bud_instance)
+  def initialize(tabname, is_scratch)
+    super(tabname)
     @is_scratch = is_scratch
     @got_delta = false
     @pending = nil
@@ -46,7 +46,7 @@ class BasicLattice < Bud::BudLattice
   end
 
   superator "<+" do |i|
-    @pending ||= self.class.new("#{tabname}__pending", @bud_instance, true)
+    @pending ||= self.class.new("#{tabname}__pending", true)
     @pending <= i
   end
 
@@ -54,7 +54,7 @@ class BasicLattice < Bud::BudLattice
   # would be better to construct a single tree on the first call and then
   # memoize it.
   def *(i)
-    VectorLattice.wrap(self, i, @bud_instance)
+    VectorLattice.wrap(self, i)
   end
 end
 
@@ -107,8 +107,8 @@ class VectorLattice < BasicLattice
     return true
   end
 
-  def VectorLattice.wrap(a, b, bud_instance)
-    r = VectorLattice.new("#{a.tabname}__#{b.tabname}__tmp", bud_instance, true)
+  def VectorLattice.wrap(a, b)
+    r = VectorLattice.new("#{a.tabname}__#{b.tabname}__tmp", true)
     r_v = [a, b]
     r.instance_variable_set('@v', r_v)
     r
@@ -157,8 +157,8 @@ class MaxLattice < BasicLattice
     @v and @v > k
   end
 
-  def MaxLattice.wrap(val, bud_instance)
-    r = MaxLattice.new("tmp_#{rand.to_s[0,6]}", bud_instance, true)
+  def MaxLattice.wrap(val)
+    r = MaxLattice.new("tmp_#{rand.to_s[0,6]}", true)
     r.instance_variable_set('@v', val)
     r
   end

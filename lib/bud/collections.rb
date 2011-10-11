@@ -12,25 +12,25 @@ module Bud
   #++
 
   class BudLattice
-    # This needs to be an accessor to allow REBL to update it after cloning a
-    # Bud instance.
-    attr_accessor :bud_instance # :nodoc: all
     attr_reader :tabname        # :nodoc: all
 
-    def initialize(name, bud_instance)
+    def initialize(name)
       @tabname = name
-      @bud_instance = bud_instance
     end
   end
 
   class BudCollection < BudLattice
     include Enumerable
 
+    # This needs to be an accessor to allow REBL to update it after cloning a
+    # Bud instance.
+    attr_accessor :bud_instance # :nodoc: all
     attr_reader :cols, :key_cols # :nodoc: all
     attr_reader :storage, :delta, :new_delta, :pending # :nodoc: all
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
-      super(name, bud_instance)
+      super(name)
+      @bud_instance = bud_instance
       init_schema(given_schema) unless given_schema.nil? and defer_schema
       init_buffers
     end
