@@ -173,6 +173,7 @@ class BoolLattice < BasicLattice
 
   def <=(i)
     return if @v or i.nil?
+
     if i.class <= BoolLattice
       input_v = i.instance_variable_get('@v')
     elsif i.class <= Enumerable
@@ -308,10 +309,15 @@ class MergeMapLattice < BasicLattice
       end
     elsif i.class <= Enumerable
       i.each do |t|
-        raise Bud::BudError if t.length != 2
-        key, val = t
-        raise Bud::BudError unless val.class <= Bud::BudLattice
-        merge_item(key, val)
+        if t.class <= MergeMapLattice
+          self <= t
+        elsif t.class <= Enumerable
+          key, val = t
+          raise Bud::BudError unless val.class <= Bud::BudLattice
+          merge_item(key, val)
+        else
+          raise Bud::BudError
+        end
       end
     end
   end
@@ -358,6 +364,11 @@ class MergeMapLattice < BasicLattice
       rv << (yield [key, val])
     end
     rv
+  end
+
+  def inspected(bud_i)
+    rv = @v.map {|key, val| "#{key} => #{val.reveal}"}.join(",")
+    [["vc: [#{rv}] @ #{bud_i.ip_port}"]]
   end
 end
 
