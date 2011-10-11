@@ -669,13 +669,13 @@ module Bud
   end
 
   def ip
-    ip = options[:ext_ip] ? "#{@options[:ext_ip]}" : "#{@ip}"
+    options[:ext_ip] ? "#{@options[:ext_ip]}" : "#{@ip}"
   end
 
   def port
     return nil if @port.nil? and @options[:port] == 0 and not @options[:ext_port]
-    return options[:ext_port] ? "#{@options[:ext_port]}" :
-      (@port.nil? ? "#{@options[:port]}" : "#{@port}")
+    return @options[:ext_port] ? @options[:ext_port] :
+      (@port.nil? ? @options[:port] : @port)
   end
 
   # Returns the internal IP and port.  See ip_port.
