@@ -34,10 +34,18 @@ class Bud::BudServer < EM::Connection #:nodoc: all
   end
 
   def message_received(obj)
-    unless (obj.class <= Array and obj.length == 2 and
+    unless (obj.class <= Array and obj.length == 3 and
             @bud.tables.include?(obj[0].to_sym) and obj[1].class <= Array)
       raise Bud::Error, "bad inbound message of class #{obj.class}: #{obj.inspect}"
     end
+
+    # Deserialize any nested lattice values
+    tbl_name, tuple, lat_indexes = obj
+    lat_indexes.each do |i|
+      tuple[i] = Marshal.load(tuple[i])
+      raise Bud::BudError unless tuple[i].class <= BasicLattice
+    end
+    obj = [tbl_name, tuple]
 
     @bud.rtracer.recv(obj) if @bud.options[:rtrace]
     @bud.inbound << obj

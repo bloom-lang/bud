@@ -322,6 +322,8 @@ class MergeMapLattice < BasicLattice
     end
   end
 
+  # XXX: this is not a morphism! If new keys are added to the merge map, the
+  # output may go from true => false.
   morph :all?
   def all?(*args)
     return false if @v.empty?

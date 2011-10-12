@@ -761,7 +761,24 @@ module Bud
           the_locspec = split_locspec(t, @locspec_idx)
           raise Bud::Error, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
         end
-        @bud_instance.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
+
+        # Convert the tuple into a suitable wire format. We encode nested
+        # lattice instances using Marshal but the rest of the tuple using
+        # MsgPack; this is obviously pretty gross. We indicate which fields hold
+        # serialized lattice values with an array of indexes.
+        lat_indexes = []
+        wire_tuple = Array.new(t.length)
+        t.each_with_index do |f, i|
+          if f.class <= BasicLattice
+            lat_indexes << i
+            wire_tuple[i] = Marshal.dump(f)
+          else
+            wire_tuple[i] = f
+          end
+        end
+        wire_ary = [@tabname, wire_tuple, lat_indexes]
+        @bud_instance.dsock.send_datagram(wire_ary.to_msgpack,
+                                          the_locspec[0], the_locspec[1])
       end
       @pending.clear
     end
@@ -826,7 +843,7 @@ module Bud
             port = @bud_instance.port
             EventMachine::schedule do
               socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
-              socket.send_datagram([tabname, tup].to_msgpack, ip, port)
+              socket.send_datagram([tabname, tup, []].to_msgpack, ip, port)
             end
           end
         rescue Exception

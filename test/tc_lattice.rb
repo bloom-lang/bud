@@ -332,6 +332,28 @@ class MergeMapPred
   end
 end
 
+class MergeMapOverChan
+  include Bud
+
+  state do
+    scratch :do_send, [:addr]
+    channel :chn, [:@addr, :v]
+
+    scratch :in_t, [:k, :v]
+    lat_map :m
+    lat_bool :done
+    scratch :done_t, [] => [:v]
+  end
+
+  bloom do
+    m <= in_t {|t| [t.k, MaxLattice.wrap(t.v)]}
+    chn <~ do_send {|s| [s.addr, m]}
+    m <= chn {|c| c.v}
+    done <= m.all?(:gt_k, 10)
+    done_t <= done.to_set
+  end
+end
+
 class TestMergeMap < Test::Unit::TestCase
   def test_mm_multiset
     i = SimpleMergeMap.new
@@ -360,5 +382,45 @@ class TestMergeMap < Test::Unit::TestCase
     i.in_t <+ [["baxxx", 7], ["baz", 10], ["foo", 12]]
     i.tick
     assert_equal(true, i.done.reveal)
+  end
+
+  def do_send(from, to)
+    to.sync_do {
+      assert(to.done_t.empty?)
+    }
+
+    q = Queue.new
+    cb_id = to.register_callback(:done_t) do
+      q.push(true)
+    end
+
+    from.sync_do {
+      from.do_send <+ [[to.ip_port]]
+    }
+    q.pop
+    to.unregister_callback(cb_id)
+
+    to.sync_do {
+      assert_equal([[true]], to.done_t.to_a.sort)
+    }
+  end
+
+  def test_mm_channel
+    b1 = MergeMapOverChan.new
+    b2 = MergeMapOverChan.new
+    b_list = [b1, b2]
+    b_list.each {|b| b.run_bg}
+
+    b1.sync_do {
+      b1.in_t <+ [["foo", 7], ["bar", 12]]
+    }
+    b2.sync_do {
+      b2.in_t <+ [["foo", 15], ["bar", 6]]
+    }
+
+    do_send(b1, b2)
+    do_send(b2, b1)
+
+    b_list.each {|b| b.stop}
   end
 end
