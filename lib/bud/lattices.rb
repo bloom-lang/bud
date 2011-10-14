@@ -28,9 +28,17 @@ class BasicLattice < Bud::BudLattice
   def initialize(tabname, is_scratch)
     super(tabname)
     @is_scratch = is_scratch
+    reset_exec_state
+    reset
+  end
+
+  # Reset lattice value state associated with query evaluation.
+  # XXX: this is needed to restore deserialized lattice values back to a sane
+  # state after they are sent over channels. It would be better to avoid
+  # serializing execution-related state in the first place.
+  def reset_exec_state
     @got_delta = false
     @pending = nil
-    reset
   end
 
   def tick_deltas
