@@ -374,9 +374,9 @@ class MergeMapLattice < BasicLattice
     rv
   end
 
-  def inspected(bud_i)
-    rv = @v.map {|key, val| "#{key} => #{val.reveal}"}.join(",")
-    [["vc: [#{rv}] @ #{bud_i.ip_port}"]]
+  def inspected
+    rv = @v.map {|key, val| "#{key} => #{val.reveal}"}.join(", ")
+    [["[#{rv}]"]]
   end
 end
 
