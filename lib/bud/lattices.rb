@@ -156,17 +156,17 @@ class MaxLattice < BasicLattice
     end
   end
 
-  def reveal
-    @v
-  end
-
   morph :gt_k
   def gt_k(k)
     @v and @v > k
   end
 
+  def reveal
+    @v
+  end
+
   def MaxLattice.wrap(val)
-    r = MaxLattice.new("tmp_#{rand.to_s[0,6]}", true)
+    r = MaxLattice.new("max_#{rand.to_s[0,6]}", true)
     r.instance_variable_set('@v', val)
     r
   end
@@ -380,13 +380,21 @@ class MergeMapLattice < BasicLattice
     rv
   end
 
+  def reveal
+    @v.map {|key, val| [key, val.reveal]}
+  end
+
   def inspected
-    rv = @v.map {|key, val| "#{key} => #{val.reveal}"}.join(", ")
+    rv = sorted_map{|key, val| "#{key} => #{val.reveal}"}.join(", ")
     [["[#{rv}]"]]
   end
 
-  def reveal
-    @v.map {|key, val| [key, val.reveal]}
+  # Akin to map, but iterate over the entries sorted by key value. Note that
+  # since new keys might appear over time this sort order might change -- it is
+  # primarily intended for UI convenience.
+  private
+  def sorted_map(&blk)
+    @v.sort{|e1, e2| e1.first <=> e2.first}.map(&blk)
   end
 end
 
