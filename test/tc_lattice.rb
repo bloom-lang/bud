@@ -354,6 +354,26 @@ class MergeMapOverChan
   end
 end
 
+class MergeMapDestructiveUpdate
+  include Bud
+
+  state do
+    lat_map :m1
+    lat_map :next_m1
+    lat_map :m2
+  end
+
+  bootstrap do
+    m1 <= [["foo", MaxLattice.wrap(0)]]
+  end
+
+  bloom do
+    next_m1 <= m1
+    next_m1 <= m2
+    m1 <+ next_m1
+  end
+end
+
 class TestMergeMap < Test::Unit::TestCase
   def test_mm_multiset
     i = SimpleMergeMap.new
@@ -422,5 +442,15 @@ class TestMergeMap < Test::Unit::TestCase
     do_send(b2, b1)
 
     b_list.each {|b| b.stop}
+  end
+
+  def test_mm_destructive_merge
+    i = MergeMapDestructiveUpdate.new
+    i.tick
+    i.m2 <+ [["foo", MaxLattice.wrap(1)]]
+    i.tick
+    assert_equal([["foo", 1]], i.m2.reveal)
+    assert_equal([["foo", 1]], i.next_m1.reveal)
+    assert_equal([["foo", 0]], i.m1.reveal)
   end
 end
