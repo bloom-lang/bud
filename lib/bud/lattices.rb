@@ -161,6 +161,16 @@ class MaxLattice < BasicLattice
     @v and @v > k
   end
 
+  morph :+
+  def +(o)
+    MaxLattice.wrap(@v + o)
+  end
+
+  morph :-
+  def -(o)
+    MaxLattice.wrap(@v - o)
+  end
+
   def reveal
     @v
   end
