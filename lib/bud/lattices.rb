@@ -244,7 +244,7 @@ class MultiSetLattice < BasicLattice
     if i.class <= MultiSetLattice
       input_v = i.instance_variable_get('@v')
       input_v.each do |key,val|
-        raise Bud::BudError if val <= 0
+        raise Bud::Error if val <= 0
         if @v.has_key?(key) == false or @v[key] < val
           @v[key] = val
           @got_delta = true
@@ -252,7 +252,7 @@ class MultiSetLattice < BasicLattice
       end
     elsif i.class <= Enumerable
       i.each do |t|
-        raise Bud::BudError if t.length != 2
+        raise Bud::Error if t.length != 2
         key, val = t
         if @v.has_key?(key) == false or @v[key] < val
           @v[key] = val
@@ -337,10 +337,10 @@ class MergeMapLattice < BasicLattice
           self <= t
         elsif t.class <= Enumerable
           key, val = t
-          raise Bud::BudError unless val.class <= Bud::BudLattice
+          raise Bud::Error unless val.class <= Bud::BudLattice
           merge_item(key, val)
         else
-          raise Bud::BudError
+          raise Bud::Error
         end
       end
     end

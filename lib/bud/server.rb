@@ -44,7 +44,7 @@ class Bud::BudServer < EM::Connection #:nodoc: all
     lat_indexes.each do |i|
       tuple[i] = Marshal.load(tuple[i])
       tuple[i].reset_exec_state # XXX: hack
-      raise Bud::BudError unless tuple[i].class <= BasicLattice
+      raise Bud::Error unless tuple[i].class <= BasicLattice
     end
     obj = [tbl_name, tuple]
 
