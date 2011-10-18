@@ -156,11 +156,11 @@ class MaxLattice < BasicLattice
     end
   end
 
-  def lt(i)
+  def lt_eq(i)
     raise Bud::TypeError unless i.class <= MaxLattice
     input_v = i.instance_variable_get('@v')
     return nil if (@v.nil? or input_v.nil?)
-    return @v < input_v
+    return @v <= input_v
   end
 
   morph :gt_k
@@ -353,11 +353,10 @@ class MergeMapLattice < BasicLattice
     end
   end
 
-  # Return true if this lattice instance is strictly smaller than the given
-  # lattice instance. "x" is strictly smaller than "y" if:
+  # Return true if this lattice instance is strictly smaller than or equal to
+  # the given lattice instance. "x" is strictly smaller than "y" if:
   #     (a) every key in "x"  also appears in "y"
   #     (b) for every key k in "x", x[k] <= y[k]
-  #     (c) for at least one key j in "x", x[j] < y[j].
   #
   # NB: For this to be monotonic, we require that (a) "self" is deflationary (or
   # fixed) (b) the input lattice instance is inflationary (or fixed). We
@@ -365,15 +364,12 @@ class MergeMapLattice < BasicLattice
   #
   # XXX: We can't name this method "<" because it conflicts with how superators
   # are implemented; see issue #254.
-  def lt(i)
-#    puts "lt invoked! self = #{inspected}, input = #{i.inspected}"
+  def lt_eq(i)
     raise Bud::TypeError unless i.class <= MergeMapLattice
 
     @v.each do |key, val|
       return false unless i.has_key?(key)
-
-      i_val = i[key]
-      return false unless val.lt(i_val)
+      return false unless val.lt_eq(i[key])
     end
 
     return true
