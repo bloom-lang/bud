@@ -394,7 +394,12 @@ class MergeMapLattice < BasicLattice
 
   morph :[]
   def [](k)
-    @v[k]
+    if @v.has_key?(k)
+      @v[k]
+    else
+      # XXX: quick hack for causal delivery
+      MergeMapLattice.new("#{tabname}__#{k}__tmp", true)
+    end
   end
 
   morph :has_key?
@@ -429,7 +434,7 @@ class MergeMapLattice < BasicLattice
   end
 
   def inspected
-    rv = sorted_map{|key, val| "#{key} => #{val.reveal}"}.join(", ")
+    rv = sorted_map{|key, val| "#{key} => #{val.reveal.inspect}"}.join(", ")
     [["[#{rv}]"]]
   end
 
