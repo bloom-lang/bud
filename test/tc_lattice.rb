@@ -374,6 +374,29 @@ class MergeMapDestructiveUpdate
   end
 end
 
+# Check for a somewhat subtle bug. The dataflow between m1 and m2 is conditional
+# on the row in "merge_keys", which might disappear. Hence, updating m1 when
+# there is no row in "merge_keys" should not change "m2". This requires that we
+# make a deep copy of m1 when it is merged into m2.
+class MergeMapNeedDeepCopy
+  include Bud
+
+  state do
+    lat_map :m1
+    lat_map :m2
+    scratch :merge_keys, [:k]
+  end
+
+  bootstrap do
+    merge_keys <= [["foo"]]
+    m1 <= [["baz", MaxLattice.wrap(0)]]
+  end
+
+  bloom do
+    m2 <= merge_keys {|m| [m.k, m1]}
+  end
+end
+
 class TestMergeMap < Test::Unit::TestCase
   def test_mm_multiset
     i = SimpleMergeMap.new
@@ -452,5 +475,19 @@ class TestMergeMap < Test::Unit::TestCase
     assert_equal([["foo", 1]], i.m2.reveal)
     assert_equal([["foo", 1]], i.next_m1.reveal)
     assert_equal([["foo", 0]], i.m1.reveal)
+  end
+
+  def test_mm_need_deep_copy
+    i = MergeMapNeedDeepCopy.new
+    i.tick
+    assert_equal([["foo", [["baz", 0]]]], i.m2.reveal)
+    i.m1 <+ [["baz", MaxLattice.wrap(1)]]
+    i.tick
+    # Update shouldn't effect m2, because no merge_keys row is present
+    assert_equal([["foo", [["baz", 0]]]], i.m2.reveal)
+    i.merge_keys <+ [["foo"]]
+    i.m1 <+ [["baz", MaxLattice.wrap(2)]]
+    i.tick
+    assert_equal([["foo", [["baz", 2]]]], i.m2.reveal)
   end
 end

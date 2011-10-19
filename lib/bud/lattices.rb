@@ -304,13 +304,13 @@ class MergeMapLattice < BasicLattice
   private
   def merge_item(key, val)
     if @v.has_key?(key) == false
-      # NB: Cloning the value is important, particularly if it is an instance of
-      # a lattice. Since <= (currently) is destructive, if the value for this
+      # NB: Making a deep copy of the value is important, particularly if it is
+      # an instance of a lattice. Since <= is destructive, if the value for this
       # key subsequently changes, we don't want to also change the caller's
       # version of the input value. Example scenario: [k1, m1] appears in l1,
       # and is inserted via <+ into l2. Then [k1, m2] is also inserted via <+
       # into l2; we don't want l1's value for k1 to be the merge of m1 and m2.
-      @v[key] = val.clone
+      @v[key] = Marshal.load(Marshal.dump(val))
       @got_delta = true
     else
       @v[key] <= val
