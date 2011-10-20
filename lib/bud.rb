@@ -92,6 +92,15 @@ module Bud
   #   * <tt>:metrics</tt> if true, dumps a hash of internal performance metrics
   # * controlling execution
   #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
+  #   * <tt>:channel_filter</tt> a code block that can be used to filter the
+  #     network messages delivered to this Bud instance. At the start of each
+  #     tick, the code block is invoked for every channel with any incoming
+  #     messages; the code block is passed the name of the channel and an array
+  #     containing the inbound messages. It should return a two-element array
+  #     containing "accepted" and "postponed" messages, respectively. Accepted
+  #     messages are delivered during this tick, and postponed messages are
+  #     buffered and passed to the filter in subsequent ticks. Any messages that
+  #     aren't in either array are dropped.
   # * storage configuration
   #   * <tt>:dbm_dir</tt> filesystem directory to hold DBM-backed collections
   #   * <tt>:dbm_truncate</tt> if true, DBM-backed collections are opened with +OTRUNC+
@@ -117,7 +126,7 @@ module Bud
     @inside_tick = false
     @tick_clock_time = nil
     @budtime = 0
-    @inbound = []
+    @inbound = {}
     @done_bootstrap = false
     @joinstate = {}  # joins are stateful, their state needs to be kept inside the Bud instance
     @instance_id = ILLEGAL_INSTANCE_ID # Assigned when we start running
@@ -650,7 +659,8 @@ module Bud
 
   def do_start_server
     @dsock = EventMachine::open_datagram_socket(@ip, @options[:port],
-                                                BudServer, self)
+                                                BudServer, self,
+                                                @options[:channel_filter])
     @port = Socket.unpack_sockaddr_in(@dsock.get_sockname)[0]
   end
 
@@ -769,8 +779,10 @@ module Bud
   # directly into the storage of the appropriate local channel. The inbound
   # queue is cleared at the end of the tick.
   def receive_inbound
-    @inbound.each do |msg|
-      tables[msg[0].to_sym] << msg[1]
+    @inbound.each do |tbl_name, msg_buf|
+      msg_buf.each do |b|
+        tables[tbl_name] << b
+      end
     end
   end
 
@@ -870,7 +882,8 @@ module Bud
 
   def make_periodic_timer(name, period)
     EventMachine::PeriodicTimer.new(period) do
-      @inbound << [name, [gen_id, Time.now]]
+      @inbound[name.to_sym] ||= []
+      @inbound[name.to_sym] << [gen_id, Time.now]
       tick_internal if @running_async
     end
   end

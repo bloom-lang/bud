@@ -384,3 +384,83 @@ class LoopbackTests < Test::Unit::TestCase
     s.stop
   end
 end
+
+class SimpleAgent
+  include Bud
+
+  state do
+    channel :chn, [:@addr, :val]
+    scratch :input_t, chn.schema
+    table :log, chn.schema
+  end
+
+  bloom do
+    chn <~ input_t
+  end
+end
+
+class TestChannelFilter < Test::Unit::TestCase
+  def test_filter_drop
+    f = lambda do |tbl_name, tups|
+      return [tups, []] unless tbl_name == :chn
+      res = []
+      tups.each do |t|
+        res << t if t[1] == 3
+      end
+      return [res, []]
+    end
+
+    src = SimpleAgent.new
+    dst = SimpleAgent.new(:channel_filter => f)
+    src.run_bg
+    dst.run_bg
+
+    q = Queue.new
+    dst.register_callback(:chn) do |t|
+      assert_equal([[dst.ip_port, 3]], t.to_a.sort)
+      q.push(true)
+    end
+
+    (0..25).each do |i|
+      src.sync_do {
+        src.input_t <+ [[dst.ip_port, i]]
+      }
+    end
+
+    q.pop
+    src.stop
+    dst.stop
+  end
+
+  def test_filter_batch
+    f = lambda do |tbl_name, tups|
+      return [tups, []] unless tbl_name == :chn
+      if tups.size >= 12
+        return [tups, []]
+      else
+        return [[], tups]
+      end
+    end
+
+    src = SimpleAgent.new
+    dst = SimpleAgent.new(:channel_filter => f)
+    src.run_bg
+    dst.run_bg
+
+    q = Queue.new
+    dst.register_callback(:chn) do |t|
+      assert_equal(12, t.length)
+      q.push(true)
+    end
+
+    (0..11).each do |i|
+      src.sync_do {
+        src.input_t <+ [[dst.ip_port, i]]
+      }
+    end
+
+    q.pop
+    src.stop
+    dst.stop
+  end
+end

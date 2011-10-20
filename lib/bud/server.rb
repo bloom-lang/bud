@@ -1,8 +1,10 @@
 require 'socket'
 
 class Bud::BudServer < EM::Connection #:nodoc: all
-  def initialize(bud)
+  def initialize(bud, channel_filter)
     @bud = bud
+    @channel_filter = channel_filter
+    @filter_buf = {}
     @pac = MessagePack::Unpacker.new
     super
   end
@@ -16,6 +18,24 @@ class Bud::BudServer < EM::Connection #:nodoc: all
       message_received(obj)
     end
 
+    # apply the channel filter to each channel's pending tuples
+    buf_leftover = {}
+    @filter_buf.each do |tbl_name, buf|
+      if @channel_filter
+        accepted, saved = @channel_filter.call(tbl_name, buf)
+      else
+        accepted = buf
+        saved = []
+      end
+
+      unless accepted.empty?
+        @bud.inbound[tbl_name] ||= []
+        @bud.inbound[tbl_name] += accepted
+      end
+      buf_leftover[tbl_name] = saved unless saved.empty?
+    end
+    @filter_buf = buf_leftover
+
     begin
       @bud.tick_internal if @bud.running_async
     rescue Exception
@@ -24,8 +44,8 @@ class Bud::BudServer < EM::Connection #:nodoc: all
       # error isn't best though -- we should do better (#74).
       puts "Exception handling network messages: #{$!}"
       puts "Inbound messages:"
-      @bud.inbound.each do |m|
-        puts "    #{m[1].inspect} (channel: #{m[0]})"
+      @bud.inbound.each do |chn_name, t|
+        puts "    #{t.inspect} (channel: #{chn_name})"
       end
       @bud.inbound.clear
     end
@@ -40,6 +60,7 @@ class Bud::BudServer < EM::Connection #:nodoc: all
     end
 
     @bud.rtracer.recv(obj) if @bud.options[:rtrace]
-    @bud.inbound << obj
+    @filter_buf[obj[0].to_sym] ||= []
+    @filter_buf[obj[0].to_sym] << obj[1]
   end
 end
