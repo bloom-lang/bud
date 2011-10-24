@@ -450,7 +450,8 @@ module Bud
     def register_coll_expr(expr)
       # require 'ruby-debug'; debugger
       coll_name = ("expr_"+expr.object_id.to_s)
-      @bud_instance.coll_expr(coll_name.to_sym, expr, (1..@schema.length).map{|i| ("c"+i.to_s).to_sym})
+      schema = (1..@schema.length).map{|i| ("c"+i.to_s).to_sym} unless @schema.nil?
+      @bud_instance.coll_expr(coll_name.to_sym, expr, schema)
       coll = @bud_instance.send(coll_name)
       coll
     end
@@ -630,6 +631,13 @@ module Bud
       return red_elem
     end    
 
+    public
+    def pretty_print_instance_variables
+      # list of attributes (in order) to print when pretty_print is called.
+      important = ["@tabname", "@storage", "@delta", "@new_delta", "@pending"]
+      # everything except bud_instance
+      important + (self.instance_variables - important - ["@bud_instance"]) 
+    end
 
     public
     def uniquify_tabname # :nodoc: all

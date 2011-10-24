@@ -38,7 +38,8 @@ module Bud
     public
     def print_wiring(depth=0, accum = "")
       depth.times {print "  "}
-      puts "#{accum} #{object_id.to_i % 10000}: #{elem_name} (#{self.class})"
+      puts "#{accum} #{(self.object_id*2).to_s(16)}: #{elem_name} (#{self.class})"
+
       [@outputs, @pendings, @deletes, @delete_keys].each do |kind|
         case kind
         when @outputs
@@ -56,9 +57,9 @@ module Bud
             (depth+1).times {print "  "}
             print "#{next_accum} "
             if o.class <= Bud::BudCollection
-              puts "#{o.object_id.to_i % 10000}: #{o.tabname} (#{o.class})"
+              puts "#{(o.object_id*2).to_s(16)}: #{o.tabname} (#{o.class})"
             else
-              puts "#{o.object_id.to_i % 10000}: (#{o.class.name})"
+              puts "#{(o.object_id*2).to_s(16)}: (#{o.class.name})"
             end
           end
         end
@@ -129,6 +130,9 @@ module Bud
           if ou.class <= Bud::PushElement
             the_name = ou.elem_name
             # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
+            if ou.class <= Bud::PushSHJoin
+              tuple_accessors(item)
+            end
             ou.insert(item,self)
           elsif ou.class <= Bud::BudCollection
             # the_name = ou.tabname
