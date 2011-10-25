@@ -100,6 +100,11 @@ module Bud
   #   * <tt>:deploy</tt>  enable deployment
   #   * <tt>:deploy_child_opts</tt> option hash to pass to deployed instances
   def initialize(options={})
+    # capture the binding for a subsequent 'eval'. This ensures that local
+    # variable names introduced later in this method don't interfere with 
+    # table names used in the eval block.
+    rewrite_eval_binding = binding 
+
     @tables = {}
     @table_meta = []
     @rewritten_strata = []
@@ -176,7 +181,7 @@ module Bud
       @rule_src[i] ||= []
       @rule_orig_src[i] ||= []
       src_ary.each_with_index do |src, j|
-        @strata[i] << eval("lambda { #{src} }")
+        @strata[i] << eval("lambda { #{src} }", rewrite_eval_binding)
         @rule_src[i] << src
         @rule_orig_src[i] << @no_attr_rewrite_strata[i][j]
       end

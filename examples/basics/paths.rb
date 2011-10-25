@@ -19,8 +19,8 @@ class ShortestPaths
     path <= link {|e| [e.from, e.to, e.to, e.cost]}
     
     # inductive case: make path of length n+1 by connecting a link to a path of length n
-    temp :jj <= (link*path).pairs(:to => :from)
-    path <= jj { |l,p| [l.from, p.to, p.from, l.cost+p.cost] }
+    temp :j <= (link*path).pairs(:to => :from)
+    path <= j { |l,p| [l.from, p.to, p.from, l.cost+p.cost] }
   end
 
   # find the shortest path between each connected pair of nodes
