@@ -40,7 +40,12 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       # :defn block -- this is where we expect Bloom statements to appear
       do_rule(exp)
     else
-      if recv and recv.class == Sexp
+      if op == :notin
+        # a <= b.m1.m2.notin(c, ... ) ..
+        # b contributes positively to a, but c contributes negatively.
+        notintab = args[1][2].to_s # args == (:arglist (:call, nil, :c, ...))
+        @tables[notintab] = true
+      elsif recv and recv.class == Sexp
         # for CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
         # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables
@@ -90,7 +95,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     t = exp[1].to_s
     # If we're called on a "table-like" part of the AST that doesn't correspond
     # to an extant table, ignore it.
-    @tables[t] = @nm if @bud_instance.tables.has_key? t.to_sym
+    @tables[t] = @nm if @bud_instance.tables.has_key? t.to_sym and not @tables[t]
     drain(exp)
     return t
   end

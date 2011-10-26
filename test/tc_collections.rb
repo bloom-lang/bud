@@ -683,3 +683,29 @@ class BlocklessNotInTest < Test::Unit::TestCase
     assert_equal(o.foo.to_a.sort, o.outsie4.to_a.sort)
   end
 end
+
+class RecursiveNotInTest < Test::Unit::TestCase # issue 255
+  class RecNotIn
+    include Bud
+    state do
+      table :link, [:from, :to]
+      table :path, link.schema
+      table :path_buf, link.schema
+      table :avoid,  link.schema
+    end
+    bootstrap do
+      link <= [['a', 'b'], ['b', 'c'], ['c', 'd']]
+      avoid <= [['a', 'b']]
+    end
+    bloom do
+      path_buf <= link
+      path_buf <= (path * link).pairs {|p, l| [p.from, l.to]}
+      path <= path_buf.notin(avoid)
+      path <= path_buf
+    end
+  end
+  def test_rec_notin
+    o = RecNotIn.new
+    o.tick
+  end
+end
