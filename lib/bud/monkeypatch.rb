@@ -18,8 +18,10 @@ class Module
     # module. To handle nested references (a.b.c.d etc.), the import table for
     # module X points to X's own nested import table.
     @bud_import_tbl ||= {}
+    if @bud_import_tbl.has_key? local_name
+      raise Bud::CompileError, "import symbol #{local_name} already in use"
+    end
     child_tbl = mod.bud_import_table
-    raise Bud::CompileError, "import symbol #{local_name} already in use" if @bud_import_tbl.has_key? local_name
     @bud_import_tbl[local_name] = child_tbl.clone # XXX: clone needed?
 
     rewritten_mod_name = ModuleRewriter.do_import(self, mod, local_name)
