@@ -119,7 +119,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   # We want to rewrite "map" calls on BudCollections to "pro" calls. It is hard
-  # to do this accurately (issue #225), so we just replace map calls liberally
+  # to do this precisely (issue #225), so we just replace map calls liberally
   # and define Enumerable#pro as an alias for "map".
   def map2pro(exp)
     if exp[1] and exp[1][0] and exp[1][0] == :iter \
@@ -212,7 +212,7 @@ end
 # Given a table of renames from x => y, replace all calls to "x" with calls to
 # "y" instead. We don't try to handle shadowing due to block variables: if a
 # block references a block variable that shadows an identifier in the rename
-# tbl, it should appear as an :lvar node rather than a :call, so we should be
+# table, it should appear as an :lvar node rather than a :call, so we should be
 # okay.
 class CallRewriter < SexpProcessor # :nodoc: all
   def initialize(rename_tbl)

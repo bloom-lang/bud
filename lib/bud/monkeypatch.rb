@@ -1,4 +1,5 @@
-# We monkeypatch Module to add support for Bloom state and code declarations.
+# We monkeypatch Module to add support for Bloom's syntax additions: "state",
+# "bloom", and "bootstrap" blocks, plus the "import" statement.
 class Module
   # import another module and assign to a qualifier symbol: <tt>import MyModule => :m</tt>
   def import(spec)
