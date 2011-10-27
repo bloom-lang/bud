@@ -196,12 +196,12 @@ module Bud
   # temp collections. Imported modules are rewritten during the import process;
   # we rewrite the main class associated with this Bud instance and any included
   # modules here. Note that we only rewrite each distinct Class once, and we
-  # skip methods defined by the Bud (Ruby) module directly (since we can be sure
-  # those won't reference Bloom modules).
+  # skip methods defined by the Bud (Ruby) module or the builtin Bloom programs
+  # (since we can be sure those won't need rewriting).
   def self.rewrite_local_methods(klass)
     @done_rewrite ||= {}
     return if @done_rewrite.has_key? klass.name
-    return if klass.name == self.name   # Skip methods defined in the Bud module
+    return if [self, DepAnalysis, Stratification].include? klass
 
     # If module Y imports Z as "z" and X includes Y, X can contain a reference
     # to "z.foo". Hence, when expanding nested references in X, we want to merge
