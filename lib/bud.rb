@@ -212,7 +212,14 @@ module Bud
     klass.modules.each do |m|
       next if m == Bud
       next if m.instance_variable_get('@bud_imported_module')
-      import_table.merge!(m.bud_import_table)
+
+      # If there's a duplicate local bind name amongst any of the import tables,
+      # reject the program. There are situations in which this would be safe
+      # (e.g., none of the modules define a table with the same name), but seems
+      # better to be conservative.
+      import_table.merge!(m.bud_import_table) do |key, oldval, newval|
+        raise Bud::CompileError, "duplicate import symbol #{key} in #{klass}"
+      end
     end
 
     u = Unifier.new

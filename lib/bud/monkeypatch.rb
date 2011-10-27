@@ -19,7 +19,7 @@ class Module
     # module X points to X's own nested import table.
     @bud_import_tbl ||= {}
     if @bud_import_tbl.has_key? local_name
-      raise Bud::CompileError, "import symbol #{local_name} already in use"
+      raise Bud::CompileError, "duplicate import symbol #{local_name} in #{self.name}"
     end
     child_tbl = mod.bud_import_table
     @bud_import_tbl[local_name] = child_tbl.clone # XXX: clone needed?

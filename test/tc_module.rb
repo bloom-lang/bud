@@ -559,11 +559,25 @@ class IncludeImportUser
   end
 end
 
+module OtherMod
+  import IncludeImportRoot => :r
+end
+
+class DupImportNameDiffModule
+  include Bud
+  include IncludeImportRoot
+  include OtherMod
+end
+
 class TestIncludeImport < Test::Unit::TestCase
   def test_include_import
     b = IncludeImportUser.new
     b.tick
     assert_equal([[5], [10], [15]], b.t_copy.to_a.sort)
+  end
+
+  def test_include_dup_import_name
+    assert_raise(Bud::CompileError) { DupImportNameDiffModule.new }
   end
 end
 
