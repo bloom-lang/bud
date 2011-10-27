@@ -589,6 +589,13 @@ module ModuleRewriter # :nodoc: all
     str = Ruby2Ruby.new.process(ast)
     rv = import_site.module_eval str
     raise Bud::CompileError unless rv.nil?
+
+    # Set an instance variable to allow modules produced by the import/rewrite
+    # process to be distinguished from "normal" Ruby modules.
+    mod = import_site.module_eval new_mod_name
+    raise Bud::CompileError unless mod.class == Module
+    mod.instance_variable_set("@bud_imported_module", true)
+
     return new_mod_name
   end
 

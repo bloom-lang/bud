@@ -203,8 +203,20 @@ module Bud
     return if @done_rewrite.has_key? klass.name
     return if klass.name == self.name   # Skip methods defined in the Bud module
 
+    # If module Y imports Z as "z" and X includes Y, X can contain a reference
+    # to "z.foo". Hence, when expanding nested references in X, we want to merge
+    # the import tables of X and any modules that X includes; however, we can
+    # skip the Bud module, as well as any modules generated via the import
+    # system.
+    import_table = klass.bud_import_table.clone
+    klass.modules.each do |m|
+      next if m == Bud
+      next if m.instance_variable_get('@bud_imported_module')
+      import_table.merge!(m.bud_import_table)
+    end
+
     u = Unifier.new
-    ref_expander = NestedRefRewriter.new(klass.bud_import_table)
+    ref_expander = NestedRefRewriter.new(import_table)
     tmp_expander = TempExpander.new
     with_expander = WithExpander.new
     r2r = Ruby2Ruby.new
