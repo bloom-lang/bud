@@ -203,27 +203,8 @@ module Bud
     return if @done_rewrite.has_key? klass.name
     return if [self, DepAnalysis, Stratification].include? klass
 
-    # If module Y imports Z as "z" and X includes Y, X can contain a reference
-    # to "z.foo". Hence, when expanding nested references in X, we want to merge
-    # the import tables of X and any modules that X includes; however, we can
-    # skip the Bud module, as well as any modules generated via the import
-    # system.
-    import_table = klass.bud_import_table.clone
-    klass.modules.each do |m|
-      next if m == Bud
-      next if m.instance_variable_get('@bud_imported_module')
-
-      # If there's a duplicate local bind name amongst any of the import tables,
-      # reject the program. There are situations in which this would be safe
-      # (e.g., none of the modules define a table with the same name), but seems
-      # better to be conservative.
-      import_table.merge!(m.bud_import_table) do |key, oldval, newval|
-        raise Bud::CompileError, "duplicate import symbol #{key} in #{klass}"
-      end
-    end
-
     u = Unifier.new
-    ref_expander = NestedRefRewriter.new(import_table)
+    ref_expander = NestedRefRewriter.new(klass)
     tmp_expander = TempExpander.new
     with_expander = WithExpander.new
     r2r = Ruby2Ruby.new
@@ -236,8 +217,8 @@ module Bud
       ast = with_expander.process(ast)
 
       if ref_expander.did_work or tmp_expander.did_work or with_expander.did_work
-        new_source = r2r.process(ast)
-        klass.module_eval new_source # Replace previous method def
+        new_src = r2r.process(ast)
+        klass.module_eval new_src # Replace previous method def
       end
 
       ref_expander.did_work = false

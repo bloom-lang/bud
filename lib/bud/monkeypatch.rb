@@ -21,8 +21,7 @@ class Module
     if @bud_import_tbl.has_key? local_name
       raise Bud::CompileError, "duplicate import symbol #{local_name} in #{self.name}"
     end
-    child_tbl = mod.bud_import_table
-    @bud_import_tbl[local_name] = child_tbl.clone # XXX: clone needed?
+    @bud_import_tbl[local_name] = NestedRefRewriter.build_import_table(mod)
 
     rewritten_mod_name = ModuleRewriter.do_import(self, mod, local_name)
     self.module_eval "include #{rewritten_mod_name}"

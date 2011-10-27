@@ -248,12 +248,35 @@ end
 class NestedRefRewriter < SexpProcessor # :nodoc: all
   attr_accessor :did_work
 
-  def initialize(import_tbl)
+  def initialize(mod)
     super()
     self.require_empty = false
     self.expected = Sexp
-    @import_tbl = import_tbl
+
+    @import_tbl = NestedRefRewriter.build_import_table(mod)
     @did_work = false
+  end
+
+  # If module Y imports Z as "z" and X includes Y, X can contain a reference
+  # to "z.foo". Hence, when expanding nested references in X, we want to merge
+  # the import tables of X and any modules that X includes; however, we can
+  # skip the Bud module, as well as any modules generated via the import
+  # system.
+  def self.build_import_table(mod)
+    child_tbl = mod.bud_import_table.clone
+    mod.modules.each do |m|
+      next if m == Bud
+      next if m.instance_variable_get('@bud_imported_module')
+
+      # If there's a duplicate local bind name amongst any of the import tables,
+      # reject the program. There are situations in which this would be safe
+      # (e.g., none of the modules define a table with the same name), but seems
+      # better to be conservative.
+      child_tbl.merge!(m.bud_import_table) do |key, oldval, newval|
+        raise Bud::CompileError, "duplicate import symbol #{key} in #{mod}"
+      end
+    end
+    child_tbl
   end
 
   def process_call(exp)
@@ -577,7 +600,7 @@ module ModuleRewriter # :nodoc: all
     # and returns a matching ast.
     # hence we run it before the other rewrites.
     ast = ast_process_withs(mod)
-    ast = ast_flatten_nested_refs(ast, mod.bud_import_table)
+    ast = ast_flatten_nested_refs(ast, mod)
     ast = ast_process_temps(ast, mod)
 
     ast, new_mod_name = ast_rename_module(ast, import_site, mod, local_name)
@@ -663,8 +686,8 @@ module ModuleRewriter # :nodoc: all
 
   # If this module imports a submodule and binds it to :x, references to x.t1
   # need to be flattened to the mangled name of x.t1.
-  def self.ast_flatten_nested_refs(ast, import_tbl)
-    NestedRefRewriter.new(import_tbl).process(ast)
+  def self.ast_flatten_nested_refs(ast, mod)
+    NestedRefRewriter.new(mod).process(ast)
   end
 
   # Handle temp collections defined in the module's Bloom blocks.

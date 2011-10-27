@@ -559,6 +559,30 @@ class IncludeImportUser
   end
 end
 
+# Similar test to the above, except that there's an additional import, and hence
+# the rewriting must be done earlier.
+module ImportIncludeImportRoot
+  import IncludeImportRoot => :i
+end
+
+class UserViaImport
+  include Bud
+  include ImportIncludeImportRoot
+
+  state do
+    table :t_copy, i.r.t.schema
+  end
+
+  bootstrap do
+    i.r.t << [25]
+  end
+
+  bloom do
+    t_copy <= i.r.t
+  end
+end
+
+# Disallow module import clashes between included modules
 module OtherMod
   import IncludeImportRoot => :r
 end
@@ -578,6 +602,12 @@ class TestIncludeImport < Test::Unit::TestCase
 
   def test_include_dup_import_name
     assert_raise(Bud::CompileError) { DupImportNameDiffModule.new }
+  end
+
+  def test_include_via_import
+    b = UserViaImport.new
+    b.tick
+    assert_equal([[5], [10], [25]], b.t_copy.to_a.sort)
   end
 end
 
