@@ -610,7 +610,3 @@ class TestIncludeImport < Test::Unit::TestCase
     assert_equal([[5], [10], [25]], b.t_copy.to_a.sort)
   end
 end
-
-# Testing TODO:
-# * Qualified names in (a)sync_do
-# * Rename instance variables in modules?
