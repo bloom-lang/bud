@@ -352,7 +352,7 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_dup_columns
-    assert_raise(Bud::BudError) {program = DupColBud.new}
+    assert_raise(Bud::Error) {program = DupColBud.new}
   end
 
   def test_dup_keys
@@ -416,15 +416,15 @@ class TestCollections < Test::Unit::TestCase
     p1.tick
     assert_equal(1, p1.t1.first.key)
     p2 = NonEnumerable.new
-    assert_raise(Bud::BudTypeError) { p2.tick }
+    assert_raise(Bud::TypeError) { p2.tick }
     p3 = NonTuple.new
-    assert_raise(Bud::BudTypeError) { p3.tick }
+    assert_raise(Bud::TypeError) { p3.tick }
     p4 = NonTupleDelete.new
-    assert_raise(Bud::BudTypeError) { p4.tick }
+    assert_raise(Bud::TypeError) { p4.tick }
     p5 = StringMerge.new
-    assert_raise(Bud::BudTypeError) { p5.tick }
+    assert_raise(Bud::TypeError) { p5.tick }
     p6 = StringAsyncMerge.new
-    assert_raise(Bud::BudTypeError) { p6.tick }
+    assert_raise(Bud::TypeError) { p6.tick }
   end
 
   def test_types_delete
@@ -479,7 +479,7 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_loc_spec_non_channel
-    assert_raise(Bud::BudError) { LocSpecNonChannel.new }
+    assert_raise(Bud::Error) { LocSpecNonChannel.new }
   end
 
   def test_empty_pk_error
@@ -504,13 +504,13 @@ class TestCollections < Test::Unit::TestCase
   def test_periodic_lhs_error
     b = InsertIntoPeriodicError.new
     b.run_bg
-    assert_raise(Bud::BudError) {
+    assert_raise(Bud::Error) {
       b.sync_do { b.timer <+ [[5, 10]] }
     }
-    assert_raise(Bud::BudError) {
+    assert_raise(Bud::Error) {
       b.sync_do { b.timer <= [[5, 10]] }
     }
-    assert_raise(Bud::BudError) {
+    assert_raise(Bud::Error) {
       b.sync_do { b.timer <- [[5, 10]] }
     }
     b.stop
@@ -623,5 +623,89 @@ class NotInTest < Test::Unit::TestCase
     assert_equal([['caitlin', 0]], o.outsie.to_a)
     assert_equal([['caitlin', 0]], o.realblock_out.to_a)
     assert_equal([['betsy', 1], ['caitlin', 0]], o.sillyblock_out.to_a.sort)
+  end
+end
+
+class NotInTest2 < Test::Unit::TestCase
+  class SimpleNotIn
+    include Bud
+    state do
+      table :foo, [:c1, :c2]
+      table :bar, [:c1, :c2]
+      table :outsie, [:c1, :c2]
+    end
+    bootstrap do
+      foo <= [["alex", 1], ["joe", 2], ["jonathan", 3]]
+      bar <= [["joe", 0], ["joe", 1], ["alex", 1]]
+    end
+    bloom do
+      outsie <= foo.notin(bar, :c1=>:c1) {|f, b| true if f.c2 <= b.c2}
+    end
+  end
+
+  def test_simple_notin
+    o = SimpleNotIn.new
+    o.tick
+    assert_equal([["joe", 2], ["jonathan", 3]], o.outsie.to_a.sort)
+  end
+end
+
+class BlocklessNotInTest < Test::Unit::TestCase
+  class BlocklessNotIn
+    include Bud
+    state do
+      table :foo, [:c1, :c2]
+      table :bar, [:c3, :c4]
+      table :bigfoo, [:c5, :c6, :c7]
+      table :outsie, [:c1, :c2]
+      table :outsie2, [:c1, :c2]
+      table :outsie3, [:c1, :c2]
+      table :outsie4, [:c1, :c2]
+    end
+    bootstrap do
+      foo <= [["alex", 1], ["jonathan", 2], ["jonathan", 3]]
+      bigfoo <= [["alex", 1], ["jonathan", 2, 2], ["jonathan", 3, 3]]
+      bar <= [["jonathan", 2], ["alex", 1]]
+    end
+    bloom do
+      outsie <= foo.notin(bar)
+      outsie2 <= foo.notin(bar, :c1=>:c3)
+      outsie3 <= foo.notin(bar, :c2=>:c4)
+      outsie4 <= foo.notin(bigfoo)
+    end
+  end
+  def test_blockless_notin
+    o = BlocklessNotIn.new
+    o.tick
+    assert_equal([["jonathan", 3]], o.outsie.to_a)
+    assert_equal([], o.outsie2.to_a)
+    assert_equal([["jonathan", 3]], o.outsie3.to_a)
+    assert_equal(o.foo.to_a.sort, o.outsie4.to_a.sort)
+  end
+end
+
+class RecursiveNotInTest < Test::Unit::TestCase # issue 255
+  class RecNotIn
+    include Bud
+    state do
+      table :link, [:from, :to]
+      table :path, link.schema
+      table :path_buf, link.schema
+      table :avoid,  link.schema
+    end
+    bootstrap do
+      link <= [['a', 'b'], ['b', 'c'], ['c', 'd']]
+      avoid <= [['a', 'b']]
+    end
+    bloom do
+      path_buf <= link
+      path_buf <= (path * link).pairs {|p, l| [p.from, l.to]}
+      path <= path_buf.notin(avoid)
+      path <= path_buf
+    end
+  end
+  def test_rec_notin
+    o = RecNotIn.new
+    o.tick
   end
 end

@@ -92,6 +92,15 @@ module Bud
   #   * <tt>:metrics</tt> if true, dumps a hash of internal performance metrics
   # * controlling execution
   #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
+  #   * <tt>:channel_filter</tt> a code block that can be used to filter the
+  #     network messages delivered to this Bud instance. At the start of each
+  #     tick, the code block is invoked for every channel with any incoming
+  #     messages; the code block is passed the name of the channel and an array
+  #     containing the inbound messages. It should return a two-element array
+  #     containing "accepted" and "postponed" messages, respectively. Accepted
+  #     messages are delivered during this tick, and postponed messages are
+  #     buffered and passed to the filter in subsequent ticks. Any messages that
+  #     aren't in either array are dropped.
   # * storage configuration
   #   * <tt>:dbm_dir</tt> filesystem directory to hold DBM-backed collections
   #   * <tt>:dbm_truncate</tt> if true, DBM-backed collections are opened with +OTRUNC+
@@ -117,7 +126,7 @@ module Bud
     @inside_tick = false
     @tick_clock_time = nil
     @budtime = 0
-    @inbound = []
+    @inbound = {}
     @done_bootstrap = false
     @joinstate = {}  # joins are stateful, their state needs to be kept inside the Bud instance
     @instance_id = ILLEGAL_INSTANCE_ID # Assigned when we start running
@@ -163,7 +172,7 @@ module Bud
     @rule_orig_src = []
     declaration
     @strata.each_with_index do |s,i|
-      raise BudError if s.class <= Array
+      raise Bud::Error if s.class <= Array
       @strata[i] = [s]
       # Don't try to record source text for old-style rule blocks
       @rule_src[i] = [""]
@@ -187,15 +196,15 @@ module Bud
   # temp collections. Imported modules are rewritten during the import process;
   # we rewrite the main class associated with this Bud instance and any included
   # modules here. Note that we only rewrite each distinct Class once, and we
-  # skip methods defined by the Bud (Ruby) module directly (since we can be sure
-  # those won't reference Bloom modules).
+  # skip methods defined by the Bud (Ruby) module or the builtin Bloom programs
+  # (since we can be sure those won't need rewriting).
   def self.rewrite_local_methods(klass)
     @done_rewrite ||= {}
     return if @done_rewrite.has_key? klass.name
-    return if klass.name == self.name   # Skip methods defined in the Bud module
+    return if [self, DepAnalysis, Stratification].include? klass
 
     u = Unifier.new
-    ref_expander = NestedRefRewriter.new(klass.bud_import_table)
+    ref_expander = NestedRefRewriter.new(klass)
     tmp_expander = TempExpander.new
     with_expander = WithExpander.new
     r2r = Ruby2Ruby.new
@@ -208,8 +217,8 @@ module Bud
       ast = with_expander.process(ast)
 
       if ref_expander.did_work or tmp_expander.did_work or with_expander.did_work
-        new_source = r2r.process(ast)
-        klass.module_eval new_source # Replace previous method def
+        new_src = r2r.process(ast)
+        klass.module_eval new_src # Replace previous method def
       end
 
       ref_expander.did_work = false
@@ -306,7 +315,7 @@ module Bud
 
     schedule_and_wait do
       if @running_async
-        raise BudError, "run_bg called on already-running Bud instance"
+        raise Bud::Error, "run_bg called on already-running Bud instance"
       end
       @running_async = true
 
@@ -331,8 +340,8 @@ module Bud
 
   private
   def do_startup
-    raise BudError, "EventMachine not started" unless EventMachine::reactor_running?
-    raise BudError unless EventMachine::reactor_thread?
+    raise Bud::Error, "EventMachine not started" unless EventMachine::reactor_running?
+    raise Bud::Error unless EventMachine::reactor_thread?
 
     @instance_id = Bud.init_signal_handlers(self)
     do_start_server
@@ -376,7 +385,7 @@ module Bud
     # If we're called from the EventMachine thread (and EM is running), blocking
     # the current thread would imply deadlocking ourselves.
     if Thread.current == EventMachine::reactor_thread and EventMachine::reactor_running?
-      raise BudError, "cannot invoke run_fg from inside EventMachine"
+      raise Bud::Error, "cannot invoke run_fg from inside EventMachine"
     end
 
     q = Queue.new
@@ -430,7 +439,7 @@ module Bud
 
   def cancel_shutdown_cb(id)
     schedule_and_wait do
-      raise Bud::BudError unless @shutdown_callbacks.has_key? id
+      raise Bud::Error unless @shutdown_callbacks.has_key? id
       @shutdown_callbacks.delete(id)
     end
   end
@@ -494,10 +503,10 @@ module Bud
     cb_id = nil
     schedule_and_wait do
       unless @tables.has_key? tbl_name
-        raise Bud::BudError, "no such table: #{tbl_name}"
+        raise Bud::Error, "no such table: #{tbl_name}"
       end
 
-      raise Bud::BudError if @callbacks.has_key? @callback_id
+      raise Bud::Error if @callbacks.has_key? @callback_id
       @callbacks[@callback_id] = [tbl_name, block]
       cb_id = @callback_id
       @callback_id += 1
@@ -508,7 +517,7 @@ module Bud
   # Unregister the callback that has the given ID.
   def unregister_callback(id)
     schedule_and_wait do
-      raise Bud::BudError, "missing callback: #{id.inspect}" unless @callbacks.has_key? id
+      raise Bud::Error, "missing callback: #{id.inspect}" unless @callbacks.has_key? id
       @callbacks.delete(id)
     end
   end
@@ -543,7 +552,7 @@ module Bud
     result = q.pop
     if result == :callback
       # Don't try to unregister the callbacks first: runtime is already shutdown
-      raise BudShutdownWithCallbacksError, "Bud instance shutdown before sync_callback completed"
+      raise Bud::ShutdownWithCallbacksError, "Bud instance shutdown before sync_callback completed"
     end
     unregister_callback(cb)
     cancel_shutdown_cb(shutdown_cb)
@@ -571,9 +580,9 @@ module Bud
     return if EventMachine::reactor_running?
 
     EventMachine::error_handler do |e|
-      # Only print a backtrace if a non-BudError is raised (this presumably
+      # Only print a backtrace if a non-Bud::Error is raised (this presumably
       # indicates an unexpected failure).
-      if e.class <= BudError
+      if e.class <= Bud::Error
         puts "#{e.class}: #{e}"
       else
         puts "Unexpected Bud error: #{e.inspect}"
@@ -650,7 +659,8 @@ module Bud
 
   def do_start_server
     @dsock = EventMachine::open_datagram_socket(@ip, @options[:port],
-                                                BudServer, self)
+                                                BudServer, self,
+                                                @options[:channel_filter])
     @port = Socket.unpack_sockaddr_in(@dsock.get_sockname)[0]
   end
 
@@ -664,23 +674,23 @@ module Bud
   # forwarding, and external_ip:local_port would be if you're in a DMZ, for
   # example.
   def ip_port
-    raise BudError, "ip_port called before port defined" if port.nil?
+    raise Bud::Error, "ip_port called before port defined" if port.nil?
     ip.to_s + ":" + port.to_s
   end
 
   def ip
-    ip = options[:ext_ip] ? "#{@options[:ext_ip]}" : "#{@ip}"
+    options[:ext_ip] ? "#{@options[:ext_ip]}" : "#{@ip}"
   end
 
   def port
     return nil if @port.nil? and @options[:port] == 0 and not @options[:ext_port]
-    return options[:ext_port] ? "#{@options[:ext_port]}" :
-      (@port.nil? ? "#{@options[:port]}" : "#{@port}")
+    return @options[:ext_port] ? @options[:ext_port] :
+      (@port.nil? ? @options[:port] : @port)
   end
 
   # Returns the internal IP and port.  See ip_port.
   def int_ip_port
-    raise BudError, "ip_port called before port defined" if @port.nil? and @options[:port] == 0
+    raise Bud::Error, "ip_port called before port defined" if @port.nil? and @options[:port] == 0
     @port.nil? ? "#{@ip}:#{@options[:port]}" : "#{@ip}:#{@port}"
   end
 
@@ -730,7 +740,7 @@ module Bud
   # this value is guaranteed to remain the same for the duration of a single
   # tick, but will likely change between ticks.
   def bud_clock
-    raise BudError, "bud_clock undefined outside tick" unless @inside_tick
+    raise Bud::Error, "bud_clock undefined outside tick" unless @inside_tick
     @tick_clock_time ||= Time.now
     @tick_clock_time
   end
@@ -742,7 +752,7 @@ module Bud
   # initialized before user-defined state.
   def builtin_state
     # We expect there to be no previously-defined tables
-    raise BudError unless @tables.empty?
+    raise Bud::Error unless @tables.empty?
 
     loopback  :localtick, [:col1]
     @stdio = terminal :stdio
@@ -769,8 +779,10 @@ module Bud
   # directly into the storage of the appropriate local channel. The inbound
   # queue is cleared at the end of the tick.
   def receive_inbound
-    @inbound.each do |msg|
-      tables[msg[0].to_sym] << msg[1]
+    @inbound.each do |tbl_name, msg_buf|
+      msg_buf.each do |b|
+        tables[tbl_name] << b
+      end
     end
   end
 
@@ -837,8 +849,8 @@ module Bud
           end
 
           new_e = e
-          unless new_e.class <= BudError
-            new_e = BudError
+          unless new_e.class <= Bud::Error
+            new_e = Bud::Error
           end
           raise new_e, "exception during Bud evaluation.\nException: #{e.inspect}.#{src_msg}"
         end
@@ -870,7 +882,8 @@ module Bud
 
   def make_periodic_timer(name, period)
     EventMachine::PeriodicTimer.new(period) do
-      @inbound << [name, [gen_id, Time.now]]
+      @inbound[name.to_sym] ||= []
+      @inbound[name.to_sym] << [gen_id, Time.now]
       tick_internal if @running_async
     end
   end

@@ -72,7 +72,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_schemy
-    assert_raise Bud::BudError do
+    assert_raise Bud::Error do
       p = BadSchemy.new
       p.tick
     end
@@ -87,7 +87,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_schemy_conflict
-    assert_raise Bud::BudError do
+    assert_raise Bud::Error do
       p = SchemyConflict.new
       p.tick
     end
@@ -104,7 +104,7 @@ class TestErrorHandling < Test::Unit::TestCase
   def test_each_from_bad_sym
     p = EachFromBadSym.new
     p.tick
-    assert_raise(Bud::BudError) { p.joe.each_from_sym([:bletch]) {} }
+    assert_raise(Bud::Error) { p.joe.each_from_sym([:bletch]) {} }
   end
 
   def test_missing_table_error
@@ -175,7 +175,7 @@ class TestErrorHandling < Test::Unit::TestCase
     e = EvalError.new
     e.run_bg
 
-    assert_raise(Bud::BudError) {
+    assert_raise(Bud::Error) {
       e.sync_do {
         e.t1 <+ [[5, 0]]
       }
@@ -239,7 +239,7 @@ class TestErrorHandling < Test::Unit::TestCase
 
   def test_bad_next_channel
     p = BadNextChannel.new
-    assert_raise(Bud::BudError) {p.tick}
+    assert_raise(Bud::Error) {p.tick}
   end
 
   class BadStdio
@@ -251,7 +251,7 @@ class TestErrorHandling < Test::Unit::TestCase
 
   def test_bad_stdio
     p = BadStdio.new
-    assert_raise(Bud::BudError) {p.tick}
+    assert_raise(Bud::Error) {p.tick}
   end
 
   class BadFileReader1
@@ -299,7 +299,7 @@ class TestErrorHandling < Test::Unit::TestCase
   def test_bad_file_reader_3
     File.open("/tmp/foo#{Process.pid}", 'a')
     p = BadFileReader3.new
-    assert_raise(Bud::BudError) {p.tick}
+    assert_raise(Bud::Error) {p.tick}
   end
 
   class BadOp
@@ -324,7 +324,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_terminal
-    assert_raise(Bud::BudError) { BadTerminal.new }
+    assert_raise(Bud::Error) { BadTerminal.new }
   end
 
   module SyntaxBase
