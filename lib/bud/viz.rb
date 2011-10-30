@@ -57,11 +57,14 @@ class VizOnline #:nodoc: all
       if collection.class == Hash
         row = row[1]
       end
+      if collection.class == Bud::BudPeriodic
+        row = row[0]
+      end
       newrow = [tab, @bud_instance.budtime, row]
       begin
         @logtab << newrow
       rescue
-        raise "ERROR!  #{@logtab} << #{newrow}"
+        raise "ERROR!  #{@logtab} << #{newrow.inspect} (etxt #{$!})"
       end
 
     end
@@ -73,7 +76,8 @@ class VizOnline #:nodoc: all
       tab = t[0]
       next if tab == "the_big_log"
       next if @meta_tables[tab.to_s] and @bud_instance.budtime > 0
-      add_rows(t[1], tab) unless t[1].class == Bud::BudPeriodic
+      # PAA: why did we previously exclude periodics?
+      add_rows(t[1], tab) #####unless t[1].class == Bud::BudPeriodic
       if t[1].class == Bud::BudChannel
         add_rows(t[1].pending, "#{tab}_snd")
       end
