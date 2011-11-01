@@ -257,7 +257,7 @@ END_JS
 
     fout.puts "<html><title>#{tab} @ #{time}</title>"
     fout.puts "<table border=1>"
-    fout.puts "<tr>" + schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>" unless schema.nil?
+    fout.puts "<tr>" + schema.select{|s| s.to_s != "c_bud_time"}.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>" unless schema.nil?
     fout.close
     return str
   end
