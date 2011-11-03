@@ -198,15 +198,15 @@ module Bud
   # temp collections. Imported modules are rewritten during the import process;
   # we rewrite the main class associated with this Bud instance and any included
   # modules here. Note that we only rewrite each distinct Class once, and we
-  # skip methods defined by the Bud (Ruby) module directly (since we can be sure
-  # those won't reference Bloom modules).
+  # skip methods defined by the Bud (Ruby) module or the builtin Bloom programs
+  # (since we can be sure those won't need rewriting).
   def self.rewrite_local_methods(klass)
     @done_rewrite ||= {}
     return if @done_rewrite.has_key? klass.name
-    return if klass.name == self.name   # Skip methods defined in the Bud module
+    return if [self, DepAnalysis, Stratification].include? klass
 
     u = Unifier.new
-    ref_expander = NestedRefRewriter.new(klass.bud_import_table)
+    ref_expander = NestedRefRewriter.new(klass)
     tmp_expander = TempExpander.new
     with_expander = WithExpander.new
     r2r = Ruby2Ruby.new
@@ -219,8 +219,8 @@ module Bud
       ast = with_expander.process(ast)
 
       if ref_expander.did_work or tmp_expander.did_work or with_expander.did_work
-        new_source = r2r.process(ast)
-        klass.module_eval new_source # Replace previous method def
+        new_src = r2r.process(ast)
+        klass.module_eval new_src # Replace previous method def
       end
 
       ref_expander.did_work = false

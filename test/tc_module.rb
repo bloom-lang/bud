@@ -517,6 +517,96 @@ class TestModules < Test::Unit::TestCase
   end
 end
 
-# Testing TODO:
-# * Qualified names in (a)sync_do
-# * Rename instance variables in modules?
+# Test the interaction between the include and import statements. Specifically,
+# if module Y imports Z as "z" and X includes Y, code in X can use the "z"
+# qualified name.
+module RootMod
+  state do
+    table :t, [:k]
+  end
+end
+
+module ImportRoot
+  import RootMod => :r
+
+  bootstrap do
+    r.t << [5]
+  end
+end
+
+module IncludeImportRoot
+  include ImportRoot
+
+  bootstrap do
+    r.t << [10]
+  end
+end
+
+class IncludeImportUser
+  include Bud
+  include IncludeImportRoot
+
+  state do
+    table :t_copy, r.t.schema
+  end
+
+  bootstrap do
+    r.t << [15]
+  end
+
+  bloom do
+    t_copy <= r.t
+  end
+end
+
+# Similar test to the above, except that there's an additional import, and hence
+# the rewriting must be done earlier.
+module ImportIncludeImportRoot
+  import IncludeImportRoot => :i
+end
+
+class UserViaImport
+  include Bud
+  include ImportIncludeImportRoot
+
+  state do
+    table :t_copy, i.r.t.schema
+  end
+
+  bootstrap do
+    i.r.t << [25]
+  end
+
+  bloom do
+    t_copy <= i.r.t
+  end
+end
+
+# Disallow module import clashes between included modules
+module OtherMod
+  import IncludeImportRoot => :r
+end
+
+class DupImportNameDiffModule
+  include Bud
+  include IncludeImportRoot
+  include OtherMod
+end
+
+class TestIncludeImport < Test::Unit::TestCase
+  def test_include_import
+    b = IncludeImportUser.new
+    b.tick
+    assert_equal([[5], [10], [15]], b.t_copy.to_a.sort)
+  end
+
+  def test_include_dup_import_name
+    assert_raise(Bud::CompileError) { DupImportNameDiffModule.new }
+  end
+
+  def test_include_via_import
+    b = UserViaImport.new
+    b.tick
+    assert_equal([[5], [10], [25]], b.t_copy.to_a.sort)
+  end
+end

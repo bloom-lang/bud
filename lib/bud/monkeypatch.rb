@@ -1,4 +1,5 @@
-# We monkeypatch Module to add support for Bloom state and code declarations.
+# We monkeypatch Module to add support for Bloom's syntax additions: "state",
+# "bloom", and "bootstrap" blocks, plus the "import" statement.
 class Module
   # import another module and assign to a qualifier symbol: <tt>import MyModule => :m</tt>
   def import(spec)
@@ -17,9 +18,10 @@ class Module
     # module. To handle nested references (a.b.c.d etc.), the import table for
     # module X points to X's own nested import table.
     @bud_import_tbl ||= {}
-    child_tbl = mod.bud_import_table
-    raise Bud::CompileError, "import symbol #{local_name} already in use" if @bud_import_tbl.has_key? local_name
-    @bud_import_tbl[local_name] = child_tbl.clone # XXX: clone needed?
+    if @bud_import_tbl.has_key? local_name
+      raise Bud::CompileError, "duplicate import symbol #{local_name} in #{self.name}"
+    end
+    @bud_import_tbl[local_name] = NestedRefRewriter.build_import_table(mod)
 
     rewritten_mod_name = ModuleRewriter.do_import(self, mod, local_name)
     self.module_eval "include #{rewritten_mod_name}"
