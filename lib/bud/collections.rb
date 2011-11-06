@@ -480,7 +480,6 @@ module Bud
       end
     end
 
-
     # a generalization of argmin/argmax to arbitrary exemplary aggregates.
     # for each distinct value of the grouping key columns, return the items in that group
     # that have the value of the exemplary aggregate +aggname+
