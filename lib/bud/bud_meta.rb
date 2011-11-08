@@ -49,7 +49,7 @@ class BudMeta #:nodoc: all
       @bud_instance.sinks[s.first] = true
     end
       
-    dump_rewrite(rewritten_strata) if @bud_instance.options[:dump_rewrite]
+    dump_rewrite(no_attr_rewrite_strata) if @bud_instance.options[:dump_rewrite]
 
     return rewritten_strata, no_attr_rewrite_strata
   end
