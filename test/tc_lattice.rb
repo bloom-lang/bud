@@ -491,3 +491,63 @@ class TestMergeMap < Test::Unit::TestCase
     assert_equal([["foo", [["baz", 2]]]], i.m2.reveal)
   end
 end
+
+class EmbeddedLatticeMorph
+  include Bud
+
+  state do
+    table :t
+    table :res, t.schema
+    scratch :u, [:k]
+    lat_max :m
+  end
+
+  bootstrap do
+    m <= [[5]]
+  end
+
+  bloom do
+    t <= u {|x| [x.k, m]}
+    res <= t {|y| y if y.val.gt_k(10)}
+  end
+end
+
+class TestLatticeEmbedding < Test::Unit::TestCase
+  def reveal_lats(m)
+    m.map do |tup|
+      tup.map do |v|
+        if v.class <= BasicLattice
+          v.reveal
+        else
+          v
+        end
+      end
+    end
+  end
+
+  def test_morph_strat
+    i = EmbeddedLatticeMorph.new(:dump_rewrite => true)
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:m, :u, :t, :res].each {|r| assert(strat_zero.include? r) }
+
+    # i.u <+ [[10]]
+    # i.tick
+    # assert_equal([], i.res.to_a.sort)
+
+    # XXX: bug. The update to "m" should not be propagated to t or res, because
+    # the dataflow that connects them is not currently active
+    # i.m <+ [[12]]
+    # i.tick
+    # assert_equal([], i.res.to_a.sort)
+
+    i.m <+ [[13]]
+    i.u <+ [[10]]
+    i.tick
+    assert_equal([[10, 13]], reveal_lats(i.res.to_a.sort))
+    i.m <+ [[14]]
+    i.u <+ [[10]]
+    i.tick
+    assert_equal([[10, 14]], reveal_lats(i.res.to_a.sort))
+  end
+end
