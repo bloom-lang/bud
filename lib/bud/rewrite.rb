@@ -181,7 +181,7 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
           raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
         end
       elsif exp[2] and exp[2][0] == :masgn and not @collnames.empty? # join or reduce iter
-        next unless exp[2][1] and exp[2][1][0] == :array
+        return unless exp[2][1] and exp[2][1][0] == :array
         if exp[1][2] == :reduce
           unless @collnames.length == 1
             raise BudError, "reduce should only one associated collection, but has #{@collnames.inspect}"
@@ -666,6 +666,6 @@ module ModuleRewriter # :nodoc: all
   # Return a list of symbols containing the names of def blocks containing Bloom
   # rules in the given module and all of its ancestors.
   def self.get_rule_defs(mod)
-    mod.instance_methods.select {|m| m =~ /^__bloom__.+$/}
+    mod.instance_methods.select {|m| m =~ /^__bloom__.+$/}.map {|m| m.to_s}
   end
 end

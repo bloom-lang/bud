@@ -70,7 +70,7 @@ module Bud
       @blk = blk
     end
     def wire_to(element)
-      unless element.methods.include? "insert"
+      unless element.methods.include? :insert or element.methods.include? "insert"
         raise BudError, "attempt to wire_to element without insert method" 
       end
       # elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
@@ -79,21 +79,21 @@ module Bud
       element.wired_by << self if element.respond_to? :wired_by
     end
     def wire_to_pending(element)
-      raise BudError, "attempt to wire_to_pending element without pending_merge method" unless element.methods.include? "pending_merge"
+      raise BudError, "attempt to wire_to_pending element without pending_merge method" unless element.methods.include? "pending_merge" or element.methods.include? :pending_merge
       elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
       # puts "wiring #{self.elem_name} to #{elem_name}(pending)"
       @pendings << element
       element.wired_by << self if element.respond_to? :wired_by
     end
     def wire_to_delete(element)
-      raise BudError, "attempt to wire_to_delete element without pending_delete method" unless element.methods.include? "pending_delete"
+      raise BudError, "attempt to wire_to_delete element without pending_delete method" unless element.methods.include? "pending_delete" or element.methods.include? :pending_delete
       elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
       # puts "wiring #{self.elem_name} to #{elem_name}(delete)"
       @deletes << element
       element.wired_by << self if element.respond_to? :wired_by
     end
     def wire_to_delete_by_key(element)
-      raise BudError, "attempt to wire_to_delete_by_key element without pending_delete_keys method" unless element.methods.include? "pending_delete_keys"
+      raise BudError, "attempt to wire_to_delete_by_key element without pending_delete_keys method" unless element.methods.include? "pending_delete_keys" or element.methods.include? :pending_delete_keys
       elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
       # puts "wiring #{self.elem_name} to #{elem_name}(delete)"
       @delete_keys << element

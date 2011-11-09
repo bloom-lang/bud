@@ -145,9 +145,9 @@ module Bud
     # number won't be known until we start EM
 
     relatives = self.class.modules + [self.class]
-    relatives.each do |r|
-      Bud.rewrite_local_methods(r)
-    end
+    #relatives.each do |r|
+    #  Bud.rewrite_local_methods(r)
+    #end
 
     @declarations = ModuleRewriter.get_rule_defs(self.class)
 
@@ -203,17 +203,19 @@ module Bud
   # we rewrite the main Bud class and any included modules here. Note that we
   # only rewrite each distinct Class once.
   def self.rewrite_local_methods(klass)
+
     @done_rewrite ||= {}
     return if @done_rewrite.has_key? klass.name
 
-    u = Unifier.new
+    #u = Unifier.new
     ref_expander = NestedRefRewriter.new(klass.bud_import_table)
     tmp_expander = TempExpander.new
     r2r = Ruby2Ruby.new
 
     klass.instance_methods(false).each do |m|
-      ast = ParseTree.translate(klass, m)
-      ast = u.process(ast)
+      #ast = ParseTree.translate(klass, m)
+      ast =
+      #ast = u.process(ast)
       ast = ref_expander.process(ast)
       ast = tmp_expander.process(ast)
 

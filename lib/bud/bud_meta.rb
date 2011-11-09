@@ -1,6 +1,6 @@
 require 'bud/rewrite'
 require 'bud/state'
-require 'parse_tree'
+#require 'parse_tree'
 require 'pp'
 
 class BudMeta #:nodoc: all
@@ -88,13 +88,17 @@ class BudMeta #:nodoc: all
   end
 
   def rewrite_rule_block(klass, block_name, seed)
-    parse_tree = ParseTree.translate(klass, block_name)
-    return unless parse_tree.first
+    return unless klass.respond_to? :__bloom_asts__
 
-    pt = Unifier.new.process(parse_tree)
+
+    pt = klass.__bloom_asts__[block_name]
+    return if pt.nil?
     pp pt if @bud_instance.options[:dump_ast]
 
-    rv = check_rule_ast(pt)
+
+
+#    rv = check_rule_ast(pt)
+    rv = nil
     unless rv.nil?
       if rv.class <= Sexp
         error_pt = rv
@@ -113,7 +117,11 @@ class BudMeta #:nodoc: all
       end
       raise Bud::CompileError, "#{error_msg} in rule block \"#{block_name}\"#{src_msg}"
     end
-
+    tmp_expander = TempExpander.new
+    pt = tmp_expander.process(pt)
+    tmp_expander.tmp_tables.each do |t|
+      @bud_instance.temp(t.to_s)
+    end
     rewriter = RuleRewriter.new(seed, @bud_instance)
     rewriter.process(pt)
     return rewriter
@@ -125,10 +133,10 @@ class BudMeta #:nodoc: all
   # Sexp (containing an error), or a pair of [Sexp, error message].
   def check_rule_ast(pt)
     # :defn format: node tag, block name, args, nested scope
-    return pt if pt.sexp_type != :defn
-    scope = pt[3]
-    return pt if scope.sexp_type != :scope
-    block = scope[1]
+    #return pt if pt.sexp_type != :defn
+    #scope = pt[3]
+    #return pt if scope.sexp_type != :scope
+    #block = scope[1]
 
     block.each_with_index do |n,i|
       if i == 0

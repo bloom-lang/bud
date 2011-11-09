@@ -1,5 +1,18 @@
 # We monkeypatch Module to add support for Bloom state and code declarations.
+require 'bud/source'
+
+class Class
+  def modules
+    a = self.ancestors
+    a[1..a.index(superclass)-1]
+  end
+end
+
 class Module
+  def modules
+    ancestors[1..-1]
+  end
+
   # import another module and assign to a qualifier symbol: <tt>import MyModule => :m</tt>
   def import(spec)
     raise Bud::CompileError unless (spec.class <= Hash and spec.length == 1)
@@ -55,6 +68,17 @@ class Module
     if instance_methods(false).include? meth_name
       raise Bud::CompileError, "Duplicate named bloom block: '#{block_name}' in #{self}"
     end
+    ast = Source.read_block(caller[0]) # pass in caller's location via backtrace
+    # ast corresponds only to the statements of the block. Wrap it in a method
+    # definition for backward compatibility for now.
+    # First wrap ast in a block if it is only a single statement
+    ast = s(:block, ast) unless ast.sexp_type == :block
+    ast = s(:defn, meth_name.to_sym, s(:args), s(:scope, ast))
+    unless self.respond_to? :__bloom_asts__
+      @__bloom_asts__ ||= {}
+      def self.__bloom_asts__; @__bloom_asts__; end
+    end
+    @__bloom_asts__[meth_name] = ast
     define_method(meth_name.to_sym, &block)
   end
 
