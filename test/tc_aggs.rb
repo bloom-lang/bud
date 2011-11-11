@@ -308,7 +308,9 @@ class TestAggs < Test::Unit::TestCase
     include Bud
     state {table :t1}
     bootstrap {t1 << [[1,1]]}
-    bloom {temp :t2 <= t1.group([:key])}
+    bloom do 
+	temp :t2 <= t1.group([:key])
+    end
   end
 
   def test_simple_agg

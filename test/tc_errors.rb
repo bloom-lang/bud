@@ -320,7 +320,9 @@ class TestErrorHandling < Test::Unit::TestCase
   class BadTerminal
     include Bud
     state {terminal :joeio}
-    bloom {joeio <~ [["hi"]]}
+    bloom do
+      joeio <~ [["hi"]]
+    end
   end
 
   def test_bad_terminal

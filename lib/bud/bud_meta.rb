@@ -93,9 +93,9 @@ class BudMeta #:nodoc: all
 
     pt = klass.__bloom_asts__[block_name]
     return if pt.nil?
+
+    pt = Marshal.load(Marshal.dump(pt)) #deep clone because RuleRewriter mucks up pt.
     pp pt if @bud_instance.options[:dump_ast]
-
-
 
 #    rv = check_rule_ast(pt)
     rv = nil

@@ -7,7 +7,9 @@ class PushTests < Test::Unit::TestCase
       table :r1
       table :r2
     end
-    bloom {r2 <= r1}
+    bloom do 
+      r2 <= r1
+    end
   end
   def test_simple
     p = SimplePush.new
@@ -25,7 +27,9 @@ class PushTests < Test::Unit::TestCase
       table :r2
       scratch :sc
     end
-    bloom {r1 <= sc; r2 <= r1}
+    bloom do
+      r1 <= sc; r2 <= r1
+    end
   end
   def test_push_thru
     p = PushThru.new
@@ -44,7 +48,9 @@ class PushTests < Test::Unit::TestCase
       table :r2
       table :t1
     end
-    bloom {t1 <= (r1*r2).pairs(:key=>:key){|x,y| [x[0], x[1]+y[1]]}}
+    bloom do
+      t1 <= (r1*r2).pairs(:key=>:key){|x,y| [x[0], x[1]+y[1]]}
+    end
   end
   def test_push_join
     p = PushJoin.new
@@ -63,7 +69,9 @@ class PushTests < Test::Unit::TestCase
       table :r3
       table :t1
     end
-    bloom {t1 <= (r1*r2*r3).pairs(r1.key=>r2.key, r2.key=>r3.key){|x,y,z| [x.key, x.val+y.val+z.val]}}
+    bloom do
+      t1 <= (r1*r2*r3).pairs(r1.key=>r2.key, r2.key=>r3.key){|x,y,z| [x.key, x.val+y.val+z.val]}
+    end
   end
   def test_two_joins
     p = PushTwoJoins.new
@@ -80,7 +88,9 @@ class PushTests < Test::Unit::TestCase
       table :r2
       table :t1
     end
-    bloom {t1 <= (r1*r2).pairs{|x,y| [x.key, y.key]}}
+    bloom do
+      t1 <= (r1*r2).pairs{|x,y| [x.key, y.key]}
+    end
   end
   def test_cartesian
     p = PushCartesian.new
@@ -165,7 +175,9 @@ class PushTests < Test::Unit::TestCase
       table :r1
       table :result, [:str]
     end
-    bloom {result <= r1.inspected}
+    bloom do
+      result <= r1.inspected
+    end
   end
   def test_inspected
     p = PushInspected.new

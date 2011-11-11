@@ -8,6 +8,8 @@ class Class
   end
 end
 
+
+$moduleWrapper = {} # module => wrapper class.  See import below.
 class Module
   def modules
     ancestors[1..-1]
@@ -19,17 +21,46 @@ class Module
     mod, local_name = spec.first
     raise Bud::CompileError unless (mod.class <= Module and local_name.class <= Symbol)
 
-    # To correctly expand qualified references to an imported module, we keep a
-    # table with the local bind names of all the modules imported by this
-    # module. To handle nested references (a.b.c.d etc.), the import table for
-    # module X points to X's own nested import table.
-    @bud_import_tbl ||= {}
-    child_tbl = mod.bud_import_table
-    raise Bud::CompileError if @bud_import_tbl.has_key? local_name
-    @bud_import_tbl[local_name] = child_tbl.clone # XXX: clone needed?
+    # A statement like this:
+    #   import MyModule => :m
+    # is translated as follows. First, module MyModule is made instantiable by wrapping it in a class
+    #   class MyModule__wrap__
+    #     include Bud
+    #     include MyModule
+    #   end
+    #
+    # Then introduce a method "m", the import binding name, in the calling module/class
+    # (the one with the import statement). This returns an instance of the wrapped class.
+    #   inst = MyModule__wrap__.new
+    #   def m
+    #      inst
+    #   end
 
-    rewritten_mod_name = ModuleRewriter.do_import(self, mod, local_name)
-    self.module_eval "include #{rewritten_mod_name}"
+    mod, local_name = spec.first
+    if self.instance_methods.include? local_name.to_s or self.instance_methods.include? local_name
+      filename, num = caller(0)
+      raise "#{local_name} is already taken."
+    end
+
+    unless $moduleWrapper[mod]
+      $moduleWrapper[mod] = eval %{
+        class #{mod}__wrap__
+          include Bud
+          include #{mod}
+        end
+      }
+    end
+
+    # inst = MyModule__wrap__.new
+    klass = $moduleWrapper[mod]
+    inst = klass.new
+
+    # add "def m" method to calling module or class
+    self.class_eval do
+      define_method(local_name) do
+        inst
+      end
+    end
   end
 
   # the block of Bloom collection declarations.  one per module.
@@ -75,16 +106,13 @@ class Module
     ast = s(:block, ast) unless ast.sexp_type == :block
     ast = s(:defn, meth_name.to_sym, s(:args), s(:scope, ast))
     unless self.respond_to? :__bloom_asts__
-      @__bloom_asts__ ||= {}
-      def self.__bloom_asts__; @__bloom_asts__; end
+      def self.__bloom_asts__;
+        @__bloom_asts__ ||= {}
+        @__bloom_asts__
+      end
     end
-    @__bloom_asts__[meth_name] = ast
+    __bloom_asts__[meth_name] = ast
     define_method(meth_name.to_sym, &block)
-  end
-
-  def bud_import_table() #:nodoc: all
-    @bud_import_tbl ||= {}
-    @bud_import_tbl
   end
 
   private

@@ -601,7 +601,9 @@ class TestCollExpr < Test::Unit::TestCase
       table :his
       coll_expr :e, lambda {[[budtime, 'hi']]}
     end
-    bloom {his <= e}
+    bloom do
+      his <= e
+    end
   end
   
   def test_coll_expr

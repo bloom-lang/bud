@@ -9,8 +9,8 @@ class ShortestPaths
 
   state do
     table :link, [:from, :to, :cost]
-    table :path, [:from, :to, :next, :cost]
-    table :shortest, [:from, :to] => [:next, :cost]
+    table :path, [:from, :to, :nxt, :cost]
+    table :shortest, [:from, :to] => [:nxt, :cost]
   end
 
   # recursive rules to define all paths from links
