@@ -1,67 +1,41 @@
 require 'bud/rewrite'
-require 'bud/state'
-#require 'parse_tree'
 require 'pp'
 
 class BudMeta #:nodoc: all
-  attr_reader :depanalysis
-
   def initialize(bud_instance, declarations)
     @bud_instance = bud_instance
     @declarations = declarations
   end
 
   def meta_rewrite
-    shred_rules
-    top_stratum = stratify
-    stratum_map = binaryrel2map(@bud_instance.t_stratum)
+    shred_rules # capture dependencies, rewrite rules
 
-    rewritten_strata = Array.new(top_stratum + 2) { [] }
-    no_attr_rewrite_strata = Array.new(top_stratum + 2) { [] }
-    @bud_instance.t_rules.each do |d|
-      @bud_instance.t_rules.tuple_accessors(d)
-      if d.op.to_s == '<='
-        # Deductive rules are assigned to strata based on the basic Datalog
-        # stratification algorithm
-        belongs_in = stratum_map[d.lhs]
-        belongs_in ||= 0
-        rewritten_strata[belongs_in] << d.src
-        no_attr_rewrite_strata[belongs_in] << d.orig_src
-      else
-        # All temporal rules are placed in the last stratum
-        rewritten_strata[top_stratum + 1] << d.src
-        no_attr_rewrite_strata[top_stratum + 1] << d.orig_src
+    if @bud_instance.toplevel == @bud_instance
+      nodes, stratum_map, top_stratum = stratify_preds
+      # stratum_map = {fully qualified pred  => stratum}
+
+      #slot each rule into the stratum corresponding to its lhs pred (from stratum_map)
+      stratified_rules = Array.new(top_stratum + 2) { [] }  # stratum -> [ rules ]
+      @bud_instance.t_rules.each do |rule|
+        @bud_instance.t_rules.tuple_accessors(rule)
+        if rule.op.to_s == '<='
+          # Deductive rules are assigned to strata based on the basic Datalog
+          # stratification algorithm
+          belongs_in = stratum_map[rule.lhs]
+          belongs_in ||= 0
+          stratified_rules[belongs_in] << rule
+        else
+          # All temporal rules are placed in the last stratum
+          stratified_rules[top_stratum + 1] << rule
+        end
       end
-    end
+      dump_rewrite(stratified_rules) if @bud_instance.options[:dump_rewrite]
+      analyze_dependencies(nodes)
 
-    @depanalysis = DepAnalysis.new
-    @bud_instance.t_depends_tc.each {|d| @depanalysis.depends_tc << d}
-    @bud_instance.t_provides.each {|p| @depanalysis.providing << p}
-    3.times { @depanalysis.tick }
-
-    @depanalysis.underspecified.each do |u|
-      puts "Warning: underspecified dataflow: #{u.inspect}"
-      @bud_instance.t_underspecified << u
+      return stratified_rules
+    else
+      return nil # return value unused if not toplevel
     end
-    @depanalysis.source.each do |s|
-      @bud_instance.sources[s.first] = true
-    end
-    @depanalysis.sink.each do |s|
-      @bud_instance.sinks[s.first] = true
-    end
-      
-    dump_rewrite(rewritten_strata) if @bud_instance.options[:dump_rewrite]
-
-    return rewritten_strata, no_attr_rewrite_strata
-  end
-
-  def binaryrel2map(rel)
-    map = {}
-    rel.each do |s|
-      raise Bud::BudError unless s.length == 2
-      map[s[0]] = s[1]
-    end
-    return map
   end
 
   def shred_rules
@@ -97,7 +71,7 @@ class BudMeta #:nodoc: all
     pt = Marshal.load(Marshal.dump(pt)) #deep clone because RuleRewriter mucks up pt.
     pp pt if @bud_instance.options[:dump_ast]
 
-#    rv = check_rule_ast(pt)
+    #    rv = check_rule_ast(pt)
     rv = nil
     unless rv.nil?
       if rv.class <= Sexp
@@ -183,26 +157,86 @@ class BudMeta #:nodoc: all
     return nil # No errors found
   end
 
-  def stratify
-    strat = Stratification.new
-    @bud_instance.t_depends.each {|d| strat.depends << d}
-    strat.tick
 
-    # Copy computed data back into Bud runtime
-    strat.stratum.each {|s| @bud_instance.t_stratum << s}
-    @bud_instance.stratum_collection_map = strat.stratum.inject({}) do |memo, t|
-      memo[t[1]] ||= []
-      memo[t[1]] << t[0]
-      memo
+  Node = Struct.new :name, :status, :stratum, :edges, :in_lhs, :in_body, :in_cycle
+  # Node.status is one of :init, :in_progress, :done
+  Edge = Struct.new :to, :neg, :temporal
+
+  def stratify_preds
+    bud = @bud_instance.toplevel
+    nodes = {}
+    bud.t_depends.each do |d|
+      #t_depends [:bud_instance, :rule_id, :lhs, :op, :body] => [:nm]
+      lhs = (nodes[d.lhs] ||= Node.new(d.lhs, :init, 0, [], true, false, false))
+      lhs.in_lhs = true
+      body = (nodes[d.body] ||= Node.new(d.body, :init, 0, [], false, true, false))
+      lhs.edges << Edge.new(body, d.neg)
+      body.in_body = true
     end
-    strat.depends_tc.each {|d| @bud_instance.t_depends_tc << d}
-    strat.cycle.each {|c| @bud_instance.t_cycle << c}
-    if strat.top_strat.length > 0
-      top = strat.top_strat.first.stratum
-    else
-      top = 1
+
+    nodes.each {|n| calc_stratum(n, [n])}
+    # Normalize stratum numbers because they may not be 0-based or consecutive
+    remap = {}
+    # if the nodes stratum numbers are [2, 3, 2, 4], remap = {2 => 0, 3 => 1, 4 => 2} 
+    nodes.map {|n| n.stratum}.uniq.sort.each_with_index{|num, i|
+      remap[num] = i
+    }
+    stratum_map = {}
+    top_stratum = -1
+    nodes.each do |n|
+      n.stratum = remap[n.stratum]
+      stratum_map[n.name] = n.stratum
+      top_stratum = max(top_stratum, n.stratum)
     end
-    return top
+    return nodes, stratum_map, top_stratum
+  end
+
+  def max(a, b) ; a > b ? a : b ; end
+
+  def calc_stratum(node, neg, temporal, path)
+    if node.status == :in_process
+      @bud_instance.t_cycle <<
+        if neg and !temporal
+          raise Bud::CompileError, "unstratifiable program because negative, non-temporal cycle found: #{path.join(',')}"
+        end
+    elsif node.status == :init
+      node.status = :init
+      node.edges.each do |edge|
+        body_stratum = calc_stratum(edge.to, (neg || edge.neg), (edge.temporal || temporal), path + [edge.to])
+        node.stratum = max(node.stratum, body_stratum + (edge.neg ? 1 : 0))
+      end
+      node.status = :done
+    end
+    node.stratum
+  end
+
+
+  def analyze_dependencies(nodes)
+    bud = @bud_instance
+    preds_in_lhs = nodes.inject(Set.new) {|preds, n| preds.add(n.name) if n.in_lhs}
+    preds_in_body = nodes.inject(Set.new) {|preds, n| preds.add(n.name) if n.in_rhs}
+
+    bud.t_provides.storage.each do |p|
+      pred, input = p
+      if input
+        # an interface pred is a source if it is an input and it is not in any rule's lhs
+        #bud.sources << [pred] unless (preds_in_lhs.include? pred)
+        unless preds_in_body.include? pred and !nodes[pred].in_cycle
+          # input interface is underspecified if not used in any rule body
+          bud.t_underspecified << [pred, true] # true indicates input mode
+          puts "Warning: input interface #{pred} not used"
+        end
+      else
+        # an interface pred is a sink if it is not an input and it is not in any rule's body
+        #(if it is in the body, then it is an intermediate node feeding some lhs)
+        #bud.sinks << [pred] unless (preds_in_body.include? pred)
+        unless preds_in_head.include? pred and !nodes[pred].in_cycle
+          # output interface underspecified if not in any rule's lhs
+          [p.pred, false]  #false indicates output mode.
+          puts "Warning: output interface #{pred} not used"
+        end
+      end
+    end
   end
 
   def dump_rewrite(strata)

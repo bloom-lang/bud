@@ -96,8 +96,6 @@ module Bud
         reserved = eval "defined?(#{colname})"
         unless (reserved.nil? or
           (reserved == "method" and method(colname).arity <= 0 and (eval("#{colname}"))[0] == self.tabname))
-          require 'ruby-debug'
-          debugger
           raise BudError, "symbol :#{colname} reserved, cannot be used as column name for #{tabname}"
         end
       end
@@ -172,7 +170,8 @@ module Bud
     public
     def flat_map(&blk)
       pusher = self.pro(&blk)
-      elem = Bud::PushElement.new(tabname, @bud_instance, tabname)
+      toplevel = @bud_instance.toplevel
+      elem = Bud::PushElement.new(tabname, toplevel, tabname)
       pusher.wire_to(elem)
       f = Proc.new do |t| 
         t.each do |i| 
@@ -181,14 +180,14 @@ module Bud
         nil
       end
       elem.set_block(&f)
-      @bud_instance.push_elems[[self.object_id,:flatten]] = elem
+      toplevel.push_elems[[self.object_id,:flatten]] = elem
       return elem
     end
 
     public 
     def sort(&blk)
       pusher = self.pro
-      pusher.sort(@name, @bud_instance, @schema, &blk)
+      pusher.sort(@name, @bud_instance.toplevel, @schema, &blk)
     end
 
     def rename(the_name, the_schema=nil)
@@ -421,14 +420,15 @@ module Bud
 
     public
     def merge(o, buf=@delta) # :nodoc: all
-      @bud_instance.merge_targets[@bud_instance.this_stratum][self] = true if @bud_instance.done_bootstrap
+      toplevel = @bud_instance.toplevel
+      toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
       if o.class <= Bud::PushElement
         deduce_schema(o) if @schema.nil?
         o.wire_to self
       elsif o.class <= Bud::BudCollection
         deduce_schema(o) if @schema.nil?
         o.pro.wire_to self
-      elsif o.class <= Proc and @bud_instance.done_bootstrap and not @bud_instance.done_wiring and not o.nil?
+      elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring and not o.nil?
         tbl = register_coll_expr(o)
         tbl.pro.wire_to self
       else
@@ -453,8 +453,9 @@ module Bud
       # require 'ruby-debug'; debugger
       coll_name = ("expr_"+expr.object_id.to_s)
       schema = (1..@schema.length).map{|i| ("c"+i.to_s).to_sym} unless @schema.nil?
-      @bud_instance.coll_expr(coll_name.to_sym, expr, schema)
-      coll = @bud_instance.send(coll_name)
+      toplevel = @bud_instance.toplevel
+      toplevel.coll_expr(coll_name.to_sym, expr, schema)
+      coll = toplevel.send(coll_name)
       coll
     end
 
@@ -467,11 +468,12 @@ module Bud
     # buffer items to be merged atomically at end of this timestep
     public
     def pending_merge(o) # :nodoc: all
+      toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         o.wire_to_pending self
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to_pending self
-      elsif o.class <= Proc and @bud_instance.done_bootstrap and not @bud_instance.done_wiring
+      elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
         tbl = register_coll_expr(o) unless o.nil?
         tbl.pro.wire_to_pending self
       else
@@ -525,13 +527,14 @@ module Bud
     public
     def to_push_elem(the_name=tabname, the_schema=schema)
       # if no push source yet, set one up
-      unless @bud_instance.scanners[@bud_instance.this_stratum][the_name]
-        @bud_instance.scanners[@bud_instance.this_stratum][the_name] = Bud::ScannerElement.new(the_name, @bud_instance, self, the_schema)
-        @bud_instance.push_sources[@bud_instance.this_stratum][the_name] = @bud_instance.scanners[@bud_instance.this_stratum][the_name]
-        @bud_instance.delta_scanners[@bud_instance.this_stratum][the_name] = Bud::DeltaScannerElement.new(the_name, @bud_instance, self, the_schema)
-        @bud_instance.push_sources[@bud_instance.this_stratum][[the_name,:delta]] = @bud_instance.delta_scanners[@bud_instance.this_stratum][the_name]
+      toplevel = @bud_instance.toplevel
+      unless toplevel.scanners[toplevel.this_stratum][the_name]
+        toplevel.scanners[toplevel.this_stratum][the_name] = Bud::ScannerElement.new(the_name, toplevel, self, the_schema)
+        toplevel.push_sources[toplevel.this_stratum][the_name] = toplevel.scanners[toplevel.this_stratum][the_name]
+        toplevel.delta_scanners[toplevel.this_stratum][the_name] = Bud::DeltaScannerElement.new(the_name, toplevel, self, the_schema)
+        toplevel.push_sources[toplevel.this_stratum][[the_name,:delta]] = toplevel.delta_scanners[toplevel.this_stratum][the_name]
       end
-      return @bud_instance.scanners[@bud_instance.this_stratum][the_name], @bud_instance.delta_scanners[@bud_instance.this_stratum][the_name]
+      return toplevel.scanners[toplevel.this_stratum][the_name], toplevel.delta_scanners[toplevel.this_stratum][the_name]
     end
 
     private
@@ -716,8 +719,9 @@ module Bud
 
     public
     def flush # :nodoc: all
-      ip = @bud_instance.ip
-      port = @bud_instance.port
+      toplevel = @bud_instance.toplevel
+      ip = toplevel.ip
+      port = toplevel.port
       each_from([@pending]) do |t|
         if @is_loopback
           the_locspec = [ip, port]
@@ -725,7 +729,7 @@ module Bud
           the_locspec = split_locspec(t, @locspec_idx)
           raise BudError, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
         end
-        @bud_instance.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
+        toplevel.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
       end
       @pending.clear
     end
@@ -780,18 +784,19 @@ module Bud
       # we should add the terminal file descriptor to the EM event loop.
       @reader = Thread.new do
         begin
+          toplevel = @bud_instance.toplevel
           while true
             out_io = get_out_io
             out_io.print("#{tabname} > ") if @prompt
 
-            in_io = @bud_instance.options[:stdin]
+            in_io = toplevel.options[:stdin]
             s = in_io.gets
             break if s.nil? # Hit EOF
             s = s.chomp if s
             tup = [s]
 
-            ip = @bud_instance.ip
-            port = @bud_instance.port
+            ip = toplevel.ip
+            port = toplevel.port
             EventMachine::schedule do
               socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
               socket.send_datagram([tabname, tup].to_msgpack, ip, port)
@@ -838,7 +843,7 @@ module Bud
 
     private
     def get_out_io
-      rv = @bud_instance.options[:stdout]
+      rv = @bud_instance.toplevel.options[:stdout]
       rv ||= $stdout
       rv
     end
@@ -903,7 +908,7 @@ module Bud
         o.wire_to_delete self
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to_delete self
-      elsif o.class <= Proc and @bud_instance.done_bootstrap and not @bud_instance.done_wiring
+      elsif o.class <= Proc and @bud_instance.toplevel.done_bootstrap and not @bud_instance.toplevel.done_wiring
         tbl = register_coll_expr(o)
         tbl.pro.wire_to_delete self
       else
@@ -925,7 +930,7 @@ module Bud
         o.wire_to_delete_by_key self
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to_delete_by_key self
-      elsif o.class <= Proc and @bud_instance.done_bootstrap and not @bud_instance.done_wiring
+      elsif o.class <= Proc and @bud_instance.toplevel.done_bootstrap and not @bud_instance.toplevel.done_wiring
         tbl = register_coll_expr(o)
         tbl.pro.wire_to_delete_by_key self
       else

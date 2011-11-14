@@ -10,7 +10,6 @@ require 'bud/monkeypatch'
 require 'bud/aggs'
 require 'bud/bud_meta'
 require 'bud/collections'
-require 'bud/depanalysis'
 require 'bud/deploy/forkdeploy'
 require 'bud/deploy/threaddeploy'
 require 'bud/errors'
@@ -22,7 +21,6 @@ require 'bud/state'
 require 'bud/storage/dbm'
 require 'bud/storage/tokyocabinet'
 require 'bud/storage/zookeeper'
-require 'bud/stratify'
 require 'bud/viz'
 
 require 'bud/executor/elements.rb'
@@ -67,7 +65,7 @@ module Bud
   attr_reader :stratum_first_iter, :joinstate
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap, :done_wiring
   attr_accessor :lazy # This can be changed on-the-fly by REBL
-  attr_accessor :stratum_collection_map, :rewritten_strata, :no_attr_rewrite_strata
+  attr_accessor :stratum_collection_map, :stratified_rules
   attr_accessor :metrics
 
   # options to the Bud runtime are passed in a hash, with the following keys
@@ -103,11 +101,12 @@ module Bud
     # capture the binding for a subsequent 'eval'. This ensures that local
     # variable names introduced later in this method don't interfere with 
     # table names used in the eval block.
-    rewrite_eval_binding = binding 
+
+    @rewrite_eval_binding = binding
 
     @tables = {}
     @table_meta = []
-    @rewritten_strata = []
+    @stratified_rules = []
     @channels = {}
     @push_elems = {}
     @tc_tables = {}
@@ -149,96 +148,82 @@ module Bud
     #  Bud.rewrite_local_methods(r)
     #end
 
-    @declarations = ModuleRewriter.get_rule_defs(self.class)
+    resolve_imports
+
+    @declarations = self.class.instance_methods.select {|m| m =~ /^__bloom__.+$/}.map {|m| m.to_s}
 
     init_state
+
+    #-------------------------
+    return if toplevel != self
+    #-------------------------
 
     @viz = VizOnline.new(self) if @options[:trace]
     @rtracer = RTrace.new(self) if @options[:rtrace]
 
-    # Get dependency info and determine stratification order.
-    unless self.class <= Stratification or self.class <= DepAnalysis
-      do_rewrite
-    end
+    do_rewrite
 
-    # Load the rules as a closure. Each element of @strata is an array of
-    # lambdas, one for each rewritten rule in that stratum. Note that legacy Bud
-    # code (with user-specified stratification) assumes that @strata is a simple
-    # array, so we need to convert it before loading the rewritten strata.
-    @strata = []
-    @rule_src = []
-    @rule_orig_src = []
-    declaration
-    @strata.each_with_index do |s,i|
-      raise BudError if s.class <= Array
-      @strata[i] = [s]
-      # Don't try to record source text for old-style rule blocks
-      @rule_src[i] = [""]
-    end
-
-    @rewritten_strata.each_with_index do |src_ary,i|
-      @strata[i] ||= []
-      @rule_src[i] ||= []
-      @rule_orig_src[i] ||= []
-      src_ary.each_with_index do |src, j|
-        @strata[i] << eval("lambda { #{src} }", rewrite_eval_binding)
-        @rule_src[i] << src
-        @rule_orig_src[i] << @no_attr_rewrite_strata[i][j]
-      end
-    end
     # now that we know how many strata there are, initialize per-stratum state
-    @scanners = @strata.length.times.map{{}}
-    @delta_scanners = @strata.length.times.map{{}}
-    @push_sources = @strata.length.times.map{{}}
-    @push_joins = @strata.length.times.map{[]}
-    @merge_targets = @strata.length.times.map{{}}
+    num_strata = @stratified_rules.length
+    @scanners = num_strata.times.map{{}}
+    @delta_scanners = num_strata.times.map{{}}
+    @push_sources = num_strata.times.map{{}}
+    @push_joins = num_strata.times.map{[]}
+    @merge_targets = num_strata.times.map{{}}
 
     # do_wiring
   end
 
-  private
-
-  # Rewrite methods defined in the given klass to expand module references and
-  # temp collections. Imported modules are rewritten during the import process;
-  # we rewrite the main Bud class and any included modules here. Note that we
-  # only rewrite each distinct Class once.
-  def self.rewrite_local_methods(klass)
-
-    @done_rewrite ||= {}
-    return if @done_rewrite.has_key? klass.name
-
-    #u = Unifier.new
-    ref_expander = NestedRefRewriter.new(klass.bud_import_table)
-    tmp_expander = TempExpander.new
-    r2r = Ruby2Ruby.new
-
-    klass.instance_methods(false).each do |m|
-      #ast = ParseTree.translate(klass, m)
-      ast =
-      #ast = u.process(ast)
-      ast = ref_expander.process(ast)
-      ast = tmp_expander.process(ast)
-
-      if (ref_expander.did_work or tmp_expander.did_work)
-        new_source = r2r.process(ast)
-        klass.module_eval new_source # Replace previous method def
+  def module_wrapper_class(mod)
+    class_name = "#{mod}__wrap"
+    begin
+      klass = Module.const_get(class_name.to_sym)
+      unless klass.is_a? Class
+        raise BudError, "Internal error: #{class_name} is in use"
       end
-
-      ref_expander.did_work = false
-      tmp_expander.did_work = false
+    rescue NameError # exception if class class_name doesn't exist
     end
-
-    # If we found any temp statements in the klass's rule blocks, add a state
-    # block with declarations for the corresponding temp collections.
-    s = tmp_expander.get_state_meth(klass)
-    if s
-      state_src = r2r.process(s)
-      klass.module_eval(state_src)
-    end
-
-    # Always rewrite anonymous classes
-    @done_rewrite[klass.name] = true unless klass.name == ""
+    klass ||= eval "class #{class_name}; include Bud; include #{mod}; end"
+    klass
   end
+
+  def toplevel
+     @options[:toplevel] || self
+  end
+
+  def import_defs
+    self.class.ancestors.inject({}) {|tbl, e| tbl.merge(e.bud_import_table)}
+  end
+
+  def resolve_imports
+    #flatten imports
+    import_tbl = import_defs
+
+    import_tbl.each_pair do |local_name, mod_name|
+      mod_inst = send(local_name.to_sym)
+      if mod_inst.nil?
+        # create wrapper instances
+        #puts "=== resolving #{self}.#{mod_name} => #{local_name}"
+        klass = module_wrapper_class(mod_name)
+        mod_inst = klass.new(:toplevel => toplevel) # this will resolve its own imports
+        instance_variable_set("@#{local_name}", mod_inst)
+      end
+      mod_inst.t_rules.each do |imp_rule|
+        t_rules << [imp_rule.bud_obj, @rule_idx, local_name + "." + imp_rule.lhs, imp_rule.op,
+                     imp_rule.src, imp_rule.orig_src]
+      end
+      mod_inst.t_depends.each do |imp_dep|
+        t_depends << [imp_dep.bud_obj, @rule_idx, local_name + "." + imp_rule.lhs, imp_rule.op,
+                     imp_dep.src, imp_dep.orig_src]
+      end
+    nil
+
+    end
+
+    # absorb rules and dependencies from imported modules. The corresponding module instantiations
+    # would themselves have resolved their own imports.
+  end
+
 
   # Invoke all the user-defined state blocks and initialize builtin state.
   def init_state
@@ -285,7 +270,7 @@ module Bud
   end
   
   def do_wiring
-    @strata.each_with_index { |s,i| eval_rules(s, i) }
+    @stratified_rules.each_with_index { |rules, stratum| eval_rules(rules, stratum) }
     @done_wiring = true
     if @options[:print_wiring]
       @push_sources.each do |strat| 
@@ -296,7 +281,7 @@ module Bud
 
   def do_rewrite
     @meta_parser = BudMeta.new(self, @declarations)
-    @rewritten_strata, @no_attr_rewrite_strata = @meta_parser.meta_rewrite
+    @stratified_rules = @meta_parser.meta_rewrite
   end
 
   public
@@ -671,7 +656,7 @@ module Bud
       receive_inbound
 
       # compute fixpoint for each stratum in order
-      @strata.each_with_index do |s,i|
+      @stratified_rules.each_with_index do |rule,i|
         fixpoint = false
         first_iter = true
         until fixpoint
@@ -744,9 +729,8 @@ module Bud
     @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
 
     # for BUD reflection
-    table :t_rules, [:rule_id] => [:lhs, :op, :src, :orig_src]
-    table :t_depends, [:rule_id, :lhs, :op, :body] => [:nm]
-    table :t_depends_tc, [:head, :body, :via, :neg, :temporal]
+    table :t_rules, [:bud_obj, :rule_id] => [:lhs, :op, :src, :orig_src]
+    table :t_depends, [:bud_obj, :rule_id, :lhs, :op, :body] => [:nm]
     table :t_provides, [:interface] => [:input]
     table :t_underspecified, t_provides.schema
     table :t_stratum, [:predicate] => [:stratum]
@@ -774,19 +758,19 @@ module Bud
     @dbm_tables.each_value { |t| t.flush }
   end
 
-  def eval_rules(strat, strat_num)
+  def eval_rules(rules, strat_num)
     # This routine evals the rules in a given stratum, which results in a wiring of PushElements
     @this_stratum = strat_num  
-    strat.each_with_index do |r,i|
+    rules.each_with_index do |rule, i|
       @this_rule = i
-      rule_src = @rule_orig_src[strat_num][i] unless @rule_orig_src[strat_num].nil?
       begin
-        r.call
+        proc = rule.bud_obj.instance_eval("lambda { #{rule.src} }")
+        proc.call
       rescue Exception => e
         # Don't report source text for certain rules (old-style rule blocks)
         src_msg = ""
-        unless rule_src == ""
-          src_msg = "\nRule: #{rule_src}"
+        unless rule.src == ""
+          src_msg = "\nRule: #{rule.src}"
         end
         new_e = e
         unless new_e.class <= BudError
@@ -798,7 +782,6 @@ module Bud
   end
 
   private
-
   ######## ids and timers
   def gen_id
     Time.new.to_i.to_s << rand.to_s

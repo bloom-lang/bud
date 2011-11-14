@@ -37,31 +37,32 @@ class Module
     #   end
 
     mod, local_name = spec.first
-    if self.instance_methods.include? local_name.to_s or self.instance_methods.include? local_name
-      filename, num = caller(0)
-      raise "#{local_name} is already taken."
-    end
 
-    unless $moduleWrapper[mod]
-      $moduleWrapper[mod] = eval %{
-        class #{mod}__wrap__
-          include Bud
-          include #{mod}
+    if self.instance_methods.include? local_name.to_s or self.instance_methods.include? local_name
+      raise Bud::CompileError, "#{local_name} is already taken."
+    else
+      src = %Q{
+        def #{local_name}
+          @#{local_name}
+        end
+        def #{local_name}=(val)
+          raise "Type Error: expecting an instance of #{mod}" unless val.kind_of? #{mod}
+          @#{local_name} = val
         end
       }
+      #puts src
+      self.class_eval src
     end
 
-    # inst = MyModule__wrap__.new
-    klass = $moduleWrapper[mod]
-    inst = klass.new
-
-    # add "def m" method to calling module or class
-    self.class_eval do
-      define_method(local_name) do
-        inst
-      end
-    end
+    import_tbl = self.bud_import_table
+    import_tbl[local_name] = mod
   end
+
+  def bud_import_table() #:nodoc: all
+    @bud_import_tbl ||= {}
+    @bud_import_tbl
+  end
+
 
   # the block of Bloom collection declarations.  one per module.
   def state(&block)

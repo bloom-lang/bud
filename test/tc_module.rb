@@ -476,14 +476,15 @@ class TestModules < Test::Unit::TestCase
     end
   end
 
-  def test_import_class
+  def atest_import_class
     assert_raise(Bud::BudError) do
-      eval "
+      eval %{
       class DummyClass; end
       class DummyImporter
         include Bud
         import DummyClass => :c
-      end"
+      end
+      }
     end
   end
 end

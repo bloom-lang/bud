@@ -29,7 +29,7 @@ module Bud
       @collection_name = collection_name
     end
     def wiring?
-      @bud_instance.done_wiring == false
+      @bud_instance.toplevel.done_wiring == false
     end
     def wirings
       @outputs + @pendings + @deletes + @delete_keys
@@ -118,9 +118,10 @@ module Bud
           # let's try to do it here.
           # XXX it's not 100% clear that @collection_name is being set right -- i.e. that the BudCollection
           # with @collection_name will have the right schema.
-          if @collection_name and @bud_instance.send(@collection_name) \
-            and @bud_instance.send(@collection_name).schema and @bud_instance.send(@collection_name).schema.include? err.name
-            @bud_instance.send(@collection_name).tuple_accessors(item)
+          toplevel = @bud_instance.toplevel
+          if @collection_name and toplevel.send(@collection_name) \
+            and toplevel.send(@collection_name).schema and toplevel.send(@collection_name).schema.include? err.name
+            toplevel.send(@collection_name).tuple_accessors(item)
             (item = @blk.nil? ? item : @blk.call(item)) if do_block
           else
             raise NoMethodError.new(err.name), "No method #{err.name} for Array #{item.inspect} (element collection name: #{@collection_name})"
@@ -195,11 +196,11 @@ module Bud
     public
     def pro(the_name = @elem_name, the_schema = @schema, &blk)
       # if @bud_instance.push_elems[[self.object_id,:pro,blk]].nil?
-        elem = Bud::PushElement.new('project' + object_id.to_s, @bud_instance, @collection_name)
+        elem = Bud::PushElement.new('project' + object_id.to_s, @bud_instance.toplevel, @collection_name)
         elem.init_schema(the_schema) unless the_schema.nil?
         self.wire_to(elem)
         elem.set_block(&blk)
-        @bud_instance.push_elems[[self.object_id,:pro,blk]] = elem
+        @bud_instance.toplevel.push_elems[[self.object_id,:pro,blk]] = elem
       # end
       # return @bud_instance.push_elems[[self.object_id,:pro,blk]]
       return elem
@@ -209,7 +210,7 @@ module Bud
     
     public
     def each_with_index(the_name = elem_name, the_schema = schema, &blk)
-      elem = Bud::PushElement.new('each_with_index' + object_id.to_s, @bud_instance, @collection_name)
+      elem = Bud::PushElement.new('each_with_index' + object_id.to_s, @bud_instance.toplevel, @collection_name)
       self.wire_to(elem)
       ix = 0
       elem.set_block do |t|
@@ -217,23 +218,24 @@ module Bud
         ix += 1
         retval
       end 
-      @bud_instance.push_elems[[self.object_id,:pro,blk]] = elem
+      @bud_instance.toplevel.push_elems[[self.object_id,:pro,blk]] = elem
     end
     
     def join(elem2, &blk)
       # cached = @bud_instance.push_elems[[self.object_id,:join,[self,elem2], @bud_instance, blk]]
       # if cached.nil?
         elem2, delta2 = elem2.to_push_elem unless elem2.class <= PushElement
-        join = Bud::PushSHJoin.new([self,elem2], @bud_instance, [])
+        toplevel = @bud_instance.toplevel
+        join = Bud::PushSHJoin.new([self,elem2], toplevel, [])
         self.wire_to(join)
         elem2.wire_to(join)
         delta2.wire_to(join) unless delta2.nil?
-        @bud_instance.push_elems[[self.object_id,:join,[self,elem2], @bud_instance, blk]] = join
-        @bud_instance.push_joins[@bud_instance.this_stratum] << join
+        toplevel.push_elems[[self.object_id,:join,[self,elem2], toplevel, blk]] = join
+        toplevel.push_joins[toplevel.this_stratum] << join
       # else
       #   cached.refcount += 1
       # end
-      return @bud_instance.push_elems[[self.object_id,:join,[self,elem2], @bud_instance, blk]]
+      return toplevel.push_elems[[self.object_id,:join,[self,elem2], toplevel, blk]]
     end
     def *(elem2, &blk)
       join(elem2, &blk)
@@ -275,18 +277,20 @@ module Bud
       end
       
       aggpairs = aggpairs.map{|ap| ap[1].nil? ? [ap[0]] : [ap[0], canonicalize_col(ap[1])]}
+      toplevel = @bud_instance.toplevel
       # if @bud_instance.push_elems[[self.object_id, :group, keycols, aggpairs, blk]].nil?
-        g = Bud::PushGroup.new('grp'+Time.new.tv_usec.to_s, @bud_instance, @collection_name, keycols, aggpairs, the_schema, &blk)
+        g = Bud::PushGroup.new('grp'+Time.new.tv_usec.to_s, toplevel, @collection_name, keycols, aggpairs, the_schema, &blk)
         self.wire_to(g)
-        @bud_instance.push_elems[[self.object_id, :group, keycols, aggpairs, blk]] = g
+        toplevel.push_elems[[self.object_id, :group, keycols, aggpairs, blk]] = g
       # end
-      # @bud_instance.push_elems[[self.object_id, :group, keycols, aggpairs, blk]]
+      # toplevel.push_elems[[self.object_id, :group, keycols, aggpairs, blk]]
       return g
     end
     def argagg(aggname, gbkey_cols, collection, &blk)
       gbkey_cols = gbkey_cols.map{|c| canonicalize_col(c)}
       collection = canonicalize_col(collection)
-      agg = @bud_instance.send(aggname, collection)[0]
+      toplevel = @bud_instance.toplevel
+      agg = toplevel.send(aggname, collection)[0]
       raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
       keynames = gbkey_cols.map do |k|
         if k.class == Symbol
@@ -296,12 +300,12 @@ module Bud
         end
       end
       aggpairs = [[agg,collection]]
-      # if @bud_instance.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]].nil?
-        aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, @bud_instance, @collection_name, gbkey_cols, aggpairs, @schema, &blk)
+      # if toplevel.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]].nil?
+        aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, toplevel, @collection_name, gbkey_cols, aggpairs, @schema, &blk)
         self.wire_to(aa)
-        @bud_instance.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]] = aa
+        toplevel.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]] = aa
       # end
-      # return @bud_instance.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]]
+      # return toplevel.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]]
       return aa
     end
     def argmax(gbcols, col, &blk)
@@ -341,27 +345,29 @@ module Bud
     
     def reduce(initial, &blk)
       @memo = initial
-      retval = Bud::PushReduce.new('reduce'+Time.new.tv_usec.to_s, @bud_instance, @collection_name, @schema, initial, &blk)
+      retval = Bud::PushReduce.new('reduce'+Time.new.tv_usec.to_s, @bud_instance.toplevel, @collection_name, @schema, initial, &blk)
       self.wire_to(retval)
       retval
     end
     
     alias on_exists? pro
     def on_include?(item, &blk)
-      if @bud_instance.push_elems[[self.object_id,:on_include?, item, blk]].nil?
+      toplevel = @bud_instance.toplevel
+      if toplevel.push_elems[[self.object_id,:on_include?, item, blk]].nil?
         inc = pro{|i| blk.call(item) if i == item and not blk.nil?}
         wire_to(inc)
-        @bud_instance.push_elems[[self.object_id,:on_include?, item, blk]] = inc
+        toplevel.push_elems[[self.object_id,:on_include?, item, blk]] = inc
       end
-      @bud_instance.push_elems[[self.object_id,:on_include?, item, blk]]
+      toplevel.push_elems[[self.object_id,:on_include?, item, blk]]
     end
     def inspected
-      if @bud_instance.push_elems[[self.object_id,:inspected]].nil?
+      toplevel = @bud_instance.toplevel
+      if toplevel.push_elems[[self.object_id,:inspected]].nil?
         ins = pro{|i| [i.inspect]}
         self.wire_to(ins)
-        @bud_instance.push_elems[[self.object_id,:inspected]] = ins
+        toplevel.push_elems[[self.object_id,:inspected]] = ins
       end
-      @bud_instance.push_elems[[self.object_id,:inspected]]
+      toplevel.push_elems[[self.object_id,:inspected]]
     end
     
     def to_enum
