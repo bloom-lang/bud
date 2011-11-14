@@ -170,20 +170,20 @@ class BudMeta #:nodoc: all
       lhs = (nodes[d.lhs] ||= Node.new(d.lhs, :init, 0, [], true, false, false))
       lhs.in_lhs = true
       body = (nodes[d.body] ||= Node.new(d.body, :init, 0, [], false, true, false))
-      lhs.edges << Edge.new(body, d.neg)
+      lhs.edges << Edge.new(body, d.nm)
       body.in_body = true
     end
 
-    nodes.each {|n| calc_stratum(n, [n])}
+    nodes.values.each {|n| calc_stratum(n, false, false, [n])}
     # Normalize stratum numbers because they may not be 0-based or consecutive
     remap = {}
     # if the nodes stratum numbers are [2, 3, 2, 4], remap = {2 => 0, 3 => 1, 4 => 2} 
-    nodes.map {|n| n.stratum}.uniq.sort.each_with_index{|num, i|
+    nodes.values.map {|n| n.stratum}.uniq.sort.each_with_index{|num, i|
       remap[num] = i
     }
     stratum_map = {}
     top_stratum = -1
-    nodes.each do |n|
+    nodes.each_pair do |name, n|
       n.stratum = remap[n.stratum]
       stratum_map[n.name] = n.stratum
       top_stratum = max(top_stratum, n.stratum)
@@ -211,10 +211,11 @@ class BudMeta #:nodoc: all
   end
 
 
-  def analyze_dependencies(nodes)
+  def analyze_dependencies(nodes)  # nodes = {node name => node}
     bud = @bud_instance
-    preds_in_lhs = nodes.inject(Set.new) {|preds, n| preds.add(n.name) if n.in_lhs}
-    preds_in_body = nodes.inject(Set.new) {|preds, n| preds.add(n.name) if n.in_rhs}
+                                                      
+    preds_in_lhs = nodes.inject(Set.new) {|preds, name_n| preds.add(name_n[0]) if name_n[1].in_lhs; preds}
+    preds_in_body = nodes.inject(Set.new) {|preds, name_n| preds.add(name_n[0]) if name_n[1].in_body; preds}
 
     bud.t_provides.storage.each do |p|
       pred, input = p
