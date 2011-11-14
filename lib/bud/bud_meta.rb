@@ -158,7 +158,7 @@ class BudMeta #:nodoc: all
   end
 
 
-  Node = Struct.new :name, :status, :stratum, :edges, :in_lhs, :in_body, :in_cycle
+  Node = Struct.new :name, :status, :stratum, :edges, :in_lhs, :in_body, :in_cycle, :is_neg_head
   # Node.status is one of :init, :in_progress, :done
   Edge = Struct.new :to, :neg, :temporal
 
@@ -167,14 +167,15 @@ class BudMeta #:nodoc: all
     nodes = {}
     bud.t_depends.each do |d|
       #t_depends [:bud_instance, :rule_id, :lhs, :op, :body] => [:nm]
-      lhs = (nodes[d.lhs] ||= Node.new(d.lhs, :init, 0, [], true, false, false))
+      lhs = (nodes[d.lhs] ||= Node.new(d.lhs, :init, 0, [], true, false, false, false))
       lhs.in_lhs = true
       body = (nodes[d.body] ||= Node.new(d.body, :init, 0, [], false, true, false))
-      lhs.edges << Edge.new(body, d.nm)
+      temporal = d.op != "<=" 
+      lhs.edges << Edge.new(body, d.nm, temporal)
       body.in_body = true
     end
 
-    nodes.values.each {|n| calc_stratum(n, false, false, [n])}
+    nodes.values.each {|n| calc_stratum(n, false, false, [n.name])}
     # Normalize stratum numbers because they may not be 0-based or consecutive
     remap = {}
     # if the nodes stratum numbers are [2, 3, 2, 4], remap = {2 => 0, 3 => 1, 4 => 2} 
@@ -195,14 +196,16 @@ class BudMeta #:nodoc: all
 
   def calc_stratum(node, neg, temporal, path)
     if node.status == :in_process
-      @bud_instance.t_cycle <<
-        if neg and !temporal
-          raise Bud::CompileError, "unstratifiable program because negative, non-temporal cycle found: #{path.join(',')}"
-        end
+      node.in_cycle = true
+      if neg and !temporal and node.is_neg_head
+        raise Bud::CompileError, "unstratifiable program: #{path.uniq.join(',')}"
+      end
     elsif node.status == :init
-      node.status = :init
+      node.status = :in_process
       node.edges.each do |edge|
-        body_stratum = calc_stratum(edge.to, (neg || edge.neg), (edge.temporal || temporal), path + [edge.to])
+        node.is_neg_head = edge.neg
+        body_stratum = calc_stratum(edge.to, (neg or edge.neg), (edge.temporal or temporal), path + [edge.to.name])
+        node.is_neg_head = false #reset for next edge
         node.stratum = max(node.stratum, body_stratum + (edge.neg ? 1 : 0))
       end
       node.status = :done
