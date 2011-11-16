@@ -268,15 +268,17 @@ class NestedRefRewriter < SexpProcessor # :nodoc: all
       next if m == Bud
       next if m.instance_variable_get('@bud_imported_module')
 
-      # If there's a duplicate local bind name amongst any of the import tables,
-      # reject the program. There are situations in which this would be safe
-      # (e.g., none of the modules define a table with the same name), but it
-      # seems better to be conservative.
-      child_tbl.merge!(m.bud_import_table) do |key, oldval, newval|
-        raise Bud::CompileError, "duplicate import symbol #{key} in #{mod}"
-      end
+      child_tbl = NestedRefRewriter.merge_import_table(child_tbl,
+                                                       m.bud_import_table)
     end
     child_tbl
+  end
+
+  def self.merge_import_table(old, new)
+    old ||= {}
+    old.merge(new) do |key, old_val, new_val|
+      NestedRefRewriter.merge_import_table(old_val, new_val)
+    end
   end
 
   def process_call(exp)
