@@ -442,17 +442,6 @@ class TestModules < Test::Unit::TestCase
     c.do_check
   end
 
-  def test_duplicate_import
-    assert_raise(Bud::CompileError) do
-      eval "
-      class DupImport
-        include Bud
-        import ParentModule => :p
-        import ParentModule => :p
-      end"
-    end
-  end
-
   # ParseTree failed for methods defined in "grandparent" modules.
   module ModuleC
     def foo; puts "hello, world"; end
@@ -582,15 +571,37 @@ class UserViaImport
   end
 end
 
-# Disallow module import clashes between included modules
+# Check that importing the same module name amongst included modules results in
+# merging the two modules into a single namespace.
+module OtherRoot
+  state do
+    table :x, [:v]
+  end
+end
+
 module OtherMod
-  import IncludeImportRoot => :r
+  import OtherRoot => :r
+
+  bootstrap do
+    r.x <= [[100], [200]]
+  end
 end
 
 class DupImportNameDiffModule
   include Bud
   include IncludeImportRoot
   include OtherMod
+
+  state do
+    table :r_t_copy, r.t.schema
+    table :r_x_copy, r.x.schema
+  end
+
+  bloom do
+    r.x <= r.t
+    r_t_copy <= r.t
+    r_x_copy <= r.x
+  end
 end
 
 class TestIncludeImport < Test::Unit::TestCase
@@ -601,7 +612,10 @@ class TestIncludeImport < Test::Unit::TestCase
   end
 
   def test_include_dup_import_name
-    assert_raise(Bud::CompileError) { DupImportNameDiffModule.new }
+    b = DupImportNameDiffModule.new
+    b.tick
+    assert_equal([[5], [10]], b.r_t_copy.to_a.sort)
+    assert_equal([[5], [10], [100], [200]], b.r_x_copy.to_a.sort)
   end
 
   def test_include_via_import
