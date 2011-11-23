@@ -110,24 +110,13 @@ module Bud
     end
     def push_out(item, do_block=true)
       raise "no output specified for PushElement #{@elem_name}" if @blk.nil? and @outputs == [] and @pendings == [] and @deletes == [] and @delete_keys == []
-      unless item.nil? or item == []
-        begin
-          (item = @blk.nil? ? item : @blk.call(item)) if do_block
-        rescue NoMethodError => err
-          # perhaps the rewriter failed to replace a column name with an array index.
-          # let's try to do it here.
-          # XXX it's not 100% clear that @collection_name is being set right -- i.e. that the BudCollection
-          # with @collection_name will have the right schema.
-          toplevel = @bud_instance.toplevel
-          if @collection_name and toplevel.send(@collection_name) \
-            and toplevel.send(@collection_name).schema and toplevel.send(@collection_name).schema.include? err.name
-            toplevel.send(@collection_name).tuple_accessors(item)
-            (item = @blk.nil? ? item : @blk.call(item)) if do_block
-          else
-            raise NoMethodError.new(err.name), "No method #{err.name} for Array #{item.inspect} (element collection name: #{@collection_name})"
-          end
+      if item
+        blk = @blk if do_block
+        if blk
+          item = item.to_a if blk.arity > 1
+          item = blk.call item
         end
-        @outputs.each do |ou| 
+        @outputs.each do |ou|
           if ou.class <= Bud::PushElement
             the_name = ou.elem_name
             # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
@@ -149,6 +138,7 @@ module Bud
         @pendings.each{|o| o.pending_merge([item])} unless item.nil?
       end
     end
+
     def <<(i)
       insert(i, nil)
     end
@@ -195,14 +185,12 @@ module Bud
     # and now, the Bloom-facing methods
     public
     def pro(the_name = @elem_name, the_schema = @schema, &blk)
-      # if @bud_instance.push_elems[[self.object_id,:pro,blk]].nil?
-        elem = Bud::PushElement.new('project' + object_id.to_s, @bud_instance.toplevel, @collection_name)
-        elem.init_schema(the_schema) unless the_schema.nil?
-        self.wire_to(elem)
-        elem.set_block(&blk)
-        @bud_instance.toplevel.push_elems[[self.object_id,:pro,blk]] = elem
-      # end
-      # return @bud_instance.push_elems[[self.object_id,:pro,blk]]
+      toplevel = @bud_instance.toplevel
+      elem = Bud::PushElement.new('project' + object_id.to_s, toplevel.this_rule_context, @collection_name)
+      elem.init_schema(the_schema) unless the_schema.nil?
+      self.wire_to(elem)
+      elem.set_block(&blk)
+      toplevel.push_elems[[self.object_id,:pro,blk]] = elem
       return elem
     end
     
@@ -210,7 +198,8 @@ module Bud
     
     public
     def each_with_index(the_name = elem_name, the_schema = schema, &blk)
-      elem = Bud::PushElement.new('each_with_index' + object_id.to_s, @bud_instance.toplevel, @collection_name)
+      toplevel = @bud_instance.toplevel
+      elem = Bud::PushElement.new('each_with_index' + object_id.to_s, toplevel.this_rule_context, @collection_name)
       self.wire_to(elem)
       ix = 0
       elem.set_block do |t|
@@ -218,7 +207,7 @@ module Bud
         ix += 1
         retval
       end 
-      @bud_instance.toplevel.push_elems[[self.object_id,:pro,blk]] = elem
+      toplevel.push_elems[[self.object_id,:pro,blk]] = elem
     end
     
     def join(elem2, &blk)
@@ -226,7 +215,7 @@ module Bud
       # if cached.nil?
         elem2, delta2 = elem2.to_push_elem unless elem2.class <= PushElement
         toplevel = @bud_instance.toplevel
-        join = Bud::PushSHJoin.new([self,elem2], toplevel, [])
+        join = Bud::PushSHJoin.new([self,elem2], toplevel.this_rule_context, [])
         self.wire_to(join)
         elem2.wire_to(join)
         delta2.wire_to(join) unless delta2.nil?
@@ -279,7 +268,7 @@ module Bud
       aggpairs = aggpairs.map{|ap| ap[1].nil? ? [ap[0]] : [ap[0], canonicalize_col(ap[1])]}
       toplevel = @bud_instance.toplevel
       # if @bud_instance.push_elems[[self.object_id, :group, keycols, aggpairs, blk]].nil?
-        g = Bud::PushGroup.new('grp'+Time.new.tv_usec.to_s, toplevel, @collection_name, keycols, aggpairs, the_schema, &blk)
+        g = Bud::PushGroup.new('grp'+Time.new.tv_usec.to_s, toplevel.this_rule_context, @collection_name, keycols, aggpairs, the_schema, &blk)
         self.wire_to(g)
         toplevel.push_elems[[self.object_id, :group, keycols, aggpairs, blk]] = g
       # end
@@ -301,7 +290,7 @@ module Bud
       end
       aggpairs = [[agg,collection]]
       # if toplevel.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]].nil?
-        aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, toplevel, @collection_name, gbkey_cols, aggpairs, @schema, &blk)
+        aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, toplevel.this_rule_context, @collection_name, gbkey_cols, aggpairs, @schema, &blk)
         self.wire_to(aa)
         toplevel.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]] = aa
       # end
@@ -345,7 +334,7 @@ module Bud
     
     def reduce(initial, &blk)
       @memo = initial
-      retval = Bud::PushReduce.new('reduce'+Time.new.tv_usec.to_s, @bud_instance.toplevel, @collection_name, @schema, initial, &blk)
+      retval = Bud::PushReduce.new('reduce'+Time.new.tv_usec.to_s, @bud_instance, @collection_name, @schema, initial, &blk)
       self.wire_to(retval)
       retval
     end

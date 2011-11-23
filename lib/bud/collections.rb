@@ -1,5 +1,7 @@
 require 'msgpack'
 
+$struct_classes = {}
+
 module Bud
   ########
   #--
@@ -16,6 +18,7 @@ module Bud
 
     attr_accessor :bud_instance, :locspec_idx, :tabname  # :nodoc: all
     attr_reader :schema # :nodoc: all
+    attr_reader :struct
     attr_reader :storage, :delta, :new_delta, :pending # :nodoc: all
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
@@ -32,11 +35,17 @@ module Bud
       init_deltas
     end
 
+
     public
     def init_schema(given_schema)
       given_schema ||= {[:key]=>[:val]}
       @given_schema = given_schema
       @schema, @key_cols = BudCollection.parse_schema(given_schema)
+      if @schema.size == 0
+        @schema = nil
+      else
+        @struct = ($struct_classes[@schema] ||= Struct.new(*@schema))
+      end
       @key_colnums = key_cols.map {|k| schema.index(k)}
       setup_accessors
     end
@@ -92,6 +101,7 @@ module Bud
     private
     def setup_accessors
       sc = @schema
+      return if sc.nil?
       sc.each do |colname|
         reserved = eval "defined?(#{colname})"
         unless (reserved.nil? or
@@ -123,13 +133,13 @@ module Bud
     # define methods to access tuple attributes by column name
     public
     def tuple_accessors(tup)
-      tup.extend @tupaccess
+      tup #  XXX remove tuple_acessors everywhere.
     end
 
     # generate a tuple with the schema of this collection and nil values in each attribute
     public
     def null_tuple
-      Array.new(@schema.length)
+      @struct.new
     end
 
     # project the collection to its key attributes
@@ -153,8 +163,6 @@ module Bud
     # projection
     public
     def pro(the_name = tabname, the_schema = schema, &blk)
-      # if @bud_instance.stratum_first_iter
-      # puts "adding pusher.pro to #{tabname}"
       pusher, delta_pusher = to_push_elem(the_name, the_schema)
       pusher_pro = pusher.pro(&blk)
       pusher_pro.elem_name = the_name
@@ -171,7 +179,7 @@ module Bud
     def flat_map(&blk)
       pusher = self.pro(&blk)
       toplevel = @bud_instance.toplevel
-      elem = Bud::PushElement.new(tabname, toplevel, tabname)
+      elem = Bud::PushElement.new(tabname, toplevel.this_rule_context, tabname)
       pusher.wire_to(elem)
       f = Proc.new do |t| 
         t.each do |i| 
@@ -187,7 +195,7 @@ module Bud
     public 
     def sort(&blk)
       pusher = self.pro
-      pusher.sort(@name, @bud_instance.toplevel, @schema, &blk)
+      pusher.sort(@name, @bud_instance, @schema, &blk)
     end
 
     def rename(the_name, the_schema=nil)
@@ -292,7 +300,7 @@ module Bud
     public
     def include?(item)
       return true if key_cols.nil? or (key_cols.empty? and length > 0)
-      return false if item.nil? or item.empty?
+      return false if item.nil?
       key = @key_colnums.map{|i| item[i]}
       return (item == self[key])
     end
@@ -317,32 +325,27 @@ module Bud
 
     private
     def prep_tuple(o)
-      unless o.respond_to?(:length) and o.respond_to?(:[])
-        raise BudTypeError, "non-indexable type inserted into \"#{tabname}\": #{o.inspect}"
-      end
-      if o.class <= String
-        raise BudTypeError, "String value used as a fact inserted into \"#{tabname}\": #{o.inspect}"
+
+      return o if o.class == @struct
+
+      if o.class == Array
+        o = @struct.new(*o)
+      elsif o.kind_of? Struct
+        o = o.to_a
+      else
+        raise BudTypeError, "Array or struct type expected in \"#{tabname}\": #{o.inspect}"
       end
 
       fit_schema(o.length) if schema.nil?
-      if o.length < schema.length then
-        # if this tuple has too few fields, pad with nil's
-        old = o.clone
-        (o.length..schema.length-1).each{|i| o << nil}
-        # puts "in #{@tabname}, converted #{old.inspect} to #{o.inspect}"
-      elsif o.length > schema.length then
-        # if this tuple has more fields than usual, bundle up the
-        # extras into an array
-        o = (0..(schema.length - 1)).map{|c| o[c]} << (schema.length..(o.length - 1)).map{|c| o[c]}
-      end
-      return o
+      return @struct.new(*o)
     end
 
     public
     def do_insert(o, store)
       return if o.nil? # silently ignore nils resulting from map predicates failing
       o = prep_tuple(o)
-      keycols = @key_colnums.map{|i| o[i]}
+
+      keycols = o.take(@key_colnums.length)
 
       old = store[keycols]
       if old.nil?
@@ -453,9 +456,8 @@ module Bud
       # require 'ruby-debug'; debugger
       coll_name = ("expr_"+expr.object_id.to_s)
       schema = (1..@schema.length).map{|i| ("c"+i.to_s).to_sym} unless @schema.nil?
-      toplevel = @bud_instance.toplevel
-      toplevel.coll_expr(coll_name.to_sym, expr, schema)
-      coll = toplevel.send(coll_name)
+      @bud_instance.coll_expr(coll_name.to_sym, expr, schema)
+      coll = @bud_instance.send(coll_name)
       coll
     end
 
@@ -528,13 +530,16 @@ module Bud
     def to_push_elem(the_name=tabname, the_schema=schema)
       # if no push source yet, set one up
       toplevel = @bud_instance.toplevel
-      unless toplevel.scanners[toplevel.this_stratum][the_name]
-        toplevel.scanners[toplevel.this_stratum][the_name] = Bud::ScannerElement.new(the_name, toplevel, self, the_schema)
-        toplevel.push_sources[toplevel.this_stratum][the_name] = toplevel.scanners[toplevel.this_stratum][the_name]
-        toplevel.delta_scanners[toplevel.this_stratum][the_name] = Bud::DeltaScannerElement.new(the_name, toplevel, self, the_schema)
-        toplevel.push_sources[toplevel.this_stratum][[the_name,:delta]] = toplevel.delta_scanners[toplevel.this_stratum][the_name]
+      rule_context = toplevel.this_rule_context
+      this_stratum = toplevel.this_stratum
+      oid = self.object_id
+      unless toplevel.scanners[this_stratum][oid]
+        toplevel.scanners[this_stratum][oid] = Bud::ScannerElement.new(the_name, rule_context, self, the_schema)
+        toplevel.push_sources[this_stratum][oid] = toplevel.scanners[this_stratum][oid]
+        toplevel.delta_scanners[this_stratum][oid] = Bud::DeltaScannerElement.new(the_name, rule_context, self, the_schema)
+        toplevel.push_sources[this_stratum][[oid,:delta]] = toplevel.delta_scanners[this_stratum][oid]
       end
-      return toplevel.scanners[toplevel.this_stratum][the_name], toplevel.delta_scanners[toplevel.this_stratum][the_name]
+      return toplevel.scanners[this_stratum][oid], toplevel.delta_scanners[this_stratum][oid]
     end
 
     private
@@ -729,7 +734,7 @@ module Bud
           the_locspec = split_locspec(t, @locspec_idx)
           raise BudError, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
         end
-        toplevel.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
+        toplevel.dsock.send_datagram([@tabname, t.to_a].to_msgpack, the_locspec[0], the_locspec[1])
       end
       @pending.clear
     end
@@ -742,9 +747,9 @@ module Bud
       if schema.size > 2
         # bundle up each tuple's non-locspec fields into an array
         retval = case @locspec_idx
-        when 0 then self.pro{|t| t[1..(t.size-1)]}
-        when (schema.size - 1) then self.pro{|t| t[0..(t.size-2)]}
-        else self.pro{|t| t[0..(@locspec_idx-1)] + t[@locspec_idx+1..(t.size-1)]}
+        when 0 then self.pro{|t| t.values_at(1..(t.size-1))}
+        when (schema.size - 1) then self.pro{|t| t.values_at(0..(t.size-2))}
+        else self.pro{|t| t.values_at(0..(@locspec_idx-1), @locspec_idx+1..(t.size-1))}
         end
       else
         # just return each tuple's non-locspec field value
@@ -799,7 +804,7 @@ module Bud
             port = toplevel.port
             EventMachine::schedule do
               socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
-              socket.send_datagram([tabname, tup].to_msgpack, ip, port)
+              socket.send_datagram([tabname, tup.to_a].to_msgpack, ip, port)
             end
           end
         rescue Exception

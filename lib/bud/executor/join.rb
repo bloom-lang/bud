@@ -52,7 +52,11 @@ module Bud
       end
 
       setup_preds(preds) unless preds.empty?
-      setup_state      
+      setup_state
+
+
+
+      puts "PushJoin schema: #{schema}"
       super(@tabname,@bud_instance,nil,schema)
     end
     

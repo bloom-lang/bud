@@ -67,6 +67,7 @@ module Bud
   attr_accessor :lazy # This can be changed on-the-fly by REBL
   attr_accessor :stratum_collection_map, :stratified_rules
   attr_accessor :metrics
+  attr_accessor :this_rule_context
 
   # options to the Bud runtime are passed in a hash, with the following keys
   # * network configuration
@@ -101,7 +102,8 @@ module Bud
     # capture the binding for a subsequent 'eval'. This ensures that local
     # variable names introduced later in this method don't interfere with 
     # table names used in the eval block.
-
+    options[:dump_rewrite] ||= ! ENV["BUD_DUMP_REWRITE"].nil?
+    options[:dump_ast] ||= ! ENV["BUD_DUMP_AST"].nil?
     @rewrite_eval_binding = binding
 
     @tables = {}
@@ -148,30 +150,28 @@ module Bud
     #  Bud.rewrite_local_methods(r)
     #end
 
+    builtin_state
+
     resolve_imports
 
+    # Invoke all the user-defined state blocks and initialize builtin state.
+    call_state_methods
+
     @declarations = self.class.instance_methods.select {|m| m =~ /^__bloom__.+$/}.map {|m| m.to_s}
-
-    init_state
-
-    #-------------------------
-    return if toplevel != self
-    #-------------------------
 
     @viz = VizOnline.new(self) if @options[:trace]
     @rtracer = RTrace.new(self) if @options[:rtrace]
 
     do_rewrite
-
-    # now that we know how many strata there are, initialize per-stratum state
-    num_strata = @stratified_rules.length
-    @scanners = num_strata.times.map{{}}
-    @delta_scanners = num_strata.times.map{{}}
-    @push_sources = num_strata.times.map{{}}
-    @push_joins = num_strata.times.map{[]}
-    @merge_targets = num_strata.times.map{{}}
-
-    # do_wiring
+    if toplevel == self
+      # initialize per-stratum state
+      num_strata = @stratified_rules.length
+      @scanners = num_strata.times.map{{}}
+      @delta_scanners = num_strata.times.map{{}}
+      @push_sources = num_strata.times.map{{}}
+      @push_joins = num_strata.times.map{[]}
+      @merge_targets = num_strata.times.map{{}}
+    end
   end
 
   def module_wrapper_class(mod)
@@ -209,12 +209,14 @@ module Bud
         instance_variable_set("@#{local_name}", mod_inst)
       end
       mod_inst.t_rules.each do |imp_rule|
-        t_rules << [imp_rule.bud_obj, @rule_idx, local_name + "." + imp_rule.lhs, imp_rule.op,
+        qname = local_name.to_s + "." + imp_rule.lhs.to_s  #qualify name by prepending with local_name
+        self.t_rules << [imp_rule.bud_obj, imp_rule.rule_id, qname, imp_rule.op,
                      imp_rule.src, imp_rule.orig_src]
       end
       mod_inst.t_depends.each do |imp_dep|
-        t_depends << [imp_dep.bud_obj, @rule_idx, local_name + "." + imp_rule.lhs, imp_rule.op,
-                     imp_dep.src, imp_dep.orig_src]
+        qlname = local_name.to_s + "." + imp_dep.lhs.to_s  #qualify names by prepending with local_name
+        qrname = local_name.to_s + "." + imp_dep.body.to_s
+        self.t_depends << [imp_dep.bud_obj, imp_dep.rule_id, qlname, imp_dep.op, qrname]
       end
     nil
 
@@ -225,11 +227,6 @@ module Bud
   end
 
 
-  # Invoke all the user-defined state blocks and initialize builtin state.
-  def init_state
-    builtin_state
-    call_state_methods
-  end
 
   # If module Y is a parent module of X, X's state block might reference state
   # defined in Y. Hence, we want to invoke Y's state block first.  However, when
@@ -656,27 +653,27 @@ module Bud
       receive_inbound
 
       # compute fixpoint for each stratum in order
-      @stratified_rules.each_with_index do |rule,i|
+      @stratified_rules.each_with_index do |rules,stratum|
         fixpoint = false
         first_iter = true
         until fixpoint
-          # puts "stratum #{i} iteration"
+          # puts "stratum #{stratum} iteration"
           fixpoint = true
           if first_iter
             # push in the stored tuples from previous fixpoint
-            @scanners[i].each_value {|s| s << [:go]}
+            @scanners[stratum].each_value {|s| s << [:go]}
           else
             # push in any deltas from last iteration
-            delta_scanners[i].each_value{|d| d << [:go]} unless first_iter
+            delta_scanners[stratum].each_value{|d| d << [:go]} unless first_iter
           end
           # flush any tuples in the pipes
-          push_sources[i].each_value {|p| p.flush}
+          push_sources[stratum].each_value {|p| p.flush}
           # tick deltas on any merge targets and look for more deltas
-          merge_targets[i].each_key do |t| 
+          merge_targets[stratum].each_key do |t| 
             fixpoint = false if t.tick_deltas
           end
           # check to see if any joins saw a delta
-          push_joins[i].each do |p| 
+          push_joins[stratum].each do |p| 
             if p.found_delta==true
               fixpoint = false 
               p.tick_deltas
@@ -685,8 +682,8 @@ module Bud
           first_iter = false
         end
         # push end-of-fixpoint
-        push_sources[i].each_value{|p| p.end}
-        merge_targets[i].each_key do |t| 
+        push_sources[stratum].each_value{|p| p.end}
+        merge_targets[stratum].each_key do |t| 
           t.flush_deltas
         end
         
@@ -763,9 +760,9 @@ module Bud
     @this_stratum = strat_num  
     rules.each_with_index do |rule, i|
       @this_rule = i
+      @this_rule_context = rule.bud_obj # user-supplied code blocks will be evaluated in this context at run-time
       begin
-        proc = rule.bud_obj.instance_eval("lambda { #{rule.src} }")
-        proc.call
+        rule.bud_obj.instance_eval rule.src
       rescue Exception => e
         # Don't report source text for certain rules (old-style rule blocks)
         src_msg = ""

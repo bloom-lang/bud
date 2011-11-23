@@ -254,11 +254,11 @@ class TestCollections < Test::Unit::TestCase
     program.tick
     assert_equal(1, program.scrtch2.length)
     program.tick
-    assert_equal([["c", "d", 5, 6]], program.scrtch.to_a)
+    assert_equal(program.scrtch.to_a, [["c", "d", 5, 6]])
     assert_equal(0, program.scrtch2.length)
     assert_equal(2, program.tbl.length)
-    assert_equal([["c", "d"], ["z", "y"]].sort, program.the_keys.to_a.sort)
-    assert_equal([[5,6], [9,8]].sort, program.the_vals.to_a.sort)
+    assert_equal(program.the_keys.to_a.sort, [["c", "d"], ["z", "y"]].sort)
+    assert_equal(program.the_vals.to_a.sort, [[5,6], [9,8]].sort)
   end
   
   def test_tuple_accessors
@@ -303,7 +303,7 @@ class TestCollections < Test::Unit::TestCase
     s = Union.new
     s.tick
     assert_equal(2, s.union.length)
-    assert_equal([["a", "b", 4], ["a", "b", 1]], s.union.to_a)
+    assert_equal(s.union.to_a, [["a", "b", 4], ["a", "b", 1]])
   end
 
   class DeleteKey
@@ -402,7 +402,7 @@ class TestCollections < Test::Unit::TestCase
     }
     p.sync_do
     p.sync_do {
-      assert_equal([[5, 10]], p.t1.to_a.sort)
+      assert_equal(p.t1.to_a, [[5, 10]] )
     }
     p.stop_bg
   end
@@ -412,8 +412,8 @@ class TestCollections < Test::Unit::TestCase
     b.run_bg
     2.times do
       b.sync_do {
-        assert_equal([[6, 11]], b.t2.to_a.sort)
-        assert_equal([[7, 12]], b.t3.to_a.sort)
+        assert_equal(b.t2.to_a.sort, [[6, 11]])
+        assert_equal( b.t3.to_a.sort, [[7, 12]])
       }
     end
 
@@ -446,12 +446,12 @@ class TestCollections < Test::Unit::TestCase
     b = DelBug.new
 
     b.tick
-    assert_equal([[1,2], [3,4]], b.buffer.to_a.sort)
+    assert_equal(b.buffer.to_a.sort, [[1,2], [3,4]])
 
     b.to_delete << [1,2]
     b.tick
     b.tick
-    assert_equal([[3,4]], b.buffer.to_a.sort)
+    assert_equal(b.buffer.to_a.sort, [[3,4]])
   end
 
   def test_bad_declaration
@@ -560,11 +560,11 @@ class TestUpsert < Test::Unit::TestCase
   def test_upsert
     p = UpsertTest.new
     p.tick
-    assert_equal([[1,'a']], p.joe.to_a)
-    assert_equal([[2,'x']], p.t2.to_a)
+    assert_equal(p.joe.to_a, [[1,'a']])
+    assert_equal(p.t2.to_a, [[2,'x']])
     p.tick
-    assert_equal([[1,'b']], p.joe.to_a)
-    assert_equal([[2,'y']], p.t2.to_a)
+    assert_equal(p.joe.to_a, [[1,'b']])
+    assert_equal(p.t2.to_a, [[2,'y']])
   end
 end
   
@@ -588,9 +588,9 @@ class TestTransitivity < Test::Unit::TestCase
   def test_transitivity
     p = TransitivityTest.new
     p.tick
-    assert_equal([[1,1]], p.t1.to_a)
-    assert_equal([[1,1]], p.t2.to_a)
-    assert_equal([[1,1]], p.t3.to_a)
+    assert_equal(p.t1.to_a, [[1,1]])
+    assert_equal(p.t2.to_a, [[1,1]])
+    assert_equal(p.t3.to_a, [[1,1]])
   end
 end
 
@@ -609,7 +609,7 @@ class TestCollExpr < Test::Unit::TestCase
   def test_coll_expr
     p = CollExprTest.new
     p.tick;p.tick;p.tick
-    assert_equal([[0,'hi'],[1,'hi'],[2,'hi']], p.his.to_a.sort)
+    assert_equal( p.his.to_a.sort, [[0,'hi'],[1,'hi'],[2,'hi']])
   end
 end
 
@@ -627,6 +627,6 @@ class TestConstants < Test::Unit::TestCase
     p.tick
     p.tick
     p.tick
-    assert_equal([[0,'hi'],[1,'hi'],[2,'hi']], p.his.to_a.sort)
+    assert_equal(p.his.to_a.sort, [[0,'hi'],[1,'hi'],[2,'hi']])
   end
 end

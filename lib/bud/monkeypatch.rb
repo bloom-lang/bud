@@ -8,6 +8,40 @@ class Class
   end
 end
 
+class Struct
+  def <=>(o)
+    if o.class == self.class
+      self.each_with_index do |e, i|
+        cmp = e <=> o[i]
+        return cmp if cmp != 0
+      end
+      return 0
+    elsif o.nil?
+      return -1
+    else
+      raise "Comparison (<=>) between #{o.class} and #{self.class} not implemented"
+    end
+  end
+
+  alias oldeq :==
+  def ==(o)
+    if o.class == self.class
+      return oldeq(o)
+    elsif o.class == Array
+      return self.to_a == o
+    else
+      false
+    end
+  end
+
+  def inspect
+    self.to_a.inspect
+  end
+
+  alias :to_s :inspect
+end
+
+
 
 $moduleWrapper = {} # module => wrapper class.  See import below.
 class Module

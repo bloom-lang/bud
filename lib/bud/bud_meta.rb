@@ -10,6 +10,7 @@ class BudMeta #:nodoc: all
   def meta_rewrite
     shred_rules # capture dependencies, rewrite rules
 
+    stratified_rules = []
     if @bud_instance.toplevel == @bud_instance
       nodes, stratum_map, top_stratum = stratify_preds
       # stratum_map = {fully qualified pred  => stratum}
@@ -32,10 +33,11 @@ class BudMeta #:nodoc: all
       dump_rewrite(stratified_rules) if @bud_instance.options[:dump_rewrite]
       analyze_dependencies(nodes)
 
-      return stratified_rules
-    else
-      return nil # return value unused if not toplevel
+      if stratified_rules.last.empty?  # no temporal dependencies, so top_stratum+1 remains nil
+        stratified_rules = stratified_rules[0 .. -2]; # shrink array 
+      end
     end
+    return stratified_rules
   end
 
   def shred_rules
@@ -167,9 +169,9 @@ class BudMeta #:nodoc: all
     nodes = {}
     bud.t_depends.each do |d|
       #t_depends [:bud_instance, :rule_id, :lhs, :op, :body] => [:nm]
-      lhs = (nodes[d.lhs] ||= Node.new(d.lhs, :init, 0, [], true, false, false, false))
+      lhs = (nodes[d.lhs.to_s] ||= Node.new(d.lhs.to_s, :init, 0, [], true, false, false, false))
       lhs.in_lhs = true
-      body = (nodes[d.body] ||= Node.new(d.body, :init, 0, [], false, true, false))
+      body = (nodes[d.body.to_s] ||= Node.new(d.body.to_s, :init, 0, [], false, true, false))
       temporal = d.op != "<=" 
       lhs.edges << Edge.new(body, d.nm, temporal)
       body.in_body = true
