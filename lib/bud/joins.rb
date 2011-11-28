@@ -291,7 +291,7 @@ module Bud
       otherpreds = allpreds - @localpreds
       unless otherpreds.empty?
         unless @rels[1].class <= Bud::BudJoin
-          raise Bud::CompileError, "join predicates don't match tables being joined: #{otherpreds.inspect}"
+          raise Bud::CompileError, "join predicates don't match collections being joined: #{otherpreds.inspect}"
         end
         @rels[1].setup_preds(otherpreds)
       end
