@@ -21,6 +21,16 @@ module Bud
       end
     end
   end
+
+  def define_lattice(name)
+    if @tables.has_key? name or @lattices.has_key? name
+      raise Bud::CompileError, "collection already exists: #{name}"
+    end
+    self.singleton_class.send(:define_method, name) do |*args, &blk|
+      raise unless blk.nil?
+      return @lattices[name].current_value
+    end
+  end
   
   public
 	
@@ -132,5 +142,24 @@ module Bud
     define_collection(name)
     @tables[name] = Bud::BudTerminal.new(name, [:line], self)
     @channels[name] = @tables[name]
+  end
+
+  # Define methods to implement the state declarations for every registered kind
+  # of lattice.
+  def load_lattice_defs
+    Bud::Lattice.lattice_kinds.each do |lat_name, klass|
+      # We want to define the lattice state declaration function and give it a
+      # default parameter; in Ruby 1.8, that can only be done using "*args"
+      self.singleton_class.send(:define_method, lattice_name) do |*args|
+        collection_name = args[0]
+        opts = args[1] || {}
+        opts = opts.clone       # Be paranoid
+        opts[:scratch] ||= false
+
+        define_lattice(collection_name)
+        @lattices[collection_name] = Bud::LatticeWrapper.new(collection_name,
+                                                             klass, opts[:scratch])
+      end
+    end
   end
 end

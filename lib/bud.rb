@@ -19,6 +19,7 @@ require 'bud/deploy/forkdeploy'
 require 'bud/deploy/threaddeploy'
 require 'bud/errors'
 require 'bud/joins'
+require 'bud/lattices'
 require 'bud/metrics'
 require 'bud/rtrace'
 require 'bud/server'
@@ -65,7 +66,7 @@ $bud_instances = {}        # Map from instance id => Bud instance
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
   attr_reader :dsock
-  attr_reader :builtin_tables, :tables
+  attr_reader :builtin_tables, :tables, :lattices
   attr_reader :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
   attr_reader :stratum_first_iter, :joinstate
   attr_reader :this_stratum, :this_rule, :rule_orig_src
@@ -112,6 +113,7 @@ module Bud
   def initialize(options={})
     @builtin_tables = {}
     @tables = {}
+    @lattices = {}
     @rewritten_strata = []
     @channels = {}
     @tc_tables = {}
@@ -242,6 +244,7 @@ module Bud
 
   # Invoke all the user-defined state blocks and initialize builtin state.
   def init_state
+    load_lattice_defs
     builtin_state
     call_state_methods
   end
