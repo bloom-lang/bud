@@ -26,7 +26,21 @@ class Bud::LatticeWrapper
   end
 
   def current_value
-    @current_val ||= klass.new(...)
+    @current_val ||= klass.new
     @current_val
+  end
+
+  def tick
+  end
+end
+
+class Bud::MaxLattice < Bud::Lattice
+  lattice_name :lat_max
+
+  def initialize
+    @v = nil
+  end
+
+  def <=(i)
   end
 end
