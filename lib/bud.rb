@@ -506,7 +506,7 @@ module Bud
     cb_id = nil
     schedule_and_wait do
       unless @tables.has_key? tbl_name
-        raise Bud::Error, "no such table: #{tbl_name}"
+        raise Bud::Error, "no such collection: #{tbl_name}"
       end
 
       raise Bud::Error if @callbacks.has_key? @callback_id
