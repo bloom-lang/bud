@@ -91,3 +91,27 @@ class Module
     return r
   end
 end
+
+
+module Enumerable
+  public
+  # Support for renaming collections and their schemas
+  def rename(new_tabname, new_schema=nil)
+    budi = (respond_to?(:bud_instance)) ? bud_instance : nil
+    if new_schema.nil? and respond_to?(:schema)
+      new_schema = schema
+    end
+    scr = Bud::BudScratch.new(new_tabname.to_s, budi, new_schema)
+    scr.uniquify_tabname
+    scr.merge(self, scr.storage)
+    scr
+  end
+
+  public
+  # We rewrite "map" calls in Bloom blocks to invoke the "pro" method
+  # instead. This is fine when applied to a BudCollection; when applied to a
+  # normal Enumerable, just treat pro as an alias for map.
+  def pro(&blk)
+    map(&blk)
+  end
+end
