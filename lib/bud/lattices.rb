@@ -19,15 +19,16 @@ class Bud::Lattice
   end
 
   def <=(i)
-    return if i.nil?
-    @wrapper.merge(i)
+    @wrapper.merge(i) unless i.nil?
   end
 
   superator "<+" do |i|
-    return if i.nil?
-    @wrapper.merge_pending(i)
+    @wrapper.merge_pending(i) unless i.nil?
   end
 
+  # Return the state valued associated with a lattice instance. Note that this
+  # is non-monotonic when invoked from user code; it should be used with care by
+  # framework code.
   def reveal
     @v
   end
@@ -42,9 +43,6 @@ class Bud::LatticeWrapper
     @klass = klass
     @is_scratch = is_scratch
     @got_delta = false
-    @storage = nil
-    @delta = nil
-    @pending = nil
   end
 
   def current_value
@@ -117,7 +115,7 @@ class Bud::MaxLattice < Bud::Lattice
   end
 
   def merge(i)
-    [@v, i.reveal].max
+    [@v, i.reveal].safe_max
   end
 end
 
@@ -133,6 +131,6 @@ class Bud::MinLattice < Bud::Lattice
   end
 
   def merge(i)
-    [@v, i.reveal].min
+    [@v, i.reveal].safe_min
   end
 end

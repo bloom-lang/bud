@@ -114,4 +114,16 @@ module Enumerable
   def pro(&blk)
     map(&blk)
   end
+
+  # A variant of Enumerable#max that considers nil values to be minimal; the
+  # default max treats nil values as incomparable
+  def safe_max
+    reject {|i| i.nil?}.max
+  end
+
+  # A variant of Enumerable#min that considers nil values to be maximal; the
+  # default max treats nil values as incomparable
+  def safe_min
+    reject {|i| i.nil?}.min
+  end
 end
