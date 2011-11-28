@@ -14,6 +14,7 @@ class Bud::Lattice
 
   def initialize(wrapper, v=nil)
     @wrapper = wrapper
+    v = wrap(v) unless v.nil?
     @v = v
   end
 
@@ -107,6 +108,14 @@ end
 class Bud::MaxLattice < Bud::Lattice
   lattice_name :lat_max
 
+  def wrap(i)
+    if i.class <= Enumerable
+      i.first
+    else
+      i
+    end
+  end
+
   def merge(i)
     [@v, i.reveal].max
   end
@@ -114,6 +123,14 @@ end
 
 class Bud::MinLattice < Bud::Lattice
   lattice_name :lat_min
+
+  def wrap(i)
+    if i.class <= Enumerable
+      i.first
+    else
+      i
+    end
+  end
 
   def merge(i)
     [@v, i.reveal].min
