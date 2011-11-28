@@ -1,8 +1,7 @@
 module Bud
   ######## methods for registering collection types
   private
-  def define_collection(name, &block)
-    # Don't allow duplicate collection definitions
+  def define_collection(name)
     if @tables.has_key? name
       raise Bud::CompileError, "collection already exists: #{name}"
     end
@@ -14,10 +13,10 @@ module Bud
       raise Bud::CompileError, "symbol :#{name} reserved, cannot be used as table name"
     end
     self.singleton_class.send(:define_method, name) do |*args, &blk|
-      unless blk.nil? then
-        return @tables[name].pro(&blk)
-      else
+      if blk.nil?
         return @tables[name]
+      else
+        return @tables[name].pro(&blk)
       end
     end
   end
@@ -31,9 +30,9 @@ module Bud
       return @lattices[name].current_value
     end
   end
-  
+
   public
-	
+
   def input # :nodoc: all
     true
   end
@@ -48,12 +47,12 @@ module Bud
     scratch(name, schema)
   end
 
-  # declare an in-memory, non-transient collection.  default schema <tt>[:key] => [:val]</tt>. 
+  # declare an in-memory, non-transient collection.  default schema <tt>[:key] => [:val]</tt>.
   def table(name, schema=nil)
     define_collection(name)
     @tables[name] = Bud::BudTable.new(name, self, schema)
   end
-  
+
   # declare a syncronously-flushed persistent collection.  default schema <tt>[:key] => [:val]</tt>.
   def sync(name, storage, schema=nil)
     define_collection(name)
@@ -68,7 +67,7 @@ module Bud
       raise Bud::Error, "unknown synchronous storage engine #{storage.to_s}"
     end
   end
-  
+
   def store(name, storage, schema=nil)
     define_collection(name)
     case storage
@@ -89,7 +88,7 @@ module Bud
     define_collection(name)
     @tables[name] = Bud::BudScratch.new(name, self, schema)
   end
-  
+
   def readonly(name, schema=nil)
     define_collection(name)
     @tables[name] = Bud::BudReadOnly.new(name, self, schema)
@@ -101,7 +100,7 @@ module Bud
     # defer schema definition until merge
     @tables[name] = Bud::BudTemp.new(name, self, nil, true)
   end
-  
+
   # declare a transient network collection.  default schema <tt>[:address, :val] => []</tt>
   def channel(name, schema=nil, loopback=false)
     define_collection(name)
@@ -124,7 +123,7 @@ module Bud
     @tables[name] = Bud::BudFileReader.new(name, filename, delimiter, self)
   end
 
-  # declare a collection to be auto-populated every +period+ seconds.  schema <tt>[:key] => [:val]</tt>.  
+  # declare a collection to be auto-populated every +period+ seconds.  schema <tt>[:key] => [:val]</tt>.
   # rhs of statements only.
   def periodic(name, period=1)
     define_collection(name)
