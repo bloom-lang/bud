@@ -149,7 +149,8 @@ class BudMeta #:nodoc: all
       # Check that LHS references a named collection
       return n if lhs.nil? or lhs.sexp_type != :call
       lhs_name = lhs[2].to_sym
-      unless @bud_instance.tables.has_key? lhs_name
+      unless @bud_instance.tables.has_key? lhs_name or
+             @bud_instance.lattices.has_key? lhs_name
         return [n, "collection does not exist: '#{lhs_name}'"]
       end
 
