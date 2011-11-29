@@ -156,9 +156,14 @@ module Bud
   # of lattice.
   def load_lattice_defs
     Bud::Lattice.lattice_kinds.each do |lat_name, klass|
+      # Sanity-check lattice definitions
+      unless klass.method_defined? :merge
+        puts "Warning: lattice #{lat_name} does not provide a merge function"
+      end
+
       # We want to define the lattice state declaration function and give it a
       # default parameter; in Ruby 1.8, that can only be done using "*args"
-      self.singleton_class.send(:define_method, lattice_name) do |*args|
+      self.singleton_class.send(:define_method, lat_name) do |*args|
         collection_name, opts = args
         opts ||= {}
         opts = opts.clone       # Be paranoid

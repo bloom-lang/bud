@@ -6,16 +6,20 @@ class Bud::Lattice
       raise Bud::CompileError, "duplicate lattice definition: #{name}"
     end
     @@lattice_kinds[name] = self
+    @lattice_name = name
   end
 
   def self.lattice_kinds
     @@lattice_kinds
   end
 
+  def self.name
+    @lattice_name
+  end
+
   def initialize(wrapper, v=nil)
     @wrapper = wrapper
-    v = wrap(v) unless v.nil?
-    @v = v
+    @v = self.class.convert(v)
   end
 
   def <=(i)
@@ -32,14 +36,18 @@ class Bud::Lattice
   def reveal
     @v
   end
+
+  def inspect
+    "<#{self.class.name}: #{reveal}>"
+  end
 end
 
 class Bud::LatticeWrapper
-  attr_reader :name, :is_scratch
+  attr_reader :tabname, :is_scratch
   attr_accessor :got_delta
 
-  def initialize(name, klass, is_scratch)
-    @name = name
+  def initialize(tabname, klass, is_scratch)
+    @tabname = tabname
     @klass = klass
     @is_scratch = is_scratch
     @got_delta = false
@@ -63,7 +71,13 @@ class Bud::LatticeWrapper
 
   def do_merge(lhs, rhs)
     raise Bud::Error unless lhs.class <= Bud::Lattice
+    return if rhs.nil?
 
+    puts "do_merge: lhs = #{lhs.inspect}, rhs = #{rhs.inspect}"
+
+    # NB: we assume that all lattices are content with the default set =>
+    # lattice homomorphism: we convert each element of the set into a lattice
+    # value, and then fold over those lattice values using the merge function.
     if rhs.class <= Enumerable
       rhs.each do |r|
         next if r.nil?
@@ -75,8 +89,9 @@ class Bud::LatticeWrapper
     scalar_merge(lhs, rhs)
   end
 
-  def do_scalar_merge(lhs, r)
-    rv = lhs.merge(r)
+  def scalar_merge(lhs, r)
+    # NB: inefficient
+    rv = @klass.new(self, lhs.merge(r))
     @got_delta = true if rv.reveal != lhs.reveal
     rv
   end
@@ -94,19 +109,19 @@ class Bud::LatticeWrapper
     @storage = nil if @is_scratch
     @storage = do_merge(current_value, @pending)
     @pending = nil
-    raise Bud::Error unless @delta.nil?
+    raise Bud::Error, "orphaned delta tuples: #{@delta.inspect}" unless @delta.nil?
   end
 
   def tick_deltas
-    @storage = @delta
+    @storage = @delta unless @delta.nil?
     @delta = nil
   end
 end
 
 class Bud::MaxLattice < Bud::Lattice
-  lattice_name :lat_max
+  lattice_name :lmax
 
-  def wrap(i)
+  def self.convert(i)
     if i.class <= Enumerable
       i.first
     else
@@ -117,12 +132,16 @@ class Bud::MaxLattice < Bud::Lattice
   def merge(i)
     [@v, i.reveal].safe_max
   end
+
+  def gt(k)
+    @v and @v > k
+  end
 end
 
 class Bud::MinLattice < Bud::Lattice
-  lattice_name :lat_min
+  lattice_name :lmin
 
-  def wrap(i)
+  def self.convert(i)
     if i.class <= Enumerable
       i.first
     else
@@ -132,5 +151,25 @@ class Bud::MinLattice < Bud::Lattice
 
   def merge(i)
     [@v, i.reveal].safe_min
+  end
+
+  def lt(k)
+    @v and @v < k
+  end
+end
+
+class Bud::BoolLattice < Bud::Lattice
+  lattice_name :lbool
+
+  def self.convert(i)
+    if i.nil?
+      false
+    else
+      i
+    end
+  end
+
+  def merge(i)
+    @v || i
   end
 end
