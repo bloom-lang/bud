@@ -290,37 +290,37 @@ class TestTemps < Test::Unit::TestCase
   def test_simple_temp
     p = SimpleTempTest.new
     p.tick
-    assert_equal([[55, 110], [60, 120], [80, 135], [85, 145]], p.t3.to_a.sort)
-    assert_equal([[55, 110], [60, 120], [80, 135], [85, 145]], p.t4.to_a.sort)
-    assert_equal([[5, 10], [10, 20]], p.t5.to_a.sort)
+    assert_equal(p.t3.to_a.sort, [[55, 110], [60, 120], [80, 135], [85, 145]])
+    assert_equal(p.t4.to_a.sort, [[55, 110], [60, 120], [80, 135], [85, 145]])
+    assert_equal(p.t5.to_a.sort, [[5, 10], [10, 20]])
   end
 
   def test_temp_pred_schema_infer
     p = TempWithPredicate.new
     p.tick
-    assert_equal([[7, 11]], p.t2.to_a.sort)
+    assert_equal(p.t2.to_a.sort, [[7, 11]])
   end
 
   def test_test_atnext_schema_infer
     p = TempAtNext.new
     p.tick
-    assert_equal([], p.t2.to_a.sort)
+    assert_equal(p.t2.to_a.sort, [])
     p.tick
-    assert_equal([[6, 11]], p.t2.to_a.sort)
+    assert_equal(p.t2.to_a.sort, [[6, 11]])
   end
 
   def test_temp_in_temp
     p = TempRefTemp.new
     p.tick
-    assert_equal([[80, 130]], p.t2.to_a.sort)
+    assert_equal(p.t2.to_a.sort, [[80, 130]])
   end
 
   def test_temp_shadow
     p = TempShadow.new
     p.tick
-    assert_equal([[30, 60], [50, 80]], p.k.to_a.sort)
-    assert_equal([[20, 40], [30, 60], [40, 60], [50, 80]], p.t2.to_a.sort)
-    assert_equal([[40, 60], [60, 80]], p.t3.to_a.sort)
+    assert_equal(p.k.to_a.sort, [[30, 60], [50, 80]])
+    assert_equal(p.t2.to_a.sort, [[20, 40], [30, 60], [40, 60], [50, 80]])
+    assert_equal(p.t3.to_a.sort, [[40, 60], [60, 80]])
     assert_equal(p.t3.to_a.sort, p.t4.to_a.sort)
   end
 
@@ -347,7 +347,7 @@ class TestTemps < Test::Unit::TestCase
   def test_issue132
     i = Issue132.new
     i.tick
-    assert_equal([[10, 11]], i.bar.to_a.sort)
+    assert_equal(i.bar.to_a.sort, [[10, 11]])
   end
 end
 
@@ -355,23 +355,23 @@ class TestTempNoMaps < Test::Unit::TestCase
   def test_simple_test_nomap
     p = SimpleTempNoMapTest.new
     p.tick
-    assert_equal([[55, 110], [60, 120], [80, 135], [85, 145]], p.t3.to_a.sort)
-    assert_equal([[55, 110], [60, 120], [80, 135], [85, 145]], p.t4.to_a.sort)
-    assert_equal([[5, 10], [10, 20]], p.t5.to_a.sort)
+    assert_equal(p.t3.to_a.sort, [[55, 110], [60, 120], [80, 135], [85, 145]])
+    assert_equal(p.t4.to_a.sort, [[55, 110], [60, 120], [80, 135], [85, 145]])
+    assert_equal(p.t5.to_a.sort, [[5, 10], [10, 20]])
   end
 
   def test_temp_nomap_in_temp_nomap
     p = TempNoMapRefTempNoMap.new
     p.tick
-    assert_equal([[80, 130]], p.t2.to_a.sort)
+    assert_equal(p.t2.to_a.sort, [[80, 130]])
   end
 
   def test_temp_nomap_shadow
     p = TempNoMapShadow.new
     p.tick
-    assert_equal([[30, 60], [50, 80]], p.k.to_a.sort)
-    assert_equal([[20, 40], [30, 60], [40, 60], [50, 80]], p.t2.to_a.sort)
-    assert_equal([[40, 60], [60, 80]], p.t3.to_a.sort)
+    assert_equal(p.k.to_a.sort, [[30, 60], [50, 80]])
+    assert_equal(p.t2.to_a.sort, [[20, 40], [30, 60], [40, 60], [50, 80]])
+    assert_equal(p.t3.to_a.sort, [[40, 60], [60, 80]])
     assert_equal(p.t3.to_a.sort, p.t4.to_a.sort)
   end
 end
@@ -401,6 +401,6 @@ class TestModuleTemp < Test::Unit::TestCase
   def test_simple
     c = TestModuleUser.new
     c.tick
-    assert_equal([[40, 70]], c.t2.to_a.sort)
+    assert_equal(c.t2.to_a.sort, [[40, 70]])
   end
 end

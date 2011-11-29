@@ -360,6 +360,7 @@ class TempExpander < SexpProcessor # :nodoc: all
     super()
     self.require_empty = false
     self.expected = Sexp
+    @keyword = :temp
 
     @tmp_tables = []
     @did_work = false
@@ -367,7 +368,6 @@ class TempExpander < SexpProcessor # :nodoc: all
 
   def process_defn(exp)
     tag, name, args, scope = exp
-
     if name.to_s =~ /^__bloom__.+/
       block = scope[1]
 
@@ -382,33 +382,40 @@ class TempExpander < SexpProcessor # :nodoc: all
         # correct the misparsing.
         if n.sexp_type == :iter
           iter_body = n.sexp_body
-
-          if iter_body.first.sexp_type == :call
-            call_node = iter_body.first
-
-            _, recv, meth, meth_args = call_node
-            if meth == :temp and recv.nil?
-              _, lhs, op, rhs = meth_args.sexp_body.first
-
-              old_rhs_body = rhs.sexp_body
-              rhs[1] = s(:iter)
-              rhs[1] += old_rhs_body
-              rhs[1] += iter_body[1..-1]
-              block[i] = n = call_node
-              @did_work = true
-            end
+          new_n = fix_temp_decl(iter_body)
+          unless new_n.nil?
+            block[i] = n = new_n
+            @did_work = true
           end
         end
 
         _, recv, meth, meth_args = n
-        if meth == :temp and recv.nil?
-          block[i] = rewrite_temp(n)
+        if meth == @keyword and recv.nil?
+          block[i] = rewrite_me(n)
           @did_work = true
         end
       end
     end
-
     s(tag, name, args, scope)
+  end
+
+  def fix_temp_decl(iter_body)
+    if iter_body.first.sexp_type == :call
+      call_node = iter_body.first
+
+      _, recv, meth, meth_args = call_node
+      if meth == @keyword and recv.nil?
+        _, lhs, op, rhs = meth_args.sexp_body.first
+
+        old_rhs_body = rhs.sexp_body
+        new_rhs_body = [:iter]
+        new_rhs_body += old_rhs_body
+        new_rhs_body += iter_body[1..-1]
+        rhs[1] = Sexp.from_array(new_rhs_body)
+        return call_node
+      end
+    end
+    return nil
   end
 
   def get_state_meth(klass)
@@ -420,12 +427,12 @@ class TempExpander < SexpProcessor # :nodoc: all
       block << s(:call, nil, :temp, args)
     end
 
-    meth_name = Module.make_state_meth_name(klass).to_s + "__tmp"
+    meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
     return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
   end
 
   private
-  def rewrite_temp(exp)
+  def rewrite_me(exp)
     _, recv, meth, args = exp
 
     raise Bud::CompileError unless recv == nil

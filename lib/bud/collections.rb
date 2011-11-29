@@ -326,9 +326,14 @@ module Bud
 
     private
     def prep_tuple(o)
+      #puts "#{self.tabname}   #{o}"
       return o if o.class == @struct
 
       if o.class == Array
+        if @struct.nil?
+          sch = (1 .. o.length).map{|i| ("c"+i.to_s).to_sym}
+          init_schema(sch)
+        end
         if o.length <= @structlen
           o = @struct.new(*o)
         else
@@ -538,13 +543,13 @@ module Bud
       rule_context = toplevel.this_rule_context
       this_stratum = toplevel.this_stratum
       oid = self.object_id
-      unless toplevel.scanners[this_stratum][[oid, the_schema]]
-        toplevel.scanners[this_stratum][[oid, the_schema]] = Bud::ScannerElement.new(the_name, rule_context, self, the_schema)
-        toplevel.push_sources[this_stratum][[oid, the_schema]] = toplevel.scanners[this_stratum][[oid, the_schema]]
-        toplevel.delta_scanners[this_stratum][[oid, the_schema]] = Bud::DeltaScannerElement.new(the_name, rule_context, self, the_schema)
-        toplevel.push_sources[this_stratum][[oid,:delta, the_schema]] = toplevel.delta_scanners[this_stratum][[oid, the_schema]]
+      unless toplevel.scanners[this_stratum][[oid, the_name]]
+        toplevel.scanners[this_stratum][[oid, the_name]] = Bud::ScannerElement.new(the_name, rule_context, self, the_schema)
+        toplevel.push_sources[this_stratum][[oid, the_name]] = toplevel.scanners[this_stratum][[oid, the_name]]
+        toplevel.delta_scanners[this_stratum][[oid, the_name]] = Bud::DeltaScannerElement.new(the_name, rule_context, self, the_schema)
+        toplevel.push_sources[this_stratum][[oid,:delta, the_name]] = toplevel.delta_scanners[this_stratum][[oid, the_name]]
       end
-      return toplevel.scanners[this_stratum][[oid, the_schema]], toplevel.delta_scanners[this_stratum][[oid, the_schema]]
+      return toplevel.scanners[this_stratum][[oid, the_name]], toplevel.delta_scanners[this_stratum][[oid, the_name]]
     end
 
     private

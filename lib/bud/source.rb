@@ -4,7 +4,6 @@ require 'bud/errors'
 
 module Source
   $cached_file_info = Struct.new(:curr_file, :lines, :last_state_bloom_line).new
-  $ruby_parser = RubyParser.new
 
   #Reads the block corresponding to the location (string of the form "file:line_num").
   #Returns an ast for the block
@@ -17,15 +16,16 @@ module Source
     # Note: num is 1-based.
 
     src_asts = [] # array of SrcAsts to be returned
+    ruby_parser = RubyParser.new
 
     stmt = ""   # collection of lines that form one complete ruby statement
     endok = true #
     ast = nil
     lines[num .. -1].each do |l|
       break if endok and l =~ /^\s*[}]|end/
-      stmt += l
+      stmt += l + "\n"
       begin
-        ast = $ruby_parser.parse stmt
+        ast = ruby_parser.parse stmt
         endok = true
       rescue => ex
         #        puts "Syntax Error on #{l}: #{ex}"
