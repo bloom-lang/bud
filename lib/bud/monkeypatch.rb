@@ -8,6 +8,7 @@ class Class
   end
 end
 
+# FIXME: Use a subclass of Struct.
 class Struct
   def <=>(o)
     if o.class == self.class
@@ -28,10 +29,22 @@ class Struct
     if o.class == self.class
       return oldeq(o)
     elsif o.class == Array
-      return self.to_a == o
-    else
-      false
+      begin
+        self.each_with_index do |el, i|
+          if el != o[i]
+            return false
+          end
+          return true
+        end
+      rescue StandardError
+        return false
+      end
     end
+    false
+  end
+
+  def to_msgpack(out='')
+    self.to_a.to_msgpack(out)
   end
 
   def inspect
@@ -41,6 +54,17 @@ class Struct
   alias :to_s :inspect
 end
 
+# XXX: TEMPORARY/UGLY hack to ensure that arrays and structs compare. This can be
+# removed once tests are rewritten.
+class Array
+  alias :oldeq :==
+  def ==(o)
+    if o.kind_of? Struct
+      o = (o.to_a)
+    end
+    self.oldeq(o)
+  end
+end
 
 
 $moduleWrapper = {} # module => wrapper class.  See import below.

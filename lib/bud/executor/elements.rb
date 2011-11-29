@@ -32,7 +32,7 @@ module Bud
       @bud_instance.toplevel.done_wiring == false
     end
     def wirings
-      @outputs + @pendings + @deletes + @delete_keys
+      @wirings ||= @outputs + @pendings + @deletes + @delete_keys
     end
     
     public
@@ -109,7 +109,7 @@ module Bud
       @found_delta = false
     end
     def push_out(item, do_block=true)
-      raise "no output specified for PushElement #{@elem_name}" if @blk.nil? and @outputs == [] and @pendings == [] and @deletes == [] and @delete_keys == []
+      raise "no output specified for PushElement #{@elem_name}" if @blk.nil? and @outputs == $EMPTY and @pendings == $EMPTY and @deletes == $EMPTY and @delete_keys == $EMPTY
       if item
         blk = @blk if do_block
         if blk

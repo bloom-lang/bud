@@ -96,7 +96,7 @@ class BudMeta #:nodoc: all
     tmp_expander = TempExpander.new
     pt = tmp_expander.process(pt)
     tmp_expander.tmp_tables.each do |t|
-      @bud_instance.temp(t.to_s)
+      @bud_instance.temp(t.to_sym)
     end
     rewriter = RuleRewriter.new(seed, @bud_instance)
     rewriter.process(pt)

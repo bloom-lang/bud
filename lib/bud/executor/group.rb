@@ -27,7 +27,7 @@ module Bud
     
     def local_flush#end(source)
       @groups.each do |g, grps|
-        grp = @keys == [] ? [[]] : [g]
+        grp = @keys == $EMPTY ? [[]] : [g]
         @aggpairs.each_with_index do |ap, agg_ix|
           grp << ap[0].send(:final, grps[agg_ix])
         end

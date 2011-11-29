@@ -1,3 +1,4 @@
+$EMPTY = []
 module Bud
   class BudJoin < BudCollection
     attr_accessor :rels, :origrels, :origpreds # :nodoc: all
@@ -95,7 +96,7 @@ module Bud
       flat_schema = @rels.map{|r| r.schema}.flatten(1)
       dupfree_schema = []
       # while loop here (inefficiently) ensures no collisions
-      while dupfree_schema == [] or dupfree_schema.uniq.length < dupfree_schema.length
+      while dupfree_schema == $EMPTY or dupfree_schema.uniq.length < dupfree_schema.length
         dupfree_schema = []
         flat_schema.reduce({}) do |memo, r|
           if r.to_s.include?("_") and ((r.to_s.rpartition("_")[2] =~ /^\d+$/) == 0)

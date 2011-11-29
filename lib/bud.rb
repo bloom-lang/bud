@@ -104,6 +104,7 @@ module Bud
     # table names used in the eval block.
     options[:dump_rewrite] ||= ! ENV["BUD_DUMP_REWRITE"].nil?
     options[:dump_ast] ||= ! ENV["BUD_DUMP_AST"].nil?
+    options[:print_wiring] ||= ! ENV["BUD_PRINT_WIRING"].nil?
     @rewrite_eval_binding = binding
 
     @tables = {}
@@ -705,7 +706,7 @@ module Bud
       @metrics[:tickstats] = running_stats(@metrics[:tickstats], @endtime - starttime)
     end
   end
-  
+
   # Returns the wallclock time associated with the current Bud tick. That is,
   # this value is guaranteed to remain the same for the duration of a single
   # tick, but will likely change between ticks.

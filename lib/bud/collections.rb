@@ -1,7 +1,7 @@
 require 'msgpack'
 
 $struct_classes = {}
-
+$EMPTY_HASH = {}
 module Bud
   ########
   #--
@@ -45,6 +45,7 @@ module Bud
         @schema = nil
       else
         @struct = ($struct_classes[@schema] ||= Struct.new(*@schema))
+        @structlen = @struct.members.length
       end
       @key_colnums = key_cols.map {|k| schema.index(k)}
       setup_accessors
@@ -325,11 +326,15 @@ module Bud
 
     private
     def prep_tuple(o)
-
       return o if o.class == @struct
 
       if o.class == Array
-        o = @struct.new(*o)
+        if o.length <= @structlen
+          o = @struct.new(*o)
+        else
+          o = @struct.new(*o[0..@structlen-1])
+        end
+
       elsif o.kind_of? Struct
         o = o.to_a
       else
@@ -515,7 +520,7 @@ module Bud
       @storage.merge!(@delta)
       @delta = @new_delta
       @new_delta = {}
-      return !(@delta == {})
+      return !(@delta == $EMPTY_HASH)
     end
 
     public
@@ -533,13 +538,13 @@ module Bud
       rule_context = toplevel.this_rule_context
       this_stratum = toplevel.this_stratum
       oid = self.object_id
-      unless toplevel.scanners[this_stratum][oid]
-        toplevel.scanners[this_stratum][oid] = Bud::ScannerElement.new(the_name, rule_context, self, the_schema)
-        toplevel.push_sources[this_stratum][oid] = toplevel.scanners[this_stratum][oid]
-        toplevel.delta_scanners[this_stratum][oid] = Bud::DeltaScannerElement.new(the_name, rule_context, self, the_schema)
-        toplevel.push_sources[this_stratum][[oid,:delta]] = toplevel.delta_scanners[this_stratum][oid]
+      unless toplevel.scanners[this_stratum][[oid, the_schema]]
+        toplevel.scanners[this_stratum][[oid, the_schema]] = Bud::ScannerElement.new(the_name, rule_context, self, the_schema)
+        toplevel.push_sources[this_stratum][[oid, the_schema]] = toplevel.scanners[this_stratum][[oid, the_schema]]
+        toplevel.delta_scanners[this_stratum][[oid, the_schema]] = Bud::DeltaScannerElement.new(the_name, rule_context, self, the_schema)
+        toplevel.push_sources[this_stratum][[oid,:delta, the_schema]] = toplevel.delta_scanners[this_stratum][[oid, the_schema]]
       end
-      return toplevel.scanners[this_stratum][oid], toplevel.delta_scanners[this_stratum][oid]
+      return toplevel.scanners[this_stratum][[oid, the_schema]], toplevel.delta_scanners[this_stratum][[oid, the_schema]]
     end
 
     private
@@ -734,7 +739,7 @@ module Bud
           the_locspec = split_locspec(t, @locspec_idx)
           raise BudError, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
         end
-        toplevel.dsock.send_datagram([@tabname, t.to_a].to_msgpack, the_locspec[0], the_locspec[1])
+        toplevel.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
       end
       @pending.clear
     end
@@ -804,7 +809,7 @@ module Bud
             port = toplevel.port
             EventMachine::schedule do
               socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
-              socket.send_datagram([tabname, tup.to_a].to_msgpack, ip, port)
+              socket.send_datagram([tabname, tup].to_msgpack, ip, port)
             end
           end
         rescue Exception

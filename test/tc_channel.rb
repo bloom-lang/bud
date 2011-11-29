@@ -28,11 +28,11 @@ class TestTickle < Test::Unit::TestCase
     c = TickleCount.new
     q = Queue.new
     c.register_callback(:loopback_done) do |t|
-      assert_equal([5], t.to_a.flatten)
+      assert_equal(t.to_a, [[5]])
       q.push(true)
     end
     c.register_callback(:mcast_done) do |t|
-      assert_equal([5], t.to_a.flatten)
+      assert_equal(t.to_a, [[5]])
       q.push(true)
     end
 
