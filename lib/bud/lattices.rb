@@ -44,13 +44,11 @@ end
 
 class Bud::LatticeWrapper
   attr_reader :tabname, :is_scratch
-  attr_accessor :got_delta
 
   def initialize(tabname, klass, is_scratch)
     @tabname = tabname
     @klass = klass
     @is_scratch = is_scratch
-    @got_delta = false
   end
 
   def current_value
@@ -60,8 +58,7 @@ class Bud::LatticeWrapper
 
   private
   def current_delta
-    @delta ||= current_value
-    @delta
+    @delta || current_value
   end
 
   def current_pending
@@ -69,9 +66,16 @@ class Bud::LatticeWrapper
     @pending
   end
 
+  def coerce_value(v)
+    if v.class <= @klass
+      v
+    else
+      @klass.new(self, v)
+    end
+  end
+
   def do_merge(lhs, rhs)
     raise Bud::Error unless lhs.class <= Bud::Lattice
-    return if rhs.nil?
 
     # NB: we assume that all lattices are content with the default set =>
     # lattice homomorphism: we convert each element of the set into a lattice
@@ -79,7 +83,7 @@ class Bud::LatticeWrapper
     if rhs.class <= Enumerable
       rhs.each do |r|
         next if r.nil?
-        lhs = scalar_merge(lhs, @klass.new(self, r))
+        lhs = scalar_merge(lhs, coerce_value(r))
       end
       return lhs
     end
@@ -88,20 +92,21 @@ class Bud::LatticeWrapper
   end
 
   def scalar_merge(lhs, r)
-    # NB: inefficient
-    rv = @klass.new(self, lhs.merge(r))
-    @got_delta = true if rv.reveal != lhs.reveal
-    puts "Merge of #{r} into #{lhs.inspect} => got_delta = #{@got_delta}"
-    rv
+    coerce_value(lhs.merge(r))
   end
 
   public
   def merge(i)
-    @delta = do_merge(current_delta, i)
+    rv = do_merge(current_delta, i)
+    @delta = rv unless rv.reveal == current_delta.reveal
   end
 
   def merge_pending(i)
     @pending = do_merge(current_pending, i)
+  end
+
+  def got_delta?
+    not @delta.nil?
   end
 
   def tick
@@ -114,9 +119,10 @@ class Bud::LatticeWrapper
   end
 
   def tick_deltas
-    @storage = @delta unless @delta.nil?
-    @delta = nil
-    @got_delta = false
+    unless @delta.nil?
+      @storage = @delta
+      @delta = nil
+    end
   end
 end
 

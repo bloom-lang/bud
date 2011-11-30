@@ -873,7 +873,7 @@ module Bud
         elsif @lattices.has_key? name
           lat = @lattices[name]
 
-          if lat.got_delta
+          if lat.got_delta?
             lat.tick_deltas
             fixpoint = false
           end
