@@ -9,7 +9,7 @@ class SimpleMax
   end
 
   bloom do
-    done <= m.gt(10)
+    done <= m.gt(12)
   end
 end
 
@@ -19,5 +19,8 @@ class TestMax < Test::Unit::TestCase
     i.m <+ [[5], [10]]
     i.tick
     assert_equal(false, i.done.reveal)
+    i.m <+ [[15]]
+    i.tick
+    assert_equal(true, i.done.reveal)
   end
 end

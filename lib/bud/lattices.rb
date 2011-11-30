@@ -124,6 +124,10 @@ class Bud::LatticeWrapper
       @delta = nil
     end
   end
+
+  def inspect
+    "lat = #{@tabname}, #{current_value.inspect}"
+  end
 end
 
 class Bud::MaxLattice < Bud::Lattice
