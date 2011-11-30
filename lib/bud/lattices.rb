@@ -1,7 +1,11 @@
 class Bud::Lattice
   @@lattice_kinds = {}
+  @@global_morphs = {}
 
   def self.lattice_name(name)
+    if @lattice_name
+      raise Bud::CompileError, "lattice #{self.class} has multiple names"
+    end
     if @@lattice_kinds.has_key? name
       raise Bud::CompileError, "duplicate lattice definition: #{name}"
     end
@@ -15,6 +19,20 @@ class Bud::Lattice
 
   def self.name
     @lattice_name
+  end
+
+  def self.morph(name)
+    @morphs ||= {}
+    @morphs[name] = true
+    @@global_morphs[name] = true
+  end
+
+  def self.morphs
+    @morphs || {}
+  end
+
+  def self.global_morphs
+    @@global_morphs
   end
 
   def initialize(wrapper, v=nil)
@@ -146,6 +164,7 @@ class Bud::MaxLattice < Bud::Lattice
     [@v, i.reveal].safe_max
   end
 
+  morph :gt
   def gt(k)
     @v and @v > k
   end
@@ -166,6 +185,7 @@ class Bud::MinLattice < Bud::Lattice
     [@v, i.reveal].safe_min
   end
 
+  morph :lt
   def lt(k)
     @v and @v < k
   end

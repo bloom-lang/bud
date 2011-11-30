@@ -36,6 +36,9 @@ end
 class TestMax < Test::Unit::TestCase
   def test_simple
     i = SimpleMax.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:m, :done].each {|r| assert(strat_zero.include? r) }
     i.m <+ [[5], [10]]
     i.tick
     assert_equal(false, i.done.reveal)
@@ -46,6 +49,9 @@ class TestMax < Test::Unit::TestCase
 
   def test_max_of_max
     i = MaxOfMax.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:in_t, :m1, :m2, :m3, :done].each {|r| assert(strat_zero.include? r) }
     i.in_t <+ [[4], [6], [7]]
     i.tick
     assert_equal(false, i.done.reveal)

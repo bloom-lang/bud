@@ -157,8 +157,18 @@ module Bud
   def load_lattice_defs
     Bud::Lattice.lattice_kinds.each do |lat_name, klass|
       # Sanity-check lattice definitions
+      # XXX: We should do this only once per lattice
       unless klass.method_defined? :merge
-        puts "Warning: lattice #{lat_name} does not provide a merge function"
+        raise Bud::CompileError, "lattice #{lat_name} does not define a merge function"
+      end
+
+      # If a method is marked as a morph in any lattice, every lattice that
+      # declares a method of that name must also mark it as a morph.
+      Bud::Lattice.global_morphs.each_key do |m|
+        next unless klass.instance_methods(false).include? m.to_s
+        unless klass.morphs.has_key? m
+          raise Bud::CompileError, "method #{m} in #{lat_name} must be a morph"
+        end
       end
 
       # We want to define the lattice state declaration function and give it a

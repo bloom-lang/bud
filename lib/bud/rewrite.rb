@@ -48,10 +48,10 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       elsif recv and recv.class == Sexp
         # for CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
-        # don't worry about monotone ops, table names, table.attr calls, or
-        # accessors of iterator variables
-        # XXX: update for lattices
-        unless @monotonic_whitelist[op] or @bud_instance.tables.has_key? op or call_is_attr_deref?(recv, op) or recv.first == :lvar
+        # don't worry about monotone ops, table names, table.attr calls, lattice
+        # names, lattice morphisms, or accessors of iterator variables
+        unless @monotonic_whitelist[op] or @bud_instance.tables.has_key? op or
+               is_lattice_op(op) or call_is_attr_deref?(recv, op) or recv.first == :lvar
           @nm = true
         end
       end
@@ -60,6 +60,11 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       end
       super
     end
+  end
+
+  def is_lattice_op(op)
+    return true if @bud_instance.lattices.has_key? op
+    return Bud::Lattice.global_morphs.has_key? op
   end
 
   def collect_rhs(exp)
