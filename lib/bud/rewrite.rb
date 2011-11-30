@@ -48,7 +48,9 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       elsif recv and recv.class == Sexp
         # for CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
-        # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables
+        # don't worry about monotone ops, table names, table.attr calls, or
+        # accessors of iterator variables
+        # XXX: update for lattices
         unless @monotonic_whitelist[op] or @bud_instance.tables.has_key? op or call_is_attr_deref?(recv, op) or recv.first == :lvar
           @nm = true
         end
@@ -94,8 +96,9 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def do_table(exp)
     t = exp[1].to_s
     # If we're called on a "table-like" part of the AST that doesn't correspond
-    # to an extant table, ignore it.
-    @tables[t] = @nm if @bud_instance.tables.has_key? t.to_sym and not @tables[t]
+    # to an extant collection or lattice, ignore it.
+    @tables[t] = @nm if (@bud_instance.tables.has_key? t.to_sym or
+                         @bud_instance.lattices.has_key? t.to_sym) and not @tables[t]
     drain(exp)
     return t
   end

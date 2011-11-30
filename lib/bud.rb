@@ -862,25 +862,23 @@ module Bud
       fixpoint = true
       # tick collections in this stratum; if we don't have info on that, tick all collections
       colls = @stratum_collection_map[strat_num] if @stratum_collection_map
-      colls ||= @tables.keys
+      colls ||= @tables.keys + @lattices.keys
       colls.each do |name|
-        coll = @tables[name]
-
-        if coll.nil?
+        if @tables.has_key? name
+          coll = @tables[name]
+          unless coll.delta.empty? and coll.new_delta.empty?
+            fixpoint = false unless coll.new_delta.empty?
+            coll.tick_deltas
+          end
+        elsif @lattices.has_key? name
           lat = @lattices[name]
-          # ignore missing tables; rebl for example deletes them mid-stream
-          next if lat.nil?
 
           if lat.got_delta
             lat.tick_deltas
             fixpoint = false
           end
-        else
-          unless coll.delta.empty? and coll.new_delta.empty?
-            fixpoint = false unless coll.new_delta.empty?
-            coll.tick_deltas
-          end
         end
+        # ignore missing tables; rebl for example deletes them mid-stream
       end
     end while not fixpoint
   end

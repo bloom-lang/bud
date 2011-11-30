@@ -16,7 +16,7 @@ end
 class TestMax < Test::Unit::TestCase
   def test_simple
     i = SimpleMax.new
-    i.m <= [[5], [10]]
+    i.m <+ [[5], [10]]
     i.tick
     assert_equal(false, i.done.reveal)
   end

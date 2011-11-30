@@ -73,8 +73,6 @@ class Bud::LatticeWrapper
     raise Bud::Error unless lhs.class <= Bud::Lattice
     return if rhs.nil?
 
-    puts "do_merge: lhs = #{lhs.inspect}, rhs = #{rhs.inspect}"
-
     # NB: we assume that all lattices are content with the default set =>
     # lattice homomorphism: we convert each element of the set into a lattice
     # value, and then fold over those lattice values using the merge function.
@@ -93,6 +91,7 @@ class Bud::LatticeWrapper
     # NB: inefficient
     rv = @klass.new(self, lhs.merge(r))
     @got_delta = true if rv.reveal != lhs.reveal
+    puts "Merge of #{r} into #{lhs.inspect} => got_delta = #{@got_delta}"
     rv
   end
 
@@ -109,12 +108,15 @@ class Bud::LatticeWrapper
     @storage = nil if @is_scratch
     @storage = do_merge(current_value, @pending)
     @pending = nil
-    raise Bud::Error, "orphaned delta tuples: #{@delta.inspect}" unless @delta.nil?
+    if @delta
+      raise Bud::Error, "orphaned delta value for lattice #{@tabname}: #{@delta.inspect}"
+    end
   end
 
   def tick_deltas
     @storage = @delta unless @delta.nil?
     @delta = nil
+    @got_delta = false
   end
 end
 
