@@ -59,16 +59,13 @@ class Bud::Lattice
     "<#{self.class.name}: #{reveal}>"
   end
 
-  # Marshal this lattice value. We don't want to marshal the lattice wrapper (if
-  # any), so temporarily remove it from the object (XXX: hack).
-  def marshal
-    old_wrapper = @wrapper
-    begin
-      @wrapper = nil
-      return Marshal.dump(self)
-    ensure
-      @wrapper = old_wrapper
-    end
+  # Omit the lattice wrapper from the marshalled lattice value
+  # XXX: hack
+  def marshal_dump
+    @v
+  end
+  def marshal_load(obj)
+    @v = obj
   end
 end
 

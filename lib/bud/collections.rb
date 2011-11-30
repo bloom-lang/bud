@@ -763,7 +763,7 @@ module Bud
         t.each_with_index do |f, i|
           if f.class <= Bud::Lattice
             lat_indexes << i
-            wire_tuple[i] = f.marshal
+            wire_tuple[i] = Marshal.dump(f)
           else
             wire_tuple[i] = f
           end
