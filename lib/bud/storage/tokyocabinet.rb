@@ -152,6 +152,8 @@ module Bud
 
     # Remove to_delete and then add pending to HDB
     def tick
+      raise Bud::Error, "orphaned tuples in @delta for #{@tabname}" unless @delta.empty?
+
       @to_delete.each do |tuple|
         k = @key_colnums.map{|c| tuple[c]}
         k_str = MessagePack.pack(k)
