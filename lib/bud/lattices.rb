@@ -76,6 +76,7 @@ class Bud::LatticeWrapper
 
   def do_merge(lhs, rhs)
     raise Bud::Error unless lhs.class <= Bud::Lattice
+    return lhs if rhs.nil?
 
     # NB: we assume that all lattices are content with the default set =>
     # lattice homomorphism: we convert each element of the set into a lattice
