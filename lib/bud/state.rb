@@ -30,12 +30,11 @@ module Bud
     check_collection_name(name)
 
     self.singleton_class.send(:define_method, name) do |*args, &blk|
-      v = @lattices[name].current_value
       if blk.nil?
-        return v
+        return @lattices[name]
       else
         # NB: Not all lattices will implement this method
-        return v.pro(&blk)
+        return @lattices[name].pro(&blk)
       end
     end
   end

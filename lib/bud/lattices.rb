@@ -35,17 +35,8 @@ class Bud::Lattice
     @@global_morphs
   end
 
-  def initialize(wrapper, v=nil)
-    @wrapper = wrapper
+  def initialize(v=nil)
     @v = self.class.convert(v)
-  end
-
-  def <=(i)
-    @wrapper.merge(i) unless i.nil?
-  end
-
-  superator "<+" do |i|
-    @wrapper.merge_pending(i) unless i.nil?
   end
 
   # Return the state valued associated with a lattice instance. Note that this
@@ -57,15 +48,6 @@ class Bud::Lattice
 
   def inspect
     "<#{self.class.name}: #{reveal}>"
-  end
-
-  # Omit the lattice wrapper from the marshalled lattice value
-  # XXX: hack
-  def marshal_dump
-    @v
-  end
-  def marshal_load(obj)
-    @v = obj
   end
 end
 
@@ -79,7 +61,7 @@ class Bud::LatticeWrapper
   end
 
   def current_value
-    @storage ||= @klass.new(self)
+    @storage ||= @klass.new
     @storage
   end
 
@@ -89,7 +71,7 @@ class Bud::LatticeWrapper
   end
 
   def current_pending
-    @pending ||= @klass.new(self)
+    @pending ||= @klass.new
     @pending
   end
 
@@ -97,7 +79,7 @@ class Bud::LatticeWrapper
     if v.class <= @klass
       v
     else
-      @klass.new(self, v)
+      @klass.new(v)
     end
   end
 
@@ -124,12 +106,14 @@ class Bud::LatticeWrapper
   end
 
   public
-  def merge(i)
+  def <=(i)
+    return if i.nil?
     rv = do_merge(current_delta, i)
     @delta = rv unless rv.reveal == current_delta.reveal
   end
 
-  def merge_pending(i)
+  superator "<+" do |i|
+    return if i.nil?
     @pending = do_merge(current_pending, i)
   end
 
