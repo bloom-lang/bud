@@ -112,6 +112,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     lhs = process exp[0]
     op = exp[1]
     pro_rules = map2pro(exp[2])
+    pro_rules = LatticeRefRewriter.new(@bud_instance).process(pro_rules)
+
     if @bud_instance.options[:no_attr_rewrite]
       rhs = collect_rhs(pro_rules)
       rhs_pos = rhs
@@ -143,6 +145,29 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def drain(exp)
     exp.shift until exp.empty?
     return ""
+  end
+end
+
+class LatticeRefRewriter < SexpProcessor
+  def initialize(bud_instance)
+    super()
+    self.require_empty = false
+    self.expected = Sexp
+    @bud_instance = bud_instance
+  end
+
+  def process_call(exp)
+    tag, recv, op, args = exp
+
+    if recv.nil? and args == s(:arglist) and is_lattice?(op)
+      return s(:call, exp, :current_value, s(:arglist))
+    else
+      return s(tag, process(recv), op, process(args))
+    end
+  end
+
+  def is_lattice?(op)
+    @bud_instance.lattices.has_key? op.to_sym
   end
 end
 

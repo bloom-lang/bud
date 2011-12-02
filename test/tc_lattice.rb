@@ -9,7 +9,7 @@ class SimpleMax
   end
 
   bloom do
-    done <= m.current_value.gt(12)
+    done <= m.gt(12)
   end
 end
 
@@ -27,9 +27,9 @@ class MaxOfMax
   bloom do
     m1 <= in_t {|t| t if t[0] % 2 == 0}
     m2 <= in_t {|t| t if t[0] % 2 == 1}
-    m3 <= m1.current_value
-    m3 <= m2.current_value
-    done <= m3.current_value.gt(20)
+    m3 <= m1
+    m3 <= m2
+    done <= m3.gt(20)
   end
 end
 
