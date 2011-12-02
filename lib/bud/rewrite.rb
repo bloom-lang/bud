@@ -108,7 +108,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       rhs = collect_rhs(pro_rules)
       rhs_pos = rhs
     else
-      # need a deep copy of the rules so we can keep a version without AttrName Rewrite
+      # need a deep copy of the rules so we can keep a version without AttrName
+      # Rewrite
       pro_rules2 = Marshal.load(Marshal.dump(pro_rules))
       rhs = collect_rhs(pro_rules)
       reset_instance_vars
@@ -148,7 +149,8 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
     @bud_instance = bud_instance
   end
 
-  # some icky special-case parsing to find mapping between collection names and iter vars
+  # some icky special-case parsing to find mapping between collection names and
+  # iter vars
   def process_iter(exp)
     if exp[1] and exp[1][0] == :call
       gather_collection_names(exp[1])

@@ -102,8 +102,8 @@ class BudMeta #:nodoc: all
         error_pt, error_msg = rv
       end
 
-      # try to "generate" the source code associated with the problematic block,
-      # so as to generate a more meaningful error message.
+      # try to dump the source code associated with the problematic block, so as
+      # to produce a more meaningful error message.
       begin
         code = Ruby2Ruby.new.process(Marshal.load(Marshal.dump(error_pt)))
         src_msg = "\nCode: #{code}"
