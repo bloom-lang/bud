@@ -367,7 +367,7 @@ module Bud
 
     public
     def insert(o, source=nil) # :nodoc: all
-      # puts "insert: #{o.inspect} into #{tabname}"
+      # puts "insert: #{o} into #{tabname}"
       do_insert(o, @storage)
     end
 

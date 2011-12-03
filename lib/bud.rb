@@ -756,6 +756,10 @@ module Bud
     @dbm_tables.each_value { |t| t.flush }
   end
 
+  def eval_rule(__obj__, __src__)
+    __obj__.instance_eval __src__  # ensure that the only local variables are __obj__ and __src__
+  end
+
   def eval_rules(rules, strat_num)
     # This routine evals the rules in a given stratum, which results in a wiring of PushElements
     @this_stratum = strat_num  
@@ -763,7 +767,7 @@ module Bud
       @this_rule = i
       @this_rule_context = rule.bud_obj # user-supplied code blocks will be evaluated in this context at run-time
       begin
-        rule.bud_obj.instance_eval rule.src
+        eval_rule(rule.bud_obj, rule.src)
       rescue Exception => e
         # Don't report source text for certain rules (old-style rule blocks)
         src_msg = ""

@@ -5,8 +5,8 @@ class ShortestPaths
 
   state do
     table :link, [:from, :to, :cost]
-    table :path, [:from, :to, :next, :cost]
-    table :shortest, [:from, :to] => [:next, :cost]
+    table :path, [:from, :to, :nxt, :cost]
+    table :shortest, [:from, :to] => [:nxt, :cost]
     table :minmaxsumcntavg, [:from, :to] => [:mincost, :maxcost, :sumcost, :cnt, :avgcost]
     table :avrg, [:from, :to] => [:ave, :some, :kount]
     table :avrg2, [:from, :to] => [:ave, :some, :kount]
@@ -43,8 +43,8 @@ class TiedPaths
 
   state do
     table :link, [:from, :to, :cost]
-    table :path, [:from, :to, :next, :cost]
-    table :shortest, [:from, :to] => [:next, :cost]
+    table :path, [:from, :to, :nxt, :cost]
+    table :shortest, [:from, :to] => [:nxt, :cost]
   end
 
   bootstrap do
@@ -59,7 +59,7 @@ class TiedPaths
     path <= (link*path).pairs(:to => :from) do |l,p|
       [l.from, p.to, p.from, l.cost+p.cost]
     end
-    shortest <= path.argmin([path.from, path.to], path.cost).argagg(:max, [:from, :to], :next)
+    shortest <= path.argmin([path.from, path.to], path.cost).argagg(:max, [:from, :to], :nxt)
   end
 end
 
@@ -232,7 +232,7 @@ class TestAggs < Test::Unit::TestCase
       assert_equal(t.some*1.0 / t.kount, t.ave)
     end
     program.shortest.each do |t|
-      assert_equal(t[1][0] - t[0][0], t[3])
+      assert_equal(t[1][0].ord - t[0][0].ord, t[3])
     end
     shorts = program.shortest.map {|s| [s.from, s.to, s.cost]}
     costs = program.minmaxsumcntavg.map {|c| [c.from, c.to, c.mincost]}
