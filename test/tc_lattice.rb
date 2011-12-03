@@ -25,8 +25,8 @@ class MaxOfMax
   end
 
   bloom do
-    m1 <= in_t {|t| t if t[0] % 2 == 0}
-    m2 <= in_t {|t| t if t[0] % 2 == 1}
+    m1 <= in_t {|t| t[0] if t[0] % 2 == 0}
+    m2 <= in_t {|t| t[0] if t[0] % 2 == 1}
     m3 <= m1
     m3 <= m2
     done <= m3.gt(20)
@@ -39,10 +39,10 @@ class TestMax < Test::Unit::TestCase
     assert_equal(2, i.strata.length)
     strat_zero = i.stratum_collection_map[0]
     [:m, :done].each {|r| assert(strat_zero.include? r) }
-    i.m <+ [[5], [10]]
+    i.m <+ [5, 10]
     i.tick
     assert_equal(false, i.done.current_value.reveal)
-    i.m <+ [[15]]
+    i.m <+ [15]
     i.tick
     assert_equal(true, i.done.current_value.reveal)
   end

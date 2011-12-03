@@ -17,7 +17,7 @@ class Bud::Lattice
     @@lattice_kinds
   end
 
-  def self.name
+  def self.lat_name
     @lattice_name
   end
 
@@ -35,8 +35,12 @@ class Bud::Lattice
     @@global_morphs
   end
 
+  def self.reject_input(i)
+    raise Bud::TypeError, "illegal #{self.name} input: #{i.inspect}"
+  end
+
   def initialize(v=nil)
-    @v = self.class.convert(v)
+    @v = self.class.convert_to(v) unless v.nil?
   end
 
   # Return the state valued associated with a lattice instance. Note that this
@@ -47,7 +51,7 @@ class Bud::Lattice
   end
 
   def inspect
-    "<#{self.class.name}: #{reveal}>"
+    "<#{self.class.lat_name}: #{reveal}>"
   end
 end
 
@@ -75,12 +79,15 @@ class Bud::LatticeWrapper
     @pending
   end
 
-  def coerce_value(v)
-    if v.class <= @klass
-      v
-    else
-      @klass.new(v)
+  def scalar_merge(lhs, rhs)
+    unless rhs.class <= @klass
+      rhs = @klass.new(rhs)
     end
+    rv = lhs.merge(rhs)
+    unless rv.class <= Bud::Lattice
+      raise Bud::Error, "merge for #{lhs.class} does not return lattice value: #{rv.inspect}"
+    end
+    rv
   end
 
   def do_merge(lhs, rhs)
@@ -93,16 +100,12 @@ class Bud::LatticeWrapper
     if rhs.class <= Enumerable
       rhs.each do |r|
         next if r.nil?
-        lhs = scalar_merge(lhs, coerce_value(r))
+        lhs = scalar_merge(lhs, r)
       end
       return lhs
     end
 
     scalar_merge(lhs, rhs)
-  end
-
-  def scalar_merge(lhs, r)
-    coerce_value(lhs.merge(r))
   end
 
   public
@@ -145,57 +148,57 @@ end
 class Bud::MaxLattice < Bud::Lattice
   lattice_name :lmax
 
-  def self.convert(i)
-    if i.class <= Enumerable
-      i.first
-    else
+  def self.convert_to(i)
+    if i.class <= Comparable
       i
+    else
+      reject_input(i)
     end
   end
 
   def merge(i)
-    [@v, i.reveal].safe_max
+    (@v.nil? || i.reveal > @v) ? i : self
   end
 
   morph :gt
   def gt(k)
-    @v and @v > k
+    Bud::BoolLattice.new(@v && @v > k)
   end
 end
 
 class Bud::MinLattice < Bud::Lattice
   lattice_name :lmin
 
-  def self.convert(i)
-    if i.class <= Enumerable
-      i.first
-    else
+  def self.convert_to(i)
+    if i.class <= Comparable
       i
+    else
+      reject_input(i)
     end
   end
 
   def merge(i)
-    [@v, i.reveal].safe_min
+    (@v.nil? || i.reveal < @v) ? i : self
   end
 
   morph :lt
   def lt(k)
-    @v and @v < k
+    Bud::BoolLattice.new(@v && @v < k)
   end
 end
 
 class Bud::BoolLattice < Bud::Lattice
   lattice_name :lbool
 
-  def self.convert(i)
-    if i.nil?
-      false
-    else
+  def self.convert_to(i)
+    if i == true || i == false
       i
+    else
+      reject_input(i)
     end
   end
 
   def merge(i)
-    @v || i
+    Bud::BoolLattice.new(@v || i.reveal)
   end
 end
