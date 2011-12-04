@@ -20,6 +20,7 @@ require 'bud/deploy/threaddeploy'
 require 'bud/errors'
 require 'bud/joins'
 require 'bud/metrics'
+require 'bud/meta_algebra'
 require 'bud/rtrace'
 require 'bud/server'
 require 'bud/state'
@@ -72,6 +73,9 @@ module Bud
   attr_reader :running_async
   attr_accessor :stratum_collection_map, :rewritten_strata, :no_attr_rewrite_strata
   attr_accessor :metrics
+
+  include MetaAlgebra
+  include MetaReports
 
   # options to the Bud runtime are passed in a hash, with the following keys
   # * network configuration

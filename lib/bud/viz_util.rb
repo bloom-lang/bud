@@ -1,5 +1,6 @@
 require 'rubygems'
 require 'bud/graphs'
+require 'bud/meta_algebra'
 
 module TraceCardinality
   state do
@@ -18,11 +19,12 @@ class VizHelper
   include Bud
   include TraceCardinality
 
-  def initialize(tabinf, cycle, depends, rules, dir)
+  def initialize(tabinf, cycle, depends, rules, dir, provides)
     @t_tabinf = tabinf
     @t_cycle = cycle
     @t_depends = depends
     @t_rules = rules
+    @t_provides = provides
     @dir = dir
     super()
   end
@@ -59,21 +61,99 @@ end
 
 
 module VizUtil #:nodoc: all
-  def graph_from_instance(bud_instance, viz_name, output_base, collapse=true, fmt=nil)
+  def self.ma_tables
+    # a craven, contemptible hack to grab the metatables.
+    estr = "class Foo\ninclude Bud\ninclude MetaAlgebra\ninclude MetaReports\nend"
+    eval(estr)
+    e = Foo.new
+    e.tables
+  end
+
+  def graph_from_instance(bud_instance, viz_name, output_base, collapse=true, fmt=nil, data=nil)
     tabinf = {}
     bud_instance.tables.each do |t|
       tab = t[0].to_s
       tabinf[tab] = t[1].class.to_s
     end
-    write_graphs(tabinf, bud_instance.builtin_tables, bud_instance.t_cycle,
+
+    begins = {}
+    bud_instance.a_preds.each do |b|
+      begins[:start] ||= {}
+      begins[:start][b.path.split("|").last] = b.fullpath.split("|").last
+      begins[:finish] = {}
+      begins[:finish][b.fullpath.split("|").last] = true
+    end
+
+    bit = bud_instance.builtin_tables 
+    VizUtil.ma_tables.each_pair{|k, v| bit[k] = v}
+
+    write_graphs(tabinf, bit, bud_instance.t_cycle,
                  bud_instance.t_depends, bud_instance.t_rules, viz_name,
-                 output_base, fmt, collapse, bud_instance.meta_parser.depanalysis)
+                 output_base, fmt, collapse, bud_instance.meta_parser.depanalysis, -1, nil, 
+                 get_labels(bud_instance), get_paths(bud_instance))
+
+    return begins
+  end
+
+  def get_paths(bud_instance)
+    begins = {}
+    bud_instance.a_preds.each do |b|
+      begins[:start] ||= {}
+      begins[:start][b.path.split("|").last] = b.fullpath.split("|").last
+      begins[:finish] = {}
+      begins[:finish][b.fullpath.split("|").last] = true
+    end
+    begins
+  end
+
+  def get_labels(bud_instance)
+    # sort the paths.  sort the paths to the same destination by length.
+    aps = {}
+    ap_interm = bud_instance.lps.sort do |a, b|
+      if a.to == b.to then
+        a.path.length <=> b.path.length
+      else
+        a <=> b
+      end
+    end
+    ap_interm.each do |a|
+      aps[a.to] ||= []
+      aps[a.to] << a.tag
+    end
+
+    # grab the lattice metadata
+    lub = {}
+    bud_instance.lub.each do |l|
+      lub[l.left] ||= {}
+      lub[l.left][l.right] = l.result
+    end
+
+    # b/c set union isn't working right
+    ap2 = {}
+    aps.each_pair do |k, v|
+      tmp = v.reduce({}) do |memo, i|
+        memo[:val] ||= :M
+        was = memo[:val]
+        if lub[memo[:val]][i]
+          if i == :N
+            memo[:val] = lub[i][memo[:val]]
+          else
+            memo[:val] = lub[memo[:val]][i]
+          end
+        else
+          puts "couldn't find #{memo[:val]} - #{i} in #{lub.inspect}"
+        end
+        memo
+      end
+      ap2[k] = [tmp, v]
+    end
+    ap2
   end
 
   def write_graphs(tabinf, builtin_tables, cycle, depends, rules, viz_name,
-                   output_base, fmt, collapse, depanalysis=nil, budtime=-1, card_info=nil)
+                   output_base, fmt, collapse, depanalysis=nil, budtime=-1, card_info=nil, pathsto={}, begins = {})
     staging = "#{viz_name}.staging"
-    gv = GraphGen.new(tabinf, builtin_tables, cycle, staging, budtime, collapse, card_info)
+    gv = GraphGen.new(tabinf, builtin_tables, cycle, staging, budtime, collapse, card_info, pathsto, begins)
     gv.process(depends)
     dump(rules, output_base, gv)
     gv.finish(depanalysis, fmt)
@@ -116,7 +196,6 @@ module VizUtil #:nodoc: all
       if !code[v[0]]
         code[v[0]] = ""
       end
-      #code[v[0]] = "<br># RULE #{k}<br> " + code[v[0]] + "<br>" + v[1]
       code[v[0]] = "\n# RULE #{k}\n " + code[v[0]] + "\n" + v[1]
     end
     gv_obj.nodes.each_pair do |k, v|
@@ -213,7 +292,7 @@ END_JS
   end
 
   def get_meta2(dir)
-    meta_tabs = {"t_table_info" => :tabinf, "t_table_schema" => :tabscm, "t_cycle" => :cycle, "t_depends" => :depends, "t_rules" => :rules}
+    meta_tabs = {"t_table_info" => :tabinf, "t_table_schema" => :tabscm, "t_cycle" => :cycle, "t_depends" => :depends, "t_rules" => :rules, "t_provides" => :provides}
     meta = {}
     data = []
 
@@ -227,7 +306,7 @@ END_JS
       tup = key[0]
       MessagePack.unpack(v).each {|val| tup << val}
       if meta_tabs[tab]
-        raise "non-zero budtime.  sure this is metadata?" if time != 0 and strict
+        raise "non-zero budtime.(tab=#{tab}, time=#{time})  sure this is metadata?" if time != 0 #and strict
         meta[meta_tabs[tab]] ||= []
         meta[meta_tabs[tab]] << tup
         #ret << tup

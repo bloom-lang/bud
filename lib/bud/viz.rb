@@ -8,7 +8,7 @@ class VizOnline #:nodoc: all
   def initialize(bud_instance)
     @bud_instance = bud_instance
     return if bud_instance.class == Stratification or @bud_instance.class == DepAnalysis
-    @meta_tables = {'t_rules' => 1, 't_depends' => 1, 't_table_info' => 1, 't_cycle' => 1, 't_stratum' => 1, 't_depends_tc' => 1, 't_table_schema' => 1}
+    @meta_tables = {'t_rules' => 1, 't_depends' => 1, 't_table_info' => 1, 't_cycle' => 1, 't_stratum' => 1, 't_depends_tc' => 1, 't_table_schema' => 1, 't_provides' => 1}
     @bud_instance.options[:dbm_dir] = "DBM_#{@bud_instance.class}_#{bud_instance.options[:tag]}_#{bud_instance.object_id}_#{bud_instance.port}"
     @table_info = bud_instance.tables[:t_table_info]
     @table_schema = bud_instance.tables[:t_table_schema]

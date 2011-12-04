@@ -195,6 +195,7 @@ class BudMeta #:nodoc: all
     else
       top = 1
     end
+
     return top
   end
 

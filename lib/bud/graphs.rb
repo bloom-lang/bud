@@ -5,8 +5,9 @@ require 'graphviz'
 class GraphGen #:nodoc: all
   attr_reader :nodes
 
-  def initialize(tableinfo, builtin_tables, cycle, name, budtime, collapse=false, cardinalities={})
+  def initialize(tableinfo, builtin_tables, cycle, name, budtime, collapse=false, cardinalities={}, pathsto={}, begins={})
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
+    #@graph.dim =  2
     @graph.node[:fontname] = "Times-Roman"
     @graph.node[:fontsize] = 18
     @graph.edge[:fontname] = "Times-Roman"
@@ -16,6 +17,9 @@ class GraphGen #:nodoc: all
     @collapse = collapse
     @budtime = budtime
     @builtin_tables = builtin_tables
+    @pathsto = pathsto
+    @begins = begins
+
 
     # map: table name -> type
     @tabinf = {}
@@ -87,20 +91,52 @@ class GraphGen #:nodoc: all
     end
   end
 
+  def color_node(paths)
+    unless paths.nil?
+      color = "green"
+      case paths[0][:val]
+        when :A
+          color = "yellow"
+        when :N
+          color = "yellow"
+        when :D
+          color = "red"
+        when :G
+          color = "red"
+        else
+          puts "UNKNOWN tag #{paths[0][:val]} class #{paths[0][:val].class}"
+          color = "black"
+      end
+    end
+    color
+  end
+
   def addonce(node, negcluster, inhead=false)
     if !@nodes[node]
-      @nodes[node] = @graph.add_node("n_#{node}")
-      if @cards and @cards[node]
-        @nodes[node].label = "#{node}\n (#{@cards[node].to_s})"
-      else
-        @nodes[node].label = node
+      @nodes[node] = @graph.add_node(node)
+      node_p = @nodes[node]
+      node_p.label = node
+      if @begins[:finish] and @begins[:finish][node]
+        # point of divergence.  
+        node_p.penwidth = 4
       end
+
+      node_p.color = "green"
+      if @cards and @cards[node]
+        node_p.label = "#{node}\n (#{@cards[node].to_s})"
+      else
+        p = @pathsto[node].nil? ? "" : "\n(#{@pathsto[node][0][:val]})"
+        node_p.label = node + p
+        node_p.color = color_node(@pathsto[node])
+      end
+    else
+      node_p = @nodes[node]
     end
 
     if @budtime == -1
-      @nodes[node].URL = "#{node}.html" if inhead
+      node_p.URL = "#{node}.html" if inhead
     else
-      @nodes[node].URL = "javascript:openWin(\"#{node}\", #{@budtime})"
+      node_p.URL = "javascript:openWin(\"#{node}\", #{@budtime})"
     end
 
     if negcluster
@@ -116,13 +152,13 @@ class GraphGen #:nodoc: all
           res = res + ", " + p
         end
       end
-      @nodes[node].label = res
-      @nodes[node].color = "red"
-      @nodes[node].shape = "octagon"
-      @nodes[node].penwidth = 3
-      @nodes[node].URL = "#{File.basename(@name).gsub(".staging", "").gsub("collapsed", "expanded")}.svg"
+      node_p.label = res
+      node_p.color = "red"
+      node_p.shape = "octagon"
+      node_p.penwidth = 3
+      node_p.URL = "#{File.basename(@name).gsub(".staging", "").gsub("collapsed", "expanded")}.svg"
     elsif @tabinf[node] and (@tabinf[node] == "Bud::BudTable")
-      @nodes[node].shape = "rect"
+      node_p.shape = "rect"
     end
   end
 
@@ -137,6 +173,7 @@ class GraphGen #:nodoc: all
       @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head], :penwidth => 5)
       @edges[ekey].arrowsize = 2
 
+      @edges[ekey].color = @nodes[body]["color"].source
       @edges[ekey].URL = "#{rule_id}.html" unless rule_id.nil?
       if head =~ /_msg\z/
         @edges[ekey].minlen = 2
@@ -212,7 +249,7 @@ class GraphGen #:nodoc: all
     if output.nil?
       @graph.output(:svg => @name)
     else
-      @graph.output(output => @name)
+      @graph.output(output.to_sym => @name)
     end
   end
 end
