@@ -228,7 +228,7 @@ end
 class DeclarationOverrideMethod
   include Bud
   state do
-    scratch :id
+    scratch :object_id
   end
 end
 
