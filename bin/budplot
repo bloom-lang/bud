@@ -44,6 +44,8 @@ def make_instance(mods)
 
   def_lines = ["class FooBar",
                "include Bud",
+               "include MetaAlgebra",
+               "include MetaReports",
                mods.map {|m| "include #{m}"},
                "end"
               ]
