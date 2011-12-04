@@ -76,26 +76,19 @@ module VizUtil #:nodoc: all
       tabinf[tab] = t[1].class.to_s
     end
 
-    begins = {}
-    bud_instance.a_preds.each do |b|
-      begins[:start] ||= {}
-      begins[:start][b.path.split("|").last] = b.fullpath.split("|").last
-      begins[:finish] = {}
-      begins[:finish][b.fullpath.split("|").last] = true
-    end
-
+    begins = get_paths(bud_instance)
     bit = bud_instance.builtin_tables 
     VizUtil.ma_tables.each_pair{|k, v| bit[k] = v}
 
     write_graphs(tabinf, bit, bud_instance.t_cycle,
                  bud_instance.t_depends, bud_instance.t_rules, viz_name,
                  output_base, fmt, collapse, bud_instance.meta_parser.depanalysis, -1, nil, 
-                 get_labels(bud_instance), get_paths(bud_instance))
-
-    return begins
+                 get_labels(bud_instance), begins)
+    begins
   end
 
   def get_paths(bud_instance)
+    return {} unless bud_instance.respond_to? :a_preds 
     begins = {}
     bud_instance.a_preds.each do |b|
       begins[:start] ||= {}
@@ -107,6 +100,7 @@ module VizUtil #:nodoc: all
   end
 
   def get_labels(bud_instance)
+    return {} unless bud_instance.respond_to? :lps
     # sort the paths.  sort the paths to the same destination by length.
     aps = {}
     ap_interm = bud_instance.lps.sort do |a, b|

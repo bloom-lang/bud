@@ -113,6 +113,9 @@ end
 
 class Divergence
   include Bud
+
+  include MetaAlgebra
+  include MetaReports
   
   state do
     interface input, :cli1, [:data]
@@ -281,7 +284,7 @@ class TestMeta < Test::Unit::TestCase
   def test_temporal_strat
     t = TestStratTemporal.new
 
-    assert_equal(4, t.strata.length)
+    assert_equal(3, t.strata.length)
     t.tick
     assert_equal([["xyz", 1], ["xyz", 2], ["xyz", 3]], t.foo_persist.to_a.sort)
     t.tick
