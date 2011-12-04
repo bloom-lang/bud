@@ -97,13 +97,13 @@ class BudMeta #:nodoc: all
     unless rv.nil?
       if rv.class <= Sexp
         error_pt = rv
-        error_msg = "Parse error"
+        error_msg = "parse error"
       else
         error_pt, error_msg = rv
       end
 
-      # try to "generate" the source code associated with the problematic block,
-      # so as to generate a more meaningful error message.
+      # try to dump the source code associated with the problematic block, so as
+      # to produce a more meaningful error message.
       begin
         code = Ruby2Ruby.new.process(Marshal.load(Marshal.dump(error_pt)))
         src_msg = "\nCode: #{code}"
@@ -139,7 +139,7 @@ class BudMeta #:nodoc: all
         
       # Check for a common case
       if n.sexp_type == :lasgn
-        return [n, "Illegal operator: '='"]
+        return [n, "illegal operator: '='"]
       end
       return pt unless n.sexp_type == :call and n.length == 4
 
@@ -150,10 +150,10 @@ class BudMeta #:nodoc: all
       return n if lhs.nil? or lhs.sexp_type != :call
       lhs_name = lhs[2].to_sym
       unless @bud_instance.tables.has_key? lhs_name
-        return [n, "Table does not exist: '#{lhs_name}'"]
+        return [n, "collection does not exist: '#{lhs_name}'"]
       end
 
-      return [n, "Illegal operator: '#{op}'"] unless [:<, :<=].include? op
+      return [n, "illegal operator: '#{op}'"] unless [:<, :<=].include? op
 
       # Check superator invocation. A superator that begins with "<" is parsed
       # as a call to the binary :< operator. The right operand to :< is a :call

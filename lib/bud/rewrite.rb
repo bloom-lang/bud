@@ -108,7 +108,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       rhs = collect_rhs(pro_rules)
       rhs_pos = rhs
     else
-      # need a deep copy of the rules so we can keep a version without AttrName Rewrite
+      # need a deep copy of the rules so we can keep a version without AttrName
+      # Rewrite
       pro_rules2 = Marshal.load(Marshal.dump(pro_rules))
       rhs = collect_rhs(pro_rules)
       reset_instance_vars
@@ -148,7 +149,8 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
     @bud_instance = bud_instance
   end
 
-  # some icky special-case parsing to find mapping between collection names and iter vars
+  # some icky special-case parsing to find mapping between collection names and
+  # iter vars
   def process_iter(exp)
     if exp[1] and exp[1][0] == :call
       gather_collection_names(exp[1])
@@ -268,15 +270,17 @@ class NestedRefRewriter < SexpProcessor # :nodoc: all
       next if m == Bud
       next if m.instance_variable_get('@bud_imported_module')
 
-      # If there's a duplicate local bind name amongst any of the import tables,
-      # reject the program. There are situations in which this would be safe
-      # (e.g., none of the modules define a table with the same name), but seems
-      # better to be conservative.
-      child_tbl.merge!(m.bud_import_table) do |key, oldval, newval|
-        raise Bud::CompileError, "duplicate import symbol #{key} in #{mod}"
-      end
+      child_tbl = NestedRefRewriter.merge_import_table(child_tbl,
+                                                       m.bud_import_table)
     end
     child_tbl
+  end
+
+  def self.merge_import_table(old, new)
+    old ||= {}
+    old.merge(new) do |key, old_val, new_val|
+      NestedRefRewriter.merge_import_table(old_val, new_val)
+    end
   end
 
   def process_call(exp)

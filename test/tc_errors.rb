@@ -350,7 +350,7 @@ class TestErrorHandling < Test::Unit::TestCase
     rescue
       assert_equal(Bud::CompileError, $!.class)
       # fragile assertion? (whitespace etc)
-      assert_equal("Illegal operator: '=' in rule block \"__bloom__foobar\"\nCode: foo = bar", $!.to_s)
+      assert_equal("illegal operator: '=' in rule block \"__bloom__foobar\"\nCode: foo = bar", $!.to_s)
     end
   end
 end

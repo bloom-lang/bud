@@ -1,7 +1,7 @@
 require "rubygems"
 require "bud"
 
-BENCH_LIMIT = 200
+BENCH_LIMIT = 30000
 
 class ScratchBench
   include Bud

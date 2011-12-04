@@ -16,12 +16,13 @@ class Module
     # To correctly expand qualified references to an imported module, we keep a
     # table with the local bind names of all the modules imported by this
     # module. To handle nested references (a.b.c.d etc.), the import table for
-    # module X points to X's own nested import table.
+    # module X points to X's own nested import table. If a single module
+    # attempts to import multiple sub-modules with the same local name, we merge
+    # the import tables of all the modules.
     @bud_import_tbl ||= {}
-    if @bud_import_tbl.has_key? local_name
-      raise Bud::CompileError, "duplicate import symbol #{local_name} in #{self.name}"
-    end
-    @bud_import_tbl[local_name] = NestedRefRewriter.build_import_table(mod)
+    prev_tbl = @bud_import_tbl[local_name]
+    child_tbl = NestedRefRewriter.build_import_table(mod)
+    @bud_import_tbl[local_name] = NestedRefRewriter.merge_import_table(prev_tbl, child_tbl)
 
     rewritten_mod_name = ModuleRewriter.do_import(self, mod, local_name)
     self.module_eval "include #{rewritten_mod_name}"
@@ -88,5 +89,29 @@ class Module
     r = "__state#{@state_meth_id}__#{Module.get_class_name(klass)}".to_sym
     @state_meth_id += 1
     return r
+  end
+end
+
+
+module Enumerable
+  public
+  # Support for renaming collections and their schemas
+  def rename(new_tabname, new_schema=nil)
+    budi = (respond_to?(:bud_instance)) ? bud_instance : nil
+    if new_schema.nil? and respond_to?(:schema)
+      new_schema = schema
+    end
+    scr = Bud::BudScratch.new(new_tabname.to_s, budi, new_schema)
+    scr.uniquify_tabname
+    scr.merge(self, scr.storage)
+    scr
+  end
+
+  public
+  # We rewrite "map" calls in Bloom blocks to invoke the "pro" method
+  # instead. This is fine when applied to a BudCollection; when applied to a
+  # normal Enumerable, just treat pro as an alias for map.
+  def pro(&blk)
+    map(&blk)
   end
 end
