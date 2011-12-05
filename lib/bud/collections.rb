@@ -50,6 +50,7 @@ module Bud
       @given_schema = given_schema
       @cols, @key_cols = parse_schema(given_schema)
       @key_colnums = key_cols.map {|k| @cols.index(k)}
+      @val_colnums = val_cols.map {|v| @cols.index(v)}
       setup_accessors
     end
 
@@ -318,16 +319,8 @@ module Bud
 
     private
     def do_insert(o, store)
-      return if o.nil? # silently ignore nils resulting from map predicates failing
-      o = prep_tuple(o)
-      key = get_key_vals(o)
-
-      old = store[key]
-      if old.nil?
-        store[key] = tuple_accessors(o)
-      else
-        raise_pk_error(o, old) unless old == o
-      end
+      return if o.nil?
+      merge_into_buf(o, store, [store])
     end
 
     public
@@ -382,18 +375,60 @@ module Bud
     end
 
     private
-    def include_any_buf?(t, key)
-      bufs = [self, @delta, @new_delta]
+    def find_match(key, bufs)
+      bufs ||= [self, @delta, @new_delta]
       bufs.each do |b|
         old = b[key]
-        next if old.nil?
-        if old != t
+        return old if old
+      end
+      return nil
+    end
+
+    private
+    def is_lattice_val(t)
+      t.class <= Bud::Lattice
+    end
+
+    private
+    def merge_into_buf(t, buf, search_bufs=nil)
+      t = prep_tuple(t)
+      key = get_key_vals(t)
+      new_t = merge_tuple(t, key, search_bufs)
+      buf[key] = tuple_accessors(new_t) unless new_t.nil?
+    end
+
+    private
+    def merge_tuple(t, buf, search_bufs)
+      key = get_key_vals(t)
+      old = find_match(key, search_bufs)
+      if old.nil?
+        return t        # No matches found
+      elsif old == t
+        return nil      # Duplicate value
+      end
+
+      # Check if it is a PK violation
+      @val_colnums.each do |i|
+        old_v = old[i]
+        new_v = t[i]
+
+        unless old_v == new_v || (is_lattice_val(old_v) && is_lattice_val(new_v))
           raise_pk_error(t, old)
-        else
-          return true
         end
       end
-      return false
+
+      # Construct new version of tuple via lattice merge functions
+      new_t = Array.new(old.length)
+      @key_colnums.each {|k| new_t[k] = old[k]}
+      @val_colnums.each do |i|
+        if old[i] == t[i]
+          new_t[i] = old[i]
+        else
+          new_t[i] = old[i].merge(t[i])
+        end
+      end
+
+      new_t
     end
 
     public
@@ -405,9 +440,7 @@ module Bud
         # it's a pity that we are massaging tuples that may be dups
         o.each do |t|
           next if t.nil? or t == []
-          t = prep_tuple(t)
-          key = get_key_vals(t)
-          buf[key] = tuple_accessors(t) unless include_any_buf?(t, key)
+          merge_into_buf(t, buf)
         end
       end
       return self
@@ -463,7 +496,16 @@ module Bud
     public
     def tick_deltas # :nodoc: all
       # assertion: intersect(@storage, @delta) == nil
-      @storage.merge!(@delta)
+      @storage.merge!(@delta) do |k, old, new|
+        @val_colnums.each do |i|
+          next if old[i] == new[i]
+          unless is_lattice_val(old[i]) && is_lattice_val(new[i])
+            raise Bud::TypeError, "lattice value mismatch: #{old.inspect}, #{new.inspect}"
+          end
+          old[i] = old[i].merge(new[i])
+        end
+      end
+
       @delta = @new_delta
       @new_delta = {}
     end
@@ -922,12 +964,7 @@ module Bud
         end
       end
       @pending.each do |key, tuple|
-        old = @storage[key]
-        if old.nil?
-          @storage[key] = tuple
-        else
-          raise_pk_error(tuple, old) unless tuple == old
-        end
+        merge_into_buf(tuple, @storage, [@storage])
       end
       @to_delete = []
       @pending = {}
