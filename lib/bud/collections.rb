@@ -313,6 +313,9 @@ module Bud
     private
     def get_key_vals(t)
       @key_colnums.map do |i|
+        if is_lattice_val(t[i])
+          raise Bud::TypeError, "lattice values cannot be used as keys: #{t[i].inspect}"
+        end
         t[i]
       end
     end
