@@ -61,7 +61,7 @@ class Bud::BudServer < EM::Connection #:nodoc: all
 
     # Deserialize any nested lattice values
     tbl_name, tuple, lat_indexes = obj
-    lat_index.each do |i|
+    lat_indexes.each do |i|
       if i < 0 || i >= tuple.length
         raise Bud::Error, "bad inbound message: lattice at index #{i}, #{obj.inspect}"
       end
