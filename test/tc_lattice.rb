@@ -92,5 +92,13 @@ class TestMax < Test::Unit::TestCase
     i.tick
     assert_equal(10, i.t[["m1"]].val.reveal)
     assert_equal(13, i.t[["m2"]].val.reveal)
+    i.in_t <+ [[1], [2]]
+    i.tick
+    assert_equal(10, i.t[["m1"]].val.reveal)
+    assert_equal(13, i.t[["m2"]].val.reveal)
+    i.in_t <+ [[15], [16], [17]]
+    i.tick
+    assert_equal(16, i.t[["m1"]].val.reveal)
+    assert_equal(17, i.t[["m2"]].val.reveal)
   end
 end
