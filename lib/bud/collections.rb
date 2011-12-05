@@ -149,7 +149,7 @@ module Bud
     # project the collection to its key attributes
     public
     def keys
-      self.map{|t| @key_colnums.map {|i| t[i]}}
+      self.map{|t| get_key_vals(t)}
     end
 
     # project the collection to its non-key attributes
@@ -255,6 +255,7 @@ module Bud
     def [](k)
       # assumes that key is in storage or delta, but not both
       # is this enforced in do_insert?
+      check_enumerable(k)
       t = @storage[k]
       return t.nil? ? @delta[k] : t
     end
@@ -264,7 +265,7 @@ module Bud
     def include?(item)
       return true if key_cols.nil? or (key_cols.empty? and length > 0)
       return false if item.nil? or item.empty?
-      key = @key_colnums.map{|i| item[i]}
+      key = get_key_vals(item)
       return (item == self[key])
     end
 
@@ -282,8 +283,8 @@ module Bud
 
     private
     def raise_pk_error(new_guy, old)
-      keycols = @key_colnums.map{|i| old[i]}
-      raise KeyConstraintError, "key conflict inserting #{new_guy.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key_cols = #{keycols.inspect}"
+      key = get_key_vals(old)
+      raise KeyConstraintError, "key conflict inserting #{new_guy.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key = #{key.inspect}"
     end
 
     private
@@ -309,14 +310,21 @@ module Bud
     end
 
     private
+    def get_key_vals(t)
+      @key_colnums.map do |i|
+        t[i]
+      end
+    end
+
+    private
     def do_insert(o, store)
       return if o.nil? # silently ignore nils resulting from map predicates failing
       o = prep_tuple(o)
-      keycols = @key_colnums.map{|i| o[i]}
+      key = get_key_vals(o)
 
-      old = store[keycols]
+      old = store[key]
       if old.nil?
-        store[keycols] = tuple_accessors(o)
+        store[key] = tuple_accessors(o)
       else
         raise_pk_error(o, old) unless old == o
       end
@@ -374,10 +382,10 @@ module Bud
     end
 
     private
-    def include_any_buf?(t, key_vals)
+    def include_any_buf?(t, key)
       bufs = [self, @delta, @new_delta]
       bufs.each do |b|
-        old = b[key_vals]
+        old = b[key]
         next if old.nil?
         if old != t
           raise_pk_error(t, old)
@@ -394,12 +402,12 @@ module Bud
         check_enumerable(o)
         establish_schema(o) if @cols.nil?
 
-        # it's a pity that we are massaging the tuples that already exist in the head
+        # it's a pity that we are massaging tuples that may be dups
         o.each do |t|
           next if t.nil? or t == []
           t = prep_tuple(t)
-          key_vals = @key_colnums.map{|k| t[k]}
-          buf[key_vals] = tuple_accessors(t) unless include_any_buf?(t, key_vals)
+          key = get_key_vals(t)
+          buf[key] = tuple_accessors(t) unless include_any_buf?(t, key)
         end
       end
       return self
@@ -431,7 +439,7 @@ module Bud
       self <+ o
       self <- o.map do |t|
         unless t.nil?
-          self[@key_colnums.map{|k| t[k]}]
+          self[get_key_vals(t)]
         end
       end
     end
@@ -908,15 +916,15 @@ module Bud
     public
     def tick #:nodoc: all
       @to_delete.each do |tuple|
-        keycols = @key_colnums.map{|k| tuple[k]}
-        if @storage[keycols] == tuple
-          @storage.delete keycols
+        key = get_key_vals(tuple)
+        if @storage[key] == tuple
+          @storage.delete key
         end
       end
-      @pending.each do |keycols, tuple|
-        old = @storage[keycols]
+      @pending.each do |key, tuple|
+        old = @storage[key]
         if old.nil?
-          @storage[keycols] = tuple
+          @storage[key] = tuple
         else
           raise_pk_error(tuple, old) unless tuple == old
         end

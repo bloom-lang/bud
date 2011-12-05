@@ -4,7 +4,9 @@ require 'bud'
 require 'bud/bud_meta'
 require 'bud/depanalysis'
 require 'bud/graphs'
+require 'bud/meta_algebra'
 require 'bud/viz_util'
+require 'getopt/std'
 
 include VizUtil
 
@@ -42,12 +44,34 @@ def make_instance(mods)
 
   def_lines = ["class FooBar",
                "include Bud",
+               "include MetaAlgebra",
+               "include MetaReports",
                mods.map {|m| "include #{m}"},
                "end"
               ]
   class_def = def_lines.flatten.join("\n")
   eval(class_def)
-  FooBar.new
+  f =FooBar.new
+  3.times{ f.tick }
+  f
+end
+
+def trace_counts(begins)
+  complexity = {:data => {}, :coord => {}}
+  if !begins[:start].nil?
+    begins[:start].each_pair do |k, v|
+      if @data and @data[k]
+        complexity[:data][k] = @data[k].length
+      end
+    end
+
+    begins[:finish].each_pair do |k, v|
+      if @data and @data[k]
+        complexity[:coord][k] = @data[k].length
+      end
+    end
+  end
+  complexity
 end
 
 def process(mods)
@@ -79,12 +103,44 @@ def process(mods)
   end
 
   viz_name = "bud_doc/" + mods.join("_") + "_viz"
-  write_index(inp, outp, priv, viz_name)
-  graph_from_instance(d, "#{viz_name}_collapsed", "bud_doc", true)
-  graph_from_instance(d, "#{viz_name}_expanded", "bud_doc", false)
+  graph_from_instance(d, "#{viz_name}_collapsed", "bud_doc", true, nil, @data)
+  graph_from_instance(d, "#{viz_name}_expanded", "bud_doc", false, nil, @data)
+  begins = graph_from_instance(d, "#{viz_name}_expanded_dot", "bud_doc", false, "dot", @data)
+
+
+  complexity = trace_counts(begins)
+  # try to figure out the degree of the async edges
+  deg = find_degrees(d, @data)
+  unless deg.nil?
+    deg.each_pair do |k, v|
+      puts "DEGREE: #{k} = #{v.keys.length}"
+    end
+  end
+
+  write_index(inp, outp, priv, viz_name, complexity)
 end
 
-def write_index(inp, outp, priv, viz_name)
+def find_degrees(inst, data)
+  degree = {}
+  return if data.nil?
+  data.each_pair do |k, v|
+    tab = inst.tables[k.gsub("_snd", "").to_sym]
+    if !tab.nil?
+      if tab.class == Bud::BudChannel
+        v.each_pair do |k2, v2|
+          v2.each do |row|
+            loc = row[tab.locspec_idx]
+            degree[k] ||= {}
+            degree[k][loc] = true
+          end
+        end
+      end
+    end
+  end
+  return degree
+end
+
+def write_index(inp, outp, priv, viz_name, cx)
   f = File.open("bud_doc/index.html", "w")
   f.puts "<html>"
   f.puts "<embed src=\"#{ENV['PWD']}/#{viz_name}_collapsed.svg\" width=\"100%\" height=\"60%\" type=\"image/svg+xml\" pluginspage=\"http://www.adobe.com/svg/viewer/install/\" />"
@@ -97,12 +153,22 @@ def write_index(inp, outp, priv, viz_name)
   f.puts "<h2>Output Interfaces</h2>"
   do_table(f, outp)
   f.puts "</td><td>"
-  f.puts "<h2>Private State</h2>"
-  do_table(f, priv)
-  f.puts "</td>"
+  f.puts "<h2>Trace Analysis Results</h2>"
+  f.puts "<h3>Data Complexity</h3>"
+  do_cx(f, cx[:data])
+  f.puts "<h3>Coordination Complexity</h3>"
+  do_cx(f, cx[:coord])
   f.puts "</tr></table>"
   f.puts "</html>"
   f.close
+end
+
+def do_cx(f, cx)
+  f.puts "<table border='1'>"
+  cx.each_pair do |k, v|
+    f.puts "<tr><td>#{k}</td><td>#{v.inspect}</td></tr>"
+  end
+  f.puts "</table>"
 end
 
 def do_table(f, info)
@@ -117,11 +183,34 @@ def do_table(f, info)
   f.puts "</table>"
 end
 
+def get_trace_data
+  data = nil
+
+  if @opts["t"]
+    data = {}
+    traces = @opts['t'].class == String ? [@opts['t']] : @opts['t']
+    traces.each do |t|
+      meta, da = get_meta2(t)
+      da.each do |d|
+        data[d[1]] ||= {}
+        data[d[1]][d[0]] ||= []
+        data[d[1]][d[0]] << d[2]
+      end
+    end
+  end
+  data
+end
+
 if ARGV.length < 2
   puts "Usage: budplot LIST_OF_FILES LIST_OF_MODULES_OR_CLASSES"
   exit
 end
 
+@opts = Getopt::Std.getopts("t:")
+
+
+
+@data = get_trace_data
 `mkdir bud_doc`
 
 modules = []

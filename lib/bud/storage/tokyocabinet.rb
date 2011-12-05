@@ -47,6 +47,7 @@ module Bud
     end
 
     def [](key)
+      check_enumerable(key)
       key_s = MessagePack.pack(key)
       val_s = @hdb[key_s]
       if val_s
@@ -57,13 +58,14 @@ module Bud
     end
 
     def has_key?(k)
+      check_enumerable(k)
       key_s = MessagePack.pack(k)
       return true if @hdb.has_key? key_s
       return @delta.has_key? k
     end
 
     def include?(tuple)
-      key = @key_colnums.map{|k| tuple[k]}
+      key = get_key_vals(tuple)
       value = self[key]
       return (value == tuple)
     end
@@ -144,7 +146,8 @@ module Bud
     end
 
     def insert(tuple)
-      key = @key_colnums.map{|k| tuple[k]}
+      tuple = prep_tuple(tuple)
+      key = get_key_vals(tuple)
       merge_tuple(key, tuple)
     end
 
@@ -156,7 +159,7 @@ module Bud
       raise Bud::Error, "orphaned tuples in @new_delta for #{@tabname}" unless @new_delta.empty?
 
       @to_delete.each do |tuple|
-        k = @key_colnums.map{|c| tuple[c]}
+        k = get_key_vals(tuple)
         k_str = MessagePack.pack(k)
         cols_str = @hdb[k_str]
         unless cols_str.nil?
