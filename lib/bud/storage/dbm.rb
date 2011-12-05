@@ -112,11 +112,11 @@ module Bud
 
     def merge_to_db(buf)
       buf.each do |key,tuple|
-        merge_tuple(key, tuple)
+        merge_tuple_to_db(key, tuple)
       end
     end
 
-    def merge_tuple(key, tuple)
+    def merge_tuple_to_db(key, tuple)
       val = val_cols.map{|c| tuple[cols.index(c)]}
       key_s = MessagePack.pack(key)
       val_s = MessagePack.pack(val)
@@ -143,7 +143,7 @@ module Bud
 
     def insert(tuple)
       key = get_key_vals(tuple)
-      merge_tuple(key, tuple)
+      merge_tuple_to_db(key, tuple)
     end
 
     alias << insert

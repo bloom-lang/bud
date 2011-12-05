@@ -118,11 +118,11 @@ module Bud
 
     def merge_to_hdb(buf)
       buf.each do |key,tuple|
-        merge_tuple(key, tuple)
+        merge_tuple_to_hdb(key, tuple)
       end
     end
 
-    def merge_tuple(key, tuple)
+    def merge_tuple_to_hdb(key, tuple)
       val = val_cols.map{|c| tuple[cols.index(c)]}
       key_s = MessagePack.pack(key)
       val_s = MessagePack.pack(val)
@@ -148,7 +148,7 @@ module Bud
     def insert(tuple)
       tuple = prep_tuple(tuple)
       key = get_key_vals(tuple)
-      merge_tuple(key, tuple)
+      merge_tuple_to_hdb(key, tuple)
     end
 
     alias << insert
