@@ -398,8 +398,7 @@ module Bud
     end
 
     private
-    def merge_tuple(t, buf, search_bufs)
-      key = get_key_vals(t)
+    def merge_tuple(t, key, search_bufs)
       old = find_match(key, search_bufs)
       if old.nil?
         return t        # No matches found
@@ -495,7 +494,6 @@ module Bud
     # move deltas to storage, and new_deltas to deltas.
     public
     def tick_deltas # :nodoc: all
-      # assertion: intersect(@storage, @delta) == nil
       @storage.merge!(@delta) do |k, old, new|
         @val_colnums.each do |i|
           next if old[i] == new[i]
@@ -504,6 +502,7 @@ module Bud
           end
           old[i] = old[i].merge(new[i])
         end
+        old
       end
 
       @delta = @new_delta

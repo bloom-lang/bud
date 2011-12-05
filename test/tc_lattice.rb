@@ -33,6 +33,25 @@ class MaxOfMax
   end
 end
 
+class EmbedMax
+  include Bud
+
+  state do
+    table :t
+    scratch :in_t, [:v]
+    lmax :m1
+    lmax :m2
+  end
+
+  bloom do
+    t <= [["m1", m1]]
+    t <= [["m2", m2]]
+
+    m1 <= in_t {|t| t[0] if t[0] % 2 == 0}
+    m2 <= in_t {|t| t[0] if t[0] % 2 == 1}
+  end
+end
+
 class TestMax < Test::Unit::TestCase
   def test_simple
     i = SimpleMax.new
@@ -61,5 +80,17 @@ class TestMax < Test::Unit::TestCase
     i.in_t <+ [[2], [3], [23]]
     i.tick
     assert_equal(true, i.done.current_value.reveal)
+  end
+
+  def test_embed_max
+    i = EmbedMax.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:in_t, :t, :m1, :m2].each {|r| assert(strat_zero.include? r) }
+    i.tick
+    i.in_t <+ [[5], [10], [7], [2], [13]]
+    i.tick
+    assert_equal(10, i.t[["m1"]].val.reveal)
+    assert_equal(13, i.t[["m2"]].val.reveal)
   end
 end
