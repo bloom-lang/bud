@@ -55,7 +55,7 @@ class WordCount2
     words <= txt.flat_map do |t|
       t.text.split.enum_for(:each_with_index).map {|w, i| [t.lineno, i, w]}
     end
-    wc <= words.reduce({}) do |memo, t|
+    wc <= words.reduce(Hash.new) do |memo, t|
       memo[t.word] ||= 0
       memo[t.word] += 1
       memo
