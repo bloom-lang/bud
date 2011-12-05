@@ -117,7 +117,7 @@ module Bud
     end
 
     def merge_tuple_to_db(key, tuple)
-      val = val_cols.map{|c| tuple[cols.index(c)]}
+      val = @val_colnums.map {|c| tuple[c]}
       key_s = MessagePack.pack(key)
       val_s = MessagePack.pack(val)
       if @dbm.has_key?(key_s)
