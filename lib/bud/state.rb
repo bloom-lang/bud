@@ -163,9 +163,19 @@ module Bud
 
       # If a method is marked as a morph in any lattice, every lattice that
       # declares a method of that name must also mark it as a morph.
+      meth_list = klass.instance_methods(false)
       Bud::Lattice.global_morphs.each_key do |m|
-        next unless klass.instance_methods(false).include? m.to_s
+        next unless meth_list.include? m.to_s
         unless klass.morphs.has_key? m
+          raise Bud::CompileError, "method #{m} in #{lat_name} must be a morph"
+        end
+      end
+
+      # Similarly, check for non-morphisms that are found in the builtin list of
+      # monotone operators
+      meth_list.each do |m|
+        next unless RuleRewriter::MONOTONE_WHITELIST.has_key? m.to_sym
+        unless klass.morphs.has_key? m.to_sym
           raise Bud::CompileError, "method #{m} in #{lat_name} must be a morph"
         end
       end

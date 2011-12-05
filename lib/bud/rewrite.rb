@@ -3,16 +3,17 @@ require 'rubygems'
 class RuleRewriter < Ruby2Ruby # :nodoc: all
   attr_accessor :rule_indx, :rules, :depends
 
+  MONOTONE_WHITELIST = {
+    :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1, :~ => 1,
+    :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
+    :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
+    :schema => 1, :cols => 1, :key_cols => 1, :val_cols => 1,
+    :payloads => 1, :tabname => 1, :+@ => 1, :current_value => 1
+  }
+
   def initialize(seed, bud_instance)
     @bud_instance = bud_instance
     @ops = {:<< => 1, :< => 1, :<= => 1}
-    @monotonic_whitelist = {
-      :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1, :~ => 1,
-      :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
-      :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
-      :schema => 1, :cols => 1, :key_cols => 1, :val_cols => 1,
-      :payloads => 1, :tabname => 1, :+@ => 1, :current_value => 1
-    }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
     @nm = false
@@ -50,7 +51,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
         @nm = true if op == :-@
         # don't worry about monotone ops, table names, table.attr calls, lattice
         # names, lattice morphisms, or accessors of iterator variables
-        unless @monotonic_whitelist[op] or @bud_instance.tables.has_key? op or
+        unless MONOTONE_WHITELIST[op] or @bud_instance.tables.has_key? op or
                is_lattice_op(op) or call_is_attr_deref?(recv, op) or recv.first == :lvar
           @nm = true
         end
