@@ -22,7 +22,7 @@ module Source
     endok = true #
     ast = nil
     lines[num .. -1].each do |l|
-      break if endok and l =~ /^\s*[}]|end/
+      break if endok and l =~ /^\s*([}]|end)/
       stmt += l + "\n"
       begin
         ast = ruby_parser.parse stmt

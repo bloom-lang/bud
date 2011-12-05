@@ -339,7 +339,7 @@ module Bud
         else
           o = @struct.new(*o[0..@structlen-1])
         end
-
+        return o
       elsif o.kind_of? Struct
         o = o.to_a
       else
