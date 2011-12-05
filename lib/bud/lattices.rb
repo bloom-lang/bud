@@ -185,6 +185,12 @@ class Bud::MinLattice < Bud::Lattice
   def lt(k)
     Bud::BoolLattice.new(@v && @v < k)
   end
+
+  morph :+
+  def +(i)
+    raise Bud::Error unless @v
+    Bud::MinLattice.new(@v + i)
+  end
 end
 
 class Bud::BoolLattice < Bud::Lattice

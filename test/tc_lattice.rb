@@ -156,3 +156,60 @@ class TestMax < Test::Unit::TestCase
     [src, dst].each {|n| n.stop }
   end
 end
+
+class ShortestPaths
+  include Bud
+
+  state do
+    table :arc, [:from, :to] => [:c]
+    table :path, [:from, :to, :next] => [:c]
+    table :min_cost, [:from, :to] => [:c]
+  end
+
+  bloom do
+    min_cost <= path {|p| [p.from, p.to, p.c]}
+    path <= arc {|a| [a.from, a.to, "direct", Bud::MinLattice.new(a.c)]}
+    path <= (min_cost * arc).pairs(:to => :from) do |m,a|
+      [m.from, a.to, a.from, m.c + a.c]
+    end
+  end
+end
+
+class TestShortestPaths < Test::Unit::TestCase
+  def test_simple
+    i = ShortestPaths.new
+    i.arc <+ [["a", "b", 10],
+              ["a", "c", 15],
+              ["b", "c", 20],
+              ["b", "d", 30],
+              ["c", "d", 5],
+              ["d", "e", 10]]
+    i.tick
+    path_r = i.path.to_a.map {|t| [t.from, t.to, t.next, t.c.reveal]}
+    assert_equal([["a", "b", "direct", 10],
+                  ["a", "c", "b", 30],
+                  ["a", "c", "direct", 15],
+                  ["a", "d", "b", 40],
+                  ["a", "d", "c", 20],
+                  ["a", "e", "d", 30],
+                  ["b", "c", "direct", 20],
+                  ["b", "d", "c", 25],
+                  ["b", "d", "direct", 30],
+                  ["b", "e", "d", 35],
+                  ["c", "d", "direct", 5],
+                  ["c", "e", "d", 15],
+                  ["d", "e", "direct", 10]], path_r.sort)
+
+    min_cost_r = i.min_cost.to_a.map {|t| [t.from, t.to, t.c.reveal]}
+    assert_equal([["a", "b", 10],
+                  ["a", "c", 15],
+                  ["a", "d", 20],
+                  ["a", "e", 30],
+                  ["b", "c", 20],
+                  ["b", "d", 25],
+                  ["b", "e", 35],
+                  ["c", "d", 5],
+                  ["c", "e", 15],
+                  ["d", "e", 10]], min_cost_r.sort)
+  end
+end
