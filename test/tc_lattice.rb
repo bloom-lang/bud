@@ -163,7 +163,7 @@ class ShortestPaths
   include Bud
 
   state do
-    table :arc, [:from, :to] => [:c]
+    table :arc, [:from, :to, :c]
     table :path, [:from, :to, :next] => [:c]
     table :min_cost, [:from, :to] => [:c]
   end
@@ -180,7 +180,8 @@ end
 class TestShortestPaths < Test::Unit::TestCase
   def test_simple
     i = ShortestPaths.new
-    i.arc <+ [["a", "b", 10],
+    i.arc <+ [["a", "b", 11],
+              ["a", "b", 10],
               ["a", "c", 15],
               ["b", "c", 20],
               ["b", "d", 30],
