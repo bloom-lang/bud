@@ -157,6 +157,8 @@ class TestMax < Test::Unit::TestCase
   end
 end
 
+# Based on Example 3.1 in "Monotonic Aggregation in Deductive Databases" (Ross
+# and Sagiv, PODS'92).
 class ShortestPaths
   include Bud
 
@@ -211,5 +213,39 @@ class TestShortestPaths < Test::Unit::TestCase
                   ["c", "d", 5],
                   ["c", "e", 15],
                   ["d", "e", 10]], min_cost_r.sort)
+  end
+
+  def test_cyclic
+    i = ShortestPaths.new
+    i.arc <+ [["a", "b", 20],
+              ["b", "a", 5],
+              ["b", "c", 10],
+              ["a", "c", 35],
+              ["d", "a", 15],
+              ["d", "b", 5]]
+    i.tick
+
+    path_r = i.path.to_a.map {|t| [t.from, t.to, t.next, t.c.reveal]}
+    assert_equal([["a", "a", "b", 25],
+                  ["a", "b", "a", 45],
+                  ["a", "b", "direct", 20],
+                  ["a", "c", "a", 60],
+                  ["a", "c", "b", 30],
+                  ["a", "c", "direct", 35],
+                  ["b", "a", "b", 30],
+                  ["b", "a", "direct", 5],
+                  ["b", "b", "a", 25],
+                  ["b", "c", "a", 40],
+                  ["b", "c", "b", 35],
+                  ["b", "c", "direct", 10],
+                  ["d", "a", "b", 10],
+                  ["d", "a", "direct", 15],
+                  ["d", "b", "a", 30],
+                  ["d", "b", "direct", 5],
+                  ["d", "c", "a", 45],
+                  ["d", "c", "b", 15]], path_r.sort)
+
+    min_cost_r = i.min_cost.to_a.map {|t| [t.from, t.to, t.c.reveal]}
+    assert_equal([], min_cost_r.sort)
   end
 end
