@@ -35,12 +35,8 @@ class Bud::Lattice
     @@global_morphs
   end
 
-  def self.reject_input(i)
-    raise Bud::TypeError, "illegal #{self.name} input: #{i.inspect}"
-  end
-
-  def initialize(v=nil)
-    @v = self.class.convert_to(v)
+  def reject_input(i)
+    raise Bud::TypeError, "illegal #{self.class.name} input: #{i.inspect}"
   end
 
   # Return the state valued associated with a lattice instance. Note that this
@@ -148,12 +144,11 @@ end
 class Bud::MaxLattice < Bud::Lattice
   lattice_name :lmax
 
-  def self.convert_to(i)
-    if i.nil? || i.class <= Comparable
-      i
-    else
+  def initialize(i=nil)
+    unless i.nil? || i.class <= Comparable
       reject_input(i)
     end
+    @v = i
   end
 
   def merge(i)
@@ -162,19 +157,18 @@ class Bud::MaxLattice < Bud::Lattice
 
   morph :gt
   def gt(k)
-    Bud::BoolLattice.new(@v && @v > k)
+    Bud::BoolLattice.new(!!(@v && @v > k))
   end
 end
 
 class Bud::MinLattice < Bud::Lattice
   lattice_name :lmin
 
-  def self.convert_to(i)
-    if i.nil? || i.class <= Comparable
-      i
-    else
+  def initialize(i=nil)
+    unless i.nil? || i.class <= Comparable
       reject_input(i)
     end
+    @v = i
   end
 
   def merge(i)
@@ -183,12 +177,12 @@ class Bud::MinLattice < Bud::Lattice
 
   morph :lt
   def lt(k)
-    Bud::BoolLattice.new(@v && @v < k)
+    Bud::BoolLattice.new(!!(@v && @v < k))
   end
 
   morph :+
   def +(i)
-    raise Bud::Error unless @v
+    raise Bud::Error if @v.nil?
     Bud::MinLattice.new(@v + i)
   end
 end
@@ -196,13 +190,11 @@ end
 class Bud::BoolLattice < Bud::Lattice
   lattice_name :lbool
 
-  def self.convert_to(i)
-    i ||= false
-    if i == true || i == false
-      i
-    else
+  def initialize(i=false)
+    unless i == true || i == false
       reject_input(i)
     end
+    @v = i
   end
 
   def merge(i)
@@ -213,19 +205,17 @@ end
 class Bud::MapLattice < Bud::Lattice
   lattice_name :lmap
 
-  def self.convert_to(i)
-    i ||= {}
-    if i.class == Hash
-      i.keys.each do |k|
-        reject_input(i) if k.class <= Bud::Lattice
-      end
-      i.values.each do |v|
-        reject_input(i) unless v.class <= Bud::Lattice
-      end
-      i
-    else
-      reject_input(i)
+  def initialize(i={})
+    reject_input(i) unless i.class == Hash
+
+    i.keys.each do |k|
+      reject_input(i) if k.class <= Bud::Lattice
     end
+    i.values.each do |v|
+      reject_input(i) unless v.class <= Bud::Lattice
+    end
+
+    @v = i
   end
 
   def merge(i)
