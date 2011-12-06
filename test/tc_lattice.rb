@@ -159,7 +159,7 @@ end
 
 # Based on Example 3.1 in "Monotonic Aggregation in Deductive Databases" (Ross
 # and Sagiv, PODS'92).
-class ShortestPaths
+class ShortestPathsL
   include Bud
 
   state do
@@ -201,7 +201,7 @@ end
 
 class TestShortestPaths < Test::Unit::TestCase
   def test_simple
-    i = ShortestPaths.new
+    i = ShortestPathsL.new
     i.arc <+ [["a", "b", 11],
               ["a", "b", 10],
               ["a", "c", 15],
@@ -242,7 +242,7 @@ class TestShortestPaths < Test::Unit::TestCase
   end
 
   def test_cyclic
-    i = ShortestPaths.new
+    i = ShortestPathsL.new
     i.arc <+ [["a", "b", 20],
               ["a", "b", 21],
               ["b", "a", 5],
