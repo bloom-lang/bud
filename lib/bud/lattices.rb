@@ -40,7 +40,7 @@ class Bud::Lattice
   end
 
   def initialize(v=nil)
-    @v = self.class.convert_to(v) unless v.nil?
+    @v = self.class.convert_to(v)
   end
 
   # Return the state valued associated with a lattice instance. Note that this
@@ -149,7 +149,7 @@ class Bud::MaxLattice < Bud::Lattice
   lattice_name :lmax
 
   def self.convert_to(i)
-    if i.class <= Comparable
+    if i.nil? || i.class <= Comparable
       i
     else
       reject_input(i)
@@ -170,7 +170,7 @@ class Bud::MinLattice < Bud::Lattice
   lattice_name :lmin
 
   def self.convert_to(i)
-    if i.class <= Comparable
+    if i.nil? || i.class <= Comparable
       i
     else
       reject_input(i)
@@ -197,6 +197,7 @@ class Bud::BoolLattice < Bud::Lattice
   lattice_name :lbool
 
   def self.convert_to(i)
+    i ||= false
     if i == true || i == false
       i
     else
@@ -206,5 +207,31 @@ class Bud::BoolLattice < Bud::Lattice
 
   def merge(i)
     Bud::BoolLattice.new(@v || i.reveal)
+  end
+end
+
+class Bud::MapLattice < Bud::Lattice
+  lattice_name :lmap
+
+  def self.convert_to(i)
+    i ||= {}
+    if i.class == Hash
+      i.keys.each do |k|
+        reject_input(i) if k.class <= Bud::Lattice
+      end
+      i.values.each do |v|
+        reject_input(i) unless v.class <= Bud::Lattice
+      end
+      i
+    else
+      reject_input(i)
+    end
+  end
+
+  def merge(i)
+    rv = @v.merge(i.reveal) do |k, lhs_v, rhs_v|
+      lhs_v.merge(rhs_v)
+    end
+    Bud::MapLattice.new(rv)
   end
 end

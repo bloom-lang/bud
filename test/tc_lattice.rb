@@ -258,3 +258,38 @@ class TestShortestPaths < Test::Unit::TestCase
                   ["d", "c", 15]], min_cost_r.sort)
   end
 end
+
+class SimpleMap
+  include Bud
+
+  state do
+    lmap :h
+    lmax :m1
+    lmax :m2
+    scratch :in_t, [:v]
+  end
+
+  bloom do
+    h <= [{"x" => m1, "y" => m1}]
+    h <= in_t {|t| {t.v => m2}}
+  end
+end
+
+class TestMap < Test::Unit::TestCase
+  def test_map_simple
+    i = SimpleMap.new
+    i.m1 <+ [5, 12, 3]
+    i.m2 <+ [3, 4, 5]
+    i.in_t <+ [["y"], ["z"]]
+    i.tick
+
+    h_val = i.h.current_value.reveal.map {|k,v| [k, v.reveal]}
+    assert_equal([["x", 12], ["y", 12], ["z", 5]], h_val.sort)
+
+    i.m2 <+ [15]
+    i.tick
+    h_val = i.h.current_value.reveal.map {|k,v| [k, v.reveal]}
+    assert_equal([["x", 12], ["y", 12], ["z", 5]], h_val.sort)
+    assert_equal(15, i.m2.current_value.reveal)
+  end
+end
