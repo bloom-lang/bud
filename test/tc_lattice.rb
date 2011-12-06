@@ -246,6 +246,14 @@ class TestShortestPaths < Test::Unit::TestCase
                   ["d", "c", "b", 15]], path_r.sort)
 
     min_cost_r = i.min_cost.to_a.map {|t| [t.from, t.to, t.c.reveal]}
-    assert_equal([], min_cost_r.sort)
+    assert_equal([["a", "a", 25],
+                  ["a", "b", 20],
+                  ["a", "c", 30],
+                  ["b", "a", 5],
+                  ["b", "b", 25],
+                  ["b", "c", 10],
+                  ["d", "a", 10],
+                  ["d", "b", 5],
+                  ["d", "c", 15]], min_cost_r.sort)
   end
 end
