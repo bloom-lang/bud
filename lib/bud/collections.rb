@@ -424,18 +424,25 @@ module Bud
         end
       end
 
-      # Construct new version of tuple via lattice merge functions
+      # Construct new version of tuple via lattice merge functions. We can skip
+      # producing a delta tuple if merging in every lattice value doesn't yield
+      # a new lattice value.
       new_t = Array.new(old.length)
-      @key_colnums.each {|k| new_t[k] = old[k]}
+      saw_change = false
       @val_colnums.each do |i|
         if old[i] == t[i]
           new_t[i] = old[i]
         else
           new_t[i] = old[i].merge(t[i])
+          saw_change = true if new_t[i].reveal != old[i].reveal
         end
       end
-
-      new_t
+      if saw_change
+        @key_colnums.each {|k| new_t[k] = old[k]}
+        return new_t
+      else
+        return nil      # Duplicate
+      end
     end
 
     public
