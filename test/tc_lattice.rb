@@ -289,9 +289,11 @@ class TestShortestPaths < Test::Unit::TestCase
   def test_cyclic_variant
     i = ShortestPathsVariant.new
     i.arc <+ [["a", "b", 20],
+              ["a", "b", 24],
               ["b", "a", 5],
               ["b", "a", 8],
               ["b", "c", 10],
+              ["b", "c", 11],
               ["a", "c", 35],
               ["d", "a", 15],
               ["d", "b", 5]]

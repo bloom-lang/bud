@@ -379,7 +379,7 @@ module Bud
 
     private
     def find_match(key, bufs)
-      bufs ||= [self, @delta, @new_delta]
+      bufs ||= [@new_delta, @delta, self]
       bufs.each do |b|
         old = b[key]
         return old if old
@@ -402,6 +402,11 @@ module Bud
 
     private
     def merge_tuple(t, key, search_bufs)
+      # We depend on an important property of find_match: by default, it will
+      # search @new_delta, @delta, and then @storage, in that order (and return
+      # the first match). Hence, if a conflicting tuple is found, we merge with
+      # the "newest" conflicting version. This ensures that we don't throw away
+      # updated tuple versions, since we merge @new_delta => @delta => @storage.
       old = find_match(key, search_bufs)
       if old.nil?
         return t        # No matches found
