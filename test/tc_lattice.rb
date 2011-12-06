@@ -184,6 +184,7 @@ class TestShortestPaths < Test::Unit::TestCase
               ["a", "b", 10],
               ["a", "c", 15],
               ["b", "c", 20],
+              ["b", "c", 21],
               ["b", "d", 30],
               ["c", "d", 5],
               ["d", "e", 10]]
@@ -221,8 +222,11 @@ class TestShortestPaths < Test::Unit::TestCase
   def test_cyclic
     i = ShortestPaths.new
     i.arc <+ [["a", "b", 20],
+              ["a", "b", 21],
               ["b", "a", 5],
+              ["b", "a", 8],
               ["b", "c", 10],
+              ["b", "c", 12],
               ["a", "c", 35],
               ["d", "a", 15],
               ["d", "b", 5]]
