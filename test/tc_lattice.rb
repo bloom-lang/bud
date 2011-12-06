@@ -177,6 +177,28 @@ class ShortestPaths
   end
 end
 
+# Compute shortest paths in a slightly different manner (closer to R&S): add
+# arcs to the end of a previously-discovered path, rather than prepending them
+# to the beginning; this means the "next" field actually points backward from
+# the end of the path.
+class ShortestPathsVariant
+  include Bud
+
+  state do
+    table :arc, [:from, :to, :c]
+    table :path, [:from, :to, :next] => [:c]
+    table :min_cost, [:from, :to] => [:c]
+  end
+
+  bloom do
+    min_cost <= path {|p| [p.from, p.to, p.c]}
+    path <= arc {|a| [a.from, a.to, "direct", Bud::MinLattice.new(a.c)]}
+    path <= (min_cost * arc).pairs(:to => :from) do |m,a|
+      [m.from, a.to, a.from, m.c + a.c]
+    end
+  end
+end
+
 class TestShortestPaths < Test::Unit::TestCase
   def test_simple
     i = ShortestPaths.new
@@ -248,6 +270,49 @@ class TestShortestPaths < Test::Unit::TestCase
                   ["d", "a", "direct", 15],
                   ["d", "b", "a", 35],
                   ["d", "b", "b", 30],
+                  ["d", "b", "direct", 5],
+                  ["d", "c", "a", 45],
+                  ["d", "c", "b", 15]], path_r.sort)
+
+    min_cost_r = i.min_cost.to_a.map {|t| [t.from, t.to, t.c.reveal]}
+    assert_equal([["a", "a", 25],
+                  ["a", "b", 20],
+                  ["a", "c", 30],
+                  ["b", "a", 5],
+                  ["b", "b", 25],
+                  ["b", "c", 10],
+                  ["d", "a", 10],
+                  ["d", "b", 5],
+                  ["d", "c", 15]], min_cost_r.sort)
+  end
+
+  def test_cyclic_variant
+    i = ShortestPathsVariant.new
+    i.arc <+ [["a", "b", 20],
+              ["b", "a", 5],
+              ["b", "a", 8],
+              ["b", "c", 10],
+              ["a", "c", 35],
+              ["d", "a", 15],
+              ["d", "b", 5]]
+    i.tick
+
+    path_r = i.path.to_a.map {|t| [t.from, t.to, t.next, t.c.reveal]}
+    assert_equal([["a", "a", "b", 25],
+                  ["a", "b", "a", 45],
+                  ["a", "b", "direct", 20],
+                  ["a", "c", "a", 60],
+                  ["a", "c", "b", 30],
+                  ["a", "c", "direct", 35],
+                  ["b", "a", "b", 30],
+                  ["b", "a", "direct", 5],
+                  ["b", "b", "a", 25],
+                  ["b", "c", "a", 40],
+                  ["b", "c", "b", 35],
+                  ["b", "c", "direct", 10],
+                  ["d", "a", "b", 10],
+                  ["d", "a", "direct", 15],
+                  ["d", "b", "a", 30],
                   ["d", "b", "direct", 5],
                   ["d", "c", "a", 45],
                   ["d", "c", "b", 15]], path_r.sort)
