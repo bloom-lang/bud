@@ -105,8 +105,6 @@ module Bud
     options[:dump_rewrite] ||= ! ENV["BUD_DUMP_REWRITE"].nil?
     options[:dump_ast] ||= ! ENV["BUD_DUMP_AST"].nil?
     options[:print_wiring] ||= ! ENV["BUD_PRINT_WIRING"].nil?
-    @rewrite_eval_binding = binding
-
     @tables = {}
     @table_meta = []
     @stratified_rules = []
@@ -192,12 +190,18 @@ module Bud
      @options[:toplevel] || self
   end
 
-  def import_defs
-    self.class.ancestors.inject({}) {|tbl, e| tbl.merge(e.bud_import_table)}
+  def import_instance(name)
+    name = "@" + name.to_s
+    instance_variable_get(name) if instance_variable_defined? name
   end
 
+  def import_defs
+    @imported_defs ||= self.class.ancestors.inject({}) {|tbl, e| tbl.merge(e.bud_import_table)}
+  end
+
+  # absorb rules and dependencies from imported modules. The corresponding module instantiations
+  # would themselves have resolved their own imports.
   def resolve_imports
-    #flatten imports
     import_tbl = import_defs
 
     import_tbl.each_pair do |local_name, mod_name|
@@ -206,8 +210,15 @@ module Bud
         # create wrapper instances
         #puts "=== resolving #{self}.#{mod_name} => #{local_name}"
         klass = module_wrapper_class(mod_name)
-        mod_inst = klass.new(:toplevel => toplevel) # this will resolve its own imports
+        mod_inst = klass.new(:toplevel => toplevel) # this instantiation will resolve the imported module's own imports
         instance_variable_set("@#{local_name}", mod_inst)
+      end
+      mod_inst.tables.values.each do |t|
+        # Absorb the module wrapper's user-defined state.
+        unless @tables.has_key? t.tabname
+          qname = local_name.to_s + "." + t.tabname.to_s
+          tables[qname.to_sym] = t
+        end
       end
       mod_inst.t_rules.each do |imp_rule|
         qname = local_name.to_s + "." + imp_rule.lhs.to_s  #qualify name by prepending with local_name
@@ -219,15 +230,9 @@ module Bud
         qrname = local_name.to_s + "." + imp_dep.body.to_s
         self.t_depends << [imp_dep.bud_obj, imp_dep.rule_id, qlname, imp_dep.op, qrname]
       end
-    nil
-
     end
-
-    # absorb rules and dependencies from imported modules. The corresponding module instantiations
-    # would themselves have resolved their own imports.
+    nil
   end
-
-
 
   # If module Y is a parent module of X, X's state block might reference state
   # defined in Y. Hence, we want to invoke Y's state block first.  However, when
@@ -254,6 +259,12 @@ module Bud
 
   # Evaluate all bootstrap blocks and tick deltas
   def do_bootstrap
+    # evaluate bootstrap for imported modules
+    imported = import_defs.keys
+    imported.each do |mod_alias|
+      wrapper = import_instance mod_alias
+      wrapper.do_bootstrap
+    end
     self.class.ancestors.reverse.each do |anc|
       anc.instance_methods(false).each do |m|
         if /^__bootstrap__/.match m
@@ -263,7 +274,7 @@ module Bud
     end
     bootstrap
 
-    tables.each_value{|t| t.tick_deltas; t.tick_deltas}
+    tables.each_value{|t| t.tick_deltas; t.tick_deltas} if toplevel == self
     @done_bootstrap = true
   end
   

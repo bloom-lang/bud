@@ -8,7 +8,7 @@ module Source
   #Reads the block corresponding to the location (string of the form "file:line_num").
   #Returns an ast for the block
   def Source.read_block(location)
-    raise Bud::Error, "Source must be present in a file; cannot read interactive shell or eval block" if location.start_with? '('
+    raise Bud::CompileError, "Source must be present in a file; cannot read interactive shell or eval block" if location.start_with? '('
     location =~ /^(.*):(\d+)/
     filename, num = $1, $2.to_i
     raise Bud::BudError, "Couldn't determine filename from backtrace" if filename.nil?

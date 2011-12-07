@@ -59,7 +59,7 @@ class TestMapVariants < Test::Unit::TestCase
   def test_leave_map_alone
     program = LeaveMapAlone.new
     program.tick
-    assert_equal([1,2,3,4,5], program.num.to_a.sort.flatten)
+    assert_equal(program.num.to_a.sort, [[1],[2],[3],[4],[5]])
   end
   def test_all_maps
     p = AllMapsAreOne.new

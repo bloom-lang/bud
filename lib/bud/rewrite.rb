@@ -23,30 +23,59 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     super()
   end
 
-  def call_is_attr_deref?(recv, op)
-    if recv.first == :call and @bud_instance.tables.has_key? recv[2]
-      schema = @bud_instance.send(recv[2]).schema
-      if schema and schema.include? op
-        return true
+  $not_id = [:not_coll_id]
+  def resolve(obj, prefix, name)
+    qn = prefix ? prefix + "." + name.to_s : name.to_s
+    return [:collection, qn, obj.tables[name]]  if obj.tables.has_key? name
+
+    # does name refer to an import name?
+    iobj = obj.import_instance name
+    return [:import, qn, iobj] if iobj and iobj.respond_to? :tables
+
+    return $not_id
+  end
+
+  def exp_id_type(recv, name, args) # call only if sexp type is :call
+    return $not_id unless args.size == 1
+    if recv
+      if recv.first == :call
+        # possibly nested reference.
+        rty, rqn, robj = exp_id_type(recv[1], recv[2], recv[3]) # rty, rqn, .. = receiver's type, qual name etc.
+        ty = resolve(robj, rqn, name) if rty == :import
       end
+    else
+      # plain, un-prefixed name. See if it refers to a collection or import spec
+      ty = resolve(@bud_instance, nil, name)
     end
-    return false
+    ty
   end
 
   def process_call(exp)
     recv, op, args = exp
-    if recv.nil? and args == s(:arglist) and @collect
-      do_table(exp)
-    elsif @ops[op] and @context[1] == :block and @context.length == 4
+    if @ops[op] and @context[1] == :block and @context.length == 4
       # NB: context.length is 4 when see a method call at the top-level of a
       # :defn block -- this is where we expect Bloom statements to appear
       do_rule(exp)
     else
-      if recv and recv.class == Sexp
+      ty = :not_coll_id
+      ty, qn, obj = exp_id_type(recv, op, args) # qn = qualified name, obj is the corresponding object
+      if ty == :collection
+        @tables[qn] = @nm if @collect
+      #elsif ty == :import .. do nothing
+      elsif ty == :not_coll_id
+        # check if receiver is a collection, and further if the current exp represents a field lookup
+        op_is_field_name = false
+        if recv and recv.first == :call
+          rty, _, robj = exp_id_type(recv[1], recv[2], recv[3])
+          if rty == :collection
+            schema = robj.schema
+            op_is_field_name =  true if schema and schema.include?(op)
+          end
+        end
         # for CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
         # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables
-        unless @monotonic_whitelist[op] or @bud_instance.tables.has_key? op or call_is_attr_deref?(recv, op) or recv.first == :lvar
+        unless @monotonic_whitelist[op] or op_is_field_name or (recv and recv.first == :lvar)
           @nm = true
         end
       end
@@ -98,15 +127,6 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
     reset_instance_vars
     @rule_indx += 1
-  end
-
-  def do_table(exp)
-    t = exp[1].to_s
-    # If we're called on a "table-like" part of the AST that doesn't correspond
-    # to an extant table, ignore it.
-    @tables[t] = @nm if @bud_instance.tables.has_key? t.to_sym
-    drain(exp)
-    return t
   end
 
   def do_rule(exp)
@@ -245,106 +265,6 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
       end
     end
     return s(call, process(recv), op, process(args))
-  end
-end
-
-# Given a table of renames from x => y, replace all calls to "x" with calls to
-# "y" instead. We don't try to handle shadowing due to block variables: if a
-# block references a block variable that shadows an identifier in the rename
-# tbl, it should appear as an :lvar node rather than a :call, so we should be
-# okay.
-class CallRewriter < SexpProcessor # :nodoc: all
-  def initialize(rename_tbl)
-    super()
-    self.require_empty = false
-    self.expected = Sexp
-    @rename_tbl = rename_tbl
-  end
-
-  def process_call(exp)
-    tag, recv, meth_name, args = exp
-
-    if @rename_tbl.has_key? meth_name
-      meth_name = @rename_tbl[meth_name] # No need to deep-copy Symbol
-    end
-
-    recv = process(recv)
-    args = process(args)
-
-    s(tag, recv, meth_name, args)
-  end
-end
-
-# Rewrite qualified references to collections defined by an imported module. In
-# the AST, this looks like a tree of :call nodes. For example, a.b.c looks like:
-#
-#   (:call, (:call, (:call, nil, :a, args), :b, args), :c, args)
-#
-# If the import table contains [a][b], we want to rewrite this into a single
-# call to a__b__c, which matches how the corresponding Bloom collection will
-# be name-mangled. Note that we don't currently check that a__b__c (or a.b.c)
-# corresponds to an extant Bloom collection.
-class NestedRefRewriter < SexpProcessor # :nodoc: all
-  attr_accessor :did_work
-
-  def initialize(import_tbl)
-    super()
-    self.require_empty = false
-    self.expected = Sexp
-    @import_tbl = import_tbl
-    @did_work = false
-  end
-
-  def process_call(exp)
-    return exp if @import_tbl.empty?
-    tag, recv, meth_name, args = exp
-
-    catch :skip do
-      recv_stack = make_recv_stack(recv)
-      throw :skip unless recv_stack.length > 0
-
-      lookup_tbl = @import_tbl
-      new_meth_name = ""
-      until recv_stack.empty?
-        m = recv_stack.pop
-        throw :skip unless lookup_tbl.has_key? m
-
-        new_meth_name += "#{m}__"
-        lookup_tbl = lookup_tbl[m]
-      end
-
-      # Okay, apply the rewrite
-      @did_work = true
-      new_meth_name += meth_name.to_s
-      recv = nil
-      meth_name = new_meth_name.to_sym
-    end
-
-    recv = process(recv)
-    args = process(args)
-
-    s(tag, recv, meth_name, args)
-  end
-
-  private
-  def make_recv_stack(r)
-    rv = []
-
-    while true
-      break if r.nil?
-      # We can exit early if we see something unexpected
-      throw :skip unless r.sexp_type == :call
-
-      recv, meth_name, args = r.sexp_body
-      unless args.sexp_type == :arglist and args.sexp_body.length == 0
-        throw :skip
-      end
-
-      rv << meth_name
-      r = recv
-    end
-
-    return rv
   end
 end
 

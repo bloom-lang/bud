@@ -249,9 +249,14 @@ class BudMeta #:nodoc: all
     fout = File.new("#{@bud_instance.class}_rewritten.txt", "w")
     fout.puts "Declarations:"
 
-    strata.each_with_index do |src_ary, i|
-      text = src_ary.join("\n")
-      fout.puts "R[#{i}]:\n#{text}"
+    strata.each_with_index do |rules, i|
+      fout.print "=================================\n"
+      fout.print "Stratum #{i}\n"
+      rules.each do |r|
+        fout.puts "Bud##{r.bud_obj.object_id} #{r.rule_id}"
+        fout.puts "\tsrc:      #{r.src}"
+        fout.puts "\torig src: #{r.orig_src}"
+      end
     end
     fout.close
   end

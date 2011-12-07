@@ -240,7 +240,7 @@ module TempMod
   end
 
   bloom do
-    temp :t3 <= t1 {|t| puts "#{self} ========= \n" or [t.key + 20, t.val + 20]}
+    temp :t3 <= t1 {|t| [t.key + 20, t.val + 20]}
     t2 <= t3 {|t| [t[0] + 10, t[1] + 10]}
   end
 end
@@ -293,7 +293,7 @@ class TestModules < Test::Unit::TestCase
   end
 
   def test_import_twice
-    c = ChildImportTwice.new(:dump_ast=>true, :dump_rewrite=>true)
+    c = ChildImportTwice.new
     c.tick
     assert_equal([[15, 20], [60, 110]], c.t4.to_a.sort)
     assert_equal([[5, 10]], c.t5.to_a.sort)
@@ -310,7 +310,7 @@ class TestModules < Test::Unit::TestCase
   def test_interface_module
     c = InterfaceModUser.new
     c.tick
-    assert_equal([[35, 45]], c.t1.to_a.sort)
+    assert_equal(c.t1.to_a.sort, [[35, 45]])
   end
 
   def test_issue110
