@@ -364,5 +364,12 @@ class TestMap < Test::Unit::TestCase
     h_val = i.h.current_value.reveal.map {|k,v| [k, v.reveal]}
     assert_equal([["x", 12], ["y", 12], ["z", 5]], h_val.sort)
     assert_equal(15, i.m2.current_value.reveal)
+
+    i.m2 <+ [13]
+    i.in_t <+ [["y"], ["z"]]
+    i.tick
+    h_val = i.h.current_value.reveal.map {|k,v| [k, v.reveal]}
+    assert_equal([["x", 12], ["y", 15], ["z", 15]], h_val.sort)
+    assert_equal(15, i.m2.current_value.reveal)
   end
 end
