@@ -856,7 +856,7 @@ module Bud
           unless new_e.class <= Bud::Error
             new_e = Bud::Error
           end
-          raise new_e, "exception during Bud evaluation.\nException: #{e.inspect}.#{src_msg}"
+          raise new_e, "exception during Bud evaluation.\nException: #{e.inspect}\nLocation: #{e.backtrace.first}.#{src_msg}"
         end
       end
       @stratum_first_iter = false
