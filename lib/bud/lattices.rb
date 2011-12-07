@@ -35,8 +35,8 @@ class Bud::Lattice
     @@global_morphs
   end
 
-  def reject_input(i)
-    raise Bud::TypeError, "illegal #{self.class.name} input: #{i.inspect}"
+  def reject_input(i, meth="initialize")
+    raise Bud::TypeError, "illegal input to #{self.class.lat_name}\##{meth}: #{i.inspect}"
   end
 
   # Return the state valued associated with a lattice instance. Note that this
@@ -180,20 +180,21 @@ class Bud::MinLattice < Bud::Lattice
     Bud::BoolLattice.new(!!(@v && @v < k))
   end
 
+  # XXX: support MinLattice input
   morph :+
   def +(i)
     raise Bud::Error if @v.nil?
+    reject_input(i, "+") unless i.class <= Numeric
     Bud::MinLattice.new(@v + i)
   end
 end
 
+# XXX: consider creating two fixed ("interned") values for true and false.
 class Bud::BoolLattice < Bud::Lattice
   lattice_name :lbool
 
   def initialize(i=false)
-    unless i == true || i == false
-      reject_input(i)
-    end
+    reject_input(i) unless [true, false].include? i
     @v = i
   end
 

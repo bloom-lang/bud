@@ -70,6 +70,19 @@ class MaxOverChannel
   end
 end
 
+class MaxErrors
+  include Bud
+
+  state do
+    table :t
+    lmax :m
+  end
+
+  bloom do
+    m <= t {|t| t.val}
+  end
+end
+
 class TestMax < Test::Unit::TestCase
   def test_simple
     i = SimpleMax.new
@@ -154,6 +167,21 @@ class TestMax < Test::Unit::TestCase
     }
 
     [src, dst].each {|n| n.stop }
+  end
+
+  def test_key_error
+    i = MaxErrors.new
+    assert_raise(Bud::TypeError) do
+      i.t <+ [[Bud::MaxLattice.new(5), "v"]]
+    end
+  end
+
+  def test_merge_type_error
+    i = MaxErrors.new
+    i.t <+ [["y", :z]]
+    assert_raise(Bud::TypeError) do
+      i.tick
+    end
   end
 end
 
