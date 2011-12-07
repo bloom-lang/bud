@@ -106,7 +106,7 @@ module Bud
       sc.each do |colname|
         reserved = eval "defined?(#{colname})"
         unless (reserved.nil? or
-          (reserved == "method" and method(colname).arity <= 0 and (eval("#{colname}"))[0] == self.tabname))
+          (reserved == "method" and method(colname).arity == -1 and (eval("#{colname}"))[0] == self.tabname))
           raise BudError, "symbol :#{colname} reserved, cannot be used as column name for #{tabname}"
         end
       end
