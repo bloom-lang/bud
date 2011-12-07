@@ -102,9 +102,9 @@ module Bud
     # capture the binding for a subsequent 'eval'. This ensures that local
     # variable names introduced later in this method don't interfere with 
     # table names used in the eval block.
-    options[:dump_rewrite] ||= ! ENV["BUD_DUMP_REWRITE"].nil?
-    options[:dump_ast] ||= ! ENV["BUD_DUMP_AST"].nil?
-    options[:print_wiring] ||= ! ENV["BUD_PRINT_WIRING"].nil?
+    options[:dump_rewrite] ||= ENV["BUD_DUMP_REWRITE"].to_s != ""
+    options[:dump_ast]     ||= ENV["BUD_DUMP_AST"].to_s != ""
+    options[:print_wiring] ||= ENV["BUD_PRINT_WIRING"].to_s != ""
     @tables = {}
     @table_meta = []
     @stratified_rules = []

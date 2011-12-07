@@ -72,9 +72,13 @@ class BudMeta #:nodoc: all
 
     pt = Marshal.load(Marshal.dump(pt)) #deep clone because RuleRewriter mucks up pt.
     pp pt if @bud_instance.options[:dump_ast]
+    tmp_expander = TempExpander.new
+    pt = tmp_expander.process(pt)
+    tmp_expander.tmp_tables.each do |t|
+      @bud_instance.temp(t.to_sym)
+    end
 
-    #    rv = check_rule_ast(pt)
-    rv = nil
+    rv = check_rule_ast(pt)
     unless rv.nil?
       if rv.class <= Sexp
         error_pt = rv
@@ -93,14 +97,28 @@ class BudMeta #:nodoc: all
       end
       raise Bud::CompileError, "#{error_msg} in rule block \"#{block_name}\"#{src_msg}"
     end
-    tmp_expander = TempExpander.new
-    pt = tmp_expander.process(pt)
-    tmp_expander.tmp_tables.each do |t|
-      @bud_instance.temp(t.to_sym)
-    end
     rewriter = RuleRewriter.new(seed, @bud_instance)
     rewriter.process(pt)
     return rewriter
+  end
+
+  def get_qual_name(pt)
+    # expect to see a parse tree corresponding to a dotted name
+    #    a.b.c == s(:call, s1, :c, (:args))
+    # where s1 == s(:call, s2, :b, (:args))
+    # where s2 == s(:call, nil,:a, (:args))
+
+    tag, recv, name, args = pt
+    return nil unless tag == :call or args.length == 1
+
+    if recv
+      qn = get_qual_name(recv)
+      return nil if qn.nil? or qn.size == 0
+      qn = qn + "." + name.to_s
+    else
+      qn = name.to_s
+    end
+    qn
   end
 
   # Perform some basic sanity checks on the AST of a rule block. We expect a
@@ -109,10 +127,10 @@ class BudMeta #:nodoc: all
   # Sexp (containing an error), or a pair of [Sexp, error message].
   def check_rule_ast(pt)
     # :defn format: node tag, block name, args, nested scope
-    #return pt if pt.sexp_type != :defn
-    #scope = pt[3]
-    #return pt if scope.sexp_type != :scope
-    #block = scope[1]
+    return pt if pt.sexp_type != :defn
+    scope = pt[3]
+    return pt if scope.sexp_type != :scope
+    block = scope[1]
 
     block.each_with_index do |n,i|
       if i == 0
@@ -130,9 +148,8 @@ class BudMeta #:nodoc: all
       tag, lhs, op, rhs = n
 
       # Check that LHS references a named collection
-      return n if lhs.nil? or lhs.sexp_type != :call
-      lhs_name = lhs[2]
-      unless @bud_instance.tables.has_key? lhs_name.to_sym
+      lhs_name = get_qual_name(lhs)
+      unless lhs_name and @bud_instance.tables.has_key? lhs_name.to_sym
         return [n, "Table does not exist: '#{lhs_name}'"]
       end
 
