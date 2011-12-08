@@ -154,6 +154,13 @@ module Bud
   # Define methods to implement the state declarations for every registered kind
   # of lattice.
   def load_lattice_defs
+    Bud::Lattice.global_morphs.each_key do |m|
+      next if RuleRewriter::MONOTONE_WHITELIST.has_key? m
+      if Bud::BudCollection.instance_methods.include? m.to_s
+        puts "Morphism #{m} conflicts with non-monotonic method in BudCollection"
+      end
+    end
+
     Bud::Lattice.lattice_kinds.each do |lat_name, klass|
       # Sanity-check lattice definitions
       # XXX: We should do this only once per lattice

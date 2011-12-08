@@ -159,6 +159,19 @@ class Bud::MaxLattice < Bud::Lattice
   def gt(k)
     Bud::BoolLattice.new(!!(@v && @v > k))
   end
+
+  # XXX: support MaxLattice input
+  morph :+
+  def +(i)
+    raise Bud::Error if @v.nil?
+    reject_input(i, "+") unless i.class <= Numeric
+    Bud::MaxLattice.new(@v + i)
+  end
+
+  def lt_eq(i)
+    reject_input(i, "lt_eq") unless i.class <= Bud::MaxLattice
+    Bud::BoolLattice.new(!!(@v <= i.reveal))
+  end
 end
 
 class Bud::MinLattice < Bud::Lattice
@@ -224,5 +237,39 @@ class Bud::MapLattice < Bud::Lattice
       lhs_v.merge(rhs_v)
     end
     Bud::MapLattice.new(rv)
+  end
+
+  def inspect
+    "<#{self.class.lat_name}: #{@v.inspect}>"
+  end
+
+  morph :at
+  def at(k)
+    # XXX: If the key is not in the map, we would like to return some generic
+    # "bottom" value that is shared by all lattice values. Unfortunately, such a
+    # value does not exist. Another alternative is to wire the types of the
+    # lattice value into the definition of the map lattice.
+    raise Bud::Error unless @v.has_key? k
+    @v[k]
+  end
+
+  morph :key?
+  def key?(k)
+    Bud::BoolLattice.new(@v.has_key? k)
+  end
+
+  def lt_eq(i)
+    reject_input(i, "lt_eq") unless i.class <= self.class
+
+    @v.each do |k, v|
+      unless i.key?(k).reveal == true
+        return Bud::BoolLattice.new(false)
+      end
+      unless v.lt_eq(i.at(k)).reveal == true
+        return Bud::BoolLattice.new(false)
+      end
+    end
+
+    return Bud::BoolLattice.new(true)
   end
 end
