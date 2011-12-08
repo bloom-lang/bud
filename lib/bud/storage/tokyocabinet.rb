@@ -179,8 +179,12 @@ module Bud
       @hdb.tranbegin
     end
 
-    def method_missing(sym, *args, &block)
-      @hdb.send sym, *args, &block
+    def length
+      @hdb.length
+    end
+
+    def empty?
+      @hdb.empty?
     end
   end
 end
