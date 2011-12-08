@@ -258,6 +258,14 @@ class Bud::MapLattice < Bud::Lattice
     Bud::BoolLattice.new(@v.has_key? k)
   end
 
+  # Return true if this map is strictly smaller than or equal to the given
+  # map. "x" is strictly smaller than or equal to "y" if:
+  #     (a) every key in "x"  also appears in "y"
+  #     (b) for every key k in "x", x[k] <= y[k]
+  #
+  # NB: For this to be monotonic, we require that (a) "self" is deflationary (or
+  # fixed) (b) the input lattice instance is inflationary (or fixed). We
+  # currently don't have a way to express that in the type system.
   def lt_eq(i)
     reject_input(i, "lt_eq") unless i.class <= self.class
 
