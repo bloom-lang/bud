@@ -524,9 +524,14 @@ module Bud
       @new_delta = {}
     end
 
-    private
-    def method_missing(sym, *args, &block)
-      @storage.send sym, *args, &block
+    public
+    def length
+      @storage.length
+    end
+
+    public
+    def empty?
+      @storage.empty?
     end
 
     ######## aggs

@@ -173,8 +173,14 @@ module Bud
       flush
     end
 
-    def method_missing(sym, *args, &block)
-      @dbm.send sym, *args, &block
+    public
+    def length
+      @dbm.length
+    end
+
+    public
+    def empty?
+      @dbm.empty?
     end
   end
 end
