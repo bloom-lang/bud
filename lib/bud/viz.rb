@@ -7,7 +7,6 @@ require 'bud/state'
 class VizOnline #:nodoc: all
   def initialize(bud_instance)
     @bud_instance = bud_instance
-    return if bud_instance.class == Stratification or @bud_instance.class == DepAnalysis
     @meta_tables = {'t_rules' => 1, 't_depends' => 1, 't_table_info' => 1, 't_cycle' => 1, 't_stratum' => 1, 't_depends_tc' => 1, 't_table_schema' => 1}
     @bud_instance.options[:dbm_dir] = "DBM_#{@bud_instance.class}_#{bud_instance.options[:tag]}_#{bud_instance.object_id}_#{bud_instance.port}"
     @table_info = bud_instance.tables[:t_table_info]
@@ -57,6 +56,12 @@ class VizOnline #:nodoc: all
       if collection.class == Hash
         row = row[1]
       end
+      # bud.t_depends and t_rules have bud object in field[0]. Remove them since
+      # bud instances cannot/must not be serialized.
+      if row[0].class <= Bud
+        row = row.to_a if row.class != Array
+        row = row[1..-1] if row[0].class <= Bud
+      end
       newrow = [tab, @bud_instance.budtime, row]
       begin
         @logtab << newrow
@@ -68,7 +73,6 @@ class VizOnline #:nodoc: all
   end
 
   def do_cards
-    return if @bud_instance.class == Stratification or @bud_instance.class == DepAnalysis
     @bud_instance.tables.each do |t|
       tab = t[0]
       next if tab == "the_big_log"

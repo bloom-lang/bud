@@ -98,14 +98,14 @@ module VizUtil #:nodoc: all
     rules = {}
     convertor = Syntax::Convertors::HTML.for_syntax "ruby"
     shredded_rules.each do |s|
-      fout = File.new("#{output_base}/#{s[0]}.html", "w+")
+      fout = File.new("#{output_base}/#{s.rule_id}.html", "w+")
       fout.puts header
-      fout.puts "<h1>Rule #{s[0]}</h1><br>"
+      fout.puts "<h1>Rule #{s.rule_id}</h1><br>"
 
-      c = convertor.convert(s[4])
+      c = convertor.convert(s.orig_src)
       c.sub!(/^<pre>/, "<pre class=\"code\" style='font-size:20px'>\n")
       fout.puts c
-      rules[s[0]] = [s[1], s[4]]
+      rules[s.rule_id] = [s.lhs, s.orig_src]
       fout.close
     end
 
@@ -230,9 +230,9 @@ END_JS
         data << [time, tab, tup]
       end
     end
-    
+
     meta_tabs.each_value do |tab|
-      meta[tab] ||= [] 
+      meta[tab] ||= []
     end
 
     meta[:schminf] = {}

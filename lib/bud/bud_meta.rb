@@ -13,12 +13,12 @@ class BudMeta #:nodoc: all
     stratified_rules = []
     if @bud_instance.toplevel == @bud_instance
       nodes, stratum_map, top_stratum = stratify_preds
+
       # stratum_map = {fully qualified pred  => stratum}
 
       #slot each rule into the stratum corresponding to its lhs pred (from stratum_map)
       stratified_rules = Array.new(top_stratum + 2) { [] }  # stratum -> [ rules ]
       @bud_instance.t_rules.each do |rule|
-        @bud_instance.t_rules.tuple_accessors(rule)
         if rule.op.to_s == '<='
           # Deductive rules are assigned to strata based on the basic Datalog
           # stratification algorithm
@@ -30,12 +30,12 @@ class BudMeta #:nodoc: all
           stratified_rules[top_stratum + 1] << rule
         end
       end
+      # stratified_rules[0] may be empty if none of the nodes at stratum 0 are on the lhs
+      # stratified_rules[top_stratum+1] will be empty if there are no temporal rules.
+      # Cleanup
+      stratified_rules = stratified_rules.reject{|r| r.empty?}
       dump_rewrite(stratified_rules) if @bud_instance.options[:dump_rewrite]
-      analyze_dependencies(nodes)
 
-      if stratified_rules.last.empty?  # no temporal dependencies, so top_stratum+1 remains nil
-        stratified_rules = stratified_rules[0 .. -2]; # shrink array 
-      end
     end
     return stratified_rules
   end
@@ -179,7 +179,7 @@ class BudMeta #:nodoc: all
 
   Node = Struct.new :name, :status, :stratum, :edges, :in_lhs, :in_body, :in_cycle, :is_neg_head
   # Node.status is one of :init, :in_progress, :done
-  Edge = Struct.new :to, :neg, :temporal
+  Edge = Struct.new :to, :op, :neg, :temporal
 
   def stratify_preds
     bud = @bud_instance.toplevel
@@ -190,7 +190,7 @@ class BudMeta #:nodoc: all
       lhs.in_lhs = true
       body = (nodes[d.body.to_s] ||= Node.new(d.body.to_s, :init, 0, [], false, true, false))
       temporal = d.op != "<=" 
-      lhs.edges << Edge.new(body, d.nm, temporal)
+      lhs.edges << Edge.new(body, d.op, d.nm, temporal)
       body.in_body = true
     end
 
@@ -208,6 +208,7 @@ class BudMeta #:nodoc: all
       stratum_map[n.name] = n.stratum
       top_stratum = max(top_stratum, n.stratum)
     end
+    analyze_dependencies(nodes)
     return nodes, stratum_map, top_stratum
   end
 
@@ -223,6 +224,7 @@ class BudMeta #:nodoc: all
       node.status = :in_process
       node.edges.each do |edge|
         node.is_neg_head = edge.neg
+        next if edge.op != "<="
         body_stratum = calc_stratum(edge.to, (neg or edge.neg), (edge.temporal or temporal), path + [edge.to.name])
         node.is_neg_head = false #reset for next edge
         node.stratum = max(node.stratum, body_stratum + (edge.neg ? 1 : 0))

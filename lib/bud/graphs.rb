@@ -72,8 +72,8 @@ class GraphGen #:nodoc: all
     # bottom if the predicate is not in a NEG/+ cycle.  otherwise,
     # its name is "CYC" + concat(sort(predicate names))
     depends.each do |d|
-      head = d[1]
-      body = d[3]
+      head = d.lhs
+      body = d.body
 
       # hack attack
       if @internals[head] or @internals[body]
@@ -82,9 +82,9 @@ class GraphGen #:nodoc: all
 
       head = name_of(head)
       body = name_of(body)
-      addonce(head, (head != d[1]), true)
-      addonce(body, (body != d[3]))
-      addedge(body, head, d[2], d[4], (head != d[1]), d[0])
+      addonce(head, (head != d.lhs), true)
+      addonce(body, (body != d.body))
+      addedge(body, head, d.op, d.nm, (head != d.lhs), d.rule_id)
     end
   end
 
