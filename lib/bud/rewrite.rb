@@ -37,6 +37,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
   def exp_id_type(recv, name, args) # call only if sexp type is :call
     return $not_id unless args.size == 1
+    ty = $not_id
     if recv
       if recv.first == :call
         # possibly nested reference.
