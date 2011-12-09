@@ -1,5 +1,5 @@
 # simple shortest paths
-# note use of program.tick at bottom to run a single timestemp 
+# note use of program.tick at bottom to run a single timestep
 # and inspect relations
 require 'rubygems'
 require 'bud'
@@ -18,9 +18,11 @@ class ShortestPaths
     # base case: every link is a path
     path <= link {|e| [e.from, e.to, e.to, e.cost]}
     
-    # inductive case: make path of length n+1 by connecting a link to a path of length n
-    temp :j <= (link*path).pairs(:to => :from)
-    path <= j { |l, p| [l.from, p.to, l.from, l.cost+p.cost] }
+    # inductive case: make path of length n+1 by connecting a link to a path of
+    # length n
+    path <= (link*path).pairs(:to => :from) do |l,p|
+      [l.from, p.to, p.from, l.cost+p.cost]
+    end
   end
 
   # find the shortest path between each connected pair of nodes
@@ -41,8 +43,11 @@ program.link <= [['a', 'b', 1],
                  ['d', 'e', 1]]
 
 program.tick # one timestamp is enough for this simple program
-program.shortest.sort.each {|t| puts t.inspect}
+program.shortest.to_a.sort.each {|t| puts t.inspect}
+
+puts "----"
+
 # now lets add an extra link and recompute
 program.link << ['e', 'f', 1]
 program.tick
-program.shortest.sort.each {|t| puts t.inspect}
+program.shortest.to_a.sort.each {|t| puts t.inspect}
