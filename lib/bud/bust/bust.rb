@@ -68,23 +68,30 @@ module Bust
           if @request =~ /GET .* HTTP*/
             puts "GET shouldn't have body" if @body
             # select the appropriate elements from the table
-            desired_elements = (eval "@bud." + table_name).find_all do |t|
-              uri_params.all? {|k, v| (eval "t." + k.to_s) == v[0]}
+            desired_elements = @bud.send(table_name.to_sym).find_all do |t|
+              uri_params.all? {|k, v|
+                (eval "t." + k.to_s) == v[0]
+              }
             end
             @session.print success
+            desired_elements = desired_elements .map{|elem|
+              elem.class <= Struct ? elem.to_a : elem
+            }
             @session.print desired_elements.to_json
           elsif @request =~ /POST .* HTTP*/
             # instantiate a new tuple
             tuple_to_insert = []
             @body.each do |k, v|
-              index = (eval "@bud." + table_name).schema.find_index(k.to_sym)
+              index = @bud.send(table_name.to_sym).schema.find_index(k.to_sym)
               for i in (tuple_to_insert.size..index)
                 tuple_to_insert << nil
               end
               tuple_to_insert[index] = v[0]
             end
             # actually insert the puppy
-            @bud.async_do { (eval "@bud." + table_name) << tuple_to_insert }
+            @bud.async_do {
+              @bud.send(table_name.to_sym) << tuple_to_insert
+            }
             @session.print success
           end
         rescue Exception

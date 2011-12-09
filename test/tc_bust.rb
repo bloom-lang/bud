@@ -34,6 +34,7 @@ class TestBust < Test::Unit::TestCase
         server = ReblServer.new
         server.run_bg
         client = ReblClient.new
+	      client.tick ############  TEMP FIX. THiS SHOULD NOT BE NECESSARY
         host = "http://localhost:#{server.bust_port}"
         result = client.sync_callback(:rest_req, [[1, :post, :form,
                                                    "#{host}/foo",
@@ -41,8 +42,9 @@ class TestBust < Test::Unit::TestCase
                                                      :qux => 'c'}]],
                                       :rest_response)
       end
-      assert_equal(result.first[0], 1)
-      assert_equal(result.first[2], false)
+      msg = result[0] # the first response
+      assert_equal(msg.rid, 1)
+      assert_equal(msg.exception, false)
 
       assert_nothing_raised do
         result = client.sync_callback(:rest_req, [[2, :post, :form,
@@ -51,8 +53,9 @@ class TestBust < Test::Unit::TestCase
                                                      :baz => 'b'}]],
                                       :rest_response)
       end
-      assert_equal(result.first[0], 2)
-      assert_equal(result.first[2], false)
+      msg = result[0] # the first response
+      assert_equal(msg.rid, 2)
+      assert_equal(msg.exception, false)
 
       assert_nothing_raised do
         result = client.sync_callback(:rest_req, [[3, :get, :json,
@@ -60,9 +63,10 @@ class TestBust < Test::Unit::TestCase
                                                    {:qux => 'c'}]],
                                       :rest_response)
       end
-      assert_equal(result.first[0], 3)
-      assert_equal(result.first[1], [['a', 'b', 'c']])
-      assert_equal(result.first[2], false)
+      msg = result[0] # the first response
+      assert_equal(msg.rid, 3)
+      assert_equal(msg.resp, [['a', 'b', 'c']])
+      assert_equal(msg.exception, false)
     ensure
       $stdout = STDOUT
     end
