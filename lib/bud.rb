@@ -20,6 +20,7 @@ require 'bud/deploy/threaddeploy'
 require 'bud/errors'
 require 'bud/joins'
 require 'bud/lattices'
+require 'bud/nonce'
 require 'bud/metrics'
 require 'bud/meta_algebra'
 require 'bud/rtrace'
@@ -727,6 +728,7 @@ module Bud
       do_flush
       invoke_callbacks
       @budtime += 1
+      @nonce_gen.reset if @nonce_gen
       @inbound.clear
     ensure
       @inside_tick = false
@@ -882,6 +884,15 @@ module Bud
         # ignore missing tables; rebl for example deletes them mid-stream
       end
     end while not fixpoint
+  end
+
+  # Return a nonce for the given input value. We guarantee that within a single
+  # tick, equal values are assigned the same nonce; between timesteps, equal
+  # values are assigned distinct nonces. Nonce values themselves are opaque
+  # objects that only support equality operations.
+  def nonce(v)
+    @nonce_gen ||= NonceGenerator.new(ip_port)
+    @nonce_gen.generate(v)
   end
 
   private

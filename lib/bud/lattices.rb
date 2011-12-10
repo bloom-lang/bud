@@ -281,3 +281,58 @@ class Bud::MapLattice < Bud::Lattice
     return Bud::BoolLattice.new(true)
   end
 end
+
+class Bud::MultiSetLattice < Bud::Lattice
+  lattice_name :lmset
+
+  def initialize(i={})
+    reject_input(i) unless i.class == Hash
+
+    i.keys.each do |k|
+      reject_input(i) unless k.class <= Bud::SafeNonce
+    end
+
+    i.values.each do |v|
+      reject_input(i) unless (v.class <= Enumerable && v.length == 2)
+    end
+
+    @v = i
+  end
+
+  def merge(i)
+    rv = @v.merge(i.reveal) do |k, lhs_v, rhs_v|
+      raise Bud::Error unless lhs_v == rhs_v
+      lhs_v
+    end
+    return Bud::MultiSetLattice.new(rv)
+  end
+
+  # Create an extra lookup table on the fly, mapping each value to its
+  # multiplicity. Since any given lattice value is immutable, this table won't
+  # change, but we don't bother building it unless needed.
+  def make_hash
+    rv = {}
+    @v.each_value do |t|
+      val, cnt = t
+      rv[val] ||= 0
+      rv[val] += cnt
+    end
+    rv
+  end
+
+  private :make_hash
+
+  morph :key?
+  def key(k)
+    @h ||= make_hash
+    Bud::BoolLattice.new(@h.has_key? k)
+  end
+
+  morph :at_cnt
+  def at_cnt(k)
+    @h ||= make_hash
+    cnt = @h[k]
+    cnt ||= 0
+    Bud::MaxLattice.new(cnt)
+  end
+end

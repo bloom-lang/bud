@@ -401,3 +401,28 @@ class TestMap < Test::Unit::TestCase
     assert_equal(15, i.m2.current_value.reveal)
   end
 end
+
+class SimpleMultiSet
+  include Bud
+
+  state do
+    lmset :ms1
+    lmset :ms2
+    scratch :in_t, [:v, :cnt]
+  end
+
+  bloom do
+    ms1 <= in_t {|t| { nonce(t.v) => [t.v, t.cnt] } }
+    ms2 <= ms1
+     ms2 <= ms1
+  end
+end
+
+class TestMultiSet < Test::Unit::TestCase
+  def test_ms_simple
+    i = SimpleMultiSet.new
+    i.in_t <+ [["foo", 1], ["bar", 2]]
+    i.tick
+  end
+end
+
