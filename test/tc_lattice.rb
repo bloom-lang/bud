@@ -230,6 +230,9 @@ end
 class TestShortestPaths < Test::Unit::TestCase
   def test_simple
     i = ShortestPathsL.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:arc, :path, :min_cost].each {|r| assert(strat_zero.include? r) }
     i.arc <+ [["a", "b", 11],
               ["a", "b", 10],
               ["a", "c", 15],
@@ -316,6 +319,9 @@ class TestShortestPaths < Test::Unit::TestCase
 
   def test_cyclic_variant
     i = ShortestPathsVariant.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:arc, :path, :min_cost].each {|r| assert(strat_zero.include? r) }
     i.arc <+ [["a", "b", 20],
               ["a", "b", 24],
               ["b", "a", 5],
