@@ -414,21 +414,47 @@ class SimpleMultiSet
   state do
     lmset :ms1
     lmset :ms2
+    lmax :foo_cnt
+    lmax :bar_cnt
     scratch :in_t, [:v, :cnt]
   end
 
   bloom do
     ms1 <= in_t {|t| { nonce(t.v) => [t.v, t.cnt] } }
+    ms2 <= in_t {|t| { nonce(t.v) => [t.v, t.cnt] } }
     ms2 <= ms1
-     ms2 <= ms1
+    foo_cnt <= ms2.at_cnt("foo")
+    bar_cnt <= ms2.at_cnt("bar")
   end
 end
 
 class TestMultiSet < Test::Unit::TestCase
   def test_ms_simple
     i = SimpleMultiSet.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:ms1, :ms2, :foo_cnt, :bar_cnt, :in_t].each do |r|
+      assert(strat_zero.include? r)
+    end
+
+    i.tick
+    assert_equal(0, i.foo_cnt.current_value.reveal)
+    assert_equal(0, i.bar_cnt.current_value.reveal)
     i.in_t <+ [["foo", 1], ["bar", 2]]
     i.tick
+    assert_equal(1, i.foo_cnt.current_value.reveal)
+    assert_equal(2, i.bar_cnt.current_value.reveal)
+    i.in_t <+ [["foo", 5], ["bar", 7]]
+    i.tick
+    assert_equal(6, i.foo_cnt.current_value.reveal)
+    assert_equal(9, i.bar_cnt.current_value.reveal)
+  end
+
+  def test_ms_reject_neg_multiplicity
+    i = SimpleMultiSet.new
+    i.in_t <+ [["foo", 5], ["bar", -1]]
+    assert_raise(Bud::TypeError) do
+      i.tick
+    end
   end
 end
-

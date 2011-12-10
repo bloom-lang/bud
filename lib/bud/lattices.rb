@@ -294,6 +294,10 @@ class Bud::MultiSetLattice < Bud::Lattice
 
     i.values.each do |v|
       reject_input(i) unless (v.class <= Enumerable && v.length == 2)
+      val, cnt = v
+      reject_input(i) if val.class <= Bud::Lattice
+      reject_input(i) unless cnt.class <= Numeric
+      reject_input(i) if cnt < 0
     end
 
     @v = i
