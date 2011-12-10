@@ -186,7 +186,8 @@ class TestMax < Test::Unit::TestCase
 end
 
 # Based on Example 3.1 in "Monotonic Aggregation in Deductive Databases" (Ross
-# and Sagiv, PODS'92).
+# and Sagiv, PODS'92). Unlike in R&S, we don't need to compute min_cost as a
+# separate relation, although we do so for testing purposes.
 class ShortestPathsL
   include Bud
 
@@ -199,8 +200,8 @@ class ShortestPathsL
   bloom do
     min_cost <= path {|p| [p.from, p.to, p.c]}
     path <= arc {|a| [a.from, a.to, "direct", Bud::MinLattice.new(a.c)]}
-    path <= (arc * min_cost).pairs(:to => :from) do |a,m|
-      [a.from, m.to, a.to, m.c + a.c]
+    path <= (arc * path).pairs(:to => :from) do |a,p|
+      [a.from, p.to, a.to, p.c + a.c]
     end
   end
 end
@@ -221,8 +222,8 @@ class ShortestPathsVariant
   bloom do
     min_cost <= path {|p| [p.from, p.to, p.c]}
     path <= arc {|a| [a.from, a.to, "direct", Bud::MinLattice.new(a.c)]}
-    path <= (min_cost * arc).pairs(:to => :from) do |m,a|
-      [m.from, a.to, a.from, m.c + a.c]
+    path <= (path * arc).pairs(:to => :from) do |p,a|
+      [p.from, a.to, a.from, p.c + a.c]
     end
   end
 end
