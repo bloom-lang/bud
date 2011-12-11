@@ -198,11 +198,11 @@ class ShortestPathsL
   end
 
   bloom do
-    min_cost <= path {|p| [p.from, p.to, p.c]}
     path <= arc {|a| [a.from, a.to, "direct", Bud::MinLattice.new(a.c)]}
     path <= (arc * path).pairs(:to => :from) do |a,p|
       [a.from, p.to, a.to, p.c + a.c]
     end
+    min_cost <= path {|p| [p.from, p.to, p.c]}
   end
 end
 
@@ -220,11 +220,11 @@ class ShortestPathsVariant
   end
 
   bloom do
-    min_cost <= path {|p| [p.from, p.to, p.c]}
     path <= arc {|a| [a.from, a.to, "direct", Bud::MinLattice.new(a.c)]}
     path <= (path * arc).pairs(:to => :from) do |p,a|
       [p.from, a.to, a.from, p.c + a.c]
     end
+    min_cost <= path {|p| [p.from, p.to, p.c]}
   end
 end
 
