@@ -288,11 +288,9 @@ class Bud::MultiSetLattice < Bud::Lattice
   def initialize(i={})
     reject_input(i) unless i.class == Hash
 
-    i.keys.each do |k|
+    i.each do |k,v|
       reject_input(i) unless k.class <= Bud::SafeNonce
-    end
 
-    i.values.each do |v|
       reject_input(i) unless (v.class <= Enumerable && v.length == 2)
       val, cnt = v
       reject_input(i) if val.class <= Bud::Lattice
@@ -338,5 +336,54 @@ class Bud::MultiSetLattice < Bud::Lattice
     cnt = @h[k]
     cnt ||= 0
     Bud::MaxLattice.new(cnt)
+  end
+end
+
+# Sum over non-negative numbers
+class Bud::SumLattice < Bud::Lattice
+  lattice_name :lsum
+
+  def initialize(i={})
+    reject_input unless i.class == Hash
+
+    i.each do |k,v|
+      reject_input(i) unless k.class <= Bud::SafeNonce
+      reject_input(i) unless v.class <= Numeric
+      reject_input(i) unless v >= 0
+    end
+
+    @v = i
+  end
+
+  def merge(i)
+    rv = @v.merge(i.reveal) do |k, lhs_v, rhs_v|
+      raise Bud::Error unless lhs_v == rhs_v
+      lhs_v
+    end
+    return Bud::SumLattice.new(rv)
+  end
+
+  def compute_sum
+    rv = 0
+    @v.each_value do |s|
+      rv += s
+    end
+    rv
+  end
+
+  private :compute_sum
+
+  morph :gt
+  def gt(k)
+    @sum ||= compute_sum
+    Bud::BoolLattice.new(!!(@sum > k))
+  end
+
+  # XXX: support MaxLattice input
+  morph :+
+  def +(i)
+    reject_input(i) unless i.class <= Numeric
+    @sum ||= compute_sum
+    Bud::MaxLattice.new(@sum + i)
   end
 end

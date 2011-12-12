@@ -459,3 +459,43 @@ class TestMultiSet < Test::Unit::TestCase
     end
   end
 end
+
+class SimpleSum
+  include Bud
+
+  state do
+    scratch :in_t, [:which, :k] => [:v]
+    lsum :s1
+    lsum :s2
+    lsum :s3
+    lbool :done
+  end
+
+  bloom do
+    s1 <= in_t {|t| { nonce(t.k) => t.v } if t.which == "s1" }
+    s2 <= in_t {|t| { nonce(t.k) => t.v } if t.which == "s2" }
+    s3 <= s1
+    s3 <= s2
+    done <= s3.gt(20)
+  end
+end
+
+class TestSum < Test::Unit::TestCase
+  def test_sum_simple
+    i = SimpleSum.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:in_t, :s1, :s2, :s3, :done].each do |r|
+      assert(strat_zero.include? r)
+    end
+    i.in_t <+ [["s1", "v1", 5], ["s2", "v1", 5],
+               ["s1", "v2", 5], ["s2", "v2", 5],
+               ["s1", "v3", 7]]
+    i.tick
+    assert_equal(false, i.done.current_value.reveal)
+
+    i.in_t <+ [["s1", "v3", 7]]
+    i.tick
+    assert_equal(true, i.done.current_value.reveal)
+  end
+end
