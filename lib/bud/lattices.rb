@@ -172,6 +172,12 @@ class Bud::MaxLattice < Bud::Lattice
     reject_input(i, "lt_eq") unless i.class <= Bud::MaxLattice
     Bud::BoolLattice.new(!!(@v <= i.reveal))
   end
+
+  morph :min_of
+  def min_of(i)
+    reject_input(i, "min_of") unless i.class <= Numeric
+    (@v.nil? || i < @v) ? Bud::MaxLattice.new(i) : self
+  end
 end
 
 class Bud::MinLattice < Bud::Lattice

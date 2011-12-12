@@ -228,8 +228,31 @@ class ShortestPathsVariant
   end
 end
 
-class TestShortestPaths < Test::Unit::TestCase
-  def test_simple
+# Find the maximum capacity path ("widest path") between each pair of nodes;
+# that is, the path that maximizes the cost of the minimum-cost arc in the path.
+# Note that while the shortest path programs are actually defined over
+# multigraphs, we require only a single edge between nodes (mostly for
+# convenience).
+class MaxCapacityPaths
+  include Bud
+
+  state do
+    table :arc, [:from, :to] => [:c]
+    table :path, [:from, :to, :next] => [:c]
+    table :max_cap, [:from, :to] => [:c]
+  end
+
+  bloom do
+    path <= arc {|a| [a.from, a.to, "direct", Bud::MaxLattice.new(a.c)]}
+    path <= (arc * path).pairs(:to => :from) do |a,p|
+      [a.from, p.to, a.to, p.c.min_of(a.c)]
+    end
+    max_cap <= path {|p| [p.from, p.to, p.c]}
+  end
+end
+
+class TestGraphPrograms < Test::Unit::TestCase
+  def test_spath_simple
     i = ShortestPathsL.new
     assert_equal(2, i.strata.length)
     strat_zero = i.stratum_collection_map[0]
@@ -273,7 +296,7 @@ class TestShortestPaths < Test::Unit::TestCase
                   ["d", "e", 10]], min_cost_r.sort)
   end
 
-  def test_cyclic
+  def test_spath_cyclic
     i = ShortestPathsL.new
     i.arc <+ [["a", "b", 20],
               ["a", "b", 21],
@@ -318,7 +341,7 @@ class TestShortestPaths < Test::Unit::TestCase
                   ["d", "c", 15]], min_cost_r.sort)
   end
 
-  def test_cyclic_variant
+  def test_spath_cyclic_variant
     i = ShortestPathsVariant.new
     assert_equal(2, i.strata.length)
     strat_zero = i.stratum_collection_map[0]
@@ -364,6 +387,41 @@ class TestShortestPaths < Test::Unit::TestCase
                   ["d", "a", 10],
                   ["d", "b", 5],
                   ["d", "c", 15]], min_cost_r.sort)
+  end
+
+  def test_maxcap_simple
+    i = MaxCapacityPaths.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:arc, :path, :max_cap].each {|r| assert(strat_zero.include? r) }
+
+    i.arc <+ [["a", "b", 5], ["b", "c", 7]]
+    i.tick
+    res = i.max_cap.to_a.sort.map {|t| [t.from, t.to, t.c.reveal]}
+    assert_equal([["a", "b", 5], ["a", "c", 5], ["b", "c", 7]], res)
+
+    i.arc <+ [["a", "d", 8], ["d", "b", 9]]
+    i.tick
+    res = i.max_cap.to_a.sort.map {|t| [t.from, t.to, t.c.reveal]}
+    assert_equal([["a", "b", 8],
+                  ["a", "c", 7],
+                  ["a", "d", 8],
+                  ["b", "c", 7],
+                  ["d", "b", 9],
+                  ["d", "c", 7]], res)
+
+    i.arc <+ [["a", "e", 1], ["e", "b", 2]]
+    i.tick
+    res = i.max_cap.to_a.sort.map {|t| [t.from, t.to, t.c.reveal]}
+    assert_equal([["a", "b", 8],
+                  ["a", "c", 7],
+                  ["a", "d", 8],
+                  ["a", "e", 1],
+                  ["b", "c", 7],
+                  ["d", "b", 9],
+                  ["d", "c", 7],
+                  ["e", "b", 2],
+                  ["e", "c", 2]], res)
   end
 end
 
