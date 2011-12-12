@@ -373,17 +373,10 @@ class Bud::SumLattice < Bud::Lattice
 
   private :compute_sum
 
-  morph :gt
-  def gt(k)
+  # XXX: rename this morphism?
+  morph :sum
+  def sum
     @sum ||= compute_sum
-    Bud::BoolLattice.new(!!(@sum > k))
-  end
-
-  # XXX: support MaxLattice input
-  morph :+
-  def +(i)
-    reject_input(i) unless i.class <= Numeric
-    @sum ||= compute_sum
-    Bud::MaxLattice.new(@sum + i)
+    Bud::MaxLattice.new(@sum)
   end
 end

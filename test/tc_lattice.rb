@@ -476,7 +476,7 @@ class SimpleSum
     s2 <= in_t {|t| { nonce(t.k) => t.v } if t.which == "s2" }
     s3 <= s1
     s3 <= s2
-    done <= s3.gt(20)
+    done <= (s3.sum + 5).gt(25)
   end
 end
 
