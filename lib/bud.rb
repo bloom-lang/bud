@@ -653,14 +653,11 @@ module Bud
       @inside_tick = true
       
       @joinstate = {}
-
-      unless @done_bootstrap
-        do_bootstrap
-      else
-        (@tables.values+@push_elems.values).each do |t|
-          t.tick
-        end
+      (@tables.values+@push_elems.values).each do |t|
+        t.tick
       end
+      do_bootstrap unless @done_bootstrap
+
       do_wiring unless @done_wiring
       receive_inbound
 

@@ -34,7 +34,6 @@ class TestBust < Test::Unit::TestCase
         server = ReblServer.new
         server.run_bg
         client = ReblClient.new
-	      client.tick ############  TEMP FIX. THiS SHOULD NOT BE NECESSARY
         host = "http://localhost:#{server.bust_port}"
         result = client.sync_callback(:rest_req, [[1, :post, :form,
                                                    "#{host}/foo",

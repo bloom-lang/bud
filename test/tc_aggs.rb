@@ -336,7 +336,7 @@ class TestAggs < Test::Unit::TestCase
   def test_argmin_dups
     a = ArgminDups.new
     a.t1 <+ [[1, 2, 3], [5, 5, 5]]
-    a.tick; a.tick
+    a.tick
     assert_equal([[1, 2, 3]], a.t2.to_a)
     assert_equal([[1, 2, 3]], a.t3.to_a)
 

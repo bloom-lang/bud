@@ -246,7 +246,7 @@ class BudMeta #:nodoc: all
       if input
         # an interface pred is a source if it is an input and it is not in any rule's lhs
         #bud.sources << [pred] unless (preds_in_lhs.include? pred)
-        unless preds_in_body.include? pred and !nodes[pred].in_cycle
+        unless preds_in_body.include? pred.to_s
           # input interface is underspecified if not used in any rule body
           bud.t_underspecified << [pred, true] # true indicates input mode
           puts "Warning: input interface #{pred} not used"
@@ -255,9 +255,9 @@ class BudMeta #:nodoc: all
         # an interface pred is a sink if it is not an input and it is not in any rule's body
         #(if it is in the body, then it is an intermediate node feeding some lhs)
         #bud.sinks << [pred] unless (preds_in_body.include? pred)
-        unless preds_in_head.include? pred and !nodes[pred].in_cycle
+        unless preds_in_head.include? pred.to_s
           # output interface underspecified if not in any rule's lhs
-          [p.pred, false]  #false indicates output mode.
+          bud.t_underspecified << [p.pred, false]  #false indicates output mode.
           puts "Warning: output interface #{pred} not used"
         end
       end
