@@ -243,14 +243,19 @@ class Bud::MapLattice < Bud::Lattice
     "<#{self.class.lat_name}: #{@v.inspect}>"
   end
 
+  # XXX: If the key is not in the map, we would like to return some generic
+  # "bottom" value that is shared by all lattice values. Unfortunately, such a
+  # value does not exist, so we need the caller to tell us which value to use if
+  # they care. Another alternative is to wire the types of the lattice value
+  # into the definition of the map lattice.
   morph :at
-  def at(k)
-    # XXX: If the key is not in the map, we would like to return some generic
-    # "bottom" value that is shared by all lattice values. Unfortunately, such a
-    # value does not exist. Another alternative is to wire the types of the
-    # lattice value into the definition of the map lattice.
-    raise Bud::Error unless @v.has_key? k
-    @v[k]
+  def at(k, default=nil)
+    if @v.has_key? k
+      @v[k]
+    else
+      raise Bud::Error if default.nil?
+      default.new
+    end
   end
 
   morph :key?
