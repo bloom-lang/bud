@@ -26,6 +26,7 @@ module Bud
       @elem_name = name_in
       @found_delta = false
       @refcount = 1
+      @each_index = 0
       @collection_name = collection_name
     end
     def wiring?
@@ -41,12 +42,12 @@ module Bud
       puts "#{accum} #{(self.object_id*2).to_s(16)}: #{elem_name} (#{self.class})"
 
       [@outputs, @pendings, @deletes, @delete_keys].each do |kind|
-        case kind
-        when @outputs
+        case kind.object_id
+        when @outputs.object_id
           next_accum = "=> "
-        when @pendings
+        when @pendings.object_id
           next_accum = "+> "
-        when @deletes, @delete_keys
+        when @deletes.object_id, @delete_keys.object_id
           next_accum = "-> "
         end  
         
@@ -57,7 +58,7 @@ module Bud
             (depth+1).times {print "  "}
             print "#{next_accum} "
             if o.class <= Bud::BudCollection
-              puts "#{(o.object_id*2).to_s(16)}: #{o.tabname} (#{o.class})"
+              puts "#{(o.object_id*2).to_s(16)}: #{o.qualified_tabname} (#{o.class})"
             else
               puts "#{(o.object_id*2).to_s(16)}: (#{o.class.name})"
             end
@@ -109,7 +110,9 @@ module Bud
       @found_delta = false
     end
     def push_out(item, do_block=true)
-      raise "no output specified for PushElement #{@elem_name}" if @blk.nil? and @outputs == $EMPTY and @pendings == $EMPTY and @deletes == $EMPTY and @delete_keys == $EMPTY
+      if @blk.nil? and @outputs == $EMPTY and @pendings == $EMPTY and @deletes == $EMPTY and @delete_keys == $EMPTY
+        raise "no output specified for PushElement #{@elem_name}"
+      end
       if item
         blk = @blk if do_block
         if blk
@@ -118,11 +121,8 @@ module Bud
         end
         @outputs.each do |ou|
           if ou.class <= Bud::PushElement
-            the_name = ou.elem_name
+            #the_name = ou.elem_name
             # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
-            if ou.class <= Bud::PushSHJoin
-              tuple_accessors(item)
-            end
             ou.insert(item,self)
           elsif ou.class <= Bud::BudCollection
             # the_name = ou.tabname
@@ -154,7 +154,7 @@ module Bud
       @flushing = nil
     end
     # flush should ensure that any deferred inserts are processed.
-    # it is *not* a promise of end-of-stream.
+    # flush is treated as an end-of-stream.
     private
     def local_flush
     end
@@ -164,6 +164,7 @@ module Bud
       if @ended.nil?
         @ended = true
         flush
+        @each_index = 0 # specific only to elements of type each_with_index
         if local_end(source)
           wirings.each {|o| o.end(self) if o.class <= Bud::PushElement}
         end
@@ -201,10 +202,10 @@ module Bud
       toplevel = @bud_instance.toplevel
       elem = Bud::PushElement.new('each_with_index' + object_id.to_s, toplevel.this_rule_context, @collection_name)
       self.wire_to(elem)
-      ix = 0
       elem.set_block do |t|
+        ix = @each_index
         retval = (blk.nil? ? [t] : [blk.call(t)]) + [ix]
-        ix += 1
+        @each_index = ix + 1
         retval
       end 
       toplevel.push_elems[[self.object_id,:pro,blk]] = elem
@@ -392,13 +393,15 @@ module Bud
     def insert(item, source)
       @sortbuf << item
     end
-    
-    def local_end(source)
-      @sortbuf.sort!(&@blk)
-      @sortbuf.each do |t|
-        push_out(t, false)
+
+    def local_flush
+      unless @sortbuf.empty?
+        @sortbuf.sort!(&@blk)
+        @sortbuf.each do |t|
+          push_out(t, false)
+        end
+        @sortbuf = []
       end
-      @sortbuf = []
       nil
     end
   end

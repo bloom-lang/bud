@@ -20,6 +20,7 @@ module Bud
     attr_reader :schema # :nodoc: all
     attr_reader :struct
     attr_reader :storage, :delta, :new_delta, :pending # :nodoc: all
+    attr_accessor :qualified_tabname
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
       @tabname = name
@@ -28,13 +29,16 @@ module Bud
       init_buffers
     end
 
+    def qualified_tabname #getter
+      @qualified_tabname ||= tabname
+    end
+
     private
     def init_buffers
       init_storage
       init_pending
       init_deltas
     end
-
 
     public
     def init_schema(given_schema)
@@ -77,6 +81,10 @@ module Bud
       end
 
       return [the_schema, key_cols]
+    end
+
+    def inspect
+      "#{self.class}:#{self.object_id.to_s(16)} [#{tabname}]"
     end
 
     public
@@ -163,7 +171,7 @@ module Bud
 
     # projection
     public
-    def pro(the_name = tabname, the_schema = schema, &blk)
+    def pro(the_name = qualified_tabname, the_schema = schema, &blk)
       pusher, delta_pusher = to_push_elem(the_name, the_schema)
       pusher_pro = pusher.pro(&blk)
       pusher_pro.elem_name = the_name
@@ -180,7 +188,7 @@ module Bud
     def flat_map(&blk)
       pusher = self.pro(&blk)
       toplevel = @bud_instance.toplevel
-      elem = Bud::PushElement.new(tabname, toplevel.this_rule_context, tabname)
+      elem = Bud::PushElement.new(qualified_tabname, toplevel.this_rule_context, qualified_tabname)
       pusher.wire_to(elem)
       f = Proc.new do |t| 
         t.each do |i| 
@@ -233,8 +241,8 @@ module Bud
       addr = bud_instance.ip_port unless bud_instance.port.nil?
       rule_txt = nil
       bud_instance.metrics[:collections] ||= {}
-      bud_instance.metrics[:collections][{:addr=>addr, :tabname=>tabname, :strat_num=>strat_num, :rule_num=>rule_num}] ||= 0
-      bud_instance.metrics[:collections][{:addr=>addr, :tabname=>tabname, :strat_num=>strat_num, :rule_num=>rule_num}] += 1
+      bud_instance.metrics[:collections][{:addr=>addr, :tabname=>qualified_tabname, :strat_num=>strat_num, :rule_num=>rule_num}] ||= 0
+      bud_instance.metrics[:collections][{:addr=>addr, :tabname=>qualified_tabname, :strat_num=>strat_num, :rule_num=>rule_num}] += 1
     end
 
     private
@@ -321,7 +329,7 @@ module Bud
     private
     def raise_pk_error(new_guy, old)
       keycols = @key_colnums.map{|i| old[i]}
-      raise KeyConstraintError, "Key conflict inserting #{new_guy.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key_cols = #{keycols.inspect}"
+      raise KeyConstraintError, "Key conflict inserting #{new_guy.inspect} into \"#{qualified_tabname}\": existing tuple #{old.inspect}, key_cols = #{keycols.inspect}"
     end
 
     private
@@ -343,7 +351,7 @@ module Bud
       elsif o.kind_of? Struct
         o = o.to_a
       else
-        raise BudTypeError, "Array or struct type expected in \"#{tabname}\": #{o.inspect}"
+        raise BudTypeError, "Array or struct type expected in \"#{qualified_tabname}\": #{o.inspect}"
       end
 
       fit_schema(o.length) if schema.nil?
@@ -352,6 +360,15 @@ module Bud
 
     public
     def do_insert(o, store)
+      if $BUD_DEBUG
+        storetype = case store.object_id
+                      when @storage.object_id; "storage"
+                      when @pending.object_id; "pending"
+                      when @delta.object_id; "delta"
+                      when @new_delta.object_id; "new_delta"
+                    end
+        puts "#{qualified_tabname}.#{storetype} ==> #{o}"
+      end
       return if o.nil? # silently ignore nils resulting from map predicates failing
       o = prep_tuple(o)
 
@@ -367,7 +384,7 @@ module Bud
 
     public
     def insert(o, source=nil) # :nodoc: all
-      # puts "insert: #{o} into #{tabname}"
+      # puts "insert: #{o} into #{qualified_tabname}"
       do_insert(o, @storage)
     end
 
@@ -379,7 +396,7 @@ module Bud
     private
     def check_enumerable(o)
       unless o.nil? or o.class < Enumerable or o.class <= Proc
-        raise BudTypeError, "Collection #{tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
+        raise BudTypeError, "Collection #{qualified_tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
       end
     end
 
@@ -513,8 +530,8 @@ module Bud
     def tick  # :nodoc: all
       @storage = @pending
       @pending = {}
-      raise BudError, "orphaned tuples in @delta for #{@tabname}" unless @delta.empty?
-      raise BudError, "orphaned tuples in @new_delta for #{@tabname}" unless @new_delta.empty?
+      raise BudError, "orphaned tuples in @delta for #{qualified_tabname}" unless @delta.empty?
+      raise BudError, "orphaned tuples in @new_delta for #{qualified_tabname}" unless @new_delta.empty?
     end
 
     # move deltas to storage, and new_deltas to deltas.
@@ -522,6 +539,11 @@ module Bud
     public
     def tick_deltas # :nodoc: all
       # assertion: intersect(@storage, @delta) == nil
+      if $BUD_DEBUG
+        puts "#{qualified_tabname}.tick_delta delta --> storage" unless @delta.empty?
+        puts "#{qualified_tabname}.tick_delta new_delta --> delta" unless @new_delta.empty?
+      end
+
       @storage.merge!(@delta)
       @delta = @new_delta
       @new_delta = {}
@@ -530,6 +552,10 @@ module Bud
 
     public
     def flush_deltas
+      if $BUD_DEBUG
+        puts "#{qualified_tabname}.flush delta --> storage" unless @delta.empty?
+        puts "#{qualified_tabname}.flush new_delta --> storage" unless @new_delta.empty?
+      end
       @storage.merge!(@delta)
       @storage.merge!(@new_delta)
       @delta = {}
@@ -537,7 +563,7 @@ module Bud
     end
 
     public
-    def to_push_elem(the_name=tabname, the_schema=schema)
+    def to_push_elem(the_name=qualified_tabname, the_schema=schema)
       # if no push source yet, set one up
       toplevel = @bud_instance.toplevel
       rule_context = toplevel.this_rule_context
@@ -715,13 +741,13 @@ module Bud
         lsplit[1] = lsplit[1].to_i
         return lsplit
       rescue Exception => e
-        raise BudError, "Illegal location specifier in tuple #{t.inspect} for channel \"#{tabname}\": #{e.to_s}"
+        raise BudError, "Illegal location specifier in tuple #{t.inspect} for channel \"#{qualified_tabname}\": #{e.to_s}"
       end
     end
 
     public
     def clone_empty
-      self.class.new(tabname, bud_instance, @given_schema, @is_loopback)
+      self.class.new(qualified_tabname, bud_instance, @given_schema, @is_loopback)
     end
 
     public
@@ -895,6 +921,11 @@ module Bud
 
     public
     def tick #:nodoc: all
+      if $BUD_DEBUG
+        puts "#{tabname}. storage -= pending deletes" unless @to_delete.empty? and @to_delete_by_key.empty?
+        puts "#{tabname}. storage += pending" unless @pending.empty?
+      end
+
       @to_delete.each do |tuple|
         keycols = @key_colnums.map{|k| tuple[k]}
         if @storage[keycols] == tuple

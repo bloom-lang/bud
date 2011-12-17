@@ -30,6 +30,8 @@ require 'bud/executor/join.rb'
 ILLEGAL_INSTANCE_ID = -1
 SIGNAL_CHECK_PERIOD = 0.2
 
+$BUD_DEBUG = ENV["BUD_DEBUG"].to_s != ""
+
 $signal_lock = Mutex.new
 $got_shutdown_signal = false
 $signal_handler_setup = false
@@ -130,6 +132,7 @@ module Bud
     @sinks = {}
     @metrics = {}
     @endtime = nil
+    @this_stratum = 0
     
     # XXX This variable is unused in the Push executor
     @stratum_first_iter = false
@@ -216,8 +219,9 @@ module Bud
       mod_inst.tables.values.each do |t|
         # Absorb the module wrapper's user-defined state.
         unless @tables.has_key? t.tabname
-          qname = local_name.to_s + "." + t.tabname.to_s
-          tables[qname.to_sym] = t
+          qname = (local_name.to_s + "." + t.tabname.to_s).to_sym
+          tables[qname] = t
+          t.qualified_tabname = qname
         end
       end
       mod_inst.t_rules.each do |imp_rule|
@@ -228,7 +232,7 @@ module Bud
       mod_inst.t_depends.each do |imp_dep|
         qlname = local_name.to_s + "." + imp_dep.lhs.to_s  #qualify names by prepending with local_name
         qrname = local_name.to_s + "." + imp_dep.body.to_s
-        self.t_depends << [imp_dep.bud_obj, imp_dep.rule_id, qlname, imp_dep.op, qrname]
+        self.t_depends << [imp_dep.bud_obj, imp_dep.rule_id, qlname, imp_dep.op, qrname, imp_dep.nm]
       end
     end
     nil
@@ -260,6 +264,7 @@ module Bud
   # Evaluate all bootstrap blocks and tick deltas
   def do_bootstrap
     # evaluate bootstrap for imported modules
+    @this_rule_context = self
     imported = import_defs.keys
     imported.each do |mod_alias|
       wrapper = import_instance mod_alias
@@ -277,7 +282,7 @@ module Bud
     tables.each_value{|t| t.tick_deltas; t.tick_deltas} if toplevel == self
     @done_bootstrap = true
   end
-  
+
   def do_wiring
     @stratified_rules.each_with_index { |rules, stratum| eval_rules(rules, stratum) }
     @done_wiring = true
@@ -364,6 +369,8 @@ module Bud
     end
     report_metrics if options[:metrics]
   end
+
+  alias :stop :stop_bg
   
   # Register a callback that will be invoked when this instance of Bud is
   # shutting down.
@@ -492,6 +499,10 @@ module Bud
   # A common special case for sync_callback: block on a delta to a table.
   def delta(out_tbl)
     sync_callback(nil, nil, out_tbl)
+  end
+
+  def inspect
+    "#{self.class}:#{self.object_id.to_s(16)}"
   end
 
   private
@@ -645,7 +656,7 @@ module Bud
   # Manually trigger one timestep of Bloom execution.
   def tick
     begin
-      starttime = Time.now if options[:metrics] 
+      starttime = Time.now if options[:metrics]
       if options[:metrics] and not @endtime.nil?
         @metrics[:betweentickstats] ||= initialize_stats
         @metrics[:betweentickstats] = running_stats(@metrics[:betweentickstats], starttime - @endtime)
@@ -666,36 +677,38 @@ module Bud
         fixpoint = false
         first_iter = true
         until fixpoint
-          # puts "stratum #{stratum} iteration"
           fixpoint = true
           if first_iter
             # push in the stored tuples from previous fixpoint
+            puts "%%% tick[#{@budtime}]:stratum \##{stratum} first_iter" if $BUD_DEBUG
             @scanners[stratum].each_value {|s| s << [:go]}
           else
+            puts "%%% delta_iter %%%" if $BUD_DEBUG
+
             # push in any deltas from last iteration
             delta_scanners[stratum].each_value{|d| d << [:go]} unless first_iter
           end
           # flush any tuples in the pipes
           push_sources[stratum].each_value {|p| p.flush}
           # tick deltas on any merge targets and look for more deltas
-          merge_targets[stratum].each_key do |t| 
-            fixpoint = false if t.tick_deltas
-          end
           # check to see if any joins saw a delta
-          push_joins[stratum].each do |p| 
+          push_joins[stratum].each do |p|
             if p.found_delta==true
               fixpoint = false 
               p.tick_deltas
             end
           end
+          merge_targets[stratum].each_key do |t|
+            fixpoint = false if t.tick_deltas
+          end
           first_iter = false
         end
         # push end-of-fixpoint
         push_sources[stratum].each_value{|p| p.end}
-        merge_targets[stratum].each_key do |t| 
+        merge_targets[stratum].each_key do |t|
           t.flush_deltas
         end
-        
+
       end
       
       @viz.do_cards if @options[:trace]
@@ -703,6 +716,8 @@ module Bud
       invoke_callbacks
       @budtime += 1
       @inbound.clear
+      puts "=============================================" if $BUD_DEBUG
+
     ensure
       @inside_tick = false
       @tick_clock_time = nil

@@ -258,7 +258,9 @@ module Bud
       join = Bud::PushSHJoin.new([self,elem2], @bud_instance, [])
       @bud_instance.push_joins[@bud_instance.this_stratum] << join
       elem2.wire_to(join)
-      delta2.wire_to(join) unless elem2.class <= PushElement
+      #unless elem2.class <= PushElement
+        delta2.wire_to(join)
+      #end
       self.wire_to(join)
       return join
     end
@@ -342,9 +344,9 @@ module Bud
     end
     def local_end(source)
       (@sources_ended ||= []) << source
+      @hash_tables = [{},{}]
       if @sources_ended.size == @wired_by.size
         local_flush
-        @hash_tables = [{},{}]
         return true
       else
         return false

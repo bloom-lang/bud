@@ -159,7 +159,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
         exp[1][1][2] = :pro
       end
     # the superator case
-    elsif exp[1] and exp[1][0] == :call and (exp[1][2] == :~ or exp[1][2] == :+)
+    elsif exp[1] and exp[1][0] == :call and (exp[1][2] == :~@ or exp[1][2] == :+@ or exp[1][2] == :-@)
       if exp[1][1] and exp[1][1][1] and exp[1][1][1][2] == :map
         exp[1][1][1][2] = :pro
       end

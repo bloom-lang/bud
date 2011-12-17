@@ -241,8 +241,8 @@ class BudMeta #:nodoc: all
     preds_in_lhs = nodes.inject(Set.new) {|preds, name_n| preds.add(name_n[0]) if name_n[1].in_lhs; preds}
     preds_in_body = nodes.inject(Set.new) {|preds, name_n| preds.add(name_n[0]) if name_n[1].in_body; preds}
 
-    bud.t_provides.storage.each do |p|
-      pred, input = p
+    bud.t_provides.each do |p|
+      pred, input = p.interface, p.input
       if input
         # an interface pred is a source if it is an input and it is not in any rule's lhs
         #bud.sources << [pred] unless (preds_in_lhs.include? pred)
@@ -255,9 +255,9 @@ class BudMeta #:nodoc: all
         # an interface pred is a sink if it is not an input and it is not in any rule's body
         #(if it is in the body, then it is an intermediate node feeding some lhs)
         #bud.sinks << [pred] unless (preds_in_body.include? pred)
-        unless preds_in_head.include? pred.to_s
+        unless preds_in_lhs.include? pred.to_s
           # output interface underspecified if not in any rule's lhs
-          bud.t_underspecified << [p.pred, false]  #false indicates output mode.
+          bud.t_underspecified << [pred, false]  #false indicates output mode.
           puts "Warning: output interface #{pred} not used"
         end
       end
