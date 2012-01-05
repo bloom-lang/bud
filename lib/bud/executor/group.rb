@@ -79,7 +79,11 @@ module Bud
     end 
     
     def local_flush#_end(source)
-      @groups.keys.each {|g| @winners[g].each{|t| push_out(t, false)}}
+      @groups.keys.each {|g|
+        @winners[g].each{|t|
+          push_out(t, false)
+        }
+      }
       @groups = {}
     end
   end

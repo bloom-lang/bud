@@ -35,7 +35,7 @@ module Bud
     def wirings
       @wirings ||= @outputs + @pendings + @deletes + @delete_keys
     end
-    
+
     public
     def print_wiring(depth=0, accum = "")
       depth.times {print "  "}
@@ -117,7 +117,12 @@ module Bud
         blk = @blk if do_block
         if blk
           item = item.to_a if blk.arity > 1
-          item = blk.call item
+          begin
+            item = blk.call item
+          rescue Exception => e
+            $stderr.puts "Error processing #{tabname} =================="
+            raise e
+          end
         end
         @outputs.each do |ou|
           if ou.class <= Bud::PushElement

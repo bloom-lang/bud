@@ -272,7 +272,7 @@ class BudMeta #:nodoc: all
       fout.print "=================================\n"
       fout.print "Stratum #{i}\n"
       rules.each do |r|
-        fout.puts "Bud##{r.bud_obj.object_id} #{r.rule_id}"
+        fout.puts "#{r.bud_obj.class}##{r.bud_obj.object_id} #{r.rule_id}"
         fout.puts "\tsrc:      #{r.src}"
         fout.puts "\torig src: #{r.orig_src}"
       end

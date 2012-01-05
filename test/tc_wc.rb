@@ -1,6 +1,6 @@
 # simple word count
 require 'test_common'
-require 'backports'
+#require 'backports'
 
 class WordCount1
   include Bud

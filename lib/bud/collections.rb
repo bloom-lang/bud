@@ -29,10 +29,6 @@ module Bud
       init_buffers
     end
 
-    def qualified_tabname #getter
-      @qualified_tabname ||= tabname
-    end
-
     private
     def init_buffers
       init_storage
@@ -54,6 +50,11 @@ module Bud
       @key_colnums = key_cols.map {|k| schema.index(k)}
       setup_accessors
     end
+
+    def qualified_tabname
+      @qualified_tabname ||= @bud_instance.toplevel?  ? tabname : (@bud_instance.qualified_name + "." + tabname.to_s).to_sym
+    end
+
 
     # The user-specified schema might come in two forms: a hash of Array =>
     # Array (key_cols => remaining columns), or simply an Array of columns (if no
@@ -84,7 +85,7 @@ module Bud
     end
 
     def inspect
-      "#{self.class}:#{self.object_id.to_s(16)} [#{tabname}]"
+      "#{self.class}:#{self.object_id.to_s(16)} [#{qualified_tabname}]"
     end
 
     public
@@ -171,7 +172,8 @@ module Bud
 
     # projection
     public
-    def pro(the_name = qualified_tabname, the_schema = schema, &blk)
+    def pro(the_name = tabname, the_schema = schema, &blk)
+#XXX    def pro(the_name = tabname, the_schema = schema, &blk)
       pusher, delta_pusher = to_push_elem(the_name, the_schema)
       pusher_pro = pusher.pro(&blk)
       pusher_pro.elem_name = the_name
@@ -188,7 +190,7 @@ module Bud
     def flat_map(&blk)
       pusher = self.pro(&blk)
       toplevel = @bud_instance.toplevel
-      elem = Bud::PushElement.new(qualified_tabname, toplevel.this_rule_context, qualified_tabname)
+      elem = Bud::PushElement.new(tabname, toplevel.this_rule_context, tabname)
       pusher.wire_to(elem)
       f = Proc.new do |t| 
         t.each do |i| 
@@ -334,27 +336,20 @@ module Bud
 
     private
     def prep_tuple(o)
-      #puts "#{self.tabname}   #{o}"
+      #puts "prep_tuple #{self.tabname}   #{o}"
       return o if o.class == @struct
-
       if o.class == Array
         if @struct.nil?
-          sch = (1 .. o.length).map{|i| ("c"+i.to_s).to_sym}
+          sch =  (1 .. o.length).map{|i| ("c"+i.to_s).to_sym}
           init_schema(sch)
         end
-        if o.length <= @structlen
-          o = @struct.new(*o)
-        else
-          o = @struct.new(*o[0..@structlen-1])
-        end
-        return o
+        o = o.take(@structlen) if o.length > @structlen
       elsif o.kind_of? Struct
-        o = o.to_a
+        init_schema(o.members) if @struct.nil?
+        o = o.take(@structlen)
       else
         raise BudTypeError, "Array or struct type expected in \"#{qualified_tabname}\": #{o.inspect}"
       end
-
-      fit_schema(o.length) if schema.nil?
       return @struct.new(*o)
     end
 
@@ -563,7 +558,7 @@ module Bud
     end
 
     public
-    def to_push_elem(the_name=qualified_tabname, the_schema=schema)
+    def to_push_elem(the_name=tabname, the_schema=schema)
       # if no push source yet, set one up
       toplevel = @bud_instance.toplevel
       rule_context = toplevel.this_rule_context
@@ -747,7 +742,7 @@ module Bud
 
     public
     def clone_empty
-      self.class.new(qualified_tabname, bud_instance, @given_schema, @is_loopback)
+      self.class.new(tabname, bud_instance, @given_schema, @is_loopback)
     end
 
     public
@@ -768,9 +763,9 @@ module Bud
           the_locspec = [ip, port]
         else
           the_locspec = split_locspec(t, @locspec_idx)
-          raise BudError, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
+            raise BudError, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
         end
-        toplevel.dsock.send_datagram([@tabname, t].to_msgpack, the_locspec[0], the_locspec[1])
+        toplevel.dsock.send_datagram([qualified_tabname.to_s, t].to_msgpack, the_locspec[0], the_locspec[1])
       end
       @pending.clear
     end

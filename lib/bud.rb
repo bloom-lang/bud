@@ -69,7 +69,7 @@ module Bud
   attr_accessor :lazy # This can be changed on-the-fly by REBL
   attr_accessor :stratum_collection_map, :stratified_rules
   attr_accessor :metrics
-  attr_accessor :this_rule_context
+  attr_accessor :this_rule_context, :qualified_name
 
   # options to the Bud runtime are passed in a hash, with the following keys
   # * network configuration
@@ -107,6 +107,7 @@ module Bud
     options[:dump_rewrite] ||= ENV["BUD_DUMP_REWRITE"].to_s != ""
     options[:dump_ast]     ||= ENV["BUD_DUMP_AST"].to_s != ""
     options[:print_wiring] ||= ENV["BUD_PRINT_WIRING"].to_s != ""
+    @qualified_name = ""
     @tables = {}
     @table_meta = []
     @stratified_rules = []
@@ -190,7 +191,15 @@ module Bud
   end
 
   def toplevel
-     @options[:toplevel] || self
+     @toplevel = (@options[:toplevel] || self)
+  end
+
+  def qualified_name
+    toplevel? ? "" : @options[:qualified_name]
+  end
+
+  def toplevel?
+    toplevel.object_id == self.object_id
   end
 
   def import_instance(name)
@@ -202,26 +211,31 @@ module Bud
     @imported_defs ||= self.class.ancestors.inject({}) {|tbl, e| tbl.merge(e.bud_import_table)}
   end
 
+  def budtime
+    toplevel? ?  @budtime : toplevel.budtime
+  end
+
   # absorb rules and dependencies from imported modules. The corresponding module instantiations
   # would themselves have resolved their own imports.
   def resolve_imports
     import_tbl = import_defs
 
     import_tbl.each_pair do |local_name, mod_name|
-      mod_inst = send(local_name.to_sym)
+      # corresponding to "import <mod_name> => :<local_name>"
+      mod_inst = send(local_name)
+      qlocal_name = toplevel? ? local_name.to_s : self.qualified_name + "." + local_name.to_s
       if mod_inst.nil?
         # create wrapper instances
         #puts "=== resolving #{self}.#{mod_name} => #{local_name}"
         klass = module_wrapper_class(mod_name)
-        mod_inst = klass.new(:toplevel => toplevel) # this instantiation will resolve the imported module's own imports
+        mod_inst = klass.new(:toplevel => toplevel, :qualified_name => qlocal_name) # this instantiation will resolve the imported module's own imports
         instance_variable_set("@#{local_name}", mod_inst)
       end
-      mod_inst.tables.values.each do |t|
+      mod_inst.tables.each_pair do |name, t|
         # Absorb the module wrapper's user-defined state.
         unless @tables.has_key? t.tabname
-          qname = (local_name.to_s + "." + t.tabname.to_s).to_sym
+          qname = (local_name.to_s + "." + name.to_s).to_sym  # access path to table.
           tables[qname] = t
-          t.qualified_tabname = qname
         end
       end
       mod_inst.t_rules.each do |imp_rule|
