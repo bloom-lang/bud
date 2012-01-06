@@ -220,6 +220,11 @@ class Bud::BoolLattice < Bud::Lattice
   def merge(i)
     Bud::BoolLattice.new(@v || i.reveal)
   end
+
+  morph :when_true
+  def when_true
+    yield if @v
+  end
 end
 
 class Bud::MapLattice < Bud::Lattice
