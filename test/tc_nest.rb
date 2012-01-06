@@ -46,9 +46,11 @@ class TestNest < Test::Unit::TestCase
                   [2, "Chris", "Columbus", "books"],
                   [2, "Chris", "Columbus", "sailing"]].sort,
                  u.flat.to_a.sort)
-    assert_equal([[1, "Nick", "Machiavelli", ["scheming", "books"]],
+
+    a = u.renested.map{|t| [t[0], t[1], t[2], t[3].sort]}
+    assert_equal([[1, "Nick", "Machiavelli", ["books", "scheming"]],
                   [2, "Chris", "Columbus", ["books", "sailing"]]].sort,
-                 u.renested.map{|t| t}.sort)
+                 a.sort)
     assert_equal([["Nick", "Machiavelli", ["scheming","books"]],
                   ["Chris", "Columbus", ["sailing", "books"]]].sort,
                  u.np2.to_a.sort)

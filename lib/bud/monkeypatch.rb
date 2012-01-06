@@ -180,7 +180,9 @@ class Module
   # class/module Y, X's class name is the string "Y::X". We don't want to define
   # method names with semicolons in them, so just return "X" instead.
   def self.get_class_name(klass)
-    klass.name.split("::").last
+    (klass.name.nil? or klass.name == "") \
+      ? "Anon#{klass.object_id}" \
+      : klass.name.split("::").last
   end
 
   # State method blocks are named using an auto-incrementing counter. This is to

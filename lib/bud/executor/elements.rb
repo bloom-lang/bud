@@ -192,8 +192,8 @@ module Bud
     public
     def pro(the_name = @elem_name, the_schema = @schema, &blk)
       toplevel = @bud_instance.toplevel
-      elem = Bud::PushElement.new('project' + object_id.to_s, toplevel.this_rule_context, @collection_name)
-      elem.init_schema(the_schema) unless the_schema.nil?
+      elem = Bud::PushElement.new('project' + object_id.to_s, toplevel.this_rule_context, @collection_name, the_schema)
+      #elem.init_schema(the_schema) unless the_schema.nil?
       self.wire_to(elem)
       elem.set_block(&blk)
       toplevel.push_elems[[self.object_id,:pro,blk]] = elem

@@ -142,11 +142,11 @@ class TestRebl < Test::Unit::TestCase
     # Declarations
     assert_nothing_raised do
       rt.exec_rebl("table :link, [:from, :to, :cost]")
-      rt.exec_rebl("table :path, [:from, :to, :next, :cost]")
+      rt.exec_rebl("table :path, [:from, :to, :nxt, :cost]")
     end
 
     # Check lscollections
-    expected_output = "1: table :link, [:from, :to, :cost]\n2: table :path, [:from, :to, :next, :cost]\n"
+    expected_output = "1: table :link, [:from, :to, :cost]\n2: table :path, [:from, :to, :nxt, :cost]\n"
     assert_nothing_raised do
       actual_output = rt.exec_rebl("/lscollections")
     end
@@ -191,7 +191,7 @@ class TestRebl < Test::Unit::TestCase
 
     # Add a new collection and rule for shortest paths, and tick
     assert_nothing_raised do
-      rt.exec_rebl("table :shortest, [:from, :to] => [:next, :cost]")
+      rt.exec_rebl("table :shortest, [:from, :to] => [:nxt, :cost]")
       rt.exec_rebl("shortest <= path.argmin([path.from, path.to], path.cost)")
       rt.exec_rebl("/tick")
     end

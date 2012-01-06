@@ -4,8 +4,8 @@ require 'bud'
 module TokenRing
   state do
     table :next_node, [] => [:addr]
-    channel :next_node_chan, [:@loc] => [:next]
-    scratch :send_next_node, [:node, :next]
+    channel :next_node_chan, [:@loc] => [:next_ch]
+    scratch :send_next_node, [:node, :next_nd]
     table :sent_next_node, [:addr]
     channel :token, [:@loc]
     table :token_persist, [:loc]
@@ -23,7 +23,7 @@ module TokenRing
     next_node_chan <~ send_next_node
     sent_next_node <+ send_next_node {|n| [n.node]}
 
-    next_node <= next_node_chan {|n| [n.next]}
+    next_node <= next_node_chan {|n| [n.next_ch]}
 
     # The deployer sends an initial message to the node with ID 0
     token <~ (node_ready * node).rights(:uid => :uid) do |n|

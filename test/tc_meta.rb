@@ -12,8 +12,8 @@ class LocalShortestPaths
     table :link2, [:from, :to, :cost]
     table :link3, [:from, :to, :cost]
     table :empty, [:ident]
-    table :path, [:from, :to, :next, :cost]
-    table :shortest, [:from, :to] => [:next, :cost]
+    table :path, [:from, :to, :nxt, :cost]
+    table :shortest, [:from, :to] => [:nxt, :cost]
     table :minz, [:cost]
     table :minmaxsumcntavg, [:from, :to] => [:mincost, :maxcost, :sumcost, :cnt, :avgcost]
   end

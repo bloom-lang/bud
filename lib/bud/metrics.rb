@@ -1,5 +1,11 @@
 require "bud/errors"
-require 'faster_csv'
+if RUBY_VERSION <= "1.9"
+  require 'faster_csv'
+  $mod = FasterCSV
+else
+  require 'csv'
+  $mod = CSV
+end
 
 # metrics are reported in a nested hash representing a collection of relational tables.
 # The metrics hash has the following form:
@@ -14,7 +20,7 @@ require 'faster_csv'
 def report_metrics 
   metrics.each do |k,v|
     if v.first
-      csvstr = FasterCSV.generate(:force_quotes=>true) do |csv|
+      csvstr = $mod.generate(:force_quotes=>true) do |csv|
         csv << [k.to_s] + v.first[0].keys + [:val]
         v.each do |row|
           csv << [nil] + row[0].values + [row[1]]

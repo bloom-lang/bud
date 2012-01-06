@@ -213,7 +213,7 @@ module Bud
       # a scratch with this name should have been defined during rewriting
       raise(BudError, "rename failed to define a scratch named #{the_name}") unless @bud_instance.respond_to? the_name
       retval = pro(the_name, the_schema)
-      retval.init_schema(the_schema)
+      #retval.init_schema(the_schema)
       retval
     end
 
@@ -345,7 +345,7 @@ module Bud
         end
         o = o.take(@structlen) if o.length > @structlen
       elsif o.kind_of? Struct
-        init_schema(o.members) if @struct.nil?
+        init_schema(o.members.map{|m| m.to_sym}) if @struct.nil?
         o = o.take(@structlen)
       else
         raise BudTypeError, "Array or struct type expected in \"#{qualified_tabname}\": #{o.inspect}"

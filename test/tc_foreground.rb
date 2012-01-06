@@ -41,6 +41,7 @@ class CallbackTest < Test::Unit::TestCase
       q.push(true)
     end
     c.run_bg
+    sleep 0.2
     Process.kill(sig, $$)
     q.pop
     assert_equal(1, cnt)
@@ -83,6 +84,7 @@ class CallbackTest < Test::Unit::TestCase
       c2.run_fg
       cnt += 1
     }
+    sleep 0.5
     c1.stop_bg
     c2.stop_bg
     t.join

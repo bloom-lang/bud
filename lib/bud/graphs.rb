@@ -274,7 +274,7 @@ class SpaceTime
           url = "DBM_#{k}_/tm_#{item}.svg"
           #puts "URL is #{url}"
         end
-        snd = @subs[k].add_node(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :pos => [1, i], :group => k, :URL => url})
+        snd = @subs[k].add_node(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :pos => "1, #{i}", :group => k, :URL => url})
 
         unless @head[k].id == snd.id
           @subs[k].add_edge(@head[k], snd, :weight => 2)
