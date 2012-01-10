@@ -18,11 +18,11 @@ class TestTerminal < Test::Unit::TestCase
     input_buf = StringIO.new("I am input from stdin\n")
     q = Queue.new
     t = TerminalTester.new(:stdin => input_buf)
-    t.run_bg
     t.register_callback(:saw_input) do |tbl|
       assert_equal(1, tbl.length)
       q.push(true)
     end
+    t.run_bg
     q.pop
     t.stop_bg
   end

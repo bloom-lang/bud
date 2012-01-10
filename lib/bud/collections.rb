@@ -5,7 +5,7 @@ $EMPTY_HASH = {}
 module Bud
   ########
   #--
-  # the collection types
+  # the collection types                                                                                                ``
   # each collection is partitioned into 4:
   # - pending holds tuples deferred til the next tick
   # - storage holds the "normal" tuples
@@ -113,9 +113,7 @@ module Bud
       sc = @schema
       return if sc.nil?
       sc.each do |colname|
-        reserved = eval "defined?(#{colname})"
-        unless (reserved.nil? or
-          (reserved == "method" and method(colname).arity == -1 and (eval("#{colname}"))[0] == self.tabname))
+        if name_reserved? colname
           raise BudError, "symbol :#{colname} reserved, cannot be used as column name for #{tabname}"
         end
       end
@@ -138,6 +136,23 @@ module Bud
           end
         end
       end
+    end
+
+
+    private
+    def name_reserved?(colname)
+      reserved = eval "defined?(#{colname})"
+      return false if reserved.nil?
+      if reserved == "method" and method(colname).arity == 0
+        begin
+          ret = eval("#{colname}")
+          if ret.kind_of? Array and ret.size == 3 and ret[0] == tabname
+            return false # schema redefinition (see tupaccess above), so name is not considered reserved
+          end
+        rescue # in case calling method throws an error
+        end
+      end
+      return true
     end
 
     # define methods to access tuple attributes by column name
