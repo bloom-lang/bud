@@ -308,6 +308,10 @@ class Bud::SetLattice < Bud::Lattice
   lattice_name :lset
 
   def initialize(i=[])
+    reject_input(i) unless i.class <= Enumerable
+    i.each do |e|
+      reject_input(i) if e.class <= Bud::Lattice
+    end
     @v = i
   end
 
