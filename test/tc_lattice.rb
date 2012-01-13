@@ -467,6 +467,44 @@ class TestMap < Test::Unit::TestCase
   end
 end
 
+class SimpleSet
+  include Bud
+
+  state do
+    lset :s1
+    lbool :done
+    scratch :in_t, [:v]
+  end
+
+  bloom do
+    s1 <= in_t {|t| [t.v]}
+    done <= s1.size.gt(3)
+  end
+end
+
+class TestSet < Test::Unit::TestCase
+  def test_set_simple
+    i = SimpleSet.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:s1, :done, :in_t].each do |r|
+      assert(strat_zero.include? r)
+    end
+
+    i.tick
+    assert_equal(false, i.done.current_value.reveal)
+    i.in_t <+ [[2], [3]]
+    i.tick
+    assert_equal(false, i.done.current_value.reveal)
+    i.in_t <+ [[3], [4]]
+    i.tick
+    assert_equal(false, i.done.current_value.reveal)
+    i.in_t <+ [[3], [4], [5]]
+    i.tick
+    assert_equal(true, i.done.current_value.reveal)
+  end
+end
+
 class SimpleBag
   include Bud
 

@@ -221,6 +221,7 @@ class Bud::BoolLattice < Bud::Lattice
     Bud::BoolLattice.new(@v || i.reveal)
   end
 
+  # XXX: ugly syntax
   morph :when_true
   def when_true
     yield if @v
@@ -274,6 +275,11 @@ class Bud::MapLattice < Bud::Lattice
     Bud::BoolLattice.new(@v.has_key? k)
   end
 
+  morph :size
+  def size
+    Bud::MaxLattice.new(@v.size)
+  end
+
   # Return true if this map is strictly smaller than or equal to the given
   # map. "x" is strictly smaller than or equal to "y" if:
   #     (a) every key in "x"  also appears in "y"
@@ -295,6 +301,28 @@ class Bud::MapLattice < Bud::Lattice
     end
 
     return Bud::BoolLattice.new(true)
+  end
+end
+
+class Bud::SetLattice < Bud::Lattice
+  lattice_name :lset
+
+  def initialize(i=[])
+    @v = i
+  end
+
+  def merge(i)
+    Bud::SetLattice.new((@v + i.reveal).uniq)
+  end
+
+  morph :size
+  def size
+    Bud::MaxLattice.new(@v.size)
+  end
+
+  morph :intersect
+  def intersect(i)
+    Bud::SetLattice.new(@v & i.reveal)
   end
 end
 
@@ -352,6 +380,11 @@ class Bud::BagLattice < Bud::Lattice
     cnt = @h[k]
     cnt ||= 0
     Bud::MaxLattice.new(cnt)
+  end
+
+  morph :size
+  def size
+    Bud::MaxLattice.new(@v.size)
   end
 end
 
