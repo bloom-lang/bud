@@ -472,13 +472,16 @@ class SimpleSet
 
   state do
     lset :s1
+    lset :s2
+    lset :s3
     lbool :done
     scratch :in_t, [:v]
   end
 
   bloom do
     s1 <= in_t {|t| [t.v]}
-    done <= s1.size.gt(3)
+    s3 <= s1.intersect(s2)
+    done <= s3.size.gt(3)
   end
 end
 
@@ -494,12 +497,15 @@ class TestSet < Test::Unit::TestCase
     i.tick
     assert_equal(false, i.done.current_value.reveal)
     i.in_t <+ [[2], [3]]
+    i.s2 <+ [[5], [6], [7]]
     i.tick
     assert_equal(false, i.done.current_value.reveal)
-    i.in_t <+ [[3], [4]]
+    i.in_t <+ [[3], [5], [6]]
+    i.s2 <+ [[12]]
     i.tick
     assert_equal(false, i.done.current_value.reveal)
-    i.in_t <+ [[3], [4], [5]]
+    i.in_t <+ [[12]]
+    i.s2 <+ [[2], [14]]
     i.tick
     assert_equal(true, i.done.current_value.reveal)
   end
