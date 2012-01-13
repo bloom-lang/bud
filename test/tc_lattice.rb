@@ -467,32 +467,32 @@ class TestMap < Test::Unit::TestCase
   end
 end
 
-class SimpleMultiSet
+class SimpleBag
   include Bud
 
   state do
-    lmset :ms1
-    lmset :ms2
+    lbag :b1
+    lbag :b2
     lmax :foo_cnt
     lmax :bar_cnt
     scratch :in_t, [:v, :cnt]
   end
 
   bloom do
-    ms1 <= in_t {|t| { nonce(t.v) => [t.v, t.cnt] } }
-    ms2 <= in_t {|t| { nonce(t.v) => [t.v, t.cnt] } }
-    ms2 <= ms1
-    foo_cnt <= ms2.at_cnt("foo")
-    bar_cnt <= ms2.at_cnt("bar")
+    b1 <= in_t {|t| { nonce(t.v) => [t.v, t.cnt] } }
+    b2 <= in_t {|t| { nonce(t.v) => [t.v, t.cnt] } }
+    b2 <= b1
+    foo_cnt <= b2.at_cnt("foo")
+    bar_cnt <= b2.at_cnt("bar")
   end
 end
 
-class TestMultiSet < Test::Unit::TestCase
-  def test_ms_simple
-    i = SimpleMultiSet.new
+class TestBag < Test::Unit::TestCase
+  def test_bag_simple
+    i = SimpleBag.new
     assert_equal(2, i.strata.length)
     strat_zero = i.stratum_collection_map[0]
-    [:ms1, :ms2, :foo_cnt, :bar_cnt, :in_t].each do |r|
+    [:b1, :b2, :foo_cnt, :bar_cnt, :in_t].each do |r|
       assert(strat_zero.include? r)
     end
 
@@ -509,8 +509,8 @@ class TestMultiSet < Test::Unit::TestCase
     assert_equal(9, i.bar_cnt.current_value.reveal)
   end
 
-  def test_ms_reject_neg_multiplicity
-    i = SimpleMultiSet.new
+  def test_bag_reject_neg_multiplicity
+    i = SimpleBag.new
     i.in_t <+ [["foo", 5], ["bar", -1]]
     assert_raise(Bud::TypeError) do
       i.tick

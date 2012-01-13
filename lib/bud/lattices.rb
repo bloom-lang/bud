@@ -298,8 +298,8 @@ class Bud::MapLattice < Bud::Lattice
   end
 end
 
-class Bud::MultiSetLattice < Bud::Lattice
-  lattice_name :lmset
+class Bud::BagLattice < Bud::Lattice
+  lattice_name :lbag
 
   def initialize(i={})
     reject_input(i) unless i.class == Hash
@@ -322,7 +322,7 @@ class Bud::MultiSetLattice < Bud::Lattice
       raise Bud::Error unless lhs_v == rhs_v
       lhs_v
     end
-    return Bud::MultiSetLattice.new(rv)
+    return Bud::BagLattice.new(rv)
   end
 
   # Create an extra lookup table on the fly, mapping each value to its
