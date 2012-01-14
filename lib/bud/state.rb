@@ -29,13 +29,8 @@ module Bud
   def define_lattice(name)
     check_collection_name(name)
 
-    self.singleton_class.send(:define_method, name) do |*args, &blk|
-      if blk.nil?
-        return @lattices[name]
-      else
-        # NB: Not all lattices will implement this method
-        return @lattices[name].pro(&blk)
-      end
+    self.singleton_class.send(:define_method, name) do |*args|
+      return @lattices[name]
     end
   end
 

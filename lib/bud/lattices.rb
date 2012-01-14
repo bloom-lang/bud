@@ -60,9 +60,13 @@ class Bud::LatticeWrapper
     @is_scratch = is_scratch
   end
 
-  def current_value
+  def current_value(&blk)
     @storage ||= @klass.new
-    @storage
+    if blk.nil?
+      @storage
+    else
+      @storage.pro(&blk)        # NB: not all lattices implement this method
+    end
   end
 
   private
@@ -332,6 +336,11 @@ class Bud::SetLattice < Bud::Lattice
   morph :intersect
   def intersect(i)
     Bud::SetLattice.new(@v & i.reveal)
+  end
+
+  morph :pro
+  def pro(&blk)
+    @v.map(&blk)
   end
 end
 

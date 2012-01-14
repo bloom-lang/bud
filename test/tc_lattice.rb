@@ -485,6 +485,16 @@ class SimpleSet
   end
 end
 
+class SetWithPro < SimpleSet
+  state do
+    scratch :out_t, [:v]
+  end
+
+  bloom do
+    out_t <= s3 {|s| [s + 10] unless s == 3}
+  end
+end
+
 class TestSet < Test::Unit::TestCase
   def test_set_simple
     i = SimpleSet.new
@@ -508,6 +518,24 @@ class TestSet < Test::Unit::TestCase
     i.s2 <+ [[2], [14]]
     i.tick
     assert_equal(true, i.done.current_value.reveal)
+  end
+
+  def test_set_pro
+    i = SetWithPro.new
+    i.tick
+    assert_equal([], i.out_t.to_a.sort)
+
+    i.in_t <+ [[5], [6]]
+    i.s2 <+ [[3], [6]]
+    i.tick
+    assert_equal([[16]], i.out_t.to_a.sort)
+    i.in_t <+ [[3], [7]]
+    i.s2 <+ [[8]]
+    i.tick
+    assert_equal([[16]], i.out_t.to_a.sort)
+    i.s2 <+ [[7]]
+    i.tick
+    assert_equal([[16], [17]], i.out_t.to_a.sort)
   end
 end
 

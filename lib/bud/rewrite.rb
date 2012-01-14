@@ -149,6 +149,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 end
 
+# Rewrite references to named lattices on the RHS of rules to instead invoke
+# "current_value" on the lattice wrapper.
 class LatticeRefRewriter < SexpProcessor
   def initialize(bud_instance)
     super()
