@@ -554,8 +554,8 @@ class SimpleBag
     b1 <= in_t {|t| { nonce(t.v) => [t.v, t.cnt] } }
     b2 <= in_t {|t| { nonce(t.v) => [t.v, t.cnt] } }
     b2 <= b1
-    foo_cnt <= b2.at_cnt("foo")
-    bar_cnt <= b2.at_cnt("bar")
+    foo_cnt <= b2.mult("foo")
+    bar_cnt <= b2.mult("bar")
   end
 end
 

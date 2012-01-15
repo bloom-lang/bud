@@ -392,12 +392,12 @@ class Bud::BagLattice < Bud::Lattice
     Bud::BoolLattice.new(@h.has_key? k)
   end
 
-  morph :at_cnt
-  def at_cnt(k)
+  morph :mult
+  def mult(k)
     @h ||= make_hash
-    cnt = @h[k]
-    cnt ||= 0
-    Bud::MaxLattice.new(cnt)
+    m = @h[k]
+    m ||= 0
+    Bud::MaxLattice.new(m)
   end
 
   morph :size
