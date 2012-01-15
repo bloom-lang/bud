@@ -441,9 +441,26 @@ class SimpleMap
   end
 end
 
+class MapWithPro < SimpleMap
+  state do
+    scratch :out_t
+  end
+
+  bloom do
+    out_t <= h {|k,v| v.gt(10).when_true {
+        [k, v + 1] if k != "x"
+      }
+    }
+  end
+end
+
 class TestMap < Test::Unit::TestCase
   def test_map_simple
     i = SimpleMap.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:h, :m1, :m2, :in_t].each {|r| assert(strat_zero.include? r) }
+
     i.m1 <+ [5, 12, 3]
     i.m2 <+ [3, 4, 5]
     i.in_t <+ [["y"], ["z"]]
@@ -464,6 +481,21 @@ class TestMap < Test::Unit::TestCase
     h_val = i.h.current_value.reveal.map {|k,v| [k, v.reveal]}
     assert_equal([["x", 12], ["y", 15], ["z", 15]], h_val.sort)
     assert_equal(15, i.m2.current_value.reveal)
+  end
+
+  def test_map_pro
+    i = MapWithPro.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:h, :m1, :m2, :in_t, :out_t].each {|r| assert(strat_zero.include? r) }
+
+    i.m1 <+ [1, 2, 12]
+    i.m2 <+ [3, 4, 5]
+    i.in_t <+ [["z"]]
+    i.tick
+
+    out_val = i.out_t.to_a.map {|k,v| [k, v.reveal]}
+    assert_equal([["y", 13]], out_val.sort)
   end
 end
 

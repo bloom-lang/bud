@@ -164,7 +164,7 @@ class Bud::MaxLattice < Bud::Lattice
     Bud::BoolLattice.new(!!(@v && @v > k))
   end
 
-  # XXX: support MaxLattice input
+  # XXX: support MaxLattice input?
   morph :+
   def +(i)
     raise Bud::Error if @v.nil?
@@ -282,6 +282,11 @@ class Bud::MapLattice < Bud::Lattice
   morph :size
   def size
     Bud::MaxLattice.new(@v.size)
+  end
+
+  morph :pro
+  def pro(&blk)
+    @v.map(&blk)
   end
 
   # Return true if this map is strictly smaller than or equal to the given
