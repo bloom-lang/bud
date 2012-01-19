@@ -303,11 +303,10 @@ module Bud
 
     # for each stratum create a sorted list of push elements in topological order
     @push_sorted_elems = []
-    @scanners.each do |sc|  # sc is list of scanners at a stratum
+    @scanners.each do |sc|  # sc's values constitute scanners at a stratum
       # start with scanners and transitively add all reachable elements in a breadth-first order
-      seen = Set.new
-      sc.values.map {|e| seen += e.wirings} # working set
-      working = seen.to_a
+      working = sc.values
+      seen = Set.new(working)
       sorted_elems = [] # sorted elements in this stratum
       while not working.empty?
         sorted_elems += working
@@ -703,22 +702,6 @@ module Bud
       @inside_tick = true
       
       @joinstate = {}
-      #@tables.each_value do |t|
-      #  t.invalidated = false;
-      #  t.tick  # might set invalidated to true again if any tuples were deleted
-      #end
-      #@push_elems.each_value do |t|
-      #  t.tick
-      #end
-
-      #unless @push_sorted_elems.nil?
-      #@push_sorted_elems.each do |stratum_elems|
-      #  stratum_elems.each do |e|
-      #    puts "Invalidating #{e.tabname}"
-      #    e.tick
-      #  end
-      #end
-      #end
       unless @done_bootstrap
         do_bootstrap unless @done_bootstrap
         do_wiring
