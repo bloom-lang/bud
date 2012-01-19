@@ -143,7 +143,7 @@ module Bud
     def name_reserved?(colname)
       reserved = eval "defined?(#{colname})"
       return false if reserved.nil?
-      if reserved == "method" and method(colname).arity == 0
+      if reserved == "method" and (method(colname).arity == 0 or method(colname).arity == -1)
         begin
           ret = eval("#{colname}")
           if ret.kind_of? Array and ret.size == 3 and ret[0] == tabname
