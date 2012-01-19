@@ -104,7 +104,9 @@ module Bud
       push_out(item)
     end
     def tick
+      @invalidated = false
       @sources_ended = []
+      @invalidated = @wired_by.any? {|w| w.invalidated}
     end
     def tick_deltas
       @found_delta = false
@@ -421,6 +423,9 @@ module Bud
     def insert(dummy, source=nil)
       # puts "scanner #{elem_name} pushing #{@collection.length} items"
       @collection.each_raw {|item| push_out(item)}
+    end
+    def tick
+      @invalidated = @collection.invalidated
     end
   end
   class DeltaScannerElement < ScannerElement

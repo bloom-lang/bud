@@ -15,7 +15,7 @@ module Bud
 
   class BudCollection
     include Enumerable
-
+    attr_accessor :invalidated
     attr_accessor :bud_instance, :locspec_idx, :tabname  # :nodoc: all
     attr_reader :schema # :nodoc: all
     attr_reader :struct
@@ -23,6 +23,7 @@ module Bud
     attr_accessor :qualified_tabname
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
+      @invalidated = false
       @tabname = name
       @bud_instance = bud_instance
       init_schema(given_schema) unless given_schema.nil? and defer_schema
@@ -121,7 +122,7 @@ module Bud
       # set up schema accessors, which are class methods
       @schema_access = Module.new do
         sc.each_with_index do |c, i|
-          define_method c do
+          m = define_method c do
             [@tabname, i, c]
           end
         end
@@ -703,9 +704,12 @@ module Bud
   end
 
   class BudScratch < BudCollection # :nodoc: all
+    def invalidated
+      true # called at beginning of tick, where all scratches are always considered invalidated.
+    end
   end
 
-  class BudTemp < BudCollection # :nodoc: all
+  class BudTemp < BudScratch # :nodoc: all
   end
 
   class BudChannel < BudCollection
@@ -823,7 +827,7 @@ module Bud
     end
   end
 
-  class BudTerminal < BudCollection # :nodoc: all
+  class BudTerminal < BudScratch # :nodoc: all
     def initialize(name, given_schema, bud_instance, prompt=false) # :nodoc: all
       super(name, bud_instance, given_schema)
       @prompt = prompt
@@ -900,7 +904,7 @@ module Bud
     end
   end
 
-  class BudPeriodic < BudCollection # :nodoc: all
+  class BudPeriodic < BudScratch # :nodoc: all
     def <=(o)
       raise BudError, "Illegal use of <= with periodic '#{tabname}' on left"
     end
@@ -935,16 +939,21 @@ module Bud
         puts "#{tabname}. storage -= pending deletes" unless @to_delete.empty? and @to_delete_by_key.empty?
         puts "#{tabname}. storage += pending" unless @pending.empty?
       end
-
+      deleted = nil
       @to_delete.each do |tuple|
         keycols = @key_colnums.map{|k| tuple[k]}
         if @storage[keycols] == tuple
-          @storage.delete keycols
+          v = @storage.delete keycols
+          deleted ||= v
         end
       end
       @to_delete_by_key.each do |tuple|
-        @storage.delete @key_colnums.map{|k| tuple[k]}
+        v = @storage.delete @key_colnums.map{|k| tuple[k]}
+        deleted ||= v
       end
+
+      @invalidated =  (not deleted.nil?)
+
       @pending.each do |keycols, tuple|
         old = @storage[keycols]
         if old.nil?

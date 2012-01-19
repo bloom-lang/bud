@@ -134,6 +134,7 @@ module Bud
     @metrics = {}
     @endtime = nil
     @this_stratum = 0
+    @push_sorted_elems = nil
     
     # XXX This variable is unused in the Push executor
     @stratum_first_iter = false
@@ -299,6 +300,30 @@ module Bud
 
   def do_wiring
     @stratified_rules.each_with_index { |rules, stratum| eval_rules(rules, stratum) }
+
+    # for each stratum create a sorted list of push elements in topological order
+    @push_sorted_elems = []
+    @scanners.each do |sc|  # sc is list of scanners at a stratum
+      # start with scanners and transitively add all reachable elements in a breadth-first order
+      seen = Set.new
+      sc.values.map {|e| seen += e.wirings} # working set
+      working = seen.to_a
+      sorted_elems = [] # sorted elements in this stratum
+      while not working.empty?
+        sorted_elems += working
+        wired_to = []
+        working.each do |e|
+          e.wirings.each do |out|
+            if (out.class <= PushElement and not seen.member?(out))
+              seen << out
+              wired_to << out
+            end
+          end
+        end
+        working = wired_to
+      end
+      @push_sorted_elems << sorted_elems
+    end
     @done_wiring = true
     if @options[:print_wiring]
       @push_sources.each do |strat| 
@@ -678,12 +703,32 @@ module Bud
       @inside_tick = true
       
       @joinstate = {}
-      (@tables.values+@push_elems.values).each do |t|
-        t.tick
-      end
-      do_bootstrap unless @done_bootstrap
+      #@tables.each_value do |t|
+      #  t.invalidated = false;
+      #  t.tick  # might set invalidated to true again if any tuples were deleted
+      #end
+      #@push_elems.each_value do |t|
+      #  t.tick
+      #end
 
-      do_wiring unless @done_wiring
+      #unless @push_sorted_elems.nil?
+      #@push_sorted_elems.each do |stratum_elems|
+      #  stratum_elems.each do |e|
+      #    puts "Invalidating #{e.tabname}"
+      #    e.tick
+      #  end
+      #end
+      #end
+      unless @done_bootstrap
+        do_bootstrap unless @done_bootstrap
+        do_wiring
+      else
+        @tables.each_value {|t| t.tick}
+        @push_sorted_elems.each do |stratum_elems|
+          stratum_elems.each {|se| se.tick}
+        end
+      end
+
       receive_inbound
 
       # compute fixpoint for each stratum in order
@@ -694,10 +739,10 @@ module Bud
           fixpoint = true
           if first_iter
             # push in the stored tuples from previous fixpoint
-            puts "%%% tick[#{@budtime}]:stratum \##{stratum} first_iter" if $BUD_DEBUG
+            puts "#{object_id} %%% tick[#{@budtime}]:stratum \##{stratum} first_iter" if $BUD_DEBUG
             @scanners[stratum].each_value {|s| s << [:go]}
           else
-            puts "%%% delta_iter %%%" if $BUD_DEBUG
+            puts "%%% #{object_id}  delta_iter %%%" if $BUD_DEBUG
 
             # push in any deltas from last iteration
             delta_scanners[stratum].each_value{|d| d << [:go]} unless first_iter
@@ -730,7 +775,7 @@ module Bud
       invoke_callbacks
       @budtime += 1
       @inbound.clear
-      puts "=============================================" if $BUD_DEBUG
+      puts "#{object_id} : =============================================" if $BUD_DEBUG
 
     ensure
       @inside_tick = false

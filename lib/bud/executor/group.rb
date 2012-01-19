@@ -24,6 +24,15 @@ module Bud
         push_out(nil)
       end
     end
+
+    def tick
+      @invalidated = @wired_by.any? {|w| w.invalidated}
+      #invalidate_cache if @invalidated
+    end
+
+    def invalidate_cache
+      @groups = {}
+    end
     
     def local_flush#end(source)
       @groups.each do |g, grps|
@@ -76,7 +85,11 @@ module Bud
         @groups[key][agg_ix] = agg
         push_out(nil)
       end      
-    end 
+    end
+
+    def invalidate_cache
+      @groups = {}
+    end
     
     def local_flush#_end(source)
       @groups.keys.each {|g|
