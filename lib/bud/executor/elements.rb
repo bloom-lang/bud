@@ -152,13 +152,7 @@ module Bud
     # flushes should always be propagated downstream.  
     public
     def flush
-      # avoid flush cycles via the @flushing flag
-      if @flushing.nil?
-        @flushing = true
-        local_flush
-        wirings.each {|o| o.flush if o.respond_to? :flush}
-      end
-      @flushing = nil
+      local_flush
     end
     # flush should ensure that any deferred inserts are processed.
     # flush is treated as an end-of-stream.
@@ -221,12 +215,11 @@ module Bud
     def join(elem2, &blk)
       # cached = @bud_instance.push_elems[[self.object_id,:join,[self,elem2], @bud_instance, blk]]
       # if cached.nil?
-        elem2, delta2 = elem2.to_push_elem unless elem2.class <= PushElement
+        elem2  = elem2.to_push_elem unless elem2.class <= PushElement
         toplevel = @bud_instance.toplevel
         join = Bud::PushSHJoin.new([self,elem2], toplevel.this_rule_context, [])
         self.wire_to(join)
         elem2.wire_to(join)
-        delta2.wire_to(join) unless delta2.nil?
         toplevel.push_elems[[self.object_id,:join,[self,elem2], toplevel, blk]] = join
         toplevel.push_joins[toplevel.this_stratum] << join
       # else
@@ -419,25 +412,23 @@ module Bud
       # puts self.class
       super(elem_name, bud_instance, collection_in.tabname, schema)
       @collection = collection_in
+      @firstpass = true
     end
-    def insert(dummy, source=nil)
-      # puts "scanner #{elem_name} pushing #{@collection.length} items"
-      @collection.each_raw {|item| push_out(item)}
+    def scan
+        # puts "scanner #{elem_name} pushing #{@collection.length} items"
+      if @firstpass
+        @collection.each_raw {|item| push_out(item)}
+        @firstpass = false
+      else
+        @collection.delta.each_value {|item| push_out(item)}
+      end
     end
     def tick
       @invalidated = @collection.invalidated
+      @firstpass = true
     end
   end
-  class DeltaScannerElement < ScannerElement
-    def initialize(elem_name, bud_instance, collection_in, schema=collection_in.schema, &blk)
-      super(elem_name, bud_instance, collection_in, schema, &blk)
-    end
-    def insert(dummy, source=nil)
-      # puts "deltascanner #{elem_name} pushing #{@collection.length} items"
-      @collection.delta.each_value {|item| push_out(item)}
-    end
-  end
-  
+
   class PushReduce < PushElement
     def initialize(elem_name, bud_instance, collection_name, schema_in, initial, &blk)
       @memo = initial

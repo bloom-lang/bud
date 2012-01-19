@@ -75,8 +75,7 @@ module Bud
     def setup_state
       sid = state_id
       @tabname = ("temp_join"+sid.to_s).to_sym
-      @bud_instance.joinstate[sid] ||= [{}, {}]
-      @hash_tables = @bud_instance.joinstate[sid]
+      @hash_tables = [{}, {}]
     end
 
     # extract predicates on rellist[1] and recurse to left side with remainder
@@ -133,6 +132,16 @@ module Bud
         @keys = []
       end
                            # puts "@keys = #{@keys.inspect}"
+    end
+
+    public
+    def tick
+      super()
+      @wired_by.each_with_index do |source_elem, i|
+        if source_elem.invalidated
+          @hash_tables[i] = {}
+        end
+      end
     end
 
     # calculate the position for a field in the result of a join:
@@ -253,14 +262,11 @@ module Bud
     # matches in the 2nd, nil-pad it and include it in the output.
     public
     def join(elem2, &blk)
-      elem2, delta2 = elem2.to_push_elem unless elem2.class <= PushElement
+      elem2 = elem2.to_push_elem unless elem2.class <= PushElement
       # This constructs a left-deep tree!
       join = Bud::PushSHJoin.new([self,elem2], @bud_instance, [])
       @bud_instance.push_joins[@bud_instance.this_stratum] << join
       elem2.wire_to(join)
-      #unless elem2.class <= PushElement
-        delta2.wire_to(join)
-      #end
       self.wire_to(join)
       return join
     end

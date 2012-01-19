@@ -27,7 +27,7 @@ module Bud
 
     def tick
       @invalidated = @wired_by.any? {|w| w.invalidated}
-      #invalidate_cache if @invalidated
+      invalidate_cache if @invalidated
     end
 
     def invalidate_cache
@@ -89,6 +89,7 @@ module Bud
 
     def invalidate_cache
       @groups = {}
+      @winners = {}
     end
     
     def local_flush#_end(source)
@@ -98,6 +99,7 @@ module Bud
         }
       }
       @groups = {}
+      @winners = {}
     end
   end
 end

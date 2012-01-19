@@ -190,12 +190,11 @@ module Bud
     public
     def pro(the_name = tabname, the_schema = schema, &blk)
 #XXX    def pro(the_name = tabname, the_schema = schema, &blk)
-      pusher, delta_pusher = to_push_elem(the_name, the_schema)
+      pusher = to_push_elem(the_name, the_schema)
       pusher_pro = pusher.pro(&blk)
       pusher_pro.elem_name = the_name
       pusher_pro.tabname = the_name
       pusher_pro.schema = the_schema
-      delta_pusher.wire_to(pusher_pro)
       pusher_pro
     end
 
@@ -583,10 +582,8 @@ module Bud
       unless toplevel.scanners[this_stratum][[oid, the_name]]
         toplevel.scanners[this_stratum][[oid, the_name]] = Bud::ScannerElement.new(the_name, rule_context, self, the_schema)
         toplevel.push_sources[this_stratum][[oid, the_name]] = toplevel.scanners[this_stratum][[oid, the_name]]
-        toplevel.delta_scanners[this_stratum][[oid, the_name]] = Bud::DeltaScannerElement.new(the_name, rule_context, self, the_schema)
-        toplevel.push_sources[this_stratum][[oid,:delta, the_name]] = toplevel.delta_scanners[this_stratum][[oid, the_name]]
       end
-      return toplevel.scanners[this_stratum][[oid, the_name]], toplevel.delta_scanners[this_stratum][[oid, the_name]]
+      return toplevel.scanners[this_stratum][[oid, the_name]]
     end
 
     private
@@ -615,12 +612,11 @@ module Bud
 
     public
     def argagg(aggname, gbkey_cols, collection)
-      elem, delta_elem = to_push_elem
+      elem = to_push_elem
       gbkey_cols = gbkey_cols.map{|k| canonicalize_col(k)} unless gbkey_cols.nil?
       retval = elem.argagg(aggname,gbkey_cols,canonicalize_col(collection))
       # PushElement inherits the schema accessors from this Collection
       retval.extend @schema_access
-      delta_elem.wire_to(retval)
       retval
     end
 
@@ -659,20 +655,17 @@ module Bud
     # +collection+
     public
     def *(collection)
-      elem1, delta1 = to_push_elem
+      elem1  = to_push_elem
       j = elem1.join(collection)
-      # puts "wiring delta"
-      delta1.wire_to(j)
       return j
       # join([self, collection])
     end
 
     def group(key_cols, *aggpairs, &blk)
-      elem, delta1 = to_push_elem
+      elem = to_push_elem
       key_cols = key_cols.map{|k| canonicalize_col(k)} unless key_cols.nil?
       aggpairs = aggpairs.map{|ap| [ap[0], canonicalize_col(ap[1])].compact} unless aggpairs.nil?
       g = elem.group(key_cols, *aggpairs, &blk)
-      delta1.wire_to(g)
       return g
     end
 
@@ -682,9 +675,8 @@ module Bud
 
     # alias reduce inject
     def reduce(initial, &blk)
-      elem1, delta1 = to_push_elem
+      elem1 = to_push_elem
       red_elem = elem1.reduce(initial, &blk)
-      delta1.wire_to(red_elem)
       return red_elem
     end    
 

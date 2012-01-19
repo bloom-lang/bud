@@ -64,7 +64,7 @@ module Bud
   attr_reader :dsock
   attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
   attr_reader :push_sources, :push_elems, :push_joins, :scanners, :delta_scanners, :merge_targets, :done_wiring
-  attr_reader :stratum_first_iter, :joinstate
+  attr_reader :stratum_first_iter
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap, :done_wiring
   attr_accessor :lazy # This can be changed on-the-fly by REBL
   attr_accessor :stratum_collection_map, :stratified_rules
@@ -127,7 +127,6 @@ module Bud
     @inbound = []
     @done_bootstrap = false
     @done_wiring = false
-    @joinstate = {}  # joins are stateful, their state needs to be kept inside the Bud instance
     @instance_id = ILLEGAL_INSTANCE_ID # Assigned when we start running
     @sources = {}
     @sinks = {}
@@ -701,7 +700,6 @@ module Bud
       end
       @inside_tick = true
       
-      @joinstate = {}
       unless @done_bootstrap
         do_bootstrap unless @done_bootstrap
         do_wiring
@@ -717,21 +715,11 @@ module Bud
       # compute fixpoint for each stratum in order
       @stratified_rules.each_with_index do |rules,stratum|
         fixpoint = false
-        first_iter = true
         until fixpoint
           fixpoint = true
-          if first_iter
-            # push in the stored tuples from previous fixpoint
-            puts "#{object_id} %%% tick[#{@budtime}]:stratum \##{stratum} first_iter" if $BUD_DEBUG
-            @scanners[stratum].each_value {|s| s << [:go]}
-          else
-            puts "%%% #{object_id}  delta_iter %%%" if $BUD_DEBUG
-
-            # push in any deltas from last iteration
-            delta_scanners[stratum].each_value{|d| d << [:go]} unless first_iter
-          end
+          @scanners[stratum].each_value {|s| s.scan}
           # flush any tuples in the pipes
-          push_sources[stratum].each_value {|p| p.flush}
+          @push_sorted_elems[stratum].each {|p| p.flush}
           # tick deltas on any merge targets and look for more deltas
           # check to see if any joins saw a delta
           push_joins[stratum].each do |p|
@@ -743,14 +731,12 @@ module Bud
           merge_targets[stratum].each_key do |t|
             fixpoint = false if t.tick_deltas
           end
-          first_iter = false
         end
         # push end-of-fixpoint
-        push_sources[stratum].each_value{|p| p.end}
+        @push_sorted_elems[stratum].each {|p| p.end}
         merge_targets[stratum].each_key do |t|
           t.flush_deltas
         end
-
       end
       
       @viz.do_cards if @options[:trace]
