@@ -412,20 +412,17 @@ module Bud
       # puts self.class
       super(elem_name, bud_instance, collection_in.tabname, schema)
       @collection = collection_in
-      @firstpass = true
     end
-    def scan
-        # puts "scanner #{elem_name} pushing #{@collection.length} items"
-      if @firstpass
+    def scan(first_iter)
+      # Once a collection is invalidated (something was deleted from it), it remains so for the entire duration of the
+      # tick. All scanners that depend on this collection (at most one per stratum) know to do a full scan
+      # on the first iteration of the fixpoint.
+      @invalidated = @collection.invalidated
+      if first_iter and @invalidated
         @collection.each_raw {|item| push_out(item)}
-        @firstpass = false
       else
         @collection.delta.each_value {|item| push_out(item)}
       end
-    end
-    def tick
-      @invalidated = @collection.invalidated
-      @firstpass = true
     end
   end
 

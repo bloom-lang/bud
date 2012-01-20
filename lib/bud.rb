@@ -63,7 +63,7 @@ module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
   attr_reader :dsock
   attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
-  attr_reader :push_sources, :push_elems, :push_joins, :scanners, :delta_scanners, :merge_targets, :done_wiring
+  attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets, :done_wiring
   attr_reader :stratum_first_iter
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap, :done_wiring
   attr_accessor :lazy # This can be changed on-the-fly by REBL
@@ -170,7 +170,6 @@ module Bud
       # initialize per-stratum state
       num_strata = @stratified_rules.length
       @scanners = num_strata.times.map{{}}
-      @delta_scanners = num_strata.times.map{{}}
       @push_sources = num_strata.times.map{{}}
       @push_joins = num_strata.times.map{[]}
       @merge_targets = num_strata.times.map{{}}
@@ -293,7 +292,7 @@ module Bud
     end
     bootstrap
 
-    tables.each_value{|t| t.tick_deltas; t.tick_deltas} if toplevel == self
+    tables.each_value{|t| t.tick_deltas; t.invalidated = true} if toplevel == self
     @done_bootstrap = true
   end
 
@@ -715,9 +714,11 @@ module Bud
       # compute fixpoint for each stratum in order
       @stratified_rules.each_with_index do |rules,stratum|
         fixpoint = false
+        first_iter = true
         until fixpoint
           fixpoint = true
-          @scanners[stratum].each_value {|s| s.scan}
+          @scanners[stratum].each_value {|s| s.scan(first_iter)}
+          first_iter = false
           # flush any tuples in the pipes
           @push_sorted_elems[stratum].each {|p| p.flush}
           # tick deltas on any merge targets and look for more deltas
@@ -738,6 +739,7 @@ module Bud
           t.flush_deltas
         end
       end
+      @tables
       
       @viz.do_cards if @options[:trace]
       do_flush
