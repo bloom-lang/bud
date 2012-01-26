@@ -349,6 +349,10 @@ class Bud::SetLattice < Bud::Lattice
   end
 end
 
+# XXX: This is a weird bag, because we assume that inputs are unique-ified via
+# nonces; hence, merge is the merge we want for the shopping cart example,
+# rather than the natural idempotent merge for multisets (max of item
+# multiplicities; cart wants sum).
 class Bud::BagLattice < Bud::Lattice
   lattice_name :lbag
 
