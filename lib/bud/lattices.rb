@@ -420,7 +420,7 @@ class Bud::SumLattice < Bud::Lattice
   lattice_name :lsum
 
   def initialize(i={})
-    reject_input unless i.class == Hash
+    reject_input(i) unless i.class == Hash
 
     i.each do |k,v|
       reject_input(i) unless k.class <= Bud::SafeNonce
