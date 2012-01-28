@@ -449,9 +449,8 @@ class Bud::SumLattice < Bud::Lattice
 
   private :compute_sum
 
-  # XXX: rename this morphism?
-  morph :sum
-  def sum
+  morph :as_max
+  def as_max
     @sum ||= compute_sum
     Bud::MaxLattice.new(@sum)
   end

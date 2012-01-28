@@ -583,8 +583,8 @@ class SimpleBag
   end
 
   bloom do
-    b1 <= in_t {|t| { nonce(t.v) => [t.v, t.cnt] } }
-    b2 <= in_t {|t| { nonce(t.v) => [t.v, t.cnt] } }
+    b1 <= in_t {|t| { wrap_nonce(t.v) => [t.v, t.cnt] } }
+    b2 <= in_t {|t| { wrap_nonce(t.v) => [t.v, t.cnt] } }
     b2 <= b1
     foo_cnt <= b2.mult("foo")
     bar_cnt <= b2.mult("bar")
@@ -634,11 +634,11 @@ class SimpleSum
   end
 
   bloom do
-    s1 <= in_t {|t| { nonce(t.k) => t.v } if t.which == "s1" }
-    s2 <= in_t {|t| { nonce(t.k) => t.v } if t.which == "s2" }
+    s1 <= in_t {|t| { wrap_nonce(t.k) => t.v } if t.which == "s1" }
+    s2 <= in_t {|t| { wrap_nonce(t.k) => t.v } if t.which == "s2" }
     s3 <= s1
     s3 <= s2
-    done <= (s3.sum + 5).gt(25)
+    done <= (s3.as_max + 5).gt(25)
   end
 end
 

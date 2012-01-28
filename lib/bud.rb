@@ -890,7 +890,7 @@ module Bud
   # tick, equal values are assigned the same nonce; between timesteps, equal
   # values are assigned distinct nonces. Nonce values themselves are opaque
   # objects that only support equality operations.
-  def nonce(v)
+  def wrap_nonce(v)
     @nonce_gen ||= NonceGenerator.new(ip_port)
     @nonce_gen.generate(v)
   end
