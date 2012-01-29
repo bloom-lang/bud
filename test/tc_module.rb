@@ -43,22 +43,22 @@ class ChildClass
 end
 
 class ChildImportTwice
-  import ParentModule => :x
-  import ParentModule => :y
+  import ParentModule => :xx
+  import ParentModule => :yy
   include Bud
 
   state do
-    table :t4, x.t1.key_cols => y.t2.val_cols
-    table :t5, y.t1.key_cols => x.t2.val_cols
+    table :t4, xx.t1.key_cols => yy.t2.val_cols
+    table :t5, yy.t1.key_cols => xx.t2.val_cols
   end
 
   bootstrap do
-    y.t1 << [50,100]
+    yy.t1 << [50,100]
   end
 
   bloom do
-    t4 <= y.t2.map {|t| [t.key + 10, t.val + 10]}
-    t5 <= x.t2
+    t4 <= yy.t2.map {|t| [t.key + 10, t.val + 10]}
+    t5 <= xx.t2
   end
 end
 
@@ -367,13 +367,13 @@ class TestModules < Test::Unit::TestCase
   module OuterModule
     module NestedModule
       state do
-        table :x
-        table :y
+        table :xx
+        table :yy
       end
 
       bootstrap do
-        x << [30, 40]
-        y << [50, 60]
+        xx << [30, 40]
+        yy << [50, 60]
       end
     end
   end
@@ -387,8 +387,8 @@ class TestModules < Test::Unit::TestCase
     end
 
     bloom do
-      z <= nm.x
-      z <= nm.y
+      z <= nm.xx
+      z <= nm.yy
     end
   end
 
@@ -575,7 +575,7 @@ end
 # merging the two modules into a single namespace.
 module OtherRoot
   state do
-    table :x, [:v]
+    table :xx, [:v]
   end
 end
 
@@ -583,7 +583,7 @@ module OtherMod
   import OtherRoot => :r
 
   bootstrap do
-    r.x <= [[100], [200]]
+    r.xx <= [[100], [200]]
   end
 end
 
@@ -594,13 +594,13 @@ class DupImportNameDiffModule
 
   state do
     table :r_t_copy, r.t.schema
-    table :r_x_copy, r.x.schema
+    table :r_xx_copy, r.xx.schema
   end
 
   bloom do
-    r.x <= r.t
+    r.xx <= r.t
     r_t_copy <= r.t
-    r_x_copy <= r.x
+    r_xx_copy <= r.xx
   end
 end
 
@@ -615,7 +615,7 @@ class TestIncludeImport < Test::Unit::TestCase
     b = DupImportNameDiffModule.new
     b.tick
     assert_equal([[5], [10]], b.r_t_copy.to_a.sort)
-    assert_equal([[5], [10], [100], [200]], b.r_x_copy.to_a.sort)
+    assert_equal([[5], [10], [100], [200]], b.r_xx_copy.to_a.sort)
   end
 
   def test_include_via_import

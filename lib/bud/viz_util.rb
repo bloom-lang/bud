@@ -327,10 +327,19 @@ END_JS
   def start_table(dir, tab, time, schema)
     str = "#{dir}/#{tab}_#{time}.html"
     fout = File.new(str, "w")
-
     fout.puts "<html><title>#{tab} @ #{time}</title>"
     fout.puts "<table border=1>"
-    fout.puts "<tr>" + schema.select{|s| s.to_s != "c_bud_time"}.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>" unless schema.nil?
+    # issue with _snd schemas
+    if !schema.nil? and schema[0] == "c_bud_time"
+      fout.puts "<tr>" 
+      if schema[1].length == 2 and schema[1][0].class == Array and schema[1][1].class == Array
+        fout.puts schema[1][0].map{|s| "<th> #{s} </th>"}.join(" ")
+        fout.puts schema[1][1].map{|s| "<th> #{s} </th>"}.join(" ")
+      else
+        fout.puts schema[1].map{|s| "<th> #{s} </th>"}.join(" ")
+      end
+      fout.puts "<tr>"
+    end
     fout.close
     return str
   end

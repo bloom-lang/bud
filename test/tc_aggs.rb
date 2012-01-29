@@ -91,6 +91,7 @@ class PriorityQ
   end
 end
 
+# XXX: not used by any tests
 class DupAggs
   include Bud
 
