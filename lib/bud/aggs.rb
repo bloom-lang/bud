@@ -181,7 +181,8 @@ module Bud
   end
   
   # aggregate method to be used in Bud::BudCollection.group.  
-  # accumulates all x inputs into an array
+  # accumulates all x inputs into an array. note that the order of the elements
+  # in the resulting array is undefined.
   def accum(x)
     [Accum.new, x]
   end
