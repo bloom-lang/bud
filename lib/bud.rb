@@ -247,6 +247,10 @@ module Bud
         qrname = local_name.to_s + "." + imp_dep.body.to_s
         self.t_depends << [imp_dep.bud_obj, imp_dep.rule_id, qlname, imp_dep.op, qrname, imp_dep.nm]
       end
+      mod_inst.t_provides.each do |imp_pro|
+        qintname = local_name.to_s + "." + imp_pro.interface.to_s  #qualify names by prepending with local_name
+        self.t_provides << [qintname, imp_pro.input]
+      end
     end
     nil
   end
@@ -321,6 +325,9 @@ module Bud
       end
       @push_sorted_elems << sorted_elems
     end
+
+
+
     @done_wiring = true
     if @options[:print_wiring]
       @push_sources.each do |strat| 
@@ -703,6 +710,7 @@ module Bud
         do_bootstrap unless @done_bootstrap
         do_wiring
       else
+        # inform tables and elements about beginning of tick.
         @tables.each_value {|t| t.tick}
         @push_sorted_elems.each do |stratum_elems|
           stratum_elems.each {|se| se.tick}
@@ -714,10 +722,9 @@ module Bud
       # compute fixpoint for each stratum in order
       @stratified_rules.each_with_index do |rules,stratum|
         fixpoint = false
-        first_iter = true
         until fixpoint
           fixpoint = true
-          @scanners[stratum].each_value {|s| s.scan(first_iter)}
+          @scanners[stratum].each_value {|s| s.scan}
           first_iter = false
           # flush any tuples in the pipes
           @push_sorted_elems[stratum].each {|p| p.flush}
@@ -739,8 +746,6 @@ module Bud
           t.flush_deltas
         end
       end
-      @tables
-      
       @viz.do_cards if @options[:trace]
       do_flush
       invoke_callbacks

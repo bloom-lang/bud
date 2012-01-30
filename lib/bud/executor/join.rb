@@ -134,9 +134,8 @@ module Bud
                            # puts "@keys = #{@keys.inspect}"
     end
 
-    public
-    def tick
-      super()
+
+    def invalidate_cache
       @wired_by.each_with_index do |source_elem, i|
         if source_elem.invalidated
           @hash_tables[i] = {}
@@ -335,28 +334,23 @@ module Bud
       end
     end
 
-
-
     def flush_buf(buf, offset)
       buf.each do |item|
         insert_item(item, offset)
       end
       @input_bufs[offset] = []
     end
-    def local_flush
+
+    public
+    def flush
       @input_bufs.each_with_index do |buf, offset|
         flush_buf(buf,offset) if buf.length > 0
       end
     end
-    def local_end(source)
-      (@sources_ended ||= []) << source
-      @hash_tables = [{},{}]
-      if @sources_ended.size == @wired_by.size
-        local_flush
-        return true
-      else
-        return false
-      end
+
+    public
+    def end
+      flush
     end
 
     ####
@@ -501,17 +495,10 @@ module Bud
       end
     end
 
-    private
-    def local_end(source)
-      (@sources_ended ||= []) << source
-      if @sources_ended.size == @wired_by.size
-        local_flush
+    def end
+        flush
         push_missing
-        @hash_tables = [{},{}]
-        return true
-      else
-        return false
-      end
+        #@hash_tables = [{},{}]
     end
 
     private

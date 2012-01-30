@@ -238,6 +238,10 @@ class EmptyPk
   state do
     table :t1, [] => [:foo, :bar]
   end
+
+  bloom :dummy do
+    t1 <= t1 # to force evaluation
+  end
 end
 
 class InsertIntoPeriodicError
@@ -255,7 +259,7 @@ class TestCollections < Test::Unit::TestCase
     assert_equal(1, program.scrtch2.length)
     program.tick
     assert_equal(program.scrtch.to_a, [["c", "d", 5, 6]])
-    assert_equal(0, program.scrtch2.length)
+    assert_equal(1, program.scrtch2.length)
     assert_equal(2, program.tbl.length)
     assert_equal(program.the_keys.to_a.sort, [["c", "d"], ["z", "y"]].sort)
     assert_equal(program.the_vals.to_a.sort, [[5,6], [9,8]].sort)
@@ -274,7 +278,7 @@ class TestCollections < Test::Unit::TestCase
     program.tick
     program.tick
     assert_equal(1, program.scrtch.length )
-    assert_equal(0, program.scrtch2.length )
+    assert_equal(1, program.scrtch2.length ) #because scrtch2 isn't erased
     assert_equal(2, program.tbl.length )
   end
 
@@ -327,13 +331,13 @@ class TestCollections < Test::Unit::TestCase
     d = DeleteKey.new
     d.tick
     assert_equal(1, d.t1.length)
-    d.del_buf << [5, 11] # shouldn't delete
+    d.del_buf <= [[5, 11]] # shouldn't delete
     d.tick
     assert_equal(1, d.t1.length)
     d.tick
     assert_equal(1, d.t1.length)
 
-    d.del_buf << [5, 10] # should delete
+    d.del_buf <= [[5, 10]] # should delete
     d.tick
     assert_equal(1, d.t1.length)
     d.tick
@@ -344,11 +348,11 @@ class TestCollections < Test::Unit::TestCase
     rv = RowValueTest.new
     rv.run_bg
     rv.sync_do {
-      rv.t1 << [5, 10]
-      rv.t1 << [6, 11]
-      rv.t2 << [5, 10]
-      rv.t2 << [7, 12]
-      rv.t2 << [6, 15]
+      rv.t1 <+ [[5, 10],
+                [6, 11]]
+      rv.t2 <+ [[5, 10],
+                [7, 12],
+                [6, 15]]
     }
 
     rv.sync_do {
@@ -448,7 +452,7 @@ class TestCollections < Test::Unit::TestCase
     b.tick
     assert_equal(b.buffer.to_a.sort, [[1,2], [3,4]])
 
-    b.to_delete << [1,2]
+    b.to_delete <+ [[1,2]]
     b.tick
     b.tick
     assert_equal(b.buffer.to_a.sort, [[3,4]])
@@ -464,7 +468,7 @@ class TestCollections < Test::Unit::TestCase
 
   def test_empty_pk_error
     e = EmptyPk.new
-    e.t1 << ["xyz", 6]
+    e.t1 <+ [["xyz", 6]]
     e.tick
     e.t1 <+ [["xyz", 6]]
     e.tick

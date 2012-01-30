@@ -243,6 +243,7 @@ class BudMeta #:nodoc: all
 
     bud.t_provides.each do |p|
       pred, input = p.interface, p.input
+      bud.tables[pred.to_sym].is_source = true if input # Tell that interface that it faces outside.
       if input
         # an interface pred is a source if it is an input and it is not in any rule's lhs
         #bud.sources << [pred] unless (preds_in_lhs.include? pred)

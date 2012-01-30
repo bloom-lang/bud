@@ -25,16 +25,11 @@ module Bud
       end
     end
 
-    def tick
-      @invalidated = @wired_by.any? {|w| w.invalidated}
-      invalidate_cache if @invalidated
+    def invalidate_cache
+      @groups.clear
     end
 
-    def invalidate_cache
-      @groups = {}
-    end
-    
-    def local_flush#end(source)
+    def flush
       @groups.each do |g, grps|
         grp = @keys == $EMPTY ? [[]] : [g]
         @aggpairs.each_with_index do |ap, agg_ix|
@@ -44,7 +39,7 @@ module Bud
         (1..grp.length-1).each {|i| outval << grp[i]}
         push_out(outval)
       end
-      @groups = {}
+      #@groups = {}
     end
   end
   
@@ -56,7 +51,13 @@ module Bud
       @aggcol = @aggpairs[0][1]
       @winners = {}
     end
-    
+
+
+    def invalidate_cache
+      @groups.clear
+      @winners.clear
+    end
+
     def insert(item, source)
       key = @keys.map{|k| item[k]}
       @aggpairs.each_with_index do |ap, agg_ix|
@@ -87,19 +88,14 @@ module Bud
       end      
     end
 
-    def invalidate_cache
-      @groups = {}
-      @winners = {}
-    end
-    
-    def local_flush#_end(source)
+    def flush
       @groups.keys.each {|g|
         @winners[g].each{|t|
           push_out(t, false)
         }
       }
-      @groups = {}
-      @winners = {}
+      #@groups = {}
+      #@winners = {}
     end
   end
 end

@@ -461,14 +461,16 @@ module Bud
     public
     def merge(o, buf=@delta) # :nodoc: all
       toplevel = @bud_instance.toplevel
-      toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
       if o.class <= Bud::PushElement
+        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
         deduce_schema(o) if @schema.nil?
         o.wire_to self
       elsif o.class <= Bud::BudCollection
+        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
         deduce_schema(o) if @schema.nil?
         o.pro.wire_to self
       elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring and not o.nil?
+        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
         tbl = register_coll_expr(o)
         tbl.pro.wire_to self
       else
@@ -509,10 +511,13 @@ module Bud
     def pending_merge(o) # :nodoc: all
       toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
+        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
         o.wire_to_pending self
       elsif o.class <= Bud::BudCollection
+        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
         o.pro.wire_to_pending self
       elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
+        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
         tbl = register_coll_expr(o) unless o.nil?
         tbl.pro.wire_to_pending self
       else
@@ -534,14 +539,8 @@ module Bud
       pending_merge o
     end
 
-    # Called at the end of each timestep: prepare the collection for the next
-    # timestep.
-    public
-    def tick  # :nodoc: all
-      @storage = @pending
-      @pending = {}
-      raise BudError, "orphaned tuples in @delta for #{qualified_tabname}" unless @delta.empty?
-      raise BudError, "orphaned tuples in @new_delta for #{qualified_tabname}" unless @new_delta.empty?
+    def tick
+      raise "tick must be overriden in #{self.class}"
     end
 
     # move deltas to storage, and new_deltas to deltas.
@@ -555,9 +554,18 @@ module Bud
       end
 
       @storage.merge!(@delta)
-      @delta = @new_delta
-      @new_delta = {}
-      return !(@delta == $EMPTY_HASH)
+      @delta.clear
+      @new_delta.each_pair do |k, v|
+        sv = @storage[k]
+        if sv.nil?
+          @delta[k] = v
+        else
+          raise_pk_error(v, sv) unless v == sv
+        end
+      end
+
+      @new_delta.clear
+      return !(@delta.empty?)
     end
 
     public
@@ -568,8 +576,8 @@ module Bud
       end
       @storage.merge!(@delta)
       @storage.merge!(@new_delta)
-      @delta = {}
-      @new_delta = {}
+      @delta.clear
+      @new_delta.clear
     end
 
     public
@@ -696,9 +704,39 @@ module Bud
   end
 
   class BudScratch < BudCollection # :nodoc: all
-    def invalidated
-      true # called at beginning of tick, where all scratches are always considered invalidated.
+    # Called at the end of each timestep: prepare the collection for the next timestep.
+    public
+    def tick  # :nodoc: all
+      @invalidated = false
+      if not @pending.empty?
+        invalidate_cache
+        @delta = @pending
+        @pending = {}
+      end  # else don't touch storage
+
+      raise BudError, "orphaned tuples in @new_delta for #{qualified_tabname}" unless @new_delta.empty?
     end
+
+    def invalidate_cache
+      puts "Invalidate_cache: #{tabname}"
+      @invalidated = true
+      @storage = {}
+    end
+  end
+
+  class BudInputInterface < BudScratch
+    attr_accessor :is_source
+
+    def tick
+      if :is_source
+        @invalidated = true
+        invalidate_cache
+      end
+      super
+    end
+  end
+
+  class BudOutputInterface < BudScratch
   end
 
   class BudTemp < BudScratch # :nodoc: all
@@ -711,6 +749,7 @@ module Bud
       given_schema ||= [:@address, :val]
       @is_loopback = loopback
       @locspec_idx = nil
+      @output_storage = [] # For channels, incoming and outgoing storage is separate.
 
       unless @is_loopback
         the_schema, the_key_cols = BudCollection.parse_schema(given_schema)
@@ -759,9 +798,17 @@ module Bud
     public
     def tick # :nodoc: all
       @storage = {}
+      @invalidated = true
+
       # Note that we do not clear @pending here: if the user inserted into the
       # channel manually (e.g., via <~ from inside a sync_do block), we send the
       # message at the end of the current tick.
+    end
+
+    def invalidate_cache
+      # Note invalidate is only targeted towards invalidating cached information, which is @output_storage.
+      # @storage is always cleared at the beginning of a tick.
+      @output_storage.clear
     end
 
     public
@@ -769,7 +816,11 @@ module Bud
       toplevel = @bud_instance.toplevel
       ip = toplevel.ip
       port = toplevel.port
-      each_from([@pending]) do |t|
+      if (not @pending.empty?)
+        @output_storage += @pending.values
+        @pending.clear
+      end
+      @output_storage.each do |t|
         if @is_loopback
           the_locspec = [ip, port]
         else
@@ -778,7 +829,6 @@ module Bud
         end
         toplevel.dsock.send_datagram([qualified_tabname.to_s, t].to_msgpack, the_locspec[0], the_locspec[1])
       end
-      @pending.clear
     end
 
     public
@@ -823,6 +873,7 @@ module Bud
     def initialize(name, given_schema, bud_instance, prompt=false) # :nodoc: all
       super(name, bud_instance, given_schema)
       @prompt = prompt
+      @output_storage = []
     end
 
     public
@@ -860,17 +911,29 @@ module Bud
     public
     def flush #:nodoc: all
       out_io = get_out_io
-      @pending.each do |p|
+      if (@output_storage.empty?)
+        @output_storage = @pending
+        @pending = {}
+      else
+        @output_storage += @pending.values
+        @pending.clear
+      end
+      @output_storage.each do |p|
         out_io.puts p[0]
         out_io.flush
       end
-      @pending = {}
     end
 
     public
     def tick #:nodoc: all
-      @storage = {}
+      @storage = @pending #  pending used for input tuples in this case.
+      @invalidated = true # storage overwritten
+      @pending = {}
       raise BudError, "orphaned pending tuples in terminal" unless @pending.empty?
+    end
+
+    def invalidate_cache
+      @output_storage = {}
     end
 
     undef merge
@@ -916,6 +979,12 @@ module Bud
     def add_periodic_tuple(id)
       pending_merge([[id, Time.now]])
     end
+
+    def tick
+      @invalidated = true
+      @storage = @pending
+      @pending = {}
+    end
   end
 
   class BudTable < BudCollection # :nodoc: all
@@ -949,7 +1018,7 @@ module Bud
       @pending.each do |keycols, tuple|
         old = @storage[keycols]
         if old.nil?
-          @storage[keycols] = tuple
+          @delta[keycols] = tuple #
         else
           raise_pk_error(tuple, old) unless tuple == old
         end
@@ -959,13 +1028,16 @@ module Bud
       @pending = {}
     end
 
-    public 
     def pending_delete(o)
+      toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
+        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
         o.wire_to_delete self
       elsif o.class <= Bud::BudCollection
+        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
         o.pro.wire_to_delete self
       elsif o.class <= Proc and @bud_instance.toplevel.done_bootstrap and not @bud_instance.toplevel.done_wiring
+        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
         tbl = register_coll_expr(o)
         tbl.pro.wire_to_delete self
       else
@@ -983,6 +1055,7 @@ module Bud
 
     public
     def pending_delete_keys(o)
+      toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         o.wire_to_delete_by_key self
       elsif o.class <= Bud::BudCollection
@@ -1001,6 +1074,9 @@ module Bud
       o
     end
 
+    def invalidate_cache
+    end
+
     public
     superator "<+-" do |o|
       pending_delete_keys(o)
@@ -1012,7 +1088,7 @@ module Bud
     end
   end
 
-  class BudReadOnly < BudScratch # :nodoc: all
+  class BudReadOnly < BudCollection # :nodoc: all
     superator "<+" do |o|
       raise CompileError, "Illegal use of <+ with read-only collection '#{@tabname}' on left"
     end
@@ -1026,6 +1102,14 @@ module Bud
     def initialize(name, bud_instance, expr, given_schema=nil, defer_schema=false)
       super(name, bud_instance, given_schema, defer_schema)
       @expr = expr
+      @invalidated = true
+    end
+
+    def tick
+      @invalidated = true
+    end
+
+    def invalidate_cache
     end
 
     public
@@ -1036,7 +1120,10 @@ module Bud
     public
     def each_raw(&block)
       each(&block)
-    end    
+    end
+
+    def invalidate
+    end
   end
 
   class BudFileReader < BudReadOnly # :nodoc: all

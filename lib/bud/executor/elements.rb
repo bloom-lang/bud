@@ -8,7 +8,7 @@ module Bud
   #   puts "in block"
   #   [inp] if inp.class <= Numeric and inp%2 == 0
   # end
-  # p.insert(2)
+
   # p.insert(1)
   # p.insert(nil)
   class PushElement < BudCollection
@@ -28,6 +28,7 @@ module Bud
       @refcount = 1
       @each_index = 0
       @collection_name = collection_name
+      @invalidated = true
     end
     def wiring?
       @bud_instance.toplevel.done_wiring == false
@@ -107,12 +108,18 @@ module Bud
       @invalidated = false
       @sources_ended = []
       @invalidated = @wired_by.any? {|w| w.invalidated}
+      if @invalidated
+        invalidate_cache
+        wirings.each {|w| w.invalidate_cache unless w.class <= Bud::PushElement}
+      end
     end
+
     def tick_deltas
       @found_delta = false
     end
+
     def push_out(item, do_block=true)
-      if @blk.nil? and @outputs == $EMPTY and @pendings == $EMPTY and @deletes == $EMPTY and @delete_keys == $EMPTY
+      if @blk.nil? and @outputs.empty? and @pendings.empty? and @deletes.empty? and @delete_keys.empty?
         raise "no output specified for PushElement #{@elem_name}"
       end
       if item
@@ -149,32 +156,15 @@ module Bud
     def <<(i)
       insert(i, nil)
     end
-    # flushes should always be propagated downstream.  
     public
     def flush
-      local_flush
     end
-    # flush should ensure that any deferred inserts are processed.
-    # flush is treated as an end-of-stream.
-    private
-    def local_flush
+
+    def invalidate_cache
+      #override to get rid of cached information.
     end
-    # ends should be handled carefully
     public
-    def end(source=nil)
-      if @ended.nil?
-        @ended = true
-        flush
-        @each_index = 0 # specific only to elements of type each_with_index
-        if local_end(source)
-          wirings.each {|o| o.end(self) if o.class <= Bud::PushElement}
-        end
-      end
-      @ended = nil
-    end
-    private
-    def local_end(source)
-      true
+    def end
     end
     public
     def set_schema(schema)
@@ -379,8 +369,12 @@ module Bud
       @in_buf << item
     end
     
-    def local_end(source)
+    def end
       @in_buf.send(@pred_symbol, @blk)
+    end
+
+    def invalidate_cache
+      @in_buf.clear
     end
   end
   
@@ -394,15 +388,19 @@ module Bud
       @sortbuf << item
     end
 
-    def local_flush
+    def flush
       unless @sortbuf.empty?
         @sortbuf.sort!(&@blk)
         @sortbuf.each do |t|
           push_out(t, false)
         end
-        @sortbuf = []
+        #@sortbuf = []
       end
       nil
+    end
+
+    def invalidate_cache
+      @sortbuf = []
     end
   end
   
@@ -412,17 +410,20 @@ module Bud
       # puts self.class
       super(elem_name, bud_instance, collection_in.tabname, schema)
       @collection = collection_in
+      @firstpass = true
     end
-    def scan(first_iter)
-      # Once a collection is invalidated (something was deleted from it), it remains so for the entire duration of the
-      # tick. All scanners that depend on this collection (at most one per stratum) know to do a full scan
-      # on the first iteration of the fixpoint.
+
+    def tick
       @invalidated = @collection.invalidated
-      if first_iter and @invalidated
+    end
+
+    def scan
+      if @invalidated
         @collection.each_raw {|item| push_out(item)}
-      else
-        @collection.delta.each_value {|item| push_out(item)}
+        @invalidated = false
       end
+      # send deltas out in either case
+      @collection.delta.each_value {|item| push_out(item)}
     end
   end
 
@@ -434,12 +435,15 @@ module Bud
     end
     def insert(i, source=nil)
       @memo = @blk.call(@memo,i)
-    end   
-    def local_end(source)
+    end
+
+    def invalidate_cache
+      @memo.clear
+    end
+    def end
        @memo.each do |k,v|
          push_out([k,v], false)
        end
-       true
      end
   end
 end
