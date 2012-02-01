@@ -1,7 +1,6 @@
 require 'rubygems'
 require 'syntax/convertors/html'
 require 'gchart'
-require 'digest/md5'
 require 'bud/state'
 
 class VizOnline #:nodoc: all
@@ -66,7 +65,6 @@ class VizOnline #:nodoc: all
       rescue
         raise "ERROR!  #{@logtab} << #{newrow.inspect} (etxt #{$!})"
       end
-
     end
   end
 

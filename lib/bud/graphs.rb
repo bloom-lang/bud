@@ -1,5 +1,8 @@
 require 'rubygems'
-require 'digest/md5'
+
+# Currently incompatible with more recent releases of ruby-graphviz (see issue
+# #260).
+gem 'ruby-graphviz', '<= 0.9.21'
 require 'graphviz'
 
 class GraphGen #:nodoc: all
@@ -19,7 +22,6 @@ class GraphGen #:nodoc: all
     @builtin_tables = builtin_tables
     @pathsto = pathsto
     @begins = begins
-
 
     # map: table name -> type
     @tabinf = {}
@@ -92,23 +94,17 @@ class GraphGen #:nodoc: all
   end
 
   def color_node(paths)
-    unless paths.nil?
-      color = "green"
-      case paths[0][:val]
-        when :A
-          color = "yellow"
-        when :N
-          color = "yellow"
-        when :D
-          color = "red"
-        when :G
-          color = "red"
-        else
-          puts "UNKNOWN tag #{paths[0][:val]} class #{paths[0][:val].class}"
-          color = "black"
-      end
+    return "" if paths.nil?
+
+    case paths[0][:val]
+    when :A, :N
+      "yellow"
+    when :D, :G
+      "red"
+    else
+      puts "UNKNOWN tag #{paths[0][:val]} class #{paths[0][:val].class}"
+      "black"
     end
-    color
   end
 
   def addonce(node, negcluster, inhead=false)
@@ -121,9 +117,9 @@ class GraphGen #:nodoc: all
         node_p.penwidth = 4
       end
 
-      node_p.color = "green"
       if @cards and @cards[node]
         node_p.label = "#{node}\n (#{@cards[node].to_s})"
+        node_p.color = "green"
       else
         p = @pathsto[node].nil? ? "" : "\n(#{@pathsto[node][0][:val]})"
         node_p.label = node + p
@@ -173,7 +169,7 @@ class GraphGen #:nodoc: all
       @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head], :penwidth => 5)
       @edges[ekey].arrowsize = 2
 
-      @edges[ekey].color = @nodes[body]["color"].source
+      @edges[ekey].color = (@nodes[body]["color"].source || "")
       @edges[ekey].URL = "#{rule_id}.html" unless rule_id.nil?
       if head =~ /_msg\z/
         @edges[ekey].minlen = 2

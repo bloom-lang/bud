@@ -659,7 +659,7 @@ module Bud
     # Attributes can be referenced as symbols, or as +collection_name.attribute_name+
     public
     def group(key_cols, *aggpairs)
-      key_cols = [] if key_cols.nil?
+      key_cols ||= []
       keynames = key_cols.map do |k|
         if k.class == Symbol
           k
