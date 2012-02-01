@@ -1,5 +1,4 @@
 require 'rubygems'
-require 'digest/md5'
 
 # Currently incompatible with more recent releases of ruby-graphviz (see issue
 # #260).
