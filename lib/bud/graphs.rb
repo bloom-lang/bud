@@ -1,5 +1,9 @@
 require 'rubygems'
 require 'digest/md5'
+
+# Currently incompatible with more recent releases of ruby-graphviz (see issue
+# #260).
+gem 'ruby-graphviz', '<= 0.9.21'
 require 'graphviz'
 
 class GraphGen #:nodoc: all

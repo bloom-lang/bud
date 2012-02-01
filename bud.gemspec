@@ -26,7 +26,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'msgpack'
   s.add_dependency 'nestful'
   s.add_dependency 'ParseTree'
-  s.add_dependency 'ruby-graphviz'
+  s.add_dependency 'ruby-graphviz', '<= 0.9.21'
   s.add_dependency 'ruby2ruby', '< 1.3.1'
   s.add_dependency 'sexp_path'
   s.add_dependency 'superators'
