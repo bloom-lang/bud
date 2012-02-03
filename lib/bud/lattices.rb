@@ -485,11 +485,6 @@ class Bud::SealedLattice < Bud::Lattice
     raise Bud::Error, "cannot merge a sealed lattice value: #{self.inspect}, input = #{i.inspect}"
   end
 
-  def unseal
-    raise Bud::Error, "uninitialized SealedLattice value" if @v.nil?
-    @v
-  end
-
   morph :safely
   def safely(f, *args)
     # Since this is a morphism, we might be placed in the same strata as the
