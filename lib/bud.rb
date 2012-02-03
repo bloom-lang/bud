@@ -336,10 +336,8 @@ module Bud
       t_depends.each do |t|
         lhs = tables[t.lhs.to_sym]
         rhs = tables[t.body.to_sym]
-        if lhs != rhs
-          lhs.add_rhs(rhs)
-          rhs.add_lhs(lhs)
-        end
+        lhs.add_rhs(rhs)
+        rhs.add_lhs(lhs)
       end
     end
     @done_wiring = true
