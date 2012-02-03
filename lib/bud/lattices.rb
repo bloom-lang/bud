@@ -47,7 +47,11 @@ class Bud::Lattice
   end
 
   def inspect
-    "<#{self.class.lat_name}: #{reveal}>"
+    "<#{self.class.lat_name}: #{reveal.inspect}>"
+  end
+
+  def seal
+    Bud::SealedLattice.new(self)
   end
 end
 
@@ -172,9 +176,8 @@ class Bud::MaxLattice < Bud::Lattice
     Bud::MaxLattice.new(@v + i)
   end
 
-  def lt_eq(i)
-    reject_input(i, "lt_eq") unless i.class <= Bud::MaxLattice
-    Bud::BoolLattice.new(!!(@v <= i.reveal))
+  def lt_eq(k)
+    Bud::BoolLattice.new(!!(@v && @v <= k))
   end
 
   morph :min_of
@@ -304,7 +307,7 @@ class Bud::MapLattice < Bud::Lattice
       unless i.key?(k).reveal == true
         return Bud::BoolLattice.new(false)
       end
-      unless v.lt_eq(i.at(k)).reveal == true
+      unless v.lt_eq(i.at(k).reveal).reveal == true
         return Bud::BoolLattice.new(false)
       end
     end
@@ -453,5 +456,48 @@ class Bud::SumLattice < Bud::Lattice
   def as_max
     @sum ||= compute_sum
     Bud::MaxLattice.new(@sum)
+  end
+end
+
+# A SealedLattice wraps another lattice value and does not allow that wrapped
+# value to change.
+class Bud::SealedLattice < Bud::Lattice
+  lattice_name :lseal
+
+  def initialize(i=nil)
+    unless i.nil? || i.class <= Bud::Lattice
+      reject_input(i)
+    end
+    @v = i
+  end
+
+  def merge(i)
+    puts "merge for lseal(): self = #{inspect}, i = #{i.inspect}"
+    # If either operand to merge is nil, return the non-nil operand. This
+    # strictly violates the "sealed" behavior of the lattice.
+    i_val = i.reveal
+    return self if i_val.nil?
+    return Bud::SealedLattice.new(i_val) if @v.nil?
+
+    # If the merge doesn't result in a change to the lattice value, allow it
+    m = @v.merge(i_val)
+    return self if m == @v
+
+    raise Bud::Error, "cannot merge a sealed lattice value: #{self.inspect}, input = #{i.inspect}"
+  end
+
+  def unseal
+    raise Bud::Error, "uninitialized SealedLattice value" if @v.nil?
+    @v
+  end
+
+  morph :safely
+  def safely(f, *args)
+    # Since this is a morphism, we might be placed in the same strata as the
+    # rule that defines the sealed value. Hence, the sealed value might
+    # initially be nil, but should be defined before the end of this strata, by
+    # which time this method *should* have been invoked again. This is a little
+    # dubious, but seems hard to avoid.
+    @v.send(f, *args) unless @v.nil?
   end
 end
