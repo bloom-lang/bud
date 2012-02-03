@@ -688,7 +688,12 @@ end
 
 class TestSeal < Test::Unit::TestCase
   def test_seal
-    i = SimpleSeal.new(:dump_rewrite => true)
+    i = SimpleSeal.new
+    assert_equal(3, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    strat_one = i.stratum_collection_map[1]
+    [:x, :y].each {|r| assert(strat_zero.include? r) }
+    [:sl, :nm_p].each {|r| assert(strat_one.include? r) }
     i.tick
     assert(true, i.nm_p.current_value.reveal)
     i.sl <+ Bud::MaxLattice.new(6)

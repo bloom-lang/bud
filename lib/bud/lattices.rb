@@ -472,7 +472,6 @@ class Bud::SealedLattice < Bud::Lattice
   end
 
   def merge(i)
-    puts "merge for lseal(): self = #{inspect}, i = #{i.inspect}"
     # If either operand to merge is nil, return the non-nil operand. This
     # strictly violates the "sealed" behavior of the lattice.
     i_val = i.reveal
