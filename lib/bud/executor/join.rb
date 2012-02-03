@@ -349,7 +349,7 @@ module Bud
     end
 
     public
-    def end
+    def stratum_end
       flush
     end
 
@@ -495,10 +495,11 @@ module Bud
       end
     end
 
-    def end
-        flush
-        push_missing
-        #@hash_tables = [{},{}]
+    public
+    def stratum_end
+      flush
+      push_missing
+      #@hash_tables = [{},{}]
     end
 
     private

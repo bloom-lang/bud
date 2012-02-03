@@ -757,7 +757,9 @@ module Bud
           end
         end
         # push end-of-fixpoint
-        @push_sorted_elems[stratum].each {|p| p.end}
+        @push_sorted_elems[stratum].each {|p|
+          p.stratum_end
+        }
         merge_targets[stratum].each_key do |t|
           t.flush_deltas
         end

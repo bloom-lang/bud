@@ -163,7 +163,7 @@ module Bud
       #override to get rid of cached information.
     end
     public
-    def end
+    def stratum_end
     end
     public
     def set_schema(schema)
@@ -368,7 +368,8 @@ module Bud
       @in_buf << item
     end
     
-    def end
+    public
+    def stratum_end
       @in_buf.send(@pred_symbol, @blk)
     end
 
@@ -445,7 +446,8 @@ module Bud
     def invalidate_cache
       @memo.clear
     end
-    def end
+    public
+    def stratum_end
        @memo.each do |k,v|
          push_out([k,v], false)
        end
