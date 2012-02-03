@@ -86,7 +86,7 @@ class TestRing < Test::Unit::TestCase
       next_addr = ring[next_idx].ip_port
 
       r.sync_do {
-        r.next_guy << [next_addr]
+        r.next_guy <+ [[next_addr]]
       }
     end
 
