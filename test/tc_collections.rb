@@ -259,7 +259,7 @@ class TestCollections < Test::Unit::TestCase
     assert_equal(1, program.scrtch2.length)
     program.tick
     assert_equal(program.scrtch.to_a, [["c", "d", 5, 6]])
-    assert_equal(1, program.scrtch2.length)
+    assert_equal(0, program.scrtch2.length)
     assert_equal(2, program.tbl.length)
     assert_equal(program.the_keys.to_a.sort, [["c", "d"], ["z", "y"]].sort)
     assert_equal(program.the_vals.to_a.sort, [[5,6], [9,8]].sort)
@@ -278,7 +278,7 @@ class TestCollections < Test::Unit::TestCase
     program.tick
     program.tick
     assert_equal(1, program.scrtch.length )
-    assert_equal(1, program.scrtch2.length ) #because scrtch2 isn't erased
+    assert_equal(0, program.scrtch2.length )
     assert_equal(2, program.tbl.length )
   end
 

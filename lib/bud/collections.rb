@@ -11,21 +11,25 @@ module Bud
   # - storage holds the "normal" tuples
   # - delta holds the delta for rhs's of rules during semi-naive
   # - new_delta will hold the lhs tuples currently being produced during s-n
+  # - tick_delta holds \Union(delta_i) for each delta_i processed in fixpoint iteration i.
   #++
 
   class BudCollection
     include Enumerable
+    attr_accessor :lhs_colls, :rhs_colls
     attr_accessor :invalidated
     attr_accessor :bud_instance, :locspec_idx, :tabname  # :nodoc: all
     attr_reader :schema # :nodoc: all
     attr_reader :struct
-    attr_reader :storage, :delta, :new_delta, :pending # :nodoc: all
+    attr_reader :storage, :delta, :new_delta, :pending, :tick_delta # :nodoc: all
     attr_accessor :qualified_tabname
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
       @invalidated = false
       @tabname = name
       @bud_instance = bud_instance
+      @lhs_colls = []
+      @rhs_colls = []
       init_schema(given_schema) unless given_schema.nil? and defer_schema
       init_buffers
     end
@@ -105,6 +109,7 @@ module Bud
     def val_cols # :nodoc: all
       schema - key_cols
     end
+
 
     # define methods to turn 'table.col' into a [table,col] pair
     # e.g. to support something like
@@ -250,6 +255,7 @@ module Bud
       @storage.each_value(&block)
     end
 
+
     public
     def tick_metrics
       strat_num = bud_instance.this_stratum
@@ -299,6 +305,7 @@ module Bud
     def init_deltas
       @delta = {}
       @new_delta = {}
+      @tick_delta = []
     end
 
     public
@@ -547,25 +554,27 @@ module Bud
     # return true if new deltas were found
     public
     def tick_deltas # :nodoc: all
-      # assertion: intersect(@storage, @delta) == nil
-      if $BUD_DEBUG
-        puts "#{qualified_tabname}.tick_delta delta --> storage" unless @delta.empty?
-        puts "#{qualified_tabname}.tick_delta new_delta --> delta" unless @new_delta.empty?
+      unless @delta.empty?
+        puts "#{qualified_tabname}.tick_delta delta --> storage (#{@delta.size} elems)" if $BUD_DEBUG
+        @storage.merge!(@delta)
+        @tick_delta += @delta.values
+        @delta.clear
       end
 
-      @storage.merge!(@delta)
-      @delta.clear
-      @new_delta.each_pair do |k, v|
-        sv = @storage[k]
-        if sv.nil?
-          @delta[k] = v
-        else
-          raise_pk_error(v, sv) unless v == sv
+      unless @new_delta.empty?
+        puts "#{qualified_tabname}.tick_delta new_delta --> delta (#{@new_delta.size} elems)" if $BUD_DEBUG
+        @new_delta.each_pair do |k, v|
+          sv = @storage[k]
+          if sv.nil?
+            @delta[k] = v
+          else
+            raise_pk_error(v, sv) unless v == sv
+          end
         end
+        @new_delta.clear
+        return !(@delta.empty?)
       end
-
-      @new_delta.clear
-      return !(@delta.empty?)
+      return false # delta empty; another fixpoint iter not required.
     end
 
     public
@@ -574,10 +583,16 @@ module Bud
         puts "#{qualified_tabname}.flush delta --> storage" unless @delta.empty?
         puts "#{qualified_tabname}.flush new_delta --> storage" unless @new_delta.empty?
       end
-      @storage.merge!(@delta)
-      @storage.merge!(@new_delta)
-      @delta.clear
-      @new_delta.clear
+      unless (@delta.empty?)
+        @storage.merge!(@delta)
+        @tick_delta += @delta.values
+        @delta.clear
+      end
+      unless @new_delta.empty?
+        @storage.merge!(@new_delta)
+        @new_delta.clear
+      end
+      # @tick_delta kept around for higher strata.
     end
 
     public
@@ -701,39 +716,53 @@ module Bud
       # just append current number of microseconds
       @tabname = (@tabname.to_s + Time.new.tv_usec.to_s).to_sym
     end
+
+    def add_lhs(lhs)
+      lhs_colls << lhs unless lhs_colls.member? lhs
+    end
+
+    def add_rhs(rhs)
+      rhs_colls << rhs unless rhs_colls.member? rhs
+    end
+
+    public
+    def invalidate_dependents
+      lhs_colls.each { |l| l.invalidate_cache }
+    end
   end
 
   class BudScratch < BudCollection # :nodoc: all
-    # Called at the end of each timestep: prepare the collection for the next timestep.
     public
     def tick  # :nodoc: all
-      @invalidated = false
+      @tick_delta.clear
       if not @pending.empty?
         invalidate_cache
-        @delta = @pending
+        @storage = @pending
+        @tick_delta = @pending.values
         @pending = {}
-      end  # else don't touch storage
+      elsif is_source
+        invalidate_cache
+      end # else leave storage alone.
 
       raise BudError, "orphaned tuples in @new_delta for #{qualified_tabname}" unless @new_delta.empty?
     end
 
+    def is_source
+      rhs_colls.empty? # scratch is a source if there are no rules with it on the lhs.
+    end
+
     def invalidate_cache
-      puts "Invalidate_cache: #{tabname}"
-      @invalidated = true
-      @storage = {}
+      #for scratches, storage is a cached value.
+      unless @invalidated # check prevents cycles via invalidate_dependents
+        puts "#{qualified_tabname} invalidated" if $BUD_DEBUG
+        @storage.clear
+        @invalidated = true
+        invalidate_dependents
+      end
     end
   end
 
   class BudInputInterface < BudScratch
-    attr_accessor :is_source
-
-    def tick
-      if :is_source
-        @invalidated = true
-        invalidate_cache
-      end
-      super
-    end
   end
 
   class BudOutputInterface < BudScratch
@@ -797,9 +826,11 @@ module Bud
 
     public
     def tick # :nodoc: all
+      # storage is used for incoming tuples and output_storage is used for sending. The incoming is always reset,
+      # whereas the output storage is preserved until an explicit invalidation.
       @storage = {}
       @invalidated = true
-
+      invalidate_dependents
       # Note that we do not clear @pending here: if the user inserted into the
       # channel manually (e.g., via <~ from inside a sync_do block), we send the
       # message at the end of the current tick.
@@ -809,6 +840,7 @@ module Bud
       # Note invalidate is only targeted towards invalidating cached information, which is @output_storage.
       # @storage is always cleared at the beginning of a tick.
       @output_storage.clear
+      # there are no dependents for the output side of the channel.
     end
 
     public
@@ -926,14 +958,22 @@ module Bud
 
     public
     def tick #:nodoc: all
-      @storage = @pending #  pending used for input tuples in this case.
-      @invalidated = true # storage overwritten
-      @pending = {}
+      unless @pending.empty?
+        @storage = @pending #  pending used for input tuples in this case.
+        @tick_delta = @pending.values
+        @pending.clear
+      else
+        @storage.clear
+        @tick_delta.clear
+      end
+      @invalidated = true # channels and terminals are always invalidated.
+      invalidate_dependents
       raise BudError, "orphaned pending tuples in terminal" unless @pending.empty?
     end
 
     def invalidate_cache
       @output_storage = {}
+      # like channel, there are no dependents to invalidate
     end
 
     undef merge
@@ -984,6 +1024,7 @@ module Bud
       @invalidated = true
       @storage = @pending
       @pending = {}
+      invalidate_dependents
     end
   end
 
@@ -1000,6 +1041,7 @@ module Bud
         puts "#{tabname}. storage -= pending deletes" unless @to_delete.empty? and @to_delete_by_key.empty?
         puts "#{tabname}. storage += pending" unless @pending.empty?
       end
+      @tick_delta.clear
       deleted = nil
       @to_delete.each do |tuple|
         keycols = @key_colnums.map{|k| tuple[k]}
@@ -1014,6 +1056,9 @@ module Bud
       end
 
       @invalidated =  (not deleted.nil?)
+      if (@invalidated)
+        invalidate_dependents
+      end
 
       @pending.each do |keycols, tuple|
         old = @storage[keycols]
@@ -1075,6 +1120,8 @@ module Bud
     end
 
     def invalidate_cache
+      # no cache to invalidate. Also, tables do not invalidate dependents, because their own state is not considered
+      # invalidated; that happens only if there were pending deletes at the beginning of a tick (see tick())
     end
 
     public
@@ -1096,6 +1143,11 @@ module Bud
     def merge(o)  #:nodoc: all
       raise CompileError, "Illegal use of <= with read-only collection '#{@tabname}' on left"
     end
+
+    def invalidate_cache
+      raise "Internal error; readonly collections should not be on the lhs"
+    end
+
   end
 
   class BudCollExpr < BudReadOnly # :nodoc: all
@@ -1107,9 +1159,7 @@ module Bud
 
     def tick
       @invalidated = true
-    end
-
-    def invalidate_cache
+      invalidate_dependents
     end
 
     public
@@ -1120,9 +1170,6 @@ module Bud
     public
     def each_raw(&block)
       each(&block)
-    end
-
-    def invalidate
     end
   end
 

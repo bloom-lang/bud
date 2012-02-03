@@ -188,7 +188,7 @@ class BudMeta #:nodoc: all
       #t_depends [:bud_instance, :rule_id, :lhs, :op, :body] => [:nm]
       lhs = (nodes[d.lhs.to_s] ||= Node.new(d.lhs.to_s, :init, 0, [], true, false, false, false))
       lhs.in_lhs = true
-      body = (nodes[d.body.to_s] ||= Node.new(d.body.to_s, :init, 0, [], false, true, false))
+      body = (nodes[d.body.to_s] ||= Node.new(d.body.to_s, :init, 0, [], false, true, false, false))
       temporal = d.op != "<=" 
       lhs.edges << Edge.new(body, d.op, d.nm, temporal)
       body.in_body = true
@@ -243,7 +243,6 @@ class BudMeta #:nodoc: all
 
     bud.t_provides.each do |p|
       pred, input = p.interface, p.input
-      bud.tables[pred.to_sym].is_source = true if input # Tell that interface that it faces outside.
       if input
         # an interface pred is a source if it is an input and it is not in any rule's lhs
         #bud.sources << [pred] unless (preds_in_lhs.include? pred)

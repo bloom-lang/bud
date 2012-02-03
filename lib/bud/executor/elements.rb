@@ -110,7 +110,6 @@ module Bud
       @invalidated = @wired_by.any? {|w| w.invalidated}
       if @invalidated
         invalidate_cache
-        wirings.each {|w| w.invalidate_cache unless w.class <= Bud::PushElement}
       end
     end
 
@@ -417,12 +416,18 @@ module Bud
       @invalidated = @collection.invalidated
     end
 
-    def scan
-      if @invalidated
-        @collection.each_raw {|item| push_out(item)}
-        @invalidated = false
+    def scan(first_iter)
+      if (first_iter)
+        if @invalidated
+          # scan entire storage
+          @collection.each_raw {|item| push_out(item)}
+        else
+          # In the first iteration, tick_delta would be non-null IFF the collection has grown in an earlier stratum
+          @collection.tick_delta.each {|item| push_out(item)}
+        end
       end
-      # send deltas out in either case
+
+      # send deltas out in all cases
       @collection.delta.each_value {|item| push_out(item)}
     end
   end

@@ -62,7 +62,7 @@ $bud_instances = {}        # Map from instance id => Bud instance
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
   attr_reader :dsock
-  attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks
+  attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks, :app_tables
   attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets, :done_wiring
   attr_reader :stratum_first_iter
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap, :done_wiring
@@ -104,9 +104,9 @@ module Bud
     # capture the binding for a subsequent 'eval'. This ensures that local
     # variable names introduced later in this method don't interfere with 
     # table names used in the eval block.
-    options[:dump_rewrite] ||= ENV["BUD_DUMP_REWRITE"].to_s != ""
-    options[:dump_ast]     ||= ENV["BUD_DUMP_AST"].to_s != ""
-    options[:print_wiring] ||= ENV["BUD_PRINT_WIRING"].to_s != ""
+    options[:dump_rewrite] ||= ENV["BUD_DUMP_REWRITE"].to_i > 0
+    options[:dump_ast]     ||= ENV["BUD_DUMP_AST"].to_i > 0
+    options[:print_wiring] ||= ENV["BUD_PRINT_WIRING"].to_i > 0
     @qualified_name = ""
     @tables = {}
     @table_meta = []
@@ -121,6 +121,7 @@ module Bud
     @shutdown_callbacks = []
     @post_shutdown_callbacks = []
     @timers = []
+    @app_tables = []
     @inside_tick = false
     @tick_clock_time = nil
     @budtime = 0
@@ -265,6 +266,9 @@ module Bud
   # according to the order in which the state blocks are defined); we then sort
   # by this order before invoking the state blocks.
   def call_state_methods
+    if toplevel?
+      builtins = @tables.keys
+    end
     meth_map = {} # map from ID => [Method]
     self.class.instance_methods.each do |m|
       next unless m =~ /^__state(\d+)__/
@@ -275,6 +279,9 @@ module Bud
 
     meth_map.keys.sort.each do |i|
       meth_map[i].each {|m| m.call}
+    end
+    if toplevel?
+      @app_tables = (@tables.keys - builtins).map {|nm| @tables[nm]}
     end
   end
 
@@ -296,7 +303,7 @@ module Bud
     end
     bootstrap
 
-    tables.each_value{|t| t.tick_deltas; t.invalidated = true} if toplevel == self
+    @app_tables.each {|t| t.tick_deltas; t.invalidated = true} if toplevel == self
     @done_bootstrap = true
   end
 
@@ -324,11 +331,19 @@ module Bud
         working = wired_to
       end
       @push_sorted_elems << sorted_elems
+
+      # --- add dependencies. These are used for propagation invalidation due to negation.
+      t_depends.each do |t|
+        lhs = tables[t.lhs.to_sym]
+        rhs = tables[t.body.to_sym]
+        if lhs != rhs
+          lhs.add_rhs(rhs)
+          rhs.add_lhs(lhs)
+        end
+      end
     end
-
-
-
     @done_wiring = true
+
     if @options[:print_wiring]
       @push_sources.each do |strat| 
         strat.each_value{|src| src.print_wiring}
@@ -711,7 +726,7 @@ module Bud
         do_wiring
       else
         # inform tables and elements about beginning of tick.
-        @tables.each_value {|t| t.tick}
+        @app_tables.each {|t| t.tick}
         @push_sorted_elems.each do |stratum_elems|
           stratum_elems.each {|se| se.tick}
         end
@@ -722,9 +737,10 @@ module Bud
       # compute fixpoint for each stratum in order
       @stratified_rules.each_with_index do |rules,stratum|
         fixpoint = false
+        first_iter = true
         until fixpoint
           fixpoint = true
-          @scanners[stratum].each_value {|s| s.scan}
+          @scanners[stratum].each_value {|s| s.scan(first_iter)}
           first_iter = false
           # flush any tuples in the pipes
           @push_sorted_elems[stratum].each {|p| p.flush}
@@ -746,6 +762,7 @@ module Bud
           t.flush_deltas
         end
       end
+      @app_tables.each {|t| t.invalidated = false}
       @viz.do_cards if @options[:trace]
       do_flush
       invoke_callbacks
