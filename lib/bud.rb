@@ -339,6 +339,12 @@ module Bud
         lhs.add_rhs(rhs)
         rhs.add_lhs(lhs)
       end
+
+      @merge_targets.each_with_index do |stratum_tables, stratum|
+        @scanners[stratum].each_value do |s|
+          stratum_tables[s.collection] = true
+        end
+      end
     end
     @done_wiring = true
 

@@ -737,8 +737,7 @@ module Bud
       @tick_delta.clear
       if not @pending.empty?
         invalidate_cache
-        @storage = @pending
-        @tick_delta = @pending.values
+        @delta = @pending
         @pending = {}
       elsif is_source
         invalidate_cache
