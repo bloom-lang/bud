@@ -78,8 +78,8 @@ class TestDbm < Test::Unit::TestCase
 
   def test_basic_ins
     assert_equal(0, @t.t1.length)
-    @t.in_buf << ['1', '2', '3', '4']
-    @t.in_buf << ['1', '3', '3', '4']
+    @t.in_buf <= [['1', '2', '3', '4'],
+                  ['1', '3', '3', '4']]
     @t.tick
     assert_equal(2, @t.t1.length)
     assert(@t.t1.include? ['1', '2', '3', '4'])
@@ -88,37 +88,37 @@ class TestDbm < Test::Unit::TestCase
   end
 
   def test_key_conflict_delta
-    @t.in_buf << ['1', '2', '3', '4']
-    @t.in_buf << ['1', '2', '3', '5']
+    @t.in_buf <= [['1', '2', '3', '4'],
+                  ['1', '2', '3', '5']]
     assert_raise(Bud::KeyConstraintError) {@t.tick}
   end
 
   def test_key_conflict
-    @t.in_buf << ['1', '2', '3', '4']
+    @t.in_buf <+ [['1', '2', '3', '4']]
     @t.tick
-    @t.in_buf << ['1', '2', '3', '5']
+    @t.in_buf <+ [['1', '2', '3', '5']]
     assert_raise(Bud::KeyConstraintError) {@t.tick}
   end
 
   def test_key_merge
-    @t.in_buf << ['1', '2', '3', '4']
-    @t.in_buf << ['1', '2', '3', '4']
-    @t.in_buf << ['1', '2', '3', '4']
-    @t.in_buf << ['1', '2', '3', '4']
-    @t.in_buf << ['5', '10', '3', '4']
-    @t.in_buf << ['6', '10', '3', '4']
-    @t.in_buf << ['6', '10', '3', '4']
+    @t.in_buf <= [['1', '2', '3', '4'],
+                  ['1', '2', '3', '4'],
+                  ['1', '2', '3', '4'],
+                  ['1', '2', '3', '4'],
+                  ['5', '10', '3', '4'],
+                  ['6', '10', '3', '4'],
+                  ['6', '10', '3', '4']]
 
-    @t.t1 << ['1', '2', '3', '4']
-    @t.t1 << ['1', '2', '3', '4']
+    @t.t1 <= [['1', '2', '3', '4'],
+              ['1', '2', '3', '4']]
 
     @t.tick
     assert_equal(3, @t.t1.length)
   end
 
   def test_truncate
-    @t.in_buf << ['1', '2', '3', '4']
-    @t.in_buf << ['1', '3', '3', '4']
+    @t.in_buf <+ [['1', '2', '3', '4'],
+                  ['1', '3', '3', '4']]
     @t.tick
     assert_equal(2, @t.t1.length)
 
@@ -126,29 +126,29 @@ class TestDbm < Test::Unit::TestCase
     @t = make_bud(true)
 
     assert_equal(0, @t.t1.length)
-    @t.in_buf << ['1', '2', '3', '4']
-    @t.in_buf << ['1', '3', '3', '4']
+    @t.in_buf <+ [['1', '2', '3', '4'],
+                  ['1', '3', '3', '4']]
     @t.tick
     assert_equal(2, @t.t1.length)
   end
 
   def test_persist
-    @t.in_buf << [1, 2, 3, 4]
-    @t.in_buf << [5, 10, 3, 4]
+    @t.in_buf <+ [[1, 2, 3, 4],
+                  [5, 10, 3, 4]]
     @t.tick
     assert_equal(2, @t.t1.length)
 
     10.times do |i|
       @t.close_tables
       @t = make_bud(false)
-      @t.in_buf << [6, 10 + i, 3, 4]
+      @t.in_buf <+ [[6, 10 + i, 3, 4]]
       @t.tick
       assert_equal(3 + i, @t.t1.length)
     end
   end
 
   def test_pending_ins
-    @t.pending_buf << ['1', '2', '3', '4']
+    @t.pending_buf <= [['1', '2', '3', '4']]
     @t.tick
     assert_equal(0, @t.t1.length)
     @t.tick
@@ -156,31 +156,31 @@ class TestDbm < Test::Unit::TestCase
   end
 
   def test_pending_key_conflict
-    @t.pending_buf << ['1', '2', '3', '4']
-    @t.pending_buf2 << ['1', '2', '3', '5']
+    @t.pending_buf <= [['1', '2', '3', '4']]
+    @t.pending_buf2 <= [['1', '2', '3', '5']]
     assert_raise(Bud::KeyConstraintError) {@t.tick}
   end
 
   def test_basic_del
-    @t.t1 << ['1', '2', '3', '4']
-    @t.t1 << ['1', '3', '3', '4']
-    @t.t1 << ['2', '4', '3', '4']
+    @t.t1 <= [['1', '2', '3', '4'],
+              ['1', '3', '3', '4'],
+              ['2', '4', '3', '4']]
     @t.tick
     assert_equal(3, @t.t1.length)
 
-    @t.del_buf << ['2', '4', '3', '4'] # should delete
+    @t.del_buf <= [['2', '4', '3', '4']] # should delete
     @t.tick
     assert_equal(3, @t.t1.length)
     @t.tick
     assert_equal(2, @t.t1.length)
 
-    @t.del_buf << ['1', '3', '3', '5'] # shouldn't delete
+    @t.del_buf <= [['1', '3', '3', '5']] # shouldn't delete
     @t.tick
     assert_equal(2, @t.t1.length)
     @t.tick
     assert_equal(2, @t.t1.length)
 
-    @t.del_buf << ['1', '3', '3', '4'] # should delete
+    @t.del_buf <= [['1', '3', '3', '4']] # should delete
     @t.tick
     assert_equal(2, @t.t1.length)
     @t.tick
@@ -188,15 +188,15 @@ class TestDbm < Test::Unit::TestCase
   end
 
   def test_chain
-    @t.chain_start << [5, 10]
-    @t.chain_start << [10, 15]
+    @t.chain_start <= [[5, 10],
+                       [10, 15]]
     @t.tick
     assert_equal(2, @t.t2.length)
     assert_equal(2, @t.t3.length)
     assert_equal(2, @t.t4.length)
     assert_equal([10,18], @t.t4[[10]])
 
-    @t.chain_del << [5,10]
+    @t.chain_del <= [[5,10]]
     @t.tick
     assert_equal(2, @t.chain_start.length)
     assert_equal(2, @t.t2.length)
@@ -210,26 +210,24 @@ class TestDbm < Test::Unit::TestCase
   end
 
   def test_cartesian_product
-    @t.join_t1 << [12, 50, 100]
-    @t.join_t1 << [15, 50, 120]
-    @t.join_t2 << [12, 70, 150]
-    @t.join_t2 << [6, 20, 30]
+    @t.join_t1 <+ [[12, 50, 100],[15, 50, 120]]
+    @t.join_t2 <+ [[12, 70, 150], [6, 20, 30]]
 
     @t.tick
     assert_equal(4, @t.cart_prod.length)
 
-    @t.join_t2 << [6, 20, 30] # dup
-    @t.join_t2 << [18, 70, 150]
+    @t.join_t2 <+ [[6, 20, 30], #dup
+                   [18, 70, 150]]
 
     @t.tick
     assert_equal(6, @t.cart_prod.length)
   end
 
   def test_join
-    @t.join_t1 << [12, 50, 100]
-    @t.join_t1 << [15, 50, 120]
-    @t.join_t2 << [12, 70, 150]
-    @t.join_t2 << [6, 20, 30]
+    @t.join_t1 <= [[12, 50, 100],
+                   [15, 50, 120]]
+    @t.join_t2 <= [[12, 70, 150],
+                   [6, 20, 30]]
     @t.tick
 
     assert_equal(1, @t.join_res.length)
@@ -273,7 +271,7 @@ class TestNestedDbm < Test::Unit::TestCase
     @t.run_bg
 
     @t.sync_do {
-      @t.in_buf <+ [[10, 20, 30]]
+      @t.in_buf <= [[10, 20, 30]]
     }
     @t.sync_do {
       # We can store nested tuples inside TC tables, but we lose the ability to

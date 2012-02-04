@@ -34,8 +34,8 @@ class Struct
           if el != o[i]
             return false
           end
-          return true
         end
+        return true
       rescue StandardError
         return false
       end

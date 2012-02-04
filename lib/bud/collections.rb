@@ -110,7 +110,6 @@ module Bud
       schema - key_cols
     end
 
-
     # define methods to turn 'table.col' into a [table,col] pair
     # e.g. to support something like
     #    j = join link, path, {link.to => path.from}
@@ -575,6 +574,13 @@ module Bud
         return !(@delta.empty?)
       end
       return false # delta empty; another fixpoint iter not required.
+    end
+
+    def bootstrap
+      unless @pending.empty?
+        @delta = @pending
+        @pending = {}
+      end
     end
 
     public

@@ -4,6 +4,7 @@ module Bud
   # Persistent table implementation based on ndbm.
   class BudDbmTable < BudCollection # :nodoc: all
     def initialize(name, bud_instance, given_schema)
+      @invalidated = true
       dbm_dir = bud_instance.options[:dbm_dir]
       raise BudError, "dbm support must be enabled via 'dbm_dir'" unless dbm_dir
       if bud_instance.port.nil?
@@ -132,17 +133,26 @@ module Bud
 
     # move deltas to on-disk storage, and new_deltas to deltas
     def tick_deltas
-      merge_to_db(@delta)
-      @delta = @new_delta
-      @new_delta = {}
-      return !(@delta == {})
+      unless @delta.empty?
+        merge_to_db(@delta)
+        @tick_delta += @delta.values
+        @delta.clear
+      end
+      unless @new_delta.empty?
+        @delta = @new_delta
+        @new_delta = {}
+      end
+      return !(@delta.empty?)
     end
     
     public
     def flush_deltas
-      merge_to_db(@delta)
+      unless @delta.empty?
+        merge_to_db(@delta)
+        @tick_delta += @delta.values
+        @delta.clear
+      end
       merge_to_db(@new_delta)
-      @delta = {}
       @new_delta = {}
     end
 
@@ -171,6 +181,7 @@ module Bud
 
     # Remove to_delete and then add pending to db
     def tick
+      deleted = nil
       @to_delete.each do |tuple|
         k = @key_colnums.map{|c| tuple[c]}
         k_str = MessagePack.pack(k)
@@ -179,16 +190,25 @@ module Bud
           db_cols = MessagePack.unpack(cols_str)
           delete_cols = val_cols.map{|c| tuple[schema.index(c)]}
           if db_cols == delete_cols
-            @dbm.delete k_str
+            deleted ||= @dbm.delete k_str
           end
         end
       end
       @to_delete = []
 
-      merge_to_db(@pending)
-      @pending = {}
-
+      @invalidated = !deleted.nil?
+      if @invalidated
+        invalidate_dependents
+      end
+      unless @pending.empty?
+        @delta = @pending
+#        merge_to_db(@pending)
+        @pending = {}
+      end
       flush
+    end
+
+    def invalidate_cache
     end
 
     def method_missing(sym, *args, &block)

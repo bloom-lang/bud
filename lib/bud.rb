@@ -303,7 +303,7 @@ module Bud
     end
     bootstrap
 
-    @app_tables.each {|t| t.tick_deltas; t.invalidated = true} if toplevel == self
+    @app_tables.each {|t| t.bootstrap; t.invalidated = true} if toplevel == self
     @done_bootstrap = true
   end
 
