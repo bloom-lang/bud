@@ -11,7 +11,7 @@ class TestSort < Test::Unit::TestCase
     end
 
     bloom do
-      delaybuf <= in_t.sort.each_with_index.map {|a, i| [i, a]}
+      delaybuf <= in_t.sort.each_with_index.map {|a, i| [i, a] }
       out_t <= delaybuf
     end
   end

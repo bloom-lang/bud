@@ -267,7 +267,7 @@ module Bud
   # by this order before invoking the state blocks.
   def call_state_methods
     if toplevel?
-      builtins = @tables.keys
+      @builtin_tables = @tables.keys
     end
     meth_map = {} # map from ID => [Method]
     self.class.instance_methods.each do |m|
@@ -279,9 +279,6 @@ module Bud
 
     meth_map.keys.sort.each do |i|
       meth_map[i].each {|m| m.call}
-    end
-    if toplevel?
-      @app_tables = (@tables.keys - builtins).map {|nm| @tables[nm]}
     end
   end
 
@@ -347,6 +344,8 @@ module Bud
       end
     end
     @done_wiring = true
+    @app_tables = (@tables.keys - @builtin_tables).map {|nm| @tables[nm]}
+    @app_tables << tables[:stdio]
 
     if @options[:print_wiring]
       @push_sources.each do |strat| 

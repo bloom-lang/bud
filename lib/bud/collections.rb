@@ -337,6 +337,10 @@ module Bud
       return (item == self[key])
     end
 
+    def length
+      @storage.length + @delta.length
+    end
+
     # checks for an item for which +block+ produces a match
     public
     def exists?(&block)
@@ -747,6 +751,7 @@ module Bud
         @pending = {}
       elsif is_source
         invalidate_cache
+        @delta.clear
       end # else leave storage alone.
 
       raise BudError, "orphaned tuples in @new_delta for #{qualified_tabname}" unless @new_delta.empty?
@@ -833,7 +838,7 @@ module Bud
     def tick # :nodoc: all
       # storage is used for incoming tuples and output_storage is used for sending. The incoming is always reset,
       # whereas the output storage is preserved until an explicit invalidation.
-      @storage = {}
+      @storage.clear
       @invalidated = true
       invalidate_dependents
       # Note that we do not clear @pending here: if the user inserted into the
@@ -1027,8 +1032,10 @@ module Bud
 
     def tick
       @invalidated = true
-      @storage = @pending
-      @pending = {}
+      unless pending.empty?
+        @storage = @pending
+        @pending = {}
+      end
       invalidate_dependents
     end
   end
@@ -1044,7 +1051,7 @@ module Bud
     def tick #:nodoc: all
       if $BUD_DEBUG
         puts "#{tabname}. storage -= pending deletes" unless @to_delete.empty? and @to_delete_by_key.empty?
-        puts "#{tabname}. storage += pending" unless @pending.empty?
+        puts "#{tabname}. delta += pending" unless @pending.empty?
       end
       @tick_delta.clear
       deleted = nil

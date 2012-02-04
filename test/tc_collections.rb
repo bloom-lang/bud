@@ -256,7 +256,7 @@ class TestCollections < Test::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
     program.tick
-    assert_equal(1, program.scrtch2.to_a.length) # scrtch2.delta doesn't move into scrtch2.storage; it is neither scanned nor used.
+    assert_equal(1, program.scrtch2.length)
     program.tick
     assert_equal(program.scrtch.to_a, [["c", "d", 5, 6]])
     assert_equal(0, program.scrtch2.length)

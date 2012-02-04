@@ -12,7 +12,7 @@ class ExistTest
   end
 
   bloom do
-    msgs <~ notes.map{|n| [ip_port, n] if timer.exists?}
+    msgs <~ (notes * timer).lefts{|n| [ip_port, n]}
     memories <= msgs.payloads
     dups <= memories.map{|n| [n.inspect] if msgs.exists?{|m| n.val == m.val[1]}}
   end

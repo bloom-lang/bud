@@ -271,7 +271,7 @@ class TestNestedDbm < Test::Unit::TestCase
     @t.run_bg
 
     @t.sync_do {
-      @t.in_buf <= [[10, 20, 30]]
+      @t.in_buf <+ [[10, 20, 30]]
     }
     @t.sync_do {
       # We can store nested tuples inside TC tables, but we lose the ability to

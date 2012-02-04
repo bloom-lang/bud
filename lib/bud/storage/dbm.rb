@@ -51,6 +51,10 @@ module Bud
       end
     end
 
+    def length
+      @dbm.length + @delta.length
+    end
+
     def has_key?(k)
       key_s = MessagePack.pack(k)
       return true if @dbm.has_key? key_s

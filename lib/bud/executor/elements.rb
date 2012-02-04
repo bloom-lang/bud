@@ -190,15 +190,9 @@ module Bud
     public
     def each_with_index(the_name = elem_name, the_schema = schema, &blk)
       toplevel = @bud_instance.toplevel
-      elem = Bud::PushElement.new('each_with_index' + object_id.to_s, toplevel.this_rule_context, @collection_name)
+      elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s, toplevel.this_rule_context, @collection_name)
       self.wire_to(elem)
-      elem.set_block do |t|
-        ix = @each_index
-        retval = (blk.nil? ? [t] : [blk.call(t)]) + [ix]
-        @each_index = ix + 1
-        retval
-      end 
-      toplevel.push_elems[[self.object_id,:pro,blk]] = elem
+      toplevel.push_elems[[self.object_id,:each,blk]] = elem
     end
     
     def join(elem2, &blk)
@@ -394,7 +388,7 @@ module Bud
         @sortbuf.each do |t|
           push_out(t, false)
         end
-        #@sortbuf = []
+        @sortbuf = []
       end
       nil
     end
@@ -452,5 +446,22 @@ module Bud
          push_out([k,v], false)
        end
      end
+  end
+
+  class PushEachWithIndex < PushElement
+    def initialize(elem_name, bud_instance, collection_name)
+      super(elem_name, bud_instance, collection_name)
+      @each_index = 0
+    end
+
+    def stratum_end
+      @each_index = 0
+    end
+
+    def insert(item, source=nil)
+      ix = @each_index
+      @each_index = ix + 1
+      push_out([item, ix])
+    end
   end
 end
