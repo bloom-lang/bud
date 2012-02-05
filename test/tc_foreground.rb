@@ -41,7 +41,7 @@ class CallbackTest < Test::Unit::TestCase
       q.push(true)
     end
     c.run_bg
-    sleep 1
+    sleep 0.5
     Process.kill(sig, $$)
     q.pop
     assert_equal(1, cnt)
@@ -50,7 +50,11 @@ class CallbackTest < Test::Unit::TestCase
     # signal has been completely handled (on_shutdown callbacks are invoked
     # before the end of the Bud shutdown process). Since we don't want to run
     # another test until EM has shutdown, we can at least wait for that.
-    EventMachine::reactor_thread.join
+    begin
+      EventMachine::reactor_thread.join
+    rescue
+      # ignore error if any
+    end
   end
 
   def test_sigint_child

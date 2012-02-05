@@ -342,6 +342,14 @@ module Bud
           stratum_tables[s.collection] = true
         end
       end
+
+      # sanity check
+      @push_sorted_elems.each do |stratum_elems|
+        stratum_elems.each do |se|
+          se.check_wiring
+        end
+      end
+
     end
     @done_wiring = true
     @app_tables = (@tables.keys - @builtin_tables).map {|nm| @tables[nm]}

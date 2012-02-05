@@ -67,6 +67,12 @@ module Bud
         end
       end
     end
+
+    def check_wiring
+      if @blk.nil? and @outputs.empty? and @pendings.empty? and @deletes.empty? and @delete_keys.empty?
+        raise "no output specified for PushElement #{@elem_name}"
+      end
+    end
       
     def set_block(&blk)
       @blk = blk
@@ -118,9 +124,6 @@ module Bud
     end
 
     def push_out(item, do_block=true)
-      if @blk.nil? and @outputs.empty? and @pendings.empty? and @deletes.empty? and @delete_keys.empty?
-        raise "no output specified for PushElement #{@elem_name}"
-      end
       if item
         blk = @blk if do_block
         if blk
@@ -142,7 +145,7 @@ module Bud
             # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
             ou.do_insert(item,ou.new_delta)
           else
-            ou << item
+            raise "Expected either a PushElement or a BudCollection"
           end
         end unless item.nil?
         # for all the following, o is a BudCollection
@@ -415,7 +418,9 @@ module Bud
       if (first_iter)
         if @invalidated
           # scan entire storage
-          @collection.each_raw {|item| push_out(item)}
+          @collection.each_raw {|item|
+            push_out(item)
+          }
         else
           # In the first iteration, tick_delta would be non-null IFF the collection has grown in an earlier stratum
           @collection.tick_delta.each {|item| push_out(item)}
