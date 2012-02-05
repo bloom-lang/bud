@@ -300,7 +300,7 @@ module Bud
     end
     bootstrap
 
-    @app_tables.each {|t| t.bootstrap; t.invalidated = true} if toplevel == self
+    @tables.each_value {|t| t.bootstrap; t.invalidated = true} if toplevel == self
     @done_bootstrap = true
   end
 
