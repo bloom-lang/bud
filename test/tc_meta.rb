@@ -300,6 +300,7 @@ class TestMeta < Test::Unit::TestCase
     ];
 
     do_spacetime(inp, "foofoo")
+    `rm foofoo.svg`
   end
 
   def test_spacetime2
@@ -310,6 +311,7 @@ class TestMeta < Test::Unit::TestCase
       [:pong, :b, :a, 6, 2]
     ]
     do_spacetime(inp, "foo2")
+    `rm foo2.svg`
   end
 
   def test_spacetime3
@@ -320,6 +322,7 @@ class TestMeta < Test::Unit::TestCase
       [:ping4, :a, :b, 1, 6]
     ]
     do_spacetime(inp, "foo3")
+    `rm foo3.svg`
   end
 
   def do_spacetime(inp, out)
