@@ -1,8 +1,4 @@
 require 'rubygems'
-
-# Currently incompatible with more recent releases of ruby-graphviz (see issue
-# #260).
-gem 'ruby-graphviz', '<= 0.9.21'
 require 'graphviz'
 
 class GraphGen #:nodoc: all
@@ -109,7 +105,7 @@ class GraphGen #:nodoc: all
 
   def addonce(node, negcluster, inhead=false)
     if !@nodes[node]
-      @nodes[node] = @graph.add_node(node)
+      @nodes[node] = @graph.add_nodes(node)
       node_p = @nodes[node]
       node_p.label = node
       if @begins[:finish] and @begins[:finish][node]
@@ -166,7 +162,7 @@ class GraphGen #:nodoc: all
 
     ekey = body + head
     if !@edges[ekey]
-      @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head], :penwidth => 5)
+      @edges[ekey] = @graph.add_edges(@nodes[body], @nodes[head], :penwidth => 5)
       @edges[ekey].arrowsize = 2
 
       @edges[ekey].color = (@nodes[body]["color"].source || "")
@@ -267,9 +263,8 @@ class SpaceTime
     @head = {}
     last = nil
     processes.each_with_index do |p, i|
-      #@head[p] = @hdr.add_node("process #{p}(#{i})")#, :color => "white", :label => "")
       @subs[p] = @g.subgraph("buster_#{i+1}")
-      @head[p] = @hdr.add_node("process #{p}(#{i})", :group => p)#, :color => "white", :label => "")
+      @head[p] = @hdr.add_nodes("process #{p}(#{i})", :group => p)#, :color => "white", :label => "")
     end
   end
 
@@ -305,10 +300,9 @@ class SpaceTime
         if @links
           url = "DBM_#{k}/tm_#{item}.svg"
         end
-        snd = @subs[k].add_node(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :pos => [1, i], :group => k, :URL => url})
-
+        snd = @subs[k].add_nodes(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :group => k, :URL => url})
         unless @head[k].id == snd.id
-          @subs[k].add_edge(@head[k], snd, :weight => 2)
+          @subs[k].add_edges(@head[k], snd, :weight => 2)
           @head[k] = snd
         end
       end
@@ -328,7 +322,7 @@ class SpaceTime
   def finish(file, fmt=nil)
     @edges.each_pair do |k, v|
       lbl = v[3] > 1 ? "#{v[2]}(#{v[3]})" : v[2]
-      @g.add_edge(v[0], v[1], :label => lbl, :color => "red", :weight => 1)
+      @g.add_edges(v[0], v[1], :label => lbl, :color => "red", :weight => 1)
     end
     if fmt.nil?
       @g.output(:svg => "#{file}.svg")

@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name = "bud"
-  s.version = "0.0.8"
-  s.date = "2011-10-10"
+  s.version = "0.0.9"
+  s.date = "2012-2-5"
   s.authors = ["Peter Alvaro", "Neil Conway", "Joseph M. Hellerstein", "William R. Marczak"]
   s.email = ["bloomdevs@gmail.com"]
   s.summary = "A prototype Bloom DSL for distributed programming."
@@ -26,7 +26,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'msgpack'
   s.add_dependency 'nestful'
   s.add_dependency 'ParseTree'
-  s.add_dependency 'ruby-graphviz', '<= 0.9.21'
+  s.add_dependency 'ruby-graphviz'
   s.add_dependency 'ruby2ruby', '< 1.3.1'
   s.add_dependency 'sexp_path'
   s.add_dependency 'superators'
