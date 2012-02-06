@@ -116,7 +116,7 @@ class Divergence
 
   include MetaAlgebra
   include MetaReports
-  
+
   state do
     interface input, :cli1, [:data]
     channel :chan, [:@loc, :data]
@@ -189,7 +189,7 @@ class TestMeta < Test::Unit::TestCase
 
     program.run_bg
     program.sync_do
-    
+
     write_graphs({}, program.builtin_tables, program.t_cycle, program.t_depends, program.t_rules, "#{dir}/test_viz", dir, :dot, false, nil, 1, {})
     program.stop
   end
@@ -237,7 +237,7 @@ class TestMeta < Test::Unit::TestCase
     content = get_content("#{dir}/test_graphing.svg")
 
     looks = str2struct(content)
-  
+
     assert_match(/upd -> \"interm, mystate\" \[label=\" \+\/\-\",.+?arrowhead=veeodot/, content)
     assert_match("S -> upd", content)
     assert_match("S -> req", content)
@@ -252,7 +252,7 @@ class TestMeta < Test::Unit::TestCase
     p = Divergence.new(:output => :dot)
     p.run_bg
     p.sync_do
-    
+
     dir = scratch_dir
     graph_from_instance(p, "#{dir}/test_labels", dir, true, :dot)
     content = get_content("#{dir}/test_labels.svg")
@@ -298,7 +298,7 @@ class TestMeta < Test::Unit::TestCase
       [:ping, :a, :b, 3, 5],
       [:pong, :b, :a, 6, 4]
     ];
-    
+
     do_spacetime(inp, "foofoo")
   end
 
@@ -321,7 +321,7 @@ class TestMeta < Test::Unit::TestCase
     ]
     do_spacetime(inp, "foo3")
   end
-  
+
   def do_spacetime(inp, out)
     st = SpaceTime.new(inp)
     st.process
@@ -343,7 +343,7 @@ class TestThetaMeta < Test::Unit::TestCase
       c <= (a * b).pairs(a.key => b.key)
     end
   end
-  
+
   def test_theta
     p = ThetaMonotoneJoin.new
     p.t_depends.each do |dep|
