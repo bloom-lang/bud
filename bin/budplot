@@ -33,7 +33,7 @@ def make_instance(mods)
       if mods.length == 1
         return mod_klass.new
       else
-        puts "Error: cannot intermix classes and modules"
+        puts "Error: cannot intermix class \"#{mod_klass}\" with modules"
         exit
       end
     elsif mod_klass.class != Module
