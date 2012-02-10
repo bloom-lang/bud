@@ -192,44 +192,44 @@ class ShortestPathsL
   include Bud
 
   state do
-    table :arc, [:from, :to, :c]
+    table :link, [:from, :to, :c]
     table :path, [:from, :to, :next] => [:c]
     table :min_cost, [:from, :to] => [:c]
   end
 
   bloom do
-    path <= arc {|a| [a.from, a.to, "direct", Bud::MinLattice.new(a.c)]}
-    path <= (arc * path).pairs(:to => :from) do |a,p|
-      [a.from, p.to, a.to, p.c + a.c]
+    path <= link {|l| [l.from, l.to, "direct", Bud::MinLattice.new(l.c)]}
+    path <= (link * path).pairs(:to => :from) do |l,p|
+      [l.from, p.to, l.to, p.c + l.c]
     end
     min_cost <= path {|p| [p.from, p.to, p.c]}
   end
 end
 
 # Compute shortest paths in a slightly different manner (closer to R&S): add
-# arcs to the end of a previously-discovered path, rather than prepending them
+# links to the end of a previously-discovered path, rather than prepending them
 # to the beginning; this means the "next" field actually points backward from
 # the end of the path.
 class ShortestPathsVariant
   include Bud
 
   state do
-    table :arc, [:from, :to, :c]
+    table :link, [:from, :to, :c]
     table :path, [:from, :to, :next] => [:c]
     table :min_cost, [:from, :to] => [:c]
   end
 
   bloom do
-    path <= arc {|a| [a.from, a.to, "direct", Bud::MinLattice.new(a.c)]}
-    path <= (path * arc).pairs(:to => :from) do |p,a|
-      [p.from, a.to, a.from, p.c + a.c]
+    path <= link {|l| [l.from, l.to, "direct", Bud::MinLattice.new(l.c)]}
+    path <= (path * link).pairs(:to => :from) do |p,l|
+      [p.from, l.to, l.from, p.c + l.c]
     end
     min_cost <= path {|p| [p.from, p.to, p.c]}
   end
 end
 
 # Find the maximum capacity path ("widest path") between each pair of nodes;
-# that is, the path that maximizes the cost of the minimum-cost arc in the path.
+# that is, the path that maximizes the cost of the minimum-cost link in the path.
 # Note that while the shortest path programs are actually defined over
 # multigraphs, we require only a single edge between nodes (mostly for
 # convenience).
@@ -237,15 +237,15 @@ class MaxCapacityPaths
   include Bud
 
   state do
-    table :arc, [:from, :to] => [:c]
+    table :link, [:from, :to] => [:c]
     table :path, [:from, :to, :next] => [:c]
     table :max_cap, [:from, :to] => [:c]
   end
 
   bloom do
-    path <= arc {|a| [a.from, a.to, "direct", Bud::MaxLattice.new(a.c)]}
-    path <= (arc * path).pairs(:to => :from) do |a,p|
-      [a.from, p.to, a.to, p.c.min_of(a.c)]
+    path <= link {|l| [l.from, l.to, "direct", Bud::MaxLattice.new(l.c)]}
+    path <= (link * path).pairs(:to => :from) do |l,p|
+      [l.from, p.to, l.to, p.c.min_of(l.c)]
     end
     max_cap <= path {|p| [p.from, p.to, p.c]}
   end
@@ -256,15 +256,15 @@ class TestGraphPrograms < Test::Unit::TestCase
     i = ShortestPathsL.new
     assert_equal(2, i.strata.length)
     strat_zero = i.stratum_collection_map[0]
-    [:arc, :path, :min_cost].each {|r| assert(strat_zero.include? r) }
-    i.arc <+ [["a", "b", 11],
-              ["a", "b", 10],
-              ["a", "c", 15],
-              ["b", "c", 20],
-              ["b", "c", 21],
-              ["b", "d", 30],
-              ["c", "d", 5],
-              ["d", "e", 10]]
+    [:link, :path, :min_cost].each {|r| assert(strat_zero.include? r) }
+    i.link <+ [["a", "b", 11],
+               ["a", "b", 10],
+               ["a", "c", 15],
+               ["b", "c", 20],
+               ["b", "c", 21],
+               ["b", "d", 30],
+               ["c", "d", 5],
+               ["d", "e", 10]]
     i.tick
     path_r = i.path.to_a.map {|t| [t.from, t.to, t.next, t.c.reveal]}
     assert_equal([["a", "b", "direct", 10],
@@ -298,15 +298,15 @@ class TestGraphPrograms < Test::Unit::TestCase
 
   def test_spath_cyclic
     i = ShortestPathsL.new
-    i.arc <+ [["a", "b", 20],
-              ["a", "b", 21],
-              ["b", "a", 5],
-              ["b", "a", 8],
-              ["b", "c", 10],
-              ["b", "c", 12],
-              ["a", "c", 35],
-              ["d", "a", 15],
-              ["d", "b", 5]]
+    i.link <+ [["a", "b", 20],
+               ["a", "b", 21],
+               ["b", "a", 5],
+               ["b", "a", 8],
+               ["b", "c", 10],
+               ["b", "c", 12],
+               ["a", "c", 35],
+               ["d", "a", 15],
+               ["d", "b", 5]]
     i.tick
 
     path_r = i.path.to_a.map {|t| [t.from, t.to, t.next, t.c.reveal]}
@@ -345,16 +345,16 @@ class TestGraphPrograms < Test::Unit::TestCase
     i = ShortestPathsVariant.new
     assert_equal(2, i.strata.length)
     strat_zero = i.stratum_collection_map[0]
-    [:arc, :path, :min_cost].each {|r| assert(strat_zero.include? r) }
-    i.arc <+ [["a", "b", 20],
-              ["a", "b", 24],
-              ["b", "a", 5],
-              ["b", "a", 8],
-              ["b", "c", 10],
-              ["b", "c", 11],
-              ["a", "c", 35],
-              ["d", "a", 15],
-              ["d", "b", 5]]
+    [:link, :path, :min_cost].each {|r| assert(strat_zero.include? r) }
+    i.link <+ [["a", "b", 20],
+               ["a", "b", 24],
+               ["b", "a", 5],
+               ["b", "a", 8],
+               ["b", "c", 10],
+               ["b", "c", 11],
+               ["a", "c", 35],
+               ["d", "a", 15],
+               ["d", "b", 5]]
     i.tick
 
     path_r = i.path.to_a.map {|t| [t.from, t.to, t.next, t.c.reveal]}
@@ -393,14 +393,14 @@ class TestGraphPrograms < Test::Unit::TestCase
     i = MaxCapacityPaths.new
     assert_equal(2, i.strata.length)
     strat_zero = i.stratum_collection_map[0]
-    [:arc, :path, :max_cap].each {|r| assert(strat_zero.include? r) }
+    [:link, :path, :max_cap].each {|r| assert(strat_zero.include? r) }
 
-    i.arc <+ [["a", "b", 5], ["b", "c", 7]]
+    i.link <+ [["a", "b", 5], ["b", "c", 7]]
     i.tick
     res = i.max_cap.to_a.sort.map {|t| [t.from, t.to, t.c.reveal]}
     assert_equal([["a", "b", 5], ["a", "c", 5], ["b", "c", 7]], res)
 
-    i.arc <+ [["a", "d", 8], ["d", "b", 9]]
+    i.link <+ [["a", "d", 8], ["d", "b", 9]]
     i.tick
     res = i.max_cap.to_a.sort.map {|t| [t.from, t.to, t.c.reveal]}
     assert_equal([["a", "b", 8],
@@ -410,7 +410,7 @@ class TestGraphPrograms < Test::Unit::TestCase
                   ["d", "b", 9],
                   ["d", "c", 7]], res)
 
-    i.arc <+ [["a", "e", 1], ["e", "b", 2]]
+    i.link <+ [["a", "e", 1], ["e", "b", 2]]
     i.tick
     res = i.max_cap.to_a.sort.map {|t| [t.from, t.to, t.c.reveal]}
     assert_equal([["a", "b", 8],
