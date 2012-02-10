@@ -16,7 +16,7 @@ class ShortestPaths
   # recursive rules to define all paths from links
   bloom :make_paths do
     # base case: every link is a path
-    path <= link {|e| [e.from, e.to, e.to, e.cost]}
+    path <= link {|e| [l.from, l.to, l.to, l.cost]}
     
     # inductive case: make path of length n+1 by connecting a link to a path of
     # length n
