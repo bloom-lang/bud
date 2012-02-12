@@ -240,14 +240,8 @@ class Bud::MapLattice < Bud::Lattice
 
   def initialize(i={})
     reject_input(i) unless i.class == Hash
-
-    i.keys.each do |k|
-      reject_input(i) if k.class <= Bud::Lattice
-    end
-    i.values.each do |v|
-      reject_input(i) unless v.class <= Bud::Lattice
-    end
-
+    i.keys.each {|k| reject_input(i) if k.class <= Bud::Lattice}
+    i.values.each {|v| reject_input(i) unless v.class <= Bud::Lattice}
     @v = i
   end
 
