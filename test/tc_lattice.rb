@@ -454,7 +454,27 @@ class MapWithPro < SimpleMap
   end
 end
 
+class MapIntersect
+  include Bud
+
+  state do
+    lmap :m1
+    lmap :m2
+    lmap :m3
+    lmap :m4
+  end
+
+  bloom do
+    m3 <= m1.intersect(m2)
+    m4 <= m2.intersect(m1)
+  end
+end
+
 class TestMap < Test::Unit::TestCase
+  def get_val_for_map(i, r)
+    i.send(r).current_value.reveal.map {|k,v| [k, v.reveal]}.sort
+  end
+
   def test_map_simple
     i = SimpleMap.new
     assert_equal(2, i.strata.length)
@@ -465,21 +485,17 @@ class TestMap < Test::Unit::TestCase
     i.m2 <+ [3, 4, 5]
     i.in_t <+ [["y"], ["z"]]
     i.tick
-
-    h_val = i.h.current_value.reveal.map {|k,v| [k, v.reveal]}
-    assert_equal([["x", 12], ["y", 12], ["z", 5]], h_val.sort)
+    assert_equal([["x", 12], ["y", 12], ["z", 5]], get_val_for_map(i, :h))
 
     i.m2 <+ [15]
     i.tick
-    h_val = i.h.current_value.reveal.map {|k,v| [k, v.reveal]}
-    assert_equal([["x", 12], ["y", 12], ["z", 5]], h_val.sort)
+    assert_equal([["x", 12], ["y", 12], ["z", 5]], get_val_for_map(i, :h))
     assert_equal(15, i.m2.current_value.reveal)
 
     i.m2 <+ [13]
     i.in_t <+ [["y"], ["z"]]
     i.tick
-    h_val = i.h.current_value.reveal.map {|k,v| [k, v.reveal]}
-    assert_equal([["x", 12], ["y", 15], ["z", 15]], h_val.sort)
+    assert_equal([["x", 12], ["y", 15], ["z", 15]], get_val_for_map(i, :h))
     assert_equal(15, i.m2.current_value.reveal)
   end
 
@@ -496,6 +512,33 @@ class TestMap < Test::Unit::TestCase
 
     out_val = i.out_t.to_a.map {|k,v| [k, v.reveal]}
     assert_equal([["y", 13]], out_val.sort)
+  end
+
+  def test_map_intersect
+    i = MapIntersect.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:m1, :m2, :m3, :m4].each {|r| assert(strat_zero.include? r) }
+    i.tick
+    assert_equal([], get_val_for_map(i, :m3))
+    assert_equal([], get_val_for_map(i, :m4))
+
+    i.m1 <+ [{"x" => Bud::MaxLattice.new(15)}]
+    i.m2 <+ [{"y" => Bud::MaxLattice.new(20)}]
+    i.tick
+    assert_equal([], get_val_for_map(i, :m3))
+    assert_equal([], get_val_for_map(i, :m4))
+
+    i.m1 <+ [{"y" => Bud::MaxLattice.new(25)}]
+    i.m2 <+ [{"z" => Bud::MaxLattice.new(30)}]
+    i.tick
+    assert_equal([["y", 25]], get_val_for_map(i, :m3))
+    assert_equal([["y", 25]], get_val_for_map(i, :m4))
+
+    i.m1 <+ [{"y" => Bud::MaxLattice.new(31)}, {"z" => Bud::MaxLattice.new(32)}]
+    i.tick
+    assert_equal([["y", 31], ["z", 32]], get_val_for_map(i, :m3))
+    assert_equal([["y", 31], ["z", 32]], get_val_for_map(i, :m4))
   end
 end
 

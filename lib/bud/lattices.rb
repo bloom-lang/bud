@@ -292,6 +292,18 @@ class Bud::MapLattice < Bud::Lattice
     @v.map(&blk)
   end
 
+  morph :intersect
+  def intersect(i)
+    i_tbl = i.reveal
+    # Scan the smaller map, probe the larger one
+    scan, probe = (@v.size < i_tbl.size ? [@v, i_tbl] : [i_tbl, @v])
+    rv = {}
+    scan.each do |k,val|
+      rv[k] = val.merge(probe[k]) if probe.has_key? k
+    end
+    Bud::MapLattice.new(rv)
+  end
+
   # Return true if this map is strictly smaller than or equal to the given
   # map. "x" is strictly smaller than or equal to "y" if:
   #     (a) every key in "x"  also appears in "y"
