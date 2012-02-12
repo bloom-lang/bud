@@ -21,10 +21,11 @@ class Bud::Lattice
     @lattice_name
   end
 
-  def self.morph(name)
+  def self.morph(name, &block)
     @morphs ||= {}
     @morphs[name] = true
     @@global_morphs[name] = true
+    define_method(name, &block)
   end
 
   def self.morphs
@@ -163,27 +164,24 @@ class Bud::MaxLattice < Bud::Lattice
     (@v.nil? || i.reveal > @v) ? i : self
   end
 
-  morph :gt
-  def gt(k)
+  morph :gt do |k|
     Bud::BoolLattice.new(!!(@v && @v > k))
   end
 
   # XXX: support MaxLattice input?
-  morph :+
-  def +(i)
+  morph :+ do |i|
     raise Bud::Error if @v.nil?
     reject_input(i, "+") unless i.class <= Numeric
     Bud::MaxLattice.new(@v + i)
   end
 
-  def lt_eq(k)
-    Bud::BoolLattice.new(!!(@v && @v <= k))
-  end
-
-  morph :min_of
-  def min_of(i)
+  morph :min_of do |i|
     reject_input(i, "min_of") unless i.class <= Numeric
     (@v.nil? || i < @v) ? Bud::MaxLattice.new(i) : self
+  end
+
+  def lt_eq(k)
+    Bud::BoolLattice.new(!!(@v && @v <= k))
   end
 end
 
@@ -201,14 +199,12 @@ class Bud::MinLattice < Bud::Lattice
     (@v.nil? || i.reveal < @v) ? i : self
   end
 
-  morph :lt
-  def lt(k)
+  morph :lt do |k|
     Bud::BoolLattice.new(!!(@v && @v < k))
   end
 
   # XXX: support MinLattice input
-  morph :+
-  def +(i)
+  morph :+ do |i|
     raise Bud::Error if @v.nil?
     reject_input(i, "+") unless i.class <= Numeric
     Bud::MinLattice.new(@v + i)
@@ -229,9 +225,8 @@ class Bud::BoolLattice < Bud::Lattice
   end
 
   # XXX: ugly syntax
-  morph :when_true
-  def when_true
-    yield if @v
+  morph :when_true do |&blk|
+    blk.call if @v
   end
 end
 
@@ -261,33 +256,29 @@ class Bud::MapLattice < Bud::Lattice
   # value does not exist, so we need the caller to tell us which value to use if
   # they care. Another alternative is to wire the types of the lattice value
   # into the definition of the map lattice.
-  morph :at
-  def at(k, default=nil)
+  morph :at do |k, *args|
     if @v.has_key? k
       @v[k]
     else
-      raise Bud::Error if default.nil?
+      raise Bud::Error if args.empty?
+      default = args.first
       default.new
     end
   end
 
-  morph :key?
-  def key?(k)
+  morph :key? do |k|
     Bud::BoolLattice.new(@v.has_key? k)
   end
 
-  morph :size
-  def size
+  morph :size do
     Bud::MaxLattice.new(@v.size)
   end
 
-  morph :pro
-  def pro(&blk)
+  morph :pro do |&blk|
     @v.map(&blk)
   end
 
-  morph :intersect
-  def intersect(i)
+  morph :intersect do |i|
     i_tbl = i.reveal
     # Scan the smaller map, probe the larger one
     scan, probe = (@v.size < i_tbl.size ? [@v, i_tbl] : [i_tbl, @v])
@@ -342,18 +333,15 @@ class Bud::SetLattice < Bud::Lattice
     Bud::SetLattice.new((@v + i.reveal).uniq)
   end
 
-  morph :size
-  def size
+  morph :size do
     Bud::MaxLattice.new(@v.size)
   end
 
-  morph :intersect
-  def intersect(i)
+  morph :intersect do |i|
     Bud::SetLattice.new(@v & i.reveal)
   end
 
-  morph :pro
-  def pro(&blk)
+  morph :pro do |&blk|
     @v.map(&blk)
   end
 end
@@ -404,22 +392,19 @@ class Bud::BagLattice < Bud::Lattice
 
   private :make_hash
 
-  morph :key?
-  def key(k)
+  morph :key? do |k|
     @h ||= make_hash
     Bud::BoolLattice.new(@h.has_key? k)
   end
 
-  morph :mult
-  def mult(k)
+  morph :mult do |k|
     @h ||= make_hash
     m = @h[k]
     m ||= 0
     Bud::MaxLattice.new(m)
   end
 
-  morph :size
-  def size
+  morph :size do
     Bud::MaxLattice.new(@v.size)
   end
 end
@@ -458,8 +443,7 @@ class Bud::SumLattice < Bud::Lattice
 
   private :compute_sum
 
-  morph :as_max
-  def as_max
+  morph :as_max do
     @sum ||= compute_sum
     Bud::MaxLattice.new(@sum)
   end
@@ -491,8 +475,7 @@ class Bud::SealedLattice < Bud::Lattice
     raise Bud::Error, "cannot merge a sealed lattice value: #{self.inspect}, input = #{i.inspect}"
   end
 
-  morph :safely
-  def safely(f, *args)
+  morph :safely do |f, *args|
     # Since this is a morphism, we might be placed in the same strata as the
     # rule that defines the sealed value. Hence, the sealed value might
     # initially be nil, but should be defined before the end of this strata, by
