@@ -333,16 +333,16 @@ class Bud::SetLattice < Bud::Lattice
     self.class.new((@v + i.reveal).uniq)
   end
 
-  morph :size do
-    Bud::MaxLattice.new(@v.size)
-  end
-
   morph :intersect do |i|
     self.class.new(@v & i.reveal)
   end
 
   morph :pro do |&blk|
     @v.map(&blk)
+  end
+
+  morph :size do
+    Bud::MaxLattice.new(@v.size)
   end
 end
 
