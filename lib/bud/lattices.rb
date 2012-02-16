@@ -324,6 +324,8 @@ class Bud::SetLattice < Bud::Lattice
   def initialize(i=[])
     reject_input(i) unless i.class <= Enumerable
     i.each do |e|
+      # XXX: is there anything wrong with a set lattice that has lattice values
+      # as elements?
       reject_input(i) if e.class <= Bud::Lattice
     end
     @v = i
