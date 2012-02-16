@@ -170,7 +170,7 @@ class Bud::MaxLattice < Bud::Lattice
 
   # XXX: support MaxLattice input?
   morph :+ do |i|
-    raise Bud::Error if @v.nil?
+    raise Bud::Error, "cannot apply + to empty MaxLattice"  if @v.nil?
     reject_input(i, "+") unless i.class <= Numeric
     Bud::MaxLattice.new(@v + i)
   end
@@ -330,7 +330,7 @@ class Bud::SetLattice < Bud::Lattice
   end
 
   def merge(i)
-    Bud::SetLattice.new((@v + i.reveal).uniq)
+    self.class.new((@v + i.reveal).uniq)
   end
 
   morph :size do
@@ -338,7 +338,7 @@ class Bud::SetLattice < Bud::Lattice
   end
 
   morph :intersect do |i|
-    Bud::SetLattice.new(@v & i.reveal)
+    self.class.new(@v & i.reveal)
   end
 
   morph :pro do |&blk|
@@ -409,42 +409,22 @@ class Bud::BagLattice < Bud::Lattice
   end
 end
 
-# Sum over non-negative numbers
-class Bud::SumLattice < Bud::Lattice
-  lattice_name :lsum
+# A set that admits only non-negative numbers. This allows "sum" to be a
+# morphism. Note that this does duplicate elimination on its input, so it
+# actually computes "SUM(DISTINCT ...)" in SQL.
+class Bud::PositiveSetLattice < Bud::SetLattice
+  lattice_name :lpset
 
-  def initialize(i={})
-    reject_input(i) unless i.class == Hash
-
-    i.each do |k,v|
-      reject_input(i) unless k.class <= Bud::SafeNonce
-      reject_input(i) unless v.class <= Numeric
-      reject_input(i) unless v >= 0
+  def initialize(i=[])
+    super
+    @v.each do |n|
+      reject_input(i) unless n.class <= Numeric
+      reject_input(i) if n < 0
     end
-
-    @v = i
   end
 
-  def merge(i)
-    rv = @v.merge(i.reveal) do |k, lhs_v, rhs_v|
-      raise Bud::Error unless lhs_v == rhs_v
-      lhs_v
-    end
-    return Bud::SumLattice.new(rv)
-  end
-
-  def compute_sum
-    rv = 0
-    @v.each_value do |s|
-      rv += s
-    end
-    rv
-  end
-
-  private :compute_sum
-
-  morph :as_max do
-    @sum ||= compute_sum
+  morph :pos_sum do
+    @sum = @v.reduce(0) {|sum,i| sum + i} if @sum.nil?
     Bud::MaxLattice.new(@sum)
   end
 end
