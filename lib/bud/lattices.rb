@@ -337,6 +337,14 @@ class Bud::SetLattice < Bud::Lattice
     self.class.new(@v & i.reveal)
   end
 
+  morph :product do |i|
+    rv = []
+    @v.each do |a|
+      rv += i.pro {|b| [a,b]}
+    end
+    self.class.new(rv)
+  end
+
   morph :pro do |&blk|
     @v.map(&blk)
   end

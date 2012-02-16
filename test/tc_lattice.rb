@@ -570,6 +570,20 @@ class SetWithPro < SimpleSet
   end
 end
 
+class SetProduct
+  include Bud
+
+  state do
+    lset :s1
+    lset :s2
+    lset :s3
+  end
+
+  bloom do
+    s3 <= s1.product(s2)
+  end
+end
+
 class TestSet < Test::Unit::TestCase
   def test_set_simple
     i = SimpleSet.new
@@ -611,6 +625,26 @@ class TestSet < Test::Unit::TestCase
     i.s2 <+ [[7]]
     i.tick
     assert_equal([[16], [17]], i.out_t.to_a.sort)
+  end
+
+  def test_set_product
+    i = SetProduct.new
+    i.tick
+    assert_equal([], i.s3.current_value.reveal)
+
+    i.s1 <+ [[1], [2]]
+    i.tick
+    assert_equal([], i.s3.current_value.reveal)
+
+    i.s2 <+ [[3]]
+    i.tick
+    assert_equal([[1,3], [2,3]], i.s3.current_value.reveal.sort)
+
+    i.s1 <+ [[3]]
+    i.s2 <+ [[7]]
+    i.tick
+    assert_equal([[1,3], [1,7], [2,3], [2,7], [3,3], [3,7]],
+                 i.s3.current_value.reveal.sort)
   end
 end
 
