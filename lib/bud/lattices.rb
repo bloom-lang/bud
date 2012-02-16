@@ -332,7 +332,7 @@ class Bud::SetLattice < Bud::Lattice
   end
 
   def merge(i)
-    self.class.new((@v + i.reveal).uniq)
+    self.class.new(@v | i.reveal)
   end
 
   morph :intersect do |i|
