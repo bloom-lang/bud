@@ -8,7 +8,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
     :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
     :schema => 1, :cols => 1, :key_cols => 1, :val_cols => 1,
-    :payloads => 1, :tabname => 1, :+@ => 1, :current_value => 1
+    :payloads => 1, :tabname => 1, :+@ => 1,
+    :current_value => 1, :current_delta => 1
   }
 
   def initialize(seed, bud_instance)
@@ -51,8 +52,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
         @nm = true if op == :-@
         # don't worry about monotone ops, table names, table.attr calls, lattice
         # names, lattice morphisms, or accessors of iterator variables
-        unless MONOTONE_WHITELIST[op] or @bud_instance.tables.has_key? op or
-               is_lattice_op(op) or call_is_attr_deref?(recv, op) or recv.first == :lvar
+        unless RuleRewriter.is_monotone(op) or is_collection_name(op) or
+               call_is_attr_deref?(recv, op) or recv.first == :lvar
           @nm = true
         end
       end
@@ -63,9 +64,18 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     end
   end
 
-  def is_lattice_op(op)
-    return true if @bud_instance.lattices.has_key? op
-    return Bud::Lattice.global_morphs.has_key? op
+  def self.is_monotone(op)
+    is_morphism(op) ||
+      MONOTONE_WHITELIST.has_key?(op) ||
+      Bud::Lattice.global_morphs.has_key?(op)
+  end
+
+  def self.is_morphism(op)
+    Bud::Lattice.global_tmorphs.has_key? op
+  end
+
+  def is_collection_name(op)
+    @bud_instance.tables.has_key?(op) || @bud_instance.lattices.has_key?(op)
   end
 
   def collect_rhs(exp)
@@ -113,6 +123,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     lhs = process exp[0]
     op = exp[1]
     pro_rules = map2pro(exp[2])
+    LatticeDeltaRewrite.new(@bud_instance).rewrite(pro_rules)
     pro_rules = LatticeRefRewriter.new(@bud_instance).process(pro_rules)
 
     if @bud_instance.options[:no_attr_rewrite]
@@ -149,8 +160,40 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 end
 
-# Rewrite references to named lattices on the RHS of rules to instead invoke
-# "current_value" on the lattice wrapper.
+class LatticeDeltaRewrite
+  def initialize(bud_instance)
+    @bud_instance = bud_instance
+  end
+
+  def rewrite(exp)
+    if exp.sexp_type != :call
+      rewrite(exp[1])
+    else
+      tag, recv, op, args = exp
+      if recv.nil? and args == s(:arglist)
+        # We've found a context where it is safe to use the lattice's delta
+        # value instead of its current value. As a gross hack, we identify this
+        # location in the AST by appending "___delta" to the name of the lattice
+        # in the AST; LatticeRefRewriter will then strip off the suffix and do
+        # the actual delta rewrite.
+        exp[2] = "#{op.to_s}___delta".to_sym if @bud_instance.lattices.has_key?(op)
+      else
+        return unless RuleRewriter.is_morphism(op)
+        rewrite(recv)
+      end
+    end
+  end
+end
+
+# Rewrite references to lattice identifiers on the RHS of rules. Invoking the
+# lattice identifier will return the lattice wrapper; we want to invoke a method
+# on the wrapper to get the current value associated with the wrapper.
+#
+# If the lattice identifier is used in a "safe" context, we can return the
+# current "delta" value; otherwise, we return the current value. "Safe" means
+# that the lattice is referenced at the top level of a Bloom rule, and that all
+# the methods chained after this invocation are morphisms, not order-preserving
+# mappings.
 class LatticeRefRewriter < SexpProcessor
   def initialize(bud_instance)
     super()
@@ -161,9 +204,16 @@ class LatticeRefRewriter < SexpProcessor
 
   def process_call(exp)
     tag, recv, op, args = exp
+    proper_name = remove_delta_tag(op)
 
-    if recv.nil? and args == s(:arglist) and is_lattice?(op)
-      return s(:call, exp, :current_value, s(:arglist))
+    if recv.nil? and args == s(:arglist) and is_lattice?(proper_name)
+      if op == proper_name
+        func = :current_value
+      else
+        exp = s(tag, recv, proper_name, args)
+        func = :delta_value
+      end
+      return s(:call, exp, func, s(:arglist))
     else
       return s(tag, process(recv), op, process(args))
     end
@@ -171,6 +221,16 @@ class LatticeRefRewriter < SexpProcessor
 
   def is_lattice?(op)
     @bud_instance.lattices.has_key? op.to_sym
+  end
+
+  def remove_delta_tag(op)
+    if op.to_s.end_with? "___delta"
+      puts "REMOVING delta tag from #{op} => #{op.to_s[0..-9].to_sym}"
+      op.to_s[0..-9].to_sym
+    else
+      puts "PRESERVED: op = #{op}"
+      op
+    end
   end
 end
 

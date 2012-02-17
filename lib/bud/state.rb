@@ -156,9 +156,9 @@ module Bud
       end
     end
 
+    # Sanity-check lattice definitions
+    # XXX: We should do this only once per lattice
     Bud::Lattice.lattice_kinds.each do |lat_name, klass|
-      # Sanity-check lattice definitions
-      # XXX: We should do this only once per lattice
       unless klass.method_defined? :merge
         raise Bud::CompileError, "lattice #{lat_name} does not define a merge function"
       end
@@ -173,11 +173,21 @@ module Bud
         end
       end
 
+      # Apply a similar check for tmorphs
+      Bud::Lattice.global_tmorphs.each_key do |m|
+        next unless meth_list.include? m.to_s
+        unless klass.tmorphs.has_key? m
+          raise Bud::CompileError, "method #{m} in #{lat_name} must be a tmorph"
+        end
+      end
+
       # Similarly, check for non-morphisms that are found in the builtin list of
       # monotone operators
-      meth_list.each do |m|
-        next unless RuleRewriter::MONOTONE_WHITELIST.has_key? m.to_sym
-        unless klass.morphs.has_key? m.to_sym
+      # XXX: this should probably check only tmorphs, right?
+      meth_list.each do |m_str|
+        m = m_str.to_sym
+        next unless RuleRewriter::MONOTONE_WHITELIST.has_key? m
+        unless klass.morphs.has_key?(m) || klass.tmorphs.has_key?(m)
           raise Bud::CompileError, "method #{m} in #{lat_name} must be a morph"
         end
       end

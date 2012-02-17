@@ -1,6 +1,7 @@
 class Bud::Lattice
   @@lattice_kinds = {}
   @@global_morphs = {}
+  @@global_tmorphs = {}
 
   def self.lattice_name(name)
     if @lattice_name
@@ -21,7 +22,28 @@ class Bud::Lattice
     @lattice_name
   end
 
+  def self.true_morph(name, &block)
+    if morphs.has_key?(name) || @@global_morphs.has_key?(name)
+      raise Bud::CompileError, "#{name} declared as both morph and tmorph"
+    end
+    @tmorphs ||= {}
+    @tmorphs[name] = true
+    @@global_tmorphs[name] = true
+    define_method(name, &block)
+  end
+
+  def self.tmorphs
+    @tmorphs || {}
+  end
+
+  def self.global_tmorphs
+    @@global_tmorphs
+  end
+
   def self.morph(name, &block)
+    if tmorphs.has_key?(name) || @@global_tmorphs.has_key?(name)
+      raise Bud::CompileError, "#{name} declared as both morph and tmorph"
+    end
     @morphs ||= {}
     @morphs[name] = true
     @@global_morphs[name] = true
@@ -335,11 +357,11 @@ class Bud::SetLattice < Bud::Lattice
     self.class.new(@v | i.reveal)
   end
 
-  morph :intersect do |i|
+  true_morph :intersect do |i|
     self.class.new(@v & i.reveal)
   end
 
-  morph :product do |i|
+  true_morph :product do |i|
     rv = []
     @v.each do |a|
       rv += i.pro {|b| [a,b]}
