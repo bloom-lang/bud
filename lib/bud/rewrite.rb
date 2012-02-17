@@ -9,7 +9,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
     :schema => 1, :cols => 1, :key_cols => 1, :val_cols => 1,
     :payloads => 1, :tabname => 1, :+@ => 1,
-    :current_value => 1, :current_delta => 1
+    :current_value => 1, :current_morph_value => 1
   }
 
   def initialize(seed, bud_instance)
@@ -167,7 +167,7 @@ class LatticeDeltaRewrite
 
   def rewrite(exp)
     if exp.sexp_type != :call
-      rewrite(exp[1])
+      rewrite(exp[1]) if exp[1].class <= Sexp
     else
       tag, recv, op, args = exp
       if recv.nil? and args == s(:arglist)
@@ -211,7 +211,7 @@ class LatticeRefRewriter < SexpProcessor
         func = :current_value
       else
         exp = s(tag, recv, proper_name, args)
-        func = :delta_value
+        func = :current_morph_value
       end
       return s(:call, exp, func, s(:arglist))
     else
@@ -225,10 +225,8 @@ class LatticeRefRewriter < SexpProcessor
 
   def remove_delta_tag(op)
     if op.to_s.end_with? "___delta"
-      puts "REMOVING delta tag from #{op} => #{op.to_s[0..-9].to_sym}"
       op.to_s[0..-9].to_sym
     else
-      puts "PRESERVED: op = #{op}"
       op
     end
   end

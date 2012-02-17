@@ -201,8 +201,8 @@ module Bud
         opts[:scratch] ||= false
 
         define_lattice(collection_name)
-        @lattices[collection_name] = Bud::LatticeWrapper.new(collection_name,
-                                                             klass, opts[:scratch])
+        @lattices[collection_name] = Bud::LatticeWrapper.new(collection_name, klass,
+                                                             opts[:scratch], self)
       end
     end
   end

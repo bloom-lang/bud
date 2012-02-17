@@ -81,10 +81,11 @@ end
 class Bud::LatticeWrapper
   attr_reader :tabname, :is_scratch
 
-  def initialize(tabname, klass, is_scratch)
+  def initialize(tabname, klass, is_scratch, bud_i)
     @tabname = tabname
     @klass = klass
     @is_scratch = is_scratch
+    @bud_instance = bud_i
   end
 
   def current_value(&blk)
@@ -94,6 +95,10 @@ class Bud::LatticeWrapper
     else
       @storage.pro(&blk)        # NB: not all lattices implement this method
     end
+  end
+
+  def current_morph_value(&blk)
+    current_value(&blk)
   end
 
   private
@@ -152,17 +157,17 @@ class Bud::LatticeWrapper
   end
 
   def tick
-    @storage = nil if @is_scratch
-    @storage = do_merge(current_value, @pending)
-    @pending = nil
     if @delta
       raise Bud::Error, "orphaned delta value for lattice #{@tabname}: #{@delta.inspect}"
     end
+    @storage = nil if @is_scratch
+    @storage = do_merge(current_value, @pending)
+    @pending = nil
   end
 
   def tick_deltas
     unless @delta.nil?
-      @storage = @delta
+      @storage = do_merge(current_value, @delta)
       @delta = nil
     end
   end
@@ -357,11 +362,11 @@ class Bud::SetLattice < Bud::Lattice
     self.class.new(@v | i.reveal)
   end
 
-  true_morph :intersect do |i|
+  morph :intersect do |i|
     self.class.new(@v & i.reveal)
   end
 
-  true_morph :product do |i|
+  morph :product do |i|
     rv = []
     @v.each do |a|
       rv += i.pro {|b| [a,b]}
