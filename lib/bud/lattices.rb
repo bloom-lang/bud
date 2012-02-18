@@ -98,12 +98,26 @@ class Bud::LatticeWrapper
   end
 
   def current_morph_value(&blk)
-    current_value(&blk)
+    if @bud_instance.stratum_first_iter
+      current_value(&blk)
+    else
+      current_delta(&blk)
+    end
+  end
+
+  def current_new_delta
+    @new_delta ||= @klass.new
+    @new_delta
   end
 
   private
-  def current_delta
-    @delta || current_value
+  def current_delta(&blk)
+    @delta ||= @klass.new
+    if blk.nil?
+      @delta
+    else
+      @delta.pro(&blk)          # NB: not all lattices implement this method
+    end
   end
 
   def current_pending
@@ -143,8 +157,7 @@ class Bud::LatticeWrapper
   public
   def <=(i)
     return if i.nil?
-    rv = do_merge(current_delta, i)
-    @delta = rv unless rv.reveal == current_delta.reveal
+    @new_delta = do_merge(current_new_delta, i)
   end
 
   superator "<+" do |i|
@@ -152,24 +165,30 @@ class Bud::LatticeWrapper
     @pending = do_merge(current_pending, i)
   end
 
-  def got_delta?
-    not @delta.nil?
-  end
-
   def tick
-    if @delta
-      raise Bud::Error, "orphaned delta value for lattice #{@tabname}: #{@delta.inspect}"
+    if @new_delta
+      raise Bud::Error, "orphaned delta value for lattice #{@tabname}: #{@new_delta.inspect}"
     end
     @storage = nil if @is_scratch
     @storage = do_merge(current_value, @pending)
     @pending = nil
+    @delta = nil
   end
 
   def tick_deltas
-    unless @delta.nil?
-      @storage = do_merge(current_value, @delta)
-      @delta = nil
+    result = false
+
+    if @new_delta
+      m = do_merge(current_value, @new_delta)
+      if m.reveal != current_value.reveal
+        @storage = m
+        @delta = @new_delta
+        result = true
+      end
+      @new_delta = nil
     end
+
+    return result
   end
 
   def inspect
