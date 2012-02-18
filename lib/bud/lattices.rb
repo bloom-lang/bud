@@ -182,11 +182,12 @@ class Bud::LatticeWrapper
       m = do_merge(current_value, @new_delta)
       if m.reveal != current_value.reveal
         @storage = m
-        @delta = @new_delta
         result = true
       end
-      @new_delta = nil
     end
+
+    @delta = @new_delta
+    @new_delta = nil
 
     return result
   end
