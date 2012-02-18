@@ -188,7 +188,8 @@ class Bud::MaxLattice < Bud::Lattice
   end
 
   def merge(i)
-    (@v.nil? || i.reveal > @v) ? i : self
+    i_val = i.reveal
+    (@v.nil? || (i_val != nil && i_val > @v)) ? i : self
   end
 
   morph :gt do |k|
@@ -223,7 +224,8 @@ class Bud::MinLattice < Bud::Lattice
   end
 
   def merge(i)
-    (@v.nil? || i.reveal < @v) ? i : self
+    i_val = i.reveal
+    (@v.nil? || (i_val != nil && i_val < @v)) ? i : self
   end
 
   morph :lt do |k|
