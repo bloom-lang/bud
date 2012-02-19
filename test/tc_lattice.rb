@@ -531,11 +531,16 @@ class MapIntersect
     lmap :m2
     lmap :m3
     lmap :m4
+    lbool :done_m3
+    lbool :done_m4
   end
 
   bloom do
     m3 <= m1.intersect(m2)
     m4 <= m2.intersect(m1)
+
+    done_m3 <= m3.size.gt(1)
+    done_m4 <= m4.size.gt(1)
   end
 end
 
@@ -587,7 +592,7 @@ class TestMap < Test::Unit::TestCase
     i = MapIntersect.new
     assert_equal(2, i.strata.length)
     strat_zero = i.stratum_collection_map[0]
-    [:m1, :m2, :m3, :m4].each {|r| assert(strat_zero.include? r) }
+    [:m1, :m2, :m3, :m4, :done_m3, :done_m4].each {|r| assert(strat_zero.include? r) }
     i.tick
     assert_equal([], get_val_for_map(i, :m3))
     assert_equal([], get_val_for_map(i, :m4))
@@ -597,17 +602,23 @@ class TestMap < Test::Unit::TestCase
     i.tick
     assert_equal([], get_val_for_map(i, :m3))
     assert_equal([], get_val_for_map(i, :m4))
+    assert_equal(false, i.done_m3.current_value.reveal)
+    assert_equal(false, i.done_m4.current_value.reveal)
 
     i.m1 <+ [{"y" => Bud::MaxLattice.new(25)}]
     i.m2 <+ [{"z" => Bud::MaxLattice.new(30)}]
     i.tick
     assert_equal([["y", 25]], get_val_for_map(i, :m3))
     assert_equal([["y", 25]], get_val_for_map(i, :m4))
+    assert_equal(false, i.done_m3.current_value.reveal)
+    assert_equal(false, i.done_m4.current_value.reveal)
 
     i.m1 <+ [{"y" => Bud::MaxLattice.new(31)}, {"z" => Bud::MaxLattice.new(32)}]
     i.tick
     assert_equal([["y", 31], ["z", 32]], get_val_for_map(i, :m3))
     assert_equal([["y", 31], ["z", 32]], get_val_for_map(i, :m4))
+    assert_equal(true, i.done_m3.current_value.reveal)
+    assert_equal(true, i.done_m4.current_value.reveal)
   end
 end
 
