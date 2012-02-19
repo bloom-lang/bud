@@ -216,18 +216,18 @@ class Bud::MaxLattice < Bud::Lattice
     (@v.nil? || (i_val != nil && i_val > @v)) ? i : self
   end
 
-  morph :gt do |k|
+  true_morph :gt do |k|
     Bud::BoolLattice.new(!!(@v && @v > k))
   end
 
   # XXX: support MaxLattice input?
-  morph :+ do |i|
+  true_morph :+ do |i|
     raise Bud::Error, "cannot apply + to empty MaxLattice"  if @v.nil?
     reject_input(i, "+") unless i.class <= Numeric
     Bud::MaxLattice.new(@v + i)
   end
 
-  morph :min_of do |i|
+  true_morph :min_of do |i|
     reject_input(i, "min_of") unless i.class <= Numeric
     (@v.nil? || i < @v) ? Bud::MaxLattice.new(i) : self
   end
@@ -252,12 +252,12 @@ class Bud::MinLattice < Bud::Lattice
     (@v.nil? || (i_val != nil && i_val < @v)) ? i : self
   end
 
-  morph :lt do |k|
+  true_morph :lt do |k|
     Bud::BoolLattice.new(!!(@v && @v < k))
   end
 
   # XXX: support MinLattice input
-  morph :+ do |i|
+  true_morph :+ do |i|
     raise Bud::Error if @v.nil?
     reject_input(i, "+") unless i.class <= Numeric
     Bud::MinLattice.new(@v + i)
@@ -278,7 +278,7 @@ class Bud::BoolLattice < Bud::Lattice
   end
 
   # XXX: ugly syntax
-  morph :when_true do |&blk|
+  true_morph :when_true do |&blk|
     blk.call if @v
   end
 end
@@ -327,11 +327,11 @@ class Bud::MapLattice < Bud::Lattice
     Bud::MaxLattice.new(@v.size)
   end
 
-  morph :pro do |&blk|
+  true_morph :pro do |&blk|
     @v.map(&blk)
   end
 
-  morph :intersect do |i|
+  true_morph :intersect do |i|
     i_tbl = i.reveal
     # Scan the smaller map, probe the larger one
     scan, probe = (@v.size < i_tbl.size ? [@v, i_tbl] : [i_tbl, @v])
@@ -388,11 +388,11 @@ class Bud::SetLattice < Bud::Lattice
     self.class.new(@v | i.reveal)
   end
 
-  morph :intersect do |i|
+  true_morph :intersect do |i|
     self.class.new(@v & i.reveal)
   end
 
-  morph :product do |i|
+  true_morph :product do |i|
     rv = []
     @v.each do |a|
       rv += i.pro {|b| [a,b]}
@@ -400,7 +400,7 @@ class Bud::SetLattice < Bud::Lattice
     self.class.new(rv)
   end
 
-  morph :pro do |&blk|
+  true_morph :pro do |&blk|
     @v.map(&blk)
   end
 
