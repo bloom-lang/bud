@@ -123,7 +123,9 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     lhs = process exp[0]
     op = exp[1]
     pro_rules = map2pro(exp[2])
-    LatticeDeltaRewrite.new(@bud_instance).rewrite(pro_rules)
+    unless @bud_instance.options[:disable_lattice_semi_naive]
+      LatticeDeltaRewrite.new(@bud_instance).rewrite(pro_rules)
+    end
     pro_rules = LatticeRefRewriter.new(@bud_instance).process(pro_rules)
 
     if @bud_instance.options[:no_attr_rewrite]
@@ -160,6 +162,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 end
 
+# Identify situations in which the lattice delta rewrite can safely be applied
+# (see LatticeRefRewriter below for more).
 class LatticeDeltaRewrite
   def initialize(bud_instance)
     @bud_instance = bud_instance
