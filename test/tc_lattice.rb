@@ -728,57 +728,6 @@ class TestSet < Test::Unit::TestCase
   end
 end
 
-class SimpleBag
-  include Bud
-
-  state do
-    lbag :b1
-    lbag :b2
-    lmax :foo_cnt
-    lmax :bar_cnt
-    scratch :in_t, [:v, :cnt]
-  end
-
-  bloom do
-    b1 <= in_t {|t| { wrap_nonce(t.v) => [t.v, t.cnt] } }
-    b2 <= in_t {|t| { wrap_nonce(t.v) => [t.v, t.cnt] } }
-    b2 <= b1
-    foo_cnt <= b2.mult("foo")
-    bar_cnt <= b2.mult("bar")
-  end
-end
-
-class TestBag < Test::Unit::TestCase
-  def test_bag_simple
-    i = SimpleBag.new
-    assert_equal(2, i.strata.length)
-    strat_zero = i.stratum_collection_map[0]
-    [:b1, :b2, :foo_cnt, :bar_cnt, :in_t].each do |r|
-      assert(strat_zero.include? r)
-    end
-
-    i.tick
-    assert_equal(0, i.foo_cnt.current_value.reveal)
-    assert_equal(0, i.bar_cnt.current_value.reveal)
-    i.in_t <+ [["foo", 1], ["bar", 2]]
-    i.tick
-    assert_equal(1, i.foo_cnt.current_value.reveal)
-    assert_equal(2, i.bar_cnt.current_value.reveal)
-    i.in_t <+ [["foo", 5], ["bar", 7]]
-    i.tick
-    assert_equal(6, i.foo_cnt.current_value.reveal)
-    assert_equal(9, i.bar_cnt.current_value.reveal)
-  end
-
-  def test_bag_reject_neg_multiplicity
-    i = SimpleBag.new
-    i.in_t <+ [["foo", 5], ["bar", -1]]
-    assert_raise(Bud::TypeError) do
-      i.tick
-    end
-  end
-end
-
 class SimpleSum
   include Bud
 

@@ -413,69 +413,6 @@ class Bud::SetLattice < Bud::Lattice
   end
 end
 
-# XXX: This is a weird bag, because we assume that inputs are unique-ified via
-# nonces; hence, merge is the merge we want for the shopping cart example,
-# rather than the natural idempotent merge for multisets (max of item
-# multiplicities; cart wants sum).
-class Bud::BagLattice < Bud::Lattice
-  lattice_name :lbag
-
-  def initialize(i={})
-    reject_input(i) unless i.class == Hash
-
-    i.each do |k,v|
-      reject_input(i) unless k.class <= Bud::SafeNonce
-
-      reject_input(i) unless (v.class <= Enumerable && v.length == 2)
-      val, cnt = v
-      reject_input(i) if val.class <= Bud::Lattice
-      reject_input(i) unless cnt.class <= Numeric
-      reject_input(i) if cnt < 0
-    end
-
-    @v = i
-  end
-
-  def merge(i)
-    rv = @v.merge(i.reveal) do |k, lhs_v, rhs_v|
-      raise Bud::Error unless lhs_v == rhs_v
-      lhs_v
-    end
-    return Bud::BagLattice.new(rv)
-  end
-
-  # Create an extra lookup table on the fly, mapping each value to its
-  # multiplicity. Since any given lattice value is immutable, this table won't
-  # change, but we don't bother building it unless needed.
-  def make_hash
-    rv = {}
-    @v.each_value do |t|
-      val, cnt = t
-      rv[val] ||= 0
-      rv[val] += cnt
-    end
-    rv
-  end
-
-  private :make_hash
-
-  morph :key? do |k|
-    @h ||= make_hash
-    Bud::BoolLattice.new(@h.has_key? k)
-  end
-
-  morph :mult do |k|
-    @h ||= make_hash
-    m = @h[k]
-    m ||= 0
-    Bud::MaxLattice.new(m)
-  end
-
-  morph :size do
-    Bud::MaxLattice.new(@v.size)
-  end
-end
-
 # A set that admits only non-negative numbers. This allows "sum" to be an
 # order-preserving map.  Note that this does duplicate elimination on its input,
 # so it actually computes "SUM(DISTINCT ...)" in SQL.
