@@ -476,9 +476,9 @@ class Bud::BagLattice < Bud::Lattice
   end
 end
 
-# A set that admits only non-negative numbers. This allows "sum" to be a
-# morphism. Note that this does duplicate elimination on its input, so it
-# actually computes "SUM(DISTINCT ...)" in SQL.
+# A set that admits only non-negative numbers. This allows "sum" to be an
+# order-preserving map.  Note that this does duplicate elimination on its input,
+# so it actually computes "SUM(DISTINCT ...)" in SQL.
 class Bud::PositiveSetLattice < Bud::SetLattice
   lattice_name :lpset
 
