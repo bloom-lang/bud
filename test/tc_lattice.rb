@@ -52,6 +52,23 @@ class EmbedMax
   end
 end
 
+class EmptyMaxMerge
+  include Bud
+
+  state do
+    lmax :m1
+    lmax :m2
+  end
+
+  bootstrap do
+    m1 <= Bud::MaxLattice.new(5)
+  end
+
+  bloom do
+    m1 <= m2
+  end
+end
+
 class MaxOverChannel
   include Bud
 
@@ -182,6 +199,11 @@ class TestMax < Test::Unit::TestCase
     assert_raise(Bud::TypeError) do
       i.tick
     end
+  end
+
+  def test_empty_max
+    i = EmptyMaxMerge.new
+    assert_nothing_raised { i.tick }
   end
 end
 
