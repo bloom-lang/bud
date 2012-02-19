@@ -156,7 +156,7 @@ module Bud
       end
     end
 
-    Bud::Lattice.global_tmorphs.each_key do |m|
+    Bud::Lattice.global_morphs.each_key do |m|
       next if RuleRewriter::MONOTONE_WHITELIST.has_key? m
       if Bud::BudCollection.instance_methods.include? m.to_s
         puts "morphism #{m} conflicts with non-monotonic method in BudCollection"
@@ -180,11 +180,11 @@ module Bud
         end
       end
 
-      # Apply a similar check for tmorphs
-      Bud::Lattice.global_tmorphs.each_key do |m|
+      # Apply a similar check for morphs
+      Bud::Lattice.global_morphs.each_key do |m|
         next unless meth_list.include? m.to_s
-        unless klass.tmorphs.has_key? m
-          raise Bud::CompileError, "method #{m} in #{lat_name} must be a tmorph"
+        unless klass.morphs.has_key? m
+          raise Bud::CompileError, "method #{m} in #{lat_name} must be a morph"
         end
       end
 
@@ -193,7 +193,7 @@ module Bud
       meth_list.each do |m_str|
         m = m_str.to_sym
         next unless RuleRewriter::MONOTONE_WHITELIST.has_key? m
-        unless klass.ord_maps.has_key?(m) || klass.tmorphs.has_key?(m)
+        unless klass.ord_maps.has_key?(m) || klass.morphs.has_key?(m)
           raise Bud::CompileError, "method #{m} in #{lat_name} must be monotone"
         end
       end

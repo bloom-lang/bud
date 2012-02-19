@@ -71,7 +71,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   def self.is_morphism(op)
-    Bud::Lattice.global_tmorphs.has_key? op
+    Bud::Lattice.global_morphs.has_key? op
   end
 
   def is_collection_name(op)

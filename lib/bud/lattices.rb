@@ -1,7 +1,7 @@
 class Bud::Lattice
   @@lattice_kinds = {}
   @@global_ord_maps = {}
-  @@global_tmorphs = {}
+  @@global_morphs = {}
 
   def self.lattice_name(name)
     if @lattice_name
@@ -22,27 +22,27 @@ class Bud::Lattice
     @lattice_name
   end
 
-  def self.true_morph(name, &block)
+  def self.morph(name, &block)
     if ord_maps.has_key?(name) || @@global_ord_maps.has_key?(name)
-      raise Bud::CompileError, "#{name} declared as both ord_map and tmorph"
+      raise Bud::CompileError, "#{name} declared as both ord_map and morph"
     end
-    @tmorphs ||= {}
-    @tmorphs[name] = true
-    @@global_tmorphs[name] = true
+    @morphs ||= {}
+    @morphs[name] = true
+    @@global_morphs[name] = true
     define_method(name, &block)
   end
 
-  def self.tmorphs
-    @tmorphs || {}
+  def self.morphs
+    @morphs || {}
   end
 
-  def self.global_tmorphs
-    @@global_tmorphs
+  def self.global_morphs
+    @@global_morphs
   end
 
   def self.ord_map(name, &block)
-    if tmorphs.has_key?(name) || @@global_tmorphs.has_key?(name)
-      raise Bud::CompileError, "#{name} declared as both ord_map and tmorph"
+    if morphs.has_key?(name) || @@global_morphs.has_key?(name)
+      raise Bud::CompileError, "#{name} declared as both ord_map and morph"
     end
     @ord_maps ||= {}
     @ord_maps[name] = true
@@ -216,22 +216,22 @@ class Bud::MaxLattice < Bud::Lattice
     (@v.nil? || (i_val != nil && i_val > @v)) ? i : self
   end
 
-  true_morph :gt do |k|
+  morph :gt do |k|
     Bud::BoolLattice.new(!!(@v && @v > k))
   end
 
-  true_morph :gt_eq do |k|
+  morph :gt_eq do |k|
     Bud::BoolLattice.new(!!(@v && @v >= k))
   end
 
   # XXX: support MaxLattice input?
-  true_morph :+ do |i|
+  morph :+ do |i|
     raise Bud::Error, "cannot apply + to empty MaxLattice"  if @v.nil?
     reject_input(i, "+") unless i.class <= Numeric
     Bud::MaxLattice.new(@v + i)
   end
 
-  true_morph :min_of do |i|
+  morph :min_of do |i|
     reject_input(i, "min_of") unless i.class <= Numeric
     (@v.nil? || i < @v) ? Bud::MaxLattice.new(i) : self
   end
@@ -256,12 +256,12 @@ class Bud::MinLattice < Bud::Lattice
     (@v.nil? || (i_val != nil && i_val < @v)) ? i : self
   end
 
-  true_morph :lt do |k|
+  morph :lt do |k|
     Bud::BoolLattice.new(!!(@v && @v < k))
   end
 
   # XXX: support MinLattice input
-  true_morph :+ do |i|
+  morph :+ do |i|
     raise Bud::Error if @v.nil?
     reject_input(i, "+") unless i.class <= Numeric
     Bud::MinLattice.new(@v + i)
@@ -282,7 +282,7 @@ class Bud::BoolLattice < Bud::Lattice
   end
 
   # XXX: ugly syntax
-  true_morph :when_true do |&blk|
+  morph :when_true do |&blk|
     blk.call if @v
   end
 end
@@ -313,7 +313,7 @@ class Bud::MapLattice < Bud::Lattice
   # value does not exist, so we need the caller to tell us which value to use if
   # they care. Another alternative is to wire the types of the lattice value
   # into the definition of the map lattice.
-  true_morph :at do |k, *args|
+  morph :at do |k, *args|
     if @v.has_key? k
       @v[k]
     else
@@ -323,7 +323,7 @@ class Bud::MapLattice < Bud::Lattice
     end
   end
 
-  true_morph :key? do |k|
+  morph :key? do |k|
     Bud::BoolLattice.new(@v.has_key? k)
   end
 
@@ -331,11 +331,11 @@ class Bud::MapLattice < Bud::Lattice
     Bud::MaxLattice.new(@v.size)
   end
 
-  true_morph :pro do |&blk|
+  morph :pro do |&blk|
     @v.map(&blk)
   end
 
-  true_morph :intersect do |i|
+  morph :intersect do |i|
     i_tbl = i.reveal
     # Scan the smaller map, probe the larger one
     scan, probe = (@v.size < i_tbl.size ? [@v, i_tbl] : [i_tbl, @v])
@@ -392,11 +392,11 @@ class Bud::SetLattice < Bud::Lattice
     self.class.new(@v | i.reveal)
   end
 
-  true_morph :intersect do |i|
+  morph :intersect do |i|
     self.class.new(@v & i.reveal)
   end
 
-  true_morph :product do |i|
+  morph :product do |i|
     rv = []
     @v.each do |a|
       rv += i.pro {|b| [a,b]}
@@ -404,7 +404,7 @@ class Bud::SetLattice < Bud::Lattice
     self.class.new(rv)
   end
 
-  true_morph :pro do |&blk|
+  morph :pro do |&blk|
     @v.map(&blk)
   end
 
