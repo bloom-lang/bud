@@ -313,7 +313,7 @@ class Bud::MapLattice < Bud::Lattice
   # value does not exist, so we need the caller to tell us which value to use if
   # they care. Another alternative is to wire the types of the lattice value
   # into the definition of the map lattice.
-  morph :at do |k, *args|
+  true_morph :at do |k, *args|
     if @v.has_key? k
       @v[k]
     else
@@ -323,7 +323,7 @@ class Bud::MapLattice < Bud::Lattice
     end
   end
 
-  morph :key? do |k|
+  true_morph :key? do |k|
     Bud::BoolLattice.new(@v.has_key? k)
   end
 
