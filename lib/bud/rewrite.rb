@@ -67,7 +67,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def self.is_monotone(op)
     is_morphism(op) ||
       MONOTONE_WHITELIST.has_key?(op) ||
-      Bud::Lattice.global_morphs.has_key?(op)
+      Bud::Lattice.global_ord_maps.has_key?(op)
   end
 
   def self.is_morphism(op)

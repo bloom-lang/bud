@@ -1,6 +1,6 @@
 class Bud::Lattice
   @@lattice_kinds = {}
-  @@global_morphs = {}
+  @@global_ord_maps = {}
   @@global_tmorphs = {}
 
   def self.lattice_name(name)
@@ -23,8 +23,8 @@ class Bud::Lattice
   end
 
   def self.true_morph(name, &block)
-    if morphs.has_key?(name) || @@global_morphs.has_key?(name)
-      raise Bud::CompileError, "#{name} declared as both morph and tmorph"
+    if ord_maps.has_key?(name) || @@global_ord_maps.has_key?(name)
+      raise Bud::CompileError, "#{name} declared as both ord_map and tmorph"
     end
     @tmorphs ||= {}
     @tmorphs[name] = true
@@ -40,22 +40,22 @@ class Bud::Lattice
     @@global_tmorphs
   end
 
-  def self.morph(name, &block)
+  def self.ord_map(name, &block)
     if tmorphs.has_key?(name) || @@global_tmorphs.has_key?(name)
-      raise Bud::CompileError, "#{name} declared as both morph and tmorph"
+      raise Bud::CompileError, "#{name} declared as both ord_map and tmorph"
     end
-    @morphs ||= {}
-    @morphs[name] = true
-    @@global_morphs[name] = true
+    @ord_maps ||= {}
+    @ord_maps[name] = true
+    @@global_ord_maps[name] = true
     define_method(name, &block)
   end
 
-  def self.morphs
-    @morphs || {}
+  def self.ord_maps
+    @ord_maps || {}
   end
 
-  def self.global_morphs
-    @@global_morphs
+  def self.global_ord_maps
+    @@global_ord_maps
   end
 
   def reject_input(i, meth="initialize")
@@ -327,7 +327,7 @@ class Bud::MapLattice < Bud::Lattice
     Bud::BoolLattice.new(@v.has_key? k)
   end
 
-  morph :size do
+  ord_map :size do
     Bud::MaxLattice.new(@v.size)
   end
 
@@ -408,7 +408,7 @@ class Bud::SetLattice < Bud::Lattice
     @v.map(&blk)
   end
 
-  morph :size do
+  ord_map :size do
     Bud::MaxLattice.new(@v.size)
   end
 end
@@ -427,7 +427,7 @@ class Bud::PositiveSetLattice < Bud::SetLattice
     end
   end
 
-  morph :pos_sum do
+  ord_map :pos_sum do
     @sum = @v.reduce(0) {|sum,i| sum + i} if @sum.nil?
     Bud::MaxLattice.new(@sum)
   end
@@ -459,12 +459,13 @@ class Bud::SealedLattice < Bud::Lattice
     raise Bud::Error, "cannot merge a sealed lattice value: #{self.inspect}, input = #{i.inspect}"
   end
 
-  morph :safely do |f, *args|
-    # Since this is a morphism, we might be placed in the same strata as the
-    # rule that defines the sealed value. Hence, the sealed value might
-    # initially be nil, but should be defined before the end of this strata, by
-    # which time this method *should* have been invoked again. This is a little
-    # dubious, but seems hard to avoid.
+  # XXX: should this be an ord_map or a morphism?
+  ord_map :safely do |f, *args|
+    # Since this is monotone, we might be placed in the same strata as the rule
+    # that defines the sealed value. Hence, the sealed value might initially be
+    # nil, but should be defined before the end of this strata, by which time
+    # this method *should* have been invoked again. This is a little dubious,
+    # but seems hard to avoid.
     @v.send(f, *args) unless @v.nil?
   end
 end
