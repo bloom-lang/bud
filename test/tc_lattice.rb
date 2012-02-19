@@ -539,8 +539,8 @@ class MapIntersect
     m3 <= m1.intersect(m2)
     m4 <= m2.intersect(m1)
 
-    done_m3 <= m3.size.gt(1)
-    done_m4 <= m4.size.gt(1)
+    done_m3 <= m3.size.gt_eq(2)
+    done_m4 <= m4.size.gt_eq(2)
   end
 end
 

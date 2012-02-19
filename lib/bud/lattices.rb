@@ -220,6 +220,10 @@ class Bud::MaxLattice < Bud::Lattice
     Bud::BoolLattice.new(!!(@v && @v > k))
   end
 
+  true_morph :gt_eq do |k|
+    Bud::BoolLattice.new(!!(@v && @v >= k))
+  end
+
   # XXX: support MaxLattice input?
   true_morph :+ do |i|
     raise Bud::Error, "cannot apply + to empty MaxLattice"  if @v.nil?
