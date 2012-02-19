@@ -165,9 +165,9 @@ module Bud
 
     # Sanity-check lattice definitions
     # XXX: We should do this only once per lattice
-    Bud::Lattice.lattice_kinds.each do |lat_name, klass|
+    Bud::Lattice.lattice_kinds.each do |wrap_name, klass|
       unless klass.method_defined? :merge
-        raise Bud::CompileError, "lattice #{lat_name} does not define a merge function"
+        raise Bud::CompileError, "lattice #{wrap_name} does not define a merge function"
       end
 
       # If a method is marked as an ord_map in any lattice, every lattice that
@@ -176,7 +176,7 @@ module Bud
       Bud::Lattice.global_ord_maps.each_key do |m|
         next unless meth_list.include? m.to_s
         unless klass.ord_maps.has_key? m
-          raise Bud::CompileError, "method #{m} in #{lat_name} must be an ord_map"
+          raise Bud::CompileError, "method #{m} in #{wrap_name} must be an ord_map"
         end
       end
 
@@ -184,7 +184,7 @@ module Bud
       Bud::Lattice.global_morphs.each_key do |m|
         next unless meth_list.include? m.to_s
         unless klass.morphs.has_key? m
-          raise Bud::CompileError, "method #{m} in #{lat_name} must be a morph"
+          raise Bud::CompileError, "method #{m} in #{wrap_name} must be a morph"
         end
       end
 
@@ -194,13 +194,13 @@ module Bud
         m = m_str.to_sym
         next unless RuleRewriter::MONOTONE_WHITELIST.has_key? m
         unless klass.ord_maps.has_key?(m) || klass.morphs.has_key?(m)
-          raise Bud::CompileError, "method #{m} in #{lat_name} must be monotone"
+          raise Bud::CompileError, "method #{m} in #{wrap_name} must be monotone"
         end
       end
 
       # We want to define the lattice state declaration function and give it a
       # default parameter; in Ruby 1.8, that can only be done using "*args"
-      self.singleton_class.send(:define_method, lat_name) do |*args|
+      self.singleton_class.send(:define_method, wrap_name) do |*args|
         collection_name, opts = args
         opts ||= {}
         opts = opts.clone       # Be paranoid

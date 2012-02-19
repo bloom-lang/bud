@@ -1,25 +1,25 @@
 class Bud::Lattice
   @@lattice_kinds = {}
-  @@global_ord_maps = {}
   @@global_morphs = {}
+  @@global_ord_maps = {}
 
-  def self.lattice_name(name)
-    if @lattice_name
+  def self.wrapper_name(name)
+    if @wrapper_name
       raise Bud::CompileError, "lattice #{self.class} has multiple names"
     end
     if @@lattice_kinds.has_key? name
       raise Bud::CompileError, "duplicate lattice definition: #{name}"
     end
     @@lattice_kinds[name] = self
-    @lattice_name = name
+    @wrapper_name = name
   end
 
   def self.lattice_kinds
     @@lattice_kinds
   end
 
-  def self.lat_name
-    @lattice_name
+  def self.wrapper
+    @wrapper_name
   end
 
   def self.morph(name, &block)
@@ -59,7 +59,8 @@ class Bud::Lattice
   end
 
   def reject_input(i, meth="initialize")
-    raise Bud::TypeError, "illegal input to #{self.class.lat_name}\##{meth}: #{i.inspect}"
+    site = "#{self.class.wrapper}\##{meth}"
+    raise Bud::TypeError, "illegal input to #{site}: #{i.inspect}"
   end
 
   # Return the state valued associated with a lattice instance. Note that this
@@ -70,7 +71,7 @@ class Bud::Lattice
   end
 
   def inspect
-    "<#{self.class.lat_name}: #{reveal.inspect}>"
+    "<#{self.class.wrapper}: #{reveal.inspect}>"
   end
 
   def seal
@@ -202,7 +203,7 @@ class Bud::LatticeWrapper
 end
 
 class Bud::MaxLattice < Bud::Lattice
-  lattice_name :lmax
+  wrapper_name :lmax
 
   def initialize(i=nil)
     unless i.nil? || i.class <= Comparable
@@ -242,7 +243,7 @@ class Bud::MaxLattice < Bud::Lattice
 end
 
 class Bud::MinLattice < Bud::Lattice
-  lattice_name :lmin
+  wrapper_name :lmin
 
   def initialize(i=nil)
     unless i.nil? || i.class <= Comparable
@@ -270,7 +271,7 @@ end
 
 # XXX: consider creating two fixed ("interned") values for true and false.
 class Bud::BoolLattice < Bud::Lattice
-  lattice_name :lbool
+  wrapper_name :lbool
 
   def initialize(i=false)
     reject_input(i) unless [true, false].include? i
@@ -288,7 +289,7 @@ class Bud::BoolLattice < Bud::Lattice
 end
 
 class Bud::MapLattice < Bud::Lattice
-  lattice_name :lmap
+  wrapper_name :lmap
 
   def initialize(i={})
     reject_input(i) unless i.class == Hash
@@ -305,7 +306,7 @@ class Bud::MapLattice < Bud::Lattice
   end
 
   def inspect
-    "<#{self.class.lat_name}: #{@v.inspect}>"
+    "<#{self.class.wrapper_name}: #{@v.inspect}>"
   end
 
   # XXX: If the key is not in the map, we would like to return some generic
@@ -371,7 +372,7 @@ class Bud::MapLattice < Bud::Lattice
 end
 
 class Bud::SetLattice < Bud::Lattice
-  lattice_name :lset
+  wrapper_name :lset
 
   # XXX: We take an Enumerable as input. When converting a set-valued expression
   # into a set lattice value, this is a little awkward: because of the "implicit
@@ -417,7 +418,7 @@ end
 # order-preserving map.  Note that this does duplicate elimination on its input,
 # so it actually computes "SUM(DISTINCT ...)" in SQL.
 class Bud::PositiveSetLattice < Bud::SetLattice
-  lattice_name :lpset
+  wrapper_name :lpset
 
   def initialize(i=[])
     super
@@ -436,7 +437,7 @@ end
 # A SealedLattice wraps another lattice value and does not allow that wrapped
 # value to change.
 class Bud::SealedLattice < Bud::Lattice
-  lattice_name :lseal
+  wrapper_name :lseal
 
   def initialize(i=nil)
     unless i.nil? || i.class <= Bud::Lattice
