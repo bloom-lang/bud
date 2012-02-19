@@ -796,18 +796,18 @@ class SimpleSeal
     lseal :sl
     lmax :m
     lbool :nm_p
-    table :x, [:v]
-    table :y, [:v]
+    table :foo, [:v]
+    table :bar, [:v]
   end
 
   bootstrap do
-    x <= [[1], [2], [3]]
-    y <= [[4], [5], [6]]
+    foo <= [[1], [2], [3]]
+    bar <= [[4], [5], [6]]
   end
 
   bloom do
-    m <= x {|t| t.v}
-    m <= y {|t| t.v}
+    m <= foo {|t| t.v}
+    m <= bar {|t| t.v}
     sl <= m.seal
     nm_p <= sl.safely(:lt_eq, 6)
   end
@@ -819,13 +819,13 @@ class TestSeal < Test::Unit::TestCase
     assert_equal(3, i.strata.length)
     strat_zero = i.stratum_collection_map[0]
     strat_one = i.stratum_collection_map[1]
-    [:x, :y].each {|r| assert(strat_zero.include? r) }
+    [:foo, :bar].each {|r| assert(strat_zero.include? r) }
     [:sl, :nm_p].each {|r| assert(strat_one.include? r) }
     i.tick
     assert(true, i.nm_p.current_value.reveal)
     i.sl <+ Bud::MaxLattice.new(6)
     i.tick
-    i.x <+ [[7]]
+    i.foo <+ [[7]]
     assert_raise(Bud::Error) do
       i.tick
     end
