@@ -195,7 +195,7 @@ class TestMax < Test::Unit::TestCase
 
   def test_merge_type_error
     i = MaxErrors.new
-    i.t <+ [["y", :z]]
+    i.t <+ [["y", self.class]]
     assert_raise(Bud::TypeError) do
       i.tick
     end
