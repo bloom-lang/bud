@@ -97,6 +97,10 @@ class Bud::LatticeWrapper
     end
   end
 
+  # This returns a value for the lattice that is suitable as input to a
+  # morphism. On the first iteration, we use the "complete" current value of the
+  # lattice; in subsequent iterations, we use the delta value for the lattice
+  # (if any).
   def current_morph_value(&blk)
     if @bud_instance.stratum_first_iter
       current_value(&blk)
