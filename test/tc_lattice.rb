@@ -285,15 +285,15 @@ class AllPathsL
   end
 
   bootstrap do
-    link <= Bud::SetLattice.new([['a', 'b', 1], ['a', 'b', 4],
-                                 ['b', 'c', 1], ['c', 'd', 1],
-                                 ['d', 'e', 1]])
+    link <= [[['a', 'b', 1], ['a', 'b', 4],
+              ['b', 'c', 1], ['c', 'd', 1],
+              ['d', 'e', 1]]]
   end
 
   bloom do
     path <= link
     path <= path.product(link).pro do |p,l|
-      Bud::SetLattice.new([[p[0], l[1], p[2] + l[2]]]) if p[1] == l[0]
+      [[p[0], l[1], p[2] + l[2]]] if p[1] == l[0]
     end
   end
 end
@@ -483,7 +483,7 @@ class TestGraphPrograms < Test::Unit::TestCase
                   ["b", "c", 1], ["b", "d", 2], ["b", "e", 3], ["c", "d", 1],
                   ["c", "e", 2], ["d", "e", 1]], i.path.current_value.reveal.sort)
 
-    i.link <+ Bud::SetLattice.new([['e', 'f', 1]])
+    i.link <+ [[['e', 'f', 1]]]
     i.tick
     assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
                   ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
