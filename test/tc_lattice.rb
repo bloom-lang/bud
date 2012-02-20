@@ -794,6 +794,7 @@ class SimpleBag
     lbag :b2
     lbag :b_union
     lbag :b_intersect
+    lbag :b_sum
     lbool :done
   end
 
@@ -802,6 +803,8 @@ class SimpleBag
     b_union <= b2
     b_intersect <= b1.intersect(b2)
     b_intersect <= b2.intersect(b1)
+    b_sum <= b1.bag_sum(b2)
+    b_sum <= b2.bag_sum(b1)
     done <= b_intersect.mult("foo").gt(2)
   end
 end
@@ -820,6 +823,8 @@ class TestBag < Test::Unit::TestCase
     assert_equal([["abc", 2], ["def", 1]],
                  i.b_union.current_value.reveal.to_a.sort)
     assert_equal([], i.b_intersect.current_value.reveal.to_a.sort)
+    assert_equal([["abc", 2], ["def", 1]],
+                 i.b_sum.current_value.reveal.to_a.sort)
     assert_equal(false, i.done.current_value.reveal)
 
     i.b2 <+ [{"foo" => 1, "def" => 1}]
@@ -827,6 +832,8 @@ class TestBag < Test::Unit::TestCase
     assert_equal([["abc", 2], ["def", 1], ["foo", 1]],
                  i.b_union.current_value.reveal.to_a.sort)
     assert_equal([["def", 1]], i.b_intersect.current_value.reveal.to_a.sort)
+    assert_equal([["abc", 2], ["def", 2], ["foo", 1]],
+                 i.b_sum.current_value.reveal.to_a.sort)
     assert_equal(false, i.done.current_value.reveal)
 
     i.b1 <+ [{"foo" => 2}, {"abc" => 2}]
@@ -835,6 +842,8 @@ class TestBag < Test::Unit::TestCase
                  i.b_union.current_value.reveal.to_a.sort)
     assert_equal([["def", 1], ["foo", 1]],
                  i.b_intersect.current_value.reveal.to_a.sort)
+    assert_equal([["abc", 2], ["def", 2], ["foo", 3]],
+                 i.b_sum.current_value.reveal.to_a.sort)
     assert_equal(false, i.done.current_value.reveal)
 
     i.b1 <+ [{"foo" => 3}]
@@ -844,6 +853,8 @@ class TestBag < Test::Unit::TestCase
                  i.b_union.current_value.reveal.to_a.sort)
     assert_equal([["def", 1], ["foo", 3]],
                  i.b_intersect.current_value.reveal.to_a.sort)
+    assert_equal([["abc", 2], ["def", 2], ["foo", 7]],
+                 i.b_sum.current_value.reveal.to_a.sort)
     assert_equal(true, i.done.current_value.reveal)
   end
 end

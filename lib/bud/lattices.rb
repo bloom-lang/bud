@@ -515,6 +515,13 @@ class Bud::BagLattice < Bud::Lattice
     Bud::MaxLattice.new(rv)
   end
 
+  morph :bag_sum do |i|
+    rv = @v.merge(i.reveal) do |k, lhs_v, rhs_v|
+      lhs_v + rhs_v
+    end
+    self.class.new(rv)
+  end
+
   ord_map :size do
     Bud::MaxLattice.new(@v.size)
   end
