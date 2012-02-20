@@ -381,13 +381,12 @@ class Bud::SetLattice < Bud::Lattice
   # fold" behavior, our input is an array of singleton arrays. It would be a bit
   # nicer to allow the input to be an array of atoms; not clear the best way to
   # achieve that.
-  # XXX: We don't do duplicate elimination here; we probably should
   def initialize(i=[])
     reject_input(i) unless i.class <= Enumerable
     i.each do |e|
       reject_input(i) if e.class <= Bud::Lattice
     end
-    @v = i
+    @v = i.uniq
   end
 
   def merge(i)

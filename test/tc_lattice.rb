@@ -726,6 +726,21 @@ class TestSet < Test::Unit::TestCase
     assert_equal([[1,3], [1,7], [2,3], [2,7], [3,3], [3,7]],
                  i.s3.current_value.reveal.sort)
   end
+
+  # We want to check that the set lattice eliminates duplicates from its input,
+  # not just after application of the merge function. Since merges are called
+  # repeatedly during actual query execution, we need to test the set lattice's
+  # behavior outside the runtime.
+  def test_set_dup_elim
+    s = Bud::SetLattice.new([1,1,1,2,2])
+    assert_equal(false, s.size.gt(2).reveal)
+
+    s = s.merge(Bud::SetLattice.new([1,2]))
+    assert_equal(false, s.size.gt(2).reveal)
+
+    s = s.merge(Bud::SetLattice.new([3]))
+    assert_equal(true, s.size.gt(2).reveal)
+  end
 end
 
 class SimpleSum
