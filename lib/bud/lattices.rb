@@ -231,12 +231,12 @@ class Bud::MaxLattice < Bud::Lattice
   morph :+ do |i|
     raise Bud::Error, "cannot apply + to empty MaxLattice"  if @v.nil?
     reject_input(i, "+") unless i.class <= Numeric
-    Bud::MaxLattice.new(@v + i)
+    self.class.new(@v + i)
   end
 
   morph :min_of do |i|
     reject_input(i, "min_of") unless i.class <= Numeric
-    (@v.nil? || i < @v) ? Bud::MaxLattice.new(i) : self
+    (@v.nil? || i < @v) ? self.class.new(i) : self
   end
 
   def lt_eq(k)
@@ -267,7 +267,7 @@ class Bud::MinLattice < Bud::Lattice
   morph :+ do |i|
     raise Bud::Error if @v.nil?
     reject_input(i, "+") unless i.class <= Numeric
-    Bud::MinLattice.new(@v + i)
+    self.class.new(@v + i)
   end
 end
 
@@ -281,7 +281,7 @@ class Bud::BoolLattice < Bud::Lattice
   end
 
   def merge(i)
-    Bud::BoolLattice.new(@v || i.reveal)
+    self.class.new(@v || i.reveal)
   end
 
   # XXX: ugly syntax
@@ -304,7 +304,7 @@ class Bud::MapLattice < Bud::Lattice
     rv = @v.merge(i.reveal) do |k, lhs_v, rhs_v|
       lhs_v.merge(rhs_v)
     end
-    Bud::MapLattice.new(rv)
+    self.class.new(rv)
   end
 
   def inspect
@@ -346,7 +346,7 @@ class Bud::MapLattice < Bud::Lattice
     scan.each do |k,val|
       rv[k] = val.merge(probe[k]) if probe.has_key? k
     end
-    Bud::MapLattice.new(rv)
+    self.class.new(rv)
   end
 
   # Return true if this map is strictly smaller than or equal to the given
@@ -475,6 +475,51 @@ class Bud::HashSetLattice < Bud::Lattice
   end
 end
 
+# XXX: Should this be just syntax sugar for a map lattice instead?
+class Bud::BagLattice < Bud::Lattice
+  wrapper_name :lbag
+
+  def initialize(i={})
+    reject_input(i) unless i.class <= Hash
+    i.each do |k, mult|
+      reject_input(i) if k.class <= Bud::Lattice
+      reject_input(i) unless (mult.class <= Integer && mult > 0)
+    end
+    @v = i
+  end
+
+  # Note that for merge to be idempotent, we need to use the traditional
+  # definition of multiset union (per-element max of multiplicities, rather than
+  # sum of multiplicities).
+  def merge(i)
+    rv = @v.merge(i.reveal) do |k, lhs_v, rhs_v|
+      [lhs_v, rhs_v].max
+    end
+    self.class.new(rv)
+  end
+
+  morph :intersect do |i|
+    i_tbl = i.reveal
+    # Scan the smaller one, probe the larger one
+    scan, probe = (@v.size < i_tbl.size ? [@v, i_tbl] : [i_tbl, @v])
+    rv = {}
+    scan.each do |k,val|
+      rv[k] = [val, probe[k]].min if probe.has_key? k
+    end
+    self.class.new(rv)
+  end
+
+  morph :mult do |k|
+    rv = @v[k]
+    rv ||= 0
+    Bud::MaxLattice.new(rv)
+  end
+
+  ord_map :size do
+    Bud::MaxLattice.new(@v.size)
+  end
+end
+
 # A SealedLattice wraps another lattice value and does not allow that wrapped
 # value to change.
 class Bud::SealedLattice < Bud::Lattice
@@ -492,7 +537,7 @@ class Bud::SealedLattice < Bud::Lattice
     # strictly violates the "sealed" behavior of the lattice.
     i_val = i.reveal
     return self if i_val.nil?
-    return Bud::SealedLattice.new(i_val) if @v.nil?
+    return self.class.new(i_val) if @v.nil?
 
     # If the merge doesn't result in a change to the lattice value, allow it
     m = @v.merge(i_val)

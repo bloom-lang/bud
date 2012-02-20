@@ -786,6 +786,68 @@ class TestSum < Test::Unit::TestCase
   end
 end
 
+class SimpleBag
+  include Bud
+
+  state do
+    lbag :b1
+    lbag :b2
+    lbag :b_union
+    lbag :b_intersect
+    lbool :done
+  end
+
+  bloom do
+    b_union <= b1
+    b_union <= b2
+    b_intersect <= b1.intersect(b2)
+    b_intersect <= b2.intersect(b1)
+    done <= b_intersect.mult("foo").gt(2)
+  end
+end
+
+class TestBag < Test::Unit::TestCase
+  def test_bag_simple
+    i = SimpleBag.new
+    assert_equal(2, i.strata.length)
+    strat_zero = i.stratum_collection_map[0]
+    [:b1, :b2, :b_union, :b_intersect, :done].each do |r|
+      assert(strat_zero.include? r)
+    end
+
+    i.b1 <+ [{"abc" => 2, "def" => 1}, {"abc" => 1}]
+    i.tick
+    assert_equal([["abc", 2], ["def", 1]],
+                 i.b_union.current_value.reveal.to_a.sort)
+    assert_equal([], i.b_intersect.current_value.reveal.to_a.sort)
+    assert_equal(false, i.done.current_value.reveal)
+
+    i.b2 <+ [{"foo" => 1, "def" => 1}]
+    i.tick
+    assert_equal([["abc", 2], ["def", 1], ["foo", 1]],
+                 i.b_union.current_value.reveal.to_a.sort)
+    assert_equal([["def", 1]], i.b_intersect.current_value.reveal.to_a.sort)
+    assert_equal(false, i.done.current_value.reveal)
+
+    i.b1 <+ [{"foo" => 2}, {"abc" => 2}]
+    i.tick
+    assert_equal([["abc", 2], ["def", 1], ["foo", 2]],
+                 i.b_union.current_value.reveal.to_a.sort)
+    assert_equal([["def", 1], ["foo", 1]],
+                 i.b_intersect.current_value.reveal.to_a.sort)
+    assert_equal(false, i.done.current_value.reveal)
+
+    i.b1 <+ [{"foo" => 3}]
+    i.b2 <+ [{"foo" => 4}]
+    i.tick
+    assert_equal([["abc", 2], ["def", 1], ["foo", 4]],
+                 i.b_union.current_value.reveal.to_a.sort)
+    assert_equal([["def", 1], ["foo", 3]],
+                 i.b_intersect.current_value.reveal.to_a.sort)
+    assert_equal(true, i.done.current_value.reveal)
+  end
+end
+
 class SimpleSeal
   include Bud
 
