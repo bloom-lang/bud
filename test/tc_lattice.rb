@@ -803,8 +803,8 @@ class SimpleBag
     b_union <= b2
     b_intersect <= b1.intersect(b2)
     b_intersect <= b2.intersect(b1)
-    b_sum <= b1.bag_sum(b2)
-    b_sum <= b2.bag_sum(b1)
+    b_sum <= b1 + b2
+    b_sum <= b2 + b1
     done <= b_intersect.mult("foo").gt(2)
   end
 end
