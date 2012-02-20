@@ -1,3 +1,5 @@
+require 'set'
+
 class Bud::Lattice
   @@lattice_kinds = {}
   @@global_morphs = {}
@@ -379,11 +381,10 @@ class Bud::SetLattice < Bud::Lattice
   # fold" behavior, our input is an array of singleton arrays. It would be a bit
   # nicer to allow the input to be an array of atoms; not clear the best way to
   # achieve that.
+  # XXX: We don't do duplicate elimination here; we probably should
   def initialize(i=[])
     reject_input(i) unless i.class <= Enumerable
     i.each do |e|
-      # XXX: is there anything wrong with a set lattice that has lattice values
-      # as elements?
       reject_input(i) if e.class <= Bud::Lattice
     end
     @v = i
@@ -431,6 +432,47 @@ class Bud::PositiveSetLattice < Bud::SetLattice
   ord_map :pos_sum do
     @sum = @v.reduce(0) {|sum,i| sum + i} if @sum.nil?
     Bud::MaxLattice.new(@sum)
+  end
+end
+
+# Similar to SetLattice, except that we implement the lattice using a hash table
+# rather than an array. This makes merge() much cheaper but incurs somewhat more
+# overhead for small sets.
+class Bud::HashSetLattice < Bud::Lattice
+  wrapper_name :lhset
+
+  def initialize(i=[])
+    reject_input(i) unless i.class <= Enumerable
+    i.each do |e|
+      reject_input(i) if e.class <= Bud::Lattice
+    end
+
+    i = Set.new(i) unless i.class <= Set
+    @v = i
+  end
+
+  def merge(i)
+    self.class.new(@v | i.reveal)
+  end
+
+  morph :intersect do |i|
+    self.class.new(@v & i.reveal)
+  end
+
+  morph :product do |i|
+    rv = Set.new
+    @v.each do |a|
+      rv.merge(i.pro {|b| [a,b]})
+    end
+    self.class.new(rv)
+  end
+
+  morph :pro do |&blk|
+    @v.map(&blk)
+  end
+
+  ord_map :size do
+    Bud::MaxLattice.new(@v.size)
   end
 end
 
