@@ -710,9 +710,8 @@ module Bud
         @metrics[:betweentickstats] = running_stats(@metrics[:betweentickstats], starttime - @endtime)
       end
       @inside_tick = true
-      @tables.each_value do |t|
-        t.tick
-      end
+
+      @tables.each_value {|t| t.tick}
 
       @joinstate = {}
 
@@ -864,11 +863,11 @@ module Bud
       colls.each do |name|
         coll = @tables[name]
         # ignore missing tables; rebl for example deletes them mid-stream
-        next if coll.nil?
-
-        unless coll.delta.empty? and coll.new_delta.empty?
-          fixpoint = false unless coll.new_delta.empty?
-          coll.tick_deltas
+        if coll
+          unless coll.delta.empty? and coll.new_delta.empty?
+            fixpoint = false unless coll.new_delta.empty?
+            coll.tick_deltas
+          end
         end
       end
     end while not fixpoint
