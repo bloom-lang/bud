@@ -865,20 +865,19 @@ module Bud
       colls = @stratum_collection_map[strat_num] if @stratum_collection_map
       colls ||= @tables.keys + @lattices.keys
       colls.each do |name|
-        if @tables.has_key? name
-          coll = @tables[name]
+        coll = @tables[name]
+        # ignore missing tables; rebl for example deletes them mid-stream
+        if coll
           unless coll.delta.empty? and coll.new_delta.empty?
             fixpoint = false unless coll.new_delta.empty?
             coll.tick_deltas
           end
         elsif @lattices.has_key? name
           lat = @lattices[name]
-
           if lat.tick_deltas
             fixpoint = false
           end
         end
-        # ignore missing tables; rebl for example deletes them mid-stream
       end
     end while not fixpoint
   end
