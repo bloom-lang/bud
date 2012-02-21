@@ -76,6 +76,15 @@ class Bud::Lattice
     "<#{self.class.wrapper}: #{reveal.inspect}>"
   end
 
+  # Construct a new instance of the current class that wraps "new_v". We assume
+  # that new_v is already a legal input value for the class, so we can bypass
+  # the class's normal initializer -- this avoids redundant error checks.
+  def wrap_unsafe(new_v)
+    rv = self.class.new
+    rv.instance_variable_set('@v', new_v)
+    rv
+  end
+
   def seal
     Bud::SealedLattice.new(self)
   end
@@ -304,7 +313,7 @@ class Bud::MapLattice < Bud::Lattice
     rv = @v.merge(i.reveal) do |k, lhs_v, rhs_v|
       lhs_v.merge(rhs_v)
     end
-    self.class.new(rv)
+    wrap_unsafe(rv)
   end
 
   def inspect
@@ -346,7 +355,7 @@ class Bud::MapLattice < Bud::Lattice
     scan.each do |k,val|
       rv[k] = val.merge(probe[k]) if probe.has_key? k
     end
-    self.class.new(rv)
+    wrap_unsafe(rv)
   end
 
   # Return true if this map is strictly smaller than or equal to the given
@@ -390,11 +399,11 @@ class Bud::SetLattice < Bud::Lattice
   end
 
   def merge(i)
-    self.class.new(@v | i.reveal)
+    wrap_unsafe(@v | i.reveal)
   end
 
   morph :intersect do |i|
-    self.class.new(@v & i.reveal)
+    wrap_unsafe(@v & i.reveal)
   end
 
   morph :product do |i|
@@ -402,7 +411,7 @@ class Bud::SetLattice < Bud::Lattice
     @v.each do |a|
       rv += i.pro {|b| [a,b]}
     end
-    self.class.new(rv)
+    wrap_unsafe(rv)
   end
 
   morph :pro do |&blk|
@@ -451,11 +460,11 @@ class Bud::HashSetLattice < Bud::Lattice
   end
 
   def merge(i)
-    self.class.new(@v | i.reveal)
+    wrap_unsafe(@v | i.reveal)
   end
 
   morph :intersect do |i|
-    self.class.new(@v & i.reveal)
+    wrap_unsafe(@v & i.reveal)
   end
 
   morph :product do |i|
@@ -463,7 +472,7 @@ class Bud::HashSetLattice < Bud::Lattice
     @v.each do |a|
       rv.merge(i.pro {|b| [a,b]})
     end
-    self.class.new(rv)
+    wrap_unsafe(rv)
   end
 
   morph :pro do |&blk|
@@ -495,7 +504,7 @@ class Bud::BagLattice < Bud::Lattice
     rv = @v.merge(i.reveal) do |k, lhs_v, rhs_v|
       [lhs_v, rhs_v].max
     end
-    self.class.new(rv)
+    wrap_unsafe(rv)
   end
 
   morph :intersect do |i|
@@ -506,7 +515,7 @@ class Bud::BagLattice < Bud::Lattice
     scan.each do |k,val|
       rv[k] = [val, probe[k]].min if probe.has_key? k
     end
-    self.class.new(rv)
+    wrap_unsafe(rv)
   end
 
   morph :mult do |k|
