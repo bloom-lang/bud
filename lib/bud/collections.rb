@@ -746,6 +746,7 @@ module Bud
       @tick_delta.clear
       @delta.clear
       unless @pending.empty?
+        invalidate_cache
         @delta = @pending
         @pending = {}
       end

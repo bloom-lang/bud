@@ -55,6 +55,7 @@ module Bud
 
     public
     def invalidate_cache
+      #puts "#{self.class}/#{self.tabname} invalidate"
       @groups.clear
       @winners.clear
     end
@@ -85,7 +86,7 @@ module Bud
         end
         @groups[key] ||= Array.new(@aggpairs.length)
         @groups[key][agg_ix] = agg
-        push_out(nil)
+        #push_out(nil)
       end      
     end
 

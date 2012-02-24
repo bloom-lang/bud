@@ -339,7 +339,6 @@ module Bud
       end
     end
 
-
     # sanity check
     @push_sorted_elems.each do |stratum_elems|
       stratum_elems.each do |se|
@@ -381,7 +380,7 @@ module Bud
   def prepare_invalidation_scheme
     # rule out tables that are not sources
     t_rules.each {|rule|
-      @tables[rule.lhs.to_sym].is_source = false # if it appears on the lhs of any rule, it is not a source
+      @tables[rule.lhs.to_sym].is_source = false if rule.op == "<=" # if it appears on the lhs of a non-temporal rule, it is not a source
     }
 
     num_strata =  @push_sorted_elems.size
@@ -443,8 +442,8 @@ module Bud
     @app_tables.each {|t| @default_invalidate[t] = (invalidate.member? t)}
     num_strata.times do |stratum|
       @push_sorted_elems[stratum].each do |elem|
-        @default_invalidate[elem] ||= invalidate.member? elem
-        @default_rescan[elem] ||= (rescan.member? elem and elem.class <= PushElement) # only elements do scanning
+        @default_invalidate[elem] = invalidate.member? elem unless @default_invalidate[elem]
+        @default_rescan[elem] = (rescan.member? elem and elem.class <= PushElement) # only elements do scanning
       end
     end
   end
