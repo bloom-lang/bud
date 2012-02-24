@@ -16,20 +16,20 @@ module Bud
 
   class BudCollection
     include Enumerable
-    attr_accessor :lhs_colls, :rhs_colls
-    attr_accessor :invalidated
+
     attr_accessor :bud_instance, :locspec_idx, :tabname  # :nodoc: all
     attr_reader :schema # :nodoc: all
     attr_reader :struct
     attr_reader :storage, :delta, :new_delta, :pending, :tick_delta # :nodoc: all
     attr_accessor :qualified_tabname
+    attr_accessor :invalidated
+    attr_accessor :is_source
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
-      @invalidated = false
       @tabname = name
       @bud_instance = bud_instance
-      @lhs_colls = []
-      @rhs_colls = []
+      @invalidated = true
+      @is_source = true # unless it shows up on the lhs of some rule
       init_schema(given_schema) unless given_schema.nil? and defer_schema
       init_buffers
     end
@@ -59,7 +59,6 @@ module Bud
     def qualified_tabname
       @qualified_tabname ||= @bud_instance.toplevel?  ? tabname : (@bud_instance.qualified_name + "." + tabname.to_s).to_sym
     end
-
 
     # The user-specified schema might come in two forms: a hash of Array =>
     # Array (key_cols => remaining columns), or simply an Array of columns (if no
@@ -254,6 +253,10 @@ module Bud
       @storage.each_value(&block)
     end
 
+    public
+    def invalidate_at_tick
+      true # being conservative here as a default.
+    end
 
     public
     def tick_metrics
@@ -339,6 +342,10 @@ module Bud
 
     def length
       @storage.length + @delta.length
+    end
+
+    def empty?
+      length == 0
     end
 
     # checks for an item for which +block+ produces a match
@@ -580,6 +587,11 @@ module Bud
       return false # delta empty; another fixpoint iter not required.
     end
 
+    def add_rescan_invalidate(rescan, invalidate)
+      # No change. Most collections don't need to rescan on every tick (only do so on negate). Also, there's no cache
+      # to invalidate by default. Scratches and PushElements override this method.
+    end
+
     def bootstrap
       unless @pending.empty?
         @delta = @pending
@@ -726,49 +738,36 @@ module Bud
       # just append current number of microseconds
       @tabname = (@tabname.to_s + Time.new.tv_usec.to_s).to_sym
     end
-
-    def add_lhs(lhs)
-      lhs_colls << lhs unless lhs_colls.member? lhs
-    end
-
-    def add_rhs(rhs)
-      rhs_colls << rhs unless rhs_colls.member? rhs
-    end
-
-    public
-    def invalidate_dependents
-      lhs_colls.each { |l| l.invalidate_cache }
-    end
   end
 
   class BudScratch < BudCollection # :nodoc: all
     public
     def tick  # :nodoc: all
       @tick_delta.clear
-      if not @pending.empty?
-        invalidate_cache
+      @delta.clear
+      unless @pending.empty?
         @delta = @pending
         @pending = {}
-      elsif is_source
-        invalidate_cache
-        @delta.clear
-      end # else leave storage alone.
-
+      end
       raise BudError, "orphaned tuples in @new_delta for #{qualified_tabname}" unless @new_delta.empty?
     end
 
-    def is_source
-      rhs_colls.empty? # scratch is a source if there are no rules with it on the lhs.
+    public
+    def invalidate_at_tick
+      is_source      # rescan always only if this scratch is a source.
     end
 
+    public
+    def add_rescan_invalidate(rescan, invalidate)
+      invalidate << self   # this method is called because a source PushElement will rescan.
+    end
+
+    public
     def invalidate_cache
+      puts "#{qualified_tabname} invalidated" if $BUD_DEBUG
       #for scratches, storage is a cached value.
-      unless @invalidated # check prevents cycles via invalidate_dependents
-        puts "#{qualified_tabname} invalidated" if $BUD_DEBUG
-        @storage.clear
-        @invalidated = true
-        invalidate_dependents
-      end
+      @invalidated = true
+      @storage.clear
     end
   end
 
@@ -788,7 +787,6 @@ module Bud
       given_schema ||= [:@address, :val]
       @is_loopback = loopback
       @locspec_idx = nil
-      @output_storage = [] # For channels, incoming and outgoing storage is separate.
 
       unless @is_loopback
         the_schema, the_key_cols = BudCollection.parse_schema(given_schema)
@@ -836,21 +834,15 @@ module Bud
 
     public
     def tick # :nodoc: all
-      # storage is used for incoming tuples and output_storage is used for sending. The incoming is always reset,
-      # whereas the output storage is preserved until an explicit invalidation.
       @storage.clear
       @invalidated = true
-      invalidate_dependents
       # Note that we do not clear @pending here: if the user inserted into the
       # channel manually (e.g., via <~ from inside a sync_do block), we send the
       # message at the end of the current tick.
     end
 
+    public
     def invalidate_cache
-      # Note invalidate is only targeted towards invalidating cached information, which is @output_storage.
-      # @storage is always cleared at the beginning of a tick.
-      @output_storage.clear
-      # there are no dependents for the output side of the channel.
     end
 
     public
@@ -858,19 +850,17 @@ module Bud
       toplevel = @bud_instance.toplevel
       ip = toplevel.ip
       port = toplevel.port
-      if (not @pending.empty?)
-        @output_storage += @pending.values
-        @pending.clear
-      end
-      @output_storage.each do |t|
+      @pending.each_value do |t|
         if @is_loopback
           the_locspec = [ip, port]
         else
           the_locspec = split_locspec(t, @locspec_idx)
             raise BudError, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
         end
+        puts "channel #{qualified_tabname}.send: #{t}" if $BUD_DEBUG
         toplevel.dsock.send_datagram([qualified_tabname.to_s, t].to_msgpack, the_locspec[0], the_locspec[1])
       end
+      @pending.clear
     end
 
     public
@@ -915,7 +905,6 @@ module Bud
     def initialize(name, given_schema, bud_instance, prompt=false) # :nodoc: all
       super(name, bud_instance, given_schema)
       @prompt = prompt
-      @output_storage = []
     end
 
     public
@@ -953,37 +942,36 @@ module Bud
     public
     def flush #:nodoc: all
       out_io = get_out_io
-      if (@output_storage.empty?)
-        @output_storage = @pending
-        @pending = {}
-      else
-        @output_storage += @pending.values
-        @pending.clear
-      end
-      @output_storage.each do |p|
+      @pending.each_value do |p|
         out_io.puts p[0]
         out_io.flush
       end
+      @pending.clear
+      @invalidated = true
+    end
+
+    public
+    def invalidate_at_tick
+      true
     end
 
     public
     def tick #:nodoc: all
       unless @pending.empty?
-        @storage = @pending #  pending used for input tuples in this case.
+        @delta = @pending #  pending used for input tuples in this case.
         @tick_delta = @pending.values
         @pending.clear
       else
         @storage.clear
+        @delta.clear
         @tick_delta.clear
       end
       @invalidated = true # channels and terminals are always invalidated.
-      invalidate_dependents
       raise BudError, "orphaned pending tuples in terminal" unless @pending.empty?
     end
 
+    public
     def invalidate_cache
-      @output_storage = {}
-      # like channel, there are no dependents to invalidate
     end
 
     undef merge
@@ -1033,14 +1021,25 @@ module Bud
     def tick
       @invalidated = true
       unless pending.empty?
-        @storage = @pending
+        @delta = @pending
         @pending = {}
       end
-      invalidate_dependents
     end
   end
 
-  class BudTable < BudCollection # :nodoc: all
+  class BudPersistentCollection < BudCollection
+    public
+    def invalidate_at_tick
+      false # rescan required only when negated.
+    end
+
+    public
+    def invalidate_cache
+      raise "Abstract method not implemented by derived class #{self.class}"
+    end
+  end
+
+  class BudTable < BudPersistentCollection # :nodoc: all
     def initialize(name, bud_instance, given_schema) # :nodoc: all
       super(name, bud_instance, given_schema)
       @to_delete = []
@@ -1068,9 +1067,6 @@ module Bud
       end
 
       @invalidated =  (not deleted.nil?)
-      if (@invalidated)
-        invalidate_dependents
-      end
 
       @pending.each do |keycols, tuple|
         old = @storage[keycols]
@@ -1131,6 +1127,7 @@ module Bud
       o
     end
 
+    public
     def invalidate_cache
       # no cache to invalidate. Also, tables do not invalidate dependents, because their own state is not considered
       # invalidated; that happens only if there were pending deletes at the beginning of a tick (see tick())
@@ -1155,11 +1152,9 @@ module Bud
     def merge(o)  #:nodoc: all
       raise CompileError, "Illegal use of <= with read-only collection '#{@tabname}' on left"
     end
-
+    public
     def invalidate_cache
-      raise "Internal error; readonly collections should not be on the lhs"
     end
-
   end
 
   class BudCollExpr < BudReadOnly # :nodoc: all
@@ -1171,7 +1166,6 @@ module Bud
 
     def tick
       @invalidated = true
-      invalidate_dependents
     end
 
     public

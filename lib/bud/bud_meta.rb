@@ -66,7 +66,6 @@ class BudMeta #:nodoc: all
   def rewrite_rule_block(klass, block_name, seed)
     return unless klass.respond_to? :__bloom_asts__
 
-
     pt = klass.__bloom_asts__[block_name]
     return if pt.nil?
 

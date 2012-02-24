@@ -32,6 +32,11 @@ class TickingCallback
 
   state do
     periodic :tic, 0.1
+    scratch :dummy
+  end
+
+  bloom do
+    dummy <= tic
   end
 end
 

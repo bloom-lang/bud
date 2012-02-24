@@ -2,7 +2,7 @@ require 'dbm'
 
 module Bud
   # Persistent table implementation based on ndbm.
-  class BudDbmTable < BudCollection # :nodoc: all
+  class BudDbmTable < BudPersistentCollection # :nodoc: all
     def initialize(name, bud_instance, given_schema)
       @invalidated = true
       dbm_dir = bud_instance.options[:dbm_dir]
@@ -68,7 +68,8 @@ module Bud
     end
 
     def make_tuple(k_ary, v_ary)
-      t = Array.new(k_ary.length + v_ary.length)
+      #t = Array.new(k_ary.length + v_ary.length)
+      t = @struct.new
       @key_colnums.each_with_index do |k,i|
         t[k] = k_ary[i]
       end
@@ -201,9 +202,6 @@ module Bud
       @to_delete = []
 
       @invalidated = !deleted.nil?
-      if @invalidated
-        invalidate_dependents
-      end
       unless @pending.empty?
         @delta = @pending
 #        merge_to_db(@pending)

@@ -68,13 +68,12 @@ end
 class TestRing < Test::Unit::TestCase
   RING_SIZE = 10
 
-  def test_basic
+  def test_basic_ring
     ring = []
     RING_SIZE.times do |i|
       ring[i] = RingMember.new
       ring[i].run_bg
     end
-
     q = Queue.new
     ring.last.register_callback(:done) do
       q.push(true)

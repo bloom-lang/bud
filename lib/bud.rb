@@ -30,7 +30,8 @@ require 'bud/executor/join.rb'
 ILLEGAL_INSTANCE_ID = -1
 SIGNAL_CHECK_PERIOD = 0.2
 
-$BUD_DEBUG = ENV["BUD_DEBUG"].to_s != ""
+$BUD_DEBUG = ENV["BUD_DEBUG"].to_i > 0
+$BUD_SAFE = ENV["BUD_SAFE"].to_i > 0
 
 $signal_lock = Mutex.new
 $got_shutdown_signal = false
@@ -300,18 +301,20 @@ module Bud
     end
     bootstrap
 
-    @tables.each_value {|t| t.bootstrap; t.invalidated = true} if toplevel == self
+    @tables.each_value {|t| t.bootstrap} if toplevel == self
     @done_bootstrap = true
   end
 
   def do_wiring
     @stratified_rules.each_with_index { |rules, stratum| eval_rules(rules, stratum) }
+    @app_tables = (@tables.keys - @builtin_tables).map {|nm| @tables[nm]}
+    @app_tables << tables[:stdio]
 
     # for each stratum create a sorted list of push elements in topological order
     @push_sorted_elems = []
-    @scanners.each do |sc|  # sc's values constitute scanners at a stratum
+    @scanners.each do |scs|  # scs's values constitute scanners at a stratum
       # start with scanners and transitively add all reachable elements in a breadth-first order
-      working = sc.values
+      working = scs.values
       seen = Set.new(working)
       sorted_elems = [] # sorted elements in this stratum
       while not working.empty?
@@ -329,36 +332,132 @@ module Bud
       end
       @push_sorted_elems << sorted_elems
 
-      # --- add dependencies. These are used for propagation invalidation due to negation.
-      t_depends.each do |t|
-        lhs = tables[t.lhs.to_sym]
-        rhs = tables[t.body.to_sym]
-        lhs.add_rhs(rhs)
-        rhs.add_lhs(lhs)
-      end
-
       @merge_targets.each_with_index do |stratum_tables, stratum|
         @scanners[stratum].each_value do |s|
           stratum_tables[s.collection] = true
         end
       end
-
-      # sanity check
-      @push_sorted_elems.each do |stratum_elems|
-        stratum_elems.each do |se|
-          se.check_wiring
-        end
-      end
-
     end
-    @done_wiring = true
-    @app_tables = (@tables.keys - @builtin_tables).map {|nm| @tables[nm]}
-    @app_tables << tables[:stdio]
 
+
+    # sanity check
+    @push_sorted_elems.each do |stratum_elems|
+      stratum_elems.each do |se|
+        se.check_wiring
+      end
+    end
+
+    prepare_invalidation_scheme
+
+    @done_wiring = true
     if @options[:print_wiring]
       @push_sources.each do |strat| 
         strat.each_value{|src| src.print_wiring}
       end
+    end
+  end
+
+  def identify_app_tables
+  end
+
+  # All collections (elements included) are semantically required to erase any cached information at the start of a tick
+  # and start from a clean slate. prepare_invalidation_scheme prepares a just-in-time invalidation scheme that
+  # permits us to preserve data from one tick to the next, and to keep things in incremental mode unless there's a
+  # negation.
+  # This scheme solves the following constraints.
+  # 1. A full scan of an elements contents results in downstream elements getting full scans themselves (i.e no \
+  #    deltas). This effect is transitive.
+  # 2. Invalidation of an element's cache results in rebuilding of the cache and a consequent fullscan
+  # 3. Invalidation of an element requires upstream elements to rescan their contents, or to transitively pass the
+  #    request on further upstream. Any element that has a cache can rescan without passing on the request to higher
+  #    levels.
+  #
+  # This set of constraints is solved once during wiring, resulting in four data structures
+  # @default_invalidate = set of elements and tables to always invalidate at every tick. Organized by stratum
+  # @default_rescan = set of elements and tables to always scan fully in the first iteration of every tick.
+  # scanner[stratum].invalidate = Set of elements to additionally invalidate if the scanner's table is invalidated at
+  #  run-time
+  # scanner[stratum].rescan = Similar to above.
+  def prepare_invalidation_scheme
+    # rule out tables that are not sources
+    t_rules.each {|rule|
+      @tables[rule.lhs.to_sym].is_source = false # if it appears on the lhs of any rule, it is not a source
+    }
+
+    num_strata =  @push_sorted_elems.size
+
+    if $BUD_SAFE
+      @default_invalidate = {}
+      @default_rescan = {}
+      @app_tables.each {|t| @default_invalidate[t] = (t.class <= BudScratch)}
+      num_strata.times do |stratum|
+        @push_sorted_elems[stratum].each do |elem|
+          @default_invalidate[elem] = true
+          @default_rescan[elem] = true
+        end
+      end
+      return
+    end
+
+    # Prepare a set of elements and tables that will always be invalidated at a tick; these include
+    # source scratches, timers, channels, aggregations.
+    # Start with an initial list by asking each element whether they'd expect to rescan their contents always
+    # at beginning of a tick
+    invalidate = Set.new
+    rescan = Set.new
+    @app_tables.each {|t| invalidate << t if t.invalidate_at_tick}
+    num_strata.times do |stratum|
+      @push_sorted_elems[stratum].each do |elem|
+        rescan << elem if elem.rescan_at_tick
+      end
+      # transitive closure
+      rescan_invalidate_tc(stratum, rescan, invalidate)
+    end
+
+    @default_rescan = rescan
+    @default_invalidate = invalidate
+
+    num_strata.times do |stratum|
+      # Do the same now for each scanner, if it is not already part of the initial rescan set.
+      @scanners[stratum].each_value do |scanner|
+        next if @default_rescan.member? scanner
+        rescan = @default_rescan + [scanner]  # add scanner to scan set
+        invalidate = @default_invalidate.clone
+        rescan_invalidate_tc(stratum, rescan, invalidate)
+        # Give the diffs to scanner, so that it can notify just those elements that are not going
+        # to be invalidated anyway.
+        diffscan = (rescan - @default_rescan).find_all {|elem| elem.class <= PushElement}
+        scanner.invalidate_at_tick(diffscan, (invalidate - @default_invalidate).to_a)
+      end
+    end
+
+    # Change @default_rescan, @default_invalidate from sets to hashes with a true or false value that accounts
+    # for all tables and all elements.
+
+    rescan = @default_rescan
+    reinvalidate = @default_invalidate
+
+    @default_invalidate = {}
+    @default_rescan = {}
+
+    @app_tables.each {|t| @default_invalidate[t] = (invalidate.member? t)}
+    num_strata.times do |stratum|
+      @push_sorted_elems[stratum].each do |elem|
+        @default_invalidate[elem] ||= invalidate.member? elem
+        @default_rescan[elem] ||= (rescan.member? elem and elem.class <= PushElement) # only elements do scanning
+      end
+    end
+  end
+
+
+  def rescan_invalidate_tc(stratum, rescan, invalidate)
+    rescan_len = invalidate_len = 0
+    until rescan_len == rescan.size and invalidate_len == invalidate.size
+      # Ask each element if it wants to add itself to either set, depending on who else is in those sets already.
+      @push_sorted_elems[stratum].each {|t| t.add_rescan_invalidate(rescan, invalidate)}
+
+      rescan_len = rescan.size
+      invalidate_len = invalidate.size
     end
   end
 
@@ -370,8 +469,6 @@ module Bud
   public
 
   ########### give empty defaults for these
-  def declaration # :nodoc: all
-  end
   def bootstrap # :nodoc: all
   end
 
@@ -725,6 +822,7 @@ module Bud
   # Manually trigger one timestep of Bloom execution.
   def tick
     begin
+      puts "#{object_id}/#{port} : =============================================" if $BUD_DEBUG
       starttime = Time.now if options[:metrics]
       if options[:metrics] and not @endtime.nil?
         @metrics[:betweentickstats] ||= initialize_stats
@@ -733,18 +831,35 @@ module Bud
       @inside_tick = true
       
       unless @done_bootstrap
-        do_bootstrap unless @done_bootstrap
+        do_bootstrap
         do_wiring
       else
         # inform tables and elements about beginning of tick.
         @app_tables.each {|t| t.tick}
-        @push_sorted_elems.each do |stratum_elems|
-          stratum_elems.each {|se| se.tick}
+        @default_rescan.each_pair {|elem, do_rescan| elem.rescan = do_rescan}
+        @default_invalidate.each_pair {|elem, do_invalidate|
+          # XXX This is spectacularly ugly.  Invalidate tables, then elements that may depend on them.
+          elem.invalidated = do_invalidate; elem.invalidate_cache if do_invalidate and not elem.class <= PushElement
+        }
+
+        num_strata = @push_sorted_elems.size
+        # XXX Can this be moved down to the per stratum loop below (which applies in both bootstrap
+        # and non-bootstrap cases)
+        num_strata.times do |stratum|
+          @scanners[stratum].each_value do |scanner|
+            if scanner.rescan
+              scanner.rescan_set.each {|e| e.rescan = true}
+              # XXX This is spectacularly ugly.  Invalidate tables, then elements that may depend on them.
+              scanner.invalidate_set.each {|e| e.invalidated = true; e.invalidate_cache if do_invalidate and not e.class <= PushElement} # UGH UGH.
+            end
+          end
+        end
+        num_strata.times do |stratum|
+          @push_sorted_elems[stratum].each { |elem|  elem.invalidate_cache}
         end
       end
 
       receive_inbound
-
       # compute fixpoint for each stratum in order
       @stratified_rules.each_with_index do |rules,stratum|
         fixpoint = false
@@ -775,13 +890,11 @@ module Bud
           t.flush_deltas
         end
       end
-      @app_tables.each {|t| t.invalidated = false}
       @viz.do_cards if @options[:trace]
       do_flush
       invoke_callbacks
       @budtime += 1
       @inbound.clear
-      puts "#{object_id} : =============================================" if $BUD_DEBUG
 
     ensure
       @inside_tick = false
@@ -830,6 +943,7 @@ module Bud
   # queue is cleared at the end of the tick.
   def receive_inbound
     @inbound.each do |msg|
+      puts "channel #{msg[0]}.rcv:  #{msg[1]}" if $BUD_DEBUG
       tables[msg[0].to_sym] << msg[1]
     end
   end

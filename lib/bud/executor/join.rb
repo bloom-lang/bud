@@ -3,7 +3,7 @@ require 'set'
 
 $EMPTY = []
 module Bud
-  class PushSHJoin < PushElement
+  class PushSHJoin < PushStatefulElement
     attr_reader :all_rels_below, :origpreds, :relnames, :keys, :localpreds
     def initialize(rellist, bud_instance, preds=nil) # :nodoc: all
       @rels = rellist
@@ -74,7 +74,8 @@ module Bud
     private
     def setup_state
       sid = state_id
-      @tabname = ("temp_join"+sid.to_s).to_sym
+
+      @tabname = ("(" + @all_rels_below.map{|r| r.tabname}.join('*') +"):"+sid.to_s).to_sym
       @hash_tables = [{}, {}]
     end
 
@@ -134,10 +135,10 @@ module Bud
                            # puts "@keys = #{@keys.inspect}"
     end
 
-
+    public
     def invalidate_cache
-      @wired_by.each_with_index do |source_elem, i|
-        if source_elem.invalidated
+      @rels.each_with_index do |source_elem, i|
+        if source_elem.rescan
           @hash_tables[i] = {}
         end
       end
@@ -274,7 +275,11 @@ module Bud
 
     public
     def insert(item, source)
-      #puts "#{source.tabname} -->  #{self.tabname} : #{item}"
+      #puts "JOIN: #{source.tabname} -->  #{self.tabname} : #{item}/#{item.class}"
+      if @rescan
+        replay_join
+        @rescan = false
+      end
       if @selfjoins.include? source.elem_name
         offsets = []
         @relnames.each_with_index{|r,i| offsets << i if r == source.elem_name}
@@ -293,7 +298,7 @@ module Bud
 
     private
     def insert_item(item, offset)
-      if (@keys.nil? or @keys == $EMPTY)
+      if (@keys.nil? or @keys.empty?)
         the_key = nil
       else
         # assumes left-deep trees
@@ -312,6 +317,35 @@ module Bud
         the_matches = @hash_tables[1-offset][the_key]
         process_matches(item, the_matches, offset) unless the_matches.nil?
       end
+    end
+
+    def replay_join
+      a = @hash_tables[0]
+      b = @hash_tables[1]
+
+      if not(a.empty? or b.empty?)
+        if a.size < b.size
+          a.each_pair do |key, items|
+            the_matches = b[the_key]
+            unless the_matches.nil?
+              items.each do |item|
+                process_matches(item, the_matches, 1)
+              end
+            end
+          end
+        else
+          b.each_pair do |key, items|
+            the_matches = a[the_key]
+            unless the_matches.nil?
+              items.each do |item|
+                process_matches(item, the_matches, 0)
+              end
+            end
+          end
+        end
+      end
+
+      @rescan = false
     end
 
     private

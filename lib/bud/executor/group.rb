@@ -1,7 +1,7 @@
 require 'bud/executor/elements'
 
 module Bud
-  class PushGroup < PushElement
+  class PushGroup < PushStatefulElement
     def initialize(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
       @groups = {}
       if keys_in.nil?
@@ -53,6 +53,7 @@ module Bud
     end
 
 
+    public
     def invalidate_cache
       @groups.clear
       @winners.clear
