@@ -414,16 +414,53 @@ class Bud::SetLattice < Bud::Lattice
     wrap_unsafe(rv)
   end
 
-  morph :pro do |&blk|
-    @v.map(&blk)
+  morph :theta do |i, lhs_idx, rhs_idx|
+    rv = []
+    @v.each do |a|
+      # i.probe(rhs_idx, a[lhs_idx]).each {|b|
+      #   rv << [a,b]
+      # }
+      rv += i.probe(rhs_idx, a[lhs_idx]).map {|b| [a,b]}
+    end
+    wrap_unsafe(rv)
+  end
+
+  morph :tc do |i|
+    lhs_idx = 1
+    rhs_idx = 0
+    rv = []
+    @v.each do |a|
+      i.probe(rhs_idx, a[lhs_idx]).each do |b|
+        rv << [a[0], b[1], a[2] + b[2]]
+      end
+    end
+    wrap_unsafe(rv)
   end
 
   morph :contains? do |i|
     Bud::BoolLattice.new(@v.member? i)
   end
 
+  morph :pro do |&blk|
+    @v.map(&blk)
+  end
+
   ord_map :size do
     Bud::MaxLattice.new(@v.size)
+  end
+
+  def probe(idx, v)
+    @ht ||= build_ht(idx)
+    return @ht[v] || []
+  end
+
+  def build_ht(idx)
+    rv = {}
+    @v.each do |i|
+      rv[i[idx]] ||= []
+      rv[i[idx]] << i
+    end
+    rv
   end
 end
 
@@ -479,12 +516,38 @@ class Bud::HashSetLattice < Bud::Lattice
     wrap_unsafe(rv)
   end
 
+  morph :contains? do |i|
+    Bud::BoolLattice.new(@v.member? i)
+  end
+
   morph :pro do |&blk|
     @v.map(&blk)
   end
 
-  morph :contains? do |i|
-    Bud::BoolLattice.new(@v.member? i)
+  morph :tc do |i|
+    lhs_idx = 1
+    rhs_idx = 0
+    rv = Set.new
+    @v.each do |a|
+      i.probe(rhs_idx, a[lhs_idx]).each do |b|
+        rv << [a[0], b[1], a[2] + b[2]]
+      end
+    end
+    wrap_unsafe(rv)
+  end
+
+  def probe(idx, v)
+    @ht ||= build_ht(idx)
+    return @ht[v] || []
+  end
+
+  def build_ht(idx)
+    rv = {}
+    @v.each do |i|
+      rv[i[idx]] ||= []
+      rv[i[idx]] << i
+    end
+    rv
   end
 
   ord_map :size do
@@ -532,15 +595,15 @@ class Bud::BagLattice < Bud::Lattice
     Bud::MaxLattice.new(rv)
   end
 
-  morph :contains? do |i|
-    Bud::BoolLattice.new(@v.has_key? i)
-  end
-
   morph :+ do |i|
     rv = @v.merge(i.reveal) do |k, lhs_v, rhs_v|
       lhs_v + rhs_v
     end
     self.class.new(rv)
+  end
+
+  morph :contains? do |i|
+    Bud::BoolLattice.new(@v.has_key? i)
   end
 
   ord_map :size do
