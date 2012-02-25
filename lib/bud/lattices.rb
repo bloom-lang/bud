@@ -418,6 +418,10 @@ class Bud::SetLattice < Bud::Lattice
     @v.map(&blk)
   end
 
+  morph :contains? do |i|
+    Bud::BoolLattice.new(@v.member? i)
+  end
+
   ord_map :size do
     Bud::MaxLattice.new(@v.size)
   end
@@ -479,6 +483,10 @@ class Bud::HashSetLattice < Bud::Lattice
     @v.map(&blk)
   end
 
+  morph :contains? do |i|
+    Bud::BoolLattice.new(@v.member? i)
+  end
+
   ord_map :size do
     Bud::MaxLattice.new(@v.size)
   end
@@ -522,6 +530,10 @@ class Bud::BagLattice < Bud::Lattice
     rv = @v[k]
     rv ||= 0
     Bud::MaxLattice.new(rv)
+  end
+
+  morph :contains? do |i|
+    Bud::BoolLattice.new(@v.has_key? i)
   end
 
   morph :+ do |i|
