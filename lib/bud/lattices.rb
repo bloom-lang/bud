@@ -339,6 +339,10 @@ class Bud::MapLattice < Bud::Lattice
     Bud::BoolLattice.new(@v.has_key? k)
   end
 
+  morph :key_set do
+    Bud::SetLattice.new(@v.keys)
+  end
+
   ord_map :size do
     Bud::MaxLattice.new(@v.size)
   end

@@ -501,12 +501,14 @@ class SimpleMap
     lmap :h
     lmax :m1
     lmax :m2
+    lset :hkeys
     scratch :in_t, [:v]
   end
 
   bloom do
     h <= [{"x" => m1, "y" => m1}]
     h <= in_t {|t| {t.v => m2}}
+    hkeys <= h.key_set
   end
 end
 
@@ -560,17 +562,20 @@ class TestMap < Test::Unit::TestCase
     i.in_t <+ [["y"], ["z"]]
     i.tick
     assert_equal([["x", 12], ["y", 12], ["z", 5]], get_val_for_map(i, :h))
+    assert_equal(["x", "y", "z"], i.hkeys.current_value.reveal.sort)
 
     i.m2 <+ [15]
     i.tick
     assert_equal([["x", 12], ["y", 12], ["z", 5]], get_val_for_map(i, :h))
     assert_equal(15, i.m2.current_value.reveal)
+    assert_equal(["x", "y", "z"], i.hkeys.current_value.reveal.sort)
 
     i.m2 <+ [13]
     i.in_t <+ [["y"], ["z"]]
     i.tick
     assert_equal([["x", 12], ["y", 15], ["z", 15]], get_val_for_map(i, :h))
     assert_equal(15, i.m2.current_value.reveal)
+    assert_equal(["x", "y", "z"], i.hkeys.current_value.reveal.sort)
   end
 
   def test_map_pro
@@ -586,6 +591,7 @@ class TestMap < Test::Unit::TestCase
 
     out_val = i.out_t.to_a.map {|k,v| [k, v.reveal]}
     assert_equal([["y", 13]], out_val.sort)
+    assert_equal(["x", "y", "z"], i.hkeys.current_value.reveal.sort)
   end
 
   def test_map_intersect
