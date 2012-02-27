@@ -394,4 +394,5 @@ class TestAggs < Test::Unit::TestCase
     assert_equal(expected.length, cb_cnt)
     s.stop_bg
   end
+
 end

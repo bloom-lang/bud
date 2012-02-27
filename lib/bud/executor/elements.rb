@@ -167,16 +167,29 @@ module Bud
 
     # default for stateless elements
     def add_rescan_invalidate(rescan, invalidate)
-      # if any source element is rescanned, pass the mode to outputs by adding self. Also, add self to invalidated
-      # to force other upstream elements (if any) to rescan.
-      # if any target element is invalidated, mark self as invalidated, as a signal to upstream nodes, and then
-      # set rescan on as a signal to all other downstream nodes to expect a full rescan.
-      # In other words, both flags are set in either case.
-      unless rescan.member? self
-        if (@outputs.any? {|o| invalidate.member? o}) or non_temporal_predecessors.any?{|p| rescan.member? p}
-          rescan << self
-          invalidate << self
-          @outputs.each {|o| o.add_rescan_invalidate(rescan, invalidate)  unless o.class <= PushElement}
+      # if any of the source elements are in rescan mode, then put this node in rescan.
+      srcs = non_temporal_predecessors
+      if srcs.any?{|p| rescan.member? p}
+        rescan << self
+      end
+
+      # pass the current state to the non-element outputs, and see if they end up marking this node for rescan
+      invalidate_tables(rescan, invalidate)
+
+      # finally, if this node is in rescan, pass the request on to all source elements
+      if rescan.member? self
+        srcs.each{|e| rescan << e} # propagate a rescan request to all sources.
+      end
+    end
+
+    def invalidate_tables(rescan, invalidate)
+      # exchange rescan and invalidate information with tables. If this node is in rescan, it may invalidate a target
+      # table (if it is a scratch). And if the target node is invalidated, this node marks itself for rescan to
+      # enable a refill of that table at run-time
+      @outputs.each do |o|
+        unless o.class <= PushElement
+          o.add_rescan_invalidate(rescan, invalidate) unless o.class <= PushElement
+          rescan << self if invalidate.member? o
         end
       end
     end
@@ -386,20 +399,17 @@ module Bud
     end
 
     def add_rescan_invalidate(rescan, invalidate)
-      # if an upstream node is set to rescan, a stateful node has no option but to invalidate its cache
-      #
-      # In addition, a stateful node always rescans its own contents.
-      rescan << self
+      # If an upstream node is set to rescan, a stateful node invalidates its cache
+      # In addition, a stateful node always rescans its own contents (doesn't need to pass a rescan request to its
+      # its source nodes
 
-      unless invalidate.member? self
-        if non_temporal_predecessors.any? {|p| rescan.member? p}
-          invalidate << self
-          # Note that at run-time (at tick)), one can look at the flags of source and target nodes to do partial
-          # invalidation. See PushJoin.tick
-        end
+      rescan << self
+      srcs = non_temporal_predecessors
+      if srcs.any? {|p| rescan.member? p}
+        invalidate << self
       end
-      # Let the other non-element outputs know, since they are don't have wiring information
-      @outputs.each {|o| o.add_rescan_invalidate(rescan, invalidate)  unless o.class <= PushElement}
+
+      invalidate_tables(rescan, invalidate)
     end
   end
 
@@ -478,9 +488,11 @@ module Bud
 
     public
     def add_rescan_invalidate(rescan, invalidate)
-      if invalidate.member? @collection or (@outputs.any? {|o| invalidate.member? o})
-        rescan << self
-      end
+      # scanner elements are never directly connected to tables.
+      rescan << self if invalidate.member? @collection
+
+      # Note also that this node can be nominated for rescan by a target node; in other words, a scanner element
+      # can be set to rescan even if the collection is not invalidated.
     end
 
     def scan(first_iter)
@@ -531,17 +543,20 @@ module Bud
     end
 
     def add_rescan_invalidate(rescan, invalidate)
-      # This is similar to PushStatefulElement, except that a PushEachWithIndex marks itself for both
-      # rescan and invalidate when either a upstream or downstream node has been marked. This is because this
-      # element does have some state (the index), but not the tuples to push downstream, so it has to request it
-      # from upstream.
-      rescan << self
-      unless invalidate.member? self
-        if non_temporal_predecessors.any? {|p| rescan.member? p}
-          invalidate << self
-        end
+      srcs = non_temporal_predecessors
+      if srcs.any? {|p| rescan.member? p}
+        invalidate << self
+        rescan << self
       end
-      @outputs.each {|o| o.add_rescan_invalidate(rescan, invalidate)  unless o.class <= PushElement}
+
+      invalidate_tables(rescan, invalidate)
+
+      # This node has some state (@each_index), but not the tuples. If it is in rescan mode, then it must ask its
+      # sources to rescan, and restart its index.
+      if rescan.member? self
+        invalidate << self
+        srcs.each {|e| rescan << e}
+      end
     end
 
     def invalidate_cache

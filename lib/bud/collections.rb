@@ -587,6 +587,7 @@ module Bud
       return false # delta empty; another fixpoint iter not required.
     end
 
+    public
     def add_rescan_invalidate(rescan, invalidate)
       # No change. Most collections don't need to rescan on every tick (only do so on negate). Also, there's no cache
       # to invalidate by default. Scratches and PushElements override this method.
