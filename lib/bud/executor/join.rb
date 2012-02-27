@@ -139,6 +139,7 @@ module Bud
     def invalidate_cache
       @rels.each_with_index do |source_elem, i|
         if source_elem.rescan
+          puts "#{tabname} rel:#{i}(#{source_elem.tabname}) invalidated" if $BUD_DEBUG
           @hash_tables[i] = {}
         end
       end
@@ -316,6 +317,25 @@ module Bud
         # puts "probing #{item.inspect} into @source[#{1-offset}] on key #{the_key.inspect}"
         the_matches = @hash_tables[1-offset][the_key]
         process_matches(item, the_matches, offset) unless the_matches.nil?
+      end
+    end
+
+    public
+    def rescan_at_tick
+      false
+    end
+
+    public
+    def add_rescan_invalidate(rescan, invalidate)
+      if non_temporal_predecessors.any? {|e| rescan.member? e}
+        rescan << self
+        invalidate << self
+      end
+      if @outputs.any? {|o| invalidate.member? o}
+        rescan << self
+      end
+      if rescan.member? self
+        @outputs.each {|o| o.add_rescan_invalidate(rescan, invalidate) unless o.class <= PushElement}
       end
     end
 

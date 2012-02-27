@@ -22,7 +22,7 @@ module Bud
     attr_reader :struct
     attr_reader :storage, :delta, :new_delta, :pending, :tick_delta # :nodoc: all
     attr_accessor :qualified_tabname
-    attr_accessor :invalidated
+    attr_accessor :invalidated, :to_delete, :rescan
     attr_accessor :is_source
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
@@ -745,10 +745,12 @@ module Bud
     def tick  # :nodoc: all
       @tick_delta.clear
       @delta.clear
-      unless @pending.empty?
+      if not @pending.empty?
         invalidate_cache
         @delta = @pending
         @pending = {}
+      elsif is_source
+        invalidate_cache
       end
       raise BudError, "orphaned tuples in @new_delta for #{qualified_tabname}" unless @new_delta.empty?
     end
@@ -1068,6 +1070,7 @@ module Bud
       end
 
       @invalidated =  (not deleted.nil?)
+      puts "table #{qualified_tabname} invalidated" if $BUD_DEBUG and @invalidated
 
       @pending.each do |keycols, tuple|
         old = @storage[keycols]
@@ -1080,6 +1083,10 @@ module Bud
       @to_delete = []
       @to_delete_by_key = []
       @pending = {}
+    end
+
+    def invalidated=(val)
+      raise "Internal error: nust not set invalidate on tables"
     end
 
     def pending_delete(o)
@@ -1132,6 +1139,7 @@ module Bud
     def invalidate_cache
       # no cache to invalidate. Also, tables do not invalidate dependents, because their own state is not considered
       # invalidated; that happens only if there were pending deletes at the beginning of a tick (see tick())
+      puts "******** invalidate_cache called on BudTable"
     end
 
     public
@@ -1155,6 +1163,11 @@ module Bud
     end
     public
     def invalidate_cache
+    end
+
+    public
+    def invalidate_at_tick
+      true
     end
   end
 

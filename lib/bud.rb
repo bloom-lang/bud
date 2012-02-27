@@ -72,6 +72,8 @@ module Bud
   attr_accessor :metrics
   attr_accessor :this_rule_context, :qualified_name
 
+  attr_accessor :default_invalidate, :default_rescan
+
   # options to the Bud runtime are passed in a hash, with the following keys
   # * network configuration
   #   * <tt>:ip</tt>   IP address string for this instance
@@ -377,87 +379,88 @@ module Bud
   # scanner[stratum].invalidate = Set of elements to additionally invalidate if the scanner's table is invalidated at
   #  run-time
   # scanner[stratum].rescan = Similar to above.
+
+
   def prepare_invalidation_scheme
-    # rule out tables that are not sources
-    t_rules.each {|rule|
-      @tables[rule.lhs.to_sym].is_source = false if rule.op == "<=" # if it appears on the lhs of a non-temporal rule, it is not a source
-    }
-
     num_strata =  @push_sorted_elems.size
-
     if $BUD_SAFE
-      @default_invalidate = {}
-      @default_rescan = {}
-      @app_tables.each {|t| @default_invalidate[t] = (t.class <= BudScratch)}
+      invalidate = Set.new
+      rescan = Set.new
+      @app_tables.each {|t| invalidate << t if (t.class <= BudScratch)}
       num_strata.times do |stratum|
         @push_sorted_elems[stratum].each do |elem|
-          @default_invalidate[elem] = true
-          @default_rescan[elem] = true
+          invalidate << elem
+          rescan << elem
         end
       end
+      prune_rescan_invalidate(rescan, invalidate)
+      @default_rescan = rescan.to_a
+      @default_invalidate = invalidate.to_a
+      @reset_list = [] # Nothing to reset at end of tick. It'll be overwritten anyway
       return
     end
 
-    # Prepare a set of elements and tables that will always be invalidated at a tick; these include
-    # source scratches, timers, channels, aggregations.
-    # Start with an initial list by asking each element whether they'd expect to rescan their contents always
-    # at beginning of a tick
+
+    # Any table that occurs on the lhs of rule is not considered a source (by default it is).
+    # In addition, we only consider non-temporal rules because invalidation is only about this tick.
+    t_rules.each {|rule| @tables[rule.lhs.to_sym].is_source = false if rule.op == "<="}
+
     invalidate = Set.new
     rescan = Set.new
+    # Compute a set of tables and elements that should be explicitly told to invalidate or rescan.
+    # Start with a set of tables that always invalidate, and elements that always rescan
     @app_tables.each {|t| invalidate << t if t.invalidate_at_tick}
     num_strata.times do |stratum|
       @push_sorted_elems[stratum].each do |elem|
         rescan << elem if elem.rescan_at_tick
       end
-      # transitive closure
       rescan_invalidate_tc(stratum, rescan, invalidate)
     end
+    prune_rescan_invalidate(rescan, invalidate)
+    # transitive closure
+    @default_rescan = rescan.to_a
+    @default_invalidate = invalidate.to_a
 
-    @default_rescan = rescan
-    @default_invalidate = invalidate
-
+    # Now compute for each table that is to be scanned, the set of dependent tables and elements that will be invalidated
+    # if that table were to be invalidated at run time.
+    dflt_rescan = rescan
+    dflt_invalidate = invalidate
+    to_reset = rescan + invalidate
     num_strata.times do |stratum|
-      # Do the same now for each scanner, if it is not already part of the initial rescan set.
       @scanners[stratum].each_value do |scanner|
-        next if @default_rescan.member? scanner
-        rescan = @default_rescan + [scanner]  # add scanner to scan set
-        invalidate = @default_invalidate.clone
+        # If it is going to be always invalidated, it doesn't need further examination.
+        next if dflt_rescan.member? scanner
+
+        rescan = dflt_rescan + [scanner]  # add scanner to scan set
+        invalidate = dflt_invalidate.clone
         rescan_invalidate_tc(stratum, rescan, invalidate)
-        # Give the diffs to scanner, so that it can notify just those elements that are not going
-        # to be invalidated anyway.
-        diffscan = (rescan - @default_rescan).find_all {|elem| elem.class <= PushElement}
-        scanner.invalidate_at_tick(diffscan, (invalidate - @default_invalidate).to_a)
+        prune_rescan_invalidate(rescan, invalidate)
+        to_reset += rescan + invalidate
+        # Give the diffs (from default) to scanner; these are elements that are dependent on this scanner
+        diffscan = (rescan - dflt_rescan).find_all {|elem| elem.class <= PushElement}
+        scanner.invalidate_at_tick(diffscan, (invalidate - dflt_invalidate).to_a)
       end
     end
-
-    # Change @default_rescan, @default_invalidate from sets to hashes with a true or false value that accounts
-    # for all tables and all elements.
-
-    rescan = @default_rescan
-    reinvalidate = @default_invalidate
-
-    @default_invalidate = {}
-    @default_rescan = {}
-
-    @app_tables.each {|t| @default_invalidate[t] = (invalidate.member? t)}
-    num_strata.times do |stratum|
-      @push_sorted_elems[stratum].each do |elem|
-        @default_invalidate[elem] = invalidate.member? elem unless @default_invalidate[elem]
-        @default_rescan[elem] = (rescan.member? elem and elem.class <= PushElement) # only elements do scanning
-      end
-    end
+    @reset_list = to_reset.to_a
   end
 
 
+  #given rescan, invalidate sets, compute transitive closure
   def rescan_invalidate_tc(stratum, rescan, invalidate)
-    rescan_len = invalidate_len = 0
-    until rescan_len == rescan.size and invalidate_len == invalidate.size
+    rescan_len = rescan.size
+    invalidate_len = invalidate.size
+    while true
       # Ask each element if it wants to add itself to either set, depending on who else is in those sets already.
       @push_sorted_elems[stratum].each {|t| t.add_rescan_invalidate(rescan, invalidate)}
-
+      break if rescan_len == rescan.size and invalidate_len == invalidate.size
       rescan_len = rescan.size
       invalidate_len = invalidate.size
     end
+  end
+
+  def prune_rescan_invalidate(rescan, invalidate)
+    rescan.delete_if {|e| e.rescan_at_tick}
+    invalidate.delete_if {|e| e.invalidate_at_tick}
   end
 
   def do_rewrite
@@ -835,21 +838,19 @@ module Bud
       else
         # inform tables and elements about beginning of tick.
         @app_tables.each {|t| t.tick}
-        @default_rescan.each_pair {|elem, do_rescan| elem.rescan = do_rescan}
-        @default_invalidate.each_pair {|elem, do_invalidate|
-          # XXX This is spectacularly ugly.  Invalidate tables, then elements that may depend on them.
-          elem.invalidated = do_invalidate; elem.invalidate_cache if do_invalidate and not elem.class <= PushElement
+        @default_rescan.each {|elem| elem.rescan = true}
+        @default_invalidate.each {|elem|
+          elem.invalidate_cache unless elem.class <= PushElement
         }
 
         num_strata = @push_sorted_elems.size
         # XXX Can this be moved down to the per stratum loop below (which applies in both bootstrap
-        # and non-bootstrap cases)
+        # and non-bootstrap cases).
         num_strata.times do |stratum|
           @scanners[stratum].each_value do |scanner|
             if scanner.rescan
               scanner.rescan_set.each {|e| e.rescan = true}
-              # XXX This is spectacularly ugly.  Invalidate tables, then elements that may depend on them.
-              scanner.invalidate_set.each {|e| e.invalidated = true; e.invalidate_cache if do_invalidate and not e.class <= PushElement} # UGH UGH.
+              scanner.invalidate_set.each {|e| e.invalidate_cache unless e.class <= PushElement}
             end
           end
         end
@@ -895,6 +896,8 @@ module Bud
       @budtime += 1
       @inbound.clear
 
+      @reset_list.each {|e| e.invalidated = false; e.rescan = false}
+
     ensure
       @inside_tick = false
       @tick_clock_time = nil
@@ -905,6 +908,33 @@ module Bud
       @metrics[:tickstats] ||= initialize_stats
       @metrics[:tickstats] = running_stats(@metrics[:tickstats], @endtime - starttime)
     end
+  end
+
+  #debug stuff
+  def dumpsi   # dump scan invalidate
+    puts "default invalidate"
+    @default_invalidate.each do |elem|
+      puts "  #{elem.tabname}/#{elem.class}"
+    end
+    puts "default rescan"
+    @default_rescan.each do |elem|
+      puts "   #{elem.tabname}/#{elem.class}"
+    end
+
+    @scanners.each {|scs|
+      scs.each_value {|scanner|
+        unless scanner.rescan_set.empty? and scanner.invalidate_set.empty?
+          puts "if scanner #{scanner.tabname} invalidated:"
+          scanner.rescan_set.each {|elem|
+            puts "   #{elem.tabname}/#{elem.class}"
+          }
+          scanner.invalidate_set.each {|elem|
+            puts "   #{elem.tabname}/#{elem.class}"
+          }
+        end
+      }
+    }
+
   end
 
   # Returns the wallclock time associated with the current Bud tick. That is,

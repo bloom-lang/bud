@@ -173,7 +173,7 @@ module Bud
       # set rescan on as a signal to all other downstream nodes to expect a full rescan.
       # In other words, both flags are set in either case.
       unless rescan.member? self
-        if (@outputs.any? {|o| o.invalidated}) or non_temporal_predecessors.any?{|p| p.rescan}
+        if (@outputs.any? {|o| invalidate.member? o}) or non_temporal_predecessors.any?{|p| rescan.member? p}
           rescan << self
           invalidate << self
           @outputs.each {|o| o.add_rescan_invalidate(rescan, invalidate)  unless o.class <= PushElement}
@@ -386,27 +386,20 @@ module Bud
     end
 
     def add_rescan_invalidate(rescan, invalidate)
-      # if an upstream node is set to rescan, a stateful node has no option but to invalidate its cache and
-      # set itself to rescan for downstream elements.
+      # if an upstream node is set to rescan, a stateful node has no option but to invalidate its cache
+      #
+      # In addition, a stateful node always rescans its own contents.
+      rescan << self
+
       unless invalidate.member? self
         if non_temporal_predecessors.any? {|p| rescan.member? p}
-          rescan << self
           invalidate << self
           # Note that at run-time (at tick)), one can look at the flags of source and target nodes to do partial
           # invalidation. See PushJoin.tick
         end
       end
-      unless rescan.member? self
-        # if a downstream node has been invalidated, it is a stateful node's responsibility to refill the downstream
-        # node from its own state. For this reason, it must set itself to rescan, but it need not invalidate its cache
-        if (@outputs.any? {|o| invalidate.member? o})
-          rescan << self
-        end
-      end
-      if rescan.member? self
-        # Let the other non-element outputs know, since they are don't have wiring information
-        @outputs.each {|o| o.add_rescan_invalidate(rescan, invalidate)  unless o.class <= PushElement}
-      end
+      # Let the other non-element outputs know, since they are don't have wiring information
+      @outputs.each {|o| o.add_rescan_invalidate(rescan, invalidate)  unless o.class <= PushElement}
     end
   end
 
@@ -469,6 +462,10 @@ module Bud
       @invalidate_set = []
     end
 
+    def rescan
+      @rescan || @collection.invalidated
+    end
+
     def rescan_at_tick
       @collection.invalidate_at_tick # need to scan afresh if collection invalidated.
     end
@@ -481,10 +478,9 @@ module Bud
 
     public
     def add_rescan_invalidate(rescan, invalidate)
-      if rescan.member? @collection or invalidate.member? @collection
+      if invalidate.member? @collection or (@outputs.any? {|o| invalidate.member? o})
         rescan << self
       end
-      super(rescan, invalidate)
     end
 
     def scan(first_iter)
@@ -539,16 +535,13 @@ module Bud
       # rescan and invalidate when either a upstream or downstream node has been marked. This is because this
       # element does have some state (the index), but not the tuples to push downstream, so it has to request it
       # from upstream.
+      rescan << self
       unless invalidate.member? self
-        if non_temporal_predecessors.any? {|p| rescan.member? p} or @outputs.any? {|o| invalidate.member? o}
-          rescan << self
+        if non_temporal_predecessors.any? {|p| rescan.member? p}
           invalidate << self
         end
       end
-      if rescan.member? self
-        # Let the other non-element outputs know, since they are don't have wiring information
-        @outputs.each {|o| o.add_rescan_invalidate(rescan, invalidate)  unless o.class <= PushElement}
-      end
+      @outputs.each {|o| o.add_rescan_invalidate(rescan, invalidate)  unless o.class <= PushElement}
     end
 
     def invalidate_cache
