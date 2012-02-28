@@ -317,7 +317,7 @@ class Bud::MapLattice < Bud::Lattice
   end
 
   def inspect
-    "<#{self.class.wrapper_name}: #{@v.inspect}>"
+    "<#{self.class.wrapper}: #{@v.inspect}>"
   end
 
   # XXX: If the key is not in the map, we would like to return some generic
