@@ -350,7 +350,7 @@ module Bud
       if not(a.empty? or b.empty?)
         if a.size < b.size
           a.each_pair do |key, items|
-            the_matches = b[the_key]
+            the_matches = b[key]
             unless the_matches.nil?
               items.each do |item|
                 process_matches(item, the_matches, 1)
@@ -368,8 +368,6 @@ module Bud
           end
         end
       end
-
-      @rescan = false
     end
 
     private

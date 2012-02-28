@@ -44,7 +44,7 @@ module Bud
     public
     def print_wiring(depth=0, accum = "")
       depth.times {print "  "}
-      puts "#{accum} #{(self.object_id*2).to_s(16)}: #{elem_name} (#{self.class})"
+      puts "#{accum} #{(self.object_id*2).to_s(16)}: #{qualified_tabname} (#{self.class})"
 
       [@outputs, @pendings, @deletes, @delete_keys].each do |kind|
         case kind.object_id
@@ -74,7 +74,7 @@ module Bud
 
     def check_wiring
       if @blk.nil? and @outputs.empty? and @pendings.empty? and @deletes.empty? and @delete_keys.empty?
-        raise "no output specified for PushElement #{@elem_name}"
+        raise "no output specified for PushElement #{@qualified_tabname}"
       end
     end
       
@@ -466,7 +466,7 @@ module Bud
     attr_reader :rescan_set, :invalidate_set
     def initialize(elem_name, bud_instance, collection_in, schema=collection_in.schema, &blk)
       # puts self.class
-      super(elem_name, bud_instance, collection_in.tabname, schema)
+      super(elem_name, bud_instance, collection_in.qualified_tabname, schema)
       @collection = collection_in
       @rescan_set = []
       @invalidate_set = []

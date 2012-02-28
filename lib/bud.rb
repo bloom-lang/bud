@@ -255,7 +255,16 @@ module Bud
         qintname = local_name.to_s + "." + imp_pro.interface.to_s  #qualify names by prepending with local_name
         self.t_provides << [qintname, imp_pro.input]
       end
+      mod_inst.channels.each do |name, ch|
+        qname = (local_name.to_s + "." + name.to_s)
+        @channels[qname.to_sym] = ch
+      end
+      mod_inst.dbm_tables.each do |name, t|
+        qname = (local_name.to_s + "." + name.to_s)
+        @dbm_tables[qname.to_sym] = t
+      end
     end
+
     nil
   end
 
@@ -269,9 +278,6 @@ module Bud
   # according to the order in which the state blocks are defined); we then sort
   # by this order before invoking the state blocks.
   def call_state_methods
-    if toplevel?
-      @builtin_tables = @tables.keys
-    end
     meth_map = {} # map from ID => [Method]
     self.class.instance_methods.each do |m|
       next unless m =~ /^__state(\d+)__/
@@ -393,7 +399,7 @@ module Bud
           rescan << elem
         end
       end
-      prune_rescan_invalidate(rescan, invalidate)
+      #prune_rescan_invalidate(rescan, invalidate)
       @default_rescan = rescan.to_a
       @default_invalidate = invalidate.to_a
       @reset_list = [] # Nothing to reset at end of tick. It'll be overwritten anyway
@@ -460,7 +466,6 @@ module Bud
 
   def prune_rescan_invalidate(rescan, invalidate)
     rescan.delete_if {|e| e.rescan_at_tick}
-    invalidate.delete_if {|e| e.invalidate_at_tick}
   end
 
   def do_rewrite
@@ -892,6 +897,7 @@ module Bud
       end
       @viz.do_cards if @options[:trace]
       do_flush
+
       invoke_callbacks
       @budtime += 1
       @inbound.clear
@@ -965,6 +971,8 @@ module Bud
     table :t_cycle, [:predicate, :via, :neg, :temporal]
     table :t_table_info, [:tab_name, :tab_type]
     table :t_table_schema, [:tab_name, :col_name, :ord, :loc]
+
+    @builtin_tables = @tables.keys if toplevel
   end
 
   # Handle any inbound tuples off the wire. Received messages are placed
@@ -972,7 +980,7 @@ module Bud
   # queue is cleared at the end of the tick.
   def receive_inbound
     @inbound.each do |msg|
-      puts "channel #{msg[0]}.rcv:  #{msg[1]}" if $BUD_DEBUG
+      puts "channel #{msg[0].to_a}.rcv:  #{msg[1].to_a}" if $BUD_DEBUG
       tables[msg[0].to_sym] << msg[1]
     end
   end

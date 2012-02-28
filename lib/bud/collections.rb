@@ -622,11 +622,11 @@ module Bud
     def to_push_elem(the_name=tabname, the_schema=schema)
       # if no push source yet, set one up
       toplevel = @bud_instance.toplevel
-      rule_context = toplevel.this_rule_context
+      #rule_context = toplevel.this_rule_context
       this_stratum = toplevel.this_stratum
       oid = self.object_id
       unless toplevel.scanners[this_stratum][[oid, the_name]]
-        toplevel.scanners[this_stratum][[oid, the_name]] = Bud::ScannerElement.new(the_name, rule_context, self, the_schema)
+        toplevel.scanners[this_stratum][[oid, the_name]] = Bud::ScannerElement.new(the_name, self.bud_instance, self, the_schema)
         toplevel.push_sources[this_stratum][[oid, the_name]] = toplevel.scanners[this_stratum][[oid, the_name]]
       end
       return toplevel.scanners[this_stratum][[oid, the_name]]
@@ -1023,6 +1023,8 @@ module Bud
     end
 
     def tick
+      @tick_delta.clear
+      @delta.clear
       @invalidated = true
       unless pending.empty?
         @delta = @pending
