@@ -546,6 +546,24 @@ class MapIntersect
   end
 end
 
+class MapBareHashLiteral
+  include Bud
+
+  state do
+    lmap :m1
+  end
+
+  bootstrap do
+    m1 <= { "j" => Bud::MaxLattice.new(10),
+            "k" => Bud::MaxLattice.new(15) }
+  end
+
+  # XXX: bug
+  # bloom do
+  #   m1 <= { "j" => Bud::MaxLattice.new(20) }
+  # end
+end
+
 class TestMap < Test::Unit::TestCase
   def get_val_for_map(i, r)
     i.send(r).current_value.reveal.map {|k,v| [k, v.reveal]}.sort
@@ -625,6 +643,12 @@ class TestMap < Test::Unit::TestCase
     assert_equal([["y", 31], ["z", 32]], get_val_for_map(i, :m4))
     assert_equal(true, i.done_m3.current_value.reveal)
     assert_equal(true, i.done_m4.current_value.reveal)
+  end
+
+  def test_hash_lit
+    i = MapBareHashLiteral.new
+    i.tick
+    assert_equal([["j", 10], ["k", 15]], get_val_for_map(i, :m1))
   end
 end
 
