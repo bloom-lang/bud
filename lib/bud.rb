@@ -69,7 +69,7 @@ module Bud
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap, :done_wiring
   attr_accessor :lazy # This can be changed on-the-fly by REBL
   attr_accessor :stratum_collection_map, :stratified_rules
-  attr_accessor :metrics
+  attr_accessor :metrics, :periodics
   attr_accessor :this_rule_context, :qualified_name
 
   attr_accessor :default_invalidate, :default_rescan
@@ -263,6 +263,10 @@ module Bud
         qname = (local_name.to_s + "." + name.to_s)
         @dbm_tables[qname.to_sym] = t
       end
+      mod_inst.periodics.each do |p|
+        qname = (local_name.to_s + "." + p.pername.to_s)
+        @periodics << [qname.to_sym, p.ident, p.period]
+      end
     end
 
     nil
@@ -339,11 +343,11 @@ module Bud
         working = wired_to
       end
       @push_sorted_elems << sorted_elems
+    end
 
-      @merge_targets.each_with_index do |stratum_tables, stratum|
-        @scanners[stratum].each_value do |s|
-          stratum_tables[s.collection] = true
-        end
+    @merge_targets.each_with_index do |stratum_tables, stratum|
+      @scanners[stratum].each_value do |s|
+        stratum_tables[s.collection] = true
       end
     end
 
@@ -845,22 +849,28 @@ module Bud
         @app_tables.each {|t| t.tick}
         @default_rescan.each {|elem| elem.rescan = true}
         @default_invalidate.each {|elem|
-          elem.invalidate_cache unless elem.class <= PushElement
+          elem.invalidated = true
+          elem.invalidate_cache unless elem.class <= PushElement # call tick on tables here itself. The rest below.
         }
 
         num_strata = @push_sorted_elems.size
-        # XXX Can this be moved down to the per stratum loop below (which applies in both bootstrap
-        # and non-bootstrap cases).
+        # The following loop invalidates additional (non-default) elements and tables that depend on the run-time
+        # invalidation state of a table.
+        # Loop once to set the flags
         num_strata.times do |stratum|
           @scanners[stratum].each_value do |scanner|
             if scanner.rescan
               scanner.rescan_set.each {|e| e.rescan = true}
-              scanner.invalidate_set.each {|e| e.invalidate_cache unless e.class <= PushElement}
+              scanner.invalidate_set.each {|e|
+                e.invalidated = true;
+                e.invalidate_cache unless e.class <= PushElement
+            }
             end
           end
         end
+        #Loop a second time to actually call invalidate_cache
         num_strata.times do |stratum|
-          @push_sorted_elems[stratum].each { |elem|  elem.invalidate_cache}
+          @push_sorted_elems[stratum].each { |elem|  elem.invalidate_cache if elem.invalidated}
         end
       end
 
@@ -980,7 +990,7 @@ module Bud
   # queue is cleared at the end of the tick.
   def receive_inbound
     @inbound.each do |msg|
-      puts "channel #{msg[0].to_a}.rcv:  #{msg[1].to_a}" if $BUD_DEBUG
+      puts "channel #{msg[0]} rcv:  #{msg[1]}" if $BUD_DEBUG
       tables[msg[0].to_sym] << msg[1]
     end
   end

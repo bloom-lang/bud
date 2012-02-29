@@ -161,9 +161,6 @@ module Bud
       end
     end
 
-    def non_temporal_predecessors
-      @wired_by.map {|elem| elem if elem.outputs.include? self}
-    end
 
     # default for stateless elements
     def add_rescan_invalidate(rescan, invalidate)
@@ -186,6 +183,7 @@ module Bud
       # exchange rescan and invalidate information with tables. If this node is in rescan, it may invalidate a target
       # table (if it is a scratch). And if the target node is invalidated, this node marks itself for rescan to
       # enable a refill of that table at run-time
+
       @outputs.each do |o|
         unless o.class <= PushElement
           o.add_rescan_invalidate(rescan, invalidate) unless o.class <= PushElement
@@ -233,6 +231,7 @@ module Bud
     def each_with_index(the_name = elem_name, the_schema = schema, &blk)
       toplevel = @bud_instance.toplevel
       elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s, toplevel.this_rule_context, @collection_name)
+      elem.set_block(&blk)
       self.wire_to(elem)
       toplevel.push_elems[[self.object_id,:each,blk]] = elem
     end
@@ -396,6 +395,10 @@ module Bud
   class PushStatefulElement < PushElement
     def rescan_at_tick
       true
+    end
+
+    def rescan
+      true # always gives an entire dump of its contents
     end
 
     def add_rescan_invalidate(rescan, invalidate)

@@ -26,6 +26,7 @@ module Bud
     end
 
     def invalidate_cache
+      puts "Group #{qualified_tabname} invalidated" if $BUD_DEBUG
       @groups.clear
     end
 
@@ -52,10 +53,9 @@ module Bud
       @winners = {}
     end
 
-
     public
     def invalidate_cache
-      #puts "#{self.class}/#{self.tabname} invalidate"
+      puts "#{self.class}/#{self.tabname} invalidated" if $BUD_DEBUG
       @groups.clear
       @winners.clear
     end

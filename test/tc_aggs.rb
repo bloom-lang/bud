@@ -38,6 +38,20 @@ class ShortestPaths
   end
 end
 
+class Vote
+  include Bud
+  state do
+    scratch :vote_cnt, [:ident, :response, :cnt, :content]
+    table :votes_rcvd, [:@master, :peer, :ident] => [:response, :content]
+  end
+
+  bloom do
+    vote_cnt <= votes_rcvd.group(
+      [votes_rcvd.ident, votes_rcvd.response],
+      count(votes_rcvd.peer), accum(votes_rcvd.content))
+  end
+end
+
 class TiedPaths
   include Bud
 
@@ -393,6 +407,21 @@ class TestAggs < Test::Unit::TestCase
     10.times { s.sync_do }
     assert_equal(expected.length, cb_cnt)
     s.stop_bg
+  end
+
+  def test_vote_accum
+    v = Vote.new
+    v.tick
+    v.sync_do {
+      v.votes_rcvd <+ [["127.0.0.1:12346", "127.0.0.1:12348", 1, "yes", "vote from agent 1"]]
+    }
+    v.sync_do {
+      v.votes_rcvd <+ [["127.0.0.1:12346", "127.0.0.1:12347", 1, "yes", "vote from agent 2"]]
+    }
+    assert_equal(1, v.vote_cnt.length)
+    vc = v.vote_cnt.to_a[0]
+    assert([1, "yes", 2], [vc[0], vc[1], vc[2]])
+    assert_equal(["vote from agent 1", "vote from agent 2"], vc[3].sort)
   end
 
 end

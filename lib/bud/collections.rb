@@ -24,12 +24,14 @@ module Bud
     attr_accessor :qualified_tabname
     attr_accessor :invalidated, :to_delete, :rescan
     attr_accessor :is_source
+    attr_accessor :wired_by
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
       @tabname = name
       @bud_instance = bud_instance
       @invalidated = true
       @is_source = true # unless it shows up on the lhs of some rule
+      @wired_by = []
       init_schema(given_schema) unless given_schema.nil? and defer_schema
       init_buffers
     end
@@ -201,6 +203,22 @@ module Bud
       pusher_pro
     end
 
+    public
+    def each_with_index(the_name = tabname, the_schema = schema, &blk)
+      toplevel = @bud_instance.toplevel
+      if not toplevel.done_wiring
+        proj = pro(the_name, the_schema)
+        elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s, toplevel.this_rule_context, tabname)
+        elem.set_block(&blk)
+        proj.wire_to(elem)
+        toplevel.push_elems[[self.object_id,:each,blk]] = elem
+        elem
+      else
+         storage.each_with_index
+      end
+    end
+
+
     # ruby 1.9 defines flat_map to return "a new array with the concatenated results of running
     # <em>block</em> once for every element". So we wire the input to a pro(&blk), and wire the output
     # of that pro to a group that does accum.
@@ -256,6 +274,11 @@ module Bud
     public
     def invalidate_at_tick
       true # being conservative here as a default.
+    end
+
+    public
+    def non_temporal_predecessors
+      @wired_by.map {|elem| elem if elem.outputs.include? self}
     end
 
     public
@@ -368,7 +391,6 @@ module Bud
 
     private
     def prep_tuple(o)
-      #puts "prep_tuple #{self.tabname}   #{o}"
       return o if o.class == @struct
       if o.class == Array
         if @struct.nil?
@@ -761,9 +783,14 @@ module Bud
       is_source      # rescan always only if this scratch is a source.
     end
 
+
     public
     def add_rescan_invalidate(rescan, invalidate)
-      invalidate << self   # this method is called because a source PushElement will rescan.
+      srcs = non_temporal_predecessors
+      if srcs.any? {|e| rescan.member? e}
+        invalidate << self
+        srcs.each{|e| rescan << e}
+      end
     end
 
     public
@@ -1100,7 +1127,7 @@ module Bud
       elsif o.class <= Bud::BudCollection
         toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
         o.pro.wire_to_delete self
-      elsif o.class <= Proc and @bud_instance.toplevel.done_bootstrap and not @bud_instance.toplevel.done_wiring
+      elsif o.class <= Proc and @bud_instance.toplevel.done_bootstrap and not toplevel.done_wiring
         toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
         tbl = register_coll_expr(o)
         tbl.pro.wire_to_delete self

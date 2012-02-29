@@ -76,7 +76,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
         # for CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
         # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables
-        unless @monotonic_whitelist[op] or op_is_field_name or (recv and recv.first == :lvar)
+        unless @monotonic_whitelist[op] or op_is_field_name or (recv and recv.first == :lvar) or op.to_s.start_with?("__")
           @nm = true
         end
       end
