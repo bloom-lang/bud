@@ -29,8 +29,8 @@ require 'tc_metrics'
 if defined? Bud::HAVE_TOKYOCABINET
   require 'tc_tc'
 end
-#require 'tc_bust'
-puts "tc_bust temporarily disabled"
+require 'tc_bust'
+require 'tc_rebl'
 require 'tc_new_executor'
 require 'tc_sort'
 #require 'tc_semistructured' -- removed because using structs now

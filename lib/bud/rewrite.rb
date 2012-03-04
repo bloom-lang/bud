@@ -11,7 +11,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
           :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1,
           :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
           :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
-          :schema => 1, :keys => 1, :values => 1, :payloads => 1, :~ => 1
+          :schema => 1, :keys => 1, :values => 1, :payloads => 1, :~ => 1,
+          :lambda => 1
       }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
@@ -97,7 +98,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       # the superator case
       elsif exp[1] and exp[1][0] == :call \
         and exp[1][1] and exp[1][1][0] and exp[1][1][0] == :array \
-        and exp[1][2] and (exp[1][2] == :+@ or exp[1][2] == :-@)
+        and exp[1][2] and (exp[1][2] == :+@ or exp[1][2] == :-@ or exp[1][2] == :~@)
         exp = s(exp[0], s(exp[1][0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, exp[1][1]), exp[1][2], exp[1][3]))
       end
     end
