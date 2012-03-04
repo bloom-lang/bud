@@ -3,11 +3,11 @@ require 'readline'
 require 'rubygems'
 require 'bud'
 require 'abbrev'
-
+require 'tempfile'
 TABLE_TYPES = ["table", "scratch", "channel"]
 
 # The class to which rebl adds user-specified rules and declarations.
-class ReblClass
+class ReblBase
   include Bud
   attr_accessor:port, :ip
 
@@ -62,8 +62,9 @@ class ReblShell
     loop do
       begin
         rebl_loop(lib)
-      rescue Exception
-        puts "exception: #{$!}"
+      rescue Exception => e
+        puts "exception: #{e}"
+        #puts e.backtrace
       end
     end
   end
@@ -197,6 +198,7 @@ class LibRebl
   @@builtin_tables = [:stdio, :t_depends, :periodics_tbl, :t_cycle, :localtick,
                       :t_provides, :t_rules, :t_depends_tc, :t_stratum,
                       :rebl_breakpoint]
+  @@classid = 0
 
   def initialize(ip, port)
     @ip = ip
@@ -228,8 +230,8 @@ class LibRebl
 
   # Dumps the contents of a table at the current time.
   def dump(c)
-    tups = @rebl_class_inst.instance_eval("#{c}.inspected")
-    puts(tups.empty? ? "(empty)" : tups.sort.join("\n"))
+    tups = @rebl_class_inst.tables[c.to_sym].to_a
+    puts(tups.empty? ? "(empty)" : tups.sort.map{|t| "#{t}"}.join("\n"))
   end
 
   # Declares a new collection.
@@ -262,22 +264,40 @@ class LibRebl
     end
   end
 
+  def mk_rebl_class
+    @@classid += 1
+    cls_name = "ReblClass#{@@classid}"
+
+    str = ""
+    str =<<-EOS
+      $BUD_SAFE=1
+      class #{cls_name} < ReblBase
+        include Bud
+      EOS
+    unless @state.empty?
+      str += "state do\n" + @state.values.join("\n") + "\nend\n"
+    end
+    unless @rules.empty?
+      str += "bloom :rebl_rules do\n" + @rules.sort.map {|_,r| r}.join("\n") + "\nend\n"
+    end
+    str += "\nend\n"
+    f = Tempfile.new("rebl")
+    f.write(str)
+    f.close
+    begin
+      load f.path
+      return eval cls_name  # return the class object
+    rescue
+      $stderr.puts "Unable to eval the following code:\n" + str
+      raise
+    ensure
+      f.unlink
+    end
+  end
+
   private
   def reinstantiate
-    # New anonymous subclass.
-    @rebl_class = Class.new(ReblClass)
-
-    begin
-      if not @rules.empty?
-        @rebl_class.class_eval("bloom :rebl_rules do\n" +
-                               @rules.sort.map {|_,r| r}.join("\n") + "\nend")
-      end
-      if not @state.empty?
-        @rebl_class.class_eval("state do\n" + @state.values.join("\n") + "\nend")
-      end
-    rescue Exception
-      raise
-    end
+    @rebl_class = mk_rebl_class
 
     @old_inst = @rebl_class_inst
     @rebl_class_inst = @rebl_class.new(:no_signal_handlers => true, :ip => @ip,

@@ -978,7 +978,6 @@ module Bud
         out_io.flush
       end
       @pending.clear
-      @invalidated = true
     end
 
     public
