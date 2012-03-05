@@ -98,7 +98,6 @@ class GraphGen #:nodoc: all
     when :D, :G
       "red"
     else
-      puts "UNKNOWN tag #{paths[0][:val]} class #{paths[0][:val].class}"
       "black"
     end
   end
