@@ -94,8 +94,9 @@ module MetaAlgebra
   bloom :make_paths do
     rule_nm <= t_depends.reduce({}) do |memo, i|
       tag = get_tag(i.nm, i.op)
-      memo[i.rule_id] = tag if memo[i.rule_id].nil?
-      memo[i.rule_id] = tag if tag == :N or tag == :A
+      if memo[i.rule_id].nil? or memo[i.rule_id] == :M
+        memo[i.rule_id] = tag
+      end
       memo
     end
 
@@ -104,6 +105,7 @@ module MetaAlgebra
         [dep.body, dep.lhs, dep.rule_id, rn.tag, dep.op]
       end
     end
+    stdio <~ clean_dep.inspected
 
     alg_path <= clean_dep.map do |dep|
       [dep.body, dep.head, "#{dep.body}|#{dep.head}", dep.rule_id, dep.tag, dep.lastop]
