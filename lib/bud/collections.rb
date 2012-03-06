@@ -737,6 +737,12 @@ module Bud
       return g
     end
 
+    def notin(collection, *preds, &blk)
+      elem1 = to_push_elem
+      elem2 = collection.to_push_elem
+      return elem1.notin(elem2, preds, &blk)
+    end
+
     def canonicalize_col(col)
       col.class <= Symbol ? self.send(col) : col
     end

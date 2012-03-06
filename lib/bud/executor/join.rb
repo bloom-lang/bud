@@ -297,7 +297,7 @@ module Bud
       end
     end
 
-    private
+    protected
     def insert_item(item, offset)
       if (@keys.nil? or @keys.empty?)
         the_key = nil
@@ -340,7 +340,6 @@ module Bud
       # @hash_tables[offset] will be cleared, and will get filled up again because that source will rescan anyway.
 
       invalidate_tables(rescan, invalidate)
-
     end
 
     def replay_join
@@ -384,8 +383,6 @@ module Bud
         if @localpreds.nil? or @localpreds.length == 1 or test_locals(left, left_is_array, right, @localpreds.first)
           result = left_is_array ? left + [right] : [left, right] # FIX: reduce arrays being created.
           push_out(result)
-#        else
-          # puts "    rejected #{result.inspect}"
         end
       end
     end
@@ -565,6 +562,67 @@ module Bud
           @hash_tables[0][key].each do |t|
             push_out([t, []])
           end
+        end
+      end
+    end
+  end
+
+  class PushNotIn < PushSHJoin
+    def initialize(rellist, bud_instance, preds=nil, &blk) # :nodoc: all
+      if (preds.nil? or preds.empty?)
+        preds = positionwise_preds(bud_instance, rellist)
+      end
+      super(rellist, bud_instance, preds)
+      set_block(&blk)
+      @schema =  rellist[0].schema
+      @exclude = Set.new
+    end
+
+
+    def positionwise_preds(bud_instance, rels)
+      # pairwise colnames, for the minimum number of columns from either
+      return [] if rels[0].schema.length != rels[1].schema.length
+      pairs = rels[0].schema.zip(rels[1].schema)
+      # make a hash of each pair, and return an array of hashes as expected by setup_pred
+      [pairs.reduce(Hash.new) {|h, it| h[it[0]]=it[1]; h}]
+    end
+
+    public
+    def rescan_at_tick
+      true
+    end
+
+    def push_out(item) # item is a two element array, a tuple from rels[0] and rels[1]
+      # called from PushSHJoin::process_matches, but we don't push the item downstream until stratum end
+      do_exclude = @blk.nil? ? true : @blk.call(item)
+      #puts "#{item} ===>  #{do_exclude}"
+      @exclude << item[0] if do_exclude
+    end
+
+    public
+    def invalidate_cache
+      @exclude.clear
+    end
+
+    def stratum_end
+      flush
+      # Scan through all the cached left rel values, and push out those that are not in exclude
+      @hash_tables[0].each_value do|s| #
+        s.each do |item|
+          next if @exclude.member? item
+          @outputs.each do |ou|
+            if ou.class <= Bud::PushElement
+              ou.insert(item,self)
+            elsif ou.class <= Bud::BudCollection
+              ou.do_insert(item,ou.new_delta)
+            else
+              raise "Expected either a PushElement or a BudCollection"
+            end
+          end
+          # for all the following, o is a BudCollection
+          @deletes.each{|o| o.pending_delete([item])} unless item.nil?
+          @delete_keys.each{|o| o.pending_delete_keys([item])} unless item.nil?
+          @pendings.each{|o| o.pending_merge([item])} unless item.nil?
         end
       end
     end

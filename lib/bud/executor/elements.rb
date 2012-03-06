@@ -163,6 +163,7 @@ module Bud
 
 
     # default for stateless elements
+    public
     def add_rescan_invalidate(rescan, invalidate)
       # if any of the source elements are in rescan mode, then put this node in rescan.
       srcs = non_temporal_predecessors
@@ -254,6 +255,16 @@ module Bud
     def *(elem2, &blk)
       join(elem2, &blk)
     end
+
+    def notin(elem2, preds=nil, &blk)
+      toplevel = @bud_instance.toplevel
+      notin_elem = Bud::PushNotIn.new([self, elem2], toplevel.this_rule_context, preds, &blk)
+      self.wire_to(notin_elem)
+      elem2.wire_to(notin_elem)
+      toplevel.push_elems[[self.object_id, :notin, collection, toplevel, blk]] == notin_elem
+      return notin_elem
+    end
+
     def merge(source)
       if source.class <= PushElement and wiring?
         source.wire_to(self)
@@ -300,6 +311,8 @@ module Bud
       # toplevel.push_elems[[self.object_id, :group, keycols, aggpairs, blk]]
       return g
     end
+
+
     def argagg(aggname, gbkey_cols, collection, &blk)
       gbkey_cols = gbkey_cols.map{|c| canonicalize_col(c)}
       collection = canonicalize_col(collection)
@@ -393,6 +406,7 @@ module Bud
   end  
 
   class PushStatefulElement < PushElement
+
     def rescan_at_tick
       true
     end
