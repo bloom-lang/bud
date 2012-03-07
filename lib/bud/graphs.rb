@@ -296,10 +296,11 @@ class SpaceTime
     squeues.each do |k, v|
       v.each_with_index do |item, i|
         label = "#{k}-#{item}"
+        params = {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :group => k}
         if @links
-          url = "DBM_#{k}/tm_#{item}.svg"
+          params[:URL] = "DBM_#{k}/tm_#{item}.svg"
         end
-        snd = @subs[k].add_nodes(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :group => k, :URL => url})
+        snd = @subs[k].add_nodes(label, params)
         unless @head[k].id == snd.id
           @subs[k].add_edges(@head[k], snd, :weight => 2)
           @head[k] = snd
@@ -321,6 +322,7 @@ class SpaceTime
   def finish(file, fmt=nil)
     @edges.each_pair do |k, v|
       lbl = v[3] > 1 ? "#{v[2]}(#{v[3]})" : v[2]
+      lbl ||= ""
       @g.add_edges(v[0], v[1], :label => lbl, :color => "red", :weight => 1)
     end
     if fmt.nil?
