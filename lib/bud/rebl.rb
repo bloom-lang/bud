@@ -22,7 +22,7 @@ class ReblShell
   @@maxhistsize = 100
   @@escape_char = '/'
   @@commands =
-    {"tick" => [lambda {|lib,argv| lib.tick([Integer(argv[1]), 1].max)},
+    {"tick" => [lambda {|lib,argv| lib.tick(argv[1].nil? ? 1 : Integer(argv[1]))},
                 "tick [x]:\texecutes x (or 1) timesteps"],
 
     "run" => [lambda {|lib,_| lib.run},
@@ -224,7 +224,7 @@ class LibRebl
   end
 
   # Ticks the bud instance a specified integer number of times.
-  def tick(x)
+  def tick(x=1)
     x.times {@rebl_class_inst.sync_do}
   end
 

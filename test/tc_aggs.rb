@@ -420,7 +420,7 @@ class TestAggs < Test::Unit::TestCase
     }
     assert_equal(1, v.vote_cnt.length)
     vc = v.vote_cnt.to_a[0]
-    assert([1, "yes", 2], [vc[0], vc[1], vc[2]])
+    assert_equal([1, "yes", 2], [vc[0], vc[1], vc[2]])
     assert_equal(["vote from agent 1", "vote from agent 2"], vc[3].sort)
   end
 
