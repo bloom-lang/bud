@@ -647,7 +647,7 @@ module ModuleRewriter # :nodoc: all
   def self.get_raw_parse_tree(klass)
     pt = RawParseTree.new(false)
     klassname = klass.name
-    klassname = klass.to_s if klassname.empty? #("anon_" + Process.pid.to_s + "_" + klass.object_id.to_s) if klassname.empty
+    klassname = klass.to_s if klassname.empty?
     klassname = klassname.to_sym
 
     code = if Class === klass then
