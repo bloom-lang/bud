@@ -48,6 +48,7 @@ module MetaAlgebra
     #stdio <~ seq_lattice_closure{|c| ["SLC: #{c.inspect}"]}
     #stdio <~ jlr {|j| ["JLR: #{j.inspect}"]}
     #stdio <~ lub {|l| ["LUB #{l.inspect}, left class #{l.left.class}"]}
+    #stdio <~ clean_dep.inspected
   end
 
   bloom :lattice_rules do
@@ -105,7 +106,6 @@ module MetaAlgebra
         [dep.body, dep.lhs, dep.rule_id, rn.tag, dep.op]
       end
     end
-    stdio <~ clean_dep.inspected
 
     alg_path <= clean_dep.map do |dep|
       [dep.body, dep.head, "#{dep.body}|#{dep.head}", dep.rule_id, dep.tag, dep.lastop]
