@@ -103,17 +103,17 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def do_rule(exp)
     lhs = process exp[0]
     op = exp[1]
-    pro_rules = map2pro(exp[2])
+    rhs_ast = map2pro(exp[2])
     if @bud_instance.options[:no_attr_rewrite]
-      rhs = collect_rhs(pro_rules)
+      rhs = collect_rhs(rhs_ast)
       rhs_pos = rhs
     else
       # need a deep copy of the rules so we can keep a version without AttrName
       # Rewrite
-      pro_rules2 = Marshal.load(Marshal.dump(pro_rules))
-      rhs = collect_rhs(pro_rules)
+      rhs_ast_dup = Marshal.load(Marshal.dump(rhs_ast))
+      rhs = collect_rhs(rhs_ast)
       reset_instance_vars
-      rhs_pos = collect_rhs(AttrNameRewriter.new(@bud_instance).process(pro_rules2))
+      rhs_pos = collect_rhs(AttrNameRewriter.new(@bud_instance).process(rhs_ast_dup))
     end
     record_rule(lhs, op, rhs_pos, rhs)
     drain(exp)
