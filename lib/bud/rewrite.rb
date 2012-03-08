@@ -104,6 +104,13 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     lhs = process exp[0]
     op = exp[1]
     rhs_ast = map2pro(exp[2])
+
+    # Remove the outer s(:arglist) from the rhs AST. An AST subtree rooted with
+    # s(:arglist) is not really sensible and it causes Ruby2Ruby < 1.3.1 to
+    # misbehave (for example, s(:arglist, s(:hash, ...)) is misparsed.
+    raise Bud::CompileError unless rhs_ast.sexp_type == :arglist
+    rhs_ast = rhs_ast[1]
+
     if @bud_instance.options[:no_attr_rewrite]
       rhs = collect_rhs(rhs_ast)
       rhs_pos = rhs
