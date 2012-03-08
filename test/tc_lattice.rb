@@ -558,10 +558,9 @@ class MapBareHashLiteral
             "k" => Bud::MaxLattice.new(15) }
   end
 
-  # XXX: bug
-  # bloom do
-  #   m1 <= { "j" => Bud::MaxLattice.new(20) }
-  # end
+  bloom do
+    m1 <= { "j" => Bud::MaxLattice.new(20) }
+  end
 end
 
 class TestMap < Test::Unit::TestCase
@@ -648,7 +647,7 @@ class TestMap < Test::Unit::TestCase
   def test_hash_lit
     i = MapBareHashLiteral.new
     i.tick
-    assert_equal([["j", 10], ["k", 15]], get_val_for_map(i, :m1))
+    assert_equal([["j", 20], ["k", 15]], get_val_for_map(i, :m1))
   end
 end
 
