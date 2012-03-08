@@ -418,6 +418,18 @@ class Bud::SetLattice < Bud::Lattice
     wrap_unsafe(rv)
   end
 
+  morph :contains? do |i|
+    Bud::BoolLattice.new(@v.member? i)
+  end
+
+  morph :pro do |&blk|
+    @v.map(&blk)
+  end
+
+  monotone :size do
+    Bud::MaxLattice.new(@v.size)
+  end
+
   morph :theta do |i, lhs_idx, rhs_idx|
     rv = []
     @v.each do |a|
@@ -438,23 +450,15 @@ class Bud::SetLattice < Bud::Lattice
     wrap_unsafe(rv)
   end
 
-  morph :contains? do |i|
-    Bud::BoolLattice.new(@v.member? i)
-  end
-
-  morph :pro do |&blk|
-    @v.map(&blk)
-  end
-
-  monotone :size do
-    Bud::MaxLattice.new(@v.size)
-  end
-
+  # Assuming that this HashSet contains tuples (arrays) as elements, this
+  # returns a list of tuples (possibly) empty whose idx'th column has the value
+  # "v".
   def probe(idx, v)
     @ht ||= build_ht(idx)
     return @ht[v] || []
   end
 
+  private
   def build_ht(idx)
     rv = {}
     @v.each do |i|
@@ -525,6 +529,10 @@ class Bud::HashSetLattice < Bud::Lattice
     @v.map(&blk)
   end
 
+  monotone :size do
+    Bud::MaxLattice.new(@v.size)
+  end
+
   morph :tc do |i|
     lhs_idx = 1
     rhs_idx = 0
@@ -545,6 +553,7 @@ class Bud::HashSetLattice < Bud::Lattice
     return @ht[v] || []
   end
 
+  private
   def build_ht(idx)
     rv = {}
     @v.each do |i|
@@ -552,10 +561,6 @@ class Bud::HashSetLattice < Bud::Lattice
       rv[i[idx]] << i
     end
     rv
-  end
-
-  monotone :size do
-    Bud::MaxLattice.new(@v.size)
   end
 end
 
