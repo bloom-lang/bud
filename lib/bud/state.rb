@@ -149,10 +149,10 @@ module Bud
   # Define methods to implement the state declarations for every registered kind
   # of lattice.
   def load_lattice_defs
-    Bud::Lattice.global_ord_maps.each_key do |m|
+    Bud::Lattice.global_mfuncs.each_key do |m|
       next if RuleRewriter::MONOTONE_WHITELIST.has_key? m
       if Bud::BudCollection.instance_methods.include? m.to_s
-        puts "ord_map #{m} conflicts with non-monotonic method in BudCollection"
+        puts "monotone method #{m} conflicts with non-monotonic method in BudCollection"
       end
     end
 
@@ -170,13 +170,13 @@ module Bud
         raise Bud::CompileError, "lattice #{wrap_name} does not define a merge function"
       end
 
-      # If a method is marked as an ord_map in any lattice, every lattice that
-      # declares a method of that name must also mark it as an ord_map.
+      # If a method is marked as monotone in any lattice, every lattice that
+      # declares a method of that name must also mark it as monotone.
       meth_list = klass.instance_methods(false)
-      Bud::Lattice.global_ord_maps.each_key do |m|
+      Bud::Lattice.global_mfuncs.each_key do |m|
         next unless meth_list.include? m.to_s
-        unless klass.ord_maps.has_key? m
-          raise Bud::CompileError, "method #{m} in #{wrap_name} must be an ord_map"
+        unless klass.mfuncs.has_key? m
+          raise Bud::CompileError, "method #{m} in #{wrap_name} must be monotone"
         end
       end
 
@@ -193,7 +193,7 @@ module Bud
       meth_list.each do |m_str|
         m = m_str.to_sym
         next unless RuleRewriter::MONOTONE_WHITELIST.has_key? m
-        unless klass.ord_maps.has_key?(m) || klass.morphs.has_key?(m)
+        unless klass.mfuncs.has_key?(m) || klass.morphs.has_key?(m)
           raise Bud::CompileError, "method #{m} in #{wrap_name} must be monotone"
         end
       end

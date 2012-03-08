@@ -3,7 +3,7 @@ require 'set'
 class Bud::Lattice
   @@lattice_kinds = {}
   @@global_morphs = {}
-  @@global_ord_maps = {}
+  @@global_mfuncs = {}
 
   def self.wrapper_name(name)
     if @wrapper_name
@@ -25,8 +25,8 @@ class Bud::Lattice
   end
 
   def self.morph(name, &block)
-    if ord_maps.has_key?(name) || @@global_ord_maps.has_key?(name)
-      raise Bud::CompileError, "#{name} declared as both ord_map and morph"
+    if mfuncs.has_key?(name) || @@global_mfuncs.has_key?(name)
+      raise Bud::CompileError, "#{name} declared as both monotone and morph"
     end
     @morphs ||= {}
     @morphs[name] = true
@@ -42,22 +42,22 @@ class Bud::Lattice
     @@global_morphs
   end
 
-  def self.ord_map(name, &block)
+  def self.monotone(name, &block)
     if morphs.has_key?(name) || @@global_morphs.has_key?(name)
-      raise Bud::CompileError, "#{name} declared as both ord_map and morph"
+      raise Bud::CompileError, "#{name} declared as both monotone and morph"
     end
-    @ord_maps ||= {}
-    @ord_maps[name] = true
-    @@global_ord_maps[name] = true
+    @mfuncs ||= {}
+    @mfuncs[name] = true
+    @@global_mfuncs[name] = true
     define_method(name, &block)
   end
 
-  def self.ord_maps
-    @ord_maps || {}
+  def self.mfuncs
+    @mfuncs || {}
   end
 
-  def self.global_ord_maps
-    @@global_ord_maps
+  def self.global_mfuncs
+    @@global_mfuncs
   end
 
   def reject_input(i, meth="initialize")
@@ -343,7 +343,7 @@ class Bud::MapLattice < Bud::Lattice
     Bud::SetLattice.new(@v.keys)
   end
 
-  ord_map :size do
+  monotone :size do
     Bud::MaxLattice.new(@v.size)
   end
 
@@ -449,7 +449,7 @@ class Bud::SetLattice < Bud::Lattice
     @v.map(&blk)
   end
 
-  ord_map :size do
+  monotone :size do
     Bud::MaxLattice.new(@v.size)
   end
 
@@ -482,7 +482,7 @@ class Bud::PositiveSetLattice < Bud::SetLattice
     end
   end
 
-  ord_map :pos_sum do
+  monotone :pos_sum do
     @sum = @v.reduce(0) {|sum,i| sum + i} if @sum.nil?
     Bud::MaxLattice.new(@sum)
   end
@@ -554,7 +554,7 @@ class Bud::HashSetLattice < Bud::Lattice
     rv
   end
 
-  ord_map :size do
+  monotone :size do
     Bud::MaxLattice.new(@v.size)
   end
 end
@@ -610,7 +610,7 @@ class Bud::BagLattice < Bud::Lattice
     Bud::BoolLattice.new(@v.has_key? i)
   end
 
-  ord_map :size do
+  monotone :size do
     Bud::MaxLattice.new(@v.size)
   end
 end
@@ -641,8 +641,8 @@ class Bud::SealedLattice < Bud::Lattice
     raise Bud::Error, "cannot merge a sealed lattice value: #{self.inspect}, input = #{i.inspect}"
   end
 
-  # XXX: should this be an ord_map or a morphism?
-  ord_map :safely do |f, *args|
+  # XXX: should this be a monotone func or a morphism?
+  monotone :safely do |f, *args|
     # Since this is monotone, we might be placed in the same strata as the rule
     # that defines the sealed value. Hence, the sealed value might initially be
     # nil, but should be defined before the end of this strata, by which time
