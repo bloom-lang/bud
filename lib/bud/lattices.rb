@@ -421,9 +421,6 @@ class Bud::SetLattice < Bud::Lattice
   morph :theta do |i, lhs_idx, rhs_idx|
     rv = []
     @v.each do |a|
-      # i.probe(rhs_idx, a[lhs_idx]).each {|b|
-      #   rv << [a,b]
-      # }
       rv += i.probe(rhs_idx, a[lhs_idx]).map {|b| [a,b]}
     end
     wrap_unsafe(rv)
@@ -540,6 +537,9 @@ class Bud::HashSetLattice < Bud::Lattice
     wrap_unsafe(rv)
   end
 
+  # Assuming that this HashSet contains tuples (arrays) as elements, this
+  # returns a list of tuples (possibly) empty whose idx'th column has the value
+  # "v".
   def probe(idx, v)
     @ht ||= build_ht(idx)
     return @ht[v] || []
