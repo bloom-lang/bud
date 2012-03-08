@@ -122,22 +122,29 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def do_rule(exp)
     lhs = process exp[0]
     op = exp[1]
-    pro_rules = map2pro(exp[2])
+    rhs_ast = map2pro(exp[2])
+
+    # Remove the outer s(:arglist) from the rhs AST. An AST subtree rooted with
+    # s(:arglist) is not really sensible and it causes Ruby2Ruby < 1.3.1 to
+    # misbehave (for example, s(:arglist, s(:hash, ...)) is misparsed.
+    raise Bud::CompileError unless rhs_ast.sexp_type == :arglist
+    rhs_ast = rhs_ast[1]
+
     unless @bud_instance.options[:disable_lattice_semi_naive]
-      LatticeDeltaRewrite.new(@bud_instance).rewrite(pro_rules)
+      LatticeDeltaRewrite.new(@bud_instance).rewrite(rhs_ast)
     end
-    pro_rules = LatticeRefRewriter.new(@bud_instance).process(pro_rules)
+    rhs_ast = LatticeRefRewriter.new(@bud_instance).process(rhs_ast)
 
     if @bud_instance.options[:no_attr_rewrite]
-      rhs = collect_rhs(pro_rules)
+      rhs = collect_rhs(rhs_ast)
       rhs_pos = rhs
     else
       # need a deep copy of the rules so we can keep a version without AttrName
       # Rewrite
-      pro_rules2 = Marshal.load(Marshal.dump(pro_rules))
-      rhs = collect_rhs(pro_rules)
+      rhs_ast_dup = Marshal.load(Marshal.dump(rhs_ast))
+      rhs = collect_rhs(rhs_ast)
       reset_instance_vars
-      rhs_pos = collect_rhs(AttrNameRewriter.new(@bud_instance).process(pro_rules2))
+      rhs_pos = collect_rhs(AttrNameRewriter.new(@bud_instance).process(rhs_ast_dup))
     end
     record_rule(lhs, op, rhs_pos, rhs)
     drain(exp)
@@ -745,7 +752,7 @@ module ModuleRewriter # :nodoc: all
   def self.get_raw_parse_tree(klass)
     pt = RawParseTree.new(false)
     klassname = klass.name
-    klassname = klass.to_s if klassname.empty? #("anon_" + Process.pid.to_s + "_" + klass.object_id.to_s) if klassname.empty
+    klassname = klass.to_s if klassname.empty?
     klassname = klassname.to_sym
 
     code = if Class === klass then
