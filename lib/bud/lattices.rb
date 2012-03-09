@@ -430,7 +430,11 @@ class Bud::SetLattice < Bud::Lattice
     Bud::MaxLattice.new(@v.size)
   end
 
-  morph :theta do |i, lhs_idx, rhs_idx|
+  # Assuming that this set contains tuples (arrays) as elements, this performs
+  # an equijoin between the current lattice and i. The join predicate is
+  # "self_t[lhs_idx] == i_t[rhs_idx]", for all tuples self_t and i_t in self and
+  # i, respectively.
+  morph :eqjoin do |i, lhs_idx, rhs_idx|
     rv = []
     @v.each do |a|
       rv += i.probe(rhs_idx, a[lhs_idx]).map {|b| [a,b]}
@@ -450,9 +454,8 @@ class Bud::SetLattice < Bud::Lattice
     wrap_unsafe(rv)
   end
 
-  # Assuming that this HashSet contains tuples (arrays) as elements, this
-  # returns a list of tuples (possibly) empty whose idx'th column has the value
-  # "v".
+  # Assuming that this set contains tuples (arrays) as elements, this returns a
+  # list of tuples (possibly) empty whose idx'th column has the value "v".
   def probe(idx, v)
     @ht ||= build_ht(idx)
     return @ht[v] || []
@@ -533,6 +536,29 @@ class Bud::HashSetLattice < Bud::Lattice
     Bud::MaxLattice.new(@v.size)
   end
 
+  # Assuming that this hashset contains tuples (arrays) as elements, this
+  # performs an equijoin between the current lattice and i. The join predicate
+  # is "self_t[lhs_idx] == i_t[rhs_idx]", for all tuples self_t and i_t in self
+  # and i, respectively. The return value is a hashset containing pairs of
+  # arrays; each pair consists of a join result.
+  morph :eqjoin do |i, lhs_idx, rhs_idx|
+    rv = Set.new
+    @v.each do |a|
+      i.probe(rhs_idx, a[lhs_idx]).each do |b|
+        rv << [a, b]
+      end
+    end
+    wrap_unsafe(rv)
+  end
+
+  morph :simplify_paths do
+    rv = Set.new
+    @v.each do |a|
+      rv << [a[0][0], a[1][1], a[0][2] + a[1][2]]
+    end
+    wrap_unsafe(rv)
+  end
+
   morph :tc do |i|
     lhs_idx = 1
     rhs_idx = 0
@@ -545,7 +571,7 @@ class Bud::HashSetLattice < Bud::Lattice
     wrap_unsafe(rv)
   end
 
-  # Assuming that this HashSet contains tuples (arrays) as elements, this
+  # Assuming that this hashset contains tuples (arrays) as elements, this
   # returns a list of tuples (possibly) empty whose idx'th column has the value
   # "v".
   def probe(idx, v)
