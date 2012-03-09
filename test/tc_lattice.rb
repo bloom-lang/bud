@@ -506,7 +506,7 @@ class SimpleMap
   end
 
   bloom do
-    h <= [{"x" => m1, "y" => m1}]
+    h <= {"x" => m1, "y" => m1}
     h <= in_t {|t| {t.v => m2}}
     hkeys <= h.key_set
   end
