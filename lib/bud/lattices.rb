@@ -443,18 +443,6 @@ class Bud::SetLattice < Bud::Lattice
     wrap_unsafe(rv)
   end
 
-  morph :tc do |i|
-    lhs_idx = 1
-    rhs_idx = 0
-    rv = []
-    @v.each do |a|
-      i.probe(rhs_idx, a[lhs_idx]).each do |b|
-        rv << [a[0], b[1], a[2] + b[2]]
-      end
-    end
-    wrap_unsafe(rv)
-  end
-
   # Assuming that this set contains tuples (arrays) as elements, this returns a
   # list of tuples (possibly) empty whose idx'th column has the value "v".
   def probe(idx, v)
@@ -547,18 +535,6 @@ class Bud::HashSetLattice < Bud::Lattice
     @v.each do |a|
       i.probe(rhs_idx, a[lhs_idx]).each do |b|
         rv << blk.call(a, b)
-      end
-    end
-    wrap_unsafe(rv)
-  end
-
-  morph :tc do |i|
-    lhs_idx = 1
-    rhs_idx = 0
-    rv = Set.new
-    @v.each do |a|
-      i.probe(rhs_idx, a[lhs_idx]).each do |b|
-        rv << [a[0], b[1], a[2] + b[2]]
       end
     end
     wrap_unsafe(rv)
