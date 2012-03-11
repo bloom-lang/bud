@@ -1,6 +1,7 @@
 require 'test_common'
 require 'bud/graphs.rb'
 require 'bud/viz_util.rb'
+require 'bud/depanalysis'
 require 'bud/meta_algebra'
 
 include VizUtil
@@ -220,7 +221,10 @@ class TestMeta < Test::Unit::TestCase
     ret
   end
 
-  def atest_plotting  # TODO: DepAnalysis no longer exists
+  def test_plotting
+    puts "tc_meta::test_plotting disabled temporarily"
+    return
+
     program = KTest2.new(:output => :dot)
     dep = DepAnalysis.new
 
@@ -229,9 +233,11 @@ class TestMeta < Test::Unit::TestCase
     program.sync_do
     program.sync_do
 
-    program.t_depends_tc.each {|d| dep.depends_tc << d}
-    program.t_provides.each {|p| dep.providing << p}
-    dep.tick
+    dep.providing <+ program.t_provides.to_a
+    dep.depends_tc <+ program.t_depends.map{|d| [d.lhs, d.body]}
+    dep.sync_do
+    dep.sync_do
+
     dir = scratch_dir
     graph_from_instance(program, "#{dir}/test_graphing", dir, true, :dot)
     content = get_content("#{dir}/test_graphing.svg")
