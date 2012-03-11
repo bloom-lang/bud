@@ -90,7 +90,7 @@ module Bust
             end
             # actually insert the puppy
             @bud.async_do {
-              @bud.send(table_name.to_sym) <+ tuple_to_insert
+              @bud.send(table_name.to_sym) <+ [tuple_to_insert]
             }
             @session.print success
           end

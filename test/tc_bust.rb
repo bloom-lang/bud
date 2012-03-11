@@ -35,6 +35,7 @@ class TestBust < Test::Unit::TestCase
         server = ReblServer.new
         server.run_bg
         client = ReblClient.new
+        client.run_bg
         host = "http://localhost:#{server.bust_port}"
         result = client.sync_callback(:rest_req, [[1, :post, :form,
                                                    "#{host}/foo",
