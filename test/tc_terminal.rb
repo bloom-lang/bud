@@ -21,6 +21,7 @@ class TestTerminal < Test::Unit::TestCase
     t.register_callback(:saw_input) do |tbl|
       q.push(tbl.length)
     end
+    t.run_bg
     rv = q.pop
     assert_equal(1, rv)
     t.stop
