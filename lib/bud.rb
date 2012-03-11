@@ -735,6 +735,7 @@ module Bud
   # inserted into the output collection: these are returned to the caller.
   def sync_callback(in_tbl, tupleset, out_tbl)
     q = Queue.new
+    # XXXX Why two separate entrances into the event loop? Why is the callback not registered in the sync_do below?
     cb = register_callback(out_tbl) do |c|
       q.push c.to_a
     end

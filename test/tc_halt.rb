@@ -22,7 +22,6 @@ class TestHalt < Test::Unit::TestCase
   def test_halt
     program = Halts.new
     program.run_bg
-    sleep 1.0
     assert_raise(Bud::ShutdownWithCallbacksError) {4.times{program.delta(:tbl)}}
   end
 
