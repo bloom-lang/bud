@@ -143,7 +143,7 @@ class TestMeta < Test::Unit::TestCase
 
     tally = 0
     program.t_depends.each do |dep|
-      next if VizUtil.ma_tables.keys.include? dep[1].to_sym
+      next if VizUtil.ma_tables.keys.include? dep.lhs.to_sym
       if dep.lhs == "shortest" and dep.body == "path"
         assert(dep.nm, "NM rule")
         tally += 1
@@ -356,7 +356,7 @@ class TestThetaMeta < Test::Unit::TestCase
 
     p = ThetaMonotoneJoin.new
     p.t_depends.each do |dep|
-      next if VizUtil.ma_tables.keys.include? dep[1].to_sym
+      next if VizUtil.ma_tables.keys.include? dep.lhs.to_sym
       assert(!dep.nm, "this dependency should't be marked nonmonotonic: #{dep.inspect}")
     end
   end
