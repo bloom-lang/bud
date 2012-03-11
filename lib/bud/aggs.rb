@@ -122,7 +122,7 @@ module Bud
   # exemplary aggregate method to be used in Bud::BudCollection.group.  
   # randomly chooses among x entries being aggregated.
   def choose_rand(x=nil)
-    [ChooseRand.new]
+    [ChooseRand.new, x]
   end
 
   class Sum < Agg #:nodoc: all
@@ -183,7 +183,8 @@ module Bud
   end
   
   # aggregate method to be used in Bud::BudCollection.group.  
-  # accumulates all x inputs into an array
+  # accumulates all x inputs into an array. note that the order of the elements
+  # in the resulting array is undefined.
   def accum(x)
     [Accum.new, x]
   end

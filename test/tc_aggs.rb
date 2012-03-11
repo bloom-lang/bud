@@ -42,7 +42,7 @@ class Vote
   include Bud
   state do
     scratch :vote_cnt, [:ident, :response, :cnt, :content]
-    table :votes_rcvd, [:@master, :peer, :ident] => [:response, :content]
+    table :votes_rcvd, [:master, :peer, :ident] => [:response, :content]
   end
 
   bloom do
@@ -105,6 +105,7 @@ class PriorityQ
   end
 end
 
+# XXX: not used by any tests
 class DupAggs
   include Bud
 
@@ -197,6 +198,7 @@ class RandAgg
   state do
     scratch :t1
     scratch :t2
+    table :choices, [:val]
   end
 
   bootstrap do
@@ -205,6 +207,7 @@ class RandAgg
 
   bloom do
     t2 <= t1.argagg(:choose_rand, [], :key)
+    choices <= t1.group([], choose_rand(:key))
   end
 end
 
@@ -262,9 +265,9 @@ class TestAggs < Test::Unit::TestCase
   def test_non_exemplary
     program = ShortestPaths.new
     program.tick
-    assert_raise(Bud::BudError) {p = program.path.argagg(:count, [program.path.from, program.path.to], nil)}
-    assert_raise(Bud::BudError) {p = program.path.argagg(:sum, [program.path.from, program.path.to], program.path.cost)}
-    assert_raise(Bud::BudError) {p = program.path.argagg(:avg, [program.path.from, program.path.to], program.path.cost)}
+    assert_raise(Bud::Error) {p = program.path.argagg(:count, [program.path.from, program.path.to], nil)}
+    assert_raise(Bud::Error) {p = program.path.argagg(:sum, [program.path.from, program.path.to], program.path.cost)}
+    assert_raise(Bud::Error) {p = program.path.argagg(:avg, [program.path.from, program.path.to], program.path.cost)}
   end
 
   def test_argaggs
@@ -305,6 +308,8 @@ class TestAggs < Test::Unit::TestCase
     p = RandAgg.new
     p.tick
     assert(p.t1.length == 100)
+    assert(p.choices.first.val >= 0)
+    assert(p.choices.first.val <= 99)
     assert_equal(p.t2.first[0] + 1, p.t2.first[1])
   end
   
@@ -406,7 +411,7 @@ class TestAggs < Test::Unit::TestCase
     }
     10.times { s.sync_do }
     assert_equal(expected.length, cb_cnt)
-    s.stop_bg
+    s.stop
   end
 
   def test_vote_accum

@@ -253,7 +253,7 @@ class TestTemps < Test::Unit::TestCase
     p = BasicTemp.new
     p.run_bg
     p.sync_do{p.inski <+ [[1,1], [2,2], [3,3]]}
-    p.stop_bg
+    p.stop
     assert_equal(3, p.out.length)
     assert_equal([[1], [2], [3]], p.out.map{|o| [o.val]}.sort)
   end

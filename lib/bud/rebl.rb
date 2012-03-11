@@ -4,7 +4,7 @@ require 'rubygems'
 require 'bud'
 require 'abbrev'
 require 'tempfile'
-TABLE_TYPES = ["table", "scratch", "channel"]
+TABLE_TYPES = ["table", "scratch", "channel", "loopback", "periodic", "sync", "store"]
 
 # The class to which rebl adds user-specified rules and declarations.
 class ReblBase
@@ -26,29 +26,29 @@ class ReblShell
                 "tick [x]:\texecutes x (or 1) timesteps"],
 
     "run" => [lambda {|lib,_| lib.run},
-              "run:\ttick until quiescence, a breakpoint, or #{@@escape_char}stop"],
+              "run\ttick until quiescence, a breakpoint, or #{@@escape_char}stop"],
 
     "stop" => [lambda {|lib,_| lib.stop},
-               "stop:\tstop ticking"],
+               "stop\tstop ticking"],
 
     "lsrules" => [lambda {|lib,_| lib.rules.sort{|a,b| a[0] <=> b[0]}.each {|k,v| puts "#{k}: "+v}},
-                  "lsrules:\tlist rules"],
+                  "lsrules\tlist rules"],
 
     "rmrule" => [lambda {|lib,argv| lib.del_rule(Integer(argv[1]))},
-                 "rmrule x:\tremove rule number x"],
+                 "rmrule x\tremove rule number x"],
 
     "lscollections" => [lambda {|lib,_| lib.state.sort{|a,b| a[0] <=> b[0]}.each {|k,v| puts "#{k}: "+v}},
-                        "lscollections:\tlist collections"],
+                        "lscollections\tlist collections"],
 
     "dump" => [lambda {|lib,argv| lib.dump(argv[1])},
-               "dump c:\tdump contents of collection c"],
+               "dump c\tdump contents of collection c"],
 
-    "exit" => [lambda {|_,_| do_exit}, "exit:\texit rebl"],
+    "exit" => [lambda {|_,_| do_exit}, "exit\texit rebl"],
 
-    "quit" => [lambda {|_,_| do_exit}, "quit:\texit rebl"],
+    "quit" => [lambda {|_,_| do_exit}, "quit\texit rebl"],
 
     "help" => [lambda {|_,_| pretty_help},
-               "help:\tprint this help message"]}
+               "help\tprint this help message"]}
   @@abbrevs = @@commands.keys.abbrev
   @@exit_message = "Rebellion quashed."
 
@@ -152,7 +152,7 @@ class ReblShell
     cmd_list.each do |c|
       v = @@commands[c]
       puts @@escape_char +
-        v[1].gsub(/\t/, " "*(maxlen + 3 - v[1].split(':')[0].size))
+        v[1].gsub(/\t/, " "*(maxlen + 4 - v[1].split("\t")[0].size))
     end
     puts "\nbreakpoints:"
     puts "a breakpoint is a rule with the 'breakpoint' scratch on the left of "+
@@ -182,7 +182,7 @@ class ReblShell
     rescue Exception
       puts "Error when saving permanent history: #{$!}"
     end
-    @rebl_class_inst.stop_bg if @rebl_class_inst
+    @rebl_class_inst.stop if @rebl_class_inst
     puts "\n" + @@exit_message
     exit!
   end
@@ -215,12 +215,12 @@ class LibRebl
 
   # Runs the bud instance (until a breakpoint, or stop() is called)
   def run
-    @rebl_class_inst.sync_do {@rebl_class_inst.lazy = false}
+    @rebl_class_inst.run_bg
   end
 
   # Stops the bud instance (and then performs another tick)
   def stop
-    @rebl_class_inst.sync_do {@rebl_class_inst.lazy = true}
+    @rebl_class_inst.pause
   end
 
   # Ticks the bud instance a specified integer number of times.
@@ -230,8 +230,14 @@ class LibRebl
 
   # Dumps the contents of a table at the current time.
   def dump(c)
-    tups = @rebl_class_inst.tables[c.to_sym].to_a
-    puts(tups.empty? ? "(empty)" : tups.sort.map{|t| "#{t}"}.join("\n"))
+    if c.nil?
+      puts "Error: dump must be passed a collection name"
+    elsif not @rebl_class_inst.tables.has_key? c.to_sym
+      puts "Error: non-existent collection \"#{c}\""
+    else
+      tups = @rebl_class_inst.tables[c.to_sym].to_a.sort
+      puts(tups.empty? ? "(empty)" : tups.sort.map{|t| "#{t}"}.join("\n"))
+    end
   end
 
   # Declares a new collection.
@@ -248,6 +254,10 @@ class LibRebl
   # Deactivates a rule at the current time; any tuples derived by the rule at
   # a previous time are still available.
   def del_rule(rid)
+    unless @rules.has_key? rid
+      puts "No rule with ID #{rid}"
+      return
+    end
     @rules.delete(rid)
     reinstantiate
   end
@@ -300,8 +310,15 @@ class LibRebl
     @rebl_class = mk_rebl_class
 
     @old_inst = @rebl_class_inst
-    @rebl_class_inst = @rebl_class.new(:no_signal_handlers => true, :ip => @ip,
-                                       :port => @port, :lazy => true)
+    @rebl_class_inst = @rebl_class.new(:signal_handling => :none, :ip => @ip,
+                                       :port => @port)
+
+    # Stop the old instance. We want to copy the old instance's state over to
+    # the new instance and then startup the new instance. Any network messages
+    # received before the new instance has been started will be lost, but that
+    # can't easily be avoided; the best we can do is ensure we get a consistent
+    # snapshot of the old instance's state.
+    @old_inst.stop if @old_inst
 
     # Copy the tables over.
     if @old_inst
@@ -323,16 +340,15 @@ class LibRebl
 
     # Run lazily in background, shutting down old instance.
     begin
-      @old_inst.stop_bg if @old_inst
       # Lazify the instance upon a breakpoint (no effect if instance is
       # already lazy)
       @rebl_class_inst.register_callback(:rebl_breakpoint) do
-        @rebl_class_inst.lazy = true
+        @rebl_class_inst.pause
       end
-      @rebl_class_inst.run_bg
+      @rebl_class_inst.start
       @ip = @rebl_class_inst.ip
       @port = @rebl_class_inst.port
-      puts "Listening on #{@rebl_class_inst.ip_port}" if not @old_inst
+      puts "Listening on #{@ip}:#{@port}" unless @old_inst
     rescue Exception
       # The above two need to be atomic, or we're in trouble.
       puts "unrecoverable error, please file a bug: #{$!}"

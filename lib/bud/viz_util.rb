@@ -1,5 +1,6 @@
 require 'rubygems'
 require 'bud/graphs'
+require 'bud/meta_algebra'
 
 module TraceCardinality
   state do
@@ -18,11 +19,12 @@ class VizHelper
   include Bud
   include TraceCardinality
 
-  def initialize(tabinf, cycle, depends, rules, dir)
+  def initialize(tabinf, cycle, depends, rules, dir, provides)
     @t_tabinf = tabinf
     @t_cycle = cycle
     @t_depends = depends
     @t_rules = rules
+    @t_provides = provides
     @dir = dir
     super()
   end
@@ -51,26 +53,101 @@ class VizHelper
       end
 
       d = "#{@dir}/tm_#{time.bud_time}"
-      write_graphs(@t_tabinf, @t_cycle, @t_depends, @t_rules, d, @dir, nil, false, nil, time.bud_time, card_info)
+      write_graphs(@t_tabinf, builtin_tables, @t_cycle, @t_depends, @t_rules, d,
+                   @dir, nil, false, nil, time.bud_time, card_info)
     end
   end
-
 end
 
 
 module VizUtil #:nodoc: all
-  def graph_from_instance(bud_instance, viz_name, output_base, collapse=true, fmt=nil)
+  def self.ma_tables
+    # a craven, contemptible hack to grab the metatables.
+    estr = "class Foo\ninclude Bud\ninclude MetaAlgebra\ninclude MetaReports\nend"
+    eval(estr)
+    e = Foo.new
+    e.tables
+  end
+
+  def graph_from_instance(bud_instance, viz_name, output_base, collapse=true, fmt=nil, data=nil)
     tabinf = {}
     bud_instance.tables.each do |t|
       tab = t[0].to_s
       tabinf[tab] = t[1].class.to_s
     end
-    write_graphs(tabinf, bud_instance.t_cycle, bud_instance.t_depends, bud_instance.t_rules, viz_name, output_base, fmt, collapse, bud_instance.meta_parser.depanalysis)
+
+    begins = get_paths(bud_instance)
+    bit = bud_instance.builtin_tables 
+    VizUtil.ma_tables.each_pair{|k, v| bit[k] = v}
+
+    write_graphs(tabinf, bit, bud_instance.t_cycle,
+                 bud_instance.t_depends, bud_instance.t_rules, viz_name,
+                 output_base, fmt, collapse, bud_instance.meta_parser.depanalysis, -1, nil, 
+                 get_labels(bud_instance), begins)
+    begins
   end
 
-  def write_graphs(tabinf, cycle, depends, rules, viz_name, output_base, fmt, collapse, depanalysis=nil, budtime=-1, card_info=nil)
+  def get_paths(bud_instance)
+    return {} unless bud_instance.respond_to? :a_preds 
+    begins = {}
+    bud_instance.a_preds.each do |b|
+      begins[:start] ||= {}
+      begins[:start][b.path.split("|").last] = b.fullpath.split("|").last
+      begins[:finish] = {}
+      begins[:finish][b.fullpath.split("|").last] = true
+    end
+    begins
+  end
+
+  def get_labels(bud_instance)
+    return {} unless bud_instance.respond_to? :lps
+    # sort the paths.  sort the paths to the same destination by length.
+    aps = {}
+    ap_interm = bud_instance.lps.to_a.sort do |a, b|
+      if a.to == b.to then
+        a.path.length <=> b.path.length
+      else
+        a <=> b
+      end
+    end
+    ap_interm.each do |a|
+      aps[a.to] ||= []
+      aps[a.to] << a.tag
+    end
+
+    # grab the lattice metadata
+    lub = {}
+    bud_instance.lub.each do |l|
+      lub[l.left] ||= {}
+      lub[l.left][l.right] = l.result
+    end
+
+    # b/c set union isn't working right
+    ap2 = {}
+    aps.each_pair do |k, v|
+      tmp = v.reduce({}) do |memo, i|
+        memo[:val] ||= :M
+        was = memo[:val]
+        if lub[memo[:val]][i]
+          if i == :N
+            memo[:val] = lub[i][memo[:val]]
+          else
+            memo[:val] = lub[memo[:val]][i]
+          end
+        else
+          puts "couldn't find #{memo[:val]} - #{i} in #{lub.inspect}"
+        end
+        memo
+      end
+      ap2[k] = [tmp, v]
+    end
+    ap2
+  end
+
+  def write_graphs(tabinf, builtin_tables, cycle, depends, rules, viz_name,
+                   output_base, fmt, collapse, depanalysis=nil, budtime=-1, card_info=nil, pathsto={}, begins = {})
     staging = "#{viz_name}.staging"
-    gv = GraphGen.new(tabinf, cycle, staging, budtime, collapse, card_info)
+    gv = GraphGen.new(tabinf, builtin_tables, cycle, staging, budtime, collapse, card_info, pathsto, begins)
     gv.process(depends)
     dump(rules, output_base, gv)
     gv.finish(depanalysis, fmt)
@@ -113,11 +190,10 @@ module VizUtil #:nodoc: all
       if !code[v[0]]
         code[v[0]] = ""
       end
-      #code[v[0]] = "<br># RULE #{k}<br> " + code[v[0]] + "<br>" + v[1]
       code[v[0]] = "\n# RULE #{k}\n " + code[v[0]] + "\n" + v[1]
     end
     gv_obj.nodes.each_pair do |k, v|
-      fout = File.new("#{output_base}/#{k}.html", "w+")
+      fout = File.new("#{output_base}/#{k[0..55]}.html", "w+")
       fout.puts header
       k.split(", ").each do |i|
         unless code[i].nil?
@@ -210,9 +286,11 @@ END_JS
   end
 
   def get_meta2(dir)
-    meta_tabs = {"t_table_info" => :tabinf, "t_table_schema" => :tabscm, "t_cycle" => :cycle, "t_depends" => :depends, "t_rules" => :rules}
+    meta_tabs = {"t_table_info" => :tabinf, "t_table_schema" => :tabscm, "t_cycle" => :cycle, "t_depends" => :depends, "t_rules" => :rules, "t_provides" => :provides}
     meta = {}
     data = []
+
+    dir = Dir.glob("#{dir}/bud*").first
     ret = DBM.open("#{dir}/the_big_log.dbm")
     ret.each_pair do |k, v|
       key = MessagePack.unpack(k)
@@ -222,7 +300,7 @@ END_JS
       tup = key[0]
       MessagePack.unpack(v).each {|val| tup << val}
       if meta_tabs[tab]
-        raise "non-zero budtime.  sure this is metadata?" if time != 0 and strict
+        raise "non-zero budtime.(tab=#{tab}, time=#{time})  sure this is metadata?" if time != 0 #and strict
         meta[meta_tabs[tab]] ||= []
         meta[meta_tabs[tab]] << tup
         #ret << tup
@@ -249,10 +327,19 @@ END_JS
   def start_table(dir, tab, time, schema)
     str = "#{dir}/#{tab}_#{time}.html"
     fout = File.new(str, "w")
-
     fout.puts "<html><title>#{tab} @ #{time}</title>"
     fout.puts "<table border=1>"
-    fout.puts "<tr>" + schema.map{|s| "<th> #{s} </th>"}.join(" ") + "<tr>" unless schema.nil?
+    # issue with _snd schemas
+    if !schema.nil? and schema[0] == "c_bud_time"
+      fout.puts "<tr>" 
+      if schema[1].length == 2 and schema[1][0].class == Array and schema[1][1].class == Array
+        fout.puts schema[1][0].map{|s| "<th> #{s} </th>"}.join(" ")
+        fout.puts schema[1][1].map{|s| "<th> #{s} </th>"}.join(" ")
+      else
+        fout.puts schema[1].map{|s| "<th> #{s} </th>"}.join(" ")
+      end
+      fout.puts "<tr>"
+    end
     fout.close
     return str
   end
@@ -270,5 +357,4 @@ END_JS
     stream.puts "</tr>"
     stream.close
   end
-
 end

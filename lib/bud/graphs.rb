@@ -1,12 +1,12 @@
 require 'rubygems'
-require 'digest/md5'
 require 'graphviz'
 
 class GraphGen #:nodoc: all
   attr_reader :nodes
 
-  def initialize(tableinfo, cycle, name, budtime, collapse=false, cardinalities={})
+  def initialize(tableinfo, builtin_tables, cycle, name, budtime, collapse=false, cardinalities={}, pathsto={}, begins={})
     @graph = GraphViz.new(:G, :type => :digraph, :label => "")
+    #@graph.dim =  2
     @graph.node[:fontname] = "Times-Roman"
     @graph.node[:fontsize] = 18
     @graph.edge[:fontname] = "Times-Roman"
@@ -15,9 +15,11 @@ class GraphGen #:nodoc: all
     @name = name
     @collapse = collapse
     @budtime = budtime
-    @internals = {'localtick' => 1, 'stdio' => 1}
+    @builtin_tables = builtin_tables
+    @pathsto = pathsto
+    @begins = begins
 
-    # map: table -> type
+    # map: table name -> type
     @tabinf = {}
     tableinfo.each do |ti|
       @tabinf[ti[0].to_s] = ti[1]
@@ -75,8 +77,7 @@ class GraphGen #:nodoc: all
       head = d.lhs
       body = d.body
 
-      # hack attack
-      if @internals[head] or @internals[body]
+      if @builtin_tables.has_key?(head.to_sym) or @builtin_tables.has_key?(body.to_sym)
         next
       end
 
@@ -88,20 +89,45 @@ class GraphGen #:nodoc: all
     end
   end
 
+  def color_node(paths)
+    return "" if paths.nil?
+
+    case paths[0][:val]
+    when :A, :N
+      "yellow"
+    when :D, :G
+      "red"
+    else
+      "black"
+    end
+  end
+
   def addonce(node, negcluster, inhead=false)
     if !@nodes[node]
-      @nodes[node] = @graph.add_node("n_#{node}")
-      if @cards and @cards[node]
-        @nodes[node].label = "#{node}\n (#{@cards[node].to_s})"
-      else
-        @nodes[node].label = node
+      @nodes[node] = @graph.add_nodes(node)
+      node_p = @nodes[node]
+      node_p.label = node
+      if @begins[:finish] and @begins[:finish][node]
+        # point of divergence.  
+        node_p.penwidth = 4
       end
+
+      if @cards and @cards[node]
+        node_p.label = "#{node}\n (#{@cards[node].to_s})"
+        node_p.color = "green"
+      else
+        p = @pathsto[node].nil? ? "" : "\n(#{@pathsto[node][0][:val]})"
+        node_p.label = node + p
+        node_p.color = color_node(@pathsto[node])
+      end
+    else
+      node_p = @nodes[node]
     end
 
     if @budtime == -1
-      @nodes[node].URL = "#{node}.html" if inhead
+      node_p.URL = "#{node}.html" if inhead
     else
-      @nodes[node].URL = "javascript:openWin(\"#{node}\", #{@budtime})"
+      node_p.URL = "javascript:openWin(\"#{node}\", #{@budtime})"
     end
 
     if negcluster
@@ -117,13 +143,13 @@ class GraphGen #:nodoc: all
           res = res + ", " + p
         end
       end
-      @nodes[node].label = res
-      @nodes[node].color = "red"
-      @nodes[node].shape = "octagon"
-      @nodes[node].penwidth = 3
-      @nodes[node].URL = "#{File.basename(@name).gsub(".staging", "").gsub("collapsed", "expanded")}.svg"
+      node_p.label = res
+      node_p.color = "red"
+      node_p.shape = "octagon"
+      node_p.penwidth = 3
+      node_p.URL = "#{File.basename(@name).gsub(".staging", "").gsub("collapsed", "expanded")}.svg"
     elsif @tabinf[node] and (@tabinf[node] == "Bud::BudTable")
-      @nodes[node].shape = "rect"
+      node_p.shape = "rect"
     end
   end
 
@@ -135,9 +161,10 @@ class GraphGen #:nodoc: all
 
     ekey = body + head
     if !@edges[ekey]
-      @edges[ekey] = @graph.add_edge(@nodes[body], @nodes[head], :penwidth => 5)
+      @edges[ekey] = @graph.add_edges(@nodes[body], @nodes[head], :penwidth => 5)
       @edges[ekey].arrowsize = 2
 
+      @edges[ekey].color = (@nodes[body]["color"].source || "")
       @edges[ekey].URL = "#{rule_id}.html" unless rule_id.nil?
       if head =~ /_msg\z/
         @edges[ekey].minlen = 2
@@ -182,17 +209,17 @@ class GraphGen #:nodoc: all
     @nodes["T"].penwidth = 3
 
     @tabinf.each_pair do |k, v|
-      unless @nodes[name_of(k.to_s)] or k.to_s =~ /_tbl/ or @internals[k.to_s] or (k.to_s =~ /^t_/ and @budtime != 0)
-        addonce(k.to_s, false)
+      unless @nodes[name_of(k)] or @builtin_tables[k.to_sym]
+        addonce(k, false)
       end
       if v == "Bud::BudPeriodic"
-        addedge("S", k.to_s, false, false, false)
+        addedge("S", k, false, false, false)
       end
     end
 
     unless depanalysis.nil?
-      depanalysis.source.each {|s| addedge("S", s.pred, false, false, false)}
-      depanalysis.sink.each {|s| addedge(s.pred, "T", false, false, false)}
+      depanalysis.source.to_a.each {|s| addedge("S", s.pred, false, false, false)}
+      depanalysis.sink.to_a.each {|s| addedge(s.pred, "T", false, false, false)}
 
       unless depanalysis.underspecified.empty?
         addonce("??", false)
@@ -201,7 +228,7 @@ class GraphGen #:nodoc: all
         @nodes["??"].penwidth = 2
       end
 
-      depanalysis.underspecified.each do |u|
+      depanalysis.underspecified.to_a.each do |u|
         if u.input
           addedge(u.pred, "??", false, false, false)
         else
@@ -213,7 +240,7 @@ class GraphGen #:nodoc: all
     if output.nil?
       @graph.output(:svg => @name)
     else
-      @graph.output(output => @name)
+      @graph.output(output.to_sym => @name)
     end
   end
 end
@@ -235,9 +262,8 @@ class SpaceTime
     @head = {}
     last = nil
     processes.each_with_index do |p, i|
-      #@head[p] = @hdr.add_node("process #{p}(#{i})")#, :color => "white", :label => "")
       @subs[p] = @g.subgraph("buster_#{i+1}")
-      @head[p] = @hdr.add_node("process #{p}(#{i})", :group => p)#, :color => "white", :label => "")
+      @head[p] = @hdr.add_nodes("process #{p}(#{i})", :group => p)#, :color => "white", :label => "")
     end
   end
 
@@ -263,21 +289,20 @@ class SpaceTime
 
     squeues = {}
     queues.each_pair do |k, v|
-      squeues[k] = v.sort{|a, b| a <=> b}
+      squeues[k] = v.sort{|a, b| a.to_i <=> b.to_i}
     end
 
     # create the nodes and the timeline edges first.
     squeues.each do |k, v|
       v.each_with_index do |item, i|
         label = "#{k}-#{item}"
+        params = {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :group => k}
         if @links
-          url = "DBM_#{k}_/tm_#{item}.svg"
-          #puts "URL is #{url}"
+          params[:URL] = "DBM_#{k}/tm_#{item}.svg"
         end
-        snd = @subs[k].add_node(label, {:label => item.to_s, :width => 0.1, :height => 0.1, :fontsize => 6, :pos => "1, #{i}", :group => k, :URL => url})
-
+        snd = @subs[k].add_nodes(label, params)
         unless @head[k].id == snd.id
-          @subs[k].add_edge(@head[k], snd, :weight => 2)
+          @subs[k].add_edges(@head[k], snd, :weight => 2)
           @head[k] = snd
         end
       end
@@ -297,7 +322,8 @@ class SpaceTime
   def finish(file, fmt=nil)
     @edges.each_pair do |k, v|
       lbl = v[3] > 1 ? "#{v[2]}(#{v[3]})" : v[2]
-      @g.add_edge(v[0], v[1], :label => lbl, :color => "red", :weight => 1)
+      lbl ||= ""
+      @g.add_edges(v[0], v[1], :label => lbl, :color => "red", :weight => 1)
     end
     if fmt.nil?
       @g.output(:svg => "#{file}.svg")

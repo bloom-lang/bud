@@ -1,10 +1,12 @@
 require 'bud/rewrite'
 require 'pp'
 
+
 class BudMeta #:nodoc: all
   def initialize(bud_instance, declarations)
     @bud_instance = bud_instance
     @declarations = declarations
+    @dependency_analysis = nil # the results of bud_meta are analyzed further using a helper bloom instance. See depanalysis())
   end
 
   def meta_rewrite
@@ -81,13 +83,13 @@ class BudMeta #:nodoc: all
     unless rv.nil?
       if rv.class <= Sexp
         error_pt = rv
-        error_msg = "Parse error"
+        error_msg = "parse error"
       else
         error_pt, error_msg = rv
       end
 
-      # try to "generate" the source code associated with the problematic block,
-      # so as to generate a more meaningful error message.
+      # try to dump the source code associated with the problematic block, so as
+      # to produce a more meaningful error message.
       begin
         code = Ruby2Ruby.new.process(Marshal.load(Marshal.dump(error_pt)))
         src_msg = "\nCode: #{code}"
@@ -137,9 +139,11 @@ class BudMeta #:nodoc: all
         next
       end
 
+      next if i == 1 and n.sexp_type == :nil # a block got rewritten to an empty block
+        
       # Check for a common case
       if n.sexp_type == :lasgn
-        return [n, "Illegal operator: '='"]
+        return [n, "illegal operator: '='"]
       end
       return pt unless n.sexp_type == :call and n.length == 4
 
@@ -149,10 +153,10 @@ class BudMeta #:nodoc: all
       # Check that LHS references a named collection
       lhs_name = get_qual_name(lhs)
       unless lhs_name and @bud_instance.tables.has_key? lhs_name.to_sym
-        return [n, "Table does not exist: '#{lhs_name}'"]
+        return [n, "Collection does not exist: '#{lhs_name}'"]
       end
 
-      return [n, "Illegal operator: '#{op}'"] unless [:<, :<=].include? op
+      return [n, "illegal operator: '#{op}'"] unless [:<, :<=].include? op
 
       # Check superator invocation. A superator that begins with "<" is parsed
       # as a call to the binary :< operator. The right operand to :< is a :call
@@ -261,6 +265,21 @@ class BudMeta #:nodoc: all
         end
       end
     end
+  end
+
+  def depanalysis
+    if @dependency_analysis.nil?
+      require 'bud/depanalysis'
+      da = ::DepAnalysis.new
+      da.providing <+ @bud_instance.tables[:t_provides].to_a
+      da.depends_tc <+ @bud_instance.tables[:t_depends].map{|t| [t.lhs, t.body]}
+
+      #@bud_instance.tables[:t_provides].each {|t| da.providing <+ t}
+      #@bud_instance.tables[:t_depends].each {|t| da.depends_tc <+ t}
+      3.times { da.tick_internal}
+      @dependency_analysis = da
+    end
+    @dependency_analysis
   end
 
   def dump_rewrite(strata)

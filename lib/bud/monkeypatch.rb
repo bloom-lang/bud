@@ -1,4 +1,6 @@
-# We monkeypatch Module to add support for Bloom state and code declarations.
+# We monkeypatch Module to add support for Bloom's syntax additions: "state",
+# "bloom", and "bootstrap" blocks, plus the "import" statement.
+
 require 'bud/source'
 
 class Class
@@ -144,7 +146,7 @@ class Module
       @block_id += 1
     else
       unless block_name.class <= Symbol
-        raise Bud::CompileError, "Bloom block names must be a symbol: #{block_name}"
+        raise Bud::CompileError, "bloom block names must be a symbol: #{block_name}"
       end
     end
 
@@ -156,22 +158,24 @@ class Module
     # Don't allow duplicate named bloom blocks to be defined within a single
     # module; this indicates a likely programmer error.
     if instance_methods(false).include? meth_name
-      raise Bud::CompileError, "Duplicate named bloom block: '#{block_name}' in #{self}"
+      raise Bud::CompileError, "duplicate named bloom block: '#{block_name}' in #{self}"
     end
     ast = Source.read_block(caller[0]) # pass in caller's location via backtrace
     # ast corresponds only to the statements of the block. Wrap it in a method
     # definition for backward compatibility for now.
     # First wrap ast in a block if it is only a single statement
-    ast = s(:block, ast) unless ast.sexp_type == :block
-    ast = s(:defn, meth_name.to_sym, s(:args), s(:scope, ast))
-    unless self.respond_to? :__bloom_asts__
-      def self.__bloom_asts__;
-        @__bloom_asts__ ||= {}
-        @__bloom_asts__
+    unless ast.nil?
+      ast = s(:block, ast) unless ast.sexp_type == :block
+      ast = s(:defn, meth_name.to_sym, s(:args), s(:scope, ast))
+      unless self.respond_to? :__bloom_asts__
+        def self.__bloom_asts__;
+          @__bloom_asts__ ||= {}
+          @__bloom_asts__
+        end
       end
+      __bloom_asts__[meth_name] = ast
+      define_method(meth_name.to_sym, &block)
     end
-    __bloom_asts__[meth_name] = ast
-    define_method(meth_name.to_sym, &block)
   end
 
   private
@@ -193,5 +197,29 @@ class Module
     r = "__state#{@state_meth_id}__#{Module.get_class_name(klass)}".to_sym
     @state_meth_id += 1
     return r
+  end
+end
+
+
+module Enumerable
+  public
+  # Support for renaming collections and their schemas
+  def rename(new_tabname, new_schema=nil)
+    budi = (respond_to?(:bud_instance)) ? bud_instance : nil
+    if new_schema.nil? and respond_to?(:schema)
+      new_schema = schema
+    end
+    scr = Bud::BudScratch.new(new_tabname.to_s, budi, new_schema)
+    scr.uniquify_tabname
+    scr.merge(self, scr.storage)
+    scr
+  end
+
+  public
+  # We rewrite "map" calls in Bloom blocks to invoke the "pro" method
+  # instead. This is fine when applied to a BudCollection; when applied to a
+  # normal Enumerable, just treat pro as an alias for map.
+  def pro(&blk)
+    map(&blk)
   end
 end

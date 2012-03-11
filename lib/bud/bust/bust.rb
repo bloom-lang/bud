@@ -19,7 +19,7 @@ module Bust
     # copied from peter's code; this should probably be in the Bud runtime or in
     # some meta module
     @tables.each do |t|
-      t_table_schema << [t[0], t[1].schema.clone]
+      t_table_schema << [t[0], t[1].cols.clone]
       t_table_info << [t[0], t[1].class.to_s]
     end
 
@@ -82,7 +82,7 @@ module Bust
             # instantiate a new tuple
             tuple_to_insert = []
             @body.each do |k, v|
-              index = @bud.send(table_name.to_sym).schema.find_index(k.to_sym)
+              index = @bud.send(table_name.to_sym).cols.find_index(k.to_sym)
               for i in (tuple_to_insert.size..index)
                 tuple_to_insert << nil
               end
@@ -90,7 +90,7 @@ module Bust
             end
             # actually insert the puppy
             @bud.async_do {
-              @bud.send(table_name.to_sym) << tuple_to_insert
+              @bud.send(table_name.to_sym) <+ tuple_to_insert
             }
             @session.print success
           end

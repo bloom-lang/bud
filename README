@@ -10,10 +10,6 @@ documentation.
 
 Main deficiencies at this point are:
 
-- Inefficient evaluation: Programs are run using semi-naive evaluation
-  strategies, but no further query optimization has been implemented, and little
-  effort has been spent in tuning.
-
 - No Ruby constraints: Within Bloom programs the full power of Ruby is also
   available, including mutable state.  This allows programmers to get outside
   the Bloom framework and lose cleanliness.
@@ -40,8 +36,5 @@ To run the unit tests:
 ## Optional Dependencies
 
 The bud gem has a handful of mandatory dependencies. It also has two optional
-dependencies: if you wish to use Bud collections backed by Zookeeper or Tokyo
-Cabinet (the "zktable" and "tctable" collection types, respectively), the
-"zookeeper" and/or "tokyocabinet" gems must be installed. Note that before
-installing the "tokyocabinet" gem, the Tokyo Cabinet libraries should be
-installed first.
+dependencies: if you wish to use Bud collections backed by Zookeeper, the "zookeeper" 
+gem must be installed.

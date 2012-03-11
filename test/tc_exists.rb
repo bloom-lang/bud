@@ -38,7 +38,7 @@ class TestExists < Test::Unit::TestCase
     # Wait for two messages
     2.times { q.pop }
 
-    p.stop_bg
+    p.stop
     assert_equal(2, p.memories.length)
     assert_equal('what a lovely day', p.memories.first.val)
     assert_equal(2, p.dups.length)

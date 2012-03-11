@@ -12,7 +12,7 @@ module Bud
   # p.insert(1)
   # p.insert(nil)
   class PushElement < BudCollection
-    attr_accessor :elem_name, :schema
+    attr_accessor :elem_name
     attr_accessor :rescan, :invalidated
     attr_reader :arity, :inputs, :found_delta, :refcount, :wired_by, :outputs
     
@@ -83,7 +83,7 @@ module Bud
     end
     def wire_to(element)
       unless element.methods.include? :insert or element.methods.include? "insert"
-        raise BudError, "attempt to wire_to element without insert method" 
+        raise Bud::Error, "attempt to wire_to element without insert method" 
       end
       # elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
       # puts "wiring #{self.elem_name} to #{elem_name}"
@@ -91,21 +91,21 @@ module Bud
       element.wired_by << self if element.respond_to? :wired_by
     end
     def wire_to_pending(element)
-      raise BudError, "attempt to wire_to_pending element without pending_merge method" unless element.methods.include? "pending_merge" or element.methods.include? :pending_merge
+      raise Bud::Error, "attempt to wire_to_pending element without pending_merge method" unless element.methods.include? "pending_merge" or element.methods.include? :pending_merge
       elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
       # puts "wiring #{self.elem_name} to #{elem_name}(pending)"
       @pendings << element
       element.wired_by << self if element.respond_to? :wired_by
     end
     def wire_to_delete(element)
-      raise BudError, "attempt to wire_to_delete element without pending_delete method" unless element.methods.include? "pending_delete" or element.methods.include? :pending_delete
+      raise Bud::Error, "attempt to wire_to_delete element without pending_delete method" unless element.methods.include? "pending_delete" or element.methods.include? :pending_delete
       elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
       # puts "wiring #{self.elem_name} to #{elem_name}(delete)"
       @deletes << element
       element.wired_by << self if element.respond_to? :wired_by
     end
     def wire_to_delete_by_key(element)
-      raise BudError, "attempt to wire_to_delete_by_key element without pending_delete_keys method" unless element.methods.include? "pending_delete_keys" or element.methods.include? :pending_delete_keys
+      raise Bud::Error, "attempt to wire_to_delete_by_key element without pending_delete_keys method" unless element.methods.include? "pending_delete_keys" or element.methods.include? :pending_delete_keys
       elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
       # puts "wiring #{self.elem_name} to #{elem_name}(delete)"
       @delete_keys << element
@@ -135,10 +135,9 @@ module Bud
         if blk
           item = item.to_a if blk.arity > 1
           begin
-            item = blk.call item
-          rescue Exception => e
-            $stderr.puts "Error processing #{tabname} =================="
-            raise e
+          item = blk.call item
+          rescue Exception
+            raise
           end
         end
         @outputs.each do |ou|
@@ -206,17 +205,17 @@ module Bud
     public
     def stratum_end
     end
-    public
-    def set_schema(schema)
-      @schema=schema
-      setup_accessors
-    end
+    #public
+    #def set_schema(schema)
+    #  @schema=schema
+    #  setup_accessors
+    #end
 
     
     ####
     # and now, the Bloom-facing methods
     public
-    def pro(the_name = @elem_name, the_schema = @schema, &blk)
+    def pro(the_name = @elem_name, the_schema = schema, &blk)
       toplevel = @bud_instance.toplevel
       elem = Bud::PushElement.new('project' + object_id.to_s, toplevel.this_rule_context, @collection_name, the_schema)
       #elem.init_schema(the_schema) unless the_schema.nil?
@@ -274,15 +273,15 @@ module Bud
     end
     alias <= merge
     superator "<~" do |o|
-      raise BudError, "Illegal use of <~ with pusher '#{tabname}' on left"
+      raise Bud::Error, "Illegal use of <~ with pusher '#{tabname}' on left"
     end
 
     superator "<-" do |o|
-      raise BudError, "Illegal use of <- with pusher '#{tabname}' on left"
+      raise Bud::Error, "Illegal use of <- with pusher '#{tabname}' on left"
     end
 
     superator "<+" do |o|
-      raise BudError, "Illegal use of <+ with pusher '#{tabname}' on left"
+      raise Bud::Error, "Illegal use of <+ with pusher '#{tabname}' on left"
     end
 
     def group(keycols, *aggpairs, &blk)
@@ -318,7 +317,7 @@ module Bud
       collection = canonicalize_col(collection)
       toplevel = @bud_instance.toplevel
       agg = toplevel.send(aggname, collection)[0]
-      raise BudError, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
+      raise Bud::Error, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
       keynames = gbkey_cols.map do |k|
         if k.class == Symbol
           k.to_s
@@ -328,7 +327,7 @@ module Bud
       end
       aggpairs = [[agg,collection]]
       # if toplevel.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]].nil?
-        aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, toplevel.this_rule_context, @collection_name, gbkey_cols, aggpairs, @schema, &blk)
+        aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, toplevel.this_rule_context, @collection_name, gbkey_cols, aggpairs, schema, &blk)
         self.wire_to(aa)
         toplevel.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]] = aa
       # end
@@ -341,38 +340,38 @@ module Bud
     def argmin(gbcols, col, &blk)
       argagg(gbcols, Bud::min(col), blk)
     end
-    def sort(name=nil, bud_instance=nil, schema=nil, &blk)
-      elem = Bud::PushSort.new(name, bud_instance, schema, &blk)
+    def sort(name=nil, bud_instance=nil, the_schema=nil, &blk)
+      elem = Bud::PushSort.new(name, bud_instance, the_schema, &blk)
       wire_to(elem)
       elem
     end
-    def push_predicate(pred_symbol, name=nil, bud_instance=nil, schema=nil, &blk)
-      elem = Bud::PushPredicate.new(pred_symbol, name, bud_instance, schema, &blk)
+    def push_predicate(pred_symbol, name=nil, bud_instance=nil, the_schema=nil, &blk)
+      elem = Bud::PushPredicate.new(pred_symbol, name, bud_instance, the_schema, &blk)
       wire_to(elem)
       elem
     end
-    def all?(name=nil, bud_instance=nil, schema=nil, &blk)
-      push_predicate(:all?, name, bud_instance, schema, &blk)
+    def all?(name=nil, bud_instance=nil, the_schema=nil, &blk)
+      push_predicate(:all?, name, bud_instance, the_schema, &blk)
     end
-    def any?(name=nil, bud_instance=nil, schema=nil, &blk)
-      push_predicate(:any?, name, bud_instance, schema, &blk)
+    def any?(name=nil, bud_instance=nil, the_schema=nil, &blk)
+      push_predicate(:any?, name, bud_instance, the_schema, &blk)
     end
-    def include?(name=nil, bud_instance=nil, schema=nil, &blk)
-      push_predicate(:include?, name, bud_instance, schema, &blk)
+    def include?(name=nil, bud_instance=nil, the_schema=nil, &blk)
+      push_predicate(:include?, name, bud_instance, the_schema, &blk)
     end
-    def member?(name=nil, bud_instance=nil, schema=nil, &blk)
-      push_predicate(:member?, name, bud_instance, schema, &blk)
+    def member?(name=nil, bud_instance=nil, the_schema=nil, &blk)
+      push_predicate(:member?, name, bud_instance, the_schema, &blk)
     end
-    def none?(name=nil, bud_instance=nil, schema=nil, &blk)
-      push_predicate(:none?, name, bud_instance, schema, &blk)
+    def none?(name=nil, bud_instance=nil, the_schema=nil, &blk)
+      push_predicate(:none?, name, bud_instance, the_schema, &blk)
     end
-    def one?(name=nil, bud_instance=nil, schema=nil, &blk)
-      push_predicate(:one?, name, bud_instance, schema, &blk)
+    def one?(name=nil, bud_instance=nil, the_schema=nil, &blk)
+      push_predicate(:one?, name, bud_instance, the_schema, &blk)
     end
     
     def reduce(initial, &blk)
       @memo = initial
-      retval = Bud::PushReduce.new('reduce'+Time.new.tv_usec.to_s, @bud_instance, @collection_name, @schema, initial, &blk)
+      retval = Bud::PushReduce.new('reduce'+Time.new.tv_usec.to_s, @bud_instance, @collection_name, schema, initial, &blk)
       self.wire_to(retval)
       retval
     end
@@ -398,7 +397,7 @@ module Bud
     end
     
     def to_enum
-        # scr = @bud_instance.scratch(("scratch_" + Process.pid.to_s + "_" + object_id.to_s + "_" + rand(10000).to_s).to_sym, @schema)
+        # scr = @bud_instance.scratch(("scratch_" + Process.pid.to_s + "_" + object_id.to_s + "_" + rand(10000).to_s).to_sym, schema)
         scr = []
         self.wire_to(scr)
         scr
@@ -481,9 +480,9 @@ module Bud
   class ScannerElement < PushElement
     attr_reader :collection
     attr_reader :rescan_set, :invalidate_set
-    def initialize(elem_name, bud_instance, collection_in, schema=collection_in.schema, &blk)
+    def initialize(elem_name, bud_instance, collection_in, the_schema=collection_in.schema, &blk)
       # puts self.class
-      super(elem_name, bud_instance, collection_in.qualified_tabname, schema)
+      super(elem_name, bud_instance, collection_in.qualified_tabname, the_schema)
       @collection = collection_in
       @rescan_set = []
       @invalidate_set = []

@@ -11,8 +11,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
           :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1,
           :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
           :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
-          :schema => 1, :keys => 1, :values => 1, :payloads => 1, :~ => 1,
-          :lambda => 1
+          :cols => 1,  :key_cols => 1, :val_cols => 1, :payloads => 1, :~ => 1,
+          :lambda => 1, :tabname => 1
       }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
@@ -91,7 +91,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def collect_rhs(exp)
     @collect = true
     # rewrite constant array expressions to lambdas
-    if exp[0] and exp[0] == :arglist 
+    if exp[0] and exp[0] == :arglist
       # the <= case
       if exp[1] and exp[1][0] == :array
         exp = s(exp[0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, exp[1]))
@@ -134,23 +134,31 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def do_rule(exp)
     lhs = process exp[0]
     op = exp[1]
-    pro_rules = map2pro(exp[2])
+    rhs_ast = map2pro(exp[2])
+
+    # Remove the outer s(:arglist) from the rhs AST. An AST subtree rooted with
+    # s(:arglist) is not really sensible and it causes Ruby2Ruby < 1.3.1 to
+    # misbehave (for example, s(:arglist, s(:hash, ...)) is misparsed.
+    raise Bud::CompileError unless rhs_ast.sexp_type == :arglist
+    #rhs_ast = rhs_ast[1]
+
     if @bud_instance.options[:no_attr_rewrite]
-      rhs = collect_rhs(pro_rules)
+      rhs = collect_rhs(rhs_ast)
       rhs_pos = rhs
     else
-      # need a deep copy of the rules so we can keep a version without AttrName Rewrite
-      pro_rules2 = Marshal.load(Marshal.dump(pro_rules))
-      rhs = collect_rhs(pro_rules)
+      # need a deep copy of the rules so we can keep a version without AttrName
+      # Rewrite
+      rhs_ast_dup = Marshal.load(Marshal.dump(rhs_ast))
+      rhs = collect_rhs(rhs_ast)
       reset_instance_vars
-      rhs_pos = collect_rhs(AttrNameRewriter.new(@bud_instance).process(pro_rules2))
+      rhs_pos = collect_rhs(AttrNameRewriter.new(@bud_instance).process(rhs_ast_dup))
     end
     record_rule(lhs, op, rhs_pos, rhs)
     drain(exp)
   end
 
   # We want to rewrite "map" calls on BudCollections to "pro" calls. It is hard
-  # to do this accurately (issue #225), so we just replace map calls liberally
+  # to do this precisely (issue #225), so we just replace map calls liberally
   # and define Enumerable#pro as an alias for "map".
   def map2pro(exp)
     # the non-superator case
@@ -185,7 +193,8 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
     @bud_instance = bud_instance
   end
 
-  # some icky special-case parsing to find mapping between collection names and iter vars
+  # some icky special-case parsing to find mapping between collection names and
+  # iter vars
   def process_iter(exp)
     if exp[1] and exp[1][0] == :call
       gather_collection_names(exp[1])
@@ -194,10 +203,11 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
       if exp[2] and exp[2][0] == :lasgn and @collnames.size == 1 #single-table iter
         raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
         @iterhash[exp[2][1]] = @collnames[0]
-      elsif exp[2] and exp[2][0] == :lasgn and @collnames.size > 1 # join iter with lefts/rights
-        if exp[1] and exp[1][2] == :lefts
-          @iterhash[exp[2][1]] = @collnames[0] 
-        elsif exp[1] and exp[1][2] == :rights
+      elsif exp[2] and exp[2][0] == :lasgn and @collnames.size > 1 and exp[1] # join iter with lefts/rights
+        case exp[1][2]
+        when :lefts
+          @iterhash[exp[2][1]] = @collnames[0]
+        when :rights
           @iterhash[exp[2][1]] = @collnames[1]
         else
           raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
@@ -206,7 +216,7 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
         return unless exp[2][1] and exp[2][1][0] == :array
         if exp[1][2] == :reduce
           unless @collnames.length == 1
-            raise BudError, "reduce should only one associated collection, but has #{@collnames.inspect}"
+            raise Bud::Error, "reduce should only one associated collection, but has #{@collnames.inspect}"
           end
           @iterhash[exp[2][1][2][1]] = @collnames.first
         else #join
@@ -253,10 +263,10 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
     if recv and recv.class == Sexp and recv.first == :lvar and recv[1] and @iterhash[recv[1]]
       if @bud_instance.respond_to?(@iterhash[recv[1]])
         if @bud_instance.send(@iterhash[recv[1]]).class <= Bud::BudCollection
-          schema = @bud_instance.send(@iterhash[recv[1]]).schema
+          cols = @bud_instance.send(@iterhash[recv[1]]).cols
           if op != :[] and @bud_instance.send(@iterhash[recv[1]]).respond_to?(op)
             # if the op is an attribute name in the schema, col is its index
-            col = schema.index(op) unless schema.nil?
+            col = cols.index(op) unless cols.nil?
             unless col.nil?
               op = :[]
               args = s(:arglist, s(:lit, col))
@@ -368,6 +378,107 @@ class TempExpander < SexpProcessor # :nodoc: all
     @tmp_tables << tmp_name
     new_recv = s(:call, nil, tmp_name, s(:arglist))
     return s(:call, new_recv, nest_op, nest_args)
+  end
+end
+
+# We do four things here for each "with" block
+# 1) Remove it from the AST
+# 2) Use rewrite_me in the parent class to get the collection name pushed onto @tmp_tables.
+# 3) Extract the definition of the "with" collection and push it onto @with_defns
+# 4) Extract the rules in the body of the "with" block and push it onto @with_rules
+
+class WithExpander < TempExpander
+  attr_reader :with_rules, :with_defns
+  def initialize
+    super()
+    @keyword = :with
+    @with_rules = []
+    @with_defns = []
+  end
+
+  def process_defn(exp)
+    tag, name, args, scope = exp
+    if name.to_s =~ /^__bloom__.+/
+      block = scope[1]
+
+      block.each_with_index do |n,i|
+        if i == 0
+          raise Bud::CompileError if n != :block
+          next
+        end
+
+        # temp declarations are misparsed if the RHS contains certain constructs
+        # (e.g., group, "do |f| ... end" rather than "{|f| ... }").  Rewrite to
+        # correct the misparsing.
+        if n.sexp_type == :iter
+          block[i] = nil
+          iter_body = n.sexp_body
+          n = fix_temp_decl(iter_body)
+          @with_defns.push n
+          @did_work = true unless n.nil?
+        end
+
+        _, recv, meth, meth_args = n
+        if meth == @keyword and recv.nil?
+          block[i] = nil
+          n = rewrite_me(n)
+          @with_defns.push n
+          @did_work = true unless n.nil?
+        end
+      end
+    end
+    block.compact! unless block.nil? # remove the nils that got pulled out
+
+    return s(tag, name, args, scope)
+  end
+
+  def get_state_meth(klass)
+    return if @tmp_tables.empty?
+    block = s(:block)
+
+    t = @tmp_tables.pop
+    args = s(:arglist, s(:lit, t.to_sym))
+    block << s(:call, nil, :temp, args)
+
+    meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
+    return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
+  end
+
+  private
+  def rewrite_me(exp)
+    _, recv, meth, args = exp
+
+    raise Bud::CompileError unless recv == nil
+    nest_call = args.sexp_body.first
+    raise Bud::CompileError unless nest_call.sexp_type == :call
+
+    nest_recv, nest_op, nest_args = nest_call.sexp_body
+    raise Bud::CompileError unless nest_recv.sexp_type == :lit
+
+    tmp_name = nest_recv.sexp_body.first
+    @tmp_tables.push tmp_name
+    nest_block = args.sexp_body[1]
+    if nest_block.first == :call
+      # a one-rule block doesn't get wrapped in a block.  wrap it ourselves.
+      nest_block = s(:block, nest_block)
+    end
+    @with_rules.push nest_block
+    new_recv = s(:call, nil, tmp_name, s(:arglist))
+    return s(:call, new_recv, nest_op, nest_args)
+  end
+
+  undef get_state_meth
+
+  public
+  def get_state_meth(klass)
+    return if @tmp_tables.empty?
+    block = s(:block)
+
+    args = s(:arglist, s(:lit, @tmp_tables.pop.to_sym))
+    block << s(:call, nil, :temp, args)
+
+    meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
+    return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
   end
 end
 

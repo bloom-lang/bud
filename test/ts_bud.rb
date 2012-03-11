@@ -1,17 +1,23 @@
 require 'test_common'
 
+# In "quick mode", don't bother running some of the more expensive tests
+if ARGV.first and ARGV.first.downcase == "quick"
+  $quick_mode = true
+end
+
 require 'tc_aggs'
 require 'tc_attr_rewrite'
-require 'tc_bust'
+puts "tc_bust disabled temporarily" #require 'tc_bust'
 require 'tc_callback'
 require 'tc_channel'
 require 'tc_collections'
+require 'tc_notin'
 require 'tc_dbm'
 require 'tc_delta'
 require 'tc_errors'
+require 'tc_execmodes' unless $quick_mode
 require 'tc_exists'
-require 'tc_foreground'
-require 'tc_forkdeploy'
+puts "tc_halt suspended temporarily" #require 'tc_halt'
 require 'tc_inheritance'
 require 'tc_interface'
 require 'tc_joins'
@@ -22,13 +28,11 @@ require 'tc_module'
 require 'tc_nest'
 require 'tc_rebl'
 require 'tc_schemafree'
-require 'tc_semistructured'
-require 'tc_temp'
-require 'tc_terminal'
-require 'tc_timer'
-require 'tc_threaddeploy'
-require 'tc_wc'
+puts "tc_semistructured disabled temporarily" #require 'tc_semistructured'
 
-if defined? Bud::HAVE_TOKYOCABINET
-  require 'tc_tc'
-end
+require 'tc_temp'
+puts "tc_terminal disabled temporarily" #require 'tc_terminal'
+require 'tc_timer'
+require 'tc_wc'
+require 'tc_new_executor'
+require 'tc_sort'

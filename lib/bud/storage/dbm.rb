@@ -6,9 +6,9 @@ module Bud
     def initialize(name, bud_instance, given_schema)
       @invalidated = true
       dbm_dir = bud_instance.options[:dbm_dir]
-      raise BudError, "dbm support must be enabled via 'dbm_dir'" unless dbm_dir
+      raise Bud::Error, "dbm support must be enabled via 'dbm_dir'" unless dbm_dir
       if bud_instance.port.nil?
-        raise BudError, "use of dbm storage requires an explicit port to be specified in Bud initialization options"
+        raise Bud::Error, "use of dbm storage requires an explicit port to be specified in Bud initialization options"
       end
 
       unless File.exists?(dbm_dir)
@@ -31,7 +31,7 @@ module Bud
       end
       @dbm = DBM.open(db_fname, 0666, flags)
       if @dbm.nil?
-        raise BudError, "Failed to open dbm database '#{db_fname}': #{@dbm.errmsg}"
+        raise Bud::Error, "failed to open dbm database '#{db_fname}': #{@dbm.errmsg}"
       end
     end
 
@@ -42,6 +42,7 @@ module Bud
     end
 
     def [](key)
+      check_enumerable(key)
       key_s = MessagePack.pack(key)
       val_s = @dbm[key_s]
       if val_s
@@ -56,13 +57,14 @@ module Bud
     end
 
     def has_key?(k)
+      check_enumerable(k)
       key_s = MessagePack.pack(k)
       return true if @dbm.has_key? key_s
       return @delta.has_key? k
     end
 
     def include?(tuple)
-      key = @key_colnums.map{|k| tuple[k]}
+      key = get_key_vals(tuple)
       value = self[key]
       return (value == tuple)
     end
@@ -74,7 +76,7 @@ module Bud
         t[k] = k_ary[i]
       end
       val_cols.each_with_index do |c,i|
-        t[schema.index(c)] = v_ary[i]
+        t[cols.index(c)] = v_ary[i]
       end
       t
     end
@@ -120,12 +122,12 @@ module Bud
 
     def merge_to_db(buf)
       buf.each do |key,tuple|
-        merge_tuple(key, tuple)
+        merge_tuple_to_db(key, tuple)
       end
     end
 
-    def merge_tuple(key, tuple)
-      val = val_cols.map{|c| tuple[schema.index(c)]}
+    def merge_tuple_to_db(key, tuple)
+      val = val_cols.map{|c| tuple[cols.index(c)]}
       key_s = MessagePack.pack(key)
       val_s = MessagePack.pack(val)
       if @dbm.has_key?(key_s)
@@ -178,8 +180,8 @@ module Bud
     
     
     def insert(tuple)
-      key = @key_colnums.map{|k| tuple[k]}
-      merge_tuple(key, tuple)
+      key = get_key_vals(tuple)
+      merge_tuple_to_db(key, tuple)
     end
 
     alias << insert
@@ -188,12 +190,12 @@ module Bud
     def tick
       deleted = nil
       @to_delete.each do |tuple|
-        k = @key_colnums.map{|c| tuple[c]}
+        k = get_key_vals(tuple)
         k_str = MessagePack.pack(k)
         cols_str = @dbm[k_str]
         unless cols_str.nil?
           db_cols = MessagePack.unpack(cols_str)
-          delete_cols = val_cols.map{|c| tuple[schema.index(c)]}
+          delete_cols = val_cols.map{|c| tuple[cols.index(c)]}
           if db_cols == delete_cols
             deleted ||= @dbm.delete k_str
           end
@@ -215,6 +217,16 @@ module Bud
 
     def method_missing(sym, *args, &block)
       @dbm.send sym, *args, &block
+    end
+
+    public
+    def length
+      @dbm.length
+    end
+
+    public
+    def empty?
+      @dbm.empty?
     end
   end
 end

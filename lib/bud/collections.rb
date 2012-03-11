@@ -18,7 +18,7 @@ module Bud
     include Enumerable
 
     attr_accessor :bud_instance, :locspec_idx, :tabname  # :nodoc: all
-    attr_reader :schema # :nodoc: all
+    attr_reader :cols, :key_cols # :nodoc: all
     attr_reader :struct
     attr_reader :storage, :delta, :new_delta, :pending, :tick_delta # :nodoc: all
     attr_accessor :qualified_tabname
@@ -46,15 +46,25 @@ module Bud
     public
     def init_schema(given_schema)
       given_schema ||= {[:key]=>[:val]}
+
+      # Check that no location specifiers appear in the schema. In the case of
+      # channels, the location specifier has already been stripped from the
+      # user-specified schema.
+      given_schema.each do |s|
+        if s.to_s.start_with? "@"
+          raise Bud::Error, "illegal use of location specifier (@) in column #{s} of non-channel collection #{tabname}"
+        end
+      end
+
       @given_schema = given_schema
-      @schema, @key_cols = BudCollection.parse_schema(given_schema)
-      if @schema.size == 0
-        @schema = nil
+      @cols, @key_cols = BudCollection.parse_schema(given_schema)
+      if @cols.size == 0
+        @cols = nil
       else
-        @struct = ($struct_classes[@schema] ||= Struct.new(*@schema))
+        @struct = ($struct_classes[@cols] ||= Struct.new(*@cols))
         @structlen = @struct.members.length
       end
-      @key_colnums = key_cols.map {|k| schema.index(k)}
+      @key_colnums = key_cols.map {|k| @cols.index(k)}
       setup_accessors
     end
 
@@ -63,13 +73,13 @@ module Bud
     end
 
     # The user-specified schema might come in two forms: a hash of Array =>
-    # Array (key_cols => remaining columns), or simply an Array of columns (if no
-    # key_cols were specified). Return a pair: [list of columns in entire tuple,
-    # list of key columns]
+    # Array (key_cols => remaining columns), or simply an Array of columns (if
+    # no key_cols were specified). Return a pair: [list of (all) columns, list
+    # of key columns]
     private
     def self.parse_schema(given_schema)
       if given_schema.respond_to? :keys
-        raise BudError, "invalid schema for #{tabname}" if given_schema.length != 1
+        raise Bud::Error, "invalid schema for #{tabname}" if given_schema.length != 1
         key_cols = given_schema.keys.first
         val_cols = given_schema.values.first
       else
@@ -77,17 +87,17 @@ module Bud
         val_cols = []
       end
 
-      the_schema = key_cols + val_cols
-      the_schema.each do |s|
-        if s.class != Symbol
-          raise BudError, "Invalid schema element \"#{s}\", type \"#{s.class}\""
+      cols = key_cols + val_cols
+      cols.each do |c|
+        if c.class != Symbol
+          raise Bud::Error, "Invalid column name \"#{c}\", type \"#{c.class}\""
         end
       end
-      if the_schema.uniq.length < the_schema.length
-        raise BudError, "schema #{given_schema.inspect} contains duplicate names"
+      if cols.uniq.length < cols.length
+        raise Bud::Error, "schema #{given_schema.inspect} contains duplicate names"
       end
 
-      return [the_schema, key_cols]
+      return [cols, key_cols]
     end
 
     def inspect
@@ -99,16 +109,18 @@ module Bud
       self.class.new(tabname, bud_instance, @given_schema)
     end
 
-    # subset of the schema (i.e. an array of attribute names) that forms the key
+    # produces the schema in a format that is useful as the schema specification for another table
     public
-    def key_cols
-      @key_cols
+    def schema
+      return nil if @cols.nil?
+      return key_cols if val_cols.empty?
+      return { key_cols => val_cols }
     end
 
-    # subset of the schema (i.e. an array of attribute names) that is not in the key
+    # the columns of the collection's schema that are not part of the key
     public
     def val_cols # :nodoc: all
-      schema - key_cols
+      @cols - @key_cols
     end
 
     # define methods to turn 'table.col' into a [table,col] pair
@@ -116,23 +128,23 @@ module Bud
     #    j = join link, path, {link.to => path.from}
     private
     def setup_accessors
-      sc = @schema
+      sc = @cols
       return if sc.nil?
       sc.each do |colname|
         if name_reserved? colname
-          raise BudError, "symbol :#{colname} reserved, cannot be used as column name for #{tabname}"
+          raise Bud::Error, "symbol :#{colname} reserved, cannot be used as column name for #{tabname}"
         end
       end
 
       # set up schema accessors, which are class methods
-      @schema_access = Module.new do
+      @cols_access = Module.new do
         sc.each_with_index do |c, i|
           m = define_method c do
             [@tabname, i, c]
           end
         end
       end
-      self.extend @schema_access
+      self.extend @cols_access
 
       # now set up a Module for tuple accessors, which are instance methods
       @tupaccess = Module.new do
@@ -182,24 +194,24 @@ module Bud
     # project the collection to its non-key attributes
     public
     def values
-      self.pro{|t| (self.key_cols.length..self.schema.length-1).map{|i| t[i]}}
+      self.pro{|t| (self.key_cols.length..self.cols.length-1).map{|i| t[i]}}
     end
 
     # map each item in the collection into a string, suitable for placement in stdio
     public
     def inspected
       self.pro{|t| [t.inspect]}
+      # how about when this is called outside wiring?
+      # [["#{@tabname}: [#{self.map{|t| "\n  (#{t.map{|v| v.inspect}.join ", "})"}}]"]]
     end
 
     # projection
     public
     def pro(the_name = tabname, the_schema = schema, &blk)
-#XXX    def pro(the_name = tabname, the_schema = schema, &blk)
       pusher = to_push_elem(the_name, the_schema)
       pusher_pro = pusher.pro(&blk)
       pusher_pro.elem_name = the_name
       pusher_pro.tabname = the_name
-      pusher_pro.schema = the_schema
       pusher_pro
     end
 
@@ -242,12 +254,12 @@ module Bud
     public 
     def sort(&blk)
       pusher = self.pro
-      pusher.sort(@name, @bud_instance, @schema, &blk)
+      pusher.sort(@name, @bud_instance, @cols, &blk)
     end
 
     def rename(the_name, the_schema=nil)
       # a scratch with this name should have been defined during rewriting
-      raise(BudError, "rename failed to define a scratch named #{the_name}") unless @bud_instance.respond_to? the_name
+      raise(Bud::Error, "rename failed to define a scratch named #{the_name}") unless @bud_instance.respond_to? the_name
       retval = pro(the_name, the_schema)
       #retval.init_schema(the_schema)
       retval
@@ -310,7 +322,7 @@ module Bud
         when :storage then @storage
         when :delta then @delta
         when :new_delta then @new_delta
-        else raise BudError, "bad symbol passed into each_from_sym"
+        else raise Bud::Error, "bad symbol passed into each_from_sym"
         end
       end
       each_from(bufs, &block)
@@ -350,6 +362,7 @@ module Bud
     def [](k)
       # assumes that key is in storage or delta, but not both
       # is this enforced in do_insert?
+      check_enumerable(k)
       t = @storage[k]
       return t.nil? ? @delta[k] : tuple_accessors(t)
     end
@@ -359,7 +372,7 @@ module Bud
     def include?(item)
       return true if key_cols.nil? or (key_cols.empty? and length > 0)
       return false if item.nil?
-      key = @key_colnums.map{|i| item[i]}
+      key = get_key_vals(item)
       return (item == self[key])
     end
 
@@ -385,8 +398,8 @@ module Bud
 
     private
     def raise_pk_error(new_guy, old)
-      keycols = @key_colnums.map{|i| old[i]}
-      raise KeyConstraintError, "Key conflict inserting #{new_guy.inspect} into \"#{qualified_tabname}\": existing tuple #{old.inspect}, key_cols = #{keycols.inspect}"
+      key = get_key_vals(old)
+      raise KeyConstraintError, "key conflict inserting #{new_guy.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key = #{key.inspect}"
     end
 
     private
@@ -402,9 +415,16 @@ module Bud
         init_schema(o.members.map{|m| m.to_sym}) if @struct.nil?
         o = o.take(@structlen)
       else
-        raise BudTypeError, "Array or struct type expected in \"#{qualified_tabname}\": #{o.inspect}"
+        raise TypeError, "Array or struct type expected in \"#{qualified_tabname}\": #{o.inspect}"
       end
       return @struct.new(*o)
+    end
+
+    private
+    def get_key_vals(t)
+      @key_colnums.map do |i|
+        t[i]
+      end
     end
 
     public
@@ -420,12 +440,11 @@ module Bud
       end
       return if o.nil? # silently ignore nils resulting from map predicates failing
       o = prep_tuple(o)
+      key = get_key_vals(o)
 
-      keycols = o.take(@key_colnums.length)
-
-      old = store[keycols]
+      old = store[key]
       if old.nil?
-        store[keycols] = o
+        store[key] = tuple_accessors(o)
       else
         raise_pk_error(o, old) unless old == o
       end
@@ -445,18 +464,18 @@ module Bud
     private
     def check_enumerable(o)
       unless o.nil? or o.class < Enumerable or o.class <= Proc
-        raise BudTypeError, "Collection #{qualified_tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
+        raise TypeError, "Collection #{qualified_tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
       end
     end
 
     # Assign self a schema, by hook or by crook.  If +o+ is schemaless *and*
-    # empty, will leave @schema as is.
+    # empty, will leave @cols as is.
     private
     def establish_schema(o)
       # use o's schema if available
       deduce_schema(o)
       # else use arity of first non-nil tuple of o
-      if @schema.nil?
+      if @cols.nil?
         o.each do |t|
           next if t.nil?
           fit_schema(t.size)
@@ -468,11 +487,11 @@ module Bud
     # Copy over the schema from +o+ if available
     private
     def deduce_schema(o)
-      if @schema.nil? and o.class <= Bud::BudCollection and not o.schema.nil?
+      if @cols.nil? and o.class <= Bud::BudCollection and not o.cols.nil?
         # must have been initialized with defer_schema==true.  take schema from rhs
-        init_schema(o.schema)
+        init_schema(o.cols)
       end
-      # if nothing available, leave @schema unchanged
+      # if nothing available, leave @cols unchanged
     end
 
     # manufacture schema of the form [:c0, :c1, ...] with width = +arity+
@@ -483,10 +502,10 @@ module Bud
     end
 
     private
-    def include_any_buf?(t, key_vals)
+    def include_any_buf?(t, key)
       bufs = [self, @delta, @new_delta]
       bufs.each do |b|
-        old = b[key_vals]
+        old = b[key]
         next if old.nil?
         if old != t
           raise_pk_error(t, old)
@@ -502,11 +521,11 @@ module Bud
       toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
-        deduce_schema(o) if @schema.nil?
+        deduce_schema(o) if @cols.nil?
         o.wire_to self
       elsif o.class <= Bud::BudCollection
         toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
-        deduce_schema(o) if @schema.nil?
+        deduce_schema(o) if @cols.nil?
         o.pro.wire_to self
       elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring and not o.nil?
         toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
@@ -516,7 +535,7 @@ module Bud
         unless o.nil?
           o = o.uniq.compact if o.respond_to?(:uniq)
           check_enumerable(o)
-          establish_schema(o) if @schema.nil?
+          establish_schema(o) if @cols.nil?
           o.each {|i| do_insert(i, buf)}
         end
       end
@@ -526,15 +545,15 @@ module Bud
     # def prep_coll_expr(o)
     #   o = o.uniq.compact if o.respond_to?(:uniq)
     #   check_enumerable(o)
-    #   establish_schema(o) if @schema.nil?
+    #   establish_schema(o) if @cols.nil?
     #   o
     # end
 
     def register_coll_expr(expr)
       # require 'ruby-debug'; debugger
       coll_name = ("expr_"+expr.object_id.to_s)
-      schema = (1..@schema.length).map{|i| ("c"+i.to_s).to_sym} unless @schema.nil?
-      @bud_instance.coll_expr(coll_name.to_sym, expr, schema)
+      cols = (1..@cols.length).map{|i| ("c"+i.to_s).to_sym} unless @cols.nil?
+      @bud_instance.coll_expr(coll_name.to_sym, expr, cols)
       coll = @bud_instance.send(coll_name)
       coll
     end
@@ -563,7 +582,7 @@ module Bud
         unless o.nil?
           o = o.uniq.compact if o.respond_to?(:uniq)
           check_enumerable(o)
-          establish_schema(o) if @schema.nil?
+          establish_schema(o) if @cols.nil?
           o.each{|i| self.do_insert(i, @pending)}
         end
       end
@@ -658,8 +677,10 @@ module Bud
     def method_missing(sym, *args, &block)
       begin
         @storage.send sym, *args, &block
-      rescue
-        raise NoMethodError, "no method :#{sym} in class #{self.class.name}"
+      rescue Exception => e
+        err = NoMethodError.new("no method :#{sym} in class #{self.class.name}")
+        err.set_backtrace(e.backtrace)
+        raise err
       end
     end
 
@@ -678,13 +699,17 @@ module Bud
     end
 
 
+    # a generalization of argmin/argmax to arbitrary exemplary aggregates.
+    # for each distinct value of the grouping key columns, return the items in that group
+    # that have the value of the exemplary aggregate +aggname+
     public
     def argagg(aggname, gbkey_cols, collection)
       elem = to_push_elem
+      elem.schema
       gbkey_cols = gbkey_cols.map{|k| canonicalize_col(k)} unless gbkey_cols.nil?
       retval = elem.argagg(aggname,gbkey_cols,canonicalize_col(collection))
       # PushElement inherits the schema accessors from this Collection
-      retval.extend @schema_access
+      retval.extend @cols_access
       retval
     end
 
@@ -781,7 +806,7 @@ module Bud
       elsif is_source
         invalidate_cache
       end
-      raise BudError, "orphaned tuples in @new_delta for #{qualified_tabname}" unless @new_delta.empty?
+      raise Bud::Error, "orphaned tuples in @new_delta for #{qualified_tabname}" unless @new_delta.empty?
     end
 
     public
@@ -817,6 +842,9 @@ module Bud
   class BudTemp < BudScratch # :nodoc: all
   end
 
+  # Channels are a different type of collection in that they represent two distinct collections, one each for
+  # incoming and outgoing.  The incoming side makes use of @storage and @delta, whereas the outgoing side only deals
+  # with @pending. XXX Maybe we should be using aliases instead.
   class BudChannel < BudCollection
     attr_reader :locspec_idx # :nodoc: all
 
@@ -825,13 +853,27 @@ module Bud
       @is_loopback = loopback
       @locspec_idx = nil
 
+      # We're going to mutate the caller's given_schema (to remove the location
+      # specifier), so make a deep copy first. We also save a ref to the
+      # unmodified given_schema.
+      @raw_schema = given_schema
+      given_schema = Marshal.load(Marshal.dump(given_schema))
+
       unless @is_loopback
-        the_schema, the_key_cols = BudCollection.parse_schema(given_schema)
-        the_val_cols = the_schema - the_key_cols
+        the_cols, the_key_cols = BudCollection.parse_schema(given_schema)
+        spec_count = the_cols.count {|c| c.to_s.start_with? "@"}
+        if spec_count == 0
+          raise Bud::Error, "missing location specifier for channel '#{name}'"
+        end
+        if spec_count > 1
+          raise Bud::Error, "multiple location specifiers for channel '#{name}'"
+        end
+
+        the_val_cols = the_cols - the_key_cols
         @locspec_idx = remove_at_sign!(the_key_cols)
-        @locspec_idx = remove_at_sign!(the_schema) if @locspec_idx.nil?
         if @locspec_idx.nil?
-          raise BudError, "Missing location specifier for channel '#{name}'"
+          val_idx = remove_at_sign!(the_val_cols)
+          @locspec_idx = val_idx + the_key_cols.length
         end
 
         # We mutate the hash key above, so we need to recreate the hash
@@ -844,9 +886,14 @@ module Bud
       super(name, bud_instance, given_schema)
     end
 
+    def bootstrap
+      # override BudCollection;  pending should not be moved into delta.
+    end
+
+
     private
     def remove_at_sign!(cols)
-      i = cols.find_index {|c| c.to_s[0].chr == '@'}
+      i = cols.find_index {|c| c.to_s.start_with? "@"}
       unless i.nil?
         cols[i] = cols[i].to_s.delete('@').to_sym
       end
@@ -860,13 +907,13 @@ module Bud
         lsplit[1] = lsplit[1].to_i
         return lsplit
       rescue Exception => e
-        raise BudError, "Illegal location specifier in tuple #{t.inspect} for channel \"#{qualified_tabname}\": #{e.to_s}"
+        raise Bud::Error, "Illegal location specifier in tuple #{t.inspect} for channel \"#{qualified_tabname}\": #{e.to_s}"
       end
     end
 
     public
     def clone_empty
-      self.class.new(tabname, bud_instance, @given_schema, @is_loopback)
+      self.class.new(tabname, bud_instance, @raw_schema, @is_loopback)
     end
 
     public
@@ -892,7 +939,7 @@ module Bud
           the_locspec = [ip, port]
         else
           the_locspec = split_locspec(t, @locspec_idx)
-            raise BudError, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
+          raise Bud::Error, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
         end
         puts "channel #{qualified_tabname}.send: #{t}" if $BUD_DEBUG
         toplevel.dsock.send_datagram([qualified_tabname.to_s, t].to_msgpack, the_locspec[0], the_locspec[1])
@@ -905,12 +952,12 @@ module Bud
     def payloads
       return self.pro if @is_loopback
 
-      if schema.size > 2
+      if cols.size > 2
         # bundle up each tuple's non-locspec fields into an array
         retval = case @locspec_idx
-        when 0 then self.pro{|t| t.values_at(1..(t.size-1))}
-        when (schema.size - 1) then self.pro{|t| t.values_at(0..(t.size-2))}
-        else self.pro{|t| t.values_at(0..(@locspec_idx-1), @locspec_idx+1..(t.size-1))}
+          when 0 then self.pro{|t| t.values_at(1..(t.size-1))}
+          when (schema.size - 1) then self.pro{|t| t.values_at(0..(t.size-2))}
+          else self.pro{|t| t.values_at(0..(@locspec_idx-1), @locspec_idx+1..(t.size-1))}
         end
       else
         # just return each tuple's non-locspec field value
@@ -928,13 +975,13 @@ module Bud
     end
 
     superator "<+" do |o|
-      raise BudError, "Illegal use of <+ with channel '#{@tabname}' on left"
+      raise Bud::Error, "illegal use of <+ with channel '#{@tabname}' on left"
     end
 
     undef merge
 
     def <=(o)
-      raise BudError, "Illegal use of <= with channel '#{@tabname}' on left"
+      raise Bud::Error, "illegal use of <= with channel '#{@tabname}' on left"
     end
   end
 
@@ -1003,7 +1050,7 @@ module Bud
         @tick_delta.clear
       end
       @invalidated = true # channels and terminals are always invalidated.
-      raise BudError, "orphaned pending tuples in terminal" unless @pending.empty?
+      raise Bud::Error, "orphaned pending tuples in terminal" unless @pending.empty?
     end
 
     public
@@ -1014,7 +1061,7 @@ module Bud
 
     public
     def <=(o) #:nodoc: all
-      raise BudError, "Illegal use of <= with terminal '#{@tabname}' on left"
+      raise Bud::Error, "illegal use of <= with terminal '#{@tabname}' on left"
     end
 
     superator "<~" do |o|
@@ -1029,29 +1076,26 @@ module Bud
     def get_out_io
       rv = @bud_instance.toplevel.options[:stdout]
       rv ||= $stdout
+      raise Bud::Error, "attempting to write to terminal #{tabname} that was already closed" if rv.closed?
       rv
     end
   end
 
   class BudPeriodic < BudScratch # :nodoc: all
     def <=(o)
-      raise BudError, "Illegal use of <= with periodic '#{tabname}' on left"
+      raise Bud::Error, "illegal use of <= with periodic '#{tabname}' on left"
     end
 
     superator "<~" do |o|
-      raise BudError, "Illegal use of <~ with periodic '#{tabname}' on left"
+      raise Bud::Error, "illegal use of <~ with periodic '#{tabname}' on left"
     end
 
     superator "<-" do |o|
-      raise BudError, "Illegal use of <- with periodic '#{tabname}' on left"
+      raise Bud::Error, "illegal use of <- with periodic '#{tabname}' on left"
     end
 
     superator "<+" do |o|
-      raise BudError, "Illegal use of <+ with periodic '#{tabname}' on left"
-    end
-
-    def add_periodic_tuple(id)
-      pending_merge([[id, Time.now]])
+      raise Bud::Error, "illegal use of <+ with periodic '#{tabname}' on left"
     end
 
     def tick
@@ -1140,7 +1184,7 @@ module Bud
         unless o.nil?
           o = o.uniq.compact if o.respond_to?(:uniq)
           check_enumerable(o)
-          establish_schema(o) if @schema.nil?
+          establish_schema(o) if @cols.nil?
           o.each{|i| @to_delete << prep_tuple(i)}
         end
       end
@@ -1163,7 +1207,7 @@ module Bud
         unless o.nil?
           o = o.uniq.compact if o.respond_to?(:uniq)
           check_enumerable(o)
-          establish_schema(o) if @schema.nil?
+          establish_schema(o) if @cols.nil?
           o.each{|i| @to_delete_by_key << prep_tuple(i)}
         end
       end
@@ -1190,11 +1234,11 @@ module Bud
 
   class BudReadOnly < BudCollection # :nodoc: all
     superator "<+" do |o|
-      raise CompileError, "Illegal use of <+ with read-only collection '#{@tabname}' on left"
+      raise CompileError, "illegal use of <+ with read-only collection '#{@tabname}' on left"
     end
     public
     def merge(o)  #:nodoc: all
-      raise CompileError, "Illegal use of <= with read-only collection '#{@tabname}' on left"
+      raise CompileError, "illegal use of <= with read-only collection '#{@tabname}' on left"
     end
     public
     def invalidate_cache
@@ -1203,6 +1247,20 @@ module Bud
     public
     def invalidate_at_tick
       true
+    end
+  end
+
+  class BudSignal < BudReadOnly
+    def invalidate_at_tick
+      true
+    end
+    def tick
+      @invalidated = true
+      @storage.clear
+      unless @pending.empty?
+        @delta = @pending
+        @pending = {}
+      end
     end
   end
 

@@ -232,6 +232,13 @@ class DeclarationOverrideMethod
   end
 end
 
+class LocSpecNonChannel
+  include Bud
+  state do
+    scratch :foo, [:@a] => [:b]
+  end
+end
+
 class EmptyPk
   include Bud
 
@@ -249,6 +256,21 @@ class InsertIntoPeriodicError
 
   state do
     periodic :timer
+  end
+end
+
+class SchemaPreserveKeys
+  include Bud
+
+  state do
+    scratch :inputt, [:a, :b]
+    scratch :t1, [:a] => [:b]
+    scratch :t2, t1.schema
+  end
+
+  bloom do
+    t1 <= inputt
+    t2 <= inputt
   end
 end
 
@@ -287,7 +309,7 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_dup_columns
-    assert_raise(Bud::BudError) {program = DupColBud.new}
+    assert_raise(Bud::Error) {program = DupColBud.new}
   end
 
   def test_dup_keys
@@ -360,7 +382,7 @@ class TestCollections < Test::Unit::TestCase
       assert_equal(2, rv.t4.length)
     }
 
-    rv.stop_bg
+    rv.stop
   end
 
   def test_types
@@ -368,15 +390,15 @@ class TestCollections < Test::Unit::TestCase
     p1.tick
     assert_equal(1, p1.t1.first.key)
     p2 = NonEnumerable.new
-    assert_raise(Bud::BudTypeError) { p2.tick }    
+    assert_raise(Bud::TypeError) { p2.tick }
     p3 = NonTuple.new
-    assert_raise(Bud::BudTypeError) { p3.tick }
+    assert_raise(Bud::TypeError) { p3.tick }
     p4 = NonTupleDelete.new
-    assert_raise(Bud::BudTypeError) { p4.tick }
+    assert_raise(Bud::TypeError) { p4.tick }
     p5 = StringMerge.new
-    assert_raise(Bud::BudTypeError) { p5.tick }
+    assert_raise(Bud::TypeError) { p5.tick }
     p6 = StringAsyncMerge.new
-    assert_raise(Bud::BudTypeError) { p6.tick }
+    assert_raise(Bud::TypeError) { p6.tick }
   end
 
   class BendTypesDelete
@@ -408,7 +430,7 @@ class TestCollections < Test::Unit::TestCase
     p.sync_do {
       assert_equal(p.t1.to_a, [[5, 10]] )
     }
-    p.stop_bg
+    p.stop
   end
 
   def test_bootstrap_derive
@@ -421,7 +443,7 @@ class TestCollections < Test::Unit::TestCase
       }
     end
 
-    b.stop_bg
+    b.stop
   end
 
   def test_dup_table_def
@@ -466,6 +488,10 @@ class TestCollections < Test::Unit::TestCase
     assert_raise(Bud::CompileError) { DeclarationOverrideMethod.new }
   end
 
+  def test_loc_spec_non_channel
+    assert_raise(Bud::Error) { LocSpecNonChannel.new }
+  end
+
   def test_empty_pk_error
     e = EmptyPk.new
     e.t1 <+ [["xyz", 6]]
@@ -488,16 +514,16 @@ class TestCollections < Test::Unit::TestCase
   def test_periodic_lhs_error
     b = InsertIntoPeriodicError.new
     b.run_bg
-    assert_raise(Bud::BudError) {
+    assert_raise(Bud::Error) {
       b.sync_do { b.timer <+ [[5, 10]] }
     }
-    assert_raise(Bud::BudError) {
+    assert_raise(Bud::Error) {
       b.sync_do { b.timer <= [[5, 10]] }
     }
-    assert_raise(Bud::BudError) {
+    assert_raise(Bud::Error) {
       b.sync_do { b.timer <- [[5, 10]] }
     }
-    b.stop_bg
+    b.stop
   end
 
   class SimpleRename
@@ -516,6 +542,13 @@ class TestCollections < Test::Unit::TestCase
   def test_simple_rename
     p = SimpleRename.new
     assert_nothing_raised {p.tick}
+  end
+
+  def test_schema_preserve_keys
+    s = SchemaPreserveKeys.new
+    assert_equal({[:a] => [:b]}, s.t2.schema)
+    s.inputt <+ [[5, 10], [5, 11]]
+    assert_raise(Bud::KeyConstraintError) { s.tick }
   end
 
   class FunkyPayloads

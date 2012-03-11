@@ -31,11 +31,11 @@ module Bud
         memo[r.tabname] += 1
         memo
       end
-      counts.each do |name, cnt| 
+      counts.each do |name, cnt|
         raise Bud::CompileError, "#{cnt} instances of #{name} in rule; only one self-join currently allowed per rule" if cnt > 2
         @selfjoins << name if cnt == 2
       end
-      
+
 
       # recurse to form a tree of binary BudJoins
       @rels = [rellist[0]]
@@ -53,7 +53,7 @@ module Bud
         memo
       end
 
-      setup_preds(preds) unless preds.empty?
+      setup_preds(preds)
       setup_state
     end
 
@@ -76,11 +76,22 @@ module Bud
       preds = []
       rels.each do |r|
         rels.each do |s|
-          unless r.tabname.to_s >= s.tabname.to_s
-            matches = r.schema & s.schema
-            matches.each do |c|
-              preds << [r.send(c), s.send(c)] 
-            end
+          matches = r.cols & s.cols
+          matches.each do |c|
+            preds << [bud_instance.send(r.tabname).send(c), bud_instance.send(s.tabname).send(c)] unless r.tabname.to_s >= s.tabname.to_s
+          end
+        end
+      end
+      preds.uniq
+    end
+
+    private_class_method
+    def self.positionwise_preds(bud_instance, rels)
+      preds = []
+      rels.each do |r|
+        rels.each do |s|
+          [r.cols.length, s.cols.length].min.times do |c|
+            preds << [bud_instance.send(r.tabname).send(r.cols[c]), bud_instance.send(s.tabname).send(s.cols[c])] unless r.tabname.to_s >= s.tabname.to_s
           end
         end
       end
@@ -92,8 +103,8 @@ module Bud
     # similar to <tt>SELECT * FROM ... WHERE...</tt> block in SQL.
     public
     def flatten(*preds)
-      setup_preds(preds) unless preds.empty?
-      flat_schema = @rels.map{|r| r.schema}.flatten(1)
+      setup_preds(preds)
+      flat_schema = @rels.map{|r| r.cols}.flatten(1)
       dupfree_schema = []
       # while loop here (inefficiently) ensures no collisions
       while dupfree_schema == $EMPTY or dupfree_schema.uniq.length < dupfree_schema.length
@@ -123,8 +134,9 @@ module Bud
     public
     # map each (nested) item in the collection into a string, suitable for placement in stdio
     def inspected
-      raise BudError, "join left unconverted to binary" if @rels.length > 2
-      self.map{|r1, r2| ["\[ #{r1.inspect} #{r2.inspect} \]"]}
+      raise Bud::Error, "join left unconverted to binary" if @rels.length > 2
+      tabnames = @origrels.map {|r| r.tabname.to_s}.join " * "
+      [["(#{tabnames}): [#{self.map{|r1, r2| "\n  (#{r1.inspect}, #{r2.inspect})"}}]"]]
     end
 
     public
@@ -164,7 +176,7 @@ module Bud
     public
     def pairs(*preds, &blk)
       @origpreds = preds
-      setup_preds(preds) unless preds.empty?
+      setup_preds(preds)
       # given new preds, the state for the join will be different.  set it up again.
       setup_state if self.class <= Bud::BudJoin
       blk.nil? ? self : map(&blk)
@@ -185,7 +197,7 @@ module Bud
     # of the first collection
     public
     def lefts(*preds, &blk)
-      setup_preds(preds) unless preds.empty?
+      setup_preds(preds)
       # given new preds, the state for the join will be different.  set it up again.
       setup_state if self.class <= Bud::BudJoin
       map{ |l,r| blk.nil? ? l : blk.call(l) }
@@ -196,7 +208,7 @@ module Bud
     # of the second item
     public
     def rights(*preds, &blk)
-      setup_preds(preds) unless preds.empty?
+      setup_preds(preds)
       # given new preds, the state for the join will be different.  set it up again.
       setup_state if self.class <= Bud::BudJoin
       map{ |l,r| blk.nil? ? r : blk.call(r) }
@@ -206,44 +218,81 @@ module Bud
     # satisfy +preds+, and for any item from the 1st collection that has no
     # matches in the 2nd, nil-pad it and include it in the output.
     public
-    def outer(*preds)
+    def outer(*preds, &blk)
       @origpreds = preds
-      @localpreds = disambiguate_preds(preds)
+      setup_preds(preds)
       self.extend(Bud::BudOuterJoin)
-      map
+      blk.nil? ? self : map(&blk)
+    end
+
+    # AntiJoin
+    # note: unlike other join methods (e.g. lefts) all we do with the return value
+    # of block is check whether it's nil.  Putting "projection" logic in the block
+    # has no effect on the output.
+    public
+    def anti(*preds, &blk)
+      return [] unless @bud_instance.stratum_first_iter
+      @origpreds = preds
+      # no projection involved here, so we can propagate the schema
+      @cols = @rels[0].cols
+      if preds == [] and blk.nil? and @cols.length == @rels[1].cols.length
+        preds = BudJoin::positionwise_preds(@bud_instance, rels)
+      end
+      setup_preds(preds)
+      setup_state if self.class <= Bud::BudJoin
+      if blk.nil?
+        if preds == [] # mismatched schemas -- no matches to be excluded
+          @exclude = [] 
+        else
+          # exclude those tuples of r that have a match
+          @exclude = map { |r, s| r }
+        end
+      else
+        # exclude tuples of r that pass the blk call
+        @exclude = map { |r, s| r unless blk.call(r, s).nil? }.compact
+      end
+      # XXX: @exclude is an Array, which makes include? O(n)
+      @rels[0].map {|r| (@exclude.include? r) ? nil : r}
+    end
+
+    private
+    def check_join_pred(pred, join_rels)
+      unless join_rels.include? pred[0]
+        raise Bud::CompileError, "illegal predicate: collection #{pred[0]} is not being joined"
+      end
     end
 
     # extract predicates on rellist[0] and recurse to right side with remainder
     protected
     def setup_preds(preds) # :nodoc: all
+      return if preds.empty?
       allpreds = disambiguate_preds(preds)
       allpreds = canonicalize_localpreds(@rels, allpreds)
       # check for refs to collections that aren't being joined, Issue 191
       unless @rels[1].class <= Bud::BudJoin
         tabnames = @rels.map{ |r| r.tabname }
         allpreds.each do |p|
-          unless tabnames.include? p[0][0] and tabnames.include? p[1][0]
-            raise Bud::CompileError, "illegal predicate: collection #{} is not being joined"
-          end
+          check_join_pred(p[0], tabnames)
+          check_join_pred(p[1], tabnames)
         end
       end
       @hashpreds = allpreds.reject {|p| p[0][0] != @rels[0].tabname}
       @localpreds = @hashpreds
-      
+
       # only allow preds on the same table name if they're on a self-joined table
-      @localpreds.each do |p| 
+      @localpreds.each do |p|
         if p[0][0] == p[1][0] and not @selfjoins.include? p[0][0]
-          raise Bud::CompileError, "single-table predicate on #{p[0][0]} disallowed in joins" 
+          raise Bud::CompileError, "single-table predicate on #{p[0][0]} disallowed in joins"
         end
       end
-      
+
       @localpreds += allpreds.map do |p|
         p if p[0][0] == p[1][0] and (p[0][0] == @rels[0].tabname or p[0][0] == @rels[1].tabname)
       end.compact
       otherpreds = allpreds - @localpreds
       unless otherpreds.empty?
         unless @rels[1].class <= Bud::BudJoin
-          raise Bud::CompileError, "join predicates don't match tables being joined: #{otherpreds.inspect}"
+          raise Bud::CompileError, "join predicates don't match collections being joined: #{otherpreds.inspect}"
         end
         @rels[1].setup_preds(otherpreds)
       end
@@ -353,7 +402,9 @@ module Bud
       @rels[0].each_from_sym([left_rel]) do |r|
         @rels[1].each_from_sym([right_rel]) do |s|
           s = [s] if origrels.length == 2
-          yield([r] + s) if test_locals(r, s)
+          if test_locals(r, s)
+              yield([r] + s)
+          end
         end
       end
     end
@@ -366,7 +417,7 @@ module Bud
       name, offset = entry[0], entry[1]
 
       # determine which subtuple of the collection contains the table
-      # referenced in entry.  
+      # referenced in entry.
       subtuple = 0
       origrels[1..origrels.length].each_with_index do |t,i|
         if t.tabname == entry[0]
@@ -415,38 +466,42 @@ module Bud
           r = [r] unless probe_ix == 1 and origrels.length > 2
           attrval = (probe_ix == 0) ? r[0][left_offset] : r[right_subtuple][right_offset]
 
-          # insert into the prober's hashtable only if symmetric ...
+          # insert into the prober's hashtable only if symmetric
           if probe_sym == other_sym
             @hash_tables[probe_ix][probe_sym][attrval] ||= []
             @hash_tables[probe_ix][probe_sym][attrval] << r
           end
 
           # ...and probe the other hashtable
-          next if @hash_tables[other_ix][other_sym][attrval].nil?
-          @hash_tables[other_ix][other_sym][attrval].each do |s_tup|
-            if probe_ix == 0
-              left = r; right = s_tup
-            else
-              left = s_tup; right = r
+          if @hash_tables[other_ix][other_sym][attrval].nil?
+            next
+          else
+            @hash_tables[other_ix][other_sym][attrval].each do |s_tup|
+              if probe_ix == 0
+                left = r; right = s_tup
+              else
+                left = s_tup; right = r
+              end
+              retval = left + right
+              yield retval if test_locals(left[0], right, @hashpreds.first)
             end
-            retval = left + right
-            yield retval if test_locals(left[0], right, @hashpreds.first)
           end
         end
       end
     end
   end
 
+  # intended to be used to extend a BudJoin instance
   module BudOuterJoin
     public
     def each(&block) # :nodoc:all
       super(&block)
-      # previous line finds all the matches.
-      # now its time to ``preserve'' the outer tuples with no matches.
-      # this is totally inefficient: we should fold the identification of non-matches
-      # into the join algorithms.  Another day.
-      # our trick: for each tuple of the outer, generate a singleton relation
-      # and join with inner.  If result is empty, preserve tuple.
+      # Previous line finds all the matches.  Now its time to ``preserve'' the
+      # outer tuples with no matches.  Our trick: for each tuple of the outer,
+      # generate a singleton relation and join with inner.  If result is empty,
+      # preserve tuple.
+      # XXX: This is totally inefficient: we should fold the identification of
+      # non-matches into the join algorithms.  Another day.
       @rels[0].each do |r|
         t = @origrels[0].clone_empty
         # need to uniquify the tablename here to avoid sharing join state with original

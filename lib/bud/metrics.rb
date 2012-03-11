@@ -37,7 +37,7 @@ end
   
 # see http://en.wikipedia.org/wiki/Standard_deviation#Rapid_calculation_methods
 def running_stats(stats, elapsed)
-  raise Bud::BudError, "running_stats called with negative elapsed time" if elapsed < 0
+  raise Bud::Error, "running_stats called with negative elapsed time" if elapsed < 0
   stats[{:name=>:count}] += 1
   oldmean = stats[{:name=>:mean}]
   stats[{:name=>:mean}] = stats[{:name=>:mean}] + \

@@ -19,19 +19,19 @@ Each iteration of this loop is a *timestep* for that node; each timestep is asso
 A Bloom timestep has 3 main phases (from left to right):
 
 1. *setup*: All scratch collections are set to empty.  Network messages and periodic timer events are received from the runtime and placed into their designated `channel` and `periodic` scratches, respectively, to be read in the rhs of statements.  Note that a batch of multiple messages/events may be received at once.
-2. *logic*: All Bloom statements for the program are evaluated.  In programs with recursion through instantaneous merges (`<=`), the statements are repeatedly evaluated until a *fixpoint* is reached: i.e. no new lhs items are derived from any rhs.
-3. *transition*: Items derived on the lhs of deferred operators (`<+`, `<-`) are placed into/deleted from their corresponding collections, and items derived on the lhs of asynchronous merge (`<~`) are handed off to external code (i.e. the local operating system) for processing.
+2. *logic*: All Bloom statements for the program are evaluated.  In programs with recursion through instantaneous merges (`<=`), the statements are repeatedly evaluated until a *fixpoint* is reached: i.e., no new lhs items are derived from any rhs.
+3. *transition*: Items derived on the lhs of deferred operators (`<+`, `<-`, `<+-`) are placed into/deleted from their corresponding collections, and items derived on the lhs of asynchronous merge (`<~`) are handed off to external code (i.e., the local operating system) for processing.
 
 It is important to understand how the Bloom collection operators fit into these timesteps:
 
 * *Instantaneous* merge (`<=`) occurs within the fixpoint of phase 2.
-* *Deferred* operations include merge (`<+`) and delete (`<-`), and are handled in phase 3.  Their effects become visible atomically to Bloom statements in phase 2 of the next timestep.
+* *Deferred* operations include merge (`<+`), update (`<+-`), and delete (`<-`), and are handled in phase 3.  Their effects become visible atomically to Bloom statements in phase 2 of the next timestep.
 * *Asynchronous* merge (`<~`) is initiated during phase 3, so it cannot affect the current timestep.  When multiple items are on the rhs of an async merge, they may "appear" independently spread across multiple different future local timesteps.
 
 
 ## Atomicity: Timesteps and Deferred Operators ##
 
-The only instantaneous Bloom operator is a merge (`<=`), which can only introduce additional items into a collection--it can not delete or change existing items.  As a result, all state within a Bloom timestep is *immutable*: once an item is in a collection at timestep *T*, it stays in that collection throughout timestep *T*.  (And forever after, the fact that the item was in that collection at timestep *T* remains true.)
+The only instantaneous Bloom operator is a merge (`<=`), which can only introduce additional items into a collection--it cannot delete or change existing items.  As a result, all state within a Bloom timestep is *immutable*: once an item is in a collection at timestep *T*, it stays in that collection throughout timestep *T*.  (And forever after, the fact that the item was in that collection at timestep *T* remains true.)
 
 To get atomic state change in Bloom, you exploit the combination of two language features: 
 
@@ -43,7 +43,11 @@ State "update" is achieved in Bloom via a pair of deferred statements, one posit
     buffer <+ [[1, "newval"]]
     buffer <- buffer {|b| b if b.key == 1}
 
-This atomically replaces the entry for key 1 with the value "newval" at the start of the next timestep.
+This atomically replaces the entry for key 1 with the value "newval" at the start of the next timestep. As syntax sugar for this common pattern, the deferred update operator can be used:
+
+    buffer <+- [[1, "newval"]]
+
+This update statement removes (from the following timestep) any fact in `buffer` with the key `1`, and inserts (in the following timestep) a fact with the value `[1, "newval"]`. Note that "key" here refers to the key column(s) of the lhs relation: this example assumes `buffer` has a single key column.
 
 Any reasoning about atomicity in Bloom programs is built on this simple foundation.  It's really all you need.  In the bud-sandbox we show how to build more powerful atomicity constructs using it, including things like enforcing [ordering of items across timesteps](https://github.com/bloom-lang/bud-sandbox/tree/master/ordering), and protocols for [agreeing on ordering of distributed updates](https://github.com/bloom-lang/bud-sandbox/tree/master/paxos) across all nodes.
 

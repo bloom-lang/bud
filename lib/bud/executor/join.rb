@@ -5,15 +5,17 @@ $EMPTY = []
 module Bud
   class PushSHJoin < PushStatefulElement
     attr_reader :all_rels_below, :origpreds, :relnames, :keys, :localpreds
+
     def initialize(rellist, bud_instance, preds=nil) # :nodoc: all
       @rels = rellist
       @relnames = @rels.map{|r| r.elem_name}
-      @schema = []
+      @cols = []
       @bud_instance = bud_instance
       @origpreds = preds
       @localpreds = nil
       @selfjoins = []
       @input_bufs=[[],[]]
+      @missing_keys = Set.new
       the_join = nil
 
       # if any elements on rellist are PushSHJoins, suck up their contents
@@ -41,13 +43,13 @@ module Bud
 
       # derive schema: one column for each table.
       # duplicated inputs get distinguishing numeral
-      schema = []
+      @cols = []
       index = 0
       retval = @all_rels_below.reduce({}) do |memo, r|
         index += 1
         memo[r.tabname.to_s] ||= 0
         newstr = r.tabname.to_s + ((memo[r.tabname.to_s] > 0) ? ("_" + memo[r.tabname.to_s].to_s) : "")
-        schema << newstr.to_sym
+        @cols << newstr.to_sym
         memo[r.tabname.to_s] += 1
         memo
       end
@@ -55,7 +57,7 @@ module Bud
       setup_preds(preds) unless preds.empty?
       setup_state
 
-      super(@tabname,@bud_instance,nil,schema)
+      super(@tabname,@bud_instance,nil,@cols)
     end
 
     public
@@ -139,8 +141,15 @@ module Bud
     def invalidate_cache
       @rels.each_with_index do |source_elem, i|
         if source_elem.rescan
+
           puts "#{tabname} rel:#{i}(#{source_elem.tabname}) invalidated" if $BUD_DEBUG
           @hash_tables[i] = {}
+          if  i == 0
+            # XXX This is not modular. We are doing invalidation work for outer joins, which is part of a
+            # separate module PushSHOuterJoin.
+            @missing_keys.clear # Only if i == 0 because outer joins in Bloom are left outer joins
+            # if i == 1, missing_keys will be corrected when items are populated in the rhs fork
+          end
         end
       end
     end
@@ -441,7 +450,7 @@ module Bud
 
     public
     def rights(*preds, &blk)
-      @schema = blk.nil? ? @bud_instance.tables[@rels[1].tabname].schema : nil
+      @cols = blk.nil? ? @bud_instance.tables[@rels[1].tabname].cols : nil
       setup_accessors if blk.nil?
       pairs(*preds) do |x,y|
         blk.nil? ? y : blk.call(y)
@@ -450,7 +459,7 @@ module Bud
 
     public
     def lefts(*preds, &blk)
-      @schema = blk.nil? ? @bud_instance.tables[@rels[0].tabname].schema : nil
+      @cols = blk.nil? ? @bud_instance.tables[@rels[0].tabname].cols : nil
       setup_accessors if blk.nil?
       pairs(*preds) do |x,y|
         blk.nil? ? x : blk.call(x)
@@ -461,7 +470,7 @@ module Bud
     def dupfree_schema(flat_schema)
       dupfree_schema = []
       # while loop here (inefficiently) ensures no collisions
-      while dupfree_schema == $EMPTY or dupfree_schema.uniq.length < dupfree_schema.length
+      while dupfree_schema.empty? or dupfree_schema.uniq.length < dupfree_schema.length
         dupfree_schema = []
         flat_schema.reduce({}) do |memo, r|
           if r.to_s.include?("_") and ((r.to_s.rpartition("_")[2] =~ /^\d+$/) == 0)
@@ -484,9 +493,9 @@ module Bud
     public
     def flatten(*preds, &blk)
       if blk.nil?
-        @schema = dupfree_schema(@bud_instance.tables[@schema[0]].schema + @bud_instance.tables[@schema[1]].schema)
+        @cols = dupfree_schema(@bud_instance.tables[@cols[0]].cols + @bud_instance.tables[@cols[1]].cols)
       else
-        @schema = nil
+        @cols = []
       end
       setup_accessors
       pairs(*preds) do |x,y|
@@ -500,7 +509,7 @@ module Bud
       rels.each_with_index do |r,i|
         rels.each_with_index do |s,j|
           unless i >= j
-            the_matches = r.schema & s.schema
+            the_matches = r.cols & s.cols
             the_matches.each do |c|
               preds << [r.send(c), s.send(c)]
             end
@@ -520,9 +529,9 @@ module Bud
   end
 
   module PushSHOuterJoin
+
     private
     def insert_item(item, offset)
-      @missing_keys ||= Set.new
       if (@keys.nil? or @keys.empty?)
         the_key = nil
       else
@@ -552,7 +561,6 @@ module Bud
     def stratum_end
       flush
       push_missing
-      #@hash_tables = [{},{}]
     end
 
     private
@@ -574,15 +582,15 @@ module Bud
       end
       super(rellist, bud_instance, preds)
       set_block(&blk)
-      @schema =  rellist[0].schema
+      @cols =  rellist[0].cols
       @exclude = Set.new
     end
 
 
     def positionwise_preds(bud_instance, rels)
       # pairwise colnames, for the minimum number of columns from either
-      return [] if rels[0].schema.length != rels[1].schema.length
-      pairs = rels[0].schema.zip(rels[1].schema)
+      return [] if rels[0].cols.length != rels[1].cols.length
+      pairs = rels[0].cols.zip(rels[1].cols)
       # make a hash of each pair, and return an array of hashes as expected by setup_pred
       [pairs.reduce(Hash.new) {|h, it| h[it[0]]=it[1]; h}]
     end

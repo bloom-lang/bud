@@ -4,22 +4,20 @@ require 'msgpack'
 require 'socket'
 require 'superators'
 require 'thread'
+require 'bud/errors'
 
 require 'bud/monkeypatch'
 
 require 'bud/aggs'
 require 'bud/bud_meta'
 require 'bud/collections'
-require 'bud/deploy/forkdeploy'
-require 'bud/deploy/threaddeploy'
-require 'bud/errors'
 require 'bud/joins'
 require 'bud/metrics'
+#require 'bud/meta_algebra'
 require 'bud/rtrace'
 require 'bud/server'
 require 'bud/state'
 require 'bud/storage/dbm'
-require 'bud/storage/tokyocabinet'
 require 'bud/storage/zookeeper'
 require 'bud/viz'
 
@@ -43,10 +41,11 @@ $bud_instances = {}        # Map from instance id => Bud instance
 # three main options:
 #
 # 1. Synchronously. To do this, instantiate your program and then call tick()
-#    one or more times; each call evaluates a single Bud timestep. Note that in
-#    this mode, network communication (channels) and timers cannot be used. This
-#    is mostly intended for "one-shot" programs that compute a single result and
-#    then terminate.
+#    one or more times; each call evaluates a single Bud timestep. In this mode,
+#    any network messages or timer events that occur will be buffered until the
+#    next call to tick(). This is mostly intended for "one-shot" programs that
+#    compute a single result and then terminate, or for interactively
+#    "single-stepping" through the execution of an event-driven system.
 # 2. In a separate thread in the foreground. To do this, instantiate your
 #    program and then call run_fg(). The Bud interpreter will then run, handling
 #    network events and evaluating new timesteps as appropriate. The run_fg()
@@ -55,24 +54,23 @@ $bud_instances = {}        # Map from instance id => Bud instance
 #    program and then call run_bg(). The Bud interpreter will run
 #    asynchronously. To interact with Bud (e.g., insert additional data or
 #    inspect the state of a Bud collection), use the sync_do and async_do
-#    methods. To shutdown the Bud interpreter, use stop_bg().
+#    methods.
 #
-# Most programs should use method #3.
+# Most programs should use method #3. Note that in all three cases, the stop()
+# method should be used to shutdown a Bud instance and release any resources it
+# is using.
 #
 # :main: Bud
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
   attr_reader :dsock
-  attr_reader :tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks, :app_tables
+  attr_reader :tables, :builtin_tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks, :app_tables
   attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets, :done_wiring
-  attr_reader :stratum_first_iter
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap, :done_wiring
-  attr_accessor :lazy # This can be changed on-the-fly by REBL
   attr_accessor :stratum_collection_map, :stratified_rules
   attr_accessor :metrics, :periodics
   attr_accessor :this_rule_context, :qualified_name
-
-  attr_accessor :default_invalidate, :default_rescan
+  attr_reader :running_async
 
   # options to the Bud runtime are passed in a hash, with the following keys
   # * network configuration
@@ -84,7 +82,7 @@ module Bud
   # * operating system interaction
   #   * <tt>:stdin</tt>  if non-nil, reading from the +stdio+ collection results in reading from this +IO+ handle
   #   * <tt>:stdout</tt> writing to the +stdio+ collection results in writing to this +IO+ handle; defaults to <tt>$stdout</tt>
-  #   * <tt>:no_signal_handlers</tt> if true, runtime ignores +SIGINT+ and +SIGTERM+
+  #   * <tt>:signal_handling</tt> how to handle +SIGINT+ and +SIGTERM+.  If :none, these signals are ignored.  If :bloom, they're passed into the built-in scratch called +signals+.  Else shutdown all bud instances.
   # * tracing and output
   #   * <tt>:quiet</tt> if true, suppress certain messages
   #   * <tt>:trace</tt> if true, generate +budvis+ outputs
@@ -93,16 +91,19 @@ module Bud
   #   * <tt>:print_wiring</tt> if true, print the wiring diagram of the program to stdout
   #   * <tt>:metrics</tt> if true, dumps a hash of internal performance metrics
   # * controlling execution
-  #   * <tt>:lazy</tt>  if true, prevents runtime from ticking except on external calls to +tick+
   #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
+  #   * <tt>:channel_filter</tt> a code block that can be used to filter the
+  #     network messages delivered to this Bud instance. At the start of each
+  #     tick, the code block is invoked for every channel with any incoming
+  #     messages; the code block is passed the name of the channel and an array
+  #     containing the inbound messages. It should return a two-element array
+  #     containing "accepted" and "postponed" messages, respectively. Accepted
+  #     messages are delivered during this tick, and postponed messages are
+  #     buffered and passed to the filter in subsequent ticks. Any messages that
+  #     aren't in either array are dropped.
   # * storage configuration
   #   * <tt>:dbm_dir</tt> filesystem directory to hold DBM-backed collections
   #   * <tt>:dbm_truncate</tt> if true, DBM-backed collections are opened with +OTRUNC+
-  #   * <tt>:tc_dir</tt>  filesystem directory to hold TokyoCabinet-backed collections
-  #   * <tt>:tc_truncate</tt> if true, TokyoCabinet-backed collections are opened with +OTRUNC+
-  # * deployment
-  #   * <tt>:deploy</tt>  enable deployment
-  #   * <tt>:deploy_child_opts</tt> option hash to pass to deployed instances
   def initialize(options={})
     # capture the binding for a subsequent 'eval'. This ensures that local
     # variable names introduced later in this method don't interfere with 
@@ -121,14 +122,15 @@ module Bud
     @zk_tables = {}
     @callbacks = {}
     @callback_id = 0
-    @shutdown_callbacks = []
+    @shutdown_callbacks = {}
+    @shutdown_callback_id = 0
     @post_shutdown_callbacks = []
     @timers = []
     @app_tables = []
     @inside_tick = false
     @tick_clock_time = nil
     @budtime = 0
-    @inbound = []
+    @inbound = {}
     @done_bootstrap = false
     @done_wiring = false
     @instance_id = ILLEGAL_INSTANCE_ID # Assigned when we start running
@@ -138,24 +140,20 @@ module Bud
     @endtime = nil
     @this_stratum = 0
     @push_sorted_elems = nil
-    
+
     # XXX This variable is unused in the Push executor
     @stratum_first_iter = false
+    @running_async = false
+    @bud_started = false
 
     # Setup options (named arguments), along with default values
     @options = options.clone
-    @lazy = @options[:lazy] ||= false
     @options[:ip] ||= "127.0.0.1"
     @ip = @options[:ip]
     @options[:port] ||= 0
     @options[:port] = @options[:port].to_i
     # NB: If using an ephemeral port (specified by port = 0), the actual port
     # number won't be known until we start EM
-
-    relatives = self.class.modules + [self.class]
-    #relatives.each do |r|
-    #  Bud.rewrite_local_methods(r)
-    #end
 
     builtin_state
 
@@ -185,7 +183,7 @@ module Bud
     begin
       klass = Module.const_get(class_name.to_sym)
       unless klass.is_a? Class
-        raise BudError, "Internal error: #{class_name} is in use"
+        raise Bud::Error, "Internal error: #{class_name} is in use"
       end
     rescue NameError # exception if class class_name doesn't exist
     end
@@ -211,6 +209,19 @@ module Bud
   end
 
   def import_defs
+    @imported_defs = {} # mod name -> Module map
+    self.class.ancestors.each do |anc|
+      if anc.respond_to? :bud_import_table
+        anc_imp_tbl = anc.bud_import_table
+        anc_imp_tbl.each do |nm, mod|
+          # Ensure that two modules have not been imported under one alias.
+          if @imported_defs.member? nm and not @imported_defs[nm] == anc_imp_tbl[nm]
+              raise Bud::CompileError, "Conflicting imports: modules #{@imported_defs[nm]} and #{anc_imp_tbl[nm]} both are imported as '#{nm}'"
+          end
+          @imported_defs[nm] = mod
+        end
+      end
+    end
     @imported_defs ||= self.class.ancestors.inject({}) {|tbl, e| tbl.merge(e.bud_import_table)}
   end
 
@@ -319,8 +330,18 @@ module Bud
 
   def do_wiring
     @stratified_rules.each_with_index { |rules, stratum| eval_rules(rules, stratum) }
-    @app_tables = (@tables.keys - @builtin_tables).map {|nm| @tables[nm]}
-    @app_tables << tables[:stdio]
+
+    # prepare list of tables that will be actively used at run time. First, all the user defined ones.
+    # We start @app_tables off as a set, then convert to an array later.
+    @app_tables = (@tables.keys - @builtin_tables.keys).reduce(Set.new) {|tabset, nm| tabset << @tables[nm]; tabset}
+    # Check scan and merge_targets to see if any builtin_tables need to be added as well.
+    @scanners.each do |scs|
+      scs.each_value {|s| @app_tables << s.collection}
+    end
+    @merge_targets.each{|mts| #mts == merge_targets at stratum
+      mts.each_key {|t| @app_tables << t}
+    }
+    @app_tables = @app_tables.nil? ? [] : @app_tables.to_a
 
     # for each stratum create a sorted list of push elements in topological order
     @push_sorted_elems = []
@@ -368,9 +389,6 @@ module Bud
     end
   end
 
-  def identify_app_tables
-  end
-
   # All collections (elements included) are semantically required to erase any cached information at the start of a tick
   # and start from a clean slate. prepare_invalidation_scheme prepares a just-in-time invalidation scheme that
   # permits us to preserve data from one tick to the next, and to keep things in incremental mode unless there's a
@@ -394,6 +412,8 @@ module Bud
   def prepare_invalidation_scheme
     num_strata =  @push_sorted_elems.size
     if $BUD_SAFE
+      @app_tables = @tables.values # No tables excluded
+
       invalidate = Set.new
       rescan = Set.new
       @app_tables.each {|t| invalidate << t if (t.class <= BudScratch)}
@@ -496,23 +516,83 @@ module Bud
   # when interacting with it. For example, it is not safe to directly examine
   # Bud collections from the caller's thread (see async_do and sync_do).
   #
-  # This instance of Bud will continue to execute until stop_bg is called.
+  # This instance of Bud will run until stop() is called.
   def run_bg
-    start_reactor
-    # Wait for Bud to start up before returning
+    start
+
     schedule_and_wait do
-      start_bud
+      if @running_async
+        raise Bud::Error, "run_bg called on already-running Bud instance"
+      end
+      @running_async = true
+
+      # Consume any events received while we weren't running async
+      tick_internal
+    end
+
+    @rtracer.sleep if options[:rtrace]
+  end
+
+  # Startup a Bud instance. This starts EventMachine (if needed) and binds to a
+  # UDP server socket. If do_tick is true, we also execute a single Bloom
+  # timestep. Regardless, calling this method does NOT cause Bud to begin
+  # executing timesteps asynchronously (see run_bg).
+  def start(do_tick=false)
+    start_reactor
+    schedule_and_wait do
+      do_startup unless @bud_started
+      tick_internal if do_tick
+    end
+  end
+
+  private
+  def do_startup
+    raise Bud::Error, "EventMachine not started" unless EventMachine::reactor_running?
+    raise Bud::Error unless EventMachine::reactor_thread?
+
+    @instance_id = Bud.init_signal_handlers(self)
+    do_start_server
+    @bud_started = true
+
+    # Initialize periodics
+    @periodics.each do |p|
+      @timers << make_periodic_timer(p.pername, p.period)
+    end
+
+    # Arrange for Bud to read from stdin if enabled. Note that we can't do this
+    # earlier because we need to wait for EventMachine startup.
+    @stdio.start_stdin_reader if @options[:stdin]
+    @zk_tables.each_value {|t| t.start_watchers}
+
+    @halt_cb = register_callback(:halt) do |t|
+      stop
+      if t.first.key == :kill
+        Bud.shutdown_all_instances
+        Bud.stop_em_loop
+      end
+    end
+  end
+
+  # Pause an instance of Bud that is running asynchronously. That is, this
+  # method allows a Bud instance operating in run_bg or run_fg mode to be
+  # switched to "single-stepped" mode; timesteps can be manually invoked via
+  # tick(). To switch back to running Bud asynchronously, call run_bg().
+  public
+  def pause
+    schedule_and_wait do
+      @running_async = false
     end
   end
 
   # Run Bud in the "foreground" -- the caller's thread will be used to run the
-  # Bud interpreter. This means this method won't return unless an error
-  # occurs. It is often more useful to run Bud asynchronously -- see run_bg.
+  # Bud interpreter. This means this method won't return unless an error occurs
+  # or Bud is halted. It is often more useful to run Bud in a different thread:
+  # see run_bg.
   def run_fg
     # If we're called from the EventMachine thread (and EM is running), blocking
     # the current thread would imply deadlocking ourselves.
     if Thread.current == EventMachine::reactor_thread and EventMachine::reactor_running?
-      raise BudError, "Cannot invoke run_fg from inside EventMachine"
+      raise Bud::Error, "cannot invoke run_fg from inside EventMachine"
     end
 
     q = Queue.new
@@ -530,12 +610,12 @@ module Bud
     report_metrics if options[:metrics]
   end
 
-  # Shutdown a Bud instance that is running asynchronously. This method blocks
-  # until Bud has been shutdown. If +stop_em+ is true, the EventMachine event
-  # loop is also shutdown; this will interfere with the execution of any other
-  # Bud instances in the same process (as well as anything else that happens to
-  # use EventMachine).
-  def stop_bg(stop_em=false, do_shutdown_cb=true)
+  # Shutdown a Bud instance and release any resources that it was using. This
+  # method blocks until Bud has been shutdown. If +stop_em+ is true, the
+  # EventMachine event loop is also shutdown; this will interfere with the
+  # execution of any other Bud instances in the same process (as well as
+  # anything else that happens to use EventMachine).
+  def stop(stop_em=false, do_shutdown_cb=true)
     schedule_and_wait do
       do_shutdown(do_shutdown_cb)
     end
@@ -546,16 +626,28 @@ module Bud
     end
     report_metrics if options[:metrics]
   end
+  alias :stop_bg :stop
 
-  alias :stop :stop_bg
-  
   # Register a callback that will be invoked when this instance of Bud is
   # shutting down.
+  # XXX: The naming of this method (and cancel_shutdown_cb) is inconsistent
+  # with the naming of register_callback and friends.
   def on_shutdown(&blk)
     # Start EM if not yet started
     start_reactor
+    rv = nil
     schedule_and_wait do
-      @shutdown_callbacks << blk
+      rv = @shutdown_callback_id
+      @shutdown_callbacks[@shutdown_callback_id] = blk
+      @shutdown_callback_id += 1
+    end
+    return rv
+  end
+
+  def cancel_shutdown_cb(id)
+    schedule_and_wait do
+      raise Bud::Error unless @shutdown_callbacks.has_key? id
+      @shutdown_callbacks.delete(id)
     end
   end
 
@@ -570,11 +662,10 @@ module Bud
   end
 
   # Given a block, evaluate that block inside the background Ruby thread at some
-  # time in the future. Because the block is evaluate inside the background Ruby
-  # thread, the block can safely examine Bud state. Naturally, this method can
-  # only be used when Bud is running in the background. Note that calling
-  # sync_do blocks the caller until the block has been evaluated; for a
-  # non-blocking version, see async_do.
+  # time in the future, and then perform a Bloom tick. Because the block is
+  # evaluate inside the background Ruby thread, the block can safely examine Bud
+  # state. Note that calling sync_do blocks the caller until the block has been
+  # evaluated; for a non-blocking version, see async_do.
   #
   # Note that the block is invoked after one Bud timestep has ended but before
   # the next timestep begins. Hence, synchronous accumulation (<=) into a Bud
@@ -586,7 +677,7 @@ module Bud
     schedule_and_wait do
       yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
-      tick
+      tick_internal
     end
   end
 
@@ -597,17 +688,7 @@ module Bud
     EventMachine::schedule do
       yield if block_given?
       # Do another tick, in case the user-supplied block inserted any data
-      tick
-    end
-  end
-
-  # Shutdown any persistent tables used by the current Bud instance. If you are
-  # running Bud via tick() and using +tctable+ collections, you should call this
-  # after you're finished using Bud. Programs that use Bud via run_fg() or
-  # run_bg() don't need to call this manually.
-  def close_tables
-    @tables.each_value do |t|
-      t.close
+      tick_internal
     end
   end
 
@@ -619,10 +700,9 @@ module Bud
   # runtime is blocked while the callback is invoked, it can also examine any
   # other Bud state freely.)
   #
-  # Note that registering callbacks on persistent collections (e.g., tables and
-  # tctables) is probably not a wise thing to do: as long as any tuples are
-  # stored in the collection, the callback will be invoked at the end of every
-  # tick.
+  # Note that registering callbacks on persistent collections (e.g., tables,
+  # syncs and stores) is probably not wise: as long as any tuples are stored in
+  # the collection, the callback will be invoked at the end of every tick.
   def register_callback(tbl_name, &block)
     # We allow callbacks to be added before or after EM has been started. To
     # simplify matters, we start EM if it hasn't been started yet.
@@ -630,10 +710,10 @@ module Bud
     cb_id = nil
     schedule_and_wait do
       unless @tables.has_key? tbl_name
-        raise Bud::BudError, "No such table: #{tbl_name}"
+        raise Bud::Error, "no such collection: #{tbl_name}"
       end
 
-      raise Bud::BudError if @callbacks.has_key? @callback_id
+      raise Bud::Error if @callbacks.has_key? @callback_id
       @callbacks[@callback_id] = [tbl_name, block]
       cb_id = @callback_id
       @callback_id += 1
@@ -644,7 +724,7 @@ module Bud
   # Unregister the callback that has the given ID.
   def unregister_callback(id)
     schedule_and_wait do
-      raise Bud::BudError unless @callbacks.has_key? id
+      raise Bud::Error, "missing callback: #{id.inspect}" unless @callbacks.has_key? id
       @callbacks.delete(id)
     end
   end
@@ -658,6 +738,14 @@ module Bud
     cb = register_callback(out_tbl) do |c|
       q.push c.to_a
     end
+
+    # If the runtime shuts down before we see anything in the output collection,
+    # make sure we hear about it so we can raise an error
+    # XXX: Using two separate callbacks here is ugly.
+    shutdown_cb = on_shutdown do
+      q.push :callback
+    end
+
     unless in_tbl.nil?
       sync_do {
         t = @tables[in_tbl]
@@ -669,8 +757,13 @@ module Bud
       }
     end
     result = q.pop
+    if result == :callback
+      # Don't try to unregister the callbacks first: runtime is already shutdown
+      raise Bud::ShutdownWithCallbacksError, "Bud instance shutdown before sync_callback completed"
+    end
     unregister_callback(cb)
-    return result
+    cancel_shutdown_cb(shutdown_cb)
+    return (result == :callback) ? nil : result
   end
 
   # A common special case for sync_callback: block on a delta to a table.
@@ -678,6 +771,7 @@ module Bud
     sync_callback(nil, nil, out_tbl)
   end
 
+  # XXX make tag specific
   def inspect
     "#{self.class}:#{self.object_id.to_s(16)}"
   end
@@ -698,9 +792,9 @@ module Bud
     return if EventMachine::reactor_running?
 
     EventMachine::error_handler do |e|
-      # Only print a backtrace if a non-BudError is raised (this presumably
+      # Only print a backtrace if a non-Bud::Error is raised (this presumably
       # indicates an unexpected failure).
-      if e.class <= BudError
+      if e.class <= Bud::Error
         puts "#{e.class}: #{e}"
       else
         puts "Unexpected Bud error: #{e.inspect}"
@@ -752,51 +846,32 @@ module Bud
     # Silently ignore duplicate shutdown requests or attempts to shutdown an
     # instance that hasn't been started yet.
     return if @instance_id == ILLEGAL_INSTANCE_ID
-
     $signal_lock.synchronize {
       raise unless $bud_instances.has_key? @instance_id
       $bud_instances.delete @instance_id
       @instance_id = ILLEGAL_INSTANCE_ID
     }
 
+    unregister_callback(@halt_cb)
     if do_shutdown_cb
-      @shutdown_callbacks.each {|cb| cb.call}
+      @shutdown_callbacks.each_value {|cb| cb.call}
     end
     @timers.each {|t| t.cancel}
-    close_tables
-    @dsock.close_connection if EventMachine::reactor_running?
+    @tables.each_value {|t| t.close}
+    if EventMachine::reactor_running? and @bud_started
+      @dsock.close_connection
+    end
+    @bud_started = false
+    @running_async = false
     if do_shutdown_cb
       @post_shutdown_callbacks.each {|cb| cb.call}
     end
   end
 
-  private
-  def start_bud
-    raise BudError unless EventMachine::reactor_thread?
-
-    @instance_id = Bud.init_signal_handlers(self)
-    do_start_server
-
-    # Initialize periodics
-    @periodics.each do |p|
-      @periodics.tuple_accessors(p)      
-      @timers << set_periodic_timer(p.pername, p.ident, p.period)
-    end
-
-    # Arrange for Bud to read from stdin if enabled. Note that we can't do this
-    # earlier because we need to wait for EventMachine startup.
-    @stdio.start_stdin_reader if @options[:stdin]
-    @zk_tables.each_value {|t| t.start_watchers}
-
-    # Compute a fixpoint; this will also invoke any bootstrap blocks.
-    tick unless @lazy
-
-    @rtracer.sleep if options[:rtrace]
-  end
-
   def do_start_server
     @dsock = EventMachine::open_datagram_socket(@ip, @options[:port],
-                                                BudServer, self)
+                                                BudServer, self,
+                                                @options[:channel_filter])
     @port = Socket.unpack_sockaddr_in(@dsock.get_sockname)[0]
   end
 
@@ -810,30 +885,36 @@ module Bud
   # forwarding, and external_ip:local_port would be if you're in a DMZ, for
   # example.
   def ip_port
-    raise BudError, "ip_port called before port defined" if port.nil?
+    raise Bud::Error, "ip_port called before port defined" if port.nil?
     ip.to_s + ":" + port.to_s
   end
-  
+
   def ip
-    ip = options[:ext_ip] ? "#{@options[:ext_ip]}" : "#{@ip}"
+    options[:ext_ip] ? "#{@options[:ext_ip]}" : "#{@ip}"
   end
-  
+
   def port
     return nil if @port.nil? and @options[:port] == 0 and not @options[:ext_port]
-    return options[:ext_port] ? "#{@options[:ext_port]}" :
-      (@port.nil? ? "#{@options[:port]}" : "#{@port}")
+    return @options[:ext_port] ? @options[:ext_port] :
+      (@port.nil? ? @options[:port] : @port)
   end
 
   # Returns the internal IP and port.  See ip_port.
   def int_ip_port
-    raise BudError, "int_ip_port called before port defined" if @port.nil? and @options[:port] == 0
+    raise Bud::Error, "int_ip_port called before port defined" if @port.nil? and @options[:port] == 0
     @port.nil? ? "#{@ip}:#{@options[:port]}" : "#{@ip}:#{@port}"
   end
 
-  # Manually trigger one timestep of Bloom execution.
+  # From client code, manually trigger a timestep of Bloom execution.
   def tick
+    start(true)
+  end
+
+  # One timestep of Bloom execution. This MUST be invoked from the EventMachine
+  # thread; it is not intended to be called directly by client code.
+  def tick_internal
+    puts "#{object_id}/#{port} : =============================================" if $BUD_DEBUG
     begin
-      puts "#{object_id}/#{port} : =============================================" if $BUD_DEBUG
       starttime = Time.now if options[:metrics]
       if options[:metrics] and not @endtime.nil?
         @metrics[:betweentickstats] ||= initialize_stats
@@ -919,45 +1000,18 @@ module Bud
       @tick_clock_time = nil
     end
 
-    if options[:metrics]  
-      @endtime = Time.now   
+    if options[:metrics]
+      @endtime = Time.now
       @metrics[:tickstats] ||= initialize_stats
       @metrics[:tickstats] = running_stats(@metrics[:tickstats], @endtime - starttime)
     end
-  end
-
-  #debug stuff
-  def dumpsi   # dump scan invalidate
-    puts "default invalidate"
-    @default_invalidate.each do |elem|
-      puts "  #{elem.tabname}/#{elem.class}"
-    end
-    puts "default rescan"
-    @default_rescan.each do |elem|
-      puts "   #{elem.tabname}/#{elem.class}"
-    end
-
-    @scanners.each {|scs|
-      scs.each_value {|scanner|
-        unless scanner.rescan_set.empty? and scanner.invalidate_set.empty?
-          puts "if scanner #{scanner.tabname} invalidated:"
-          scanner.rescan_set.each {|elem|
-            puts "   #{elem.tabname}/#{elem.class}"
-          }
-          scanner.invalidate_set.each {|elem|
-            puts "   #{elem.tabname}/#{elem.class}"
-          }
-        end
-      }
-    }
-
   end
 
   # Returns the wallclock time associated with the current Bud tick. That is,
   # this value is guaranteed to remain the same for the duration of a single
   # tick, but will likely change between ticks.
   def bud_clock
-    raise BudError, "bud_clock undefined outside tick" unless @inside_tick
+    raise Bud::Error, "bud_clock undefined outside tick" unless @inside_tick
     @tick_clock_time ||= Time.now
     @tick_clock_time
   end
@@ -965,12 +1019,17 @@ module Bud
   private
 
   # Builtin BUD state (predefined collections). We could define this using the
-  # standard "state" syntax, but we want to ensure that builtin state is
+  # standard state block syntax, but we want to ensure that builtin state is
   # initialized before user-defined state.
   def builtin_state
+    # We expect there to be no previously-defined tables
+    raise Bud::Error unless @tables.empty?
+
     loopback  :localtick, [:col1]
     @stdio = terminal :stdio
-    @periodics = table :periodics_tbl, [:pername] => [:ident, :period]
+    signal :signals, [:name]
+    scratch :halt, [:key]
+    @periodics = table :periodics_tbl, [:pername] => [:period]
 
     # for BUD reflection
     table :t_rules, [:bud_obj, :rule_id] => [:lhs, :op, :src, :orig_src]
@@ -982,16 +1041,19 @@ module Bud
     table :t_table_info, [:tab_name, :tab_type]
     table :t_table_schema, [:tab_name, :col_name, :ord, :loc]
 
-    @builtin_tables = @tables.keys if toplevel
+    # Identify builtin tables as such
+    @builtin_tables = @tables.clone if toplevel
   end
 
   # Handle any inbound tuples off the wire. Received messages are placed
   # directly into the storage of the appropriate local channel. The inbound
   # queue is cleared at the end of the tick.
   def receive_inbound
-    @inbound.each do |msg|
-      puts "channel #{msg[0]} rcv:  #{msg[1]}" if $BUD_DEBUG
-      tables[msg[0].to_sym] << msg[1]
+    @inbound.each do |tbl_name, msg_buf|
+      puts "channel #{tbl_name} rcv:  #{msg_buf}" if $BUD_DEBUG
+      msg_buf.each do |b|
+        tables[tbl_name] << b
+      end
     end
   end
 
@@ -1018,16 +1080,11 @@ module Bud
       begin
         eval_rule(rule.bud_obj, rule.src)
       rescue Exception => e
-        # Don't report source text for certain rules (old-style rule blocks)
-        src_msg = ""
-        unless rule.src == ""
-          src_msg = "\nRule: #{rule.src}"
-        end
-        new_e = e
-        unless new_e.class <= BudError
-          new_e = BudError
-        end
-        raise new_e, "Exception during Bud wiring.\nException: #{e.inspect}.#{src_msg}"
+        err_msg = "** Exception while wiring rule: #{rule.src}\n ****** #{e}"
+        # Create a new exception for accomodating err_msg, but reuse original backtrace
+        new_e = (e.class <= Bud::Error) ? e.class.new(err_msg) : Bud::Error.new(err_msg)
+        new_e.set_backtrace(e.backtrace)
+        raise new_e
       end
     end
   end
@@ -1038,10 +1095,11 @@ module Bud
     Time.new.to_i.to_s << rand.to_s
   end
 
-  def set_periodic_timer(name, id, period)
+  def make_periodic_timer(name, period)
     EventMachine::PeriodicTimer.new(period) do
-      @tables[name].add_periodic_tuple(id)
-      tick
+      @inbound[name.to_sym] ||= []
+      @inbound[name.to_sym] << [gen_id, Time.now]
+      tick_internal if @running_async
     end
   end
 
@@ -1088,11 +1146,15 @@ module Bud
     $signal_lock.synchronize {
       # If we setup signal handlers and then fork a new process, we want to
       # reinitialize the signal handler in the child process.
-      unless b.options[:no_signal_handlers] or $signal_handler_setup
+      unless b.options[:signal_handling] == :none or $signal_handler_setup
         EventMachine::PeriodicTimer.new(SIGNAL_CHECK_PERIOD) do
           if $got_shutdown_signal
-            Bud.shutdown_all_instances
-            Bud.stop_em_loop
+            if b.options[:signal_handling] == :bloom
+              Bud.tick_all_instances
+            else
+              Bud.shutdown_all_instances
+              Bud.stop_em_loop
+            end
             $got_shutdown_signal = false
           end
         end
@@ -1100,6 +1162,7 @@ module Bud
         ["INT", "TERM"].each do |signal|
           Signal.trap(signal) {
             $got_shutdown_signal = true
+            b.sync_do{b.signals.pending_merge([[signal]])}
           }
         end
         $setup_signal_handler_pid = true
@@ -1111,12 +1174,21 @@ module Bud
     }
   end
 
+  def self.tick_all_instances
+    instances = nil
+    $signal_lock.synchronize {
+      instances = $bud_instances.clone
+    }
+
+    instances.each_value {|b| b.sync_do }
+  end
+
   def self.shutdown_all_instances(do_shutdown_cb=true)
     instances = nil
     $signal_lock.synchronize {
       instances = $bud_instances.clone
     }
 
-    instances.each_value {|b| b.stop_bg(false, do_shutdown_cb) }
+    instances.each_value {|b| b.stop(false, do_shutdown_cb) }
   end
 end

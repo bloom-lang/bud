@@ -361,7 +361,7 @@ class TestModules < Test::Unit::TestCase
     t = IncludeT1User.new
     t.run_bg
     t.do_check
-    t.stop_bg
+    t.stop
   end
 
   module OuterModule
@@ -419,7 +419,7 @@ class TestModules < Test::Unit::TestCase
     c.sync_do {
       assert_equal([[5, 10]], c.t1.to_a.sort)
     }
-    c.stop_bg
+    c.stop
   end
 
   def test_module_method_override
@@ -427,7 +427,7 @@ class TestModules < Test::Unit::TestCase
     c.run_bg
     c.sync_do
     c.do_check
-    c.stop_bg
+    c.stop
   end
 
   def test_module_temp_collection
@@ -477,7 +477,7 @@ class TestModules < Test::Unit::TestCase
   end
 
   def atest_import_class
-    assert_raise(Bud::BudError) do
+    assert_raise(Bud::CompileError) do
       eval %{
       class DummyClass; end
       class DummyImporter
@@ -487,9 +487,152 @@ class TestModules < Test::Unit::TestCase
       }
     end
   end
+
+  module IncludesBud
+    include Bud
+    state { table :t1 }
+  end
+
+  module IncludesBudInParent
+    include IncludesBud
+    state { table :t2 }
+  end
+
+  def Xtest_import_bud_module
+    # We can't safely import a module that has already included Bud
+    assert_raise(Bud::CompileError) do
+      eval "
+      class TestImportOfIncludesBud
+        include Bud
+        import IncludesBud => :b
+      end"
+    end
+
+    assert_raise(Bud::CompileError) do
+      eval "
+      class TestImportOfIncludesBudInParent
+        include Bud
+        import IncludesBudInParent => :p
+      end"
+    end
+  end
 end
 
-# Testing TODO:
-# * Temp collections in modules (+ in classes)
-# * Qualified names in (a)sync_do
-# * Rename instance variables in modules?
+# Test the interaction between the include and import statements. Specifically,
+# if module Y imports Z as "z" and X includes Y, code in X can use the "z"
+# qualified name.
+module RootMod
+  state do
+    table :t, [:k]
+  end
+end
+
+module ImportRoot
+  import RootMod => :r
+
+  bootstrap do
+    r.t << [5]
+  end
+end
+
+module IncludeImportRoot
+  include ImportRoot
+
+  bootstrap do
+    r.t << [10]
+  end
+end
+
+class IncludeImportUser
+  include Bud
+  include IncludeImportRoot
+
+  state do
+    table :t_copy, r.t.schema
+  end
+
+  bootstrap do
+    r.t << [15]
+  end
+
+  bloom do
+    t_copy <= r.t
+  end
+end
+
+# Similar test to the above, except that there's an additional import, and hence
+# the rewriting must be done earlier.
+module ImportIncludeImportRoot
+  import IncludeImportRoot => :i
+end
+
+class UserViaImport
+  include Bud
+  include ImportIncludeImportRoot
+
+  state do
+    table :t_copy, i.r.t.schema
+  end
+
+  bootstrap do
+    i.r.t << [25]
+  end
+
+  bloom do
+    t_copy <= i.r.t
+  end
+end
+
+# Check that importing the same module name amongst included modules results in
+# merging the two modules into a single namespace.
+module OtherRoot
+  state do
+    table :xx, [:v]
+  end
+end
+
+module OtherMod
+  import OtherRoot => :r
+
+  bootstrap do
+    r.xx <= [[100], [200]]
+  end
+end
+
+class DupImportNameDiffModule
+  include Bud
+  include IncludeImportRoot
+  include OtherMod
+
+  state do
+    table :r_t_copy, r.t.schema
+    table :r_xx_copy, r.xx.schema
+  end
+
+  bloom do
+    r.xx <= r.t
+    r_t_copy <= r.t
+    r_xx_copy <= r.xx
+  end
+end
+
+class TestIncludeImport < Test::Unit::TestCase
+  def test_include_import
+    b = IncludeImportUser.new
+    b.tick
+    assert_equal([[5], [10], [15]], b.t_copy.to_a.sort)
+  end
+
+  def XXXtest_include_dup_import_name
+    b = DupImportNameDiffModule.new
+    b.tick
+    assert_equal([[5], [10]], b.r.t_copy.to_a.sort)
+    assert_equal([[5], [10], [100], [200]], b.r_xx_copy.to_a.sort)
+  end
+
+  def test_include_via_import
+    b = UserViaImport.new
+    b.tick
+    assert_equal([[5], [10], [25]], b.t_copy.to_a.sort)
+  end
+end

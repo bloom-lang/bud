@@ -26,7 +26,7 @@ class TestMetrics < Test::Unit::TestCase
     p = MetricsTest.new(:metrics => true, :port => 56789)
     p.run_bg
     sleep 1
-    p.stop_bg
+    p.stop
     $stdout = old_stdout
   end
 end

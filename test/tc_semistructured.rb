@@ -5,7 +5,7 @@ class Semi
 
   state do
     table :stuff
-    table :bigstuff, stuff.schema + [:extra1] + [:extra2]
+    table :bigstuff, {stuff.key_cols => stuff.val_cols + [:extra1] + [:extra2]}
   end
 
   bootstrap do
@@ -23,7 +23,7 @@ class TestSemi < Test::Unit::TestCase
     p = Semi.new
     p.tick
     # if we kept all the extra stuff, we can "walk" the struct to find things
-    assert(p.stuff.first.length > p.stuff.schema.length)
+    assert(p.stuff.first.length > p.stuff.cols.length)
     assert_equal([1,2, [3, 4]], p.stuff.first)
     assert_equal('check', (p.stuff.first(2)[1][1]))
     assert_equal('out', (p.stuff.first(2)[1][-1][0][:key]))

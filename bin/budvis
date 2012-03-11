@@ -7,7 +7,7 @@ require 'bud/viz_util'
 
 include VizUtil
 
-BUD_DBM_DIR = "#{ARGV[0]}/bud_"
+BUD_DBM_DIR = "#{ARGV[0]}"
 
 
 def usage
@@ -28,10 +28,9 @@ usage unless ARGV[0]
 usage if ARGV[0] == '--help'
 
 meta, data = get_meta2(BUD_DBM_DIR)
-vh = VizHelper.new(meta[:tabinf], meta[:cycle], meta[:depends], meta[:rules], ARGV[0])
+vh = VizHelper.new(meta[:tabinf], meta[:cycle], meta[:depends], meta[:rules], ARGV[0], meta[:provides])
 data.each do |d|
   vh.full_info << d
 end
-
 vh.tick
 vh.summarize(ARGV[0], meta[:schminf])

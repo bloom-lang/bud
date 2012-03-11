@@ -19,11 +19,10 @@ class TestTerminal < Test::Unit::TestCase
     q = Queue.new
     t = TerminalTester.new(:stdin => input_buf)
     t.register_callback(:saw_input) do |tbl|
-      assert_equal(1, tbl.length)
-      q.push(true)
+      q.push(tbl.length)
     end
-    t.run_bg
-    q.pop
-    t.stop_bg
+    rv = q.pop
+    assert_equal(1, rv)
+    t.stop
   end
 end

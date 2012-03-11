@@ -1,13 +1,12 @@
 require 'rubygems'
 require 'syntax/convertors/html'
 require 'gchart'
-require 'digest/md5'
 require 'bud/state'
 
 class VizOnline #:nodoc: all
   def initialize(bud_instance)
     @bud_instance = bud_instance
-    @meta_tables = {'t_rules' => 1, 't_depends' => 1, 't_table_info' => 1, 't_cycle' => 1, 't_stratum' => 1, 't_depends_tc' => 1, 't_table_schema' => 1}
+    @meta_tables = {'t_rules' => 1, 't_depends' => 1, 't_table_info' => 1, 't_cycle' => 1, 't_stratum' => 1, 't_depends_tc' => 1, 't_table_schema' => 1, 't_provides' => 1}
     @bud_instance.options[:dbm_dir] = "DBM_#{@bud_instance.class}_#{bud_instance.options[:tag]}_#{bud_instance.object_id}_#{bud_instance.port}"
     @table_info = bud_instance.tables[:t_table_info]
     @table_schema = bud_instance.tables[:t_table_schema]
@@ -39,7 +38,7 @@ class VizOnline #:nodoc: all
       lt = "#{t[0]}_vizlog".to_sym
       if t[2] == "Bud::BudChannel"
         lts = "#{snd_alias}_vizlog".to_sym
-        @table_info << [snd_alias, t[2]] 
+        @table_info << [snd_alias, t[2]]
       end
       @table_info << [t[0], t[2]]
     end
@@ -55,7 +54,10 @@ class VizOnline #:nodoc: all
     collection.each do |row|
       if collection.class == Hash
         row = row[1]
+      elsif collection.class == Bud::BudPeriodic
+        row = row[0]
       end
+
       # bud.t_depends and t_rules have bud object in field[0]. Remove them since
       # bud instances cannot/must not be serialized.
       if row[0].class <= Bud
@@ -66,9 +68,8 @@ class VizOnline #:nodoc: all
       begin
         @logtab << newrow
       rescue
-        raise "ERROR!  #{@logtab} << #{newrow}"
+        raise "ERROR!  #{@logtab} << #{newrow.inspect} (etxt #{$!})"
       end
-
     end
   end
 
@@ -77,7 +78,8 @@ class VizOnline #:nodoc: all
       tab = t[0]
       next if tab == "the_big_log"
       next if @meta_tables[tab.to_s] and @bud_instance.budtime > 0
-      add_rows(t[1], tab) unless t[1].class == Bud::BudPeriodic
+      # PAA: why did we previously exclude periodics?
+      add_rows(t[1], tab) #####unless t[1].class == Bud::BudPeriodic
       if t[1].class == Bud::BudChannel
         add_rows(t[1].pending, "#{tab}_snd")
       end
