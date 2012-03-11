@@ -249,9 +249,6 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_labels
-    puts "test_labels disabled temporarily"
-    return
-
     p = Divergence.new(:output => :dot)
     p.run_bg
     p.sync_do

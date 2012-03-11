@@ -101,7 +101,6 @@ module MetaAlgebra
     end
 
     clean_dep <= (t_depends * rule_nm).pairs(:rule_id => :rule_id) do |dep, rn|
-      puts "%%%%%%%%%%% #{dep.lhs} #{rn}"
       unless dep.lhs == 'alg_path'
         [dep.body, dep.lhs, dep.rule_id, rn.tag, dep.op]
       end

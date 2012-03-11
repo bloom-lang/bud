@@ -47,17 +47,18 @@ module Bud
     def init_schema(given_schema)
       given_schema ||= {[:key]=>[:val]}
 
+
+      @given_schema = given_schema
+      @cols, @key_cols = BudCollection.parse_schema(given_schema)
       # Check that no location specifiers appear in the schema. In the case of
       # channels, the location specifier has already been stripped from the
       # user-specified schema.
-      given_schema.each do |s|
+      @cols.each do |s|
         if s.to_s.start_with? "@"
           raise Bud::Error, "illegal use of location specifier (@) in column #{s} of non-channel collection #{tabname}"
         end
       end
 
-      @given_schema = given_schema
-      @cols, @key_cols = BudCollection.parse_schema(given_schema)
       if @cols.size == 0
         @cols = nil
       else

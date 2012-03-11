@@ -441,7 +441,7 @@ module Bud
     end
 
     public
-    def stratum_end
+    def flush
       # always rescans
       @in_buf.send(@pred_symbol, @blk)
     end
@@ -513,7 +513,7 @@ module Bud
 
     def scan(first_iter)
       if (first_iter)
-        if @rescan
+        if rescan
           # scan entire storage
           @collection.each_raw {|item|
             push_out(item)
@@ -545,11 +545,11 @@ module Bud
     end
 
     public
-    def stratum_end
-       @memo.each do |k,v|
-         push_out([k,v], false)
-       end
-     end
+    def flush
+      @memo.each do |k,v|
+        push_out([k,v], false)
+      end
+    end
   end
 
   class PushEachWithIndex < PushStatefulElement
