@@ -70,8 +70,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
         if recv and recv.first == :call
           rty, _, robj = exp_id_type(recv[1], recv[2], recv[3])
           if rty == :collection
-            schema = robj.schema
-            op_is_field_name =  true if schema and schema.include?(op)
+            cols = robj.cols
+            op_is_field_name =  true if cols and cols.include?(op)
           end
         end
         # for CALM analysis, mark deletion rules as non-monotonic

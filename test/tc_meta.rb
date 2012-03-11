@@ -348,9 +348,6 @@ class TestThetaMeta < Test::Unit::TestCase
   end
 
   def test_theta
-    puts "test_theta disabled temporarily"
-    return
-
     p = ThetaMonotoneJoin.new
     p.t_depends.each do |dep|
       next if VizUtil.ma_tables.keys.include? dep.lhs.to_sym
