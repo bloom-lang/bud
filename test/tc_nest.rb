@@ -1,5 +1,4 @@
 require 'test_common'
-#require 'backports'
 
 class Nesting
   include Bud

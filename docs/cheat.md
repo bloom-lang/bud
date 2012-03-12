@@ -172,8 +172,6 @@ implicit map:
     
 `flat_map`:
 
-    require 'backports' # flat_map not included in Ruby 1.8 by default
-
     t3 <= bc.flat_map do |t| # unnest a collection-valued attribute
       bc.col4.map { |sub| [t.col1, t.col2, t.col3, sub] }
     end
