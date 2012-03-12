@@ -64,7 +64,7 @@ $bud_instances = {}        # Map from instance id => Bud instance
 module Bud
   attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
   attr_reader :dsock
-  attr_reader :tables, :builtin_tables, :channels, :tc_tables, :zk_tables, :dbm_tables, :sources, :sinks, :app_tables
+  attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :sources, :sinks, :app_tables
   attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets, :done_wiring
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap, :done_wiring
   attr_accessor :stratum_collection_map, :stratified_rules
@@ -117,7 +117,6 @@ module Bud
     @stratified_rules = []
     @channels = {}
     @push_elems = {}
-    @tc_tables = {}
     @dbm_tables = {}
     @zk_tables = {}
     @callbacks = {}

@@ -1,14 +1,14 @@
 Gem::Specification.new do |s|
   s.name = "bud"
   s.version = "0.0.9"
-  s.authors = ["Peter Alvaro", "Neil Conway", "Joseph M. Hellerstein", "William R. Marczak"]
+  s.authors = ["Peter Alvaro", "Neil Conway", "Joseph M. Hellerstein", "William R. Marczak", "Sriram Srinivasan"]
   s.email = ["bloomdevs@gmail.com"]
   s.summary = "A prototype Bloom DSL for distributed programming."
   s.homepage = "http://www.bloom-lang.org"
   s.description = "A prototype of the Bloom distributed programming language, as a Ruby DSL."
   s.license = "BSD"
   s.has_rdoc = true
-  s.required_ruby_version = '~> 1.8.7'
+  s.required_ruby_version = '>= 1.8.7'
   s.rubyforge_project = 'bloom-lang'
 
   s.files = Dir['lib/**/*'] + Dir['bin/*'] + Dir['docs/**/*'] + Dir['examples/**/*'] + %w[README LICENSE]
@@ -24,9 +24,9 @@ Gem::Specification.new do |s|
   s.add_dependency 'json'
   s.add_dependency 'msgpack'
   s.add_dependency 'nestful'
-  s.add_dependency 'ParseTree'
   s.add_dependency 'ruby-graphviz'
   s.add_dependency 'ruby2ruby', '< 1.3.1'
+  s.add_dependency 'ruby_parser'
   s.add_dependency 'sexp_path'
   s.add_dependency 'superators'
   s.add_dependency 'syntax'
@@ -34,6 +34,5 @@ Gem::Specification.new do |s|
 
   # Optional dependencies -- if we can't find these libraries, certain features
   # will be disabled.
-  # s.add_dependency 'tokyocabinet'
   # s.add_dependency 'zookeeper'
 end

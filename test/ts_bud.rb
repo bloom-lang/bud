@@ -28,7 +28,6 @@ require 'tc_module'
 require 'tc_nest'
 require 'tc_rebl'
 require 'tc_schemafree'
-puts "tc_semistructured disabled temporarily" #require 'tc_semistructured'
 
 require 'tc_temp'
 require 'tc_terminal'
