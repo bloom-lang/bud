@@ -80,9 +80,10 @@ module VizUtil #:nodoc: all
     bit = bud_instance.builtin_tables 
     VizUtil.ma_tables.each_pair{|k, v| bit[k] = v}
 
-    write_graphs(tabinf, bit, bud_instance.t_cycle,
+    depanalysis =  bud_instance.meta_parser.depanalysis
+    write_graphs(tabinf, bit, depanalysis.cycle,
                  bud_instance.t_depends, bud_instance.t_rules, viz_name,
-                 output_base, fmt, collapse, bud_instance.meta_parser.depanalysis, -1, nil, 
+                 output_base, fmt, collapse, depanalysis, -1, nil,
                  get_labels(bud_instance), begins)
     begins
   end

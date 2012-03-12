@@ -272,11 +272,11 @@ class BudMeta #:nodoc: all
       require 'bud/depanalysis'
       da = ::DepAnalysis.new
       da.providing <+ @bud_instance.tables[:t_provides].to_a
-      da.depends_tc <+ @bud_instance.tables[:t_depends].map{|t| [t.lhs, t.body]}
+      da.depends <+ @bud_instance.t_depends.map{|d| [d.lhs, d.op, d.body, d.nm]}
 
       #@bud_instance.tables[:t_provides].each {|t| da.providing <+ t}
       #@bud_instance.tables[:t_depends].each {|t| da.depends_tc <+ t}
-      3.times { da.tick_internal}
+      da.tick_internal
       @dependency_analysis = da
     end
     @dependency_analysis

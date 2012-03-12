@@ -222,9 +222,7 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_plotting
-    puts "tc_meta::test_plotting disabled temporarily"
-    return
-
+    $stdout = StringIO.new("", "w")
     program = KTest2.new(:output => :dot)
     dep = DepAnalysis.new
 
@@ -234,8 +232,7 @@ class TestMeta < Test::Unit::TestCase
     program.sync_do
 
     dep.providing <+ program.t_provides.to_a
-    dep.depends_tc <+ program.t_depends.map{|d| [d.lhs, d.body]}
-    dep.sync_do
+    dep.depends <+ program.t_depends.map{|d| [d.lhs, d.op, d.body, d.nm]}
     dep.sync_do
 
     dir = scratch_dir
@@ -244,7 +241,7 @@ class TestMeta < Test::Unit::TestCase
 
     looks = str2struct(content)
 
-    assert_match(/upd -> \"interm, mystate\" \[label=\" \+\/\-\",.+?arrowhead=veeodot/, content)
+    assert_match(/upd -> \"interm, mystate\" \[.*label=\" \+\/\-\"/, content)
     assert_match("S -> upd", content)
     assert_match("S -> req", content)
     assert_match("sinkhole -> \"\?\?\"", content)
@@ -252,6 +249,7 @@ class TestMeta < Test::Unit::TestCase
     assert_no_match(/req -> \"\?\?\"/, content)
     `rm -r #{dir}`
     program.stop
+    $stdout = STDOUT
   end
 
   def test_labels
