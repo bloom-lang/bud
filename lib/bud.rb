@@ -1063,7 +1063,6 @@ module Bud
   def do_flush
     @channels.each_value { |c| c.flush }
     @zk_tables.each_value { |t| t.flush }
-    @tc_tables.each_value { |t| t.flush }
     @dbm_tables.each_value { |t| t.flush }
   end
 

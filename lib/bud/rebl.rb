@@ -328,7 +328,6 @@ class LibRebl
       @rebl_class_inst.channels.merge!(@old_inst.channels.reject do |k,v|
                                          @@builtin_tables.include? k
                                        end)
-      @rebl_class_inst.tc_tables.merge! @old_inst.tc_tables
       @rebl_class_inst.dbm_tables.merge! @old_inst.dbm_tables
       @rebl_class_inst.zk_tables.merge! @old_inst.zk_tables
 
