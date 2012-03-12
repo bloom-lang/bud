@@ -14,7 +14,7 @@ Main deficiencies at this point are:
   available, including mutable state.  This allows programmers to get outside
   the Bloom framework and lose cleanliness.
 
-- Compatibility: Bud only works with Ruby (MRI) 1.8. MRI 1.9, JRuby and other
+- Compatibility: Bud only works with Ruby (MRI) 1.8 and 1.9. JRuby and other
   Ruby implementations are currently not supported.
 
 ## Installation
@@ -35,6 +35,6 @@ To run the unit tests:
 
 ## Optional Dependencies
 
-The bud gem has a handful of mandatory dependencies. It also has two optional
-dependencies: if you wish to use Bud collections backed by Zookeeper, the "zookeeper" 
-gem must be installed.
+The bud gem has a handful of mandatory dependencies. It also has one optional
+dependency: if you wish to use Bud collections backed by Zookeeper, the
+"zookeeper" gem must be installed.
