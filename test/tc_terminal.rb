@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 require 'stringio' 
 
 
@@ -13,7 +13,7 @@ class TerminalTester
   end
 end
 
-class TestTerminal < Test::Unit::TestCase
+class TestTerminal < MiniTest::Unit::TestCase
   def test_stdin
     input_buf = StringIO.new("I am input from stdin\n")
     q = Queue.new

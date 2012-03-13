@@ -15,20 +15,19 @@ Gem::Specification.new do |s|
   s.executables = %w[rebl budplot budvis budtimelines]
   s.default_executable = 'rebl'
 
-  s.add_dependency 'backports'
   s.add_dependency 'eventmachine'
   s.add_dependency 'fastercsv'
   s.add_dependency 'gchart'
   s.add_dependency 'getopt'
   s.add_dependency 'i18n'
   s.add_dependency 'json'
+  s.add_dependency 'minitest'
   s.add_dependency 'msgpack'
   s.add_dependency 'nestful'
   s.add_dependency 'ruby-graphviz'
   s.add_dependency 'ruby2ruby', '< 1.3.1'
   s.add_dependency 'ruby_parser'
-  s.add_dependency 'sexp_path'
-  s.add_dependency 'superators'
+  s.add_dependency 'superators19'
   s.add_dependency 'syntax'
   s.add_dependency 'uuid'
 

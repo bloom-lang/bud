@@ -1,5 +1,4 @@
-require 'test_common'
-#require 'backports'
+require './test_common'
 
 class Nesting
   include Bud
@@ -37,7 +36,7 @@ class Nesting
   end
 end
 
-class TestNest < Test::Unit::TestCase
+class TestNest < MiniTest::Unit::TestCase
   def test_nest
     u = Nesting.new
     u.tick

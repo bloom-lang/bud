@@ -2,7 +2,7 @@ require 'rubygems'
 require 'eventmachine'
 require 'msgpack'
 require 'socket'
-require 'superators'
+require 'superators19'
 require 'thread'
 require 'bud/errors'
 

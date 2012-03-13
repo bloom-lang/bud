@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 
 # Check that maps over constant ranges aren't converted to semi-map
 class LeaveMapAlone
@@ -55,12 +55,13 @@ class LessAnnoying < StillAnnoying
   end
 end
 
-class TestMapVariants < Test::Unit::TestCase
+class TestMapVariants < MiniTest::Unit::TestCase
   def test_leave_map_alone
     program = LeaveMapAlone.new
     program.tick
     assert_equal(program.num.to_a.sort, [[1],[2],[3],[4],[5]])
   end
+
   def test_all_maps
     p = AllMapsAreOne.new
     p.tick
@@ -68,13 +69,9 @@ class TestMapVariants < Test::Unit::TestCase
     assert_equal(p.out.to_a, p.snout.to_a)
     assert_equal(p.out.to_a, p.clout.to_a)
   end
-  def test_still_annoying
-    p = StillAnnoying.new
-    assert_raise(LocalJumpError, p.tick)
-  end
 end
 
-class TestProEnumerable < Test::Unit::TestCase
+class TestProEnumerable < MiniTest::Unit::TestCase
   class SortIdAssign
     include Bud
 

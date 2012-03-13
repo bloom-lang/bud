@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 
 module ParentModule
   state do
@@ -284,7 +284,7 @@ class UseModDefMethod
   end
 end
 
-class TestModules < Test::Unit::TestCase
+class TestModules < MiniTest::Unit::TestCase
   def test_simple
     c = ChildClass.new
     c.tick
@@ -443,7 +443,7 @@ class TestModules < Test::Unit::TestCase
   end
 
   def test_duplicate_import
-    assert_raise(Bud::CompileError) do
+    assert_raises(Bud::CompileError) do
       eval "
       class DupImport
         include Bud
@@ -466,18 +466,16 @@ class TestModules < Test::Unit::TestCase
   end
 
   def test_parsetree_bug
-    assert_nothing_raised do
-      eval "
+    eval %{
       class DescendentClass
         import ModuleE => :e
         include Bud
       end
-      "
-    end
+    }
   end
 
   def atest_import_class
-    assert_raise(Bud::CompileError) do
+    assert_raises(Bud::CompileError) do
       eval %{
       class DummyClass; end
       class DummyImporter
@@ -500,7 +498,7 @@ class TestModules < Test::Unit::TestCase
 
   def Xtest_import_bud_module
     # We can't safely import a module that has already included Bud
-    assert_raise(Bud::CompileError) do
+    assert_raises(Bud::CompileError) do
       eval "
       class TestImportOfIncludesBud
         include Bud
@@ -508,7 +506,7 @@ class TestModules < Test::Unit::TestCase
       end"
     end
 
-    assert_raise(Bud::CompileError) do
+    assert_raises(Bud::CompileError) do
       eval "
       class TestImportOfIncludesBudInParent
         include Bud
@@ -616,7 +614,7 @@ class DupImportNameDiffModule
   end
 end
 
-class TestIncludeImport < Test::Unit::TestCase
+class TestIncludeImport < MiniTest::Unit::TestCase
   def test_include_import
     b = IncludeImportUser.new
     b.tick

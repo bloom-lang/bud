@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 
 module MemberProtocol
   state do
@@ -37,7 +37,7 @@ class SimpleClient
   include SelectiveMembership
 end
 
-class InterfaceTest < Test::Unit::TestCase
+class InterfaceTest < MiniTest::Unit::TestCase
   def test_basic
     c = SimpleClient.new
     c.run_bg

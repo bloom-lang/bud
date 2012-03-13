@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 
 unless defined? Bud::HAVE_ZOOKEEPER
   puts "Skipping Zk test: no zookeeper Gem installed"

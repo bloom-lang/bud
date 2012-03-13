@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 require 'timeout'
 
 class Vacuous
@@ -14,10 +14,10 @@ class Hooverous
   end
 end
 
-class CallbackTest < Test::Unit::TestCase
+class CallbackTest < MiniTest::Unit::TestCase
   def test_foreground
     c = Vacuous.new
-    assert_raise(Timeout::Error) do
+    assert_raises(Timeout::Error) do
       Timeout::timeout(0.1) do
         c.run_fg
       end
@@ -174,35 +174,33 @@ class CallbackTest < Test::Unit::TestCase
 
   def test_interrogate1
     c = Vacuous.new
-    assert_raise(Bud::Error) {c.int_ip_port}
+    assert_raises(Bud::Error) {c.int_ip_port}
   end
 
   def test_interrogate2
     c = Vacuous.new
     c.run_bg
-    assert_nothing_raised {c.int_ip_port}
+    assert_kind_of(String, c.int_ip_port)
   end
 
   def test_extra_stoppage
     c = Vacuous.new
     c.run_bg
-    5.times do
-      assert_nothing_raised { c.stop }
-    end
+    5.times { c.stop }
   end
 
   def test_extra_startage
     c = Vacuous.new
     c.run_bg
     5.times do
-      assert_raise(Bud::Error) { c.run_bg }
+      assert_raises(Bud::Error) { c.run_bg }
     end
     c.stop
   end
 
   def test_stop_no_start
     c = Vacuous.new
-    assert_nothing_raised { c.stop }
+    5.times { c.stop }
   end
 end
 
@@ -240,7 +238,7 @@ class ThreePhase
   end
 end
 
-class TestPause < Test::Unit::TestCase
+class TestPause < MiniTest::Unit::TestCase
   def test_pause_threephase
     b = ThreePhase.new
     q = Queue.new

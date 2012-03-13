@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 require 'stringio'
 
 class MetricsTest
@@ -19,7 +19,7 @@ class MetricsTest
 end
 
 
-class TestMetrics < Test::Unit::TestCase
+class TestMetrics < MiniTest::Unit::TestCase
   def test_metrics
     sio = StringIO.new
     old_stdout, $stdout = $stdout, sio

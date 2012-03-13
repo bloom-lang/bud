@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 
 # In "quick mode", don't bother running some of the more expensive tests
 if ARGV.first and ARGV.first.downcase == "quick"

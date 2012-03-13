@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 require 'bud/graphs.rb'
 require 'bud/viz_util.rb'
 require 'bud/depanalysis'
@@ -137,7 +137,7 @@ class Divergence
   end
 end
 
-class TestMeta < Test::Unit::TestCase
+class TestMeta < MiniTest::Unit::TestCase
   def test_paths
     program = LocalShortestPaths.new
     assert_equal(4, program.stratified_rules.length)
@@ -173,7 +173,7 @@ class TestMeta < Test::Unit::TestCase
   end
 
   def test_unstrat
-    assert_raise(Bud::CompileError) { KTest3.new }
+    assert_raises(Bud::CompileError) { KTest3.new }
   end
 
   def scratch_dir
@@ -245,8 +245,8 @@ class TestMeta < Test::Unit::TestCase
     assert_match("S -> upd", content)
     assert_match("S -> req", content)
     assert_match("sinkhole -> \"\?\?\"", content)
-    assert_no_match(/upd -> \"\?\?\"/, content)
-    assert_no_match(/req -> \"\?\?\"/, content)
+    refute_match(/upd -> \"\?\?\"/, content)
+    refute_match(/req -> \"\?\?\"/, content)
     `rm -r #{dir}`
     program.stop
     $stdout = STDOUT
@@ -336,7 +336,7 @@ class TestMeta < Test::Unit::TestCase
   end
 end
 
-class TestThetaMeta < Test::Unit::TestCase
+class TestThetaMeta < MiniTest::Unit::TestCase
   class ThetaMonotoneJoin
     include Bud
 

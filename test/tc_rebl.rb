@@ -1,6 +1,6 @@
-require 'test_common'
-require 'stringio'
+require './test_common'
 require 'bud/rebl'
+require 'stringio'
 require 'timeout'
 
 def capture_stdout
@@ -37,7 +37,7 @@ end
 # TODO: add the following testcases:
 #    * test persistent store functionality
 
-class TestRebl < Test::Unit::TestCase
+class TestRebl < MiniTest::Unit::TestCase
   def test_rebl_pingpong
     the_line = nil
     rt1 = nil
@@ -79,10 +79,8 @@ class TestRebl < Test::Unit::TestCase
     assert_equal("hit\n", the_line)
 
     # Now perform a stop on both nodes
-    assert_nothing_raised do
-      rt1.exec_rebl("/stop")
-      rt2.exec_rebl("/stop")
-    end
+    rt1.exec_rebl("/stop")
+    rt2.exec_rebl("/stop")
 
     # Check their timestamps
     stop_time1 = rt1.lib.rebl_class_inst.budtime
@@ -144,10 +142,8 @@ class TestRebl < Test::Unit::TestCase
 
     # Check to make sure stdio thing is printing
     assert_equal("foo\nfoo\nfoo\n", actual_output)
-    assert_nothing_raised do
-      rt.exec_rebl("/rmrule 4")
-      actual_output = rt.exec_rebl("/tick 3")
-    end
+    rt.exec_rebl("/rmrule 4")
+    actual_output = rt.exec_rebl("/tick 3")
     # Check to make sure removed stdio rule no longer prints
     assert_equal("", actual_output)
 

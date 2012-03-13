@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 
 class ExistTest
   include Bud
@@ -18,7 +18,7 @@ class ExistTest
   end
 end
 
-class TestExists < Test::Unit::TestCase
+class TestExists < MiniTest::Unit::TestCase
   def test_conv
     p = ExistTest.new
     p.run_bg
