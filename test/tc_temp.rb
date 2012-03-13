@@ -240,7 +240,7 @@ class TempAtNext
   end
 end
 
-class TestTemps < Test::Unit::TestCase
+class TestTemps < MiniTest::Unit::TestCase
   def test_basic_temp
     p = BasicTemp.new
     p.run_bg
@@ -276,16 +276,16 @@ class TestTemps < Test::Unit::TestCase
     p.stop_bg
   end
   def test_dup_tmp
-    assert_raise(Bud::CompileError) {DupTemp.new}
+    assert_raises(Bud::CompileError) {DupTemp.new}
   end
   def test_reuse_tmp
     p = ReuseTemp.new
-    assert_nothing_raised {p.tick}
+    p.tick
     assert_equal(1, p.hemp.length)
   end
   def test_no_schema
     p = TempNoSchema.new
-    assert_nothing_raised {p.tick}
+    p.tick
   end
   def test_simple_temp
     p = SimpleTempTest.new
@@ -351,7 +351,7 @@ class TestTemps < Test::Unit::TestCase
   end
 end
 
-class TestTempNoMaps < Test::Unit::TestCase
+class TestTempNoMaps < MiniTest::Unit::TestCase
   def test_simple_test_nomap
     p = SimpleTempNoMapTest.new
     p.tick
@@ -397,7 +397,7 @@ class TestModuleUser
   include TestDefModule
 end
 
-class TestModuleTemp < Test::Unit::TestCase
+class TestModuleTemp < MiniTest::Unit::TestCase
   def test_simple
     c = TestModuleUser.new
     c.tick

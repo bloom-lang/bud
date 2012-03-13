@@ -262,7 +262,7 @@ class PartlyQualifiedCombo
 end
 
 
-class TestJoins < Test::Unit::TestCase
+class TestJoins < MiniTest::Unit::TestCase
   def test_combos
     program = CombosBud.new
     program.tick
@@ -335,15 +335,15 @@ class TestJoins < Test::Unit::TestCase
 
   def test_bad_star_joins
     p1 = MixedAttrRefs.new
-    assert_raise(Bud::CompileError) {p1.tick}
+    assert_raises(Bud::CompileError) {p1.tick}
     p2 = MissingAttrRefs.new
-    assert_raise(Bud::CompileError) {p2.tick}
+    assert_raises(Bud::CompileError) {p2.tick}
     p3 = IllegalAttrRefs.new
-    assert_raise(Bud::CompileError) {p3.tick}
+    assert_raises(Bud::CompileError) {p3.tick}
     p4 = AmbiguousAttrRefs.new
-    assert_raise(Bud::CompileError) {p4.tick}
+    assert_raises(Bud::CompileError) {p4.tick}
     p5 = UnJoinedTableRef.new
-    assert_raise(Bud::CompileError) {p5.tick}    # Issue 191
+    assert_raises(Bud::CompileError) {p5.tick}    # Issue 191
   end
   
   def test_rename_join
@@ -543,9 +543,9 @@ class TestJoinLocalPreds
   end
 end
 
-class TestLocalPredJoins < Test::Unit::TestCase
+class TestLocalPredJoins < MiniTest::Unit::TestCase
   def test_explicit
-    assert_raise(Bud::CompileError) {p = TestJoinLocalPreds.new; p.tick}
+    assert_raises(Bud::CompileError) {p = TestJoinLocalPreds.new; p.tick}
     # assert_equal([ [[1,1], [3,3]], [[2,3], [3,3]] ], p.t3.to_a.sort)
     # assert_equal([ [[1,1], [3,3]], [[1,1], [4,5]] ], p.t4.to_a.sort)
   end
@@ -567,7 +567,7 @@ class Issue192
  end
 end
 
-class TestIssue192 < Test::Unit::TestCase
+class TestIssue192 < MiniTest::Unit::TestCase
   def test_192
     p = Issue192.new
     p.intab1 << [-1]
@@ -578,7 +578,7 @@ class TestIssue192 < Test::Unit::TestCase
   end
 end
 
-class TestIssue220 < Test::Unit::TestCase
+class TestIssue220 < MiniTest::Unit::TestCase
   class TripleJoin
     include Bud
     state do
@@ -590,7 +590,7 @@ class TestIssue220 < Test::Unit::TestCase
     end
   end
   def test_triple_join
-    assert_raise(Bud::CompileError){p = TripleJoin.new; p.tick}
+    assert_raises(Bud::CompileError){p = TripleJoin.new; p.tick}
   end
 end
 
@@ -614,7 +614,7 @@ class OjChannel
   end
 end
 
-class OjChannelTest < Test::Unit::TestCase
+class OjChannelTest < MiniTest::Unit::TestCase
   def test_oj_channel
     o = OjChannel.new
     o.run_bg

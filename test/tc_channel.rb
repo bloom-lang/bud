@@ -23,7 +23,7 @@ class TickleCount
   end
 end
 
-class TestTickle < Test::Unit::TestCase
+class TestTickle < MiniTest::Unit::TestCase
   def test_tickle_run_bg
     c = TickleCount.new
     q = Queue.new
@@ -91,7 +91,7 @@ class RingMember
   end
 end
 
-class TestRing < Test::Unit::TestCase
+class TestRing < MiniTest::Unit::TestCase
   RING_SIZE = 10
 
   def test_basic_ring
@@ -165,7 +165,7 @@ class ChannelAddrInVal
   end
 end
 
-class TestChannelWithKey < Test::Unit::TestCase
+class TestChannelWithKey < MiniTest::Unit::TestCase
   def test_basic
     p1 = ChannelWithKey.new
     p2 = ChannelWithKey.new
@@ -194,14 +194,14 @@ class TestChannelWithKey < Test::Unit::TestCase
     }
 
     # Check that inserting into a channel via <= is rejected
-    assert_raise(Bud::Error) {
+    assert_raises(Bud::Error) {
       p1.sync_do {
         p1.c <= [[target_addr, 60, 110]]
       }
     }
 
     # Check that key constraints on channels are raised
-    assert_raise(Bud::KeyConstraintError) {
+    assert_raises(Bud::KeyConstraintError) {
       p1.sync_do {
         p1.c <~ [[target_addr, 70, 120]]
         p1.c <~ [[target_addr, 70, 130]]
@@ -213,7 +213,7 @@ class TestChannelWithKey < Test::Unit::TestCase
   end
 end
 
-class TestChannelAddrInVal < Test::Unit::TestCase
+class TestChannelAddrInVal < MiniTest::Unit::TestCase
   def test_addr_in_val
     p1 = ChannelAddrInVal.new
     p2 = ChannelAddrInVal.new
@@ -264,7 +264,7 @@ class ChannelBootstrap
   end
 end
 
-class TestChannelBootstrap < Test::Unit::TestCase
+class TestChannelBootstrap < MiniTest::Unit::TestCase
   def test_bootstrap
     c = ChannelBootstrap.new
     q = Queue.new
@@ -304,13 +304,13 @@ class ChannelWithMultiLocSpecs
   end
 end
 
-class LocSpecTests < Test::Unit::TestCase
+class LocSpecTests < MiniTest::Unit::TestCase
   def test_missing_ls
-    assert_raise(Bud::Error) { ChannelWithoutLocSpec.new }
+    assert_raises(Bud::Error) { ChannelWithoutLocSpec.new }
   end
 
   def test_dup_ls
-    assert_raise(Bud::Error) { ChannelWithMultiLocSpecs.new }
+    assert_raises(Bud::Error) { ChannelWithMultiLocSpecs.new }
   end
 end
 
@@ -349,7 +349,7 @@ class SimpleLoopback
   end
 end
 
-class LoopbackTests < Test::Unit::TestCase
+class LoopbackTests < MiniTest::Unit::TestCase
   def test_loopback_payload
     b = LoopbackPayload.new
     q = Queue.new
@@ -398,7 +398,7 @@ class SimpleAgent
   end
 end
 
-class TestChannelFilter < Test::Unit::TestCase
+class TestChannelFilter < MiniTest::Unit::TestCase
   def test_filter_drop
     f = lambda do |tbl_name, tups|
       return [tups, []] unless tbl_name == :chn

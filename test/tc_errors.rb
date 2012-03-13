@@ -1,6 +1,6 @@
 require './test_common'
 
-class TestErrorHandling < Test::Unit::TestCase
+class TestErrorHandling < MiniTest::Unit::TestCase
   class EmptyBud
     include Bud
   end
@@ -9,7 +9,7 @@ class TestErrorHandling < Test::Unit::TestCase
     b = EmptyBud.new
     b.run_bg
     3.times {
-      assert_raise(ZeroDivisionError) {
+      assert_raises(ZeroDivisionError) {
         b.sync_do {
           puts 5 / 0
         }
@@ -32,7 +32,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_illegal_op_error
-    assert_raise(Bud::CompileError) { IllegalOp.new }
+    assert_raises(Bud::CompileError) { IllegalOp.new }
   end
 
   class InsertInBloomBlock
@@ -48,7 +48,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_insert_in_bloom_error
-    assert_raise(Bud::CompileError) { InsertInBloomBlock.new }
+    assert_raises(Bud::CompileError) { InsertInBloomBlock.new }
   end
 
   class MissingTable
@@ -72,7 +72,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_schemy
-    assert_raise Bud::Error do
+    assert_raises(Bud::Error) do
       p = BadSchemy.new
       p.tick
     end
@@ -87,7 +87,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_schemy_conflict
-    assert_raise Bud::Error do
+    assert_raises(Bud::Error) do
       p = SchemyConflict.new
       p.tick
     end
@@ -104,11 +104,11 @@ class TestErrorHandling < Test::Unit::TestCase
   def test_each_from_bad_sym
     p = EachFromBadSym.new
     p.tick
-    assert_raise(Bud::Error) { p.joe.each_from_sym([:bletch]) {} }
+    assert_raises(Bud::Error) { p.joe.each_from_sym([:bletch]) {} }
   end
 
   def test_missing_table_error
-    assert_raise(Bud::CompileError) { MissingTable.new }
+    assert_raises(Bud::CompileError) { MissingTable.new }
   end
 
   class PrecedenceError
@@ -128,7 +128,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_precedence_error
-    assert_raise(Bud::CompileError) { PrecedenceError.new }
+    assert_raises(Bud::CompileError) { PrecedenceError.new }
   end
 
   class VarShadowError
@@ -145,17 +145,17 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_var_shadow_error
-    assert_raise(Bud::CompileError) { VarShadowError.new }
+    assert_raises(Bud::CompileError) { VarShadowError.new }
   end
 
   def test_bloom_block_error
     defn = "class BloomBlockError\ninclude Bud\nbloom \"blockname\" do\nend\n\nend\n"
-    assert_raise(Bud::CompileError) {eval(defn)}
+    assert_raises(Bud::CompileError) {eval(defn)}
   end
 
   def test_dup_blocks
     defn = "class DupBlocks\ninclude Bud\nbloom :foo do\nend\nbloom :foo do\nend\nend\n"
-    assert_raise(Bud::CompileError) {eval(defn)}
+    assert_raises(Bud::CompileError) {eval(defn)}
   end
 
   class EvalError
@@ -175,7 +175,7 @@ class TestErrorHandling < Test::Unit::TestCase
     e = EvalError.new
     e.run_bg
 
-    assert_raise(ZeroDivisionError) {
+    assert_raises(ZeroDivisionError) {
       e.sync_do {
         e.t1 <+ [[5, 0]]
       }
@@ -202,7 +202,7 @@ class TestErrorHandling < Test::Unit::TestCase
 
   def test_bad_grouping_cols
     p = BadGroupingCols.new
-    assert_raise(Bud::Error) {p.tick}
+    assert_raises(Bud::Error) {p.tick}
   end
 
   class BadJoinTabs
@@ -224,7 +224,7 @@ class TestErrorHandling < Test::Unit::TestCase
 
   def test_bad_join_tabs
     p = BadJoinTabs.new
-    assert_raise(Bud::CompileError) {p.tick}
+    assert_raises(Bud::CompileError) {p.tick}
   end
 
   class BadNextChannel
@@ -239,7 +239,7 @@ class TestErrorHandling < Test::Unit::TestCase
 
   def test_bad_next_channel
     p = BadNextChannel.new
-    assert_raise(Bud::Error) {p.tick}
+    assert_raises(Bud::Error) {p.tick}
   end
 
   class BadStdio
@@ -251,7 +251,7 @@ class TestErrorHandling < Test::Unit::TestCase
 
   def test_bad_stdio
     p = BadStdio.new
-    assert_raise(Bud::Error) {p.tick}
+    assert_raises(Bud::Error) {p.tick}
   end
 
   class BadFileReader1
@@ -267,7 +267,7 @@ class TestErrorHandling < Test::Unit::TestCase
   def test_bad_file_reader_1
     File.open("/tmp/foo#{Process.pid}", 'a')
     p = BadFileReader1.new
-    assert_raise(Bud::CompileError){p.tick}
+    assert_raises(Bud::CompileError){p.tick}
   end
 
   class BadFileReader2
@@ -283,7 +283,7 @@ class TestErrorHandling < Test::Unit::TestCase
   def test_bad_file_reader_2
     File.open("/tmp/foo#{Process.pid}", 'a')
     p = BadFileReader2.new
-    assert_raise(Bud::CompileError) {p.tick}
+    assert_raises(Bud::CompileError) {p.tick}
   end
 
   class BadFileReader3
@@ -299,7 +299,7 @@ class TestErrorHandling < Test::Unit::TestCase
   def test_bad_file_reader_3
     File.open("/tmp/foo#{Process.pid}", 'a')
     p = BadFileReader3.new
-    assert_raise(Bud::Error) {p.tick}
+    assert_raises(Bud::Error) {p.tick}
   end
 
   class BadOp
@@ -314,7 +314,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_op
-    assert_raise(Bud::CompileError) { BadOp.new }
+    assert_raises(Bud::CompileError) { BadOp.new }
   end
 
   class BadTerminal
@@ -326,7 +326,7 @@ class TestErrorHandling < Test::Unit::TestCase
   end
 
   def test_bad_terminal
-    assert_raise(Bud::Error) { BadTerminal.new }
+    assert_raises(Bud::Error) { BadTerminal.new }
   end
 
   module SyntaxBase

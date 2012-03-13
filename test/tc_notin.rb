@@ -1,6 +1,6 @@
 require './test_common'
 
-class NotInTest < Test::Unit::TestCase
+class NotInTest < MiniTest::Unit::TestCase
   class SillyAnti
     include Bud
 
@@ -35,7 +35,7 @@ class NotInTest < Test::Unit::TestCase
   end
 end
 
-class NotInTest2 < Test::Unit::TestCase
+class NotInTest2 < MiniTest::Unit::TestCase
   class SimpleNotIn
     include Bud
     state do
@@ -59,7 +59,7 @@ class NotInTest2 < Test::Unit::TestCase
   end
 end
 
-class BlocklessNotInTest < Test::Unit::TestCase
+class BlocklessNotInTest < MiniTest::Unit::TestCase
   class BlocklessNotIn
     include Bud
     state do
@@ -93,7 +93,7 @@ class BlocklessNotInTest < Test::Unit::TestCase
   end
 end
 
-class RecursiveNotInTest < Test::Unit::TestCase # issue 255
+class RecursiveNotInTest < MiniTest::Unit::TestCase # issue 255
   class RecNotIn
     include Bud
     state do

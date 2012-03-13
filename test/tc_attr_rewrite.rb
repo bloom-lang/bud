@@ -1,6 +1,6 @@
 require './test_common'
 
-class TestCols < Test::Unit::TestCase
+class TestCols < MiniTest::Unit::TestCase
   class SimpleCols
     include Bud
     state do
@@ -64,6 +64,6 @@ class TestCols < Test::Unit::TestCase
   end  
   
   def test_bad_nested_cols
-    assert_raise(Bud::CompileError) {BadNestedCols.new}
+    assert_raises(Bud::CompileError) {BadNestedCols.new}
   end
 end

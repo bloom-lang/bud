@@ -16,7 +16,7 @@ class SchemaFree
   end
 end
 
-class TestSFree < Test::Unit::TestCase
+class TestSFree < MiniTest::Unit::TestCase
   def test_bloom
     p = SchemaFree.new
     p.run_bg

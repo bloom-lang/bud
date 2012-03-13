@@ -274,7 +274,7 @@ class SchemaPreserveKeys
   end
 end
 
-class TestCollections < Test::Unit::TestCase
+class TestCollections < MiniTest::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
     program.tick
@@ -305,16 +305,16 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_dup_tables
-    assert_raise(Bud::CompileError) {program = DupTableBud.new}
+    assert_raises(Bud::CompileError) {program = DupTableBud.new}
   end
 
   def test_dup_columns
-    assert_raise(Bud::Error) {program = DupColBud.new}
+    assert_raises(Bud::Error) {program = DupColBud.new}
   end
 
   def test_dup_keys
     program = DupKeyBud.new
-    assert_raise(Bud::KeyConstraintError) { program.tick }
+    assert_raises(Bud::KeyConstraintError) { program.tick }
   end
 
   def test_grep
@@ -390,15 +390,15 @@ class TestCollections < Test::Unit::TestCase
     p1.tick
     assert_equal(1, p1.t1.first.key)
     p2 = NonEnumerable.new
-    assert_raise(Bud::TypeError) { p2.tick }
+    assert_raises(Bud::TypeError) { p2.tick }
     p3 = NonTuple.new
-    assert_raise(Bud::TypeError) { p3.tick }
+    assert_raises(Bud::TypeError) { p3.tick }
     p4 = NonTupleDelete.new
-    assert_raise(Bud::TypeError) { p4.tick }
+    assert_raises(Bud::TypeError) { p4.tick }
     p5 = StringMerge.new
-    assert_raise(Bud::TypeError) { p5.tick }
+    assert_raises(Bud::TypeError) { p5.tick }
     p6 = StringAsyncMerge.new
-    assert_raise(Bud::TypeError) { p6.tick }
+    assert_raises(Bud::TypeError) { p6.tick }
   end
 
   class BendTypesDelete
@@ -447,7 +447,7 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_dup_table_def
-    assert_raise(Bud::CompileError) { DupTableDef.new }
+    assert_raises(Bud::CompileError) { DupTableDef.new }
   end
 
   class DelBug
@@ -481,15 +481,15 @@ class TestCollections < Test::Unit::TestCase
   end
 
   def test_bad_declaration
-    assert_raise(Bud::CompileError) { BadDeclaration.new }
+    assert_raises(Bud::CompileError) { BadDeclaration.new }
   end
 
   def test_declaration_override_method
-    assert_raise(Bud::CompileError) { DeclarationOverrideMethod.new }
+    assert_raises(Bud::CompileError) { DeclarationOverrideMethod.new }
   end
 
   def test_loc_spec_non_channel
-    assert_raise(Bud::Error) { LocSpecNonChannel.new }
+    assert_raises(Bud::Error) { LocSpecNonChannel.new }
   end
 
   def test_empty_pk_error
@@ -499,7 +499,7 @@ class TestCollections < Test::Unit::TestCase
     e.t1 <+ [["xyz", 6]]
     e.tick
     e.t1 <+ [["xxx", 2]]
-    assert_raise(Bud::KeyConstraintError) { e.tick }
+    assert_raises(Bud::KeyConstraintError) { e.tick }
   end
 
   def test_empty_pk_has_key
@@ -514,13 +514,13 @@ class TestCollections < Test::Unit::TestCase
   def test_periodic_lhs_error
     b = InsertIntoPeriodicError.new
     b.run_bg
-    assert_raise(Bud::Error) {
+    assert_raises(Bud::Error) {
       b.sync_do { b.timer <+ [[5, 10]] }
     }
-    assert_raise(Bud::Error) {
+    assert_raises(Bud::Error) {
       b.sync_do { b.timer <= [[5, 10]] }
     }
-    assert_raise(Bud::Error) {
+    assert_raises(Bud::Error) {
       b.sync_do { b.timer <- [[5, 10]] }
     }
     b.stop
@@ -541,14 +541,14 @@ class TestCollections < Test::Unit::TestCase
 
   def test_simple_rename
     p = SimpleRename.new
-    assert_nothing_raised {p.tick}
+    p.tick
   end
 
   def test_schema_preserve_keys
     s = SchemaPreserveKeys.new
     assert_equal({[:a] => [:b]}, s.t2.schema)
     s.inputt <+ [[5, 10], [5, 11]]
-    assert_raise(Bud::KeyConstraintError) { s.tick }
+    assert_raises(Bud::KeyConstraintError) { s.tick }
   end
 
   class FunkyPayloads
@@ -573,7 +573,7 @@ class TestCollections < Test::Unit::TestCase
   end
 end
 
-class TestUpsert < Test::Unit::TestCase
+class TestUpsert < MiniTest::Unit::TestCase
   class UpsertTest
     include Bud
     state do
@@ -605,7 +605,7 @@ class TestUpsert < Test::Unit::TestCase
   end
 end
   
-class TestTransitivity < Test::Unit::TestCase
+class TestTransitivity < MiniTest::Unit::TestCase
   class TransitivityTest
     include Bud
     state do
@@ -631,7 +631,7 @@ class TestTransitivity < Test::Unit::TestCase
   end
 end
 
-class TestCollExpr < Test::Unit::TestCase
+class TestCollExpr < MiniTest::Unit::TestCase
   class CollExprTest
     include Bud
     state do 
@@ -650,7 +650,7 @@ class TestCollExpr < Test::Unit::TestCase
   end
 end
 
-class TestConstants < Test::Unit::TestCase
+class TestConstants < MiniTest::Unit::TestCase
   class StrOut
     include Bud
     state { table :his}

@@ -13,7 +13,7 @@ class TemporalBudTest
   end
 end
 
-class TestTimer < Test::Unit::TestCase
+class TestTimer < MiniTest::Unit::TestCase
   def test_timer
     b = TemporalBudTest.new
     q = Queue.new
@@ -62,7 +62,7 @@ class BudClockExample
   end
 end
 
-class TestBudClock < Test::Unit::TestCase
+class TestBudClock < MiniTest::Unit::TestCase
   def test_bud_clock
     b = BudClockExample.new
     b.run_bg
@@ -77,7 +77,7 @@ class TestBudClock < Test::Unit::TestCase
   def test_bud_clock_outside_tick
     b = BudClockExample.new
     b.run_bg
-    assert_raise(Bud::Error) do
+    assert_raises(Bud::Error) do
       b.sync_do {
         puts "Current Bud clock: #{b.bud_clock}"
       }

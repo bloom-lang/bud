@@ -232,7 +232,7 @@ class ChainAgg
   end
 end
 
-class TestAggs < Test::Unit::TestCase
+class TestAggs < MiniTest::Unit::TestCase
   def test_paths
     program = ShortestPaths.new
     program.tick
@@ -265,9 +265,9 @@ class TestAggs < Test::Unit::TestCase
   def test_non_exemplary
     program = ShortestPaths.new
     program.tick
-    assert_raise(Bud::Error) {p = program.path.argagg(:count, [program.path.from, program.path.to], nil)}
-    assert_raise(Bud::Error) {p = program.path.argagg(:sum, [program.path.from, program.path.to], program.path.cost)}
-    assert_raise(Bud::Error) {p = program.path.argagg(:avg, [program.path.from, program.path.to], program.path.cost)}
+    assert_raises(Bud::Error) {p = program.path.argagg(:count, [program.path.from, program.path.to], nil)}
+    assert_raises(Bud::Error) {p = program.path.argagg(:sum, [program.path.from, program.path.to], program.path.cost)}
+    assert_raises(Bud::Error) {p = program.path.argagg(:avg, [program.path.from, program.path.to], program.path.cost)}
   end
 
   def test_argaggs
@@ -428,5 +428,4 @@ class TestAggs < Test::Unit::TestCase
     assert_equal([1, "yes", 2], [vc[0], vc[1], vc[2]])
     assert_equal(["vote from agent 1", "vote from agent 2"], vc[3].sort)
   end
-
 end

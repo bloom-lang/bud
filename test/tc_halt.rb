@@ -18,11 +18,11 @@ class Halts
   end
 end
 
-class TestHalt < Test::Unit::TestCase
+class TestHalt < MiniTest::Unit::TestCase
   def test_halt
     program = Halts.new
     program.run_bg
-    assert_raise(Bud::ShutdownWithCallbacksError) {4.times{program.delta(:tbl)}}
+    assert_raises(Bud::ShutdownWithCallbacksError) {4.times{program.delta(:tbl)}}
   end
 
   def test_halt_fg

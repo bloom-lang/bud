@@ -59,7 +59,7 @@ def rm_bud_dir
   FileUtils.rm_r(DBM_BUD_DIR)
 end
 
-class TestDbm < Test::Unit::TestCase
+class TestDbm < MiniTest::Unit::TestCase
   def setup
     setup_bud
     @t = make_bud(true)
@@ -88,14 +88,14 @@ class TestDbm < Test::Unit::TestCase
   def test_key_conflict_delta
     @t.in_buf <= [['1', '2', '3', '4'],
                   ['1', '2', '3', '5']]
-    assert_raise(Bud::KeyConstraintError) {@t.tick}
+    assert_raises(Bud::KeyConstraintError) {@t.tick}
   end
 
   def test_key_conflict
     @t.in_buf <+ [['1', '2', '3', '4']]
     @t.tick
     @t.in_buf <+ [['1', '2', '3', '5']]
-    assert_raise(Bud::KeyConstraintError) {@t.tick}
+    assert_raises(Bud::KeyConstraintError) {@t.tick}
   end
 
   def test_key_merge
@@ -156,7 +156,7 @@ class TestDbm < Test::Unit::TestCase
   def test_pending_key_conflict
     @t.pending_buf <= [['1', '2', '3', '4']]
     @t.pending_buf2 <= [['1', '2', '3', '5']]
-    assert_raise(Bud::KeyConstraintError) {@t.tick}
+    assert_raises(Bud::KeyConstraintError) {@t.tick}
   end
 
   def test_basic_del
@@ -250,7 +250,7 @@ class DbmNest
   end
 end
 
-class TestNestedDbm < Test::Unit::TestCase
+class TestNestedDbm < MiniTest::Unit::TestCase
   def setup
     setup_bud
     @t = make_bud
@@ -294,7 +294,7 @@ class DbmBootstrap
   end
 end
 
-class TestDbmBootstrap < Test::Unit::TestCase
+class TestDbmBootstrap < MiniTest::Unit::TestCase
   def setup
     setup_bud
     @t = make_bud

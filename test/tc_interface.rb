@@ -37,7 +37,7 @@ class SimpleClient
   include SelectiveMembership
 end
 
-class InterfaceTest < Test::Unit::TestCase
+class InterfaceTest < MiniTest::Unit::TestCase
   def test_basic
     c = SimpleClient.new
     c.run_bg
