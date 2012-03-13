@@ -11,7 +11,7 @@ module Bud
     #     a. :ignore tells the caller to ignore this input
     #     b. :keep tells the caller to save this input
     #     c. :replace tells the caller to keep this input alone
-    #     d. [:delete, t1, t2, ...] tells the caller to delete the remaining tuples
+    #     d. :delete, [t1, t2, ...] tells the caller to delete the remaining tuples
     #  For things that do not descend from ArgExemplary, the 2nd part can simply be nil.
     def trans(the_state, val)
       return the_state, :ignore
@@ -88,41 +88,35 @@ module Bud
   def choose(x)
     [Choose.new, x]
   end
-  
-  class ChooseRand < ArgExemplary #:nodoc: all
-    @@reservoir_size = 1 # Vitter's reservoir sampling, k = 1
-    def init(x=nil)
-      the_state = {:cnt => 1, :vals => [x]}
+
+  class ChooseOneRand < ArgExemplary #:nodoc: all
+    def init(x=nil) # Vitter's reservoir sampling, sample size = 1
+      the_state = {:cnt => 1, :val => x}
     end
     
     def trans(the_state, val)
       the_state[:cnt] += 1
-      if the_state[:cnt] < @@reservoir_size
-        the_state[:vals] << val
-        return the_state, :keep
+      j = rand(the_state[:cnt])
+      if j < 1 # replace
+        old_val = the_state[:val]
+        the_state[:val] = val
+        return the_state, :replace
       else
-        j = rand(the_state[:cnt])
-        if j < @@reservoir_size
-          old_tup = the_state[:vals][j]
-          the_state[:vals][j] = val 
-          return the_state, [:delete, old_tup]
-        else
-          return the_state, :keep
-        end
+        return the_state, :ignore
       end
     end
     def tie(the_state, val)
       true
     end
     def final(the_state)
-      the_state[:vals][rand(the_state[@@reservoir_size])]
+      the_state[:val] # XXX rand(@@reservoir_size will always be 0, since @@reservoir_size is 1
     end
   end
 
   # exemplary aggregate method to be used in Bud::BudCollection.group.  
   # randomly chooses among x entries being aggregated.
   def choose_rand(x=nil)
-    [ChooseRand.new, x]
+    [ChooseOneRand.new, x]
   end
 
   class Sum < Agg #:nodoc: all

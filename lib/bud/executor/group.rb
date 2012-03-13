@@ -63,7 +63,7 @@ module Bud
     def insert(item, source)
       key = @keys.map{|k| item[k]}
       @aggpairs.each_with_index do |ap, agg_ix|
-        agg_input = item[ap[1]]
+                agg_input = item[ap[1]]
         if @groups[key].nil?
           agg = ap[0].send(:init, agg_input)
           @winners[key] = [item]
@@ -76,12 +76,13 @@ module Bud
           when :replace
             @winners[key] = [item]
           when :keep
-            @winners[key] << item 
-          else
-            raise "strange result from argagg finalizer" unless agg_result[1].class == Array and agg_result[1][0] == :delete
-            agg_result[1][1..-1].each do |t|
-              @winners[key].delete t unless @winners[key].nil?
+            @winners[key] << item
+          when :delete
+            agg_result[2..-1].each do |t|
+              @winners[key].delete t unless @winners[key].empty?
             end
+          else
+            raise "strange result from argagg finalizer"
           end
         end
         @groups[key] ||= Array.new(@aggpairs.length)

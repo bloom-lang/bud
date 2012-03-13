@@ -275,7 +275,8 @@ module Bud
       end
       mod_inst.periodics.each do |p|
         qname = (local_name.to_s + "." + p.pername.to_s)
-        @periodics << [qname.to_sym, p.ident, p.period]
+        p.pername = qname.to_sym
+        @periodics << [p.pername, p.period]
       end
     end
 
