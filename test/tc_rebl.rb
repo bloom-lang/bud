@@ -1,6 +1,6 @@
-require 'test_common'
-require 'stringio'
+require './test_common'
 require 'bud/rebl'
+require 'stringio'
 require 'timeout'
 
 def capture_stdout

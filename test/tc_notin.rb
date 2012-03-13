@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 
 class NotInTest < Test::Unit::TestCase
   class SillyAnti

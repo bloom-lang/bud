@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 require 'stringio'
 
 class MetricsTest

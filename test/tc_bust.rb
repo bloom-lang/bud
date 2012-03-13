@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 require 'bud/rebl'
 require 'bud/bust/client/restclient'
 require 'bud/bust/bust'

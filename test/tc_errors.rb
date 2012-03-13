@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 
 class TestErrorHandling < Test::Unit::TestCase
   class EmptyBud

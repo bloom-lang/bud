@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 
 # Check that maps over constant ranges aren't converted to semi-map
 class LeaveMapAlone

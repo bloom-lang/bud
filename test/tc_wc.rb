@@ -1,5 +1,4 @@
-# simple word count
-require 'test_common'
+require './test_common'
 
 class WordCount1
   include Bud
@@ -18,17 +17,15 @@ class WordCount1
 
   bloom do
     wc <= txt.flat_map do |t|
-            t.text.split.enum_for(:each_with_index).map {|w, i| [t.lineno, i, w]}
-          end.rename(:loo, [:lineno, :wordno, :word]).group([:word], count)
+      t.text.split.enum_for(:each_with_index).map {|w, i| [t.lineno, i, w]}
+    end.rename(:loo, [:lineno, :wordno, :word]).group([:word], count)
   end
 end
 
 class TestWC1 < Test::Unit::TestCase
   def test_wc1
-    @t = 0
-    @u = 0
     program = WordCount1.new(/[Bb]loom/)
-    assert_nothing_raised { @t = Time.now ; program.tick; @u = Time.now }
+    program.tick
     assert_equal(23, program.wc[["yes"]].cnt)
   end
 end
@@ -64,10 +61,8 @@ end
 
 class TestWC2 < Test::Unit::TestCase
   def test_wc2
-    @t = 0
-    @u = 0
     program = WordCount2.new(/[Bb]loom/)
-    assert_nothing_raised { @t = Time.now ; program.tick; @u = Time.now  }
+    program.tick
     assert_equal(23, program.wc[["yes"]].cnt)
   end
 end

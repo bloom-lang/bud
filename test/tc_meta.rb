@@ -1,4 +1,4 @@
-require 'test_common'
+require './test_common'
 require 'bud/graphs.rb'
 require 'bud/viz_util.rb'
 require 'bud/depanalysis'
