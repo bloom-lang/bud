@@ -12,8 +12,9 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
           :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
           :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
           :cols => 1,  :key_cols => 1, :val_cols => 1, :payloads => 1, :~ => 1,
-          :lambda => 1, :tabname => 1
-      }
+          :lambda => 1, :tabname => 1,
+          :ip_port => 1, :port => 1, :ip => 1
+    }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
     @nm = false
@@ -21,6 +22,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     @collect = false
     @rules = []
     @depends = []
+    @nm_funcs_called = false
     super()
   end
 
@@ -76,9 +78,15 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
         end
         # for CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
-        # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables
-        unless @monotonic_whitelist[op] or op_is_field_name or (recv and recv.first == :lvar) or op.to_s.start_with?("__")
-          @nm = true
+        if recv
+          # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables
+          unless @monotonic_whitelist[op] or op_is_field_name or recv.first == :lvar or op.to_s.start_with?("__")
+            @nm = true if recv
+          end
+        else
+          # function called (implicit receiver = Bud instance) in a user-defined code block. Check if it is
+          # non-monotonic (like budtime, that produces a new answer every time it is called)
+          @nm_funcs_called = true unless @monotonic_whitelist[op]
         end
       end
       if @temp_ops[op]
@@ -110,6 +118,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def reset_instance_vars
     @tables = {}
     @nm = false
+    @nm_funcs_called = false
     @temp_op = nil
   end
 
@@ -122,7 +131,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       op = op.to_s
     end
 
-    @rules << [@bud_instance, @rule_indx, lhs, op, rule_txt, rule_txt_orig]
+    @rules << [@bud_instance, @rule_indx, lhs, op, rule_txt, rule_txt_orig, @nm_funcs_called]
     @tables.each_pair do |t, non_monotonic|
       @depends << [@bud_instance, @rule_indx, lhs, op, t, non_monotonic]
     end

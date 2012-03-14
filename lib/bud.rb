@@ -254,7 +254,7 @@ module Bud
       mod_inst.t_rules.each do |imp_rule|
         qname = local_name.to_s + "." + imp_rule.lhs.to_s  #qualify name by prepending with local_name
         self.t_rules << [imp_rule.bud_obj, imp_rule.rule_id, qname, imp_rule.op,
-                     imp_rule.src, imp_rule.orig_src]
+                     imp_rule.src, imp_rule.orig_src, imp_rule.nm_funcs_called]
       end
       mod_inst.t_depends.each do |imp_dep|
         qlname = local_name.to_s + "." + imp_dep.lhs.to_s  #qualify names by prepending with local_name
@@ -396,7 +396,7 @@ module Bud
   # This scheme solves the following constraints.
   # 1. A full scan of an elements contents results in downstream elements getting full scans themselves (i.e no \
   #    deltas). This effect is transitive.
-  # 2. Invalidation of an element's cache results in rebuilding of the cache and a consequent fullscan
+  # 2. Invalidation of an element's cache results in rebuilding of the cache and a consequent fullscan. See next.
   # 3. Invalidation of an element requires upstream elements to rescan their contents, or to transitively pass the
   #    request on further upstream. Any element that has a cache can rescan without passing on the request to higher
   #    levels.
@@ -431,21 +431,33 @@ module Bud
     end
 
 
-    # Any table that occurs on the lhs of rule is not considered a source (by default it is).
-    # In addition, we only consider non-temporal rules because invalidation is only about this tick.
-    t_rules.each {|rule| @tables[rule.lhs.to_sym].is_source = false if rule.op == "<="}
+    # By default, all tables are considered sources, unless they appear on the lhs.
+    # We only consider non-temporal rules because invalidation is only about this tick.
+    # Also, we track (in nm_targets) those tables that are the targets of user-defined code blocks
+    # that call non-monotonic functions (such as budtime). Elements that feed these tables are
+    # forced to rescan their contents, and thus forced to re-execute these code blocks.
+    nm_targets = Set.new
+    t_rules.each {|rule|
+      lhs = rule.lhs.to_sym
+       @tables[lhs].is_source = false if rule.op == "<="
+       nm_targets << lhs if rule.nm_funcs_called
+    }
 
     invalidate = Set.new
     rescan = Set.new
     # Compute a set of tables and elements that should be explicitly told to invalidate or rescan.
     # Start with a set of tables that always invalidate, and elements that always rescan
     @app_tables.each {|t| invalidate << t if t.invalidate_at_tick}
+
     num_strata.times do |stratum|
       @push_sorted_elems[stratum].each do |elem|
-        rescan << elem if elem.rescan_at_tick
+        if elem.rescan_at_tick or elem.outputs.any?{|tab| tab.class <= BudScratch and nm_targets.member? tab.qualified_tabname.to_sym }
+          rescan << elem
+        end
       end
       rescan_invalidate_tc(stratum, rescan, invalidate)
     end
+
     prune_rescan_invalidate(rescan, invalidate)
     # transitive closure
     @default_rescan = rescan.to_a
@@ -1033,7 +1045,7 @@ module Bud
     @periodics = table :periodics_tbl, [:pername] => [:period]
 
     # for BUD reflection
-    table :t_rules, [:bud_obj, :rule_id] => [:lhs, :op, :src, :orig_src]
+    table :t_rules, [:bud_obj, :rule_id] => [:lhs, :op, :src, :orig_src, :nm_funcs_called]
     table :t_depends, [:bud_obj, :rule_id, :lhs, :op, :body] => [:nm]
     table :t_provides, [:interface] => [:input]
     table :t_underspecified, t_provides.schema
@@ -1075,7 +1087,6 @@ module Bud
     # This routine evals the rules in a given stratum, which results in a wiring of PushElements
     @this_stratum = strat_num  
     rules.each_with_index do |rule, i|
-      @this_rule = i
       @this_rule_context = rule.bud_obj # user-supplied code blocks will be evaluated in this context at run-time
       begin
         eval_rule(rule.bud_obj, rule.src)
