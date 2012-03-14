@@ -227,4 +227,25 @@ class PushTests < MiniTest::Unit::TestCase
     p.tick
     assert_equal([['inc','inc']], p.t_out1.to_a)
   end
+
+  class BudtimeRecompute
+    include Bud
+    state do
+      table :t1, [:x]
+      table :t2, [:tstamp, :x]
+    end
+    bloom do
+      t2 <= t1 {|t| [budtime, t.x]}
+    end
+  end
+
+  def test_budtime
+    b = BudtimeRecompute.new
+    b.t1 <+ [["foo"]]
+    b.tick
+    assert_equal(1, b.t2.to_a.length)
+    b.t1 <+ [["bar"]]
+    b.tick
+    assert_equal(3, b.t2.to_a.length)
+  end
 end

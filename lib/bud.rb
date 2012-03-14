@@ -451,8 +451,11 @@ module Bud
 
     num_strata.times do |stratum|
       @push_sorted_elems[stratum].each do |elem|
-        if elem.rescan_at_tick or elem.outputs.any?{|tab| tab.class <= BudScratch and nm_targets.member? tab.qualified_tabname.to_sym }
+        if elem.rescan_at_tick
           rescan << elem
+        end
+        if elem.outputs.any?{|tab| not(tab.class <= PushElement) and nm_targets.member? tab.qualified_tabname.to_sym }
+          elem.wired_by.map {|e| rescan << e}
         end
       end
       rescan_invalidate_tc(stratum, rescan, invalidate)
