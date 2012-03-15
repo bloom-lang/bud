@@ -244,8 +244,10 @@ class PushTests < MiniTest::Unit::TestCase
     b.t1 <+ [["foo"]]
     b.tick
     assert_equal(1, b.t2.to_a.length)
+    b.tick
+    assert_equal(2, b.t2.to_a.length)
     b.t1 <+ [["bar"]]
     b.tick
-    assert_equal(3, b.t2.to_a.length)
+    assert_equal(4, b.t2.to_a.length)
   end
 end
