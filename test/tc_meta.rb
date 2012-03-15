@@ -163,8 +163,6 @@ class TestMeta < MiniTest::Unit::TestCase
       elsif dep.lhs == "link3" and dep.body == "link3"
         assert(dep.nm, "NM rule")
         tally += 1
-      elsif dep.body == "count"
-        # weird: count is now getting parsed as a table
       else
         assert(!dep.nm, "Monotonic rule marked NM: #{dep.inspect}")
       end
@@ -190,7 +188,8 @@ class TestMeta < MiniTest::Unit::TestCase
     program.run_bg
     program.sync_do
 
-    write_graphs({}, program.builtin_tables, program.t_cycle, program.t_depends, program.t_rules, "#{dir}/test_viz", dir, :dot, false, nil, 1, {})
+    write_graphs({}, program.builtin_tables, program.t_cycle, program.t_depends,
+                 program.t_rules, "#{dir}/test_viz", dir, :dot, false, nil, 1, {})
     program.stop
   end
 
