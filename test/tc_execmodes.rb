@@ -101,18 +101,31 @@ class CallbackTest < MiniTest::Unit::TestCase
     kill_child_with_signal(Hooverous, "TERM")
   end
 
+  class AckOnBoot
+    include Bud
+
+    bootstrap do
+      @ack_io.puts ip_port
+      @ack_io.puts "ready"
+    end
+  end
+
   def kill_child_with_signal(parent_class, signal)
+    read, write = IO.pipe
     parent = parent_class.new
     parent.run_bg
     pid = Bud.do_fork do
-      p = Vacuous.new
+      p = AckOnBoot.new
+      p.instance_variable_set('@ack_io', write)
       p.run_fg
     end
-    sleep 1
+    _ = read.readline
+    _ = read.readline
     Process.kill(signal, pid)
     _, status = Process.waitpid2(pid)
     assert_equal(0, status)
     parent.stop
+    read.close ; write.close
   end
 
   def test_fg_bg_mix
@@ -131,12 +144,8 @@ class CallbackTest < MiniTest::Unit::TestCase
     assert_equal(1, cnt)
   end
 
-  class AckOnBoot
-    include Bud
-
+  class AckOnBootWithShutdown < AckOnBoot
     bootstrap do
-      @ack_io.puts ip_port
-      @ack_io.puts "ready"
       on_shutdown do
         @ack_io.puts "done"
       end
@@ -149,7 +158,7 @@ class CallbackTest < MiniTest::Unit::TestCase
     child_pid = Bud.do_fork do
       out_buf = StringIO.new
       $stdout = out_buf
-      x = AckOnBoot.new
+      x = AckOnBootWithShutdown.new
       x.instance_variable_set('@ack_io', write)
       x.run_fg
     end
