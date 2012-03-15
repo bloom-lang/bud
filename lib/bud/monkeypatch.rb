@@ -169,7 +169,7 @@ class Module
     ast = s(:block, ast) unless ast.sexp_type == :block
     ast = s(:defn, meth_name.to_sym, s(:args), s(:scope, ast))
     unless self.respond_to? :__bloom_asts__
-      def self.__bloom_asts__;
+      def self.__bloom_asts__
         @__bloom_asts__ ||= {}
         @__bloom_asts__
       end
