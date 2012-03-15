@@ -646,3 +646,35 @@ class TestIncludeImport < MiniTest::Unit::TestCase
     assert_equal([[5], [10], [25]], b.t_copy.to_a.sort)
   end
 end
+
+# Check that empty named Bloom blocks are not considered no-ops for method
+# overriding purposes.
+class ParentBlockC
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+  end
+
+  bootstrap do
+    t2 <= [[10, 20]]
+  end
+
+  bloom :foo do
+    t1 <= t2
+  end
+end
+
+class ChildBlockC < ParentBlockC
+  bloom :foo do
+  end
+end
+
+class TestIncludeOverride < MiniTest::Unit::TestCase
+  def test_override_empty
+    b = ChildBlockC.new
+    b.tick
+    assert_equal([], b.t1.to_a)
+  end
+end

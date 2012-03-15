@@ -1,4 +1,5 @@
 require './test_common'
+require 'tempfile'
 
 class TestErrorHandling < MiniTest::Unit::TestCase
   class EmptyBud
@@ -154,8 +155,11 @@ class TestErrorHandling < MiniTest::Unit::TestCase
   end
 
   def test_dup_blocks
-    defn = "class DupBlocks\ninclude Bud\nbloom :foo do\nend\nbloom :foo do\nend\nend\n"
-    assert_raises(Bud::CompileError) {eval(defn)}
+    src = "class DupBlocks\ninclude Bud\nbloom :foo do\nend\nbloom :foo do\nend\nend\n"
+    f = Tempfile.new("dup_blocks.rb")
+    f.write(src)
+    f.close
+    assert_raises(Bud::CompileError) { load f.path }
   end
 
   class EvalError

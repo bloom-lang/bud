@@ -157,25 +157,25 @@ class Module
 
     # Don't allow duplicate named bloom blocks to be defined within a single
     # module; this indicates a likely programmer error.
-    if instance_methods(false).include? meth_name
+    if instance_methods(false).include?(meth_name) ||
+       instance_methods(false).include?(meth_name.to_sym)
       raise Bud::CompileError, "duplicate named bloom block: '#{block_name}' in #{self}"
     end
     ast = Source.read_block(caller[0]) # pass in caller's location via backtrace
     # ast corresponds only to the statements of the block. Wrap it in a method
     # definition for backward compatibility for now.
     # First wrap ast in a block if it is only a single statement
-    unless ast.nil?
-      ast = s(:block, ast) unless ast.sexp_type == :block
-      ast = s(:defn, meth_name.to_sym, s(:args), s(:scope, ast))
-      unless self.respond_to? :__bloom_asts__
-        def self.__bloom_asts__;
-          @__bloom_asts__ ||= {}
-          @__bloom_asts__
-        end
+    ast = s(:block) if ast.nil?
+    ast = s(:block, ast) unless ast.sexp_type == :block
+    ast = s(:defn, meth_name.to_sym, s(:args), s(:scope, ast))
+    unless self.respond_to? :__bloom_asts__
+      def self.__bloom_asts__;
+        @__bloom_asts__ ||= {}
+        @__bloom_asts__
       end
-      __bloom_asts__[meth_name] = ast
-      define_method(meth_name.to_sym, &block)
     end
+    __bloom_asts__[meth_name] = ast
+    define_method(meth_name.to_sym, &block)
   end
 
   private

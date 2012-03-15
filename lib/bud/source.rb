@@ -5,13 +5,13 @@ require 'bud/errors'
 module Source
   $cached_file_info = Struct.new(:curr_file, :lines, :last_state_bloom_line).new
 
-  #Reads the block corresponding to the location (string of the form "file:line_num").
-  #Returns an ast for the block
+  # Reads the block corresponding to the location (string of the form
+  # "file:line_num").  Returns an ast for the block.
   def Source.read_block(location)
-    raise Bud::CompileError, "Source must be present in a file; cannot read interactive shell or eval block" if location.start_with? '('
+    raise Bud::IllegalSourceError, "Source must be present in a file; cannot read interactive shell or eval block" if location.start_with? '('
     location =~ /^(.*):(\d+)/
     filename, num = $1, $2.to_i
-    raise Bud::Error, "Couldn't determine filename from backtrace" if filename.nil?
+    raise Bud::IllegalSourceError, "Couldn't determine filename from backtrace" if filename.nil?
     lines = cache(filename, num)
     # Note: num is 1-based.
 
@@ -59,7 +59,7 @@ module Source
       }
       $cached_file_info.lines = retval
     end
-    retval # array of lines.
+    retval # array of lines
   end
 
   # Tok is string tokenizer that extracts a substring matching the
