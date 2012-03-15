@@ -85,7 +85,7 @@ module Bud
       each_from([@delta], &block)
       each_storage(&block)
     end
-    
+
     def each_raw(&block)
       each_storage(&block)
     end
@@ -151,7 +151,7 @@ module Bud
       end
       return !(@delta.empty?)
     end
-    
+
     public
     def flush_deltas
       unless @delta.empty?
@@ -164,7 +164,7 @@ module Bud
     end
 
     # This is verbatim from BudTable.  Need to DRY up.  Should we be a subclass of BudTable?
-    public 
+    public
     def pending_delete(o)
       if o.class <= Bud::PushElement
          o.wire_to_delete self
@@ -177,8 +177,8 @@ module Bud
     superator "<-" do |o|
       pending_delete(o)
     end
-    
-    
+
+
     def insert(tuple)
       key = get_key_vals(tuple)
       merge_tuple_to_db(key, tuple)

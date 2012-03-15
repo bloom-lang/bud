@@ -181,7 +181,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       if exp[1][1] and exp[1][1][1] and exp[1][1][1][2] == :map
         exp[1][1][1][2] = :pro
       end
-    end  
+    end
     exp
   end
 

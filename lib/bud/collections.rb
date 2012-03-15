@@ -241,8 +241,8 @@ module Bud
       toplevel = @bud_instance.toplevel
       elem = Bud::PushElement.new(tabname, toplevel.this_rule_context, tabname)
       pusher.wire_to(elem)
-      f = Proc.new do |t| 
-        t.each do |i| 
+      f = Proc.new do |t|
+        t.each do |i|
           elem.push_out(i,false)
         end
         nil
@@ -252,7 +252,7 @@ module Bud
       return elem
     end
 
-    public 
+    public
     def sort(&blk)
       pusher = self.pro
       pusher.sort(@name, @bud_instance, @cols, &blk)
@@ -778,14 +778,14 @@ module Bud
       elem1 = to_push_elem
       red_elem = elem1.reduce(initial, &blk)
       return red_elem
-    end    
+    end
 
     public
     def pretty_print_instance_variables
       # list of attributes (in order) to print when pretty_print is called.
       important = ["@tabname", "@storage", "@delta", "@new_delta", "@pending"]
       # everything except bud_instance
-      important + (self.instance_variables - important - ["@bud_instance"]) 
+      important + (self.instance_variables - important - ["@bud_instance"])
     end
 
     public
@@ -1226,8 +1226,8 @@ module Bud
     superator "<+-" do |o|
       pending_delete_keys(o)
       self <+ o
-    end    
-    public 
+    end
+    public
     superator "<-+" do |o|
       self <+- o
     end

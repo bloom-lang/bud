@@ -1,5 +1,6 @@
-require "set"
+require 'set'
 require 'bud/collections'
+
 ELEMENT_BUFSIZE = 1
 
 module Bud
@@ -15,7 +16,7 @@ module Bud
     attr_accessor :elem_name
     attr_accessor :rescan, :invalidated
     attr_reader :arity, :inputs, :found_delta, :refcount, :wired_by, :outputs
-    
+
     def initialize(name_in, bud_instance, collection_name=nil, given_schema=nil, defer_schema=false, &blk)
       super(name_in, bud_instance, given_schema, defer_schema)
       @blk = blk
@@ -54,11 +55,11 @@ module Bud
           next_accum = "+> "
         when @deletes.object_id, @delete_keys.object_id
           next_accum = "-> "
-        end  
-        
+        end
+
         kind.each do |o|
-          if o.respond_to?(:print_wiring) 
-            o.print_wiring(depth+1, next_accum) 
+          if o.respond_to?(:print_wiring)
+            o.print_wiring(depth+1, next_accum)
           else
             (depth+1).times {print "  "}
             print "#{next_accum} "
@@ -77,13 +78,13 @@ module Bud
         raise "no output specified for PushElement #{@qualified_tabname}"
       end
     end
-      
+
     def set_block(&blk)
       @blk = blk
     end
     def wire_to(element)
       unless element.methods.include? :insert or element.methods.include? "insert"
-        raise Bud::Error, "attempt to wire_to element without insert method" 
+        raise Bud::Error, "attempt to wire_to element without insert method"
       end
       # elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
       # puts "wiring #{self.elem_name} to #{elem_name}"
@@ -211,7 +212,7 @@ module Bud
     #  setup_accessors
     #end
 
-    
+
     ####
     # and now, the Bloom-facing methods
     public
@@ -224,9 +225,9 @@ module Bud
       toplevel.push_elems[[self.object_id,:pro,blk]] = elem
       return elem
     end
-    
+
     alias each pro
-    
+
     public
     def each_with_index(the_name = elem_name, the_schema = schema, &blk)
       toplevel = @bud_instance.toplevel
@@ -235,7 +236,7 @@ module Bud
       self.wire_to(elem)
       toplevel.push_elems[[self.object_id,:each,blk]] = elem
     end
-    
+
     def join(elem2, &blk)
       # cached = @bud_instance.push_elems[[self.object_id,:join,[self,elem2], @bud_instance, blk]]
       # if cached.nil?
@@ -293,13 +294,13 @@ module Bud
       aggcols = []
       aggcolsdups.each_with_index do |n, i|
         aggcols << "#{n.downcase}_#{i}".to_sym
-      end      
+      end
       if aggcols.empty?
         the_schema = keynames
       else
         the_schema = { keynames => aggcols }
       end
-      
+
       aggpairs = aggpairs.map{|ap| ap[1].nil? ? [ap[0]] : [ap[0], canonicalize_col(ap[1])]}
       toplevel = @bud_instance.toplevel
       # if @bud_instance.push_elems[[self.object_id, :group, keycols, aggpairs, blk]].nil?
@@ -368,14 +369,14 @@ module Bud
     def one?(name=nil, bud_instance=nil, the_schema=nil, &blk)
       push_predicate(:one?, name, bud_instance, the_schema, &blk)
     end
-    
+
     def reduce(initial, &blk)
       @memo = initial
       retval = Bud::PushReduce.new('reduce'+Time.new.tv_usec.to_s, @bud_instance, @collection_name, schema, initial, &blk)
       self.wire_to(retval)
       retval
     end
-    
+
     alias on_exists? pro
     def on_include?(item, &blk)
       toplevel = @bud_instance.toplevel
@@ -395,14 +396,14 @@ module Bud
       end
       toplevel.push_elems[[self.object_id,:inspected]]
     end
-    
+
     def to_enum
         # scr = @bud_instance.scratch(("scratch_" + Process.pid.to_s + "_" + object_id.to_s + "_" + rand(10000).to_s).to_sym, schema)
         scr = []
         self.wire_to(scr)
         scr
     end
-  end  
+  end
 
   class PushStatefulElement < PushElement
 
@@ -435,7 +436,7 @@ module Bud
       @in_buf = []
       super(elem_name, bud_instance, collection_name, schema_in, &blk)
     end
-  
+
     def insert(item, source)
       @in_buf << item
     end
@@ -450,13 +451,13 @@ module Bud
       @in_buf.clear
     end
   end
-  
+
   class PushSort < PushStatefulElement
     def initialize(elem_name=nil, bud_instance=nil, collection_name=nil, schema_in=nil, &blk)
       @sortbuf = []
       super(elem_name, bud_instance, collection_name, schema_in, &blk)
     end
-  
+
     def insert(item, source)
       @sortbuf << item
     end
@@ -476,7 +477,7 @@ module Bud
       @sortbuf = []
     end
   end
-  
+
   class ScannerElement < PushElement
     attr_reader :collection
     attr_reader :rescan_set, :invalidate_set

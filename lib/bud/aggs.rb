@@ -4,7 +4,7 @@ module Bud
     def init(val)
       val
     end
-    
+
     # In order to support argagg, trans must return a pair:
     #  1. the running aggregate state
     #  2. a flag to indicate what the caller should do with the input tuple for argaggs
@@ -40,16 +40,16 @@ module Bud
 
   class Min < ArgExemplary #:nodoc: all
     def trans(the_state, val)
-      if the_state < val 
+      if the_state < val
         return the_state, :ignore
       elsif the_state == val
         return the_state, :keep
-      else 
+      else
         return val, :replace
       end
     end
   end
-  # exemplary aggregate method to be used in Bud::BudCollection.group.  
+  # exemplary aggregate method to be used in Bud::BudCollection.group.
   # computes minimum of x entries aggregated.
   def min(x)
     [Min.new, x]
@@ -64,7 +64,7 @@ module Bud
       end
     end
   end
-  # exemplary aggregate method to be used in Bud::BudCollection.group.  
+  # exemplary aggregate method to be used in Bud::BudCollection.group.
   # computes maximum of x entries aggregated.
   def max(x)
     [Max.new, x]
@@ -83,7 +83,7 @@ module Bud
     end
   end
 
-  # exemplary aggregate method to be used in Bud::BudCollection.group.  
+  # exemplary aggregate method to be used in Bud::BudCollection.group.
   # arbitrarily but deterministically chooses among x entries being aggregated.
   def choose(x)
     [Choose.new, x]
@@ -93,7 +93,7 @@ module Bud
     def init(x=nil) # Vitter's reservoir sampling, sample size = 1
       the_state = {:cnt => 1, :val => x}
     end
-    
+
     def trans(the_state, val)
       the_state[:cnt] += 1
       j = rand(the_state[:cnt])
@@ -113,7 +113,7 @@ module Bud
     end
   end
 
-  # exemplary aggregate method to be used in Bud::BudCollection.group.  
+  # exemplary aggregate method to be used in Bud::BudCollection.group.
   # randomly chooses among x entries being aggregated.
   def choose_rand(x=nil)
     [ChooseOneRand.new, x]
@@ -124,8 +124,8 @@ module Bud
       return the_state + val, nil
     end
   end
-  
-  # aggregate method to be used in Bud::BudCollection.group.  
+
+  # aggregate method to be used in Bud::BudCollection.group.
   # computes sum of x entries aggregated.
   def sum(x)
     [Sum.new, x]
@@ -139,8 +139,8 @@ module Bud
       return the_state + 1, nil
     end
   end
-  
-  # aggregate method to be used in Bud::BudCollection.group.  
+
+  # aggregate method to be used in Bud::BudCollection.group.
   # counts number of entries aggregated.  argument is ignored.
   def count(x=nil)
     [Count.new]
@@ -159,8 +159,8 @@ module Bud
       the_state[0]*1.0 / the_state[1]
     end
   end
-  
-  # aggregate method to be used in Bud::BudCollection.group.  
+
+  # aggregate method to be used in Bud::BudCollection.group.
   # computes average of a multiset of x values
   def avg(x)
     [Avg.new, x]
@@ -175,8 +175,8 @@ module Bud
       return the_state, nil
     end
   end
-  
-  # aggregate method to be used in Bud::BudCollection.group.  
+
+  # aggregate method to be used in Bud::BudCollection.group.
   # accumulates all x inputs into an array. note that the order of the elements
   # in the resulting array is undefined.
   def accum(x)

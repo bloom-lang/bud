@@ -36,7 +36,6 @@ module Bud
         @selfjoins << name if cnt == 2
       end
 
-
       # recurse to form a tree of binary BudJoins
       @rels = [rellist[0]]
       @rels << (rellist.length == 2 ? rellist[1] : BudJoin.new(rellist[1..rellist.length-1], @bud_instance))
@@ -242,7 +241,7 @@ module Bud
       setup_state if self.class <= Bud::BudJoin
       if blk.nil?
         if preds == [] # mismatched schemas -- no matches to be excluded
-          @exclude = [] 
+          @exclude = []
         else
           # exclude those tuples of r that have a match
           @exclude = map { |r, s| r }

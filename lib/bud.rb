@@ -106,7 +106,7 @@ module Bud
   #   * <tt>:dbm_truncate</tt> if true, DBM-backed collections are opened with +OTRUNC+
   def initialize(options={})
     # capture the binding for a subsequent 'eval'. This ensures that local
-    # variable names introduced later in this method don't interfere with 
+    # variable names introduced later in this method don't interfere with
     # table names used in the eval block.
     options[:dump_rewrite] ||= ENV["BUD_DUMP_REWRITE"].to_i > 0
     options[:dump_ast]     ||= ENV["BUD_DUMP_AST"].to_i > 0
@@ -383,7 +383,7 @@ module Bud
 
     @done_wiring = true
     if @options[:print_wiring]
-      @push_sources.each do |strat| 
+      @push_sources.each do |strat|
         strat.each_value{|src| src.print_wiring}
       end
     end
@@ -937,7 +937,7 @@ module Bud
         @metrics[:betweentickstats] = running_stats(@metrics[:betweentickstats], starttime - @endtime)
       end
       @inside_tick = true
-      
+
       unless @done_bootstrap
         do_bootstrap
         do_wiring
@@ -986,7 +986,7 @@ module Bud
           # check to see if any joins saw a delta
           push_joins[stratum].each do |p|
             if p.found_delta==true
-              fixpoint = false 
+              fixpoint = false
               p.tick_deltas
             end
           end
@@ -1088,7 +1088,7 @@ module Bud
 
   def eval_rules(rules, strat_num)
     # This routine evals the rules in a given stratum, which results in a wiring of PushElements
-    @this_stratum = strat_num  
+    @this_stratum = strat_num
     rules.each_with_index do |rule, i|
       @this_rule_context = rule.bud_obj # user-supplied code blocks will be evaluated in this context at run-time
       begin

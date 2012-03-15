@@ -41,13 +41,13 @@ module Bud
     @tables[name] = Bud::BudTable.new(name, self, schema)
   end
 
-  # declare a collection-generating expression.  default schema <tt>[:key] => [:val]</tt>. 
+  # declare a collection-generating expression.  default schema <tt>[:key] => [:val]</tt>.
   def coll_expr(name, expr, schema=nil)
     define_collection(name)
     @tables[name] = Bud::BudCollExpr.new(name, self, expr, schema)
   end
-  
-  # declare a syncronously-flushed persistent collection.  default schema <tt>[:key] => [:val]</tt>. 
+
+  # declare a syncronously-flushed persistent collection.  default schema <tt>[:key] => [:val]</tt>.
   def sync(name, storage, schema=nil)
     define_collection(name)
     case storage
@@ -104,7 +104,7 @@ module Bud
     @tables[name] = Bud::BudChannel.new(name, self, schema, loopback)
     @channels[name] = @tables[name]
   end
-  
+
   # declare a transient network collection that delivers facts back to the
   # current Bud instance. This is syntax sugar for a channel that always
   # delivers to the IP/port of the current Bud instance. Default schema

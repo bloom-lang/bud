@@ -37,7 +37,6 @@ class BudMeta #:nodoc: all
       # Cleanup
       stratified_rules = stratified_rules.reject{|r| r.empty?}
       dump_rewrite(stratified_rules) if @bud_instance.options[:dump_rewrite]
-
     end
     return stratified_rules
   end
@@ -140,7 +139,7 @@ class BudMeta #:nodoc: all
       end
 
       next if i == 1 and n.sexp_type == :nil # a block got rewritten to an empty block
-        
+
       # Check for a common case
       if n.sexp_type == :lasgn
         return [n, "illegal operator: '='"]
@@ -192,7 +191,7 @@ class BudMeta #:nodoc: all
       lhs = (nodes[d.lhs.to_s] ||= Node.new(d.lhs.to_s, :init, 0, [], true, false, false, false))
       lhs.in_lhs = true
       body = (nodes[d.body.to_s] ||= Node.new(d.body.to_s, :init, 0, [], false, true, false, false))
-      temporal = d.op != "<=" 
+      temporal = d.op != "<="
       lhs.edges << Edge.new(body, d.op, d.nm, temporal)
       body.in_body = true
     end
@@ -200,7 +199,7 @@ class BudMeta #:nodoc: all
     nodes.values.each {|n| calc_stratum(n, false, false, [n.name])}
     # Normalize stratum numbers because they may not be 0-based or consecutive
     remap = {}
-    # if the nodes stratum numbers are [2, 3, 2, 4], remap = {2 => 0, 3 => 1, 4 => 2} 
+    # if the nodes stratum numbers are [2, 3, 2, 4], remap = {2 => 0, 3 => 1, 4 => 2}
     nodes.values.map {|n| n.stratum}.uniq.sort.each_with_index{|num, i|
       remap[num] = i
     }
@@ -240,7 +239,7 @@ class BudMeta #:nodoc: all
 
   def analyze_dependencies(nodes)  # nodes = {node name => node}
     bud = @bud_instance
-                                                      
+
     preds_in_lhs = nodes.inject(Set.new) {|preds, name_n| preds.add(name_n[0]) if name_n[1].in_lhs; preds}
     preds_in_body = nodes.inject(Set.new) {|preds, name_n| preds.add(name_n[0]) if name_n[1].in_body; preds}
 
@@ -287,8 +286,8 @@ class BudMeta #:nodoc: all
     fout.puts "Declarations:"
 
     strata.each_with_index do |rules, i|
-      fout.print "=================================\n"
-      fout.print "Stratum #{i}\n"
+      fout.puts "================================="
+      fout.puts "Stratum #{i}"
       rules.each do |r|
         fout.puts "#{r.bud_obj.class}##{r.bud_obj.object_id} #{r.rule_id}"
         fout.puts "\tsrc:      #{r.src}"

@@ -5,7 +5,7 @@ module Bud
     def initialize(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
       @groups = {}
       if keys_in.nil?
-        @keys = [] 
+        @keys = []
       else
         @keys = keys_in.map{|k| k[1]}
       end
@@ -13,9 +13,9 @@ module Bud
       @aggpairs = aggpairs_in.map{|ap| ap[1].nil? ? [ap[0]] : [ap[0], ap[1][1]]}
       super(elem_name, bud_instance, collection_name, schema_in, &blk)
     end
-  
+
     def insert(item, source)
-      key = @keys.map{|k| item[k]}   
+      key = @keys.map{|k| item[k]}
       @aggpairs.each_with_index do |ap, agg_ix|
         agg_input = ap[1].nil? ? item : item[ap[1]]
         agg = (@groups[key].nil? or @groups[key][agg_ix].nil?) ? ap[0].send(:init, agg_input) : ap[0].send(:trans, @groups[key][agg_ix], agg_input)[0]
@@ -43,7 +43,7 @@ module Bud
       #@groups = {}
     end
   end
-  
+
   class PushArgAgg < PushGroup
     def initialize(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
       raise "Multiple aggpairs #{aggpairs_in.map{|a| a.class.name}} in ArgAgg; only one allowed" if aggpairs_in.length > 1
@@ -88,7 +88,7 @@ module Bud
         @groups[key] ||= Array.new(@aggpairs.length)
         @groups[key][agg_ix] = agg
         #push_out(nil)
-      end      
+      end
     end
 
     def flush
