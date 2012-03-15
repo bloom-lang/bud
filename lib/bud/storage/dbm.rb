@@ -70,7 +70,6 @@ module Bud
     end
 
     def make_tuple(k_ary, v_ary)
-      #t = Array.new(k_ary.length + v_ary.length)
       t = @struct.new
       @key_colnums.each_with_index do |k,i|
         t[k] = k_ary[i]
@@ -168,16 +167,15 @@ module Bud
     def pending_delete(o)
       if o.class <= Bud::PushElement
          o.wire_to_delete self
-       elsif o.class <= Bud::BudCollection
-         o.pro.wire_to_delete self
-       else
-         @to_delete = @to_delete + o.map{|t| prep_tuple(t) unless t.nil?}
-       end
+      elsif o.class <= Bud::BudCollection
+        o.pro.wire_to_delete self
+      else
+        @to_delete = @to_delete + o.map{|t| prep_tuple(t) unless t.nil?}
+      end
     end
     superator "<-" do |o|
       pending_delete(o)
     end
-
 
     def insert(tuple)
       key = get_key_vals(tuple)
