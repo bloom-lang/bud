@@ -160,11 +160,13 @@ class CallbackTest < MiniTest::Unit::TestCase
     assert_equal("ready", result)
 
     # Shoot garbage at the Bud instance in the child process, which should cause
-    # it to shutdown
-    socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
-    socket.send_datagram(1234, child_ip, child_port)
+    # it to shutdown. We might need to start EM if it isn't running.
+    EventMachine::run_block {
+      socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
+      socket.send_datagram(1234, child_ip, child_port)
+    }
 
-    Timeout::timeout(15) do
+    Timeout::timeout(5) do
       result = read.readline.rstrip
       assert_equal("done", result)
     end
