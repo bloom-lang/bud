@@ -183,8 +183,7 @@ class TestMeta < MiniTest::Unit::TestCase
   end
 
   def test_visualization
-    program = KTest2.new(:trace => true, :dump_rewrite => true, :port => 54321)
-    File.delete("KTest2_rewritten.txt")
+    program = KTest2.new(:trace => true, :port => 24321, :quiet => true)
     `rm -r DBM_KTest2*`
     dir = scratch_dir
 
