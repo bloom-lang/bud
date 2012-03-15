@@ -98,7 +98,7 @@ class Module
 
     mod, local_name = spec.first
 
-    if self.instance_methods.include? local_name.to_s or self.instance_methods.include? local_name
+    if self.method_defined? local_name
       raise Bud::CompileError, "#{local_name} is already taken."
     else
       src = %Q{

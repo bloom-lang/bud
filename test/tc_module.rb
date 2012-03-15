@@ -430,6 +430,18 @@ class TestModules < MiniTest::Unit::TestCase
     c.stop
   end
 
+  def test_import_shadow_method
+    assert_raises(Bud::CompileError) do
+      eval %{
+        class ImportShadowMethod
+          include Bud
+          def foo; end
+          import ModuleC1 => :foo
+        end
+      }
+    end
+  end
+
   def test_module_temp_collection
     c = TempModUser.new
     c.tick

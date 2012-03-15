@@ -27,7 +27,7 @@ class TestErrorHandling < MiniTest::Unit::TestCase
     end
 
     bloom do
-      t1 < t1.map {|t| [t.key + 1, t.val + 1]}
+      t1 < t1 {|t| [t.key + 1, t.val + 1]}
     end
   end
 
