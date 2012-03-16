@@ -134,7 +134,7 @@ class CallbackTest < MiniTest::Unit::TestCase
   def test_delta
     c = TickingCallback.new
     c.run_bg
-    Timeout::timeout(3) {c.delta(:tic)}
+    Timeout::timeout(5) {c.delta(:tic)}
     c.stop
   end
 
