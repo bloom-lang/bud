@@ -718,21 +718,26 @@ module Bud
   # Note that registering callbacks on persistent collections (e.g., tables,
   # syncs and stores) is probably not wise: as long as any tuples are stored in
   # the collection, the callback will be invoked at the end of every tick.
-  def register_callback(tbl_name, &block)
+  def register_callback(tbl_name, &blk)
     # We allow callbacks to be added before or after EM has been started. To
     # simplify matters, we start EM if it hasn't been started yet.
     start_reactor
     cb_id = nil
     schedule_and_wait do
-      unless @tables.has_key? tbl_name
-        raise Bud::Error, "no such collection: #{tbl_name}"
-      end
-
-      raise Bud::Error if @callbacks.has_key? @callback_id
-      @callbacks[@callback_id] = [tbl_name, block]
-      cb_id = @callback_id
-      @callback_id += 1
+      cb_id = do_register_callback(tbl_name, &blk)
     end
+    return cb_id
+  end
+
+  def do_register_callback(tbl_name, &blk)
+    unless @tables.has_key? tbl_name
+      raise Bud::Error, "no such collection: #{tbl_name}"
+    end
+
+    raise Bud::Error if @callbacks.has_key? @callback_id
+    @callbacks[@callback_id] = [tbl_name, blk]
+    cb_id = @callback_id
+    @callback_id += 1
     return cb_id
   end
 
@@ -750,10 +755,6 @@ module Bud
   # inserted into the output collection: these are returned to the caller.
   def sync_callback(in_tbl, tupleset, out_tbl)
     q = Queue.new
-    # XXXX Why two separate entrances into the event loop? Why is the callback not registered in the sync_do below?
-    cb = register_callback(out_tbl) do |c|
-      q.push c.to_a
-    end
 
     # If the runtime shuts down before we see anything in the output collection,
     # make sure we hear about it so we can raise an error
@@ -762,16 +763,21 @@ module Bud
       q.push :callback
     end
 
-    unless in_tbl.nil?
-      sync_do {
+    cb = nil
+    sync_do {
+      if in_tbl
         t = @tables[in_tbl]
         if t.class <= Bud::BudChannel or t.class <= Bud::BudZkTable
           t <~ tupleset
         else
           t <+ tupleset
         end
-      }
-    end
+      end
+
+      cb = do_register_callback(out_tbl) do |c|
+        q.push c.to_a
+      end
+    }
     result = q.pop
     if result == :callback
       # Don't try to unregister the callbacks first: runtime is already shutdown
