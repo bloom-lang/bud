@@ -15,15 +15,6 @@ class Hooverous
 end
 
 class CallbackTest < MiniTest::Unit::TestCase
-  def test_foreground
-    c = Vacuous.new
-    assert_raises(Timeout::Error) do
-      Timeout::timeout(0.1) do
-        c.run_fg
-      end
-    end
-  end
-
   def test_shutdown_em
     c = Vacuous.new
     c.run_bg
@@ -42,18 +33,26 @@ class CallbackTest < MiniTest::Unit::TestCase
     bloom_signal("INT")
   end
 
-  class AckOnBoot
+  class AckWhenReady
     include Bud
 
-    bootstrap do
-      @ack_io.puts ip_port
-      @ack_io.puts "ready"
+    state do
+      scratch :dummy
+      periodic :timer, 0.1
+    end
+
+    bloom do
+      dummy <= timer {
+        @ack_io.puts ip_port
+        @ack_io.puts "ready"
+        [10, 20]
+      }
     end
   end
 
   def kill_with_signal(sig)
     read, write = IO.pipe
-    c = AckOnBoot.new
+    c = AckWhenReady.new
     c.instance_variable_set('@ack_io', write)
     cnt = 0
     q = Queue.new
@@ -119,7 +118,7 @@ class CallbackTest < MiniTest::Unit::TestCase
     parent = parent_class.new
     parent.run_bg
     pid = Bud.do_fork do
-      p = AckOnBoot.new
+      p = AckWhenReady.new
       p.instance_variable_set('@ack_io', write)
       p.run_fg
     end
@@ -148,8 +147,12 @@ class CallbackTest < MiniTest::Unit::TestCase
     assert_equal(1, cnt)
   end
 
-  class AckOnBootWithShutdown < AckOnBoot
+  class AckOnBootWithShutdown
+    include Bud
+
     bootstrap do
+      @ack_io.puts ip_port
+      @ack_io.puts "ready"
       on_shutdown do
         @ack_io.puts "done"
       end
@@ -173,11 +176,10 @@ class CallbackTest < MiniTest::Unit::TestCase
     assert_equal("ready", result)
 
     # Shoot garbage at the Bud instance in the child process, which should cause
-    # it to shutdown. We might need to start EM if it isn't running.
-    EventMachine::run_block {
-      socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
-      socket.send_datagram(1234, child_ip, child_port)
-    }
+    # it to shutdown
+    sock = UDPSocket.open
+    sock.send("1234", 0, child_ip, child_port)
+    sock.close
 
     Timeout::timeout(5) do
       result = read.readline.rstrip
