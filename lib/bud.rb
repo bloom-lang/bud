@@ -1140,7 +1140,7 @@ module Bud
       Bud.shutdown_all_instances(false)
 
       $got_shutdown_signal = false
-      $setup_signal_handler = false
+      $signal_handler_setup = false
 
       yield
     end
@@ -1182,7 +1182,7 @@ module Bud
             b.sync_do{b.signals.pending_merge([[signal]])}
           }
         end
-        $setup_signal_handler_pid = true
+        $signal_handler_setup = true
       end
 
       $instance_id += 1
