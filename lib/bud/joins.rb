@@ -145,7 +145,6 @@ module Bud
 
     public
     def each(mode=:both, &block) # :nodoc: all
-      mode = :storage if @bud_instance.stratum_first_iter
       if mode == :storage
         methods = [:storage]
       else
@@ -222,36 +221,6 @@ module Bud
       setup_preds(preds)
       self.extend(Bud::BudOuterJoin)
       blk.nil? ? self : map(&blk)
-    end
-
-    # AntiJoin
-    # note: unlike other join methods (e.g. lefts) all we do with the return value
-    # of block is check whether it's nil.  Putting "projection" logic in the block
-    # has no effect on the output.
-    public
-    def anti(*preds, &blk)
-      return [] unless @bud_instance.stratum_first_iter
-      @origpreds = preds
-      # no projection involved here, so we can propagate the schema
-      @cols = @rels[0].cols
-      if preds == [] and blk.nil? and @cols.length == @rels[1].cols.length
-        preds = BudJoin::positionwise_preds(@bud_instance, rels)
-      end
-      setup_preds(preds)
-      setup_state if self.class <= Bud::BudJoin
-      if blk.nil?
-        if preds == [] # mismatched schemas -- no matches to be excluded
-          @exclude = []
-        else
-          # exclude those tuples of r that have a match
-          @exclude = map { |r, s| r }
-        end
-      else
-        # exclude tuples of r that pass the blk call
-        @exclude = map { |r, s| r unless blk.call(r, s).nil? }.compact
-      end
-      # XXX: @exclude is an Array, which makes include? O(n)
-      @rels[0].map {|r| (@exclude.include? r) ? nil : r}
     end
 
     private

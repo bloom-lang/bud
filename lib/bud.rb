@@ -139,9 +139,6 @@ module Bud
     @endtime = nil
     @this_stratum = 0
     @push_sorted_elems = nil
-
-    # XXX This variable is unused in the Push executor
-    @stratum_first_iter = false
     @running_async = false
     @bud_started = false
 
