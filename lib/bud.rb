@@ -782,7 +782,7 @@ module Bud
     end
     unregister_callback(cb)
     cancel_shutdown_cb(shutdown_cb)
-    return (result == :callback) ? nil : result
+    return result
   end
 
   # A common special case for sync_callback: block on a delta to a table.
