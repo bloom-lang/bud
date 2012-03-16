@@ -6,7 +6,7 @@ class Vacuous
   include Bud
 end
 
-class CallbackTest < MiniTest::Unit::TestCase
+class ExecModeTest < MiniTest::Unit::TestCase
   def test_shutdown_em
     c = Vacuous.new
     c.run_bg
