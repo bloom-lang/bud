@@ -1,4 +1,5 @@
 require './test_common'
+require 'socket'
 require 'timeout'
 
 class Vacuous

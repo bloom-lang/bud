@@ -364,9 +364,9 @@ class LoopbackTests < MiniTest::Unit::TestCase
 
   def test_loopback_tick
     s = SimpleLoopback.new
-    q = Queue.new
+    done_q = Queue.new
     s.register_callback(:done) do |t|
-      q.push(t.to_a)
+      done_q.push(t.to_a)
     end
     s.tick
     assert_equal([], s.me.to_a)
@@ -376,9 +376,9 @@ class LoopbackTests < MiniTest::Unit::TestCase
     sleep 0.2
     s.tick
     assert_equal([["foo", 2]], s.me.to_a)
-    assert(q.empty?)
+    assert(done_q.empty?)
     s.run_bg
-    rv = q.pop
+    rv = done_q.pop
     assert_equal([["foo", 61]], rv)
     s.stop
   end
