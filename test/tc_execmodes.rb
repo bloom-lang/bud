@@ -55,18 +55,18 @@ class CallbackTest < MiniTest::Unit::TestCase
     read, write = IO.pipe
     c = AckWhenReady.new
     c.instance_variable_set('@ack_io', write)
-    cnt = 0
     q = Queue.new
     c.on_shutdown do
-      cnt += 1
       q.push(true)
     end
     c.run_bg
-    _ = read.readline
-    _ = read.readline
-    Process.kill(sig, $$)
-    Timeout::timeout(5) { q.pop }
-    assert_equal(1, cnt)
+    Timeout::timeout(6) do
+      _ = read.readline
+      _ = read.readline
+      Process.kill(sig, $$)
+      q.pop
+    end
+    assert(q.empty?)
     read.close ; write.close
 
     # XXX: hack. There currently isn't a convenient way to block until the kill
@@ -74,32 +74,32 @@ class CallbackTest < MiniTest::Unit::TestCase
     # before the end of the Bud shutdown process). Since we don't want to run
     # another test until EM has shutdown, we can at least wait for that.
     begin
-      EventMachine::reactor_thread.join
+      EventMachine::reactor_thread.join(10)
     rescue NoMethodError
     end
   end
 
   def bloom_signal(sig)
     c = Hooverous.new(:signal_handling => :bloom)
-    cnt = 0
     q = Queue.new
     c.on_shutdown do
-      cnt += 1
       q.push(c.gotsignal.first.key)
     end
     c.run_bg
     sleep 0.1
     Process.kill(sig, $$)
-    gotsig = q.pop
-    assert_equal(1, cnt)
-    assert_equal(sig, gotsig)
+    Timeout::timeout(5) {
+      gotsig = q.pop
+      assert_equal(sig, gotsig)
+    }
+    assert(q.empty?)
 
     # XXX: hack. There currently isn't a convenient way to block until the kill
     # signal has been completely handled (on_shutdown callbacks are invoked
     # before the end of the Bud shutdown process). Since we don't want to run
     # another test until EM has shutdown, we can at least wait for that.
     begin
-      EventMachine::reactor_thread.join
+      EventMachine::reactor_thread.join(10)
     rescue NoMethodError
     end
   end

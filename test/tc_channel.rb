@@ -28,11 +28,11 @@ class TestTickle < MiniTest::Unit::TestCase
     c = TickleCount.new
     q = Queue.new
     c.register_callback(:loopback_done) do |t|
-      assert_equal(t.to_a, [[5]])
+      assert_equal([[5]], t.to_a)
       q.push(true)
     end
     c.register_callback(:mcast_done) do |t|
-      assert_equal(t.to_a, [[5]])
+      assert_equal([[5]], t.to_a)
       q.push(true)
     end
 
@@ -45,7 +45,6 @@ class TestTickle < MiniTest::Unit::TestCase
     c = TickleCount.new
     q = Queue.new
     c.register_callback(:loopback_done) do |t|
-      assert_equal(t.to_a.first, [5])
       q.push(t.to_a.first)
     end
     c.register_callback(:mcast_done) do |t|
@@ -58,12 +57,14 @@ class TestTickle < MiniTest::Unit::TestCase
     assert(q.empty?)
     10.times do
       c.tick
+      break if q.length >= 2
       sleep 0.1
     end
     res1 = q.pop
     res2 = q.pop
     assert_equal([5], res1)
     assert_equal([5], res2)
+    assert(q.empty?)
     c.stop
   end
 end
@@ -362,6 +363,18 @@ class LoopbackTests < MiniTest::Unit::TestCase
     b.stop
   end
 
+  def loop_for_msg(s, cnt)
+    20.times do |i|
+      sleep 0.1
+      s.tick
+      unless s.me.to_a.empty?
+        assert_equal([["foo", cnt]], s.me.to_a)
+        return
+      end
+    end
+    flunk "Timeout (> 2 seconds) on loopback interface!"
+  end
+
   def test_loopback_tick
     s = SimpleLoopback.new
     done_q = Queue.new
@@ -369,17 +382,15 @@ class LoopbackTests < MiniTest::Unit::TestCase
       done_q.push(t.to_a)
     end
     s.tick
-    assert_equal([], s.me.to_a)
-    sleep 0.2
-    s.tick
-    assert_equal([["foo", 1]], s.me.to_a)
-    sleep 0.2
-    s.tick
-    assert_equal([["foo", 2]], s.me.to_a)
+    assert(s.me.to_a.empty?)
+    loop_for_msg(s, 1)
+    loop_for_msg(s, 2)
     assert(done_q.empty?)
     s.run_bg
-    rv = done_q.pop
-    assert_equal([["foo", 61]], rv)
+    Timeout::timeout(5) do
+      rv = done_q.pop
+      assert_equal([["foo", 61]], rv)
+    end
     s.stop
   end
 end
