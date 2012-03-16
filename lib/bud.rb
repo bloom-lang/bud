@@ -82,7 +82,7 @@ module Bud
   # * operating system interaction
   #   * <tt>:stdin</tt>  if non-nil, reading from the +stdio+ collection results in reading from this +IO+ handle
   #   * <tt>:stdout</tt> writing to the +stdio+ collection results in writing to this +IO+ handle; defaults to <tt>$stdout</tt>
-  #   * <tt>:signal_handling</tt> how to handle +SIGINT+ and +SIGTERM+.  If :none, these signals are ignored.  If :bloom, they're passed into the built-in scratch called +signals+.  Else shutdown all bud instances.
+  #   * <tt>:signal_handling</tt> how to handle +SIGINT+ and +SIGTERM+.  If :none, these signals are ignored.  Else shutdown all bud instances.
   # * tracing and output
   #   * <tt>:quiet</tt> if true, suppress certain messages
   #   * <tt>:trace</tt> if true, generate +budvis+ outputs
@@ -1046,7 +1046,6 @@ module Bud
 
     loopback  :localtick, [:col1]
     @stdio = terminal :stdio
-    signal :signals, [:name]
     scratch :halt, [:key]
     @periodics = table :periodics_tbl, [:pername] => [:period]
 
@@ -1163,15 +1162,11 @@ module Bud
     $signal_lock.synchronize {
       # If we setup signal handlers and then fork a new process, we want to
       # reinitialize the signal handler in the child process.
-      unless b.options[:signal_handling] == :none or $signal_handler_setup
+      unless b.options[:signal_handling] == :none || $signal_handler_setup
         EventMachine::PeriodicTimer.new(SIGNAL_CHECK_PERIOD) do
           if $got_shutdown_signal
-            if b.options[:signal_handling] == :bloom
-              Bud.tick_all_instances
-            else
-              Bud.shutdown_all_instances
-              Bud.stop_em_loop
-            end
+            Bud.shutdown_all_instances
+            Bud.stop_em_loop
             $got_shutdown_signal = false
           end
         end
@@ -1179,7 +1174,6 @@ module Bud
         ["INT", "TERM"].each do |signal|
           Signal.trap(signal) {
             $got_shutdown_signal = true
-            b.sync_do{b.signals.pending_merge([[signal]])}
           }
         end
         $signal_handler_setup = true
@@ -1189,15 +1183,6 @@ module Bud
       $bud_instances[$instance_id] = b
       return $instance_id
     }
-  end
-
-  def self.tick_all_instances
-    instances = nil
-    $signal_lock.synchronize {
-      instances = $bud_instances.clone
-    }
-
-    instances.each_value {|b| b.sync_do }
   end
 
   def self.shutdown_all_instances(do_shutdown_cb=true)

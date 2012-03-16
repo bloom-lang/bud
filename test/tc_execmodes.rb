@@ -6,15 +6,6 @@ class Vacuous
   include Bud
 end
 
-class Hooverous
-  include Bud
-  state {table :gotsignal, [:key]}
-  bloom do
-    gotsignal <= signals
-    halt <= signals{[:kill]}
-  end
-end
-
 class CallbackTest < MiniTest::Unit::TestCase
   def test_shutdown_em
     c = Vacuous.new
@@ -31,7 +22,6 @@ class CallbackTest < MiniTest::Unit::TestCase
   def test_int
     kill_with_signal("INT")
     kill_with_signal("INT")
-    bloom_signal("INT")
   end
 
   class AckWhenReady
@@ -79,39 +69,14 @@ class CallbackTest < MiniTest::Unit::TestCase
     end
   end
 
-  def bloom_signal(sig)
-    c = Hooverous.new(:signal_handling => :bloom)
-    q = Queue.new
-    c.on_shutdown do
-      q.push(c.gotsignal.first.key)
-    end
-    c.run_bg
-    sleep 0.1
-    Process.kill(sig, $$)
-    Timeout::timeout(5) {
-      gotsig = q.pop
-      assert_equal(sig, gotsig)
-    }
-    assert(q.empty?)
-
-    # XXX: hack. There currently isn't a convenient way to block until the kill
-    # signal has been completely handled (on_shutdown callbacks are invoked
-    # before the end of the Bud shutdown process). Since we don't want to run
-    # another test until EM has shutdown, we can at least wait for that.
-    begin
-      EventMachine::reactor_thread.join(10)
-    rescue NoMethodError
-    end
-  end
-
   def test_sigint_child
     kill_child_with_signal(Vacuous, "INT")
-    kill_child_with_signal(Hooverous, "INT")
+    kill_child_with_signal(Vacuous, "INT")
   end
 
   def test_sigterm_child
     kill_child_with_signal(Vacuous, "TERM")
-    kill_child_with_signal(Hooverous, "TERM")
+    kill_child_with_signal(Vacuous, "TERM")
   end
 
   def kill_child_with_signal(parent_class, signal)
