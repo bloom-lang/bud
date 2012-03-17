@@ -969,7 +969,7 @@ module Bud
               scanner.invalidate_set.each {|e|
                 e.invalidated = true
                 e.invalidate_cache unless e.class <= PushElement
-            }
+              }
             end
           end
         end

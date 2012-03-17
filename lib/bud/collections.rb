@@ -17,7 +17,7 @@ module Bud
   class BudCollection
     include Enumerable
 
-    attr_accessor :bud_instance, :locspec_idx, :tabname  # :nodoc: all
+    attr_accessor :bud_instance, :tabname  # :nodoc: all
     attr_reader :cols, :key_cols # :nodoc: all
     attr_reader :struct
     attr_reader :storage, :delta, :new_delta, :pending, :tick_delta # :nodoc: all
