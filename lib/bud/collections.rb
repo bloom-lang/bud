@@ -542,17 +542,9 @@ module Bud
       return self
     end
 
-    # def prep_coll_expr(o)
-    #   o = o.uniq.compact if o.respond_to?(:uniq)
-    #   check_enumerable(o)
-    #   establish_schema(o) if @cols.nil?
-    #   o
-    # end
-
     def register_coll_expr(expr)
-      # require 'ruby-debug'; debugger
-      coll_name = ("expr_"+expr.object_id.to_s)
-      cols = (1..@cols.length).map{|i| ("c"+i.to_s).to_sym} unless @cols.nil?
+      coll_name = "expr_#{expr.object_id}"
+      cols = (1..@cols.length).map{|i| "c#{i}".to_sym} unless @cols.nil?
       @bud_instance.coll_expr(coll_name.to_sym, expr, cols)
       coll = @bud_instance.send(coll_name)
       coll
