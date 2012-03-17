@@ -1252,20 +1252,6 @@ module Bud
     end
   end
 
-  class BudSignal < BudReadOnly
-    def invalidate_at_tick
-      true
-    end
-    def tick
-      @invalidated = true
-      @storage.clear
-      unless @pending.empty?
-        @delta = @pending
-        @pending = {}
-      end
-    end
-  end
-
   class BudCollExpr < BudReadOnly # :nodoc: all
     def initialize(name, bud_instance, expr, given_schema=nil, defer_schema=false)
       super(name, bud_instance, given_schema, defer_schema)
@@ -1316,14 +1302,6 @@ module Bud
 end
 
 module Enumerable
-  # public
-  # # monkeypatch to Enumerable to rename collections and their schemas
-  # def rename(new_tabname, new_schema=nil)
-  #   scr = Bud::BudScratch.new(new_tabname.to_s, nil, new_schema)
-  #   scr.merge(self, scr.storage)
-  #   scr
-  # end
-
   public
   # We rewrite "map" calls in Bloom blocks to invoke the "pro" method
   # instead. This is fine when applied to a BudCollection; when applied to a
