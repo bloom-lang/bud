@@ -208,7 +208,7 @@ module Bud
 
     # projection
     public
-    def pro(the_name = tabname, the_schema = schema, &blk)
+    def pro(the_name=tabname, the_schema=schema, &blk)
       pusher = to_push_elem(the_name, the_schema)
       pusher_pro = pusher.pro(&blk)
       pusher_pro.elem_name = the_name
@@ -217,24 +217,25 @@ module Bud
     end
 
     public
-    def each_with_index(the_name = tabname, the_schema = schema, &blk)
+    def each_with_index(the_name=tabname, the_schema=schema, &blk)
       toplevel = @bud_instance.toplevel
       if not toplevel.done_wiring
         proj = pro(the_name, the_schema)
-        elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s, toplevel.this_rule_context, tabname)
+        elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s,
+                                          toplevel.this_rule_context, tabname)
         elem.set_block(&blk)
         proj.wire_to(elem)
-        toplevel.push_elems[[self.object_id,:each,blk]] = elem
+        toplevel.push_elems[[self.object_id, :each, blk]] = elem
         elem
       else
          storage.each_with_index
       end
     end
 
-
-    # ruby 1.9 defines flat_map to return "a new array with the concatenated results of running
-    # <em>block</em> once for every element". So we wire the input to a pro(&blk), and wire the output
-    # of that pro to a group that does accum.
+    # ruby 1.9 defines flat_map to return "a new array with the concatenated
+    # results of running <em>block</em> once for every element". So we wire the
+    # input to a pro(&blk), and wire the output of that pro to a group that does
+    # accum.
     public
     def flat_map(&blk)
       pusher = self.pro(&blk)
@@ -243,12 +244,12 @@ module Bud
       pusher.wire_to(elem)
       f = Proc.new do |t|
         t.each do |i|
-          elem.push_out(i,false)
+          elem.push_out(i, false)
         end
         nil
       end
       elem.set_block(&f)
-      toplevel.push_elems[[self.object_id,:flatten]] = elem
+      toplevel.push_elems[[self.object_id, :flatten]] = elem
       return elem
     end
 
@@ -408,7 +409,7 @@ module Bud
       return o if o.class == @struct
       if o.class == Array
         if @struct.nil?
-          sch =  (1 .. o.length).map{|i| ("c"+i.to_s).to_sym}
+          sch = (1 .. o.length).map{|i| ("c"+i.to_s).to_sym}
           init_schema(sch)
         end
         o = o.take(@structlen) if o.length > @structlen
@@ -631,8 +632,9 @@ module Bud
 
     public
     def add_rescan_invalidate(rescan, invalidate)
-      # No change. Most collections don't need to rescan on every tick (only do so on negate). Also, there's no cache
-      # to invalidate by default. Scratches and PushElements override this method.
+      # No change. Most collections don't need to rescan on every tick (only do
+      # so on negate). Also, there's no cache to invalidate by default.
+      # Scratches and PushElements override this method.
     end
 
     def bootstrap
@@ -739,20 +741,13 @@ module Bud
       end
     end
 
-    # def join(collections, *preds, &blk)
-    #   # since joins are stateful, we want to allocate them once and store in this Bud instance
-    #   # we ID them on their tablenames, preds, and block
-    #   return wrap_map(BudJoin.new(collections, @bud_instance, preds), &blk)
-    # end
-
     # form a collection containing all pairs of items in +self+ and items in
     # +collection+
     public
     def *(collection)
-      elem1  = to_push_elem
+      elem1 = to_push_elem
       j = elem1.join(collection)
       return j
-      # join([self, collection])
     end
 
     def group(key_cols, *aggpairs, &blk)
@@ -828,7 +823,7 @@ module Bud
     public
     def invalidate_cache
       puts "#{qualified_tabname} invalidated" if $BUD_DEBUG
-      #for scratches, storage is a cached value.
+      # for scratches, storage is a cached value
       @invalidated = true
       @storage.clear
     end
@@ -843,9 +838,10 @@ module Bud
   class BudTemp < BudScratch # :nodoc: all
   end
 
-  # Channels are a different type of collection in that they represent two distinct collections, one each for
-  # incoming and outgoing.  The incoming side makes use of @storage and @delta, whereas the outgoing side only deals
-  # with @pending. XXX Maybe we should be using aliases instead.
+  # Channels are a different type of collection in that they represent two
+  # distinct collections, one each for incoming and outgoing.  The incoming side
+  # makes use of @storage and @delta, whereas the outgoing side only deals with
+  # @pending. XXX Maybe we should be using aliases instead.
   class BudChannel < BudCollection
     attr_reader :locspec_idx # :nodoc: all
 
