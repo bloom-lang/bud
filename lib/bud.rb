@@ -179,7 +179,7 @@ module Bud
     begin
       klass = Module.const_get(class_name.to_sym)
       unless klass.is_a? Class
-        raise Bud::Error, "Internal error: #{class_name} is in use"
+        raise Bud::Error, "internal error: #{class_name} is in use"
       end
     rescue NameError # exception if class class_name doesn't exist
     end
@@ -212,7 +212,7 @@ module Bud
         anc_imp_tbl.each do |nm, mod|
           # Ensure that two modules have not been imported under one alias.
           if @imported_defs.member? nm and not @imported_defs[nm] == anc_imp_tbl[nm]
-              raise Bud::CompileError, "Conflicting imports: modules #{@imported_defs[nm]} and #{anc_imp_tbl[nm]} both are imported as '#{nm}'"
+              raise Bud::CompileError, "conflicting imports: modules #{@imported_defs[nm]} and #{anc_imp_tbl[nm]} both are imported as '#{nm}'"
           end
           @imported_defs[nm] = mod
         end
@@ -305,7 +305,7 @@ module Bud
 
   # Evaluate all bootstrap blocks and tick deltas
   def do_bootstrap
-    # evaluate bootstrap for imported modules
+    # Evaluate bootstrap for imported modules
     @this_rule_context = self
     imported = import_defs.keys
     imported.each do |mod_alias|
@@ -328,14 +328,15 @@ module Bud
   def do_wiring
     @stratified_rules.each_with_index { |rules, stratum| eval_rules(rules, stratum) }
 
-    # prepare list of tables that will be actively used at run time. First, all the user defined ones.
-    # We start @app_tables off as a set, then convert to an array later.
+    # Prepare list of tables that will be actively used at run time. First, all
+    # the user defined ones.  We start @app_tables off as a set, then convert to
+    # an array later.
     @app_tables = (@tables.keys - @builtin_tables.keys).reduce(Set.new) {|tabset, nm| tabset << @tables[nm]; tabset}
     # Check scan and merge_targets to see if any builtin_tables need to be added as well.
     @scanners.each do |scs|
       scs.each_value {|s| @app_tables << s.collection}
     end
-    @merge_targets.each{|mts| #mts == merge_targets at stratum
+    @merge_targets.each {|mts| #mts == merge_targets at stratum
       mts.each_key {|t| @app_tables << t}
     }
     @app_tables = @app_tables.nil? ? [] : @app_tables.to_a
@@ -343,7 +344,8 @@ module Bud
     # for each stratum create a sorted list of push elements in topological order
     @push_sorted_elems = []
     @scanners.each do |scs|  # scs's values constitute scanners at a stratum
-      # start with scanners and transitively add all reachable elements in a breadth-first order
+      # start with scanners and transitively add all reachable elements in a
+      # breadth-first order
       working = scs.values
       seen = Set.new(working)
       sorted_elems = [] # sorted elements in this stratum

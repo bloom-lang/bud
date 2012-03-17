@@ -14,7 +14,7 @@ module Bud
       @origpreds = preds
       @localpreds = nil
       @selfjoins = []
-      @input_bufs=[[],[]]
+      @input_bufs = [[],[]]
       @missing_keys = Set.new
       the_join = nil
 
@@ -30,7 +30,8 @@ module Bud
         end
       end
 
-      # check for self-joins: we currently only handle 2 instances of the same table per rule
+      # check for self-joins: we currently only handle 2 instances of the same
+      # table per rule
       counts = @all_rels_below.reduce({}) do |memo, r|
         memo[r.elem_name] ||= 0
         memo[r.elem_name] += 1
@@ -57,7 +58,7 @@ module Bud
       setup_preds(preds) unless preds.empty?
       setup_state
 
-      super(@tabname,@bud_instance,nil,@cols)
+      super(@tabname, @bud_instance, nil, @cols)
     end
 
     public
@@ -249,7 +250,7 @@ module Bud
           next if (skips.include? pred)
           # assumption of left-deep joins here
           if pred[1][0] != @rels[1].tabname
-            raise "Expected rhs table to be #{@rels[1].tabname}, not #{pred[1][0]}"
+            raise Bud::Error, "expected rhs table to be #{@rels[1].tabname}, not #{pred[1][0]}"
           end
           rfield = right[pred[1][1]]
           if left_is_array
@@ -296,7 +297,7 @@ module Bud
       else
         offsets = [@relnames.index(source.elem_name)]
       end
-      raise "item #{item.inspect} inserted into join from unknown source #{source.elem_name}" if offsets == $EMPTY
+      raise Bud::Error, "item #{item.inspect} inserted into join from unknown source #{source.elem_name}" if offsets == $EMPTY
       offsets.each do |offset|
         buf = @input_bufs[offset]
         buf << item
@@ -614,17 +615,18 @@ module Bud
 
     def stratum_end
       flush
-      # Scan through all the cached left rel values, and push out those that are not in exclude
-      @hash_tables[0].each_value do|s| #
+      # Scan through all the cached left rel values, and push out those that are
+      # not in exclude
+      @hash_tables[0].each_value do |s| #
         s.each do |item|
           next if @exclude.member? item
           @outputs.each do |ou|
             if ou.class <= Bud::PushElement
-              ou.insert(item,self)
+              ou.insert(item, self)
             elsif ou.class <= Bud::BudCollection
-              ou.do_insert(item,ou.new_delta)
+              ou.do_insert(item, ou.new_delta)
             else
-              raise "Expected either a PushElement or a BudCollection"
+              raise Bud::Error, "expected either a PushElement or a BudCollection"
             end
           end
           # for all the following, o is a BudCollection

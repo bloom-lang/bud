@@ -99,14 +99,14 @@ class Module
     mod, local_name = spec.first
 
     if self.method_defined? local_name
-      raise Bud::CompileError, "#{local_name} is already taken."
+      raise Bud::CompileError, "#{local_name} is already taken"
     else
       src = %Q{
         def #{local_name}
           @#{local_name}
         end
         def #{local_name}=(val)
-          raise "Type Error: expecting an instance of #{mod}" unless val.kind_of? #{mod}
+          raise Bud::Error, "type error: expecting an instance of #{mod}" unless val.kind_of? #{mod}
           @#{local_name} = val
         end
       }

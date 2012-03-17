@@ -150,7 +150,7 @@ module Bud
             # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
             ou.do_insert(item,ou.new_delta)
           else
-            raise "Expected either a PushElement or a BudCollection"
+            raise Bud::Error, "expected either a PushElement or a BudCollection"
           end
         end unless item.nil?
         # for all the following, o is a BudCollection
@@ -279,15 +279,15 @@ module Bud
     end
     alias <= merge
     superator "<~" do |o|
-      raise Bud::Error, "Illegal use of <~ with pusher '#{tabname}' on left"
+      raise Bud::Error, "illegal use of <~ with pusher '#{tabname}' on left"
     end
 
     superator "<-" do |o|
-      raise Bud::Error, "Illegal use of <- with pusher '#{tabname}' on left"
+      raise Bud::Error, "illegal use of <- with pusher '#{tabname}' on left"
     end
 
     superator "<+" do |o|
-      raise Bud::Error, "Illegal use of <+ with pusher '#{tabname}' on left"
+      raise Bud::Error, "illegal use of <+ with pusher '#{tabname}' on left"
     end
 
     def group(keycols, *aggpairs, &blk)
