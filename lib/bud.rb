@@ -222,7 +222,7 @@ module Bud
   end
 
   def budtime
-    toplevel? ?  @budtime : toplevel.budtime
+    toplevel? ? @budtime : toplevel.budtime
   end
 
   # absorb rules and dependencies from imported modules. The corresponding module instantiations
@@ -233,45 +233,47 @@ module Bud
     import_tbl.each_pair do |local_name, mod_name|
       # corresponding to "import <mod_name> => :<local_name>"
       mod_inst = send(local_name)
-      qlocal_name = toplevel? ? local_name.to_s : self.qualified_name + "." + local_name.to_s
       if mod_inst.nil?
         # create wrapper instances
         #puts "=== resolving #{self}.#{mod_name} => #{local_name}"
         klass = module_wrapper_class(mod_name)
-        mod_inst = klass.new(:toplevel => toplevel, :qualified_name => qlocal_name) # this instantiation will resolve the imported module's own imports
+        qlocal_name = toplevel? ? local_name.to_s : "#{self.qualified_name}.#{local_name}"
+        # this instantiation will resolve the imported module's own imports
+        mod_inst = klass.new(:toplevel => toplevel, :qualified_name => qlocal_name)
         instance_variable_set("@#{local_name}", mod_inst)
       end
       mod_inst.tables.each_pair do |name, t|
         # Absorb the module wrapper's user-defined state.
         unless @tables.has_key? t.tabname
-          qname = (local_name.to_s + "." + name.to_s).to_sym  # access path to table.
-          tables[qname] = t
+          qname = "#{local_name}.#{name}"
+          tables[qname.to_sym] = t
         end
       end
       mod_inst.t_rules.each do |imp_rule|
-        qname = local_name.to_s + "." + imp_rule.lhs.to_s  #qualify name by prepending with local_name
+        qname = "#{local_name}.#{imp_rule.lhs}"
         self.t_rules << [imp_rule.bud_obj, imp_rule.rule_id, qname, imp_rule.op,
-                     imp_rule.src, imp_rule.orig_src, imp_rule.nm_funcs_called]
+                         imp_rule.src, imp_rule.orig_src, imp_rule.nm_funcs_called]
       end
       mod_inst.t_depends.each do |imp_dep|
-        qlname = local_name.to_s + "." + imp_dep.lhs.to_s  #qualify names by prepending with local_name
-        qrname = local_name.to_s + "." + imp_dep.body.to_s
-        self.t_depends << [imp_dep.bud_obj, imp_dep.rule_id, qlname, imp_dep.op, qrname, imp_dep.nm]
+        qlname = "#{local_name}.#{imp_dep.lhs}"
+        qrname = "#{local_name}.#{imp_dep.body}"
+        self.t_depends << [imp_dep.bud_obj, imp_dep.rule_id, qlname,
+                           imp_dep.op, qrname, imp_dep.nm]
       end
       mod_inst.t_provides.each do |imp_pro|
-        qintname = local_name.to_s + "." + imp_pro.interface.to_s  #qualify names by prepending with local_name
+        qintname = "#{local_name}.#{imp_pro.interface}"
         self.t_provides << [qintname, imp_pro.input]
       end
       mod_inst.channels.each do |name, ch|
-        qname = (local_name.to_s + "." + name.to_s)
+        qname = "#{local_name}.#{name}"
         @channels[qname.to_sym] = ch
       end
       mod_inst.dbm_tables.each do |name, t|
-        qname = (local_name.to_s + "." + name.to_s)
+        qname = "#{local_name}.#{name}"
         @dbm_tables[qname.to_sym] = t
       end
       mod_inst.periodics.each do |p|
-        qname = (local_name.to_s + "." + p.pername.to_s)
+        qname = "#{local_name}.#{p.pername}"
         p.pername = qname.to_sym
         @periodics << [p.pername, p.period]
       end
