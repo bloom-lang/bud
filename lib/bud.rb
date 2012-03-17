@@ -334,11 +334,11 @@ module Bud
 
     # Check scan and merge_targets to see if any builtin_tables need to be added as well.
     @scanners.each do |scs|
-      scs.each_value {|s| @app_tables << s.collection}
+      @app_tables += scs.values.map {|s| s.collection}
     end
-    @merge_targets.each {|mts| #mts == merge_targets at stratum
-      mts.each {|t| @app_tables << t}
-    }
+    @merge_targets.each do |mts| #mts == merge_targets at stratum
+      @app_tables += mts
+    end
     @app_tables = @app_tables.nil? ? [] : @app_tables.to_a
 
     # for each stratum create a sorted list of push elements in topological order
@@ -436,8 +436,8 @@ module Bud
     nm_targets = Set.new
     t_rules.each do |rule|
       lhs = rule.lhs.to_sym
-       @tables[lhs].is_source = false if rule.op == "<="
-       nm_targets << lhs if rule.nm_funcs_called
+      @tables[lhs].is_source = false if rule.op == "<="
+      nm_targets << lhs if rule.nm_funcs_called
     end
 
     # Compute a set of tables and elements that should be explicitly told to
@@ -452,7 +452,7 @@ module Bud
           rescan << elem
         end
         if elem.outputs.any?{|tab| not(tab.class <= PushElement) and nm_targets.member? tab.qualified_tabname.to_sym }
-          elem.wired_by.map {|e| rescan << e}
+          rescan += elem.wired_by
         end
       end
       rescan_invalidate_tc(stratum, rescan, invalidate)
