@@ -239,8 +239,11 @@ module Bud
         mod_inst = klass.new(:toplevel => toplevel, :qualified_name => qlocal_name)
         instance_variable_set("@#{local_name}", mod_inst)
       end
+      # Absorb the module wrapper's user-defined state.
       mod_inst.tables.each_pair do |name, t|
-        # Absorb the module wrapper's user-defined state.
+        # Don't try to import module definitions for builtin Bud state. Note
+        # that @tables only includes the builtin tables, because resolve_imports
+        # is called before user-defined state blocks are run.
         unless @tables.has_key? t.tabname
           qname = "#{local_name}.#{name}"
           tables[qname.to_sym] = t
@@ -271,8 +274,7 @@ module Bud
       end
       mod_inst.periodics.each do |p|
         qname = "#{local_name}.#{p.pername}"
-        p.pername = qname.to_sym
-        @periodics << [p.pername, p.period]
+        @periodics << [qname.to_sym, p.period]
       end
     end
 
@@ -1042,7 +1044,7 @@ module Bud
 
   private
 
-  # Builtin BUD state (predefined collections). We could define this using the
+  # Builtin Bud state (predefined collections). We could define this using the
   # standard state block syntax, but we want to ensure that builtin state is
   # initialized before user-defined state.
   def builtin_state
