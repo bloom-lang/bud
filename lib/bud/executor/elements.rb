@@ -271,7 +271,7 @@ module Bud
       notin_elem = Bud::PushNotIn.new([self, elem2], toplevel.this_rule_context, preds, &blk)
       self.wire_to(notin_elem)
       elem2.wire_to(notin_elem)
-      toplevel.push_elems[[self.object_id, :notin, collection, toplevel, blk]] == notin_elem
+      toplevel.push_elems[[self.object_id, :notin, collection, toplevel, blk]] = notin_elem
       return notin_elem
     end
 
