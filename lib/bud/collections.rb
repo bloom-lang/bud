@@ -89,7 +89,7 @@ module Bud
       cols = key_cols + val_cols
       cols.each do |c|
         if c.class != Symbol
-          raise Bud::Error, "Invalid column name \"#{c}\", type \"#{c.class}\""
+          raise Bud::Error, "invalid column name \"#{c}\", type \"#{c.class}\""
         end
       end
       if cols.uniq.length < cols.length
@@ -647,7 +647,7 @@ module Bud
         puts "#{qualified_tabname}.flush delta --> storage" unless @delta.empty?
         puts "#{qualified_tabname}.flush new_delta --> storage" unless @new_delta.empty?
       end
-      unless (@delta.empty?)
+      unless @delta.empty?
         @storage.merge!(@delta)
         @tick_delta += @delta.values
         @delta.clear
@@ -672,17 +672,6 @@ module Bud
       return toplevel.scanners[this_stratum][[oid, the_name]]
     end
 
-    private
-    def method_missing(sym, *args, &block)
-      begin
-        @storage.send sym, *args, &block
-      rescue Exception => e
-        err = NoMethodError.new("no method :#{sym} in class #{self.class.name}")
-        err.set_backtrace(e.backtrace)
-        raise err
-      end
-    end
-
     ######## aggs
 
     private
@@ -697,14 +686,12 @@ module Bud
       end
     end
 
-
     # a generalization of argmin/argmax to arbitrary exemplary aggregates.
     # for each distinct value of the grouping key columns, return the items in that group
     # that have the value of the exemplary aggregate +aggname+
     public
     def argagg(aggname, gbkey_cols, collection)
       elem = to_push_elem
-      elem.schema
       gbkey_cols = gbkey_cols.map{|k| canonicalize_col(k)} unless gbkey_cols.nil?
       retval = elem.argagg(aggname,gbkey_cols,canonicalize_col(collection))
       # PushElement inherits the schema accessors from this Collection
