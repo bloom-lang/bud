@@ -520,7 +520,7 @@ module Bud
     def add_merge_target
       toplevel = @bud_instance.toplevel
       if toplevel.done_bootstrap
-        toplevel.merge_targets[toplevel.this_stratum][self] = true
+        toplevel.merge_targets[toplevel.this_stratum] << self
       end
     end
 

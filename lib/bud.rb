@@ -167,7 +167,7 @@ module Bud
       @scanners = num_strata.times.map{{}}
       @push_sources = num_strata.times.map{{}}
       @push_joins = num_strata.times.map{[]}
-      @merge_targets = num_strata.times.map{{}}
+      @merge_targets = num_strata.times.map{Set.new}
     end
   end
 
@@ -339,7 +339,7 @@ module Bud
       scs.each_value {|s| @app_tables << s.collection}
     end
     @merge_targets.each {|mts| #mts == merge_targets at stratum
-      mts.each_key {|t| @app_tables << t}
+      mts.each {|t| @app_tables << t}
     }
     @app_tables = @app_tables.nil? ? [] : @app_tables.to_a
 
@@ -367,9 +367,9 @@ module Bud
       @push_sorted_elems << sorted_elems
     end
 
-    @merge_targets.each_with_index do |stratum_tables, stratum|
+    @merge_targets.each_with_index do |stratum_targets, stratum|
       @scanners[stratum].each_value do |s|
-        stratum_tables[s.collection] = true
+        stratum_targets << s.collection
       end
     end
 
@@ -998,7 +998,7 @@ module Bud
               p.tick_deltas
             end
           end
-          merge_targets[stratum].each_key do |t|
+          merge_targets[stratum].each do |t|
             fixpoint = false if t.tick_deltas
           end
         end
@@ -1006,7 +1006,7 @@ module Bud
         @push_sorted_elems[stratum].each {|p|
           p.stratum_end
         }
-        merge_targets[stratum].each_key do |t|
+        merge_targets[stratum].each do |t|
           t.flush_deltas
         end
       end
