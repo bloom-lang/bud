@@ -152,10 +152,7 @@ module Bud
     # number won't be known until we start EM
 
     builtin_state
-
     resolve_imports
-
-    # Invoke all the user-defined state blocks and initialize builtin state.
     call_state_methods
 
     @declarations = self.class.instance_methods.select {|m| m =~ /^__bloom__.+$/}.map {|m| m.to_s}
@@ -431,12 +428,12 @@ module Bud
       return
     end
 
-
-    # By default, all tables are considered sources, unless they appear on the lhs.
-    # We only consider non-temporal rules because invalidation is only about this tick.
-    # Also, we track (in nm_targets) those tables that are the targets of user-defined code blocks
-    # that call non-monotonic functions (such as budtime). Elements that feed these tables are
-    # forced to rescan their contents, and thus forced to re-execute these code blocks.
+    # By default, all tables are considered sources, unless they appear on the
+    # lhs.  We only consider non-temporal rules because invalidation is only
+    # about this tick.  Also, we track (in nm_targets) those tables that are the
+    # targets of user-defined code blocks that call non-monotonic functions
+    # (such as budtime). Elements that feed these tables are forced to rescan
+    # their contents, and thus forced to re-execute these code blocks.
     nm_targets = Set.new
     t_rules.each {|rule|
       lhs = rule.lhs.to_sym
@@ -446,8 +443,9 @@ module Bud
 
     invalidate = Set.new
     rescan = Set.new
-    # Compute a set of tables and elements that should be explicitly told to invalidate or rescan.
-    # Start with a set of tables that always invalidate, and elements that always rescan
+    # Compute a set of tables and elements that should be explicitly told to
+    # invalidate or rescan.  Start with a set of tables that always invalidate,
+    # and elements that always rescan
     @app_tables.each {|t| invalidate << t if t.invalidate_at_tick}
 
     num_strata.times do |stratum|
@@ -467,8 +465,9 @@ module Bud
     @default_rescan = rescan.to_a
     @default_invalidate = invalidate.to_a
 
-    # Now compute for each table that is to be scanned, the set of dependent tables and elements that will be invalidated
-    # if that table were to be invalidated at run time.
+    # Now compute for each table that is to be scanned, the set of dependent
+    # tables and elements that will be invalidated if that table were to be
+    # invalidated at run time.
     dflt_rescan = rescan
     dflt_invalidate = invalidate
     to_reset = rescan + invalidate
@@ -482,7 +481,8 @@ module Bud
         rescan_invalidate_tc(stratum, rescan, invalidate)
         prune_rescan_invalidate(rescan, invalidate)
         to_reset += rescan + invalidate
-        # Give the diffs (from default) to scanner; these are elements that are dependent on this scanner
+        # Give the diffs (from default) to scanner; these are elements that are
+        # dependent on this scanner
         diffscan = (rescan - dflt_rescan).find_all {|elem| elem.class <= PushElement}
         scanner.invalidate_at_tick(diffscan, (invalidate - dflt_invalidate).to_a)
       end
@@ -496,7 +496,8 @@ module Bud
     rescan_len = rescan.size
     invalidate_len = invalidate.size
     while true
-      # Ask each element if it wants to add itself to either set, depending on who else is in those sets already.
+      # Ask each element if it wants to add itself to either set, depending on
+      # who else is in those sets already.
       @push_sorted_elems[stratum].each {|t| t.add_rescan_invalidate(rescan, invalidate)}
       break if rescan_len == rescan.size and invalidate_len == invalidate.size
       rescan_len = rescan.size
@@ -958,23 +959,23 @@ module Bud
         }
 
         num_strata = @push_sorted_elems.size
-        # The following loop invalidates additional (non-default) elements and tables that depend on the run-time
-        # invalidation state of a table.
+        # The following loop invalidates additional (non-default) elements and
+        # tables that depend on the run-time invalidation state of a table.
         # Loop once to set the flags
         num_strata.times do |stratum|
           @scanners[stratum].each_value do |scanner|
             if scanner.rescan
               scanner.rescan_set.each {|e| e.rescan = true}
               scanner.invalidate_set.each {|e|
-                e.invalidated = true;
+                e.invalidated = true
                 e.invalidate_cache unless e.class <= PushElement
             }
             end
           end
         end
-        #Loop a second time to actually call invalidate_cache
+        # Loop a second time to actually call invalidate_cache
         num_strata.times do |stratum|
-          @push_sorted_elems[stratum].each { |elem|  elem.invalidate_cache if elem.invalidated}
+          @push_sorted_elems[stratum].each { |elem| elem.invalidate_cache if elem.invalidated}
         end
       end
 
