@@ -332,7 +332,8 @@ module Bud
     # Prepare list of tables that will be actively used at run time. First, all
     # the user-defined ones.  We start @app_tables off as a set, then convert to
     # an array later.
-    @app_tables = (@tables.keys - @builtin_tables.keys).reduce(Set.new) {|tabset, nm| tabset << @tables[nm]; tabset}
+    @app_tables = (@tables.keys - @builtin_tables.keys).map {|t| @tables[t]}.to_set
+
     # Check scan and merge_targets to see if any builtin_tables need to be added as well.
     @scanners.each do |scs|
       scs.each_value {|s| @app_tables << s.collection}
