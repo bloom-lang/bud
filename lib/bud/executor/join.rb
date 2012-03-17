@@ -585,10 +585,9 @@ module Bud
       end
       super(rellist, bud_instance, preds)
       set_block(&blk)
-      @cols =  rellist[0].cols
+      @cols = rellist[0].cols
       @exclude = Set.new
     end
-
 
     def positionwise_preds(bud_instance, rels)
       # pairwise colnames, for the minimum number of columns from either
@@ -619,7 +618,7 @@ module Bud
       flush
       # Scan through all the cached left rel values, and push out those that are
       # not in exclude
-      @hash_tables[0].each_value do |s| #
+      @hash_tables[0].each_value do |s|
         s.each do |item|
           next if @exclude.member? item
           @outputs.each do |ou|
@@ -632,9 +631,9 @@ module Bud
             end
           end
           # for all the following, o is a BudCollection
-          @deletes.each{|o| o.pending_delete([item])} unless item.nil?
-          @delete_keys.each{|o| o.pending_delete_keys([item])} unless item.nil?
-          @pendings.each{|o| o.pending_merge([item])} unless item.nil?
+          @deletes.each{|o| o.pending_delete([item])}
+          @delete_keys.each{|o| o.pending_delete_keys([item])}
+          @pendings.each{|o| o.pending_merge([item])}
         end
       end
     end
