@@ -299,7 +299,6 @@ module Bud
       rule_num = bud_instance.this_rule
       addr = nil
       addr = bud_instance.ip_port unless bud_instance.port.nil?
-      rule_txt = nil
       bud_instance.metrics[:collections] ||= {}
       bud_instance.metrics[:collections][{:addr=>addr, :tabname=>qualified_tabname, :strat_num=>strat_num, :rule_num=>rule_num}] ||= 0
       bud_instance.metrics[:collections][{:addr=>addr, :tabname=>qualified_tabname, :strat_num=>strat_num, :rule_num=>rule_num}] += 1
