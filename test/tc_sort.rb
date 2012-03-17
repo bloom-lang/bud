@@ -21,7 +21,7 @@ class TestSort < MiniTest::Unit::TestCase
     p.run_bg
     r = p.sync_callback(:in_t, [[5], [1], [100], [6]], :out_t)
     assert_equal([[0, [1]], [1, [5]], [2, [6]], [3, [100]]], r.to_a.sort)
-    p.stop_bg
+    p.stop
   end
 end
 
