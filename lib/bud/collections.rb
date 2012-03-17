@@ -516,19 +516,27 @@ module Bud
       return false
     end
 
+    protected
+    def add_merge_target
+      toplevel = @bud_instance.toplevel
+      if toplevel.done_bootstrap
+        toplevel.merge_targets[toplevel.this_stratum][self] = true
+      end
+    end
+
     public
     def merge(o, buf=@delta) # :nodoc: all
       toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         deduce_schema(o) if @cols.nil?
         o.wire_to self
       elsif o.class <= Bud::BudCollection
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         deduce_schema(o) if @cols.nil?
         o.pro.wire_to self
       elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring and not o.nil?
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         tbl = register_coll_expr(o)
         tbl.pro.wire_to self
       else
@@ -561,13 +569,13 @@ module Bud
     def pending_merge(o) # :nodoc: all
       toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         o.wire_to_pending self
       elsif o.class <= Bud::BudCollection
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         o.pro.wire_to_pending self
       elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         tbl = register_coll_expr(o) unless o.nil?
         tbl.pro.wire_to_pending self
       else
@@ -656,7 +664,6 @@ module Bud
     def to_push_elem(the_name=tabname, the_schema=schema)
       # if no push source yet, set one up
       toplevel = @bud_instance.toplevel
-      #rule_context = toplevel.this_rule_context
       this_stratum = toplevel.this_stratum
       oid = self.object_id
       unless toplevel.scanners[this_stratum][[oid, the_name]]
@@ -1158,13 +1165,13 @@ module Bud
     def pending_delete(o)
       toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         o.wire_to_delete self
       elsif o.class <= Bud::BudCollection
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         o.pro.wire_to_delete self
       elsif o.class <= Proc and @bud_instance.toplevel.done_bootstrap and not toplevel.done_wiring
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         tbl = register_coll_expr(o)
         tbl.pro.wire_to_delete self
       else
