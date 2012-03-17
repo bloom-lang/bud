@@ -13,7 +13,6 @@ require 'bud/bud_meta'
 require 'bud/collections'
 require 'bud/joins'
 require 'bud/metrics'
-#require 'bud/meta_algebra'
 require 'bud/rtrace'
 require 'bud/server'
 require 'bud/state'
@@ -441,12 +440,11 @@ module Bud
        nm_targets << lhs if rule.nm_funcs_called
     end
 
-    invalidate = Set.new
-    rescan = Set.new
     # Compute a set of tables and elements that should be explicitly told to
-    # invalidate or rescan.  Start with a set of tables that always invalidate,
+    # invalidate or rescan.  Start with a set of tables that always invalidate
     # and elements that always rescan
-    @app_tables.each {|t| invalidate << t if t.invalidate_at_tick}
+    invalidate = @app_tables.select {|t| t.invalidate_at_tick}.to_set
+    rescan = Set.new
 
     num_strata.times do |stratum|
       @push_sorted_elems[stratum].each do |elem|

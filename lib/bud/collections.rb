@@ -693,7 +693,7 @@ module Bud
     def argagg(aggname, gbkey_cols, collection)
       elem = to_push_elem
       gbkey_cols = gbkey_cols.map{|k| canonicalize_col(k)} unless gbkey_cols.nil?
-      retval = elem.argagg(aggname,gbkey_cols,canonicalize_col(collection))
+      retval = elem.argagg(aggname, gbkey_cols, canonicalize_col(collection))
       # PushElement inherits the schema accessors from this Collection
       retval.extend @cols_access
       retval

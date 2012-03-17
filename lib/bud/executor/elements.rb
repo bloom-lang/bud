@@ -529,10 +529,8 @@ module Bud
     def scan(first_iter)
       if first_iter
         if rescan
-          # scan entire storage
-          @collection.each_raw {|item|
-            push_out(item)
-          }
+          # Scan entire storage
+          @collection.each_raw {|item| push_out(item)}
         else
           # In the first iteration, tick_delta would be non-null IFF the
           # collection has grown in an earlier stratum
