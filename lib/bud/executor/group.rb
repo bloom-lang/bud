@@ -63,7 +63,7 @@ module Bud
     def insert(item, source)
       key = @keys.map{|k| item[k]}
       @aggpairs.each_with_index do |ap, agg_ix|
-                agg_input = item[ap[1]]
+        agg_input = item[ap[1]]
         if @groups[key].nil?
           agg = ap[0].send(:init, agg_input)
           @winners[key] = [item]
