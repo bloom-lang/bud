@@ -15,7 +15,7 @@ module Bud
   class PushElement < BudCollection
     attr_accessor :elem_name
     attr_accessor :rescan, :invalidated
-    attr_reader :arity, :inputs, :found_delta, :refcount, :wired_by, :outputs
+    attr_reader :inputs, :found_delta, :refcount, :wired_by, :outputs
 
     def initialize(name_in, bud_instance, collection_name=nil, given_schema=nil, defer_schema=false, &blk)
       super(name_in, bud_instance, given_schema, defer_schema)
@@ -28,7 +28,6 @@ module Bud
       @elem_name = name_in
       @found_delta = false
       @refcount = 1
-      @each_index = 0
       @collection_name = collection_name
       @invalidated = true
       @rescan = true
@@ -231,7 +230,7 @@ module Bud
       #elem.init_schema(the_schema) unless the_schema.nil?
       self.wire_to(elem)
       elem.set_block(&blk)
-      toplevel.push_elems[[self.object_id,:pro,blk]] = elem
+      toplevel.push_elems[[self.object_id, :pro, blk]] = elem
       return elem
     end
 
