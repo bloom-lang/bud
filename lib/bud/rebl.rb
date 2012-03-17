@@ -9,7 +9,7 @@ TABLE_TYPES = ["table", "scratch", "channel", "loopback", "periodic", "sync", "s
 # The class to which rebl adds user-specified rules and declarations.
 class ReblBase
   include Bud
-  attr_accessor:port, :ip
+  attr_accessor :port, :ip
 
   # Support for breakpoints
   state { scratch :rebl_breakpoint }
@@ -195,9 +195,10 @@ end
 class LibRebl
   attr_accessor :rules, :state
   attr_reader :ip, :port, :rebl_class_inst
-  @@builtin_tables = [:stdio, :t_depends, :periodics_tbl, :t_cycle, :localtick,
-                      :t_provides, :t_rules, :t_depends_tc, :t_stratum,
-                      :rebl_breakpoint]
+  @@builtin_tables = [:stdio, :periodics_tbl, :halt, :localtick,
+                      :t_depends, :t_cycle, :t_provides, :t_rules,
+                      :t_depends_tc, :t_stratum, :t_underspecified,
+                      :t_table_info, :t_table_schema, :rebl_breakpoint]
   @@classid = 0
 
   def initialize(ip, port)
