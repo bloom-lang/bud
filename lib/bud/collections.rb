@@ -46,8 +46,6 @@ module Bud
     public
     def init_schema(given_schema)
       given_schema ||= {[:key]=>[:val]}
-
-
       @given_schema = given_schema
       @cols, @key_cols = BudCollection.parse_schema(given_schema)
       # Check that no location specifiers appear in the schema. In the case of

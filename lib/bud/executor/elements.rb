@@ -43,7 +43,7 @@ module Bud
     end
 
     public
-    def print_wiring(depth=0, accum = "")
+    def print_wiring(depth=0, accum="")
       depth.times {print "  "}
       puts "#{accum} #{(self.object_id*2).to_s(16)}: #{qualified_tabname} (#{self.class})"
 
@@ -150,11 +150,11 @@ module Bud
           if ou.class <= Bud::PushElement
             #the_name = ou.elem_name
             # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
-            ou.insert(item,self)
+            ou.insert(item, self)
           elsif ou.class <= Bud::BudCollection
             # the_name = ou.tabname
             # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
-            ou.do_insert(item,ou.new_delta)
+            ou.do_insert(item, ou.new_delta)
           else
             raise Bud::Error, "expected either a PushElement or a BudCollection"
           end
@@ -245,7 +245,7 @@ module Bud
                                         @collection_name)
       elem.set_block(&blk)
       self.wire_to(elem)
-      toplevel.push_elems[[self.object_id,:each,blk]] = elem
+      toplevel.push_elems[[self.object_id, :each, blk]] = elem
     end
 
     def join(elem2, &blk)
@@ -253,15 +253,15 @@ module Bud
       # if cached.nil?
         elem2  = elem2.to_push_elem unless elem2.class <= PushElement
         toplevel = @bud_instance.toplevel
-        join = Bud::PushSHJoin.new([self,elem2], toplevel.this_rule_context, [])
+        join = Bud::PushSHJoin.new([self, elem2], toplevel.this_rule_context, [])
         self.wire_to(join)
         elem2.wire_to(join)
-        toplevel.push_elems[[self.object_id,:join,[self,elem2], toplevel, blk]] = join
+        toplevel.push_elems[[self.object_id, :join, [self, elem2], toplevel, blk]] = join
         toplevel.push_joins[toplevel.this_stratum] << join
       # else
       #   cached.refcount += 1
       # end
-      return toplevel.push_elems[[self.object_id,:join,[self,elem2], toplevel, blk]]
+      return toplevel.push_elems[[self.object_id, :join, [self, elem2], toplevel, blk]]
     end
     def *(elem2, &blk)
       join(elem2, &blk)
@@ -530,7 +530,7 @@ module Bud
     end
 
     def scan(first_iter)
-      if (first_iter)
+      if first_iter
         if rescan
           # scan entire storage
           @collection.each_raw {|item|
@@ -606,7 +606,7 @@ module Bud
 
     def insert(item, source=nil)
       ix = @each_index
-      @each_index = ix + 1
+      @each_index += 1
       push_out([item, ix])
     end
   end

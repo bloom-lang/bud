@@ -407,10 +407,8 @@ module Bud
   # scanner[stratum].invalidate = Set of elements to additionally invalidate if the scanner's table is invalidated at
   #  run-time
   # scanner[stratum].rescan = Similar to above.
-
-
   def prepare_invalidation_scheme
-    num_strata =  @push_sorted_elems.size
+    num_strata = @push_sorted_elems.size
     if $BUD_SAFE
       @app_tables = @tables.values # No tables excluded
 
@@ -437,11 +435,11 @@ module Bud
     # (such as budtime). Elements that feed these tables are forced to rescan
     # their contents, and thus forced to re-execute these code blocks.
     nm_targets = Set.new
-    t_rules.each {|rule|
+    t_rules.each do |rule|
       lhs = rule.lhs.to_sym
        @tables[lhs].is_source = false if rule.op == "<="
        nm_targets << lhs if rule.nm_funcs_called
-    }
+    end
 
     invalidate = Set.new
     rescan = Set.new
@@ -492,8 +490,7 @@ module Bud
     @reset_list = to_reset.to_a
   end
 
-
-  #given rescan, invalidate sets, compute transitive closure
+  # given rescan, invalidate sets, compute transitive closure
   def rescan_invalidate_tc(stratum, rescan, invalidate)
     rescan_len = rescan.size
     invalidate_len = invalidate.size
@@ -1096,7 +1093,8 @@ module Bud
   end
 
   def eval_rules(rules, strat_num)
-    # This routine evals the rules in a given stratum, which results in a wiring of PushElements
+    # This routine evals the rules in a given stratum, which results in a wiring
+    # of PushElements
     @this_stratum = strat_num
     rules.each_with_index do |rule, i|
       @this_rule_context = rule.bud_obj # user-supplied code blocks will be evaluated in this context at run-time
