@@ -86,8 +86,8 @@ module Bud
       unless element.methods.include? :insert or element.methods.include? "insert"
         raise Bud::Error, "attempt to wire_to element without insert method"
       end
-      # elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
-      # puts "wiring #{self.elem_name} to #{elem_name}"
+      elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
+      puts "wiring #{self.elem_name} to #{elem_name}"
       @outputs << element
       element.wired_by << self if element.respond_to? :wired_by
     end
@@ -389,21 +389,21 @@ module Bud
     alias on_exists? pro
     def on_include?(item, &blk)
       toplevel = @bud_instance.toplevel
-      if toplevel.push_elems[[self.object_id,:on_include?, item, blk]].nil?
+      if toplevel.push_elems[[self.object_id, :on_include?, item, blk]].nil?
         inc = pro{|i| blk.call(item) if i == item and not blk.nil?}
         wire_to(inc)
-        toplevel.push_elems[[self.object_id,:on_include?, item, blk]] = inc
+        toplevel.push_elems[[self.object_id, :on_include?, item, blk]] = inc
       end
-      toplevel.push_elems[[self.object_id,:on_include?, item, blk]]
+      toplevel.push_elems[[self.object_id, :on_include?, item, blk]]
     end
     def inspected
       toplevel = @bud_instance.toplevel
-      if toplevel.push_elems[[self.object_id,:inspected]].nil?
+      if toplevel.push_elems[[self.object_id, :inspected]].nil?
         ins = pro{|i| [i.inspect]}
         self.wire_to(ins)
-        toplevel.push_elems[[self.object_id,:inspected]] = ins
+        toplevel.push_elems[[self.object_id, :inspected]] = ins
       end
-      toplevel.push_elems[[self.object_id,:inspected]]
+      toplevel.push_elems[[self.object_id, :inspected]]
     end
 
     def to_enum

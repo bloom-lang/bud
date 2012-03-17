@@ -908,7 +908,7 @@ module Bud
         lsplit[1] = lsplit[1].to_i
         return lsplit
       rescue Exception => e
-        raise Bud::Error, "Illegal location specifier in tuple #{t.inspect} for channel \"#{qualified_tabname}\": #{e.to_s}"
+        raise Bud::Error, "illegal location specifier in tuple #{t.inspect} for channel \"#{qualified_tabname}\": #{e.to_s}"
       end
     end
 
@@ -1118,7 +1118,7 @@ module Bud
 
     public
     def invalidate_cache
-      raise "Abstract method not implemented by derived class #{self.class}"
+      raise Bud::Error, "abstract method not implemented by derived class #{self.class}"
     end
   end
 
@@ -1155,7 +1155,7 @@ module Bud
       @pending.each do |keycols, tuple|
         old = @storage[keycols]
         if old.nil?
-          @delta[keycols] = tuple #
+          @delta[keycols] = tuple
         else
           raise_pk_error(tuple, old) unless tuple == old
         end
