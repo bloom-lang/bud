@@ -75,7 +75,7 @@ module Bud
 
     def check_wiring
       if @blk.nil? and @outputs.empty? and @pendings.empty? and @deletes.empty? and @delete_keys.empty?
-        raise "no output specified for PushElement #{@qualified_tabname}"
+        raise Bud::Error, "no output specified for PushElement #{@qualified_tabname}"
       end
     end
 
@@ -116,7 +116,6 @@ module Bud
     def rescan_at_tick
       false
     end
-
 
     def insert(item, source=nil)
       push_out(item)
@@ -171,20 +170,22 @@ module Bud
         rescan << self
       end
 
-      # pass the current state to the non-element outputs, and see if they end up marking this node for rescan
+      # pass the current state to the non-element outputs, and see if they end
+      # up marking this node for rescan
       invalidate_tables(rescan, invalidate)
 
-      # finally, if this node is in rescan, pass the request on to all source elements
+      # finally, if this node is in rescan, pass the request on to all source
+      # elements
       if rescan.member? self
-        srcs.each{|e| rescan << e} # propagate a rescan request to all sources.
+        srcs.each{|e| rescan << e} # propagate a rescan request to all sources
       end
     end
 
     def invalidate_tables(rescan, invalidate)
-      # exchange rescan and invalidate information with tables. If this node is in rescan, it may invalidate a target
-      # table (if it is a scratch). And if the target node is invalidated, this node marks itself for rescan to
+      # exchange rescan and invalidate information with tables. If this node is
+      # in rescan, it may invalidate a target table (if it is a scratch). And if
+      # the target node is invalidated, this node marks itself for rescan to
       # enable a refill of that table at run-time
-
       @outputs.each do |o|
         unless o.class <= PushElement
           o.add_rescan_invalidate(rescan, invalidate) unless o.class <= PushElement
@@ -216,9 +217,11 @@ module Bud
     ####
     # and now, the Bloom-facing methods
     public
-    def pro(the_name = @elem_name, the_schema = schema, &blk)
+    def pro(the_name=@elem_name, the_schema=schema, &blk)
       toplevel = @bud_instance.toplevel
-      elem = Bud::PushElement.new('project' + object_id.to_s, toplevel.this_rule_context, @collection_name, the_schema)
+      elem = Bud::PushElement.new('project' + object_id.to_s,
+                                  toplevel.this_rule_context,
+                                  @collection_name, the_schema)
       #elem.init_schema(the_schema) unless the_schema.nil?
       self.wire_to(elem)
       elem.set_block(&blk)
@@ -229,9 +232,11 @@ module Bud
     alias each pro
 
     public
-    def each_with_index(the_name = elem_name, the_schema = schema, &blk)
+    def each_with_index(the_name=elem_name, the_schema=schema, &blk)
       toplevel = @bud_instance.toplevel
-      elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s, toplevel.this_rule_context, @collection_name)
+      elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s,
+                                        toplevel.this_rule_context,
+                                        @collection_name)
       elem.set_block(&blk)
       self.wire_to(elem)
       toplevel.push_elems[[self.object_id,:each,blk]] = elem
@@ -269,7 +274,7 @@ module Bud
       if source.class <= PushElement and wiring?
         source.wire_to(self)
       else
-        source.each{|i| self << i}
+        source.each {|i| self << i}
       end
     end
     alias <= merge
@@ -326,7 +331,7 @@ module Bud
           k[2]
         end
       end
-      aggpairs = [[agg,collection]]
+      aggpairs = [[agg, collection]]
       # if toplevel.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]].nil?
         aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, toplevel.this_rule_context, @collection_name, gbkey_cols, aggpairs, schema, &blk)
         self.wire_to(aa)
@@ -346,8 +351,10 @@ module Bud
       wire_to(elem)
       elem
     end
-    def push_predicate(pred_symbol, name=nil, bud_instance=nil, the_schema=nil, &blk)
-      elem = Bud::PushPredicate.new(pred_symbol, name, bud_instance, the_schema, &blk)
+    def push_predicate(pred_symbol, name=nil, bud_instance=nil,
+                       the_schema=nil, &blk)
+      elem = Bud::PushPredicate.new(pred_symbol, name, bud_instance,
+                                    the_schema, &blk)
       wire_to(elem)
       elem
     end
@@ -372,7 +379,9 @@ module Bud
 
     def reduce(initial, &blk)
       @memo = initial
-      retval = Bud::PushReduce.new('reduce'+Time.new.tv_usec.to_s, @bud_instance, @collection_name, schema, initial, &blk)
+      retval = Bud::PushReduce.new("reduce#{Time.new.tv_usec}",
+                                   @bud_instance, @collection_name,
+                                   schema, initial, &blk)
       self.wire_to(retval)
       retval
     end
@@ -398,15 +407,14 @@ module Bud
     end
 
     def to_enum
-        # scr = @bud_instance.scratch(("scratch_" + Process.pid.to_s + "_" + object_id.to_s + "_" + rand(10000).to_s).to_sym, schema)
-        scr = []
-        self.wire_to(scr)
-        scr
+      # scr = @bud_instance.scratch(("scratch_" + Process.pid.to_s + "_" + object_id.to_s + "_" + rand(10000).to_s).to_sym, schema)
+      scr = []
+      self.wire_to(scr)
+      scr
     end
   end
 
   class PushStatefulElement < PushElement
-
     def rescan_at_tick
       true
     end
@@ -416,10 +424,9 @@ module Bud
     end
 
     def add_rescan_invalidate(rescan, invalidate)
-      # If an upstream node is set to rescan, a stateful node invalidates its cache
-      # In addition, a stateful node always rescans its own contents (doesn't need to pass a rescan request to its
-      # its source nodes
-
+      # If an upstream node is set to rescan, a stateful node invalidates its
+      # cache.  In addition, a stateful node always rescans its own contents
+      # (doesn't need to pass a rescan request to its its source nodes).
       rescan << self
       srcs = non_temporal_predecessors
       if srcs.any? {|p| rescan.member? p}
@@ -453,7 +460,8 @@ module Bud
   end
 
   class PushSort < PushStatefulElement
-    def initialize(elem_name=nil, bud_instance=nil, collection_name=nil, schema_in=nil, &blk)
+    def initialize(elem_name=nil, bud_instance=nil, collection_name=nil,
+                   schema_in=nil, &blk)
       @sortbuf = []
       super(elem_name, bud_instance, collection_name, schema_in, &blk)
     end
@@ -481,8 +489,9 @@ module Bud
   class ScannerElement < PushElement
     attr_reader :collection
     attr_reader :rescan_set, :invalidate_set
-    def initialize(elem_name, bud_instance, collection_in, the_schema=collection_in.schema, &blk)
-      # puts self.class
+
+    def initialize(elem_name, bud_instance, collection_in,
+                   the_schema=collection_in.schema, &blk)
       super(elem_name, bud_instance, collection_in.qualified_tabname, the_schema)
       @collection = collection_in
       @rescan_set = []
@@ -498,7 +507,8 @@ module Bud
     end
 
     def invalidate_at_tick(rescan, invalidate)
-      # collection of others to rescan/invalidate if this scanner's collection were to be invalidated.
+      # collection of others to rescan/invalidate if this scanner's collection
+      # were to be invalidated.
       @rescan_set = rescan
       @invalidate_set = invalidate
     end
@@ -508,8 +518,9 @@ module Bud
       # scanner elements are never directly connected to tables.
       rescan << self if invalidate.member? @collection
 
-      # Note also that this node can be nominated for rescan by a target node; in other words, a scanner element
-      # can be set to rescan even if the collection is not invalidated.
+      # Note also that this node can be nominated for rescan by a target node;
+      # in other words, a scanner element can be set to rescan even if the
+      # collection is not invalidated.
     end
 
     def scan(first_iter)
@@ -520,7 +531,8 @@ module Bud
             push_out(item)
           }
         else
-          # In the first iteration, tick_delta would be non-null IFF the collection has grown in an earlier stratum
+          # In the first iteration, tick_delta would be non-null IFF the
+          # collection has grown in an earlier stratum
           @collection.tick_delta.each {|item| push_out(item)}
         end
       end
@@ -531,14 +543,15 @@ module Bud
   end
 
   class PushReduce < PushStatefulElement
-    def initialize(elem_name, bud_instance, collection_name, schema_in, initial, &blk)
+    def initialize(elem_name, bud_instance, collection_name,
+                   schema_in, initial, &blk)
       @memo = initial
       @blk = blk
       super(elem_name, bud_instance, collection_name, schema)
     end
 
     def insert(i, source=nil)
-      @memo = @blk.call(@memo,i)
+      @memo = @blk.call(@memo, i)
     end
 
     def invalidate_cache
@@ -568,8 +581,9 @@ module Bud
 
       invalidate_tables(rescan, invalidate)
 
-      # This node has some state (@each_index), but not the tuples. If it is in rescan mode, then it must ask its
-      # sources to rescan, and restart its index.
+      # This node has some state (@each_index), but not the tuples. If it is in
+      # rescan mode, then it must ask its sources to rescan, and restart its
+      # index.
       if rescan.member? self
         invalidate << self
         srcs.each {|e| rescan << e}
