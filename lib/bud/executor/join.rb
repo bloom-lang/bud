@@ -343,12 +343,14 @@ module Bud
         invalidate << self
       end
 
-      # The distinction between a join node and other stateful elements is that when a join node needs a rescan
-      # it doesn't tell all its sources to rescan. In fact, it doesn't have to pass a rescan request up to a source,
-      # because if a target needs a rescan, the join node has all the state necessary to feed the downstream node. And
-      # if a source node is in rescan, then at run-time only the state associated with that particular source node
-      # @hash_tables[offset] will be cleared, and will get filled up again because that source will rescan anyway.
-
+      # The distinction between a join node and other stateful elements is that
+      # when a join node needs a rescan it doesn't tell all its sources to
+      # rescan. In fact, it doesn't have to pass a rescan request up to a
+      # source, because if a target needs a rescan, the join node has all the
+      # state necessary to feed the downstream node. And if a source node is in
+      # rescan, then at run-time only the state associated with that particular
+      # source node @hash_tables[offset] will be cleared, and will get filled up
+      # again because that source will rescan anyway.
       invalidate_tables(rescan, invalidate)
     end
 
@@ -407,7 +409,7 @@ module Bud
     public
     def flush
       @input_bufs.each_with_index do |buf, offset|
-        flush_buf(buf,offset) if buf.length > 0
+        flush_buf(buf, offset) if buf.length > 0
       end
     end
 

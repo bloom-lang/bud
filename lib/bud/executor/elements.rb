@@ -136,35 +136,33 @@ module Bud
 
     def push_out(item, do_block=true)
       if item
-        blk = @blk if do_block
-        if blk
-          item = item.to_a if blk.arity > 1
-          begin
-          item = blk.call item
-          rescue Exception
-            raise
-          end
+        if do_block && @blk
+          item = item.to_a if @blk.arity > 1
+          item = @blk.call item
         end
-        @outputs.each do |ou|
-          if ou.class <= Bud::PushElement
-            #the_name = ou.elem_name
-            # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
-            ou.insert(item, self)
-          elsif ou.class <= Bud::BudCollection
-            # the_name = ou.tabname
-            # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
-            ou.do_insert(item, ou.new_delta)
-          else
-            raise Bud::Error, "expected either a PushElement or a BudCollection"
+
+        unless item.nil?
+          @outputs.each do |ou|
+            if ou.class <= Bud::PushElement
+              #the_name = ou.elem_name
+              # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
+              ou.insert(item, self)
+            elsif ou.class <= Bud::BudCollection
+              # the_name = ou.tabname
+              # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
+              ou.do_insert(item, ou.new_delta)
+            else
+              raise Bud::Error, "expected either a PushElement or a BudCollection"
+            end
           end
-        end unless item.nil?
-        # for all the following, o is a BudCollection
-        @deletes.each{|o| o.pending_delete([item])} unless item.nil?
-        @delete_keys.each{|o| o.pending_delete_keys([item])} unless item.nil?
-        @pendings.each{|o| o.pending_merge([item])} unless item.nil?
+
+          # for all the following, o is a BudCollection
+          @deletes.each{|o| o.pending_delete([item])}
+          @delete_keys.each{|o| o.pending_delete_keys([item])}
+          @pendings.each{|o| o.pending_merge([item])}
+        end
       end
     end
-
 
     # default for stateless elements
     public
