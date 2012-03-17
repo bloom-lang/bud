@@ -255,7 +255,7 @@ module Bud
     public
     def sort(&blk)
       pusher = self.pro
-      pusher.sort(@name, @bud_instance, @cols, &blk)
+      pusher.sort("sort#{object_id}", @bud_instance, @cols, &blk)
     end
 
     def rename(the_name, the_schema=nil)
