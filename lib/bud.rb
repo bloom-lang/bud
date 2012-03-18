@@ -870,7 +870,7 @@ module Bud
     # instance that hasn't been started yet.
     return if @instance_id == ILLEGAL_INSTANCE_ID
     $signal_lock.synchronize {
-      raise unless $bud_instances.has_key? @instance_id
+      raise Bud::Error unless $bud_instances.has_key? @instance_id
       $bud_instances.delete @instance_id
       @instance_id = ILLEGAL_INSTANCE_ID
     }

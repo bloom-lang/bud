@@ -80,6 +80,9 @@ class Module
     raise Bud::CompileError unless (spec.class <= Hash and spec.length == 1)
     mod, local_name = spec.first
     raise Bud::CompileError unless (mod.class <= Module and local_name.class <= Symbol)
+    if mod.class <= Class
+      raise Bud::CompileError, "import must be used with a Module, not a Class"
+    end
 
     # A statement like this:
     #   import MyModule => :m
@@ -110,7 +113,6 @@ class Module
           @#{local_name} = val
         end
       }
-      #puts src
       self.class_eval src
     end
 
@@ -142,7 +144,7 @@ class Module
     # If no block name was specified, generate a unique name
     if block_name.nil?
       @block_id ||= 0
-      block_name = "#{Module.get_class_name(self)}__#{@block_id.to_s}"
+      block_name = "#{Module.get_class_name(self)}__#{@block_id}".to_sym
       @block_id += 1
     else
       unless block_name.class <= Symbol
