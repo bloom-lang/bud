@@ -85,12 +85,6 @@ module Bud
     @tables[name] = Bud::BudReadOnly.new(name, self, schema)
   end
 
-  def signal(name, schema=nil)
-    define_collection(name)
-    @tables[name] = Bud::BudSignal.new(name, self, schema)
-  end
-
-
   # declare a scratch in a bloom statement lhs.  schema inferred from rhs.
   def temp(name)
     define_collection(name)

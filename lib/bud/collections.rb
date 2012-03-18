@@ -500,21 +500,6 @@ module Bud
       init_schema((0..arity-1).map{|indx| ("c"+indx.to_s).to_sym})
     end
 
-    private
-    def include_any_buf?(t, key)
-      bufs = [self, @delta, @new_delta]
-      bufs.each do |b|
-        old = b[key]
-        next if old.nil?
-        if old != t
-          raise_pk_error(t, old)
-        else
-          return true
-        end
-      end
-      return false
-    end
-
     protected
     def add_merge_target
       toplevel = @bud_instance.toplevel
@@ -713,15 +698,6 @@ module Bud
     public
     def argmax(gbkey_cols, col)
       argagg(:max, gbkey_cols, col)
-    end
-
-    private
-    def wrap_map(j, &blk)
-      if blk.nil?
-        return j
-      else
-        return j.map(&blk)
-      end
     end
 
     # form a collection containing all pairs of items in +self+ and items in
