@@ -26,6 +26,14 @@ module Bud
     end
   end
 
+  def define_lattice(name)
+    check_collection_name(name)
+
+    self.singleton_class.send(:define_method, name) do |*args|
+      return @lattices[name]
+    end
+  end
+
   public
   def input # :nodoc: all
     true
@@ -139,5 +147,72 @@ module Bud
     define_collection(name)
     @tables[name] = Bud::BudTerminal.new(name, [:line], self)
     @channels[name] = @tables[name]
+  end
+
+  # Define methods to implement the state declarations for every registered kind
+  # of lattice.
+  def load_lattice_defs
+    Bud::Lattice.global_mfuncs.each_key do |m|
+      next if RuleRewriter::MONOTONE_WHITELIST.has_key? m
+      if Bud::BudCollection.instance_methods.include? m.to_s
+        puts "monotone method #{m} conflicts with non-monotonic method in BudCollection"
+      end
+    end
+
+    Bud::Lattice.global_morphs.each_key do |m|
+      next if RuleRewriter::MONOTONE_WHITELIST.has_key? m
+      if Bud::BudCollection.instance_methods.include? m.to_s
+        puts "morphism #{m} conflicts with non-monotonic method in BudCollection"
+      end
+    end
+
+    # Sanity-check lattice definitions
+    # XXX: We should do this only once per lattice
+    Bud::Lattice.lattice_kinds.each do |wrap_name, klass|
+      unless klass.method_defined? :merge
+        raise Bud::CompileError, "lattice #{wrap_name} does not define a merge function"
+      end
+
+      # If a method is marked as monotone in any lattice, every lattice that
+      # declares a method of that name must also mark it as monotone.
+      meth_list = klass.instance_methods(false)
+      Bud::Lattice.global_mfuncs.each_key do |m|
+        next unless meth_list.include? m.to_s
+        unless klass.mfuncs.has_key? m
+          raise Bud::CompileError, "method #{m} in #{wrap_name} must be monotone"
+        end
+      end
+
+      # Apply a similar check for morphs
+      Bud::Lattice.global_morphs.each_key do |m|
+        next unless meth_list.include? m.to_s
+        unless klass.morphs.has_key? m
+          raise Bud::CompileError, "method #{m} in #{wrap_name} must be a morph"
+        end
+      end
+
+      # Similarly, check for non-monotone methods that are found in the builtin
+      # list of monotone operators
+      meth_list.each do |m_str|
+        m = m_str.to_sym
+        next unless RuleRewriter::MONOTONE_WHITELIST.has_key? m
+        unless klass.mfuncs.has_key?(m) || klass.morphs.has_key?(m)
+          raise Bud::CompileError, "method #{m} in #{wrap_name} must be monotone"
+        end
+      end
+
+      # We want to define the lattice state declaration function and give it a
+      # default parameter; in Ruby 1.8, that can only be done using "*args"
+      self.singleton_class.send(:define_method, wrap_name) do |*args|
+        collection_name, opts = args
+        opts ||= {}
+        opts = opts.clone       # Be paranoid
+        opts[:scratch] ||= false
+
+        define_lattice(collection_name)
+        @lattices[collection_name] = Bud::LatticeWrapper.new(collection_name, klass,
+                                                             opts[:scratch], self)
+      end
+    end
   end
 end

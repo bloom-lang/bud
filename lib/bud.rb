@@ -147,6 +147,7 @@ module Bud
     # NB: If using an ephemeral port (specified by port = 0), the actual port
     # number won't be known until we start EM
 
+    load_lattice_defs
     builtin_state
     resolve_imports
     call_state_methods
