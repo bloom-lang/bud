@@ -377,7 +377,7 @@ module Bud
     private
     def raise_pk_error(new_guy, old)
       key = get_key_vals(old)
-      raise KeyConstraintError, "key conflict inserting #{new_guy.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key = #{key.inspect}"
+      raise Bud::KeyConstraintError, "key conflict inserting #{new_guy.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key = #{key.inspect}"
     end
 
     private
@@ -393,7 +393,7 @@ module Bud
         init_schema(o.members.map{|m| m.to_sym}) if @struct.nil?
         o = o.take(@structlen)
       else
-        raise TypeError, "Array or struct type expected in \"#{qualified_tabname}\": #{o.inspect}"
+        raise Bud::TypeError, "array or struct type expected in \"#{qualified_tabname}\": #{o.inspect}"
       end
       return @struct.new(*o)
     end
@@ -442,7 +442,7 @@ module Bud
     private
     def check_enumerable(o)
       unless o.nil? or o.class < Enumerable or o.class <= Proc
-        raise TypeError, "Collection #{qualified_tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
+        raise Bud::TypeError, "collection #{qualified_tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
       end
     end
 
@@ -561,7 +561,7 @@ module Bud
     end
 
     def tick
-      raise "tick must be overriden in #{self.class}"
+      raise Bud::Error, "tick must be overriden in #{self.class}"
     end
 
     # move deltas to storage, and new_deltas to deltas.
@@ -671,8 +671,8 @@ module Bud
       argagg(:min, gbkey_cols, col)
     end
 
-    # for each distinct value of the grouping key columns, return the item in
-    # that group that has the maximum value of the attribute +col+. Note that
+    # for each distinct value of the grouping key columns, return the items in
+    # that group that have the maximum value of the attribute +col+. Note that
     # multiple tuples might be returned.
     public
     def argmax(gbkey_cols, col)
@@ -896,7 +896,7 @@ module Bud
     end
 
     superator "<~" do |o|
-      if o.class <= PushElement
+      if o.class <= Bud::PushElement
         o.wire_to_pending self
       else
         pending_merge(o)
@@ -994,7 +994,7 @@ module Bud
     end
 
     superator "<~" do |o|
-      if o.class <= PushElement
+      if o.class <= Bud::PushElement
         o.wire_to_pending self
       else
         pending_merge(o)
