@@ -238,25 +238,19 @@ class BudMeta #:nodoc: all
 
 
   def analyze_dependencies(nodes)  # nodes = {node name => node}
+    preds_in_lhs = nodes.select {|_, node| node.in_lhs}.map {|name, _| name}.to_set
+    preds_in_body = nodes.select {|_, node| node.in_body}.map {|name, _| name}.to_set
+
     bud = @bud_instance
-
-    preds_in_lhs = nodes.inject(Set.new) {|preds, name_n| preds.add(name_n[0]) if name_n[1].in_lhs; preds}
-    preds_in_body = nodes.inject(Set.new) {|preds, name_n| preds.add(name_n[0]) if name_n[1].in_body; preds}
-
     bud.t_provides.each do |p|
       pred, input = p.interface, p.input
       if input
-        # an interface pred is a source if it is an input and it is not in any rule's lhs
-        #bud.sources << [pred] unless (preds_in_lhs.include? pred)
         unless preds_in_body.include? pred.to_s
           # input interface is underspecified if not used in any rule body
           bud.t_underspecified << [pred, true] # true indicates input mode
           puts "Warning: input interface #{pred} not used"
         end
       else
-        # an interface pred is a sink if it is not an input and it is not in any rule's body
-        #(if it is in the body, then it is an intermediate node feeding some lhs)
-        #bud.sinks << [pred] unless (preds_in_body.include? pred)
         unless preds_in_lhs.include? pred.to_s
           # output interface underspecified if not in any rule's lhs
           bud.t_underspecified << [pred, false]  #false indicates output mode.
