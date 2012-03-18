@@ -1,10 +1,9 @@
 require 'dbm'
 
 module Bud
-  # Persistent table implementation based on ndbm.
+  # Persistent table implementation based on dbm.
   class BudDbmTable < BudPersistentCollection # :nodoc: all
     def initialize(name, bud_instance, given_schema)
-      @invalidated = true
       dbm_dir = bud_instance.options[:dbm_dir]
       raise Bud::Error, "dbm support must be enabled via 'dbm_dir'" unless dbm_dir
       if bud_instance.port.nil?
@@ -23,6 +22,7 @@ module Bud
 
       super(name, bud_instance, given_schema)
       @to_delete = []
+      @invalidated = true
 
       db_fname = "#{dirname}/#{name}.dbm"
       flags = DBM::WRCREAT
@@ -213,15 +213,7 @@ module Bud
     def invalidate_cache
     end
 
-    def method_missing(sym, *args, &block)
-      @dbm.send sym, *args, &block
-    end
-
-    public
-    def length
-      @dbm.length
-    end
-
+    # XXX: shouldn't this check @delta as well?
     public
     def empty?
       @dbm.empty?
