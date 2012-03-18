@@ -490,36 +490,3 @@ class WithExpander < TempExpander
     return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
   end
 end
-
-class DefnRenamer < SexpProcessor # :nodoc: all
-  def initialize(local_name, rename_tbl)
-    super()
-    self.require_empty = false
-    self.expected = Sexp
-    @local_name = local_name
-    @rename_tbl = rename_tbl
-  end
-
-  def process_defn(exp)
-    tag, name, args, scope = exp
-    name_s = name.to_s
-
-    if name_s =~ /^__bootstrap__.+$/
-      new_name = name_s.sub(/^(__bootstrap__)(.+)$/, "\\1#{@local_name}__\\2")
-    elsif name_s =~ /^__state\d+__/
-      new_name = name_s.sub(/^(__state\d+__)(.*)$/, "\\1#{@local_name}__\\2")
-    elsif name_s =~ /^__bloom__.+$/
-      new_name = name_s.sub(/^(__bloom__)(.+)$/, "\\1#{@local_name}__\\2")
-    else
-      new_name = "#{@local_name}__#{name_s}"
-    end
-
-    new_name = new_name.to_sym
-    @rename_tbl[name] = new_name
-
-    # Note that we don't bother to recurse further into the AST: we're only
-    # interested in top-level :defn nodes.
-    s(tag, new_name, args, scope)
-  end
-end
-

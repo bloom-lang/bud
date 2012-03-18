@@ -103,11 +103,6 @@ module Bud
       "#{self.class}:#{self.object_id.to_s(16)} [#{qualified_tabname}]"
     end
 
-    public
-    def clone_empty #:nodoc: all
-      self.class.new(tabname, bud_instance, @given_schema)
-    end
-
     # produces the schema in a format that is useful as the schema specification for another table
     public
     def schema
@@ -138,23 +133,13 @@ module Bud
       # set up schema accessors, which are class methods
       @cols_access = Module.new do
         sc.each_with_index do |c, i|
-          m = define_method c do
+          define_method c do
             [@tabname, i, c]
           end
         end
       end
       self.extend @cols_access
-
-      # now set up a Module for tuple accessors, which are instance methods
-      @tupaccess = Module.new do
-        sc.each_with_index do |colname, offset|
-          define_method colname do
-            self[offset]
-          end
-        end
-      end
     end
-
 
     private
     def name_reserved?(colname)
@@ -170,12 +155,6 @@ module Bud
         end
       end
       return true
-    end
-
-    # define methods to access tuple attributes by column name
-    public
-    def tuple_accessors(tup)
-      tup #  XXX remove tuple_acessors everywhere.
     end
 
     # generate a tuple with the schema of this collection and nil values in each attribute
@@ -309,7 +288,7 @@ module Bud
       bufs.each do |b|
         b.each_value do |v|
           tick_metrics if bud_instance and bud_instance.options[:metrics]
-          yield tuple_accessors(v)
+          yield v
         end
       end
     end
@@ -363,7 +342,7 @@ module Bud
       # is this enforced in do_insert?
       check_enumerable(k)
       t = @storage[k]
-      return t.nil? ? @delta[k] : tuple_accessors(t)
+      return t.nil? ? @delta[k] : t
     end
 
     # checks for +item+ in the collection
@@ -443,7 +422,7 @@ module Bud
 
       old = store[key]
       if old.nil?
-        store[key] = tuple_accessors(o)
+        store[key] = o
       else
         raise_pk_error(o, old) unless old == o
       end
@@ -867,11 +846,6 @@ module Bud
     end
 
     public
-    def clone_empty
-      self.class.new(tabname, bud_instance, @raw_schema, @is_loopback)
-    end
-
-    public
     def tick # :nodoc: all
       @storage.clear
       @invalidated = true
@@ -1250,7 +1224,7 @@ module Bud
 
     public
     def each(&blk)
-      each_raw {|l| tuple_accessors(blk.call(l))}
+      each_raw {|l| blk.call(l)}
     end
   end
 end
