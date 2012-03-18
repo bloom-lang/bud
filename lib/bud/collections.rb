@@ -385,24 +385,22 @@ module Bud
       return o if o.class == @struct
       if o.class == Array
         if @struct.nil?
-          sch = (1 .. o.length).map{|i| ("c"+i.to_s).to_sym}
+          sch = (1 .. o.length).map{|i| "c#{i}".to_sym}
           init_schema(sch)
         end
-        o = o.take(@structlen) if o.length > @structlen
       elsif o.kind_of? Struct
         init_schema(o.members.map{|m| m.to_sym}) if @struct.nil?
-        o = o.take(@structlen)
       else
         raise Bud::TypeError, "array or struct type expected in \"#{qualified_tabname}\": #{o.inspect}"
       end
+
+      o = o.take(@structlen) if o.length > @structlen
       return @struct.new(*o)
     end
 
     private
     def get_key_vals(t)
-      @key_colnums.map do |i|
-        t[i]
-      end
+      @key_colnums.map {|i| t[i]}
     end
 
     public
