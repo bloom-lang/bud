@@ -12,6 +12,7 @@ require 'bud/aggs'
 require 'bud/bud_meta'
 require 'bud/collections'
 require 'bud/joins'
+require 'bud/lattices'
 require 'bud/metrics'
 require 'bud/rtrace'
 require 'bud/server'
@@ -62,7 +63,7 @@ $bud_instances = {}        # Map from instance id => Bud instance
 # :main: Bud
 module Bud
   attr_reader :budtime, :inbound, :options, :meta_parser, :viz, :rtracer, :dsock
-  attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :app_tables
+  attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :app_tables, :lattices
   attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets, :done_wiring
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap
   attr_accessor :stratified_rules
@@ -111,6 +112,7 @@ module Bud
     options[:print_wiring] ||= ENV["BUD_PRINT_WIRING"].to_i > 0
     @qualified_name = ""
     @tables = {}
+    @lattices = {}
     @channels = {}
     @dbm_tables = {}
     @zk_tables = {}
