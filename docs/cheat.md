@@ -303,7 +303,7 @@ Like `pairs`, but implicitly includes a block that projects down to the right it
 `outer(`*hash pairs*`)`:<br>
 Left Outer Join.  Like `pairs`, but items in the first collection will be produced nil-padded if they have no match in the second collection.
 
-## Temp Collections and With Blocks ##
+## Temp Collections ##
 `temp`<br>
 Temp collections are scratches defined within a `bloom` block:
 

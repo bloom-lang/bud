@@ -340,6 +340,7 @@ class TempExpander < SexpProcessor # :nodoc: all
     s(tag, name, args, scope)
   end
 
+  private
   def fix_temp_decl(iter_body)
     if iter_body.first.sexp_type == :call
       call_node = iter_body.first
@@ -359,20 +360,6 @@ class TempExpander < SexpProcessor # :nodoc: all
     return nil
   end
 
-  def get_state_meth(klass)
-    return if @tmp_tables.empty?
-    block = s(:block)
-
-    @tmp_tables.each do |t|
-      args = s(:arglist, s(:lit, t.to_sym))
-      block << s(:call, nil, :temp, args)
-    end
-
-    meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
-    return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
-  end
-
-  private
   def rewrite_me(exp)
     _, recv, meth, args = exp
 
@@ -387,106 +374,5 @@ class TempExpander < SexpProcessor # :nodoc: all
     @tmp_tables << tmp_name
     new_recv = s(:call, nil, tmp_name, s(:arglist))
     return s(:call, new_recv, nest_op, nest_args)
-  end
-end
-
-# We do four things here for each "with" block
-# 1) Remove it from the AST
-# 2) Use rewrite_me in the parent class to get the collection name pushed onto @tmp_tables.
-# 3) Extract the definition of the "with" collection and push it onto @with_defns
-# 4) Extract the rules in the body of the "with" block and push it onto @with_rules
-
-class WithExpander < TempExpander
-  attr_reader :with_rules, :with_defns
-  def initialize
-    super()
-    @keyword = :with
-    @with_rules = []
-    @with_defns = []
-  end
-
-  def process_defn(exp)
-    tag, name, args, scope = exp
-    if name.to_s =~ /^__bloom__.+/
-      block = scope[1]
-
-      block.each_with_index do |n,i|
-        if i == 0
-          raise Bud::CompileError if n != :block
-          next
-        end
-
-        # temp declarations are misparsed if the RHS contains certain constructs
-        # (e.g., group, "do |f| ... end" rather than "{|f| ... }").  Rewrite to
-        # correct the misparsing.
-        if n.sexp_type == :iter
-          block[i] = nil
-          iter_body = n.sexp_body
-          n = fix_temp_decl(iter_body)
-          @with_defns.push n
-          @did_work = true unless n.nil?
-        end
-
-        _, recv, meth, meth_args = n
-        if meth == @keyword and recv.nil?
-          block[i] = nil
-          n = rewrite_me(n)
-          @with_defns.push n
-          @did_work = true unless n.nil?
-        end
-      end
-    end
-    block.compact! unless block.nil? # remove the nils that got pulled out
-
-    return s(tag, name, args, scope)
-  end
-
-  def get_state_meth(klass)
-    return if @tmp_tables.empty?
-    block = s(:block)
-
-    t = @tmp_tables.pop
-    args = s(:arglist, s(:lit, t.to_sym))
-    block << s(:call, nil, :temp, args)
-
-    meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
-    return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
-  end
-
-  private
-  def rewrite_me(exp)
-    _, recv, meth, args = exp
-
-    raise Bud::CompileError unless recv == nil
-    nest_call = args.sexp_body.first
-    raise Bud::CompileError unless nest_call.sexp_type == :call
-
-    nest_recv, nest_op, nest_args = nest_call.sexp_body
-    raise Bud::CompileError unless nest_recv.sexp_type == :lit
-
-    tmp_name = nest_recv.sexp_body.first
-    @tmp_tables.push tmp_name
-    nest_block = args.sexp_body[1]
-    if nest_block.first == :call
-      # a one-rule block doesn't get wrapped in a block.  wrap it ourselves.
-      nest_block = s(:block, nest_block)
-    end
-    @with_rules.push nest_block
-    new_recv = s(:call, nil, tmp_name, s(:arglist))
-    return s(:call, new_recv, nest_op, nest_args)
-  end
-
-  undef get_state_meth
-
-  public
-  def get_state_meth(klass)
-    return if @tmp_tables.empty?
-    block = s(:block)
-
-    args = s(:arglist, s(:lit, @tmp_tables.pop.to_sym))
-    block << s(:call, nil, :temp, args)
-
-    meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
-    return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
   end
 end
