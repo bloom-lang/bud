@@ -1,4 +1,5 @@
 require './test_common'
+require 'timeout'
 
 class TickleCount
   include Bud
