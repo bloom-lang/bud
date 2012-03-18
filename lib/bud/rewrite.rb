@@ -255,7 +255,6 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
       @collnames << exp[2]
     elsif exp[2] and exp[2] == :rename
       arglist, namelit, schemahash = exp[3]
-      # and add name to @collnames
       @collnames << namelit[1]
     else
       exp.each { |e| gather_collection_names(e) if e and e.class <= Sexp }
@@ -297,12 +296,12 @@ class TempExpander < SexpProcessor # :nodoc: all
   attr_reader :tmp_tables
   attr_accessor :did_work
 
+  KEYWORD = :temp
+
   def initialize
     super()
     self.require_empty = false
     self.expected = Sexp
-    @keyword = :temp
-
     @tmp_tables = []
     @did_work = false
   end
@@ -331,7 +330,7 @@ class TempExpander < SexpProcessor # :nodoc: all
         end
 
         _, recv, meth, meth_args = n
-        if meth == @keyword and recv.nil?
+        if meth == KEYWORD and recv.nil?
           block[i] = rewrite_me(n)
           @did_work = true
         end
@@ -346,7 +345,7 @@ class TempExpander < SexpProcessor # :nodoc: all
       call_node = iter_body.first
 
       _, recv, meth, meth_args = call_node
-      if meth == @keyword and recv.nil?
+      if meth == KEYWORD and recv.nil?
         _, lhs, op, rhs = meth_args.sexp_body.first
 
         old_rhs_body = rhs.sexp_body
