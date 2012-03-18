@@ -549,10 +549,10 @@ module Bud
     @rtracer.sleep if options[:rtrace]
   end
 
-  # Startup a Bud instance. This starts EventMachine (if needed) and binds to a
-  # UDP server socket. If do_tick is true, we also execute a single Bloom
-  # timestep. Regardless, calling this method does NOT cause Bud to begin
-  # executing timesteps asynchronously (see run_bg).
+  # Startup a Bud instance if it is not currently started. This starts
+  # EventMachine (if needed) and binds to a UDP server socket. If do_tick is
+  # true, we also execute a single Bloom timestep. Regardless, calling this
+  # method does NOT cause Bud to begin running asynchronously (see run_bg).
   def start(do_tick=false)
     start_reactor
     schedule_and_wait do
