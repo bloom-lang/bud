@@ -111,12 +111,11 @@ module Bud
     options[:print_wiring] ||= ENV["BUD_PRINT_WIRING"].to_i > 0
     @qualified_name = ""
     @tables = {}
-    @table_meta = []
-    @stratified_rules = []
     @channels = {}
-    @push_elems = {}
     @dbm_tables = {}
     @zk_tables = {}
+    @stratified_rules = []
+    @push_elems = {}
     @callbacks = {}
     @callback_id = 0
     @shutdown_callbacks = {}
