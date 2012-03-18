@@ -793,13 +793,12 @@ module Bud
       is_source      # rescan always only if this scratch is a source.
     end
 
-
     public
     def add_rescan_invalidate(rescan, invalidate)
       srcs = non_temporal_predecessors
       if srcs.any? {|e| rescan.member? e}
         invalidate << self
-        srcs.each{|e| rescan << e}
+        rescan += srcs
       end
     end
 
@@ -1128,7 +1127,7 @@ module Bud
         deleted ||= v
       end
 
-      @invalidated =  (not deleted.nil?)
+      @invalidated = (not deleted.nil?)
       puts "table #{qualified_tabname} invalidated" if $BUD_DEBUG and @invalidated
 
       @pending.each do |keycols, tuple|
@@ -1196,7 +1195,7 @@ module Bud
 
     public
     def invalidate_cache
-      # no cache to invalidate. Also, tables do not invalidate dependents,
+      # No cache to invalidate. Also, tables do not invalidate dependents,
       # because their own state is not considered invalidated; that happens only
       # if there were pending deletes at the beginning of a tick (see tick())
       puts "******** invalidate_cache called on BudTable"

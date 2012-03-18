@@ -272,7 +272,7 @@ class TestNestedDbm < MiniTest::Unit::TestCase
       @t.in_buf <+ [[10, 20, 30]]
     }
     @t.sync_do {
-      # We can store nested tuples inside TC tables, but we lose the ability to
+      # We can store nested tuples inside DBM tables, but we lose the ability to
       # access named columns after deserialization.
       assert_equal([10, 20, 30, [5, 10]], @t.t2.first)
     }

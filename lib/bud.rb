@@ -393,7 +393,7 @@ module Bud
   # permits us to preserve data from one tick to the next, and to keep things in incremental mode unless there's a
   # negation.
   # This scheme solves the following constraints.
-  # 1. A full scan of an elements contents results in downstream elements getting full scans themselves (i.e no \
+  # 1. A full scan of an element's contents results in downstream elements getting full scans themselves (i.e no \
   #    deltas). This effect is transitive.
   # 2. Invalidation of an element's cache results in rebuilding of the cache and a consequent fullscan. See next.
   # 3. Invalidation of an element requires upstream elements to rescan their contents, or to transitively pass the
@@ -413,7 +413,7 @@ module Bud
 
       invalidate = Set.new
       rescan = Set.new
-      @app_tables.each {|t| invalidate << t if (t.class <= BudScratch)}
+      @app_tables.each {|t| invalidate << t if t.class <= BudScratch}
       num_strata.times do |stratum|
         @push_sorted_elems[stratum].each do |elem|
           invalidate << elem
@@ -427,7 +427,7 @@ module Bud
       return
     end
 
-    # By default, all tables are considered sources, unless they appear on the
+    # By default, all tables are considered sources unless they appear on the
     # lhs.  We only consider non-temporal rules because invalidation is only
     # about this tick.  Also, we track (in nm_targets) those tables that are the
     # targets of user-defined code blocks that call non-monotonic functions
@@ -442,7 +442,7 @@ module Bud
 
     # Compute a set of tables and elements that should be explicitly told to
     # invalidate or rescan.  Start with a set of tables that always invalidate
-    # and elements that always rescan
+    # and elements that always rescan.
     invalidate = @app_tables.select {|t| t.invalidate_at_tick}.to_set
     rescan = Set.new
 
@@ -451,6 +451,7 @@ module Bud
         if elem.rescan_at_tick
           rescan << elem
         end
+
         if elem.outputs.any?{|tab| not(tab.class <= PushElement) and nm_targets.member? tab.qualified_tabname.to_sym }
           rescan += elem.wired_by
         end
@@ -471,7 +472,8 @@ module Bud
     to_reset = rescan + invalidate
     num_strata.times do |stratum|
       @scanners[stratum].each_value do |scanner|
-        # If it is going to be always invalidated, it doesn't need further examination.
+        # If it is going to be always invalidated, it doesn't need further
+        # examination
         next if dflt_rescan.member? scanner
 
         rescan = dflt_rescan + [scanner]  # add scanner to scan set
@@ -939,7 +941,8 @@ module Bud
       starttime = Time.now if options[:metrics]
       if options[:metrics] and not @endtime.nil?
         @metrics[:betweentickstats] ||= initialize_stats
-        @metrics[:betweentickstats] = running_stats(@metrics[:betweentickstats], starttime - @endtime)
+        @metrics[:betweentickstats] = running_stats(@metrics[:betweentickstats],
+                                                    starttime - @endtime)
       end
       @inside_tick = true
 
@@ -952,7 +955,8 @@ module Bud
         @default_rescan.each {|elem| elem.rescan = true}
         @default_invalidate.each {|elem|
           elem.invalidated = true
-          elem.invalidate_cache unless elem.class <= PushElement # call tick on tables here itself. The rest below.
+          # Call tick on tables here itself. The rest below
+          elem.invalidate_cache unless elem.class <= PushElement
         }
 
         num_strata = @push_sorted_elems.size
@@ -972,7 +976,7 @@ module Bud
         end
         # Loop a second time to actually call invalidate_cache
         num_strata.times do |stratum|
-          @push_sorted_elems[stratum].each { |elem| elem.invalidate_cache if elem.invalidated}
+          @push_sorted_elems[stratum].each {|e| e.invalidate_cache if e.invalidated}
         end
       end
 
@@ -990,7 +994,7 @@ module Bud
           # tick deltas on any merge targets and look for more deltas
           # check to see if any joins saw a delta
           push_joins[stratum].each do |p|
-            if p.found_delta==true
+            if p.found_delta
               fixpoint = false
               p.tick_deltas
             end
@@ -1000,9 +1004,9 @@ module Bud
           end
         end
         # push end-of-fixpoint
-        @push_sorted_elems[stratum].each {|p|
+        @push_sorted_elems[stratum].each do |p|
           p.stratum_end
-        }
+        end
         merge_targets[stratum].each do |t|
           t.flush_deltas
         end

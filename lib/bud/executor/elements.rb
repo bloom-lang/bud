@@ -180,7 +180,7 @@ module Bud
       # finally, if this node is in rescan, pass the request on to all source
       # elements
       if rescan.member? self
-        srcs.each{|e| rescan << e} # propagate a rescan request to all sources
+        rescan += srcs
       end
     end
 
@@ -191,7 +191,7 @@ module Bud
       # enable a refill of that table at run-time
       @outputs.each do |o|
         unless o.class <= PushElement
-          o.add_rescan_invalidate(rescan, invalidate) unless o.class <= PushElement
+          o.add_rescan_invalidate(rescan, invalidate)
           rescan << self if invalidate.member? o
         end
       end
@@ -225,7 +225,6 @@ module Bud
       elem = Bud::PushElement.new('project' + object_id.to_s,
                                   toplevel.this_rule_context,
                                   @collection_name, the_schema)
-      #elem.init_schema(the_schema) unless the_schema.nil?
       self.wire_to(elem)
       elem.set_block(&blk)
       toplevel.push_elems[[self.object_id, :pro, blk]] = elem
@@ -509,9 +508,9 @@ module Bud
       @collection.invalidate_at_tick # need to scan afresh if collection invalidated.
     end
 
+    # collection of others to rescan/invalidate if this scanner's collection
+    # were to be invalidated.
     def invalidate_at_tick(rescan, invalidate)
-      # collection of others to rescan/invalidate if this scanner's collection
-      # were to be invalidated.
       @rescan_set = rescan
       @invalidate_set = invalidate
     end
@@ -587,7 +586,7 @@ module Bud
       # index.
       if rescan.member? self
         invalidate << self
-        srcs.each {|e| rescan << e}
+        rescan += srcs
       end
     end
 
