@@ -131,8 +131,6 @@ module Bud
     @done_bootstrap = false
     @done_wiring = false
     @instance_id = ILLEGAL_INSTANCE_ID # Assigned when we start running
-    @sources = {}
-    @sinks = {}
     @metrics = {}
     @endtime = nil
     @this_stratum = 0
