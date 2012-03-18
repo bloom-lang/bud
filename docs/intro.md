@@ -29,7 +29,7 @@ This alpha is targeted at "friends and family", and at developers who'd like to 
 ## Getting Started ##
 We're shipping Bud with a [sandbox](http://github.com/bloom-lang/bud-sandbox) of libraries and example applications for distributed systems.  These illustrate the language and how it can be used, and also can serve as mixins for new code you might want to write.  You may be surprised at how short the provided Bud code is, but don't be fooled.
 
-To get you started with Bud, we've provided a [quick-start tutorial](getstarted.md), instructions for [deploying distributed Bud](deploy.md) programs on Amazon's EC2 cloud, and a number of other docs you can find linked from the [README](README.md).
+To get you started with Bud, we've provided a [quick-start tutorial](getstarted.md) and a number of other docs you can find linked from the [README](README.md).
 
 We welcome both constructive criticism and (hopefully occasional) smoke-out-your-ears, hair-tearing shouts of frustration.  Please point your feedback cannon at the [Bloom mailing list](http://groups.google.com/group/bloom-lang).
 
