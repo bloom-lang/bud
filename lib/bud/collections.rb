@@ -25,6 +25,7 @@ module Bud
     attr_accessor :invalidated, :to_delete, :rescan
     attr_accessor :is_source
     attr_accessor :wired_by
+    attr_accessor :accumulate_tick_deltas # updated in bud.do_wiring
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
       @tabname = name
@@ -32,6 +33,7 @@ module Bud
       @invalidated = true
       @is_source = true # unless it shows up on the lhs of some rule
       @wired_by = []
+      @accumulate_tick_deltas = false
       init_schema(given_schema) unless given_schema.nil? and defer_schema
       init_buffers
     end
@@ -569,7 +571,7 @@ module Bud
       unless @delta.empty?
         puts "#{qualified_tabname}.tick_delta delta --> storage (#{@delta.size} elems)" if $BUD_DEBUG
         @storage.merge!(@delta)
-        @tick_delta += @delta.values
+        @tick_delta += @delta.values if accumulate_tick_deltas
         @delta.clear
       end
 
@@ -611,7 +613,7 @@ module Bud
       end
       unless @delta.empty?
         @storage.merge!(@delta)
-        @tick_delta += @delta.values
+        @tick_delta += @delta.values if accumulate_tick_deltas
         @delta.clear
       end
       unless @new_delta.empty?
@@ -727,9 +729,12 @@ module Bud
   end
 
   class BudScratch < BudCollection # :nodoc: all
+    def accumulate_tick_deltas
+      false
+    end
+
     public
     def tick  # :nodoc: all
-      @tick_delta.clear
       @delta.clear
       if not @pending.empty?
         invalidate_cache

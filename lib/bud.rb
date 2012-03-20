@@ -321,6 +321,8 @@ module Bud
   end
 
   def do_wiring
+    @num_strata = @stratified_rules.length
+
     @stratified_rules.each_with_index { |rules, stratum| eval_rules(rules, stratum) }
 
     # Prepare list of tables that will be actively used at run time. First, all
@@ -374,7 +376,22 @@ module Bud
       end
     end
 
+    # create sets of elements and collections to invalidate or rescan at the beginning of each tick.
     prepare_invalidation_scheme
+
+    # For all tables that are accessed (scanned) in a stratum higher than the one they are updated in, set
+    # a flag to track deltas accumulated in that tick (see: collection.tick_delta)
+    stratum_accessed = {}
+    (@num_strata-1).downto(0) do |stratum|
+      @scanners[stratum].each_value do |s|
+        stratum_accessed[s.collection] ||= stratum
+      end
+    end
+    @merge_targets.each_with_index do |stratum_targets, stratum|
+      stratum_targets.each {|tab|
+        tab.accumulate_tick_deltas = true if stratum_accessed[tab] and stratum_accessed[tab] > stratum
+      }
+    end
 
     @done_wiring = true
     if @options[:print_wiring]
