@@ -295,13 +295,13 @@ class TestJoins < MiniTest::Unit::TestCase
   def test_block_assign
     program = BlockAssign.new
     program.tick
-    assert_equal(program.num.to_a.sort, [[1],[2],[3],[4],[5]])
+    assert_equal([[1],[2],[3],[4],[5]], program.num.to_a.sort)
   end
 
   def test_block_append
     program = BlockAppend.new
     program.tick
-    assert_equal(program.num.to_a.sort, [[1],[2],[3],[4],[5]])
+    assert_equal([[1],[2],[3],[4],[5]], program.num.to_a.sort)
   end
 
   def test_left_outer_join
@@ -309,7 +309,7 @@ class TestJoins < MiniTest::Unit::TestCase
     program.tick
     loj_outs = program.loj_out
     assert_equal(3, loj_outs.length)
-    assert_equal(loj_outs.to_a.sort, [["a", "a", 1, 1], ["v", nil, 1, nil], ["z", nil, 1, nil]])
+    assert_equal([["a", "a", 1, 1], ["v", nil, 1, nil], ["z", nil, 1, nil]], loj_outs.to_a.sort)
   end
 
   def test_star_join

@@ -80,6 +80,9 @@ class Module
     raise Bud::CompileError unless (spec.class <= Hash and spec.length == 1)
     mod, local_name = spec.first
     raise Bud::CompileError unless (mod.class <= Module and local_name.class <= Symbol)
+    if mod.class <= Class
+      raise Bud::CompileError, "import must be used with a Module, not a Class"
+    end
 
     # A statement like this:
     #   import MyModule => :m
@@ -99,18 +102,17 @@ class Module
     mod, local_name = spec.first
 
     if self.method_defined? local_name
-      raise Bud::CompileError, "#{local_name} is already taken."
+      raise Bud::CompileError, "#{local_name} is already taken"
     else
       src = %Q{
         def #{local_name}
           @#{local_name}
         end
         def #{local_name}=(val)
-          raise "Type Error: expecting an instance of #{mod}" unless val.kind_of? #{mod}
+          raise Bud::Error, "type error: expecting an instance of #{mod}" unless val.kind_of? #{mod}
           @#{local_name} = val
         end
       }
-      #puts src
       self.class_eval src
     end
 
@@ -142,7 +144,7 @@ class Module
     # If no block name was specified, generate a unique name
     if block_name.nil?
       @block_id ||= 0
-      block_name = "#{Module.get_class_name(self)}__#{@block_id.to_s}"
+      block_name = "#{Module.get_class_name(self)}__#{@block_id}".to_sym
       @block_id += 1
     else
       unless block_name.class <= Symbol
@@ -202,19 +204,6 @@ end
 
 
 module Enumerable
-  public
-  # Support for renaming collections and their schemas
-  def rename(new_tabname, new_schema=nil)
-    budi = (respond_to?(:bud_instance)) ? bud_instance : nil
-    if new_schema.nil? and respond_to?(:schema)
-      new_schema = schema
-    end
-    scr = Bud::BudScratch.new(new_tabname.to_s, budi, new_schema)
-    scr.uniquify_tabname
-    scr.merge(self, scr.storage)
-    scr
-  end
-
   public
   # We rewrite "map" calls in Bloom blocks to invoke the "pro" method
   # instead. This is fine when applied to a BudCollection; when applied to a

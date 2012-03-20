@@ -36,10 +36,6 @@ module Bud
       stat_and_watch
     end
 
-    def clone_empty
-      raise Bud::Error
-    end
-
     def stat_and_watch
       r = @zk.stat(:path => @zk_path, :watcher => @stat_watcher)
       @stat_watch_id = r[:req_id]

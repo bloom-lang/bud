@@ -1,6 +1,7 @@
 module Bud
   ######## methods for registering collection types
-  def define_collection(name)
+  private
+  def check_collection_name(name)
     if @tables.has_key? name
       raise Bud::CompileError, "collection already exists: #{name}"
     end
@@ -11,6 +12,11 @@ module Bud
     unless reserved.nil?
       raise Bud::CompileError, "symbol :#{name} reserved, cannot be used as collection name"
     end
+  end
+
+  def define_collection(name)
+    check_collection_name(name)
+
     self.singleton_class.send(:define_method, name) do |*args, &blk|
       if blk.nil?
         return @tables[name]
@@ -20,6 +26,7 @@ module Bud
     end
   end
 
+  public
   def input # :nodoc: all
     true
   end
@@ -32,7 +39,7 @@ module Bud
   def interface(mode, name, schema=nil)
     define_collection(name)
     t_provides << [name.to_s, mode]
-    @tables[name] = (mode ? Bud::BudInputInterface : BudOutputInterface).new(name, self, schema)
+    @tables[name] = (mode ? BudInputInterface : BudOutputInterface).new(name, self, schema)
   end
 
   # declare an in-memory, non-transient collection.  default schema <tt>[:key] => [:val]</tt>.
@@ -84,12 +91,6 @@ module Bud
     define_collection(name)
     @tables[name] = Bud::BudReadOnly.new(name, self, schema)
   end
-
-  def signal(name, schema=nil)
-    define_collection(name)
-    @tables[name] = Bud::BudSignal.new(name, self, schema)
-  end
-
 
   # declare a scratch in a bloom statement lhs.  schema inferred from rhs.
   def temp(name)

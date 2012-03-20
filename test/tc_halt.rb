@@ -13,8 +13,8 @@ class Halts
   end
 
   bloom do
-    halt <= tbl{|t| t if t.key == 2}
-    tbl <+ tbl{|t| [t.key+1]}
+    halt <= tbl {|t| t if t.key == 2}
+    tbl <+ tbl {|t| [t.key+1]}
   end
 end
 

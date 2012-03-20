@@ -7,7 +7,7 @@ else
   $mod = CSV
 end
 
-# metrics are reported in a nested hash representing a collection of relational tables.
+# Metrics are reported in a nested hash representing a collection of relational tables.
 # The metrics hash has the following form:
 # - key of the metrics hash is the name of the metric (table), e.g. "tickstats", "collections", "rules", etc.
 # - value of the metrics is itself a hash holding the rows of the table, keyed by key columns.

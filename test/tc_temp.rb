@@ -245,7 +245,7 @@ class TestTemps < MiniTest::Unit::TestCase
     p = BasicTemp.new
     p.run_bg
     p.sync_do{p.inski <+ [[1,1], [2,2], [3,3]]}
-    p.stop_bg
+    p.stop
     assert_equal(3, p.out.length)
     assert_equal([[1], [2], [3]], p.out.map{|o| [o.val]}.sort)
   end
@@ -273,7 +273,7 @@ class TestTemps < MiniTest::Unit::TestCase
     p.sync_do
     assert_equal(3, p.out.length)
     assert_equal([[5], [7], [9]], p.out.map{|o| [o.c1]}.sort)
-    p.stop_bg
+    p.stop
   end
   def test_dup_tmp
     assert_raises(Bud::CompileError) {DupTemp.new}

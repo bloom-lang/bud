@@ -11,9 +11,7 @@ require 'bud/monkeypatch'
 require 'bud/aggs'
 require 'bud/bud_meta'
 require 'bud/collections'
-require 'bud/joins'
 require 'bud/metrics'
-#require 'bud/meta_algebra'
 require 'bud/rtrace'
 require 'bud/server'
 require 'bud/state'
@@ -62,12 +60,11 @@ $bud_instances = {}        # Map from instance id => Bud instance
 #
 # :main: Bud
 module Bud
-  attr_reader :strata, :budtime, :inbound, :options, :meta_parser, :viz, :rtracer
-  attr_reader :dsock
-  attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :sources, :sinks, :app_tables
+  attr_reader :budtime, :inbound, :options, :meta_parser, :viz, :rtracer, :dsock
+  attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :app_tables
   attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets, :done_wiring
-  attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap, :done_wiring
-  attr_accessor :stratum_collection_map, :stratified_rules
+  attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap
+  attr_accessor :stratified_rules
   attr_accessor :metrics, :periodics
   attr_accessor :this_rule_context, :qualified_name
   attr_reader :running_async
@@ -82,7 +79,7 @@ module Bud
   # * operating system interaction
   #   * <tt>:stdin</tt>  if non-nil, reading from the +stdio+ collection results in reading from this +IO+ handle
   #   * <tt>:stdout</tt> writing to the +stdio+ collection results in writing to this +IO+ handle; defaults to <tt>$stdout</tt>
-  #   * <tt>:signal_handling</tt> how to handle +SIGINT+ and +SIGTERM+.  If :none, these signals are ignored.  If :bloom, they're passed into the built-in scratch called +signals+.  Else shutdown all bud instances.
+  #   * <tt>:signal_handling</tt> how to handle +SIGINT+ and +SIGTERM+.  If :none, these signals are ignored.  Else shutdown all bud instances.
   # * tracing and output
   #   * <tt>:quiet</tt> if true, suppress certain messages
   #   * <tt>:trace</tt> if true, generate +budvis+ outputs
@@ -113,12 +110,11 @@ module Bud
     options[:print_wiring] ||= ENV["BUD_PRINT_WIRING"].to_i > 0
     @qualified_name = ""
     @tables = {}
-    @table_meta = []
-    @stratified_rules = []
     @channels = {}
-    @push_elems = {}
     @dbm_tables = {}
     @zk_tables = {}
+    @stratified_rules = []
+    @push_elems = {}
     @callbacks = {}
     @callback_id = 0
     @shutdown_callbacks = {}
@@ -133,15 +129,10 @@ module Bud
     @done_bootstrap = false
     @done_wiring = false
     @instance_id = ILLEGAL_INSTANCE_ID # Assigned when we start running
-    @sources = {}
-    @sinks = {}
     @metrics = {}
     @endtime = nil
     @this_stratum = 0
     @push_sorted_elems = nil
-
-    # XXX This variable is unused in the Push executor
-    @stratum_first_iter = false
     @running_async = false
     @bud_started = false
 
@@ -155,10 +146,7 @@ module Bud
     # number won't be known until we start EM
 
     builtin_state
-
     resolve_imports
-
-    # Invoke all the user-defined state blocks and initialize builtin state.
     call_state_methods
 
     @declarations = self.class.instance_methods.select {|m| m =~ /^__bloom__.+$/}.map {|m| m.to_s}
@@ -173,7 +161,7 @@ module Bud
       @scanners = num_strata.times.map{{}}
       @push_sources = num_strata.times.map{{}}
       @push_joins = num_strata.times.map{[]}
-      @merge_targets = num_strata.times.map{{}}
+      @merge_targets = num_strata.times.map{Set.new}
     end
   end
 
@@ -182,7 +170,7 @@ module Bud
     begin
       klass = Module.const_get(class_name.to_sym)
       unless klass.is_a? Class
-        raise Bud::Error, "Internal error: #{class_name} is in use"
+        raise Bud::Error, "internal error: #{class_name} is in use"
       end
     rescue NameError # exception if class class_name doesn't exist
     end
@@ -215,7 +203,7 @@ module Bud
         anc_imp_tbl.each do |nm, mod|
           # Ensure that two modules have not been imported under one alias.
           if @imported_defs.member? nm and not @imported_defs[nm] == anc_imp_tbl[nm]
-              raise Bud::CompileError, "Conflicting imports: modules #{@imported_defs[nm]} and #{anc_imp_tbl[nm]} both are imported as '#{nm}'"
+              raise Bud::CompileError, "conflicting imports: modules #{@imported_defs[nm]} and #{anc_imp_tbl[nm]} both are imported as '#{nm}'"
           end
           @imported_defs[nm] = mod
         end
@@ -225,7 +213,7 @@ module Bud
   end
 
   def budtime
-    toplevel? ?  @budtime : toplevel.budtime
+    toplevel? ? @budtime : toplevel.budtime
   end
 
   # absorb rules and dependencies from imported modules. The corresponding module instantiations
@@ -236,47 +224,51 @@ module Bud
     import_tbl.each_pair do |local_name, mod_name|
       # corresponding to "import <mod_name> => :<local_name>"
       mod_inst = send(local_name)
-      qlocal_name = toplevel? ? local_name.to_s : self.qualified_name + "." + local_name.to_s
       if mod_inst.nil?
         # create wrapper instances
         #puts "=== resolving #{self}.#{mod_name} => #{local_name}"
         klass = module_wrapper_class(mod_name)
-        mod_inst = klass.new(:toplevel => toplevel, :qualified_name => qlocal_name) # this instantiation will resolve the imported module's own imports
+        qlocal_name = toplevel? ? local_name.to_s : "#{self.qualified_name}.#{local_name}"
+        # this instantiation will resolve the imported module's own imports
+        mod_inst = klass.new(:toplevel => toplevel, :qualified_name => qlocal_name)
         instance_variable_set("@#{local_name}", mod_inst)
       end
+      # Absorb the module wrapper's user-defined state.
       mod_inst.tables.each_pair do |name, t|
-        # Absorb the module wrapper's user-defined state.
+        # Don't try to import module definitions for builtin Bud state. Note
+        # that @tables only includes the builtin tables, because resolve_imports
+        # is called before user-defined state blocks are run.
         unless @tables.has_key? t.tabname
-          qname = (local_name.to_s + "." + name.to_s).to_sym  # access path to table.
-          tables[qname] = t
+          qname = "#{local_name}.#{name}"
+          tables[qname.to_sym] = t
         end
       end
       mod_inst.t_rules.each do |imp_rule|
-        qname = local_name.to_s + "." + imp_rule.lhs.to_s  #qualify name by prepending with local_name
+        qname = "#{local_name}.#{imp_rule.lhs}"
         self.t_rules << [imp_rule.bud_obj, imp_rule.rule_id, qname, imp_rule.op,
-                     imp_rule.src, imp_rule.orig_src, imp_rule.nm_funcs_called]
+                         imp_rule.src, imp_rule.orig_src, imp_rule.nm_funcs_called]
       end
       mod_inst.t_depends.each do |imp_dep|
-        qlname = local_name.to_s + "." + imp_dep.lhs.to_s  #qualify names by prepending with local_name
-        qrname = local_name.to_s + "." + imp_dep.body.to_s
-        self.t_depends << [imp_dep.bud_obj, imp_dep.rule_id, qlname, imp_dep.op, qrname, imp_dep.nm]
+        qlname = "#{local_name}.#{imp_dep.lhs}"
+        qrname = "#{local_name}.#{imp_dep.body}"
+        self.t_depends << [imp_dep.bud_obj, imp_dep.rule_id, qlname,
+                           imp_dep.op, qrname, imp_dep.nm]
       end
       mod_inst.t_provides.each do |imp_pro|
-        qintname = local_name.to_s + "." + imp_pro.interface.to_s  #qualify names by prepending with local_name
+        qintname = "#{local_name}.#{imp_pro.interface}"
         self.t_provides << [qintname, imp_pro.input]
       end
       mod_inst.channels.each do |name, ch|
-        qname = (local_name.to_s + "." + name.to_s)
+        qname = "#{local_name}.#{name}"
         @channels[qname.to_sym] = ch
       end
       mod_inst.dbm_tables.each do |name, t|
-        qname = (local_name.to_s + "." + name.to_s)
+        qname = "#{local_name}.#{name}"
         @dbm_tables[qname.to_sym] = t
       end
       mod_inst.periodics.each do |p|
-        qname = (local_name.to_s + "." + p.pername.to_s)
-        p.pername = qname.to_sym
-        @periodics << [p.pername, p.period]
+        qname = "#{local_name}.#{p.pername}"
+        @periodics << [qname.to_sym, p.period]
       end
     end
 
@@ -308,7 +300,7 @@ module Bud
 
   # Evaluate all bootstrap blocks and tick deltas
   def do_bootstrap
-    # evaluate bootstrap for imported modules
+    # Evaluate bootstrap for imported modules
     @this_rule_context = self
     imported = import_defs.keys
     imported.each do |mod_alias|
@@ -331,22 +323,25 @@ module Bud
   def do_wiring
     @stratified_rules.each_with_index { |rules, stratum| eval_rules(rules, stratum) }
 
-    # prepare list of tables that will be actively used at run time. First, all the user defined ones.
-    # We start @app_tables off as a set, then convert to an array later.
-    @app_tables = (@tables.keys - @builtin_tables.keys).reduce(Set.new) {|tabset, nm| tabset << @tables[nm]; tabset}
+    # Prepare list of tables that will be actively used at run time. First, all
+    # the user-defined ones.  We start @app_tables off as a set, then convert to
+    # an array later.
+    @app_tables = (@tables.keys - @builtin_tables.keys).map {|t| @tables[t]}.to_set
+
     # Check scan and merge_targets to see if any builtin_tables need to be added as well.
     @scanners.each do |scs|
-      scs.each_value {|s| @app_tables << s.collection}
+      @app_tables += scs.values.map {|s| s.collection}
     end
-    @merge_targets.each{|mts| #mts == merge_targets at stratum
-      mts.each_key {|t| @app_tables << t}
-    }
+    @merge_targets.each do |mts| #mts == merge_targets at stratum
+      @app_tables += mts
+    end
     @app_tables = @app_tables.nil? ? [] : @app_tables.to_a
 
     # for each stratum create a sorted list of push elements in topological order
     @push_sorted_elems = []
     @scanners.each do |scs|  # scs's values constitute scanners at a stratum
-      # start with scanners and transitively add all reachable elements in a breadth-first order
+      # start with scanners and transitively add all reachable elements in a
+      # breadth-first order
       working = scs.values
       seen = Set.new(working)
       sorted_elems = [] # sorted elements in this stratum
@@ -366,9 +361,9 @@ module Bud
       @push_sorted_elems << sorted_elems
     end
 
-    @merge_targets.each_with_index do |stratum_tables, stratum|
+    @merge_targets.each_with_index do |stratum_targets, stratum|
       @scanners[stratum].each_value do |s|
-        stratum_tables[s.collection] = true
+        stratum_targets << s.collection
       end
     end
 
@@ -384,7 +379,7 @@ module Bud
     @done_wiring = true
     if @options[:print_wiring]
       @push_sources.each do |strat|
-        strat.each_value{|src| src.print_wiring}
+        strat.each_value {|src| src.print_wiring}
       end
     end
   end
@@ -394,7 +389,7 @@ module Bud
   # permits us to preserve data from one tick to the next, and to keep things in incremental mode unless there's a
   # negation.
   # This scheme solves the following constraints.
-  # 1. A full scan of an elements contents results in downstream elements getting full scans themselves (i.e no \
+  # 1. A full scan of an element's contents results in downstream elements getting full scans themselves (i.e no \
   #    deltas). This effect is transitive.
   # 2. Invalidation of an element's cache results in rebuilding of the cache and a consequent fullscan. See next.
   # 3. Invalidation of an element requires upstream elements to rescan their contents, or to transitively pass the
@@ -407,16 +402,14 @@ module Bud
   # scanner[stratum].invalidate = Set of elements to additionally invalidate if the scanner's table is invalidated at
   #  run-time
   # scanner[stratum].rescan = Similar to above.
-
-
   def prepare_invalidation_scheme
-    num_strata =  @push_sorted_elems.size
+    num_strata = @push_sorted_elems.size
     if $BUD_SAFE
       @app_tables = @tables.values # No tables excluded
 
       invalidate = Set.new
       rescan = Set.new
-      @app_tables.each {|t| invalidate << t if (t.class <= BudScratch)}
+      @app_tables.each {|t| invalidate << t if t.class <= BudScratch}
       num_strata.times do |stratum|
         @push_sorted_elems[stratum].each do |elem|
           invalidate << elem
@@ -430,32 +423,33 @@ module Bud
       return
     end
 
-
-    # By default, all tables are considered sources, unless they appear on the lhs.
-    # We only consider non-temporal rules because invalidation is only about this tick.
-    # Also, we track (in nm_targets) those tables that are the targets of user-defined code blocks
-    # that call non-monotonic functions (such as budtime). Elements that feed these tables are
-    # forced to rescan their contents, and thus forced to re-execute these code blocks.
+    # By default, all tables are considered sources unless they appear on the
+    # lhs.  We only consider non-temporal rules because invalidation is only
+    # about this tick.  Also, we track (in nm_targets) those tables that are the
+    # targets of user-defined code blocks that call non-monotonic functions
+    # (such as budtime). Elements that feed these tables are forced to rescan
+    # their contents, and thus forced to re-execute these code blocks.
     nm_targets = Set.new
-    t_rules.each {|rule|
+    t_rules.each do |rule|
       lhs = rule.lhs.to_sym
-       @tables[lhs].is_source = false if rule.op == "<="
-       nm_targets << lhs if rule.nm_funcs_called
-    }
+      @tables[lhs].is_source = false if rule.op == "<="
+      nm_targets << lhs if rule.nm_funcs_called
+    end
 
-    invalidate = Set.new
+    # Compute a set of tables and elements that should be explicitly told to
+    # invalidate or rescan.  Start with a set of tables that always invalidate
+    # and elements that always rescan.
+    invalidate = @app_tables.select {|t| t.invalidate_at_tick}.to_set
     rescan = Set.new
-    # Compute a set of tables and elements that should be explicitly told to invalidate or rescan.
-    # Start with a set of tables that always invalidate, and elements that always rescan
-    @app_tables.each {|t| invalidate << t if t.invalidate_at_tick}
 
     num_strata.times do |stratum|
       @push_sorted_elems[stratum].each do |elem|
         if elem.rescan_at_tick
           rescan << elem
         end
+
         if elem.outputs.any?{|tab| not(tab.class <= PushElement) and nm_targets.member? tab.qualified_tabname.to_sym }
-          elem.wired_by.map {|e| rescan << e}
+          rescan += elem.wired_by
         end
       end
       rescan_invalidate_tc(stratum, rescan, invalidate)
@@ -466,14 +460,16 @@ module Bud
     @default_rescan = rescan.to_a
     @default_invalidate = invalidate.to_a
 
-    # Now compute for each table that is to be scanned, the set of dependent tables and elements that will be invalidated
-    # if that table were to be invalidated at run time.
+    # Now compute for each table that is to be scanned, the set of dependent
+    # tables and elements that will be invalidated if that table were to be
+    # invalidated at run time.
     dflt_rescan = rescan
     dflt_invalidate = invalidate
     to_reset = rescan + invalidate
     num_strata.times do |stratum|
       @scanners[stratum].each_value do |scanner|
-        # If it is going to be always invalidated, it doesn't need further examination.
+        # If it is going to be always invalidated, it doesn't need further
+        # examination
         next if dflt_rescan.member? scanner
 
         rescan = dflt_rescan + [scanner]  # add scanner to scan set
@@ -481,7 +477,8 @@ module Bud
         rescan_invalidate_tc(stratum, rescan, invalidate)
         prune_rescan_invalidate(rescan, invalidate)
         to_reset += rescan + invalidate
-        # Give the diffs (from default) to scanner; these are elements that are dependent on this scanner
+        # Give the diffs (from default) to scanner; these are elements that are
+        # dependent on this scanner
         diffscan = (rescan - dflt_rescan).find_all {|elem| elem.class <= PushElement}
         scanner.invalidate_at_tick(diffscan, (invalidate - dflt_invalidate).to_a)
       end
@@ -489,13 +486,13 @@ module Bud
     @reset_list = to_reset.to_a
   end
 
-
-  #given rescan, invalidate sets, compute transitive closure
+  # given rescan, invalidate sets, compute transitive closure
   def rescan_invalidate_tc(stratum, rescan, invalidate)
     rescan_len = rescan.size
     invalidate_len = invalidate.size
     while true
-      # Ask each element if it wants to add itself to either set, depending on who else is in those sets already.
+      # Ask each element if it wants to add itself to either set, depending on
+      # who else is in those sets already.
       @push_sorted_elems[stratum].each {|t| t.add_rescan_invalidate(rescan, invalidate)}
       break if rescan_len == rescan.size and invalidate_len == invalidate.size
       rescan_len = rescan.size
@@ -548,10 +545,10 @@ module Bud
     @rtracer.sleep if options[:rtrace]
   end
 
-  # Startup a Bud instance. This starts EventMachine (if needed) and binds to a
-  # UDP server socket. If do_tick is true, we also execute a single Bloom
-  # timestep. Regardless, calling this method does NOT cause Bud to begin
-  # executing timesteps asynchronously (see run_bg).
+  # Startup a Bud instance if it is not currently started. This starts
+  # EventMachine (if needed) and binds to a UDP server socket. If do_tick is
+  # true, we also execute a single Bloom timestep. Regardless, calling this
+  # method does NOT cause Bud to begin running asynchronously (see run_bg).
   def start(do_tick=false)
     start_reactor
     schedule_and_wait do
@@ -718,21 +715,26 @@ module Bud
   # Note that registering callbacks on persistent collections (e.g., tables,
   # syncs and stores) is probably not wise: as long as any tuples are stored in
   # the collection, the callback will be invoked at the end of every tick.
-  def register_callback(tbl_name, &block)
+  def register_callback(tbl_name, &blk)
     # We allow callbacks to be added before or after EM has been started. To
     # simplify matters, we start EM if it hasn't been started yet.
     start_reactor
     cb_id = nil
     schedule_and_wait do
-      unless @tables.has_key? tbl_name
-        raise Bud::Error, "no such collection: #{tbl_name}"
-      end
-
-      raise Bud::Error if @callbacks.has_key? @callback_id
-      @callbacks[@callback_id] = [tbl_name, block]
-      cb_id = @callback_id
-      @callback_id += 1
+      cb_id = do_register_callback(tbl_name, &blk)
     end
+    return cb_id
+  end
+
+  def do_register_callback(tbl_name, &blk)
+    unless @tables.has_key? tbl_name
+      raise Bud::Error, "no such collection: #{tbl_name}"
+    end
+
+    raise Bud::Error if @callbacks.has_key? @callback_id
+    @callbacks[@callback_id] = [tbl_name, blk]
+    cb_id = @callback_id
+    @callback_id += 1
     return cb_id
   end
 
@@ -750,10 +752,6 @@ module Bud
   # inserted into the output collection: these are returned to the caller.
   def sync_callback(in_tbl, tupleset, out_tbl)
     q = Queue.new
-    # XXXX Why two separate entrances into the event loop? Why is the callback not registered in the sync_do below?
-    cb = register_callback(out_tbl) do |c|
-      q.push c.to_a
-    end
 
     # If the runtime shuts down before we see anything in the output collection,
     # make sure we hear about it so we can raise an error
@@ -762,16 +760,21 @@ module Bud
       q.push :callback
     end
 
-    unless in_tbl.nil?
-      sync_do {
+    cb = nil
+    sync_do {
+      if in_tbl
         t = @tables[in_tbl]
         if t.class <= Bud::BudChannel or t.class <= Bud::BudZkTable
           t <~ tupleset
         else
           t <+ tupleset
         end
-      }
-    end
+      end
+
+      cb = do_register_callback(out_tbl) do |c|
+        q.push c.to_a
+      end
+    }
     result = q.pop
     if result == :callback
       # Don't try to unregister the callbacks first: runtime is already shutdown
@@ -779,7 +782,7 @@ module Bud
     end
     unregister_callback(cb)
     cancel_shutdown_cb(shutdown_cb)
-    return (result == :callback) ? nil : result
+    return result
   end
 
   # A common special case for sync_callback: block on a delta to a table.
@@ -863,7 +866,7 @@ module Bud
     # instance that hasn't been started yet.
     return if @instance_id == ILLEGAL_INSTANCE_ID
     $signal_lock.synchronize {
-      raise unless $bud_instances.has_key? @instance_id
+      raise Bud::Error unless $bud_instances.has_key? @instance_id
       $bud_instances.delete @instance_id
       @instance_id = ILLEGAL_INSTANCE_ID
     }
@@ -934,7 +937,8 @@ module Bud
       starttime = Time.now if options[:metrics]
       if options[:metrics] and not @endtime.nil?
         @metrics[:betweentickstats] ||= initialize_stats
-        @metrics[:betweentickstats] = running_stats(@metrics[:betweentickstats], starttime - @endtime)
+        @metrics[:betweentickstats] = running_stats(@metrics[:betweentickstats],
+                                                    starttime - @endtime)
       end
       @inside_tick = true
 
@@ -947,27 +951,28 @@ module Bud
         @default_rescan.each {|elem| elem.rescan = true}
         @default_invalidate.each {|elem|
           elem.invalidated = true
-          elem.invalidate_cache unless elem.class <= PushElement # call tick on tables here itself. The rest below.
+          # Call tick on tables here itself. The rest below
+          elem.invalidate_cache unless elem.class <= PushElement
         }
 
         num_strata = @push_sorted_elems.size
-        # The following loop invalidates additional (non-default) elements and tables that depend on the run-time
-        # invalidation state of a table.
+        # The following loop invalidates additional (non-default) elements and
+        # tables that depend on the run-time invalidation state of a table.
         # Loop once to set the flags
         num_strata.times do |stratum|
           @scanners[stratum].each_value do |scanner|
             if scanner.rescan
               scanner.rescan_set.each {|e| e.rescan = true}
               scanner.invalidate_set.each {|e|
-                e.invalidated = true;
+                e.invalidated = true
                 e.invalidate_cache unless e.class <= PushElement
-            }
+              }
             end
           end
         end
-        #Loop a second time to actually call invalidate_cache
+        # Loop a second time to actually call invalidate_cache
         num_strata.times do |stratum|
-          @push_sorted_elems[stratum].each { |elem|  elem.invalidate_cache if elem.invalidated}
+          @push_sorted_elems[stratum].each {|e| e.invalidate_cache if e.invalidated}
         end
       end
 
@@ -985,20 +990,20 @@ module Bud
           # tick deltas on any merge targets and look for more deltas
           # check to see if any joins saw a delta
           push_joins[stratum].each do |p|
-            if p.found_delta==true
+            if p.found_delta
               fixpoint = false
               p.tick_deltas
             end
           end
-          merge_targets[stratum].each_key do |t|
+          merge_targets[stratum].each do |t|
             fixpoint = false if t.tick_deltas
           end
         end
         # push end-of-fixpoint
-        @push_sorted_elems[stratum].each {|p|
+        @push_sorted_elems[stratum].each do |p|
           p.stratum_end
-        }
-        merge_targets[stratum].each_key do |t|
+        end
+        merge_targets[stratum].each do |t|
           t.flush_deltas
         end
       end
@@ -1034,7 +1039,7 @@ module Bud
 
   private
 
-  # Builtin BUD state (predefined collections). We could define this using the
+  # Builtin Bud state (predefined collections). We could define this using the
   # standard state block syntax, but we want to ensure that builtin state is
   # initialized before user-defined state.
   def builtin_state
@@ -1043,7 +1048,6 @@ module Bud
 
     loopback  :localtick, [:col1]
     @stdio = terminal :stdio
-    signal :signals, [:name]
     scratch :halt, [:key]
     @periodics = table :periodics_tbl, [:pername] => [:period]
 
@@ -1087,7 +1091,8 @@ module Bud
   end
 
   def eval_rules(rules, strat_num)
-    # This routine evals the rules in a given stratum, which results in a wiring of PushElements
+    # This routine evals the rules in a given stratum, which results in a wiring
+    # of PushElements
     @this_stratum = strat_num
     rules.each_with_index do |rule, i|
       @this_rule_context = rule.bud_obj # user-supplied code blocks will be evaluated in this context at run-time
@@ -1137,7 +1142,7 @@ module Bud
       Bud.shutdown_all_instances(false)
 
       $got_shutdown_signal = false
-      $setup_signal_handler = false
+      $signal_handler_setup = false
 
       yield
     end
@@ -1160,15 +1165,11 @@ module Bud
     $signal_lock.synchronize {
       # If we setup signal handlers and then fork a new process, we want to
       # reinitialize the signal handler in the child process.
-      unless b.options[:signal_handling] == :none or $signal_handler_setup
+      unless b.options[:signal_handling] == :none || $signal_handler_setup
         EventMachine::PeriodicTimer.new(SIGNAL_CHECK_PERIOD) do
           if $got_shutdown_signal
-            if b.options[:signal_handling] == :bloom
-              Bud.tick_all_instances
-            else
-              Bud.shutdown_all_instances
-              Bud.stop_em_loop
-            end
+            Bud.shutdown_all_instances
+            Bud.stop_em_loop
             $got_shutdown_signal = false
           end
         end
@@ -1176,25 +1177,15 @@ module Bud
         ["INT", "TERM"].each do |signal|
           Signal.trap(signal) {
             $got_shutdown_signal = true
-            b.sync_do{b.signals.pending_merge([[signal]])}
           }
         end
-        $setup_signal_handler_pid = true
+        $signal_handler_setup = true
       end
 
       $instance_id += 1
       $bud_instances[$instance_id] = b
       return $instance_id
     }
-  end
-
-  def self.tick_all_instances
-    instances = nil
-    $signal_lock.synchronize {
-      instances = $bud_instances.clone
-    }
-
-    instances.each_value {|b| b.sync_do }
   end
 
   def self.shutdown_all_instances(do_shutdown_cb=true)

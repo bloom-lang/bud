@@ -1,20 +1,12 @@
 require './test_common'
+require 'socket'
 require 'timeout'
 
 class Vacuous
   include Bud
 end
 
-class Hooverous
-  include Bud
-  state {table :gotsignal, [:key]}
-  bloom do
-    gotsignal <= signals
-    halt <= signals{[:kill]}
-  end
-end
-
-class CallbackTest < MiniTest::Unit::TestCase
+class ExecModeTest < MiniTest::Unit::TestCase
   def test_shutdown_em
     c = Vacuous.new
     c.run_bg
@@ -30,7 +22,6 @@ class CallbackTest < MiniTest::Unit::TestCase
   def test_int
     kill_with_signal("INT")
     kill_with_signal("INT")
-    bloom_signal("INT")
   end
 
   class AckWhenReady
@@ -54,18 +45,18 @@ class CallbackTest < MiniTest::Unit::TestCase
     read, write = IO.pipe
     c = AckWhenReady.new
     c.instance_variable_set('@ack_io', write)
-    cnt = 0
     q = Queue.new
     c.on_shutdown do
-      cnt += 1
       q.push(true)
     end
     c.run_bg
-    _ = read.readline
-    _ = read.readline
-    Process.kill(sig, $$)
-    Timeout::timeout(5) { q.pop }
-    assert_equal(1, cnt)
+    Timeout::timeout(6) do
+      _ = read.readline
+      _ = read.readline
+      Process.kill(sig, $$)
+      q.pop
+    end
+    assert(q.empty?)
     read.close ; write.close
 
     # XXX: hack. There currently isn't a convenient way to block until the kill
@@ -73,44 +64,19 @@ class CallbackTest < MiniTest::Unit::TestCase
     # before the end of the Bud shutdown process). Since we don't want to run
     # another test until EM has shutdown, we can at least wait for that.
     begin
-      EventMachine::reactor_thread.join
-    rescue NoMethodError
-    end
-  end
-
-  def bloom_signal(sig)
-    c = Hooverous.new(:signal_handling => :bloom)
-    cnt = 0
-    q = Queue.new
-    c.on_shutdown do
-      cnt += 1
-      q.push(c.gotsignal.first.key)
-    end
-    c.run_bg
-    sleep 0.1
-    Process.kill(sig, $$)
-    gotsig = q.pop
-    assert_equal(1, cnt)
-    assert_equal(sig, gotsig)
-
-    # XXX: hack. There currently isn't a convenient way to block until the kill
-    # signal has been completely handled (on_shutdown callbacks are invoked
-    # before the end of the Bud shutdown process). Since we don't want to run
-    # another test until EM has shutdown, we can at least wait for that.
-    begin
-      EventMachine::reactor_thread.join
+      EventMachine::reactor_thread.join(10)
     rescue NoMethodError
     end
   end
 
   def test_sigint_child
     kill_child_with_signal(Vacuous, "INT")
-    kill_child_with_signal(Hooverous, "INT")
+    kill_child_with_signal(Vacuous, "INT")
   end
 
   def test_sigterm_child
     kill_child_with_signal(Vacuous, "TERM")
-    kill_child_with_signal(Hooverous, "TERM")
+    kill_child_with_signal(Vacuous, "TERM")
   end
 
   def kill_child_with_signal(parent_class, signal)

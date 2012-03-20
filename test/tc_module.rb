@@ -486,7 +486,7 @@ class TestModules < MiniTest::Unit::TestCase
     }
   end
 
-  def atest_import_class
+  def test_import_class
     assert_raises(Bud::CompileError) do
       eval %{
       class DummyClass; end

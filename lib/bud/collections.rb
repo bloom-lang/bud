@@ -17,7 +17,7 @@ module Bud
   class BudCollection
     include Enumerable
 
-    attr_accessor :bud_instance, :locspec_idx, :tabname  # :nodoc: all
+    attr_accessor :bud_instance, :tabname  # :nodoc: all
     attr_reader :cols, :key_cols # :nodoc: all
     attr_reader :struct
     attr_reader :storage, :delta, :new_delta, :pending, :tick_delta # :nodoc: all
@@ -46,8 +46,6 @@ module Bud
     public
     def init_schema(given_schema)
       given_schema ||= {[:key]=>[:val]}
-
-
       @given_schema = given_schema
       @cols, @key_cols = BudCollection.parse_schema(given_schema)
       # Check that no location specifiers appear in the schema. In the case of
@@ -91,7 +89,7 @@ module Bud
       cols = key_cols + val_cols
       cols.each do |c|
         if c.class != Symbol
-          raise Bud::Error, "Invalid column name \"#{c}\", type \"#{c.class}\""
+          raise Bud::Error, "invalid column name \"#{c}\", type \"#{c.class}\""
         end
       end
       if cols.uniq.length < cols.length
@@ -103,11 +101,6 @@ module Bud
 
     def inspect
       "#{self.class}:#{self.object_id.to_s(16)} [#{qualified_tabname}]"
-    end
-
-    public
-    def clone_empty #:nodoc: all
-      self.class.new(tabname, bud_instance, @given_schema)
     end
 
     # produces the schema in a format that is useful as the schema specification for another table
@@ -140,23 +133,13 @@ module Bud
       # set up schema accessors, which are class methods
       @cols_access = Module.new do
         sc.each_with_index do |c, i|
-          m = define_method c do
+          define_method c do
             [@tabname, i, c]
           end
         end
       end
       self.extend @cols_access
-
-      # now set up a Module for tuple accessors, which are instance methods
-      @tupaccess = Module.new do
-        sc.each_with_index do |colname, offset|
-          define_method colname do
-            self[offset]
-          end
-        end
-      end
     end
-
 
     private
     def name_reserved?(colname)
@@ -172,12 +155,6 @@ module Bud
         end
       end
       return true
-    end
-
-    # define methods to access tuple attributes by column name
-    public
-    def tuple_accessors(tup)
-      tup #  XXX remove tuple_acessors everywhere.
     end
 
     # generate a tuple with the schema of this collection and nil values in each attribute
@@ -208,7 +185,7 @@ module Bud
 
     # projection
     public
-    def pro(the_name = tabname, the_schema = schema, &blk)
+    def pro(the_name=tabname, the_schema=schema, &blk)
       pusher = to_push_elem(the_name, the_schema)
       pusher_pro = pusher.pro(&blk)
       pusher_pro.elem_name = the_name
@@ -217,24 +194,25 @@ module Bud
     end
 
     public
-    def each_with_index(the_name = tabname, the_schema = schema, &blk)
+    def each_with_index(the_name=tabname, the_schema=schema, &blk)
       toplevel = @bud_instance.toplevel
       if not toplevel.done_wiring
         proj = pro(the_name, the_schema)
-        elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s, toplevel.this_rule_context, tabname)
+        elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s,
+                                          toplevel.this_rule_context, tabname)
         elem.set_block(&blk)
         proj.wire_to(elem)
-        toplevel.push_elems[[self.object_id,:each,blk]] = elem
+        toplevel.push_elems[[self.object_id, :each, blk]] = elem
         elem
       else
          storage.each_with_index
       end
     end
 
-
-    # ruby 1.9 defines flat_map to return "a new array with the concatenated results of running
-    # <em>block</em> once for every element". So we wire the input to a pro(&blk), and wire the output
-    # of that pro to a group that does accum.
+    # ruby 1.9 defines flat_map to return "a new array with the concatenated
+    # results of running <em>block</em> once for every element". So we wire the
+    # input to a pro(&blk), and wire the output of that pro to a group that does
+    # accum.
     public
     def flat_map(&blk)
       pusher = self.pro(&blk)
@@ -243,19 +221,19 @@ module Bud
       pusher.wire_to(elem)
       f = Proc.new do |t|
         t.each do |i|
-          elem.push_out(i,false)
+          elem.push_out(i, false)
         end
         nil
       end
       elem.set_block(&f)
-      toplevel.push_elems[[self.object_id,:flatten]] = elem
+      toplevel.push_elems[[self.object_id, :flatten]] = elem
       return elem
     end
 
     public
     def sort(&blk)
       pusher = self.pro
-      pusher.sort(@name, @bud_instance, @cols, &blk)
+      pusher.sort("sort#{object_id}", @bud_instance, @cols, &blk)
     end
 
     def rename(the_name, the_schema=nil)
@@ -300,7 +278,6 @@ module Bud
       rule_num = bud_instance.this_rule
       addr = nil
       addr = bud_instance.ip_port unless bud_instance.port.nil?
-      rule_txt = nil
       bud_instance.metrics[:collections] ||= {}
       bud_instance.metrics[:collections][{:addr=>addr, :tabname=>qualified_tabname, :strat_num=>strat_num, :rule_num=>rule_num}] ||= 0
       bud_instance.metrics[:collections][{:addr=>addr, :tabname=>qualified_tabname, :strat_num=>strat_num, :rule_num=>rule_num}] += 1
@@ -311,7 +288,7 @@ module Bud
       bufs.each do |b|
         b.each_value do |v|
           tick_metrics if bud_instance and bud_instance.options[:metrics]
-          yield tuple_accessors(v)
+          yield v
         end
       end
     end
@@ -365,7 +342,7 @@ module Bud
       # is this enforced in do_insert?
       check_enumerable(k)
       t = @storage[k]
-      return t.nil? ? @delta[k] : tuple_accessors(t)
+      return t.nil? ? @delta[k] : t
     end
 
     # checks for +item+ in the collection
@@ -400,7 +377,7 @@ module Bud
     private
     def raise_pk_error(new_guy, old)
       key = get_key_vals(old)
-      raise KeyConstraintError, "key conflict inserting #{new_guy.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key = #{key.inspect}"
+      raise Bud::KeyConstraintError, "key conflict inserting #{new_guy.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key = #{key.inspect}"
     end
 
     private
@@ -408,24 +385,22 @@ module Bud
       return o if o.class == @struct
       if o.class == Array
         if @struct.nil?
-          sch =  (1 .. o.length).map{|i| ("c"+i.to_s).to_sym}
+          sch = (1 .. o.length).map{|i| "c#{i}".to_sym}
           init_schema(sch)
         end
-        o = o.take(@structlen) if o.length > @structlen
       elsif o.kind_of? Struct
         init_schema(o.members.map{|m| m.to_sym}) if @struct.nil?
-        o = o.take(@structlen)
       else
-        raise TypeError, "Array or struct type expected in \"#{qualified_tabname}\": #{o.inspect}"
+        raise Bud::TypeError, "array or struct type expected in \"#{qualified_tabname}\": #{o.inspect}"
       end
+
+      o = o.take(@structlen) if o.length > @structlen
       return @struct.new(*o)
     end
 
     private
     def get_key_vals(t)
-      @key_colnums.map do |i|
-        t[i]
-      end
+      @key_colnums.map {|i| t[i]}
     end
 
     public
@@ -445,7 +420,7 @@ module Bud
 
       old = store[key]
       if old.nil?
-        store[key] = tuple_accessors(o)
+        store[key] = o
       else
         raise_pk_error(o, old) unless old == o
       end
@@ -465,7 +440,7 @@ module Bud
     private
     def check_enumerable(o)
       unless o.nil? or o.class < Enumerable or o.class <= Proc
-        raise TypeError, "Collection #{qualified_tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
+        raise Bud::TypeError, "collection #{qualified_tabname} expected Enumerable value, not #{o.inspect} (class = #{o.class})"
       end
     end
 
@@ -502,34 +477,27 @@ module Bud
       init_schema((0..arity-1).map{|indx| ("c"+indx.to_s).to_sym})
     end
 
-    private
-    def include_any_buf?(t, key)
-      bufs = [self, @delta, @new_delta]
-      bufs.each do |b|
-        old = b[key]
-        next if old.nil?
-        if old != t
-          raise_pk_error(t, old)
-        else
-          return true
-        end
+    protected
+    def add_merge_target
+      toplevel = @bud_instance.toplevel
+      if toplevel.done_bootstrap
+        toplevel.merge_targets[toplevel.this_stratum] << self
       end
-      return false
     end
 
     public
     def merge(o, buf=@delta) # :nodoc: all
       toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         deduce_schema(o) if @cols.nil?
         o.wire_to self
       elsif o.class <= Bud::BudCollection
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         deduce_schema(o) if @cols.nil?
         o.pro.wire_to self
       elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring and not o.nil?
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         tbl = register_coll_expr(o)
         tbl.pro.wire_to self
       else
@@ -543,17 +511,9 @@ module Bud
       return self
     end
 
-    # def prep_coll_expr(o)
-    #   o = o.uniq.compact if o.respond_to?(:uniq)
-    #   check_enumerable(o)
-    #   establish_schema(o) if @cols.nil?
-    #   o
-    # end
-
     def register_coll_expr(expr)
-      # require 'ruby-debug'; debugger
-      coll_name = ("expr_"+expr.object_id.to_s)
-      cols = (1..@cols.length).map{|i| ("c"+i.to_s).to_sym} unless @cols.nil?
+      coll_name = "expr_#{expr.object_id}"
+      cols = (1..@cols.length).map{|i| "c#{i}".to_sym} unless @cols.nil?
       @bud_instance.coll_expr(coll_name.to_sym, expr, cols)
       coll = @bud_instance.send(coll_name)
       coll
@@ -570,13 +530,13 @@ module Bud
     def pending_merge(o) # :nodoc: all
       toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         o.wire_to_pending self
       elsif o.class <= Bud::BudCollection
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         o.pro.wire_to_pending self
       elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         tbl = register_coll_expr(o) unless o.nil?
         tbl.pro.wire_to_pending self
       else
@@ -599,7 +559,7 @@ module Bud
     end
 
     def tick
-      raise "tick must be overriden in #{self.class}"
+      raise Bud::Error, "tick must be overriden in #{self.class}"
     end
 
     # move deltas to storage, and new_deltas to deltas.
@@ -631,8 +591,9 @@ module Bud
 
     public
     def add_rescan_invalidate(rescan, invalidate)
-      # No change. Most collections don't need to rescan on every tick (only do so on negate). Also, there's no cache
-      # to invalidate by default. Scratches and PushElements override this method.
+      # No change. Most collections don't need to rescan on every tick (only do
+      # so on negate). Also, there's no cache to invalidate by default.
+      # Scratches and PushElements override this method.
     end
 
     def bootstrap
@@ -648,7 +609,7 @@ module Bud
         puts "#{qualified_tabname}.flush delta --> storage" unless @delta.empty?
         puts "#{qualified_tabname}.flush new_delta --> storage" unless @new_delta.empty?
       end
-      unless (@delta.empty?)
+      unless @delta.empty?
         @storage.merge!(@delta)
         @tick_delta += @delta.values
         @delta.clear
@@ -664,7 +625,6 @@ module Bud
     def to_push_elem(the_name=tabname, the_schema=schema)
       # if no push source yet, set one up
       toplevel = @bud_instance.toplevel
-      #rule_context = toplevel.this_rule_context
       this_stratum = toplevel.this_stratum
       oid = self.object_id
       unless toplevel.scanners[this_stratum][[oid, the_name]]
@@ -672,17 +632,6 @@ module Bud
         toplevel.push_sources[this_stratum][[oid, the_name]] = toplevel.scanners[this_stratum][[oid, the_name]]
       end
       return toplevel.scanners[this_stratum][[oid, the_name]]
-    end
-
-    private
-    def method_missing(sym, *args, &block)
-      begin
-        @storage.send sym, *args, &block
-      rescue Exception => e
-        err = NoMethodError.new("no method :#{sym} in class #{self.class.name}")
-        err.set_backtrace(e.backtrace)
-        raise err
-      end
     end
 
     ######## aggs
@@ -699,16 +648,14 @@ module Bud
       end
     end
 
-
     # a generalization of argmin/argmax to arbitrary exemplary aggregates.
     # for each distinct value of the grouping key columns, return the items in that group
     # that have the value of the exemplary aggregate +aggname+
     public
     def argagg(aggname, gbkey_cols, collection)
       elem = to_push_elem
-      elem.schema
       gbkey_cols = gbkey_cols.map{|k| canonicalize_col(k)} unless gbkey_cols.nil?
-      retval = elem.argagg(aggname,gbkey_cols,canonicalize_col(collection))
+      retval = elem.argagg(aggname, gbkey_cols, canonicalize_col(collection))
       # PushElement inherits the schema accessors from this Collection
       retval.extend @cols_access
       retval
@@ -722,37 +669,21 @@ module Bud
       argagg(:min, gbkey_cols, col)
     end
 
-    # for each distinct value of the grouping key columns, return the item in
-    # that group that has the maximum value of the attribute +col+. Note that
+    # for each distinct value of the grouping key columns, return the items in
+    # that group that have the maximum value of the attribute +col+. Note that
     # multiple tuples might be returned.
     public
     def argmax(gbkey_cols, col)
       argagg(:max, gbkey_cols, col)
     end
 
-    private
-    def wrap_map(j, &blk)
-      if blk.nil?
-        return j
-      else
-        return j.map(&blk)
-      end
-    end
-
-    # def join(collections, *preds, &blk)
-    #   # since joins are stateful, we want to allocate them once and store in this Bud instance
-    #   # we ID them on their tablenames, preds, and block
-    #   return wrap_map(BudJoin.new(collections, @bud_instance, preds), &blk)
-    # end
-
     # form a collection containing all pairs of items in +self+ and items in
     # +collection+
     public
     def *(collection)
-      elem1  = to_push_elem
+      elem1 = to_push_elem
       j = elem1.join(collection)
       return j
-      # join([self, collection])
     end
 
     def group(key_cols, *aggpairs, &blk)
@@ -815,20 +746,19 @@ module Bud
       is_source      # rescan always only if this scratch is a source.
     end
 
-
     public
     def add_rescan_invalidate(rescan, invalidate)
       srcs = non_temporal_predecessors
       if srcs.any? {|e| rescan.member? e}
         invalidate << self
-        srcs.each{|e| rescan << e}
+        rescan += srcs
       end
     end
 
     public
     def invalidate_cache
       puts "#{qualified_tabname} invalidated" if $BUD_DEBUG
-      #for scratches, storage is a cached value.
+      # for scratches, storage is a cached value
       @invalidated = true
       @storage.clear
     end
@@ -843,9 +773,10 @@ module Bud
   class BudTemp < BudScratch # :nodoc: all
   end
 
-  # Channels are a different type of collection in that they represent two distinct collections, one each for
-  # incoming and outgoing.  The incoming side makes use of @storage and @delta, whereas the outgoing side only deals
-  # with @pending. XXX Maybe we should be using aliases instead.
+  # Channels are a different type of collection in that they represent two
+  # distinct collections, one each for incoming and outgoing.  The incoming side
+  # makes use of @storage and @delta, whereas the outgoing side only deals with
+  # @pending. XXX Maybe we should be using aliases instead.
   class BudChannel < BudCollection
     attr_reader :locspec_idx # :nodoc: all
 
@@ -908,13 +839,8 @@ module Bud
         lsplit[1] = lsplit[1].to_i
         return lsplit
       rescue Exception => e
-        raise Bud::Error, "Illegal location specifier in tuple #{t.inspect} for channel \"#{qualified_tabname}\": #{e.to_s}"
+        raise Bud::Error, "illegal location specifier in tuple #{t.inspect} for channel \"#{qualified_tabname}\": #{e.to_s}"
       end
-    end
-
-    public
-    def clone_empty
-      self.class.new(tabname, bud_instance, @raw_schema, @is_loopback)
     end
 
     public
@@ -968,7 +894,7 @@ module Bud
     end
 
     superator "<~" do |o|
-      if o.class <= PushElement
+      if o.class <= Bud::PushElement
         o.wire_to_pending self
       else
         pending_merge(o)
@@ -1066,7 +992,7 @@ module Bud
     end
 
     superator "<~" do |o|
-      if o.class <= PushElement
+      if o.class <= Bud::PushElement
         o.wire_to_pending self
       else
         pending_merge(o)
@@ -1118,7 +1044,7 @@ module Bud
 
     public
     def invalidate_cache
-      raise "Abstract method not implemented by derived class #{self.class}"
+      raise Bud::Error, "abstract method not implemented by derived class #{self.class}"
     end
   end
 
@@ -1149,13 +1075,13 @@ module Bud
         deleted ||= v
       end
 
-      @invalidated =  (not deleted.nil?)
+      @invalidated = (not deleted.nil?)
       puts "table #{qualified_tabname} invalidated" if $BUD_DEBUG and @invalidated
 
       @pending.each do |keycols, tuple|
         old = @storage[keycols]
         if old.nil?
-          @delta[keycols] = tuple #
+          @delta[keycols] = tuple
         else
           raise_pk_error(tuple, old) unless tuple == old
         end
@@ -1166,19 +1092,19 @@ module Bud
     end
 
     def invalidated=(val)
-      raise "Internal error: nust not set invalidate on tables"
+      raise "Internal error: must not set invalidate on tables"
     end
 
     def pending_delete(o)
       toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         o.wire_to_delete self
       elsif o.class <= Bud::BudCollection
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         o.pro.wire_to_delete self
       elsif o.class <= Proc and @bud_instance.toplevel.done_bootstrap and not toplevel.done_wiring
-        toplevel.merge_targets[toplevel.this_stratum][self] = true if toplevel.done_bootstrap
+        add_merge_target
         tbl = register_coll_expr(o)
         tbl.pro.wire_to_delete self
       else
@@ -1217,8 +1143,9 @@ module Bud
 
     public
     def invalidate_cache
-      # no cache to invalidate. Also, tables do not invalidate dependents, because their own state is not considered
-      # invalidated; that happens only if there were pending deletes at the beginning of a tick (see tick())
+      # No cache to invalidate. Also, tables do not invalidate dependents,
+      # because their own state is not considered invalidated; that happens only
+      # if there were pending deletes at the beginning of a tick (see tick())
       puts "******** invalidate_cache called on BudTable"
     end
 
@@ -1248,20 +1175,6 @@ module Bud
     public
     def invalidate_at_tick
       true
-    end
-  end
-
-  class BudSignal < BudReadOnly
-    def invalidate_at_tick
-      true
-    end
-    def tick
-      @invalidated = true
-      @storage.clear
-      unless @pending.empty?
-        @delta = @pending
-        @pending = {}
-      end
     end
   end
 
@@ -1309,20 +1222,12 @@ module Bud
 
     public
     def each(&blk)
-      each_raw {|l| tuple_accessors(blk.call(l))}
+      each_raw {|l| blk.call(l)}
     end
   end
 end
 
 module Enumerable
-  # public
-  # # monkeypatch to Enumerable to rename collections and their schemas
-  # def rename(new_tabname, new_schema=nil)
-  #   scr = Bud::BudScratch.new(new_tabname.to_s, nil, new_schema)
-  #   scr.merge(self, scr.storage)
-  #   scr
-  # end
-
   public
   # We rewrite "map" calls in Bloom blocks to invoke the "pro" method
   # instead. This is fine when applied to a BudCollection; when applied to a

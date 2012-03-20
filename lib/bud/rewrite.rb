@@ -255,7 +255,6 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
       @collnames << exp[2]
     elsif exp[2] and exp[2] == :rename
       arglist, namelit, schemahash = exp[3]
-      # and add name to @collnames
       @collnames << namelit[1]
     else
       exp.each { |e| gather_collection_names(e) if e and e.class <= Sexp }
@@ -297,12 +296,12 @@ class TempExpander < SexpProcessor # :nodoc: all
   attr_reader :tmp_tables
   attr_accessor :did_work
 
+  KEYWORD = :temp
+
   def initialize
     super()
     self.require_empty = false
     self.expected = Sexp
-    @keyword = :temp
-
     @tmp_tables = []
     @did_work = false
   end
@@ -331,7 +330,7 @@ class TempExpander < SexpProcessor # :nodoc: all
         end
 
         _, recv, meth, meth_args = n
-        if meth == @keyword and recv.nil?
+        if meth == KEYWORD and recv.nil?
           block[i] = rewrite_me(n)
           @did_work = true
         end
@@ -340,12 +339,13 @@ class TempExpander < SexpProcessor # :nodoc: all
     s(tag, name, args, scope)
   end
 
+  private
   def fix_temp_decl(iter_body)
     if iter_body.first.sexp_type == :call
       call_node = iter_body.first
 
       _, recv, meth, meth_args = call_node
-      if meth == @keyword and recv.nil?
+      if meth == KEYWORD and recv.nil?
         _, lhs, op, rhs = meth_args.sexp_body.first
 
         old_rhs_body = rhs.sexp_body
@@ -359,20 +359,6 @@ class TempExpander < SexpProcessor # :nodoc: all
     return nil
   end
 
-  def get_state_meth(klass)
-    return if @tmp_tables.empty?
-    block = s(:block)
-
-    @tmp_tables.each do |t|
-      args = s(:arglist, s(:lit, t.to_sym))
-      block << s(:call, nil, :temp, args)
-    end
-
-    meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
-    return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
-  end
-
-  private
   def rewrite_me(exp)
     _, recv, meth, args = exp
 
@@ -389,137 +375,3 @@ class TempExpander < SexpProcessor # :nodoc: all
     return s(:call, new_recv, nest_op, nest_args)
   end
 end
-
-# We do four things here for each "with" block
-# 1) Remove it from the AST
-# 2) Use rewrite_me in the parent class to get the collection name pushed onto @tmp_tables.
-# 3) Extract the definition of the "with" collection and push it onto @with_defns
-# 4) Extract the rules in the body of the "with" block and push it onto @with_rules
-
-class WithExpander < TempExpander
-  attr_reader :with_rules, :with_defns
-  def initialize
-    super()
-    @keyword = :with
-    @with_rules = []
-    @with_defns = []
-  end
-
-  def process_defn(exp)
-    tag, name, args, scope = exp
-    if name.to_s =~ /^__bloom__.+/
-      block = scope[1]
-
-      block.each_with_index do |n,i|
-        if i == 0
-          raise Bud::CompileError if n != :block
-          next
-        end
-
-        # temp declarations are misparsed if the RHS contains certain constructs
-        # (e.g., group, "do |f| ... end" rather than "{|f| ... }").  Rewrite to
-        # correct the misparsing.
-        if n.sexp_type == :iter
-          block[i] = nil
-          iter_body = n.sexp_body
-          n = fix_temp_decl(iter_body)
-          @with_defns.push n
-          @did_work = true unless n.nil?
-        end
-
-        _, recv, meth, meth_args = n
-        if meth == @keyword and recv.nil?
-          block[i] = nil
-          n = rewrite_me(n)
-          @with_defns.push n
-          @did_work = true unless n.nil?
-        end
-      end
-    end
-    block.compact! unless block.nil? # remove the nils that got pulled out
-
-    return s(tag, name, args, scope)
-  end
-
-  def get_state_meth(klass)
-    return if @tmp_tables.empty?
-    block = s(:block)
-
-    t = @tmp_tables.pop
-    args = s(:arglist, s(:lit, t.to_sym))
-    block << s(:call, nil, :temp, args)
-
-    meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
-    return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
-  end
-
-  private
-  def rewrite_me(exp)
-    _, recv, meth, args = exp
-
-    raise Bud::CompileError unless recv == nil
-    nest_call = args.sexp_body.first
-    raise Bud::CompileError unless nest_call.sexp_type == :call
-
-    nest_recv, nest_op, nest_args = nest_call.sexp_body
-    raise Bud::CompileError unless nest_recv.sexp_type == :lit
-
-    tmp_name = nest_recv.sexp_body.first
-    @tmp_tables.push tmp_name
-    nest_block = args.sexp_body[1]
-    if nest_block.first == :call
-      # a one-rule block doesn't get wrapped in a block.  wrap it ourselves.
-      nest_block = s(:block, nest_block)
-    end
-    @with_rules.push nest_block
-    new_recv = s(:call, nil, tmp_name, s(:arglist))
-    return s(:call, new_recv, nest_op, nest_args)
-  end
-
-  undef get_state_meth
-
-  public
-  def get_state_meth(klass)
-    return if @tmp_tables.empty?
-    block = s(:block)
-
-    args = s(:arglist, s(:lit, @tmp_tables.pop.to_sym))
-    block << s(:call, nil, :temp, args)
-
-    meth_name = Module.make_state_meth_name(klass).to_s + "__" + @keyword.to_s
-    return s(:defn, meth_name.to_sym, s(:args), s(:scope, block))
-  end
-end
-
-class DefnRenamer < SexpProcessor # :nodoc: all
-  def initialize(local_name, rename_tbl)
-    super()
-    self.require_empty = false
-    self.expected = Sexp
-    @local_name = local_name
-    @rename_tbl = rename_tbl
-  end
-
-  def process_defn(exp)
-    tag, name, args, scope = exp
-    name_s = name.to_s
-
-    if name_s =~ /^__bootstrap__.+$/
-      new_name = name_s.sub(/^(__bootstrap__)(.+)$/, "\\1#{@local_name}__\\2")
-    elsif name_s =~ /^__state\d+__/
-      new_name = name_s.sub(/^(__state\d+__)(.*)$/, "\\1#{@local_name}__\\2")
-    elsif name_s =~ /^__bloom__.+$/
-      new_name = name_s.sub(/^(__bloom__)(.+)$/, "\\1#{@local_name}__\\2")
-    else
-      new_name = "#{@local_name}__#{name_s}"
-    end
-
-    new_name = new_name.to_sym
-    @rename_tbl[name] = new_name
-
-    # Note that we don't bother to recurse further into the AST: we're only
-    # interested in top-level :defn nodes.
-    s(tag, new_name, args, scope)
-  end
-end
-
