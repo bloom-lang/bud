@@ -407,9 +407,8 @@ module Bud
     if $BUD_SAFE
       @app_tables = @tables.values # No tables excluded
 
-      invalidate = Set.new
       rescan = Set.new
-      @app_tables.each {|t| invalidate << t if t.class <= BudScratch}
+      invalidate = @app_tables.select {|t| t.class <= BudScratch}.to_set
       num_strata.times do |stratum|
         @push_sorted_elems[stratum].each do |elem|
           invalidate << elem
