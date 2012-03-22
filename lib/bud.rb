@@ -79,7 +79,7 @@ module Bud
   # * operating system interaction
   #   * <tt>:stdin</tt>  if non-nil, reading from the +stdio+ collection results in reading from this +IO+ handle
   #   * <tt>:stdout</tt> writing to the +stdio+ collection results in writing to this +IO+ handle; defaults to <tt>$stdout</tt>
-  #   * <tt>:signal_handling</tt> how to handle +SIGINT+ and +SIGTERM+.  If :none, these signals are ignored.  Else shutdown all bud instances.
+  #   * <tt>:signal_handling</tt> how to handle +SIGINT+ and +SIGTERM+.  If +:none+, these signals are ignored.  Else shutdown all bud instances.
   # * tracing and output
   #   * <tt>:quiet</tt> if true, suppress certain messages
   #   * <tt>:trace</tt> if true, generate +budvis+ outputs
@@ -195,6 +195,11 @@ module Bud
     instance_variable_get(name) if instance_variable_defined? name
   end
 
+  def budtime
+    toplevel? ? @budtime : toplevel.budtime
+  end
+
+  private
   def import_defs
     @imported_defs = {} # mod name -> Module map
     self.class.ancestors.each do |anc|
@@ -210,10 +215,6 @@ module Bud
       end
     end
     @imported_defs ||= self.class.ancestors.inject({}) {|tbl, e| tbl.merge(e.bud_import_table)}
-  end
-
-  def budtime
-    toplevel? ? @budtime : toplevel.budtime
   end
 
   # absorb rules and dependencies from imported modules. The corresponding module instantiations
@@ -296,28 +297,6 @@ module Bud
     meth_map.keys.sort.each do |i|
       meth_map[i].each {|m| m.call}
     end
-  end
-
-  # Evaluate all bootstrap blocks and tick deltas
-  def do_bootstrap
-    # Evaluate bootstrap for imported modules
-    @this_rule_context = self
-    imported = import_defs.keys
-    imported.each do |mod_alias|
-      wrapper = import_instance mod_alias
-      wrapper.do_bootstrap
-    end
-    self.class.ancestors.reverse.each do |anc|
-      anc.instance_methods(false).each do |m|
-        if /^__bootstrap__/.match m
-          self.method(m.to_sym).call
-        end
-      end
-    end
-    bootstrap
-
-    @tables.each_value {|t| t.bootstrap} if toplevel == self
-    @done_bootstrap = true
   end
 
   def do_wiring
@@ -943,6 +922,28 @@ module Bud
   # From client code, manually trigger a timestep of Bloom execution.
   def tick
     start(true)
+  end
+
+  # Evaluate all bootstrap blocks and tick deltas
+  def do_bootstrap
+    # Evaluate bootstrap for imported modules
+    @this_rule_context = self
+    imported = import_defs.keys
+    imported.each do |mod_alias|
+      wrapper = import_instance mod_alias
+      wrapper.do_bootstrap
+    end
+    self.class.ancestors.reverse.each do |anc|
+      anc.instance_methods(false).each do |m|
+        if /^__bootstrap__/.match m
+          self.method(m.to_sym).call
+        end
+      end
+    end
+    bootstrap
+
+    @tables.each_value {|t| t.bootstrap} if toplevel == self
+    @done_bootstrap = true
   end
 
   # One timestep of Bloom execution. This MUST be invoked from the EventMachine
