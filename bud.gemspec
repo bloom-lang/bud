@@ -11,7 +11,7 @@ Gem::Specification.new do |s|
   s.required_ruby_version = '>= 1.8.7'
   s.rubyforge_project = 'bloom-lang'
 
-  s.files = Dir['lib/**/*'] + Dir['bin/*'] + Dir['docs/**/*'] + Dir['examples/**/*'] + %w[README LICENSE History.txt]
+  s.files = Dir['lib/**/*'] + Dir['bin/*'] + Dir['docs/**/*'] + Dir['examples/**/*'] + %w[README.md LICENSE History.txt]
   s.executables = %w[rebl budplot budvis budtimelines]
   s.default_executable = 'rebl'
 
