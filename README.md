@@ -20,17 +20,20 @@ Main deficiencies at this point are:
 ## Installation
 
 To install the latest release:
+
     % gem install bud
 
 To build and install a new gem from the current development sources:
+
     % gem build bud.gemspec ; gem install bud*.gem
 
-Note that GraphViz must be installed.
+Note that [GraphViz](http://www.graphviz.org/) must be installed.
 
 Simple example programs can be found in examples. A much larger set of example
 programs and libraries can be found in the bud-sandbox repository.
 
 To run the unit tests:
+
     % gem install minitest      # unless already installed
     % cd test; ruby ts_bud.rb
 
