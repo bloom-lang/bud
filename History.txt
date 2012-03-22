@@ -1,4 +1,4 @@
-== 0.9.0 / 2012-03-20
+== 0.9.0 / 2012-03-21
 
 * Major performance enhancements
   * Much, much faster: rewritten runtime that now uses a push-based dataflow
