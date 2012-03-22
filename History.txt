@@ -1,0 +1,23 @@
+== 0.9.0 / 2012-03-21
+
+* Major performance enhancements
+  * Much, much faster: rewritten runtime that now uses a push-based dataflow
+  * Operator state is cached; only deltas are updated across ticks in many cases
+  * Joins that use collection keys can use collection storage for improved
+    performance
+* Improved compatibility: Bud now works with MRI 1.9 (as well as 1.8.7)
+  * Switched from ParseTree to ruby_parser
+  * Rewritten Bloom module system
+* Tuples are now represented as Ruby Structs, rather than Arrays
+  * This avoids the need to define column accessor methods by hand
+* Tests now use MiniTest rather than Test::Unit
+* Observe the following incompatibilities:
+  * Support for "semi-structured" collections have been removed. That is,
+    previously you could store extra field values into a tuple; those values
+    would be collapsed into a single array that was tacked onto the end of the
+    tuple.
+  * Support for Bloom-based signal handling has been removed
+  * Support for the "with" syntax has been removed
+  * The Bloom-based "deployment" framework has been removed
+  * Support for Tokyo Cabinet-based collections has been removed
+
