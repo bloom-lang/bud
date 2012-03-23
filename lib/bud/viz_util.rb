@@ -146,9 +146,11 @@ module VizUtil #:nodoc: all
   end
 
   def write_graphs(tabinf, builtin_tables, cycle, depends, rules, viz_name,
-                   output_base, fmt, collapse, depanalysis=nil, budtime=-1, card_info=nil, pathsto={}, begins = {})
+                   output_base, fmt, collapse, depanalysis=nil, budtime=-1,
+                   card_info=nil, pathsto={}, begins={})
     staging = "#{viz_name}.staging"
-    gv = GraphGen.new(tabinf, builtin_tables, cycle, staging, budtime, collapse, card_info, pathsto, begins)
+    gv = GraphGen.new(tabinf, builtin_tables, cycle, staging, budtime,
+                      collapse, card_info, pathsto, begins)
     gv.process(depends)
     dump(rules, output_base, gv)
     gv.finish(depanalysis, fmt)
