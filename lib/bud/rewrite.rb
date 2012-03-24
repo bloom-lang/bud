@@ -1,21 +1,20 @@
 require 'rubygems'
 require 'ruby2ruby'
+require 'set'
 
 class RuleRewriter < Ruby2Ruby # :nodoc: all
   attr_accessor :rule_indx, :rules, :depends
 
+  OP_LIST = Set.new([:<<, :<, :<=])
+  TEMP_OP_LIST = Set.new([:-@, :~, :+@])
+  MONOTONE_WHITELIST = Set.new([:==, :+, :<=, :-, :<, :>, :*, :~,
+                                :pairs, :matches, :combos, :flatten,
+                                :lefts, :rights, :map, :flat_map, :pro,
+                                :cols, :key_cols, :val_cols, :payloads, :lambda,
+                                :tabname, :ip_port, :port, :ip, :int_ip_port])
+
   def initialize(seed, bud_instance)
     @bud_instance = bud_instance
-    @ops = {:<< => 1, :< => 1, :<= => 1}
-    @monotonic_whitelist = {
-          :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1,
-          :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
-          :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
-          :cols => 1,  :key_cols => 1, :val_cols => 1, :payloads => 1, :~ => 1,
-          :lambda => 1, :tabname => 1,
-          :ip_port => 1, :port => 1, :ip => 1
-    }
-    @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
     @nm = false
     @rule_indx = seed
@@ -56,40 +55,43 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
   def process_call(exp)
     recv, op, args = exp
-    if @ops[op] and @context[1] == :block and @context.length == 4
+    if OP_LIST.include?(op) and @context[1] == :block and @context.length == 4
       # NB: context.length is 4 when see a method call at the top-level of a
       # :defn block -- this is where we expect Bloom statements to appear
       do_rule(exp)
     else
-      ty = :not_coll_id
       ty, qn, obj = exp_id_type(recv, op, args) # qn = qualified name, obj is the corresponding object
       if ty == :collection
         @tables[qn] = @nm if @collect
       #elsif ty == :import .. do nothing
       elsif ty == :not_coll_id
-        # check if receiver is a collection, and further if the current exp represents a field lookup
+        # check if receiver is a collection, and further if the current exp
+        # represents a field lookup
         op_is_field_name = false
         if recv and recv.first == :call
           rty, _, robj = exp_id_type(recv[1], recv[2], recv[3])
           if rty == :collection
             cols = robj.cols
-            op_is_field_name =  true if cols and cols.include?(op)
+            op_is_field_name = true if cols and cols.include?(op)
           end
         end
         # for CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
         if recv
-          # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables
-          unless @monotonic_whitelist[op] or op_is_field_name or recv.first == :lvar or op.to_s.start_with?("__")
-            @nm = true if recv
+          # don't worry about monotone ops, table names, table.attr calls, or
+          # accessors of iterator variables
+          unless MONOTONE_WHITELIST.include?(op) or op_is_field_name or
+                 recv.first == :lvar or op.to_s.start_with?("__")
+            @nm = true
           end
         else
-          # function called (implicit receiver = Bud instance) in a user-defined code block. Check if it is
-          # non-monotonic (like budtime, that produces a new answer every time it is called)
-          @nm_funcs_called = true unless @monotonic_whitelist[op]
+          # function called (implicit receiver = Bud instance) in a user-defined
+          # code block. Check if it is non-monotonic (like budtime, that
+          # produces a new value every time it is called)
+          @nm_funcs_called = true unless MONOTONE_WHITELIST.include? op
         end
       end
-      if @temp_ops[op]
+      if TEMP_OP_LIST.include? op
         @temp_op = op.to_s.gsub("@", "")
       end
       super
@@ -132,8 +134,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     end
 
     @rules << [@bud_instance, @rule_indx, lhs, op, rule_txt, rule_txt_orig, @nm_funcs_called]
-    @tables.each_pair do |t, non_monotonic|
-      @depends << [@bud_instance, @rule_indx, lhs, op, t, non_monotonic]
+    @tables.each_pair do |t, nm|
+      @depends << [@bud_instance, @rule_indx, lhs, op, t, nm]
     end
 
     reset_instance_vars
@@ -153,6 +155,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     #rhs_ast = rhs_ast[1]
 
     if @bud_instance.options[:no_attr_rewrite]
+      rhs_ast = RenameRewriter.new(@bud_instance).process(rhs_ast)
       rhs = collect_rhs(rhs_ast)
       rhs_pos = rhs
     else
@@ -161,6 +164,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       rhs_ast_dup = Marshal.load(Marshal.dump(rhs_ast))
       rhs = collect_rhs(rhs_ast)
       reset_instance_vars
+      rhs_ast_dup = RenameRewriter.new(@bud_instance).process(rhs_ast_dup)
       rhs_pos = collect_rhs(AttrNameRewriter.new(@bud_instance).process(rhs_ast_dup))
     end
     record_rule(lhs, op, rhs_pos, rhs)
@@ -189,6 +193,37 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def drain(exp)
     exp.shift until exp.empty?
     return ""
+  end
+end
+
+# Look for rename statements and define the necessary scratch collections
+class RenameRewriter < SexpProcessor
+  def initialize(bud_instance)
+    super()
+    self.require_empty = false
+    self.expected = Sexp
+    @bud_instance = bud_instance
+  end
+
+  def register_scratch(name, schemahash)
+    # define a scratch with the name and schema in this rename block
+    hash, key_array, val_array = schemahash
+    key_array ||= []
+    val_array ||= []
+    key_cols = key_array.map{|i| i[1] if i.class <= Sexp}.compact
+    val_cols = val_array.map{|i| i[1] if i.class <= Sexp}.compact
+    @bud_instance.scratch(name, key_cols=>val_cols)
+  end
+
+  def process_call(exp)
+    call, recv, op, args = exp
+
+    if op == :rename
+      arglist, namelit, schemahash = args
+      register_scratch(namelit[1], schemahash)
+    end
+
+    return s(call, process(recv), op, process(args))
   end
 end
 
@@ -241,16 +276,6 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
     exp
   end
 
-  def register_scratch(name, schemahash)
-    # define a scratch with the name and schema in this rename block
-    hash, key_array, val_array = schemahash
-    key_array ||= []
-    val_array ||= []
-    key_cols = key_array.map{|i| i[1] if i.class <= Sexp}.compact
-    val_cols = val_array.map{|i| i[1] if i.class <= Sexp}.compact
-    @bud_instance.scratch(name, key_cols=>val_cols)
-  end
-
   def gather_collection_names(exp)
     if exp[0] == :call and exp[1].nil?
       @collnames << exp[2]
@@ -265,10 +290,6 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
   def process_call(exp)
     call, recv, op, args = exp
 
-    if op == :rename
-      arglist, namelit, schemahash = args
-      register_scratch(namelit[1], schemahash)
-    end
     if recv and recv.class == Sexp and recv.first == :lvar and recv[1] and @iterhash[recv[1]]
       if @bud_instance.respond_to?(@iterhash[recv[1]])
         if @bud_instance.send(@iterhash[recv[1]]).class <= Bud::BudCollection

@@ -1128,7 +1128,6 @@ module Bud
     end
   end
 
-  private
   ######## ids and timers
   def gen_id
     Time.new.to_i.to_s << rand.to_s

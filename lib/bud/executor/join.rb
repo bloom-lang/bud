@@ -450,7 +450,6 @@ module Bud
       self.extend(Bud::PushSHOuterJoin)
     end
 
-
     public
     def rights(*preds, &blk)
       @cols = blk.nil? ? @bud_instance.tables[@rels[1].tabname].cols : nil
@@ -535,7 +534,7 @@ module Bud
 
     private
     def insert_item(item, offset)
-      if (@keys.nil? or @keys.empty?)
+      if @keys.nil? or @keys.empty?
         the_key = nil
       else
         if all_rels_below.length > 2 and offset == 1
@@ -571,7 +570,7 @@ module Bud
       if @missing_keys
         @missing_keys.each do |key|
           @hash_tables[0][key].each do |t|
-            push_out([t, []])
+            push_out([t, @rels[1].null_tuple])
           end
         end
       end
@@ -580,7 +579,7 @@ module Bud
 
   class PushNotIn < PushSHJoin
     def initialize(rellist, bud_instance, preds=nil, &blk) # :nodoc: all
-      if (preds.nil? or preds.empty?)
+      if preds.nil? or preds.empty?
         preds = positionwise_preds(bud_instance, rellist)
       end
       super(rellist, bud_instance, preds)
