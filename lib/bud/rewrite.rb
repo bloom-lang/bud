@@ -13,7 +13,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
           :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
           :cols => 1,  :key_cols => 1, :val_cols => 1, :payloads => 1, :~ => 1,
           :lambda => 1, :tabname => 1,
-          :ip_port => 1, :port => 1, :ip => 1
+          :ip_port => 1, :port => 1, :ip => 1, :int_ip_port => 1
     }
     @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
@@ -61,31 +61,34 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       # :defn block -- this is where we expect Bloom statements to appear
       do_rule(exp)
     else
-      ty = :not_coll_id
       ty, qn, obj = exp_id_type(recv, op, args) # qn = qualified name, obj is the corresponding object
       if ty == :collection
         @tables[qn] = @nm if @collect
       #elsif ty == :import .. do nothing
       elsif ty == :not_coll_id
-        # check if receiver is a collection, and further if the current exp represents a field lookup
+        # check if receiver is a collection, and further if the current exp
+        # represents a field lookup
         op_is_field_name = false
         if recv and recv.first == :call
           rty, _, robj = exp_id_type(recv[1], recv[2], recv[3])
           if rty == :collection
             cols = robj.cols
-            op_is_field_name =  true if cols and cols.include?(op)
+            op_is_field_name = true if cols and cols.include?(op)
           end
         end
         # for CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
         if recv
-          # don't worry about monotone ops, table names, table.attr calls, or accessors of iterator variables
-          unless @monotonic_whitelist[op] or op_is_field_name or recv.first == :lvar or op.to_s.start_with?("__")
-            @nm = true if recv
+          # don't worry about monotone ops, table names, table.attr calls, or
+          # accessors of iterator variables
+          unless @monotonic_whitelist[op] or op_is_field_name or
+                 recv.first == :lvar or op.to_s.start_with?("__")
+            @nm = true
           end
         else
-          # function called (implicit receiver = Bud instance) in a user-defined code block. Check if it is
-          # non-monotonic (like budtime, that produces a new answer every time it is called)
+          # function called (implicit receiver = Bud instance) in a user-defined
+          # code block. Check if it is non-monotonic (like budtime, that
+          # produces a new value every time it is called)
           @nm_funcs_called = true unless @monotonic_whitelist[op]
         end
       end
