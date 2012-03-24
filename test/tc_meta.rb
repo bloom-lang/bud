@@ -353,7 +353,7 @@ class TestThetaMeta < MiniTest::Unit::TestCase
     p = ThetaMonotoneJoin.new
     p.t_depends.each do |dep|
       next if VizUtil.ma_tables.keys.include? dep.lhs.to_sym
-      assert(!dep.nm, "this dependency should't be marked nonmonotonic: #{dep.inspect}")
+      assert(!dep.nm, "this dependency shouldn't be marked nonmonotonic: #{dep.inspect}")
     end
   end
 end

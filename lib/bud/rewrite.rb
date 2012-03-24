@@ -148,6 +148,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     # Remove the outer s(:arglist) from the rhs AST. An AST subtree rooted with
     # s(:arglist) is not really sensible and it causes Ruby2Ruby < 1.3.1 to
     # misbehave (for example, s(:arglist, s(:hash, ...)) is misparsed.
+    # XXX: currently disabled
     raise Bud::CompileError unless rhs_ast.sexp_type == :arglist
     #rhs_ast = rhs_ast[1]
 
