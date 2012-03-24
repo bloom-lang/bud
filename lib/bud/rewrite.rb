@@ -1,21 +1,20 @@
 require 'rubygems'
 require 'ruby2ruby'
+require 'set'
 
 class RuleRewriter < Ruby2Ruby # :nodoc: all
   attr_accessor :rule_indx, :rules, :depends
 
+  OP_LIST = Set.new([:<<, :<, :<=])
+  TEMP_OP_LIST = Set.new([:-@, :~, :+@])
+  MONOTONE_WHITELIST = Set.new([:==, :+, :<=, :-, :<, :>, :*, :~,
+                                :pairs, :matches, :combos, :flatten,
+                                :lefts, :rights, :map, :flat_map, :pro,
+                                :cols, :key_cols, :val_cols, :payloads, :lambda,
+                                :tabname, :ip_port, :port, :ip, :int_ip_port])
+
   def initialize(seed, bud_instance)
     @bud_instance = bud_instance
-    @ops = {:<< => 1, :< => 1, :<= => 1}
-    @monotonic_whitelist = {
-          :== => 1, :+ => 1, :<= => 1, :- => 1, :< => 1, :> => 1,
-          :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
-          :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
-          :cols => 1,  :key_cols => 1, :val_cols => 1, :payloads => 1, :~ => 1,
-          :lambda => 1, :tabname => 1,
-          :ip_port => 1, :port => 1, :ip => 1, :int_ip_port => 1
-    }
-    @temp_ops = {:-@ => 1, :~ => 1, :+@ => 1}
     @tables = {}
     @nm = false
     @rule_indx = seed
@@ -56,7 +55,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
   def process_call(exp)
     recv, op, args = exp
-    if @ops[op] and @context[1] == :block and @context.length == 4
+    if OP_LIST.include?(op) and @context[1] == :block and @context.length == 4
       # NB: context.length is 4 when see a method call at the top-level of a
       # :defn block -- this is where we expect Bloom statements to appear
       do_rule(exp)
@@ -81,7 +80,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
         if recv
           # don't worry about monotone ops, table names, table.attr calls, or
           # accessors of iterator variables
-          unless @monotonic_whitelist[op] or op_is_field_name or
+          unless MONOTONE_WHITELIST.include?(op) or op_is_field_name or
                  recv.first == :lvar or op.to_s.start_with?("__")
             @nm = true
           end
@@ -89,10 +88,10 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
           # function called (implicit receiver = Bud instance) in a user-defined
           # code block. Check if it is non-monotonic (like budtime, that
           # produces a new value every time it is called)
-          @nm_funcs_called = true unless @monotonic_whitelist[op]
+          @nm_funcs_called = true unless MONOTONE_WHITELIST.include? op
         end
       end
-      if @temp_ops[op]
+      if TEMP_OP_LIST.include? op
         @temp_op = op.to_s.gsub("@", "")
       end
       super
@@ -135,8 +134,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     end
 
     @rules << [@bud_instance, @rule_indx, lhs, op, rule_txt, rule_txt_orig, @nm_funcs_called]
-    @tables.each_pair do |t, non_monotonic|
-      @depends << [@bud_instance, @rule_indx, lhs, op, t, non_monotonic]
+    @tables.each_pair do |t, nm|
+      @depends << [@bud_instance, @rule_indx, lhs, op, t, nm]
     end
 
     reset_instance_vars
