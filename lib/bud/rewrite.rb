@@ -28,7 +28,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   $not_id = [:not_coll_id]
   def resolve(obj, prefix, name)
     qn = prefix ? prefix + "." + name.to_s : name.to_s
-    return [:collection, qn, obj.tables[name]]  if obj.tables.has_key? name
+    return [:collection, qn, obj.tables[name]] if obj.tables.has_key? name
 
     # does name refer to an import name?
     iobj = obj.import_instance name
@@ -80,7 +80,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
         if recv
           # don't worry about monotone ops, table names, table.attr calls, or
           # accessors of iterator variables
-          unless MONOTONE_WHITELIST.include?(op) or op_is_field_name or
+          unless RuleRewriter.is_monotone(op) or op_is_field_name or
                  recv.first == :lvar or op.to_s.start_with?("__")
             @nm = true
           end
@@ -88,7 +88,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
           # function called (implicit receiver = Bud instance) in a user-defined
           # code block. Check if it is non-monotonic (like budtime, that
           # produces a new value every time it is called)
-          @nm_funcs_called = true unless MONOTONE_WHITELIST.include? op
+          @nm_funcs_called = true unless RuleRewriter.is_monotone(op)
         end
       end
       if TEMP_OP_LIST.include? op
@@ -96,6 +96,10 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       end
       super
     end
+  end
+
+  def self.is_monotone(op)
+    MONOTONE_WHITELIST.has_key?(op)
   end
 
   def collect_rhs(exp)
