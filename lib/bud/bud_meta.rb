@@ -104,9 +104,9 @@ class BudMeta #:nodoc: all
 
   def get_qual_name(pt)
     # expect to see a parse tree corresponding to a dotted name
-    #    a.b.c == s(:call, s1, :c, (:args))
-    # where s1 == s(:call, s2, :b, (:args))
-    # where s2 == s(:call, nil,:a, (:args))
+    #    a.b.c == s(:call, s1,  :c, (:args))
+    # where s1 == s(:call, s2,  :b, (:args))
+    # where s2 == s(:call, nil, :a, (:args))
 
     tag, recv, name, args = pt
     return nil unless tag == :call or args.length == 1
@@ -114,7 +114,7 @@ class BudMeta #:nodoc: all
     if recv
       qn = get_qual_name(recv)
       return nil if qn.nil? or qn.size == 0
-      qn = qn + "." + name.to_s
+      qn = "#{qn}.#{name}"
     else
       qn = name.to_s
     end
@@ -147,11 +147,12 @@ class BudMeta #:nodoc: all
       return pt unless n.sexp_type == :call and n.length == 4
 
       # Rule format: call tag, lhs, op, rhs
-      tag, lhs, op, rhs = n
+      _, lhs, op, rhs = n
 
       # Check that LHS references a named collection
       lhs_name = get_qual_name(lhs)
-      unless lhs_name and @bud_instance.tables.has_key? lhs_name.to_sym
+      return [n, "Unexpected lhs format: #{lhs}"] if lhs.nil?
+      unless @bud_instance.tables.has_key? lhs_name.to_sym
         return [n, "Collection does not exist: '#{lhs_name}'"]
       end
 
