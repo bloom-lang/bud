@@ -152,7 +152,8 @@ class BudMeta #:nodoc: all
       # Check that LHS references a named collection
       lhs_name = get_qual_name(lhs)
       return [n, "Unexpected lhs format: #{lhs}"] if lhs.nil?
-      unless @bud_instance.tables.has_key? lhs_name.to_sym
+      unless @bud_instance.tables.has_key? lhs_name.to_sym or
+             @bud_instance.lattices.has_key? lhs_name.to_sym
         return [n, "Collection does not exist: '#{lhs_name}'"]
       end
 
