@@ -60,7 +60,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       # :defn block -- this is where we expect Bloom statements to appear
       do_rule(exp)
     else
-      ty, qn, obj = exp_id_type(recv, op, args) # qn = qualified name, obj is the corresponding object
+      ty, qn, _ = exp_id_type(recv, op, args) # qn = qualified name
       if ty == :collection
         @tables[qn] = @nm if @collect
       #elsif ty == :import .. do nothing
@@ -99,7 +99,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   def self.is_monotone(op)
-    MONOTONE_WHITELIST.has_key?(op)
+    MONOTONE_WHITELIST.include?(op)
   end
 
   def collect_rhs(exp)
