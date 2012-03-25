@@ -158,8 +158,9 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     raise Bud::CompileError unless rhs_ast.sexp_type == :arglist
     #rhs_ast = rhs_ast[1]
 
+    rhs_ast = RenameRewriter.new(@bud_instance).process(rhs_ast)
+
     if @bud_instance.options[:no_attr_rewrite]
-      rhs_ast = RenameRewriter.new(@bud_instance).process(rhs_ast)
       rhs = collect_rhs(rhs_ast)
       rhs_pos = rhs
     else
@@ -168,7 +169,6 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       rhs_ast_dup = Marshal.load(Marshal.dump(rhs_ast))
       rhs = collect_rhs(rhs_ast)
       reset_instance_vars
-      rhs_ast_dup = RenameRewriter.new(@bud_instance).process(rhs_ast_dup)
       rhs_pos = collect_rhs(AttrNameRewriter.new(@bud_instance).process(rhs_ast_dup))
     end
     record_rule(lhs, op, rhs_pos, rhs)
