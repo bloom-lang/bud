@@ -99,7 +99,13 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   def self.is_monotone(op)
-    MONOTONE_WHITELIST.include?(op)
+    MONOTONE_WHITELIST.include?(op) ||
+      is_morphism(op) ||
+      Bud::Lattice.global_mfuncs.has_key?(op)
+  end
+
+  def self.is_morphism(op)
+    Bud::Lattice.global_morphs.has_key?(op)
   end
 
   def collect_rhs(exp)
