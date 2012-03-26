@@ -597,11 +597,11 @@ class TestUpsert < MiniTest::Unit::TestCase
   def test_upsert
     p = UpsertTest.new
     p.tick
-    assert_equal(p.joe.to_a, [[1,'a']])
-    assert_equal(p.t2.to_a, [[2,'x']])
+    assert_equal([[1,'a']], p.joe.to_a)
+    assert_equal([[2,'x']], p.t2.to_a)
     p.tick
-    assert_equal(p.joe.to_a, [[1,'b']])
-    assert_equal(p.t2.to_a, [[2,'y']])
+    assert_equal([[1,'b']], p.joe.to_a)
+    assert_equal([[2,'y']], p.t2.to_a)
   end
 end
   
@@ -625,9 +625,9 @@ class TestTransitivity < MiniTest::Unit::TestCase
   def test_transitivity
     p = TransitivityTest.new
     p.tick
-    assert_equal(p.t1.to_a, [[1,1]])
-    assert_equal(p.t2.to_a, [[1,1]])
-    assert_equal(p.t3.to_a, [[1,1]])
+    assert_equal([[1,1]], p.t1.to_a)
+    assert_equal([[1,1]], p.t2.to_a)
+    assert_equal([[1,1]], p.t3.to_a)
   end
 end
 
@@ -645,8 +645,8 @@ class TestCollExpr < MiniTest::Unit::TestCase
   
   def test_coll_expr
     p = CollExprTest.new
-    p.tick;p.tick;p.tick
-    assert_equal( p.his.to_a.sort, [[0,'hi'],[1,'hi'],[2,'hi']])
+    3.times { p.tick }
+    assert_equal([[0,'hi'],[1,'hi'],[2,'hi']], p.his.to_a.sort)
   end
 end
 
@@ -661,9 +661,7 @@ class TestConstants < MiniTest::Unit::TestCase
   
   def test_str_out
     p = StrOut.new
-    p.tick
-    p.tick
-    p.tick
-    assert_equal(p.his.to_a.sort, [[0,'hi'],[1,'hi'],[2,'hi']])
+    3.times { p.tick }
+    assert_equal([[0,'hi'],[1,'hi'],[2,'hi']], p.his.to_a.sort)
   end
 end
