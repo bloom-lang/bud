@@ -102,20 +102,28 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     MONOTONE_WHITELIST.include?(op)
   end
 
-  def collect_rhs(exp)
-    @collect = true
-    # rewrite constant array expressions to lambdas
+  # rewrite constant array expressions to lambdas
+  def lambda_rewrite(exp)
     if exp[0] and exp[0] == :arglist
+      rhs = exp[1]
       # the <= case
-      if exp[1] and exp[1][0] == :array
-        exp = s(exp[0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, exp[1]))
+      if rhs and rhs[0] == :array
+        return s(exp[0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, rhs))
       # the superator case
-      elsif exp[1] and exp[1][0] == :call \
-        and exp[1][1] and exp[1][1][0] and exp[1][1][0] == :array \
-        and exp[1][2] and (exp[1][2] == :+@ or exp[1][2] == :-@ or exp[1][2] == :~@)
-        exp = s(exp[0], s(exp[1][0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, exp[1][1]), exp[1][2], exp[1][3]))
+      elsif rhs and rhs[0] == :call \
+        and rhs[1] and rhs[1][0] and rhs[1][0] == :array \
+        and rhs[2] and (rhs[2] == :+@ or rhs[2] == :-@ or rhs[2] == :~@)
+        return s(exp[0], s(rhs[0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, rhs[1]), rhs[2], rhs[3]))
       end
     end
+
+    return exp
+  end
+
+  def collect_rhs(exp)
+    exp = lambda_rewrite(exp)
+
+    @collect = true
     rhs = process exp
     @collect = false
     return rhs
