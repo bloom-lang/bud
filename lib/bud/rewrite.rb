@@ -109,20 +109,25 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     Bud::Lattice.global_morphs.has_key?(op)
   end
 
-  def collect_rhs(exp)
-    @collect = true
-    # rewrite constant array expressions to lambdas
-    if exp[0] and exp[0] == :arglist
-      # the <= case
-      if exp[1] and exp[1][0] == :array
-        exp = s(exp[0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, exp[1]))
-      # the superator case
-      elsif exp[1] and exp[1][0] == :call \
-        and exp[1][1] and exp[1][1][0] and exp[1][1][0] == :array \
-        and exp[1][2] and (exp[1][2] == :+@ or exp[1][2] == :-@ or exp[1][2] == :~@)
-        exp = s(exp[0], s(exp[1][0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, exp[1][1]), exp[1][2], exp[1][3]))
-      end
+  # rewrite constant array expressions to lambdas
+  def lambda_rewrite(rhs)
+    # the <= case
+    if rhs[0] == :array
+      return s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, rhs)
+    # the superator case
+    elsif rhs[0] == :call \
+      and rhs[1] and rhs[1][0] and rhs[1][0] == :array \
+      and rhs[2] and (rhs[2] == :+@ or rhs[2] == :-@ or rhs[2] == :~@)
+      return s(rhs[0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, rhs[1]), rhs[2], rhs[3])
+    else
+      return rhs
     end
+  end
+
+  def collect_rhs(exp)
+    exp = lambda_rewrite(exp)
+
+    @collect = true
     rhs = process exp
     @collect = false
     return rhs
@@ -161,9 +166,10 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     # Remove the outer s(:arglist) from the rhs AST. An AST subtree rooted with
     # s(:arglist) is not really sensible and it causes Ruby2Ruby < 1.3.1 to
     # misbehave (for example, s(:arglist, s(:hash, ...)) is misparsed.
-    # XXX: currently disabled
     raise Bud::CompileError unless rhs_ast.sexp_type == :arglist
-    #rhs_ast = rhs_ast[1]
+    rhs_ast = rhs_ast[1]
+
+    rhs_ast = RenameRewriter.new(@bud_instance).process(rhs_ast)
 
     unless @bud_instance.options[:disable_lattice_semi_naive]
       LatticeDeltaRewrite.new(@bud_instance).rewrite(rhs_ast)
@@ -171,7 +177,6 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     rhs_ast = LatticeRefRewriter.new(@bud_instance).process(rhs_ast)
 
     if @bud_instance.options[:no_attr_rewrite]
-      rhs_ast = RenameRewriter.new(@bud_instance).process(rhs_ast)
       rhs = collect_rhs(rhs_ast)
       rhs_pos = rhs
     else
@@ -180,7 +185,6 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       rhs_ast_dup = Marshal.load(Marshal.dump(rhs_ast))
       rhs = collect_rhs(rhs_ast)
       reset_instance_vars
-      rhs_ast_dup = RenameRewriter.new(@bud_instance).process(rhs_ast_dup)
       rhs_pos = collect_rhs(AttrNameRewriter.new(@bud_instance).process(rhs_ast_dup))
     end
     record_rule(lhs, op, rhs_pos, rhs)
