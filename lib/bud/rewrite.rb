@@ -103,21 +103,18 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   # rewrite constant array expressions to lambdas
-  def lambda_rewrite(exp)
-    if exp[0] and exp[0] == :arglist
-      rhs = exp[1]
-      # the <= case
-      if rhs and rhs[0] == :array
-        return s(exp[0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, rhs))
-      # the superator case
-      elsif rhs and rhs[0] == :call \
-        and rhs[1] and rhs[1][0] and rhs[1][0] == :array \
-        and rhs[2] and (rhs[2] == :+@ or rhs[2] == :-@ or rhs[2] == :~@)
-        return s(exp[0], s(rhs[0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, rhs[1]), rhs[2], rhs[3]))
-      end
+  def lambda_rewrite(rhs)
+    # the <= case
+    if rhs[0] == :array
+      return s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, rhs)
+    # the superator case
+    elsif rhs[0] == :call \
+      and rhs[1] and rhs[1][0] and rhs[1][0] == :array \
+      and rhs[2] and (rhs[2] == :+@ or rhs[2] == :-@ or rhs[2] == :~@)
+      return s(rhs[0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, rhs[1]), rhs[2], rhs[3])
+    else
+      return rhs
     end
-
-    return exp
   end
 
   def collect_rhs(exp)
@@ -162,9 +159,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     # Remove the outer s(:arglist) from the rhs AST. An AST subtree rooted with
     # s(:arglist) is not really sensible and it causes Ruby2Ruby < 1.3.1 to
     # misbehave (for example, s(:arglist, s(:hash, ...)) is misparsed.
-    # XXX: currently disabled
     raise Bud::CompileError unless rhs_ast.sexp_type == :arglist
-    #rhs_ast = rhs_ast[1]
+    rhs_ast = rhs_ast[1]
 
     rhs_ast = RenameRewriter.new(@bud_instance).process(rhs_ast)
 
