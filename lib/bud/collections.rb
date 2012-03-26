@@ -867,17 +867,18 @@ module Bud
     public
     def flush # :nodoc: all
       toplevel = @bud_instance.toplevel
-      ip = toplevel.ip
-      port = toplevel.port
       @pending.each_value do |t|
         if @is_loopback
+          ip = toplevel.ip
+          port = toplevel.port
           the_locspec = [ip, port]
         else
           the_locspec = split_locspec(t, @locspec_idx)
           raise Bud::Error, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
         end
         puts "channel #{qualified_tabname}.send: #{t}" if $BUD_DEBUG
-        toplevel.dsock.send_datagram([qualified_tabname.to_s, t].to_msgpack, the_locspec[0], the_locspec[1])
+        toplevel.dsock.send_datagram([qualified_tabname.to_s, t].to_msgpack,
+                                     the_locspec[0], the_locspec[1])
       end
       @pending.clear
     end
