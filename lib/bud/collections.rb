@@ -636,8 +636,10 @@ module Bud
       this_stratum = toplevel.this_stratum
       oid = self.object_id
       unless toplevel.scanners[this_stratum][[oid, the_name]]
-        toplevel.scanners[this_stratum][[oid, the_name]] = Bud::ScannerElement.new(the_name, self.bud_instance, self, the_schema)
-        toplevel.push_sources[this_stratum][[oid, the_name]] = toplevel.scanners[this_stratum][[oid, the_name]]
+        scanner = Bud::ScannerElement.new(the_name, self.bud_instance,
+                                          self, the_schema)
+        toplevel.scanners[this_stratum][[oid, the_name]] = scanner
+        toplevel.push_sources[this_stratum][[oid, the_name]] = scanner
       end
       return toplevel.scanners[this_stratum][[oid, the_name]]
     end
