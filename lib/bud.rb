@@ -1,6 +1,5 @@
 require 'rubygems'
 require 'eventmachine'
-require 'msgpack'
 require 'socket'
 require 'superators19'
 require 'thread'

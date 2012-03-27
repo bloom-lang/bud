@@ -5,18 +5,12 @@ class Bud::BudServer < EM::Connection #:nodoc: all
     @bud = bud
     @channel_filter = channel_filter
     @filter_buf = {}
-    @pac = MessagePack::Unpacker.new
     super
   end
 
   def receive_data(data)
-    # Feed the received data to the deserializer
-    @pac.feed data
-
-    # streaming deserialize
-    @pac.each do |obj|
-      message_received(obj)
-    end
+    obj = Marshal.load(data)
+    message_received(obj)
 
     # apply the channel filter to each channel's pending tuples
     buf_leftover = {}
@@ -56,12 +50,12 @@ class Bud::BudServer < EM::Connection #:nodoc: all
 
   def message_received(obj)
     unless (obj.class <= Array and obj.length == 2 and
-            @bud.tables.include?(obj[0].to_sym) and obj[1].class <= Array)
+            @bud.tables.include?(obj[0]) and obj[1].class <= Array)
       raise Bud::Error, "bad inbound message of class #{obj.class}: #{obj.inspect}"
     end
 
     @bud.rtracer.recv(obj) if @bud.options[:rtrace]
-    @filter_buf[obj[0].to_sym] ||= []
-    @filter_buf[obj[0].to_sym] << obj[1]
+    @filter_buf[obj[0]] ||= []
+    @filter_buf[obj[0]] << obj[1]
   end
 end

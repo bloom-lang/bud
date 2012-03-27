@@ -45,10 +45,6 @@ class Struct
     false
   end
 
-  def to_msgpack(out='')
-    self.to_a.to_msgpack(out)
-  end
-
   def inspect
     self.to_a.inspect
   end

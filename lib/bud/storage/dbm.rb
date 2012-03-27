@@ -43,10 +43,10 @@ module Bud
 
     def [](key)
       check_enumerable(key)
-      key_s = MessagePack.pack(key)
+      key_s = Marshal.dump(key)
       val_s = @dbm[key_s]
       if val_s
-        return make_tuple(key, MessagePack.unpack(val_s))
+        return make_tuple(key, Marshal.load(val_s))
       else
         return @delta[key]
       end
@@ -58,7 +58,7 @@ module Bud
 
     def has_key?(k)
       check_enumerable(k)
-      key_s = MessagePack.pack(k)
+      key_s = Marshal.dump(k)
       return true if @dbm.has_key? key_s
       return @delta.has_key? k
     end
@@ -104,8 +104,8 @@ module Bud
 
     def each_storage(&block)
       @dbm.each do |k,v|
-        k_ary = MessagePack.unpack(k)
-        v_ary = MessagePack.unpack(v)
+        k_ary = Marshal.load(k)
+        v_ary = Marshal.load(v)
         tick_metrics if bud_instance.options[:metrics]
         yield make_tuple(k_ary, v_ary)
       end
@@ -127,12 +127,13 @@ module Bud
 
     def merge_tuple_to_db(key, tuple)
       val = val_cols.map{|c| tuple[cols.index(c)]}
-      key_s = MessagePack.pack(key)
-      val_s = MessagePack.pack(val)
+      key_s = Marshal.dump(key)
       if @dbm.has_key?(key_s)
         old_tuple = self[key]
         raise_pk_error(tuple, old_tuple) if tuple != old_tuple
       else
+        # XXX: need to convert any nested collection values into arrays
+        val_s = Marshal.dump(val)
         @dbm[key_s] = val_s
       end
     end
@@ -189,10 +190,10 @@ module Bud
       deleted = nil
       @to_delete.each do |tuple|
         k = get_key_vals(tuple)
-        k_str = MessagePack.pack(k)
+        k_str = Marshal.dump(k)
         cols_str = @dbm[k_str]
         unless cols_str.nil?
-          db_cols = MessagePack.unpack(cols_str)
+          db_cols = Marshal.load(cols_str)
           delete_cols = val_cols.map{|c| tuple[cols.index(c)]}
           if db_cols == delete_cols
             deleted ||= @dbm.delete k_str
