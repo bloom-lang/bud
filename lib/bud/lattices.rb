@@ -87,11 +87,17 @@ end
 
 class Bud::LatticeWrapper
   attr_reader :tabname
+  attr_accessor :is_source
 
   def initialize(tabname, klass, bud_i)
     @tabname = tabname
     @klass = klass
     @bud_instance = bud_i
+    @is_source = true
+  end
+
+  def invalidate_at_tick
+    false
   end
 
   def current_value(&blk)

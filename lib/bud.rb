@@ -308,9 +308,10 @@ module Bud
     @stratified_rules.each_with_index { |rules, stratum| eval_rules(rules, stratum) }
 
     # Prepare list of tables that will be actively used at run time. First, all
-    # the user-defined ones.  We start @app_tables off as a set, then convert to
-    # an array later.
+    # the user-defined tables and lattices.  We start @app_tables off as a set,
+    # then convert to an array later.
     @app_tables = (@tables.keys - @builtin_tables.keys).map {|t| @tables[t]}.to_set
+    @app_tables += @lattices.values
 
     # Check scan and merge_targets to see if any builtin_tables need to be added as well.
     @scanners.each do |scs|
@@ -404,7 +405,7 @@ module Bud
   def prepare_invalidation_scheme
     num_strata = @push_sorted_elems.size
     if $BUD_SAFE
-      @app_tables = @tables.values # No tables excluded
+      @app_tables = @tables.values + @lattices.values # No collections excluded
 
       rescan = Set.new
       invalidate = @app_tables.select {|t| t.class <= BudScratch}.to_set
@@ -430,7 +431,15 @@ module Bud
     nm_targets = Set.new
     t_rules.each do |rule|
       lhs = rule.lhs.to_sym
-      @tables[lhs].is_source = false if rule.op == "<="
+      if rule.op == "<="
+        if @tables.has_key? lhs
+          @tables[lhs].is_source = false
+        elsif @lattices.has_key? lhs
+          @lattices[lhs].is_source = false
+        else
+          raise Bud::Error
+        end
+      end
       nm_targets << lhs if rule.nm_funcs_called
     end
 
