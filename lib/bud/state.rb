@@ -153,14 +153,14 @@ module Bud
   # of lattice.
   def load_lattice_defs
     Bud::Lattice.global_mfuncs.each_key do |m|
-      next if RuleRewriter::MONOTONE_WHITELIST.has_key? m
+      next if RuleRewriter::MONOTONE_WHITELIST.include? m
       if Bud::BudCollection.instance_methods.include? m.to_s
         puts "monotone method #{m} conflicts with non-monotonic method in BudCollection"
       end
     end
 
     Bud::Lattice.global_morphs.each_key do |m|
-      next if RuleRewriter::MONOTONE_WHITELIST.has_key? m
+      next if RuleRewriter::MONOTONE_WHITELIST.include? m
       if Bud::BudCollection.instance_methods.include? m.to_s
         puts "morphism #{m} conflicts with non-monotonic method in BudCollection"
       end
@@ -195,23 +195,16 @@ module Bud
       # list of monotone operators
       meth_list.each do |m_str|
         m = m_str.to_sym
-        next unless RuleRewriter::MONOTONE_WHITELIST.has_key? m
+        next unless RuleRewriter::MONOTONE_WHITELIST.include? m
         unless klass.mfuncs.has_key?(m) || klass.morphs.has_key?(m)
           raise Bud::CompileError, "method #{m} in #{wrap_name} must be monotone"
         end
       end
 
-      # We want to define the lattice state declaration function and give it a
-      # default parameter; in Ruby 1.8, that can only be done using "*args"
-      self.singleton_class.send(:define_method, wrap_name) do |*args|
-        collection_name, opts = args
-        opts ||= {}
-        opts = opts.clone       # Be paranoid
-        opts[:scratch] ||= false
-
-        define_lattice(collection_name)
-        @lattices[collection_name] = Bud::LatticeWrapper.new(collection_name, klass,
-                                                             opts[:scratch], self)
+      # XXX: replace "self" with toplevel?
+      self.singleton_class.send(:define_method, wrap_name) do |lat_name|
+        define_lattice(lat_name)
+        @lattices[lat_name] = Bud::LatticeWrapper.new(lat_name, klass, self)
       end
     end
   end

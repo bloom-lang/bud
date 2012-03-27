@@ -1,5 +1,6 @@
 class Bud::Lattice
   @@lattice_kinds = {}
+  # XXX: replace with sets
   @@global_morphs = {}
   @@global_mfuncs = {}
 
@@ -85,12 +86,163 @@ class Bud::Lattice
 end
 
 class Bud::LatticeWrapper
-  attr_reader :tabname, :is_scratch
+  attr_reader :tabname
 
-  def initialize(tabname, klass, is_scratch, bud_i)
+  def initialize(tabname, klass, bud_i)
     @tabname = tabname
     @klass = klass
-    @is_scratch = is_scratch
     @bud_instance = bud_i
+  end
+
+  def current_value(&blk)
+    @storage ||= @klass.new
+    if blk.nil?
+      @storage
+    else
+      @storage.pro(&blk)        # NB: not all lattices implement this method
+    end
+  end
+
+  # This returns a value for the lattice that is suitable as input to a
+  # morphism. On the first iteration, we use the "complete" current value of the
+  # lattice; in subsequent iterations, we use the delta value for the lattice
+  # (if any).
+  def current_morph_value(&blk)
+    if @bud_instance.stratum_first_iter
+      current_value(&blk)
+    else
+      current_delta(&blk)
+    end
+  end
+
+  def current_new_delta
+    @new_delta ||= @klass.new
+    @new_delta
+  end
+
+  private
+  def current_delta(&blk)
+    @delta ||= @klass.new
+    if blk.nil?
+      @delta
+    else
+      @delta.pro(&blk)          # NB: not all lattices implement this method
+    end
+  end
+
+  def current_pending
+    @pending ||= @klass.new
+    @pending
+  end
+
+  def scalar_merge(lhs, rhs)
+    unless rhs.class <= @klass
+      rhs = @klass.new(rhs)
+    end
+    rv = lhs.merge(rhs)
+    unless rv.class <= Bud::Lattice
+      raise Bud::Error, "merge for #{lhs.class} does not return lattice value: #{rv.inspect}"
+    end
+    rv
+  end
+
+  def do_merge(lhs, rhs)
+    raise Bud::Error unless lhs.class <= Bud::Lattice
+    return lhs if rhs.nil?
+
+    # NB: we assume that all lattices are content with the default set =>
+    # lattice homomorphism: we convert each element of the set into a lattice
+    # value, and then fold over those lattice values using the merge function.
+    if rhs.class <= Enumerable && !(rhs.class <= Hash)
+      rhs.each do |r|
+        next if r.nil?
+        lhs = scalar_merge(lhs, r)
+      end
+      return lhs
+    end
+
+    scalar_merge(lhs, rhs)
+  end
+
+  public
+  def <=(i)
+    return if i.nil?
+    @new_delta = do_merge(current_new_delta, i)
+  end
+
+  superator "<+" do |i|
+    return if i.nil?
+    @pending = do_merge(current_pending, i)
+  end
+
+  def tick
+    if @new_delta
+      raise Bud::Error, "orphaned delta value for lattice #{@tabname}: #{@new_delta.inspect}"
+    end
+    @storage = nil if @is_scratch
+    @storage = do_merge(current_value, @pending)
+    @pending = nil
+    @delta = nil
+  end
+
+  def tick_deltas
+    result = false
+
+    if @new_delta
+      m = do_merge(current_value, @new_delta)
+      if m.reveal != current_value.reveal
+        @storage = m
+        result = true
+      end
+    end
+
+    @delta = @new_delta
+    @new_delta = nil
+
+    return result
+  end
+
+  def inspect
+    "lat = #{@tabname}, #{current_value.inspect}"
+  end
+end
+
+class Bud::MaxLattice < Bud::Lattice
+  wrapper_name :lmax
+
+  def initialize(i=nil)
+    unless i.nil? || i.class <= Comparable
+      reject_input(i)
+    end
+    @v = i
+  end
+
+  def merge(i)
+    i_val = i.reveal
+    (@v.nil? || (i_val != nil && i_val > @v)) ? i : self
+  end
+
+  morph :gt do |k|
+    Bud::BoolLattice.new(!!(@v && @v > k))
+  end
+
+  morph :gt_eq do |k|
+    Bud::BoolLattice.new(!!(@v && @v >= k))
+  end
+
+  # XXX: support MaxLattice input?
+  morph :+ do |i|
+    raise Bud::Error, "cannot apply + to empty MaxLattice"  if @v.nil?
+    reject_input(i, "+") unless i.class <= Numeric
+    self.class.new(@v + i)
+  end
+
+  morph :min_of do |i|
+    reject_input(i, "min_of") unless i.class <= Numeric
+    (@v.nil? || i < @v) ? self.class.new(i) : self
+  end
+
+  def lt_eq(k)
+    Bud::BoolLattice.new(!!(@v && @v <= k))
   end
 end

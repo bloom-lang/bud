@@ -876,7 +876,7 @@ module Bud
           the_locspec = split_locspec(t, @locspec_idx)
           raise Bud::Error, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
         end
-        puts "channel #{qualified_tabname}.send: #{t} ; included_modules = #{t.class.included_modules}; to_a.dump = #{Marshal.load(Marshal.dump(t.to_a))}; n = #{Marshal.load(Marshal.dump(null_tuple))}" if $BUD_DEBUG
+        puts "channel #{qualified_tabname}.send: #{t}" if $BUD_DEBUG
 
         # Convert the tuple into a suitable wire format. Because MsgPack cannot
         # marshal arbitrary Ruby objects (namely lattice values), we first
