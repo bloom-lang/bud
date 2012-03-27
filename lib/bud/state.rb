@@ -2,7 +2,7 @@ module Bud
   ######## methods for registering collection types
   private
   def check_collection_name(name)
-    if @tables.has_key? name
+    if @tables.has_key? name or @lattices.has_key? name
       raise Bud::CompileError, "collection already exists: #{name}"
     end
 

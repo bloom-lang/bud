@@ -171,10 +171,13 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
     rhs_ast = RenameRewriter.new(@bud_instance).process(rhs_ast)
 
-    unless @bud_instance.options[:disable_lattice_semi_naive]
-      LatticeDeltaRewrite.new(@bud_instance).rewrite(rhs_ast)
+    # XXX: disabled for now
+    if false
+      unless @bud_instance.options[:disable_lattice_semi_naive]
+        LatticeDeltaRewrite.new(@bud_instance).rewrite(rhs_ast)
+      end
+      rhs_ast = LatticeRefRewriter.new(@bud_instance).process(rhs_ast)
     end
-    rhs_ast = LatticeRefRewriter.new(@bud_instance).process(rhs_ast)
 
     if @bud_instance.options[:no_attr_rewrite]
       rhs = collect_rhs(rhs_ast)

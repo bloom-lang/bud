@@ -96,6 +96,10 @@ class Bud::LatticeWrapper
     @is_source = true
   end
 
+  def qualified_tabname
+    @qualified_tabname ||= @bud_instance.toplevel?  ? @tabname : "#{@bud_instance.qualified_name}.#{@tabname}".to_sym
+  end
+
   def invalidate_at_tick
     false
   end
@@ -172,8 +176,43 @@ class Bud::LatticeWrapper
 
   public
   def <=(i)
-    return if i.nil?
-    @new_delta = do_merge(current_new_delta, i)
+    if i.class <= Bud::Lattice
+      # given a concrete value (enumerable or lattice element), merge the value
+      # into the current wrapper delta value
+      @new_delta = do_merge(current_new_delta, i)
+    elsif i.class <= Bud::LatticeWrapper
+      # given a lattice wrapper or a dataflow element, wire up the dataflow to
+      # enable push-based evaluation
+      add_merge_target
+      i.to_push_elem.wire_to self
+    elsif i.class <= Bud::PushElement
+      add_merge_target
+      i.wire_to self
+    else
+      raise
+    end
+    self
+  end
+
+  # XXX: refactor with BudCollection to avoid duplication of code
+  def add_merge_target
+    toplevel = @bud_instance.toplevel
+    if toplevel.done_bootstrap
+      toplevel.merge_targets[toplevel.this_stratum] << self
+    end
+  end
+
+  def to_push_elem(the_name=tabname)
+    toplevel = @bud_instance.toplevel
+    this_stratum = toplevel.this_stratum
+    oid = self.object_id
+    unless toplevel.scanners[this_stratum][[oid, the_name]]
+      scanner = Bud::ScannerElement.new(the_name, @bud_instance,
+                                        self, nil)
+      toplevel.scanners[this_stratum][[oid, the_name]] = scanner
+      toplevel.push_sources[this_stratum][[oid, the_name]] = scanner
+    end
+    toplevel.scanners[this_stratum][[oid, the_name]]
   end
 
   superator "<+" do |i|
