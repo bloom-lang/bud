@@ -241,9 +241,7 @@ module Bud
     def rename(the_name, the_schema=nil)
       # a scratch with this name should have been defined during rewriting
       raise Bud::Error, "rename failed to define a scratch named #{the_name}" unless @bud_instance.respond_to? the_name
-      retval = pro(the_name, the_schema)
-      #retval.init_schema(the_schema)
-      retval
+      pro(the_name, the_schema)
     end
 
     # def to_enum

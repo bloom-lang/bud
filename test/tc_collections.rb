@@ -542,6 +542,7 @@ class TestCollections < MiniTest::Unit::TestCase
   def test_simple_rename
     p = SimpleRename.new
     p.tick
+    assert_equal(:t2, p.t2.tabname)
   end
 
   def test_schema_preserve_keys
