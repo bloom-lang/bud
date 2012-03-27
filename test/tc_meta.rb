@@ -181,13 +181,15 @@ class TestMeta < MiniTest::Unit::TestCase
   end
 
   def test_visualization
-    program = KTest2.new(:trace => true, :port => 24321, :quiet => true)
+    out_buf = StringIO.new("", "w")
+    # XXX: we need an explicit port number so that we can use dbm tables, but
+    # otherwise the port number is irrelevant
+    program = KTest2.new(:trace => true, :port => 24321,
+                         :quiet => true, :stdout => out_buf)
     `rm -r DBM_KTest2*`
     dir = scratch_dir
 
     program.run_bg
-    program.sync_do
-
     write_graphs({}, program.builtin_tables, program.t_cycle, program.t_depends,
                  program.t_rules, "#{dir}/test_viz", dir, :dot, false, nil, 1, {})
     program.stop
@@ -220,15 +222,11 @@ class TestMeta < MiniTest::Unit::TestCase
   end
 
   def test_plotting
-    $stdout = StringIO.new("", "w")
-    program = KTest2.new(:output => :dot)
-    dep = DepAnalysis.new
-
+    out_buf = StringIO.new("", "w")
+    program = KTest2.new(:output => :dot, :stdout => out_buf)
     program.run_bg
-    program.sync_do
-    program.sync_do
-    program.sync_do
 
+    dep = DepAnalysis.new
     dep.providing <+ program.t_provides.to_a
     dep.depends <+ program.t_depends.map{|d| [d.lhs, d.op, d.body, d.nm]}
     dep.sync_do
@@ -247,14 +245,12 @@ class TestMeta < MiniTest::Unit::TestCase
     refute_match(/req -> \"\?\?\"/, content)
     `rm -r #{dir}`
     program.stop
-    $stdout = STDOUT
   end
 
   def test_labels
     p = Divergence.new(:output => :dot)
     p.run_bg
-    p.sync_do
-    p.sync_do
+    p.sync_do   # XXX: why is this necessary?
 
     dir = scratch_dir
     graph_from_instance(p, "#{dir}/test_labels", dir, true, :dot)
@@ -274,7 +270,8 @@ class TestMeta < MiniTest::Unit::TestCase
   end
 
   def test_underspecified
-    u = Underspecified.new
+    out_buf = StringIO.new("", "w")
+    u = Underspecified.new(:stdout => out_buf)
     assert_equal(2, u.t_underspecified.length)
     u.t_underspecified.each do |u|
       case u[0]
