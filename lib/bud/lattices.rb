@@ -209,7 +209,7 @@ class Bud::LatticeWrapper
   end
 
   def inspect
-    "lat = #{@tabname}, #{current_value.inspect}"
+    "{#{@tabname}, #{current_value.inspect}}"
   end
 end
 
