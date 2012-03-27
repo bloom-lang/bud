@@ -535,7 +535,7 @@ class TestCollections < MiniTest::Unit::TestCase
       t1 <= [[1,1], [1000, 1000]]
     end
     bloom do
-      temp :t2 <= t1.rename(:bob, [:x] => [:y]) {|t| t if t.x < 1000}
+      temp :t2 <= t1.rename(:bob, [:a] => [:b]) {|t| t if t.a < 1000}
     end
   end
 
