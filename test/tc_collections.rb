@@ -532,16 +532,18 @@ class TestCollections < MiniTest::Unit::TestCase
       table :t1
     end
     bootstrap do
-      t1 << [1,1]
+      t1 <= [[1,1], [1000, 1000]]
     end
     bloom do
-      temp :t2 <= t1.rename(:bob)
+      temp :t2 <= t1.rename(:bob, [:a] => [:b]) {|t| t if t.a < 1000}
     end
   end
 
   def test_simple_rename
     p = SimpleRename.new
     p.tick
+    assert_equal(:t2, p.t2.tabname)
+    assert_equal([[1, 1]], p.t2.to_a)
   end
 
   def test_schema_preserve_keys

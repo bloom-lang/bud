@@ -238,12 +238,10 @@ module Bud
       pusher.sort("sort#{object_id}", @bud_instance, @cols, &blk)
     end
 
-    def rename(the_name, the_schema=nil)
+    def rename(the_name, the_schema=nil, &blk)
       # a scratch with this name should have been defined during rewriting
       raise Bud::Error, "rename failed to define a scratch named #{the_name}" unless @bud_instance.respond_to? the_name
-      retval = pro(the_name, the_schema)
-      #retval.init_schema(the_schema)
-      retval
+      pro(the_name, the_schema, &blk)
     end
 
     # def to_enum
@@ -487,6 +485,11 @@ module Bud
       end
     end
 
+    # This is used for two quite different purposes. If given a Bud collection
+    # or dataflow element as an input, we assume we're being called to wire up
+    # the push-based dataflow. If given an Enumerable consisting of Bud tuples,
+    # we assume we're being called to insert the tuples (e.g., to support direct
+    # insertion of tuples into Bud collections in a sync_do block).
     public
     def merge(o, buf=@delta) # :nodoc: all
       toplevel = @bud_instance.toplevel
