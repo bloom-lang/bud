@@ -487,6 +487,11 @@ module Bud
       end
     end
 
+    # This is used for two quite different purposes. If given a Bud collection
+    # or dataflow element as an input, we assume we're being called to wire up
+    # the push-based dataflow. If given an Enumerable consisting of Bud tuples,
+    # we assume we're being called to insert the tuples (e.g., to support direct
+    # insertion of tuples into Bud collections in a sync_do block).
     public
     def merge(o, buf=@delta) # :nodoc: all
       toplevel = @bud_instance.toplevel
