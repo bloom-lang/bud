@@ -1,5 +1,4 @@
 require 'bud/rewrite'
-require 'pp'
 
 
 class BudMeta #:nodoc: all
@@ -70,8 +69,11 @@ class BudMeta #:nodoc: all
     pt = klass.__bloom_asts__[block_name]
     return if pt.nil?
 
-    pt = Marshal.load(Marshal.dump(pt)) #deep clone because RuleRewriter mucks up pt.
-    pp pt if @bud_instance.options[:dump_ast]
+    pt = Marshal.load(Marshal.dump(pt)) # deep copy because RuleRewriter mucks up pt
+    if @bud_instance.options[:dump_ast]
+      require 'pp'
+      pp pt
+    end
     tmp_expander = TempExpander.new
     pt = tmp_expander.process(pt)
     tmp_expander.tmp_tables.each do |t|
