@@ -238,10 +238,10 @@ module Bud
       pusher.sort("sort#{object_id}", @bud_instance, @cols, &blk)
     end
 
-    def rename(the_name, the_schema=nil)
+    def rename(the_name, the_schema=nil, &blk)
       # a scratch with this name should have been defined during rewriting
       raise Bud::Error, "rename failed to define a scratch named #{the_name}" unless @bud_instance.respond_to? the_name
-      pro(the_name, the_schema)
+      pro(the_name, the_schema, &blk)
     end
 
     # def to_enum
