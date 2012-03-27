@@ -245,19 +245,21 @@ class BudMeta #:nodoc: all
     preds_in_body = nodes.select {|_, node| node.in_body}.map {|name, _| name}.to_set
 
     bud = @bud_instance
+    out = bud.options[:stdout]
+    out ||= $stdout
     bud.t_provides.each do |p|
       pred, input = p.interface, p.input
       if input
         unless preds_in_body.include? pred.to_s
           # input interface is underspecified if not used in any rule body
           bud.t_underspecified << [pred, true] # true indicates input mode
-          puts "Warning: input interface #{pred} not used"
+          out.puts "Warning: input interface #{pred} not used"
         end
       else
         unless preds_in_lhs.include? pred.to_s
           # output interface underspecified if not in any rule's lhs
           bud.t_underspecified << [pred, false]  #false indicates output mode.
-          puts "Warning: output interface #{pred} not used"
+          out.puts "Warning: output interface #{pred} not used"
         end
       end
     end
