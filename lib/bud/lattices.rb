@@ -95,11 +95,13 @@ end
 
 class Bud::LatticePushElement
   attr_reader :wired_by, :outputs
+  attr_accessor :invalidated, :rescan
 
   def initialize(bud_instance)
     @bud_instance = bud_instance
     @wired_by = []
     @outputs = []
+    @pendings = []
     @invalidated = true
     @rescan = true
   end
@@ -117,8 +119,7 @@ class Bud::LatticePushElement
   end
 
   def print_wiring(depth=0, accum="")
-    depth.times {print "  "}
-    puts "#{accum} #{(self.object_id*2).to_s(16)}: #{qualified_tabname} (#{self.class})"
+    puts "#{'  ' * depth}#{accum} #{inspect}"
 
     [@outputs, @pendings].each do |buf|
       if buf == @outputs
@@ -128,8 +129,17 @@ class Bud::LatticePushElement
       end
 
       buf.each do |o|
+        if o.respond_to? :print_wiring
+          o.print_wiring(depth + 1, next_accum)
+        else
+          puts "#{'  ' * (depth + 1)}#{next_accum} #{o.inspect}"
+        end
       end
     end
+  end
+
+  def inspect
+    "#{self.class}:#{self.object_id.to_s(16)}"
   end
 
   def wirings
@@ -143,6 +153,12 @@ class Bud::LatticePushElement
 
   def push_out(v)
     @outputs.each {|o| o.insert(v)}
+  end
+
+  def flush
+  end
+
+  def stratum_end
   end
 
   # Rescan and invalidation
@@ -176,8 +192,12 @@ class Bud::LatticeScannerElement < Bud::LatticePushElement
     if first_iter
       push_out(@collection.current_value)
     else
-      push_out(@collection.delta_value)
+#      push_out(@collection.delta_value)
     end
+  end
+
+  def inspect
+    "#{super} [#{collection.qualified_tabname}]"
   end
 end
 
@@ -307,6 +327,9 @@ class Bud::LatticeWrapper
       toplevel.push_sources[this_stratum][[oid, the_name]] = scanner
     end
     toplevel.scanners[this_stratum][[oid, the_name]]
+  end
+
+  def flush_deltas
   end
 
   superator "<+" do |i|
