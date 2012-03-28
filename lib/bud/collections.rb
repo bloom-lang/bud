@@ -21,9 +21,9 @@ module Bud
     attr_reader :cols, :key_cols # :nodoc: all
     attr_reader :struct
     attr_reader :storage, :delta, :new_delta, :pending, :tick_delta # :nodoc: all
-    attr_accessor :invalidated, :to_delete, :rescan
+    attr_reader :wired_by, :to_delete
+    attr_accessor :invalidated, :rescan
     attr_accessor :is_source
-    attr_accessor :wired_by
     attr_accessor :accumulate_tick_deltas # updated in bud.do_wiring
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
