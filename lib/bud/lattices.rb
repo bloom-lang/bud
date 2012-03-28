@@ -85,6 +85,52 @@ class Bud::Lattice
   end
 end
 
+class Bud::LatticePushElement
+  attr_reader :wired_by
+
+  def initialize(bud_instance)
+    @bud_instance = bud_instance
+    @wired_by = []
+    @outputs = []
+    @invalidated = true
+    @rescan = true
+  end
+
+  def wire_to(element)
+    @outputs << element
+    element.wired_by << self
+  end
+
+  def insert(v)
+  end
+
+  def push_out
+    @outputs.each do |o|
+      o.insert(...)
+    end
+  end
+
+  def tick
+  end
+
+  def tick_deltas
+  end
+
+  def rescan_at_tick
+    false
+  end
+end
+
+class Bud::LatticeScannerElement < Bud::LatticePushElement
+  def initialize(bud_instance, source)
+    super(bud_instance)
+    @source = source
+  end
+
+  def scan(first_iter)
+  end
+end
+
 class Bud::LatticeWrapper
   attr_reader :tabname
   attr_accessor :is_source
@@ -207,8 +253,7 @@ class Bud::LatticeWrapper
     this_stratum = toplevel.this_stratum
     oid = self.object_id
     unless toplevel.scanners[this_stratum][[oid, the_name]]
-      scanner = Bud::ScannerElement.new(the_name, @bud_instance,
-                                        self, nil)
+      scanner = Bud::LatticeScannerElement.new(@bud_instance, self)
       toplevel.scanners[this_stratum][[oid, the_name]] = scanner
       toplevel.push_sources[this_stratum][[oid, the_name]] = scanner
     end
