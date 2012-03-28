@@ -21,7 +21,6 @@ module Bud
     attr_reader :cols, :key_cols # :nodoc: all
     attr_reader :struct
     attr_reader :storage, :delta, :new_delta, :pending, :tick_delta # :nodoc: all
-    attr_accessor :qualified_tabname
     attr_accessor :invalidated, :to_delete, :rescan
     attr_accessor :is_source
     attr_accessor :wired_by
@@ -70,7 +69,7 @@ module Bud
     end
 
     def qualified_tabname
-      @qualified_tabname ||= @bud_instance.toplevel?  ? tabname : (@bud_instance.qualified_name + "." + tabname.to_s).to_sym
+      @qualified_tabname ||= @bud_instance.toplevel?  ? tabname : "#{@bud_instance.qualified_name}.#{tabname}".to_sym
     end
 
     # The user-specified schema might come in two forms: a hash of Array =>

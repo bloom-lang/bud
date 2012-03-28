@@ -13,9 +13,9 @@ module Bud
   # p.insert(1)
   # p.insert(nil)
   class PushElement < BudCollection
-    attr_accessor :elem_name
     attr_accessor :rescan, :invalidated
-    attr_reader :inputs, :found_delta, :refcount, :wired_by, :outputs
+    attr_accessor :elem_name
+    attr_reader :found_delta, :refcount, :wired_by, :outputs
 
     def initialize(name_in, bud_instance, collection_name=nil, given_schema=nil, defer_schema=false, &blk)
       super(name_in, bud_instance, given_schema, defer_schema)
@@ -144,12 +144,8 @@ module Bud
         unless item.nil?
           @outputs.each do |ou|
             if ou.class <= Bud::PushElement
-              #the_name = ou.elem_name
-              # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
               ou.insert(item, self)
             elsif ou.class <= Bud::BudCollection
-              # the_name = ou.tabname
-              # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
               ou.do_insert(item, ou.new_delta)
             else
               raise Bud::Error, "expected either a PushElement or a BudCollection"
@@ -210,19 +206,13 @@ module Bud
     public
     def stratum_end
     end
-    #public
-    #def set_schema(schema)
-    #  @schema=schema
-    #  setup_accessors
-    #end
-
 
     ####
     # and now, the Bloom-facing methods
     public
-    def pro(the_name=@elem_name, the_schema=schema, &blk)
+    def pro(the_name=elem_name, the_schema=schema, &blk)
       toplevel = @bud_instance.toplevel
-      elem = Bud::PushElement.new('project' + object_id.to_s,
+      elem = Bud::PushElement.new("project#{object_id}",
                                   toplevel.this_rule_context,
                                   @collection_name, the_schema)
       self.wire_to(elem)
@@ -236,7 +226,7 @@ module Bud
     public
     def each_with_index(the_name=elem_name, the_schema=schema, &blk)
       toplevel = @bud_instance.toplevel
-      elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s,
+      elem = Bud::PushEachWithIndex.new("each_with_index#{object_id}",
                                         toplevel.this_rule_context,
                                         @collection_name)
       elem.set_block(&blk)
