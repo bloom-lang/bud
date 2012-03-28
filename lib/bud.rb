@@ -432,13 +432,8 @@ module Bud
     t_rules.each do |rule|
       lhs = rule.lhs.to_sym
       if rule.op == "<="
-        if @tables.has_key? lhs
-          @tables[lhs].is_source = false
-        elsif @lattices.has_key? lhs
-          @lattices[lhs].is_source = false
-        else
-          raise Bud::Error
-        end
+        # Note that lattices cannot be sources
+        @tables[lhs].is_source = false if @tables.has_key? lhs
       end
       nm_targets << lhs if rule.nm_funcs_called
     end

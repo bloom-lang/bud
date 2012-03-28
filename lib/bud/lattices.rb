@@ -94,7 +94,7 @@ end
 # * qualified_tabname
 
 class Bud::LatticePushElement
-  attr_reader :wired_by
+  attr_reader :wired_by, :outputs
 
   def initialize(bud_instance)
     @bud_instance = bud_instance
@@ -104,6 +104,7 @@ class Bud::LatticePushElement
     @rescan = true
   end
 
+  # Wiring
   def wire_to(element)
     @outputs << element
     element.wired_by << self
@@ -115,10 +116,27 @@ class Bud::LatticePushElement
     end
   end
 
+  def print_wiring(depth=0, accum="")
+    depth.times {print "  "}
+    puts "#{accum} #{(self.object_id*2).to_s(16)}: #{qualified_tabname} (#{self.class})"
+
+    [@outputs, @pendings].each do |buf|
+      if buf == @outputs
+        next_accum = "=> "
+      else
+        next_accum = "+> "
+      end
+
+      buf.each do |o|
+      end
+    end
+  end
+
   def wirings
     @outputs
   end
 
+  # Push-based data movement
   def insert(v)
     push_out(v)
   end
@@ -127,6 +145,14 @@ class Bud::LatticePushElement
     @outputs.each {|o| o.insert(v)}
   end
 
+  # Rescan and invalidation
+  def add_rescan_invalidate(rescan, invalidate)
+  end
+
+  def invalidate_at_tick(rescan, invalidate)
+  end
+
+  # Tick (delta processing)
   def tick
   end
 
