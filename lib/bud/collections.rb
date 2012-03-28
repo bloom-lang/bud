@@ -214,6 +214,7 @@ module Bud
     # results of running <em>block</em> once for every element". So we wire the
     # input to a pro(&blk), and wire the output of that pro to a group that does
     # accum.
+    # XXX: what about if/when this is called outside wiring?
     public
     def flat_map(&blk)
       pusher = self.pro(&blk)

@@ -209,6 +209,7 @@ module Bud
 
     ####
     # and now, the Bloom-facing methods
+    # XXX: "the_name" parameter is unused
     public
     def pro(the_name=elem_name, the_schema=schema, &blk)
       toplevel = @bud_instance.toplevel
@@ -223,6 +224,7 @@ module Bud
 
     alias each pro
 
+    # XXX: "the_name" & "the_schema" parameters are unused
     public
     def each_with_index(the_name=elem_name, the_schema=schema, &blk)
       toplevel = @bud_instance.toplevel
