@@ -269,7 +269,7 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
         return unless exp[2][1] and exp[2][1][0] == :array
         if exp[1][2] == :reduce
           unless @collnames.length == 1
-            raise Bud::Error, "reduce should only one associated collection, but has #{@collnames.inspect}"
+            raise Bud::Error, "reduce should only have one associated collection, but has #{@collnames.inspect}"
           end
           @iterhash[exp[2][1][2][1]] = @collnames.first
         else #join
