@@ -81,40 +81,23 @@ module Bud
     def set_block(&blk)
       @blk = blk
     end
-    def wire_to(element)
-      unless element.respond_to? :insert
-        raise Bud::Error, "attempt to wire_to element without insert method"
+
+    def wire_to(element, kind=:output)
+      case kind
+      when :output
+        raise Bud::Error unless element.respond_to? :insert
+        @outputs << element
+      when :pending
+        raise Bud::Error unless element.respond_to? :pending_merge
+        @pendings << element
+      when :delete
+        raise Bud::Error unless element.respond_to? :pending_delete
+        @deletes << element
+      when :delete_by_key
+        raise Bud::Error unless element.respond_to? :pending_delete_keys
+        @delete_keys << element
       end
-      # elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
-      # puts "wiring #{self.elem_name} to #{elem_name}"
-      @outputs << element
-      element.wired_by << self if element.respond_to? :wired_by
-    end
-    def wire_to_pending(element)
-      unless element.respond_to? :pending_merge
-        raise Bud::Error, "attempt to wire_to_pending element without pending_merge method"
-      end
-      # elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
-      # puts "wiring #{self.elem_name} to #{elem_name}(pending)"
-      @pendings << element
-      element.wired_by << self if element.respond_to? :wired_by
-    end
-    def wire_to_delete(element)
-      unless element.respond_to? :pending_delete
-        raise Bud::Error, "attempt to wire_to_delete element without pending_delete method"
-      end
-      # elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
-      # puts "wiring #{self.elem_name} to #{elem_name}(delete)"
-      @deletes << element
-      element.wired_by << self if element.respond_to? :wired_by
-    end
-    def wire_to_delete_by_key(element)
-      unless element.respond_to? :pending_delete_keys
-        raise Bud::Error, "attempt to wire_to_delete_by_key element without pending_delete_keys method"
-      end
-      # elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
-      # puts "wiring #{self.elem_name} to #{elem_name}(delete)"
-      @delete_keys << element
+
       element.wired_by << self if element.respond_to? :wired_by
     end
 
