@@ -335,7 +335,7 @@ module Bud
         wired_to = []
         working.each do |e|
           e.wirings.each do |out|
-            if (out.class <= PushElement and not seen.member?(out))
+            if ((out.class <= PushElement || out.class <= LatticePushElement) and not seen.member?(out))
               seen << out
               wired_to << out
             end

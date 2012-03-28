@@ -85,6 +85,14 @@ class Bud::Lattice
   end
 end
 
+# TODO:
+# * pending
+# * code blocks (pro)
+# * morphism optimization (seminaive)
+# * invalidation/rescan?
+# * is_source for wrapper?
+# * qualified_tabname
+
 class Bud::LatticePushElement
   attr_reader :wired_by
 
@@ -101,13 +109,22 @@ class Bud::LatticePushElement
     element.wired_by << self
   end
 
-  def insert(v)
+  def check_wiring
+    if @outputs.empty?
+      raise Bud::Error, "no output specified for LatticePushElement #{self}"
+    end
   end
 
-  def push_out
-    @outputs.each do |o|
-      o.insert(...)
-    end
+  def wirings
+    @outputs
+  end
+
+  def insert(v)
+    push_out(v)
+  end
+
+  def push_out(v)
+    @outputs.each {|o| o.insert(v)}
   end
 
   def tick
@@ -122,24 +139,30 @@ class Bud::LatticePushElement
 end
 
 class Bud::LatticeScannerElement < Bud::LatticePushElement
-  def initialize(bud_instance, source)
+  attr_reader :collection
+
+  def initialize(bud_instance, collection)
     super(bud_instance)
-    @source = source
+    @collection = collection
   end
 
   def scan(first_iter)
+    if first_iter
+      push_out(@collection.current_value)
+    else
+      push_out(@collection.delta_value)
+    end
   end
 end
 
 class Bud::LatticeWrapper
-  attr_reader :tabname
-  attr_accessor :is_source
+  attr_reader :tabname, :wired_by
 
   def initialize(tabname, klass, bud_i)
     @tabname = tabname
     @klass = klass
     @bud_instance = bud_i
-    @is_source = true
+    @wired_by = []
   end
 
   def qualified_tabname
@@ -231,7 +254,7 @@ class Bud::LatticeWrapper
       # enable push-based evaluation
       add_merge_target
       i.to_push_elem.wire_to self
-    elsif i.class <= Bud::PushElement
+    elsif i.class <= Bud::LatticePushElement
       add_merge_target
       i.wire_to self
     else
@@ -261,15 +284,20 @@ class Bud::LatticeWrapper
   end
 
   superator "<+" do |i|
+    # TODO
     return if i.nil?
     @pending = do_merge(current_pending, i)
+  end
+
+  # Merge "i" into @new_delta
+  def insert(i)
+    @new_delta = do_merge(current_new_delta, i)
   end
 
   def tick
     if @new_delta
       raise Bud::Error, "orphaned delta value for lattice #{@tabname}: #{@new_delta.inspect}"
     end
-    @storage = nil if @is_scratch
     @storage = do_merge(current_value, @pending)
     @pending = nil
     @delta = nil
