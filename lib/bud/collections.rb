@@ -536,14 +536,14 @@ module Bud
       toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         add_merge_target
-        o.wire_to_pending self
+        o.wire_to(self, :pending)
       elsif o.class <= Bud::BudCollection
         add_merge_target
-        o.pro.wire_to_pending self
+        o.pro.wire_to(self, :pending)
       elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
         add_merge_target
         tbl = register_coll_expr(o) unless o.nil?
-        tbl.pro.wire_to_pending self
+        tbl.pro.wire_to(self, :pending)
       else
         unless o.nil?
           o = o.uniq.compact if o.respond_to?(:uniq)
@@ -926,7 +926,7 @@ module Bud
 
     superator "<~" do |o|
       if o.class <= Bud::PushElement
-        o.wire_to_pending self
+        o.wire_to(self, :pending)
       else
         pending_merge(o)
       end
@@ -1024,7 +1024,7 @@ module Bud
 
     superator "<~" do |o|
       if o.class <= Bud::PushElement
-        o.wire_to_pending self
+        o.wire_to(self, :pending)
       else
         pending_merge(o)
       end
@@ -1130,14 +1130,14 @@ module Bud
       toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         add_merge_target
-        o.wire_to_delete self
+        o.wire_to(self, :delete)
       elsif o.class <= Bud::BudCollection
         add_merge_target
-        o.pro.wire_to_delete self
+        o.pro.wire_to(self, :delete)
       elsif o.class <= Proc and @bud_instance.toplevel.done_bootstrap and not toplevel.done_wiring
         add_merge_target
         tbl = register_coll_expr(o)
-        tbl.pro.wire_to_delete self
+        tbl.pro.wire_to(self, :delete)
       else
         unless o.nil?
           o = o.uniq.compact if o.respond_to?(:uniq)
@@ -1155,12 +1155,12 @@ module Bud
     def pending_delete_keys(o)
       toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
-        o.wire_to_delete_by_key self
+        o.wire_to(self, :delete_by_key)
       elsif o.class <= Bud::BudCollection
-        o.pro.wire_to_delete_by_key self
+        o.pro.wire_to(self, :delete_by_key)
       elsif o.class <= Proc and @bud_instance.toplevel.done_bootstrap and not @bud_instance.toplevel.done_wiring
         tbl = register_coll_expr(o)
-        tbl.pro.wire_to_delete_by_key self
+        tbl.pro.wire_to(self, :delete_by_key)
       else
         unless o.nil?
           o = o.uniq.compact if o.respond_to?(:uniq)
