@@ -149,7 +149,7 @@ class Bud::LatticePushElement
   end
 
   def wirings
-    @outputs
+    @outputs + @pendings
   end
 
   # Push-based dataflow
@@ -356,6 +356,17 @@ class Bud::LatticeWrapper
   # Merge "i" into @new_delta
   def insert(i)
     @new_delta = do_merge(current_new_delta, i)
+  end
+
+  def method_missing(meth, *args, &block)
+    toplevel = @bud_instance.toplevel
+
+    # If we're invoking a lattice method and we're currently wiring up the
+    # dataflow, wire up a dataflow element to invoke the given method
+    if toplevel.done_wiring and not toplevel.done_wiring
+    end
+
+    super
   end
 
   def tick
