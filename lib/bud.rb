@@ -63,7 +63,7 @@ $bud_instances = {}        # Map from instance id => Bud instance
 module Bud
   attr_reader :budtime, :inbound, :options, :meta_parser, :viz, :rtracer, :dsock
   attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :app_tables, :lattices
-  attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets, :done_wiring
+  attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap
   attr_accessor :stratified_rules
   attr_accessor :metrics, :periodics
@@ -200,6 +200,11 @@ module Bud
 
   def budtime
     toplevel? ? @budtime : toplevel.budtime
+  end
+
+  # Are we currently in the process of wiring together the dataflow?
+  def wiring?
+    toplevel? ? (@done_bootstrap && !@done_wiring) : toplevel.wiring?
   end
 
   private
