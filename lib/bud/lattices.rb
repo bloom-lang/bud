@@ -89,7 +89,9 @@ end
 # * pending
 # * code blocks (pro)
 # * morphism optimization (seminaive)
-# * invalidation/rescan?
+# * invalidation/rescan/non-monotonic stuff?
+# * morphisms
+# * expressions on RHS ("CollExpr")
 
 class Bud::LatticePushElement
   attr_reader :wired_by, :outputs
@@ -150,7 +152,7 @@ class Bud::LatticePushElement
     @outputs
   end
 
-  # Push-based data movement
+  # Push-based dataflow
   def insert(v)
     push_out(v)
   end
@@ -424,5 +426,51 @@ class Bud::MaxLattice < Bud::Lattice
 
   def lt_eq(k)
     Bud::BoolLattice.new(!!(@v && @v <= k))
+  end
+end
+
+class Bud::MinLattice < Bud::Lattice
+  wrapper_name :lmin
+
+  def initialize(i=nil)
+    unless i.nil? || i.class <= Comparable
+      reject_input(i)
+    end
+    @v = i
+  end
+
+  def merge(i)
+    i_val = i.reveal
+    (@v.nil? || (i_val != nil && i_val < @v)) ? i : self
+  end
+
+  morph :lt do |k|
+    Bud::BoolLattice.new(!!(@v && @v < k))
+  end
+
+  # XXX: support MinLattice input
+  morph :+ do |i|
+    raise Bud::Error if @v.nil?
+    reject_input(i, "+") unless i.class <= Numeric
+    self.class.new(@v + i)
+  end
+end
+
+# XXX: consider creating two fixed ("interned") values for true and false.
+class Bud::BoolLattice < Bud::Lattice
+  wrapper_name :lbool
+
+  def initialize(i=false)
+    reject_input(i) unless [true, false].include? i
+    @v = i
+  end
+
+  def merge(i)
+    self.class.new(@v || i.reveal)
+  end
+
+  # XXX: ugly syntax
+  morph :when_true do |&blk|
+    blk.call if @v
   end
 end
