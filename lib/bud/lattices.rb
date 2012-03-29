@@ -90,8 +90,6 @@ end
 # * code blocks (pro)
 # * morphism optimization (seminaive)
 # * invalidation/rescan?
-# * is_source for wrapper?
-# * qualified_tabname
 
 class Bud::LatticePushElement
   attr_reader :wired_by, :outputs
@@ -107,14 +105,20 @@ class Bud::LatticePushElement
   end
 
   # Wiring
-  def wire_to(element)
-    @outputs << element
+  def wire_to(element, kind=:output)
+    case kind
+    when :output
+      @outputs << element
+    when :pending
+      @pendings << element
+    end
+
     element.wired_by << self
   end
 
   def check_wiring
-    if @outputs.empty?
-      raise Bud::Error, "no output specified for LatticePushElement #{self}"
+    if @outputs.empty? and @pending.empty?
+      raise Bud::Error, "no output specified for #{inspect}"
     end
   end
 
@@ -153,6 +157,7 @@ class Bud::LatticePushElement
 
   def push_out(v)
     @outputs.each {|o| o.insert(v)}
+    @pendings.each {|o| o <+ v}
   end
 
   def flush
@@ -189,7 +194,7 @@ class Bud::LatticeScannerElement < Bud::LatticePushElement
   end
 
   def scan(first_iter)
-    if first_iter
+    if first_iter || true # XXX
       push_out(@collection.current_value)
     else
 #      push_out(@collection.delta_value)
@@ -317,25 +322,33 @@ class Bud::LatticeWrapper
     end
   end
 
-  def to_push_elem(the_name=tabname)
+  def to_push_elem
     toplevel = @bud_instance.toplevel
     this_stratum = toplevel.this_stratum
     oid = self.object_id
-    unless toplevel.scanners[this_stratum][[oid, the_name]]
+    unless toplevel.scanners[this_stratum][[oid, @tabname]]
       scanner = Bud::LatticeScannerElement.new(@bud_instance, self)
-      toplevel.scanners[this_stratum][[oid, the_name]] = scanner
-      toplevel.push_sources[this_stratum][[oid, the_name]] = scanner
+      toplevel.scanners[this_stratum][[oid, @tabname]] = scanner
+      toplevel.push_sources[this_stratum][[oid, @tabname]] = scanner
     end
-    toplevel.scanners[this_stratum][[oid, the_name]]
+    toplevel.scanners[this_stratum][[oid, @tabname]]
   end
 
   def flush_deltas
   end
 
   superator "<+" do |i|
-    # TODO
-    return if i.nil?
-    @pending = do_merge(current_pending, i)
+    if i.class <= Bud::Lattice
+      @pending = do_merge(current_pending, i) unless i.nil?
+    elsif i.class <= Bud::LatticeWrapper
+      add_merge_target
+      i.to_push_elem.wire_to(self, :pending)
+    elsif i.class <= Bud::LatticePushElement
+      add_merge_target
+      i.wire_to(self, :pending)
+    else
+      raise
+    end
   end
 
   # Merge "i" into @new_delta
