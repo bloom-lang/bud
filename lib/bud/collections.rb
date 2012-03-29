@@ -532,6 +532,19 @@ module Bud
     # buffer items to be merged atomically at end of this timestep
     public
     def pending_merge(o) # :nodoc: all
+      unless o.nil?
+        o = o.uniq.compact if o.respond_to?(:uniq)
+        check_enumerable(o)
+        establish_schema(o) if @cols.nil?
+        o.each{|i| self.do_insert(i, @pending)}
+      end
+    end
+
+    public
+    def flush ; end
+
+    public
+    superator "<+" do |o|
       toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         add_merge_target
@@ -544,22 +557,9 @@ module Bud
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :pending)
       else
-        unless o.nil?
-          o = o.uniq.compact if o.respond_to?(:uniq)
-          check_enumerable(o)
-          establish_schema(o) if @cols.nil?
-          o.each{|i| self.do_insert(i, @pending)}
-        end
+        pending_merge(o)
       end
       return self
-    end
-
-    public
-    def flush ; end
-
-    public
-    superator "<+" do |o|
-      pending_merge o
     end
 
     def tick
@@ -907,8 +907,14 @@ module Bud
     end
 
     superator "<~" do |o|
+      toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         o.wire_to(self, :pending)
+      elsif o.class <= Bud::BudCollection
+        o.pro.wire_to(self, :pending)
+      elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
+        tbl = register_coll_expr(o)
+        tbl.pro.wire_to(self, :pending)
       else
         pending_merge(o)
       end
@@ -1005,8 +1011,14 @@ module Bud
     end
 
     superator "<~" do |o|
+      toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         o.wire_to(self, :pending)
+      elsif o.class <= Bud::BudCollection
+        o.pro.wire_to(self, :pending)
+      elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
+        tbl = register_coll_expr(o)
+        tbl.pro.wire_to(self, :pending)
       else
         pending_merge(o)
       end
