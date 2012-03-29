@@ -542,7 +542,7 @@ module Bud
         o.pro.wire_to(self, :pending)
       elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
         add_merge_target
-        tbl = register_coll_expr(o) unless o.nil?
+        tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :pending)
       else
         unless o.nil?

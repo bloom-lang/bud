@@ -278,13 +278,13 @@ class TestCollections < MiniTest::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
     program.tick
-    #assert_equal(1, program.scrtch2.length)
+    assert_equal(1, program.scrtch2.length)
     program.tick
-    assert_equal(program.scrtch.to_a, [["c", "d", 5, 6]])
-    #assert_equal(0, program.scrtch2.length)
+    assert_equal([["c", "d", 5, 6]], program.scrtch.to_a)
+    assert_equal(0, program.scrtch2.length)
     assert_equal(2, program.tbl.length)
-    assert_equal(program.the_keys.to_a.sort, [["c", "d"], ["z", "y"]].sort)
-    assert_equal(program.the_vals.to_a.sort, [[5,6], [9,8]].sort)
+    assert_equal([["c", "d"], ["z", "y"]], program.the_keys.to_a.sort)
+    assert_equal([[5,6], [9,8]], program.the_vals.to_a.sort)
   end
   
   def test_tuple_accessors
@@ -299,9 +299,9 @@ class TestCollections < MiniTest::Unit::TestCase
     # tick twice to get to 2nd timestep
     program.tick
     program.tick
-    assert_equal(1, program.scrtch.length )
-    #assert_equal(0, program.scrtch2.length )
-    assert_equal(2, program.tbl.length )
+    assert_equal(1, program.scrtch.length)
+    assert_equal(0, program.scrtch2.length)
+    assert_equal(2, program.tbl.length)
   end
 
   def test_dup_tables
@@ -329,7 +329,7 @@ class TestCollections < MiniTest::Unit::TestCase
     s = Union.new
     s.tick
     assert_equal(2, s.union.length)
-    assert_equal(s.union.to_a, [["a", "b", 4], ["a", "b", 1]])
+    assert_equal([["a", "b", 1], ["a", "b", 4]], s.union.to_a.sort)
   end
 
   class DeleteKey
@@ -428,7 +428,7 @@ class TestCollections < MiniTest::Unit::TestCase
     }
     p.sync_do
     p.sync_do {
-      assert_equal(p.t1.to_a, [[5, 10]] )
+      assert_equal([[5, 10]], p.t1.to_a)
     }
     p.stop
   end
@@ -438,8 +438,8 @@ class TestCollections < MiniTest::Unit::TestCase
     b.run_bg
     2.times do
       b.sync_do {
-        assert_equal(b.t2.to_a.sort, [[6, 11]])
-        assert_equal( b.t3.to_a.sort, [[7, 12]])
+        assert_equal([[6, 11]], b.t2.to_a.sort)
+        assert_equal([[7, 12]], b.t3.to_a.sort)
       }
     end
 
@@ -470,14 +470,13 @@ class TestCollections < MiniTest::Unit::TestCase
 
   def test_filter_and_delete
     b = DelBug.new
-
     b.tick
-    assert_equal(b.buffer.to_a.sort, [[1,2], [3,4]])
+    assert_equal([[1,2], [3,4]], b.buffer.to_a.sort)
 
     b.to_delete <+ [[1,2]]
     b.tick
     b.tick
-    assert_equal(b.buffer.to_a.sort, [[3,4]])
+    assert_equal([[3,4]], b.buffer.to_a.sort)
   end
 
   def test_bad_declaration

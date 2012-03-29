@@ -1006,20 +1006,20 @@ module Bud
         fixpoint = false
         first_iter = true
         until fixpoint
-          fixpoint = true
           @scanners[stratum].each_value {|s| s.scan(first_iter)}
+          fixpoint = true
           first_iter = false
           # flush any tuples in the pipes
           @push_sorted_elems[stratum].each {|p| p.flush}
           # tick deltas on any merge targets and look for more deltas
           # check to see if any joins saw a delta
-          push_joins[stratum].each do |p|
+          @push_joins[stratum].each do |p|
             if p.found_delta
               fixpoint = false
               p.tick_deltas
             end
           end
-          merge_targets[stratum].each do |t|
+          @merge_targets[stratum].each do |t|
             fixpoint = false if t.tick_deltas
           end
         end
@@ -1027,7 +1027,7 @@ module Bud
         @push_sorted_elems[stratum].each do |p|
           p.stratum_end
         end
-        merge_targets[stratum].each do |t|
+        @merge_targets[stratum].each do |t|
           t.flush_deltas
         end
       end
