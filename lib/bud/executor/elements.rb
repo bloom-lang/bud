@@ -33,10 +33,6 @@ module Bud
       @rescan = true
     end
 
-    def wiring?
-      @bud_instance.toplevel.done_wiring == false
-    end
-
     def wirings
       @wirings ||= @outputs + @pendings + @deletes + @delete_keys
     end
@@ -248,7 +244,7 @@ module Bud
     end
 
     def merge(source)
-      if source.class <= PushElement and wiring?
+      if source.class <= PushElement and @bud_instance.wiring?
         source.wire_to(self)
       else
         source.each {|i| self << i}

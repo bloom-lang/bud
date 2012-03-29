@@ -196,8 +196,7 @@ module Bud
 
     public
     def each_with_index(the_name=tabname, the_schema=schema, &blk)
-      toplevel = @bud_instance.toplevel
-      if not toplevel.done_wiring
+      if @bud_instance.wiring?
         proj = pro(the_name, the_schema)
         elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s,
                                           toplevel.this_rule_context, tabname)
@@ -492,7 +491,6 @@ module Bud
     # insertion of tuples into Bud collections in a sync_do block).
     public
     def merge(o, buf=@delta) # :nodoc: all
-      toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         add_merge_target
         deduce_schema(o) if @cols.nil?
@@ -501,7 +499,7 @@ module Bud
         add_merge_target
         deduce_schema(o) if @cols.nil?
         o.pro.wire_to self
-      elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring and not o.nil?
+      elsif o.class <= Proc and @bud_instance.wiring?
         add_merge_target
         tbl = register_coll_expr(o)
         tbl.pro.wire_to self
@@ -545,14 +543,13 @@ module Bud
 
     public
     superator "<+" do |o|
-      toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         add_merge_target
         o.wire_to(self, :pending)
       elsif o.class <= Bud::BudCollection
         add_merge_target
         o.pro.wire_to(self, :pending)
-      elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
+      elsif o.class <= Proc and @bud_instance.wiring?
         add_merge_target
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :pending)
@@ -907,12 +904,11 @@ module Bud
     end
 
     superator "<~" do |o|
-      toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         o.wire_to(self, :pending)
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to(self, :pending)
-      elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
+      elsif o.class <= Proc and @bud_instance.wiring?
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :pending)
       else
@@ -1011,12 +1007,11 @@ module Bud
     end
 
     superator "<~" do |o|
-      toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         o.wire_to(self, :pending)
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to(self, :pending)
-      elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
+      elsif o.class <= Proc and @bud_instance.wiring?
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :pending)
       else
@@ -1121,14 +1116,13 @@ module Bud
     end
 
     def pending_delete(o)
-      toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         add_merge_target
         o.wire_to(self, :delete)
       elsif o.class <= Bud::BudCollection
         add_merge_target
         o.pro.wire_to(self, :delete)
-      elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
+      elsif o.class <= Proc and @bud_instance.wiring?
         add_merge_target
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :delete)
@@ -1147,12 +1141,11 @@ module Bud
 
     public
     def pending_delete_keys(o)
-      toplevel = @bud_instance.toplevel
       if o.class <= Bud::PushElement
         o.wire_to(self, :delete_by_key)
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to(self, :delete_by_key)
-      elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
+      elsif o.class <= Proc and @bud_instance.wiring?
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :delete_by_key)
       else
