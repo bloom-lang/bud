@@ -520,8 +520,7 @@ module Bud
       coll_name = "expr_#{expr.object_id}"
       cols = (1..@cols.length).map{|i| "c#{i}".to_sym} unless @cols.nil?
       @bud_instance.coll_expr(coll_name.to_sym, expr, cols)
-      coll = @bud_instance.send(coll_name)
-      coll
+      @bud_instance.send(coll_name)
     end
 
     public
@@ -636,7 +635,7 @@ module Bud
       this_stratum = toplevel.this_stratum
       oid = self.object_id
       unless toplevel.scanners[this_stratum][[oid, the_name]]
-        scanner = Bud::ScannerElement.new(the_name, self.bud_instance,
+        scanner = Bud::ScannerElement.new(the_name, @bud_instance,
                                           self, the_schema)
         toplevel.scanners[this_stratum][[oid, the_name]] = scanner
         toplevel.push_sources[this_stratum][[oid, the_name]] = scanner
@@ -1117,7 +1116,7 @@ module Bud
       elsif o.class <= Bud::BudCollection
         add_merge_target
         o.pro.wire_to(self, :delete)
-      elsif o.class <= Proc and @bud_instance.toplevel.done_bootstrap and not toplevel.done_wiring
+      elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
         add_merge_target
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :delete)
@@ -1141,7 +1140,7 @@ module Bud
         o.wire_to(self, :delete_by_key)
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to(self, :delete_by_key)
-      elsif o.class <= Proc and @bud_instance.toplevel.done_bootstrap and not @bud_instance.toplevel.done_wiring
+      elsif o.class <= Proc and toplevel.done_bootstrap and not toplevel.done_wiring
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :delete_by_key)
       else
