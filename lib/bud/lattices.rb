@@ -340,22 +340,19 @@ class Bud::LatticeWrapper
 
   public
   def <=(i)
-    if i.class <= Bud::Lattice
-      # given a concrete value (enumerable or lattice element), merge the value
-      # into the current wrapper delta value
-      @new_delta = do_merge(current_new_delta, i)
-    elsif i.class <= Bud::LatticeWrapper
-      # given a lattice wrapper or a dataflow element, wire up the dataflow to
-      # enable push-based evaluation
-      add_merge_target
-      i.to_push_elem.wire_to self
-    elsif i.class <= Bud::LatticePushElement
-      add_merge_target
-      i.wire_to self
+    if @bud_instance.wiring?
+      if i.class <= Bud::LatticeWrapper
+        add_merge_target
+        i.to_push_elem.wire_to self
+      elsif i.class <= Bud::LatticePushElement
+        add_merge_target
+        i.wire_to self
+      else
+        raise Bud::Error
+      end
     else
-      raise
+      @new_delta = do_merge(current_new_delta, i) unless i.nil?
     end
-    self
   end
 
   # XXX: refactor with BudCollection to avoid duplication of code
@@ -382,16 +379,18 @@ class Bud::LatticeWrapper
   end
 
   superator "<+" do |i|
-    if i.class <= Bud::Lattice
-      @pending = do_merge(current_pending, i) unless i.nil?
-    elsif i.class <= Bud::LatticeWrapper
-      add_merge_target
-      i.to_push_elem.wire_to(self, :pending)
-    elsif i.class <= Bud::LatticePushElement
-      add_merge_target
-      i.wire_to(self, :pending)
+    if @bud_instance.wiring?
+      if i.class <= Bud::LatticeWrapper
+        add_merge_target
+        i.to_push_elem.wire_to(self, :pending)
+      elsif i.class <= Bud::LatticePushElement
+        add_merge_target
+        i.wire_to(self, :pending)
+      else
+        raise Bud::Error
+      end
     else
-      raise
+      @pending = do_merge(current_pending, i) unless i.nil?
     end
   end
 

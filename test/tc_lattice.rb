@@ -28,7 +28,7 @@ class TestMax < MiniTest::Unit::TestCase
     assert_equal(true, i.done.current_value.reveal)
   end
 
-  def ntest_simple_implicit_merge
+  def test_simple_implicit_merge
     i = SimpleMax.new
     # assert_equal(2, i.strata.length)
     # strat_zero = i.stratum_collection_map[0]
