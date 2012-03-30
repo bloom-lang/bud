@@ -187,7 +187,8 @@ class Bud::LatticePushElement
   end
 end
 
-class Bud::LatticeScannerElement < Bud::LatticePushElement
+# A push-based dataflow element that scans a lattice wrapper
+class Bud::LatticeScanner < Bud::LatticePushElement
   attr_reader :collection
 
   def initialize(bud_instance, collection)
@@ -205,6 +206,32 @@ class Bud::LatticeScannerElement < Bud::LatticePushElement
 
   def inspect
     "#{super} [#{collection.qualified_tabname}]"
+  end
+end
+
+# A push-based dataflow element that applies a method to a lattice value
+class Bud::PushLatticeApply < Bud::LatticePushElement
+  def initialize(bud_instance, meth, args, &blk)
+    super(bud_instance)
+    @meth = meth
+    @args = args
+    @blk = blk
+
+    # TODO: arguments that are not constant values are not yet supported
+    args.each do |a|
+      if a.kind_of?(Bud::LatticeWrapper) or a.kind_of?(Bud::LatticePushElement)
+        raise Bud::Error
+      end
+    end
+  end
+
+  def insert(v)
+    res = v.send(@meth, *@args, &@blk)
+    push_out(res)
+  end
+
+  def inspect
+    "#{super} [#{@meth}]"
   end
 end
 
@@ -329,7 +356,7 @@ class Bud::LatticeWrapper
     this_stratum = toplevel.this_stratum
     oid = self.object_id
     unless toplevel.scanners[this_stratum][[oid, @tabname]]
-      scanner = Bud::LatticeScannerElement.new(@bud_instance, self)
+      scanner = Bud::LatticeScanner.new(@bud_instance, self)
       toplevel.scanners[this_stratum][[oid, @tabname]] = scanner
       toplevel.push_sources[this_stratum][[oid, @tabname]] = scanner
     end
@@ -358,15 +385,18 @@ class Bud::LatticeWrapper
     @new_delta = do_merge(current_new_delta, i)
   end
 
-  def method_missing(meth, *args, &block)
-    toplevel = @bud_instance.toplevel
-
+  def method_missing(meth, *args, &blk)
     # If we're invoking a lattice method and we're currently wiring up the
-    # dataflow, wire up a dataflow element to invoke the given method
-    if toplevel.done_wiring and not toplevel.done_wiring
+    # dataflow, wire up a dataflow element to invoke the given method.
+    if @bud_instance.wiring?
+      elem = Bud::PushLatticeApply.new(@bud_instance, meth, args, &blk)
+      pusher = to_push_elem
+      pusher.wire_to(elem)      # XXX: depends on whether meth is a morphism?
+      @bud_instance.push_elems[[self.object_id, meth, blk]] = elem
+      elem
+    else
+      super
     end
-
-    super
   end
 
   def tick

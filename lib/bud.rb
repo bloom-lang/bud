@@ -455,7 +455,7 @@ module Bud
           rescan << elem
         end
 
-        if elem.outputs.any?{|tab| not(tab.class <= PushElement) and nm_targets.member? tab.qualified_tabname.to_sym }
+        if elem.outputs.any?{|tab| not(tab.class <= PushElement) and not(tab.class <= LatticePushElement) and nm_targets.member? tab.qualified_tabname.to_sym }
           rescan += elem.wired_by
         end
       end
