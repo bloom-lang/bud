@@ -194,10 +194,13 @@ module Bud
       pusher_pro
     end
 
+    # XXX: It is unclear that allowing each_with_index on an unsorted collection
+    # is actually wise (index values will be implementation-defined).
     public
     def each_with_index(the_name=tabname, the_schema=schema, &blk)
       if @bud_instance.wiring?
         proj = pro(the_name, the_schema)
+        toplevel = @bud_instance.toplevel
         elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s,
                                           toplevel.this_rule_context, tabname)
         elem.set_block(&blk)
