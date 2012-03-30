@@ -338,18 +338,22 @@ class Bud::LatticeWrapper
     scalar_merge(lhs, rhs)
   end
 
+  def setup_wiring(input, kind)
+    if input.class <= Bud::LatticeWrapper
+      add_merge_target
+      input.to_push_elem.wire_to(self, kind)
+    elsif input.class <= Bud::LatticePushElement
+      add_merge_target
+      input.wire_to(self, kind)
+    else
+      raise Bud::Error
+    end
+  end
+
   public
   def <=(i)
     if @bud_instance.wiring?
-      if i.class <= Bud::LatticeWrapper
-        add_merge_target
-        i.to_push_elem.wire_to self
-      elsif i.class <= Bud::LatticePushElement
-        add_merge_target
-        i.wire_to self
-      else
-        raise Bud::Error
-      end
+      setup_wiring(i, :output)
     else
       @new_delta = do_merge(current_new_delta, i) unless i.nil?
     end
@@ -380,15 +384,7 @@ class Bud::LatticeWrapper
 
   superator "<+" do |i|
     if @bud_instance.wiring?
-      if i.class <= Bud::LatticeWrapper
-        add_merge_target
-        i.to_push_elem.wire_to(self, :pending)
-      elsif i.class <= Bud::LatticePushElement
-        add_merge_target
-        i.wire_to(self, :pending)
-      else
-        raise Bud::Error
-      end
+      setup_wiring(i, :pending)
     else
       @pending = do_merge(current_pending, i) unless i.nil?
     end
