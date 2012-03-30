@@ -119,7 +119,7 @@ class Bud::LatticePushElement
   end
 
   def check_wiring
-    if @outputs.empty? and @pending.empty?
+    if @outputs.empty? and @pendings.empty?
       raise Bud::Error, "no output specified for #{inspect}"
     end
   end
@@ -342,7 +342,7 @@ class Bud::LatticeWrapper
     if input.class <= Bud::LatticeWrapper
       add_merge_target
       input.to_push_elem.wire_to(self, kind)
-    elsif input.class <= Bud::LatticePushElement
+    elsif (input.class <= Bud::LatticePushElement || input.class <= Bud::PushElement)
       add_merge_target
       input.wire_to(self, kind)
     else
@@ -356,6 +356,14 @@ class Bud::LatticeWrapper
       setup_wiring(i, :output)
     else
       @new_delta = do_merge(current_new_delta, i) unless i.nil?
+    end
+  end
+
+  superator "<+" do |i|
+    if @bud_instance.wiring?
+      setup_wiring(i, :pending)
+    else
+      @pending = do_merge(current_pending, i) unless i.nil?
     end
   end
 
@@ -382,12 +390,7 @@ class Bud::LatticeWrapper
   def flush_deltas
   end
 
-  superator "<+" do |i|
-    if @bud_instance.wiring?
-      setup_wiring(i, :pending)
-    else
-      @pending = do_merge(current_pending, i) unless i.nil?
-    end
+  def add_rescan_invalidate(rescan, invalidate)
   end
 
   # Merge "i" into @new_delta
