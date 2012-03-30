@@ -171,14 +171,6 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
     rhs_ast = RenameRewriter.new(@bud_instance).process(rhs_ast)
 
-    # XXX: disabled for now
-    if false
-      unless @bud_instance.options[:disable_lattice_semi_naive]
-        LatticeDeltaRewrite.new(@bud_instance).rewrite(rhs_ast)
-      end
-      rhs_ast = LatticeRefRewriter.new(@bud_instance).process(rhs_ast)
-    end
-
     if @bud_instance.options[:no_attr_rewrite]
       rhs = collect_rhs(rhs_ast)
       rhs_pos = rhs
@@ -418,79 +410,5 @@ class TempExpander < SexpProcessor # :nodoc: all
     @tmp_tables << tmp_name
     new_recv = s(:call, nil, tmp_name, s(:arglist))
     return s(:call, new_recv, nest_op, nest_args)
-  end
-end
-
-# Identify situations in which the lattice delta rewrite can safely be applied
-# (see LatticeRefRewriter below for more).
-class LatticeDeltaRewrite
-  def initialize(bud_instance)
-    @bud_instance = bud_instance
-  end
-
-  def rewrite(exp)
-    if exp.sexp_type != :call
-      rewrite(exp[1]) if exp[1].class <= Sexp
-    else
-      tag, recv, op, args = exp
-      if recv.nil? and args == s(:arglist)
-        # We've found a context where it is safe to use the lattice's delta
-        # value instead of its current value. As a gross hack, we identify this
-        # location in the AST by appending "___delta" to the name of the lattice
-        # in the AST; LatticeRefRewriter will then strip off the suffix and do
-        # the actual delta rewrite.
-        exp[2] = "#{op.to_s}___delta".to_sym if @bud_instance.lattices.has_key?(op)
-      else
-        return unless RuleRewriter.is_morphism(op)
-        rewrite(recv)
-      end
-    end
-  end
-end
-
-# Rewrite references to lattice identifiers on the RHS of rules. Invoking the
-# lattice identifier will return the lattice wrapper; we want to invoke a method
-# on the wrapper to get the current value associated with the wrapper.
-#
-# If the lattice identifier is used in a "safe" context, we can return the
-# current "delta" value; otherwise, we return the current value. "Safe" means
-# that the lattice is referenced at the top level of a Bloom rule, and that all
-# the methods chained after this invocation are morphisms, not order-preserving
-# mappings.
-class LatticeRefRewriter < SexpProcessor
-  def initialize(bud_instance)
-    super()
-    self.require_empty = false
-    self.expected = Sexp
-    @bud_instance = bud_instance
-  end
-
-  def process_call(exp)
-    tag, recv, op, args = exp
-    proper_name = remove_delta_tag(op)
-
-    if recv.nil? and args == s(:arglist) and is_lattice?(proper_name)
-      if op == proper_name
-        func = :current_value
-      else
-        exp = s(tag, recv, proper_name, args)
-        func = :current_morph_value
-      end
-      return s(:call, exp, func, s(:arglist))
-    else
-      return s(tag, process(recv), op, process(args))
-    end
-  end
-
-  def is_lattice?(op)
-    @bud_instance.lattices.has_key? op.to_sym
-  end
-
-  def remove_delta_tag(op)
-    if op.to_s.end_with? "___delta"
-      op.to_s[0..-9].to_sym
-    else
-      op
-    end
   end
 end
