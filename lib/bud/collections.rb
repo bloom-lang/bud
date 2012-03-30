@@ -577,8 +577,8 @@ module Bud
       unless @new_delta.empty?
         puts "#{qualified_tabname}.tick_delta new_delta --> delta (#{@new_delta.size} elems)" if $BUD_DEBUG
 
-        # XXX: what about multiple delta tuples produced in the same tick that
-        # conflict on the PK?
+        # NB: key conflicts between different new_delta tuples are detected in
+        # do_insert().
         @new_delta.each_pair do |k, v|
           sv = @storage[k]
           if sv.nil?
