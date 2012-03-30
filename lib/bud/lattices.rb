@@ -152,6 +152,18 @@ class Bud::LatticePushElement
     @outputs + @pendings
   end
 
+  # XXX: refactor with LatticeWrapper#method_missing?
+  def method_missing(meth, *args, &blk)
+    if @bud_instance.wiring?
+      elem = Bud::PushLatticeApply.new(@bud_instance, meth, args, &blk)
+      wire_to(elem)     # XXX: depends on whether meth is a morphism?
+      @bud_instance.push_elems[[self.object_id, meth, blk]] = elem
+      elem
+    else
+      super
+    end
+  end
+
   # Push-based dataflow
   def insert(v)
     push_out(v)
@@ -173,6 +185,9 @@ class Bud::LatticePushElement
   end
 
   def invalidate_at_tick(rescan, invalidate)
+  end
+
+  def invalidate_cache
   end
 
   # Tick (delta processing)
