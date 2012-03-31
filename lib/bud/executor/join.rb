@@ -16,7 +16,6 @@ module Bud
       @selfjoins = []
       @input_bufs = [[],[]]
       @missing_keys = Set.new
-      the_join = nil
 
       # if any elements on rellist are PushSHJoins, suck up their contents
       @all_rels_below = []
@@ -24,7 +23,6 @@ module Bud
         if r.class <= PushSHJoin
           @all_rels_below += r.all_rels_below
           preds += r.origpreds
-          the_join = r
         else
           @all_rels_below << r
         end
@@ -85,8 +83,7 @@ module Bud
     # extract predicates on rellist[1] and recurse to left side with remainder
     protected
     def setup_preds(preds) # :nodoc: all
-                           # print "setting up preds for #{@relnames.inspect}(#{self.object_id}): "
-                           # print "setting up preds for #{@relnames.inspect}(#{self.object_id}): "
+      # print "setting up preds for #{@relnames.inspect}(#{self.object_id}): "
       allpreds = disambiguate_preds(preds)
       allpreds = canonicalize_localpreds(@rels, allpreds)
       # check for refs to collections that aren't being joined, Issue 191
@@ -135,7 +132,7 @@ module Bud
       else
         @keys = []
       end
-                           # puts "@keys = #{@keys.inspect}"
+      # puts "@keys = #{@keys.inspect}"
     end
 
     public
@@ -301,7 +298,7 @@ module Bud
       offsets.each do |offset|
         buf = @input_bufs[offset]
         buf << item
-        if (buf.length >= ELEMENT_BUFSIZE)
+        if buf.length >= ELEMENT_BUFSIZE
           flush_buf(buf, offset)
         end
       end
@@ -309,7 +306,7 @@ module Bud
 
     protected
     def insert_item(item, offset)
-      if (@keys.nil? or @keys.empty?)
+      if @keys.nil? or @keys.empty?
         the_key = nil
       else
         # assumes left-deep trees
@@ -337,7 +334,6 @@ module Bud
 
     public
     def add_rescan_invalidate(rescan, invalidate)
-
       if non_temporal_predecessors.any? {|e| rescan.member? e}
         rescan << self
         invalidate << self
