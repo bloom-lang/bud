@@ -546,6 +546,30 @@ class TestCollections < MiniTest::Unit::TestCase
     p.sync_callback(:c1, [["hi", "miley", p.ip_port]], :t1)
     p.sync_callback(:c2, [["guy", p.ip_port, "smiley"]], :t1)
   end
+
+  class TooManyColumns
+    include Bud
+
+    state do
+      table :t1
+      scratch :s1
+    end
+
+    bloom do
+      t1 <+ s1 {|s| [s.key, s.key, s.val]}
+    end
+  end
+
+  def test_too_many_columns
+    b = TooManyColumns.new
+    assert_raises(Bud::TypeError) { b.t1 <+ [[1, 5], [1, 2, 3]] }
+  end
+
+  def test_too_many_columns_rule
+    b = TooManyColumns.new
+    b.s1 <+ [[10, 20]]
+    assert_raises(Bud::TypeError) { b.tick }
+  end
 end
 
 class TestUpsert < MiniTest::Unit::TestCase

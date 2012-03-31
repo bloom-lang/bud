@@ -385,7 +385,9 @@ module Bud
         raise Bud::TypeError, "array or struct type expected in \"#{qualified_tabname}\": #{o.inspect}"
       end
 
-      o = o.take(@structlen) if o.length > @structlen
+      if o.length > @structlen
+        raise Bud::TypeError, "too many columns for \"#{qualified_tabname}\": #{o.inspect}"
+      end
       return @struct.new(*o)
     end
 

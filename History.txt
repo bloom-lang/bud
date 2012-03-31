@@ -1,3 +1,10 @@
+== 0.9.1 / ???
+
+* Reject attempts to insert a tuple into a collection with more fields than are
+  in the collection's schema
+  * Previous behavior was to ignore additional fields, but this was found to be
+    error-prone
+
 == 0.9.0 / 2012-03-21
 
 * Major performance enhancements
