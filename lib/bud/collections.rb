@@ -396,8 +396,10 @@ module Bud
           raise Bud::TypeError, "lattice value cannot be a key for #{qualified_tabname}: #{o[i].inspect}"
         end
       end
+      if o.length > @structlen
+        raise Bud::TypeError, "too many columns for \"#{qualified_tabname}\": #{o.inspect}"
+      end
 
-      o = o.take(@structlen) if o.length > @structlen
       return @struct.new(*o)
     end
 
