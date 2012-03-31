@@ -192,8 +192,6 @@ module Bud
         pusher_pro.tabname = the_name
         pusher_pro
       else
-        puts "!!!!!!!!!!!!! tabname = #{tabname}"
-        puts "@storage.size = #{@storage.size}; delta.size = #{@delta.size}"
         @storage.map(&blk)
       end
     end
