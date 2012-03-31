@@ -33,6 +33,23 @@ class MaxOfMax
   end
 end
 
+class EmptyMaxMerge
+  include Bud
+
+  state do
+    lmax :m1
+    lmax :m2
+  end
+
+  bootstrap do
+    m1 <= Bud::MaxLattice.new(5)
+  end
+
+  bloom do
+    m1 <= m2
+  end
+end
+
 class TestMax < MiniTest::Unit::TestCase
   def test_simple
     i = SimpleMax.new
@@ -69,5 +86,66 @@ class TestMax < MiniTest::Unit::TestCase
     i.in_t <+ [[2], [3], [23]]
     i.tick
     assert_equal(true, i.done.current_value.reveal)
+  end
+
+  def test_empty_max
+    i = EmptyMaxMerge.new
+    i.tick
+  end
+end
+
+class MapIntersect
+  include Bud
+
+  state do
+    lmap :m1
+    lmap :m2
+    lmap :m3
+    lmap :m4
+    lbool :done_m3
+    lbool :done_m4
+  end
+
+  bloom do
+    m3 <= m1.intersect(m2)
+    m4 <= m2.intersect(m1)
+
+    done_m3 <= m3.size.gt_eq(2)
+    done_m4 <= m4.size.gt_eq(2)
+  end
+end
+
+class TestMap < MiniTest::Unit::TestCase
+  def ntest_map_intersect
+    i = MapIntersect.new
+    %w[m1 m2 m3 m4 done_m3 done_m4].each do |r|
+      assert_equal(0, i.collection_stratum(r))
+    end
+    i.tick
+    assert_equal([], get_val_for_map(i, :m3))
+    assert_equal([], get_val_for_map(i, :m4))
+
+    i.m1 <+ [{"x" => Bud::MaxLattice.new(15)}]
+    i.m2 <+ [{"y" => Bud::MaxLattice.new(20)}]
+    i.tick
+    assert_equal([], get_val_for_map(i, :m3))
+    assert_equal([], get_val_for_map(i, :m4))
+    assert_equal(false, i.done_m3.current_value.reveal)
+    assert_equal(false, i.done_m4.current_value.reveal)
+
+    i.m1 <+ [{"y" => Bud::MaxLattice.new(25)}]
+    i.m2 <+ [{"z" => Bud::MaxLattice.new(30)}]
+    i.tick
+    assert_equal([["y", 25]], get_val_for_map(i, :m3))
+    assert_equal([["y", 25]], get_val_for_map(i, :m4))
+    assert_equal(false, i.done_m3.current_value.reveal)
+    assert_equal(false, i.done_m4.current_value.reveal)
+
+    i.m1 <+ [{"y" => Bud::MaxLattice.new(31)}, {"z" => Bud::MaxLattice.new(32)}]
+    i.tick
+    assert_equal([["y", 31], ["z", 32]], get_val_for_map(i, :m3))
+    assert_equal([["y", 31], ["z", 32]], get_val_for_map(i, :m4))
+    assert_equal(true, i.done_m3.current_value.reveal)
+    assert_equal(true, i.done_m4.current_value.reveal)
   end
 end
