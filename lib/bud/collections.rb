@@ -395,7 +395,7 @@ module Bud
     end
 
     public
-    def do_insert(o, store)
+    def do_insert(t, store)
       if $BUD_DEBUG
         storetype = case store.object_id
                       when @storage.object_id; "storage"
@@ -403,17 +403,22 @@ module Bud
                       when @delta.object_id; "delta"
                       when @new_delta.object_id; "new_delta"
                     end
-        puts "#{qualified_tabname}.#{storetype} ==> #{o}"
+        puts "#{qualified_tabname}.#{storetype} ==> #{t}"
       end
-      return if o.nil? # silently ignore nils resulting from map predicates failing
-      o = prep_tuple(o)
-      key = get_key_vals(o)
+      return if t.nil? # silently ignore nils resulting from map predicates failing
+      t = prep_tuple(t)
+      key = get_key_vals(t)
+      merge_to_buf(store, key, t, store[key])
+    end
 
-      old = store[key]
-      if old.nil?
-        store[key] = o
-      else
-        raise_pk_error(o, old) unless old == o
+    # Merge "tup" with key values "key" into "buf". "old" is an existing tuple
+    # with the same key columns as "tup" (if any such tuple exists).
+    private
+    def merge_to_buf(buf, key, tup, old)
+      if old.nil?       # no matching tuple found
+        buf[key] = tup
+      elsif old != tup  # ignore duplicates
+        raise_pk_error(tup, old)
       end
     end
 
@@ -569,13 +574,8 @@ module Bud
 
         # NB: key conflicts between different new_delta tuples are detected in
         # do_insert().
-        @new_delta.each_pair do |k, v|
-          sv = @storage[k]
-          if sv.nil?
-            @delta[k] = v
-          else
-            raise_pk_error(v, sv) unless v == sv
-          end
+        @new_delta.each_pair do |key, tup|
+          merge_to_buf(@delta, key, tup, @storage[key])
         end
         @new_delta.clear
         return !(@delta.empty?)
@@ -1085,13 +1085,8 @@ module Bud
       @invalidated = (not deleted.nil?)
       puts "table #{qualified_tabname} invalidated" if $BUD_DEBUG and @invalidated
 
-      @pending.each do |keycols, tuple|
-        old = @storage[keycols]
-        if old.nil?
-          @delta[keycols] = tuple
-        else
-          raise_pk_error(tuple, old) unless tuple == old
-        end
+      @pending.each do |key, tup|
+        merge_to_buf(@delta, key, tup, @storage[key])
       end
       @to_delete = []
       @to_delete_by_key = []
@@ -1099,7 +1094,7 @@ module Bud
     end
 
     def invalidated=(val)
-      raise "Internal error: must not set invalidate on tables"
+      raise Bud::Error, "internal error: must not set invalidate on tables"
     end
 
     def pending_delete(o)
