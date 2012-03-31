@@ -36,9 +36,7 @@ end
 class TestMax < MiniTest::Unit::TestCase
   def test_simple
     i = SimpleMax.new
-    # assert_equal(2, i.strata.length)
-    # strat_zero = i.stratum_collection_map[0]
-    # [:m, :done].each {|r| assert(strat_zero.include? r) }
+    %w[m done].each {|r| assert_equal(0, i.collection_stratum(r))}
     i.m <+ Bud::MaxLattice.new(5)
     i.m <+ Bud::MaxLattice.new(10)
     i.tick
@@ -50,9 +48,7 @@ class TestMax < MiniTest::Unit::TestCase
 
   def test_simple_implicit_merge
     i = SimpleMax.new
-    # assert_equal(2, i.strata.length)
-    # strat_zero = i.stratum_collection_map[0]
-    # [:m, :done].each {|r| assert(strat_zero.include? r) }
+    %w[m done].each {|r| assert_equal(0, i.collection_stratum(r))}
     i.m <+ [5, 10]
     i.tick
     assert_equal(false, i.done.current_value.reveal)
@@ -63,9 +59,7 @@ class TestMax < MiniTest::Unit::TestCase
 
   def test_max_of_max
     i = MaxOfMax.new
-    # assert_equal(2, i.strata.length)
-    # strat_zero = i.stratum_collection_map[0]
-    # [:in_t, :m1, :m2, :m3, :done].each {|r| assert(strat_zero.include? r) }
+    %w[in_t m1 m2 m3 done].each {|r| assert_equal(0, i.collection_stratum(r))}
     i.in_t <+ [[4], [6], [7]]
     i.tick
     assert_equal(false, i.done.current_value.reveal)
