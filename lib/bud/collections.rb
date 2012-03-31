@@ -446,8 +446,8 @@ module Bud
         end
       end
 
-      # Construct new tuple version. We return the old tuple if merging every
-      # lattice field doesn't yield a new value.
+      # Construct new tuple version. We discard the newly-constructed tuple if
+      # merging every lattice field doesn't yield a new value.
       new_t = null_tuple
       saw_change = false
       @val_colnums.each do |i|
