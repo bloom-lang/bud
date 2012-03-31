@@ -15,9 +15,12 @@ class BudMeta #:nodoc: all
     if @bud_instance.toplevel == @bud_instance
       nodes, stratum_map, top_stratum = stratify_preds
 
-      # stratum_map = {fully qualified pred  => stratum}
+      # stratum_map = {fully qualified pred => stratum}. Copy stratum_map data
+      # into t_stratum format.
+      raise unless @bud_instance.t_stratum.to_a.empty?
+      @bud_instance.t_stratum <= stratum_map.to_a
 
-      #slot each rule into the stratum corresponding to its lhs pred (from stratum_map)
+      # slot each rule into the stratum corresponding to its lhs pred (from stratum_map)
       stratified_rules = Array.new(top_stratum + 2) { [] }  # stratum -> [ rules ]
       @bud_instance.t_rules.each do |rule|
         if rule.op.to_s == '<='
