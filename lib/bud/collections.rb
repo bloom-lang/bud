@@ -49,6 +49,7 @@ module Bud
       given_schema ||= {[:key]=>[:val]}
       @given_schema = given_schema
       @cols, @key_cols = BudCollection.parse_schema(given_schema)
+
       # Check that no location specifiers appear in the schema. In the case of
       # channels, the location specifier has already been stripped from the
       # user-specified schema.
@@ -58,13 +59,14 @@ module Bud
         end
       end
 
-      if @cols.size == 0
+      @key_colnums = @key_cols.map {|k| @cols.index(k)}
+
+      if @cols.empty?
         @cols = nil
       else
         @struct = ($struct_classes[@cols] ||= Struct.new(*@cols))
         @structlen = @struct.members.length
       end
-      @key_colnums = key_cols.map {|k| @cols.index(k)}
       setup_accessors
     end
 
@@ -167,7 +169,7 @@ module Bud
     # project the collection to its key attributes
     public
     def keys
-      self.pro{|t| @key_colnums.map {|i| t[i]}}
+      self.pro{|t| get_key_vals(t)}
     end
 
     # project the collection to its non-key attributes
@@ -364,9 +366,9 @@ module Bud
     end
 
     private
-    def raise_pk_error(new_guy, old)
+    def raise_pk_error(new, old)
       key = get_key_vals(old)
-      raise Bud::KeyConstraintError, "key conflict inserting #{new_guy.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key = #{key.inspect}"
+      raise Bud::KeyConstraintError, "key conflict inserting #{new.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key = #{key.inspect}"
     end
 
     private
@@ -1069,14 +1071,14 @@ module Bud
       @tick_delta.clear
       deleted = nil
       @to_delete.each do |tuple|
-        keycols = @key_colnums.map{|k| tuple[k]}
+        keycols = get_key_vals(tuple)
         if @storage[keycols] == tuple
           v = @storage.delete keycols
           deleted ||= v
         end
       end
       @to_delete_by_key.each do |tuple|
-        v = @storage.delete @key_colnums.map{|k| tuple[k]}
+        v = @storage.delete(get_key_vals(tuple))
         deleted ||= v
       end
 
