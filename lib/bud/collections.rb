@@ -60,6 +60,7 @@ module Bud
       end
 
       @key_colnums = @key_cols.map {|k| @cols.index(k)}
+      @val_colnums = val_cols.map {|k| @cols.index(k)}
 
       if @cols.empty?
         @cols = nil
@@ -372,6 +373,11 @@ module Bud
     end
 
     private
+    def is_lattice_val(v)
+      v.kind_of? Bud::Lattice
+    end
+
+    private
     def prep_tuple(o)
       return o if o.class == @struct
       if o.class == Array
@@ -383,6 +389,12 @@ module Bud
         init_schema(o.members.map{|m| m.to_sym}) if @struct.nil?
       else
         raise Bud::TypeError, "array or struct type expected in \"#{qualified_tabname}\": #{o.inspect}"
+      end
+
+      @key_colnums.each do |i|
+        if is_lattice_val(o[i])
+          raise Bud::TypeError, "lattice value cannot be a key for #{qualified_tabname}: #{o[i].inspect}"
+        end
       end
 
       o = o.take(@structlen) if o.length > @structlen
@@ -408,12 +420,48 @@ module Bud
       return if o.nil? # silently ignore nils resulting from map predicates failing
       o = prep_tuple(o)
       key = get_key_vals(o)
+      merge_to_buf(store, key, o, store[key])
+    end
 
-      old = store[key]
+    # Merge "tup" with key values "key" into "buf". "old" is an existing tuple
+    # that has the same key columns as tup (if any such tuple exists). If "old"
+    # exists and "tup" is not a duplicate, check whether the two tuples disagree
+    # on a non-key, non-lattice value; if so, raise a PK error. Otherwise,
+    # construct and return a merged tuple by using lattice merge functions.
+    private
+    def merge_to_buf(buf, key, tup, old)
       if old.nil?
-        store[key] = o
-      else
-        raise_pk_error(o, old) unless old == o
+        buf[key] = tup
+        return
+      end
+      return if tup == old
+
+      # Check for PK violation
+      @val_colnums.each do |i|
+        old_v = old[i]
+        new_v = tup[i]
+
+        unless old_v == new_v || (is_lattice_val(old_v) && is_lattice_val(new_v))
+          raise_pk_error(tup, old)
+        end
+      end
+
+      # Construct new tuple version. We return the old tuple if merging every
+      # lattice field doesn't yield a new value.
+      new_t = null_tuple
+      saw_change = false
+      @val_colnums.each do |i|
+        if old[i] == tup[i]
+          new_t[i] = old[i]
+        else
+          new_t[i] = old[i].merge(tup[i])
+          saw_change = true if new_t[i].reveal != old[i].reveal
+        end
+      end
+
+      if saw_change
+        @key_colnums.each {|k| new_t[k] = old[k]}
+        buf[key] = new_t
       end
     end
 
@@ -570,12 +618,7 @@ module Bud
         # NB: key conflicts between different new_delta tuples are detected in
         # do_insert().
         @new_delta.each_pair do |k, v|
-          sv = @storage[k]
-          if sv.nil?
-            @delta[k] = v
-          else
-            raise_pk_error(v, sv) unless v == sv
-          end
+          merge_to_buf(@delta, k, v, @storage[k])
         end
         @new_delta.clear
         return !(@delta.empty?)
