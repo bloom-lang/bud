@@ -79,25 +79,6 @@ class Grep
   end
 end
 
-class Union
-  include Bud
-
-  state do
-    table :link, [:from, :to, :cost]
-    table :delta_link, [:from, :to, :cost]
-    table :union, [:from, :to, :cost]
-  end
-
-  bootstrap do
-    link <= [['a', 'b', 1]]
-    delta_link <= [['a', 'b', 4]]
-  end
-
-  bloom do
-    union <= (delta_link <= link)
-  end
-end
-
 class BootstrapDerive
   include Bud
 
@@ -112,8 +93,8 @@ class BootstrapDerive
   end
 
   bloom do
-    t2 <= t1.map{|t| [t.key + 1, t.val + 1]}
-    t3 <= t2.map{|t| [t.key + 1, t.val + 1]}
+    t2 <= t1 {|t| [t.key + 1, t.val + 1]}
+    t3 <= t2 {|t| [t.key + 1, t.val + 1]}
   end
 end
 
@@ -128,8 +109,8 @@ class RowValueTest
   end
 
   bloom do
-    t3 <= t1.map {|t| t if t2.include? t}
-    t4 <= t1.map {|t| t if t2.has_key? [t.k]}
+    t3 <= t1 {|t| t if t2.include? t}
+    t4 <= t1 {|t| t if t2.has_key? [t.k]}
   end
 end
 
@@ -246,7 +227,7 @@ class EmptyPk
     table :t1, [] => [:foo, :bar]
   end
 
-  bloom :dummy do
+  bloom do
     t1 <= t1 # to force evaluation
   end
 end
@@ -323,13 +304,6 @@ class TestCollections < MiniTest::Unit::TestCase
     lines = program.matches.to_a
     assert_equal(1, lines.length)
     assert_equal(44, lines[0][0])
-  end
-
-  def test_union
-    s = Union.new
-    s.tick
-    assert_equal(2, s.union.length)
-    assert_equal([["a", "b", 1], ["a", "b", 4]], s.union.to_a.sort)
   end
 
   class DeleteKey
