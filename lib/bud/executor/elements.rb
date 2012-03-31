@@ -79,6 +79,10 @@ module Bud
     end
 
     def wire_to(element, kind=:output)
+      unless @bud_instance.wiring?
+        raise Bud::Error, "wire_to called outside wiring phase"
+      end
+
       case kind
       when :output
         raise Bud::Error unless element.respond_to? :insert

@@ -180,35 +180,21 @@ module Bud
     public
     def inspected
       self.pro{|t| [t.inspect]}
-      # how about when this is called outside wiring?
-      # [["#{@tabname}: [#{self.map{|t| "\n  (#{t.map{|v| v.inspect}.join ", "})"}}]"]]
     end
 
     # projection
     public
     def pro(the_name=tabname, the_schema=schema, &blk)
-      pusher = to_push_elem(the_name, the_schema)
-      pusher_pro = pusher.pro(&blk)
-      pusher_pro.elem_name = the_name
-      pusher_pro.tabname = the_name
-      pusher_pro
-    end
-
-    # XXX: It is unclear that allowing each_with_index on an unsorted collection
-    # is actually wise (index values will be implementation-defined).
-    public
-    def each_with_index(the_name=tabname, the_schema=schema, &blk)
       if @bud_instance.wiring?
-        proj = pro(the_name, the_schema)
-        toplevel = @bud_instance.toplevel
-        elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s,
-                                          toplevel.this_rule_context, tabname)
-        elem.set_block(&blk)
-        proj.wire_to(elem)
-        toplevel.push_elems[[self.object_id, :each, blk]] = elem
-        elem
+        pusher = to_push_elem(the_name, the_schema)
+        pusher_pro = pusher.pro(&blk)
+        pusher_pro.elem_name = the_name
+        pusher_pro.tabname = the_name
+        pusher_pro
       else
-         storage.each_with_index
+        puts "!!!!!!!!!!!!! tabname = #{tabname}"
+        puts "@storage.size = #{@storage.size}; delta.size = #{@delta.size}"
+        @storage.map(&blk)
       end
     end
 
@@ -216,40 +202,43 @@ module Bud
     # results of running <em>block</em> once for every element". So we wire the
     # input to a pro(&blk), and wire the output of that pro to a group that does
     # accum.
-    # XXX: what about if/when this is called outside wiring?
     public
     def flat_map(&blk)
-      pusher = self.pro(&blk)
-      toplevel = @bud_instance.toplevel
-      elem = Bud::PushElement.new(tabname, toplevel.this_rule_context, tabname)
-      pusher.wire_to(elem)
-      f = Proc.new do |t|
-        t.each do |i|
-          elem.push_out(i, false)
+      if @bud_instance.wiring?
+        pusher = self.pro(&blk)
+        toplevel = @bud_instance.toplevel
+        elem = Bud::PushElement.new(tabname, toplevel.this_rule_context, tabname)
+        pusher.wire_to(elem)
+        f = Proc.new do |t|
+          t.each do |i|
+            elem.push_out(i, false)
+          end
+          nil
         end
-        nil
+        elem.set_block(&f)
+        toplevel.push_elems[[self.object_id, :flatten]] = elem
+        return elem
+      else
+        @storage.flat_map(&blk)
       end
-      elem.set_block(&f)
-      toplevel.push_elems[[self.object_id, :flatten]] = elem
-      return elem
     end
 
     public
     def sort(&blk)
-      pusher = self.pro
-      pusher.sort("sort#{object_id}", @bud_instance, @cols, &blk)
+      if @bud_instance.wiring?
+        pusher = self.pro
+        pusher.sort("sort#{object_id}", @bud_instance, @cols, &blk)
+      else
+        @storage.sort
+      end
     end
 
     def rename(the_name, the_schema=nil, &blk)
+      raise unless @bud_instance.wiring?
       # a scratch with this name should have been defined during rewriting
       raise Bud::Error, "rename failed to define a scratch named #{the_name}" unless @bud_instance.respond_to? the_name
       pro(the_name, the_schema, &blk)
     end
-
-    # def to_enum
-    #   pusher = self.pro
-    #   pusher.to_enum
-    # end
 
     # By default, all tuples in any rhs are in storage or delta. Tuples in
     # new_delta will get transitioned to delta in the next iteration of the
