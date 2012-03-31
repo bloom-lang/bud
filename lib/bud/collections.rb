@@ -489,7 +489,7 @@ module Bud
         add_merge_target
         deduce_schema(o) if @cols.nil?
         o.pro.wire_to self
-      elsif o.class <= Proc and @bud_instance.wiring?
+      elsif o.class <= Proc
         add_merge_target
         tbl = register_coll_expr(o)
         tbl.pro.wire_to self
@@ -539,7 +539,7 @@ module Bud
       elsif o.class <= Bud::BudCollection
         add_merge_target
         o.pro.wire_to(self, :pending)
-      elsif o.class <= Proc and @bud_instance.wiring?
+      elsif o.class <= Proc
         add_merge_target
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :pending)
@@ -898,7 +898,7 @@ module Bud
         o.wire_to(self, :pending)
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to(self, :pending)
-      elsif o.class <= Proc and @bud_instance.wiring?
+      elsif o.class <= Proc
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :pending)
       else
@@ -1001,7 +1001,7 @@ module Bud
         o.wire_to(self, :pending)
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to(self, :pending)
-      elsif o.class <= Proc and @bud_instance.wiring?
+      elsif o.class <= Proc
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :pending)
       else
@@ -1112,7 +1112,7 @@ module Bud
       elsif o.class <= Bud::BudCollection
         add_merge_target
         o.pro.wire_to(self, :delete)
-      elsif o.class <= Proc and @bud_instance.wiring?
+      elsif o.class <= Proc
         add_merge_target
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :delete)
@@ -1135,7 +1135,7 @@ module Bud
         o.wire_to(self, :delete_by_key)
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to(self, :delete_by_key)
-      elsif o.class <= Proc and @bud_instance.wiring?
+      elsif o.class <= Proc
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :delete_by_key)
       else
