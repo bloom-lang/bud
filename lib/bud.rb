@@ -1066,6 +1066,15 @@ module Bud
     @tick_clock_time
   end
 
+  # Return the stratum number of the given collection.
+  def collection_stratum(collection)
+    t_stratum.each do |t|
+      return t.stratum if t.predicate == collection
+    end
+
+    raise Bud::Error, "no such collection: #{collection}"
+  end
+
   private
 
   # Builtin Bud state (predefined collections). We could define this using the

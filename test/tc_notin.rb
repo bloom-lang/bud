@@ -27,6 +27,10 @@ class NotInTest < MiniTest::Unit::TestCase
 
   def test_silly_anti
     o = SillyAnti.new
+    strat = [["emp", "mgrs"], ["outsie", "realblock_out", "sillyblock_out"]]
+    strat.each_with_index do |vals, i|
+      vals.each {|v| assert_equal(i, o.collection_stratum(v))}
+    end
     o.tick
     assert_equal([['betsy'], ['bob']], o.mgrs.to_a.sort)
     assert_equal([['caitlin', 0]], o.outsie.to_a)
@@ -54,6 +58,10 @@ class NotInTest2 < MiniTest::Unit::TestCase
 
   def test_simple_notin
     o = SimpleNotIn.new
+    strat = [["foo", "bar"], ["outsie"]]
+    strat.each_with_index do |vals, i|
+      vals.each {|v| assert_equal(i, o.collection_stratum(v))}
+    end
     o.tick
     assert_equal([["joe", 2], ["jonathan", 3]], o.outsie.to_a.sort)
   end

@@ -315,6 +315,8 @@ class TestAggs < MiniTest::Unit::TestCase
   
   def test_chain_agg
     p = ChainAgg.new
+    assert_equal(0, p.collection_stratum("t2"))
+    assert_equal(1, p.collection_stratum("t3"))
     q = Queue.new
 
     p.register_callback(:t3) { q.push(true) }
