@@ -213,19 +213,19 @@ class PushTests < MiniTest::Unit::TestCase
     include Bud
     state do 
       table :t_in
-      table :t_out1
+      table :t_out1, [:a, :b, :c]
     end
     bootstrap{t_in <= [[1,1],[2,2]]}
     bloom do
       t_out1 <= (t_in*t_in).lefts do |t1|
-        ['inc', 'inc'] if t_in.pro{|t| [t.key]}.include? 1
+        ['inc', 'inc', t1.key] if t_in.pro{|t| puts "t = #{t}"; [t.key]}.include? 1
       end
     end
   end
   def test_predicates
     p = PushPredicates.new
     p.tick
-    assert_equal([['inc','inc']], p.t_out1.to_a)
+    assert_equal([['inc', 'inc', 1], ['inc', 'inc', 2]], p.t_out1.to_a)
   end
 
   class BudtimeRecompute
