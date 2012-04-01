@@ -6,5 +6,12 @@ module Idempotence #:nodoc: all
     table :dead, [:dead]
   end
 
-  def bust_idempotent(r) (dead.include? r) ? false : dead.insert(r) end
+  def bust_idempotent(r)
+    if dead.include? r
+      false
+    else
+      dead.insert(r)
+      true
+    end
+  end
 end
