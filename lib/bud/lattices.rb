@@ -86,11 +86,9 @@ class Bud::Lattice
 end
 
 # TODO:
-# * pending
 # * code blocks (pro)
 # * morphism optimization (seminaive)
 # * invalidation/rescan/non-monotonic stuff?
-# * morphisms
 # * expressions on RHS ("CollExpr")
 
 class Bud::LatticePushElement
@@ -155,7 +153,7 @@ class Bud::LatticePushElement
   # XXX: refactor with LatticeWrapper#method_missing?
   def method_missing(meth, *args, &blk)
     if @bud_instance.wiring?
-      elem = Bud::PushLatticeApply.new(@bud_instance, meth, args, &blk)
+      elem = Bud::PushApplyMethod.new(@bud_instance, meth, args, &blk)
       wire_to(elem)     # XXX: depends on whether meth is a morphism?
       @bud_instance.push_elems[[self.object_id, meth, blk]] = elem
       elem
@@ -225,17 +223,30 @@ class Bud::LatticeScanner < Bud::LatticePushElement
 end
 
 # A push-based dataflow element that applies a method to a lattice value
-class Bud::PushLatticeApply < Bud::LatticePushElement
+class Bud::PushApplyMethod < Bud::LatticePushElement
   def initialize(bud_instance, meth, args, &blk)
     super(bud_instance)
     @meth = meth
-    @args = args
     @blk = blk
+    @args = args.dup
 
-    # TODO: arguments that are not constant values are not yet supported
-    args.each do |a|
-      if a.kind_of?(Bud::LatticeWrapper) or a.kind_of?(Bud::LatticePushElement)
-        raise Bud::Error
+    # Arguments that are normal Ruby values are assumed to remain invariant as
+    # rule evaluation progresses; hence, we just pass along those values when
+    # invoking the function. Arguments that are derived from lattices or
+    # collections might change; hence, we need to wire up the push dataflow to
+    # have the current values of the function's arguments passed to this node.
+
+    # Map from input node to a list of indexes; the indexes identify the
+    # positions in the args array that should be filled with the node's value
+    @push_inputs = {}
+    source_types = [Bud::LatticeWrapper, Bud::BudCollection,
+                    Bud::LatticePushElement, Bud::PushElement]
+    @args.each_with_index do |a, i|
+      if source_types.any?{|s| a.kind_of? s}
+        s.wire_to(self, :output)
+        @push_inputs[s] ||= []
+        @push_inputs[s] << i
+        @args[i] = nil
       end
     end
   end
@@ -402,7 +413,7 @@ class Bud::LatticeWrapper
     # If we're invoking a lattice method and we're currently wiring up the
     # dataflow, wire up a dataflow element to invoke the given method.
     if @bud_instance.wiring?
-      elem = Bud::PushLatticeApply.new(@bud_instance, meth, args, &blk)
+      elem = Bud::PushApplyMethod.new(@bud_instance, meth, args, &blk)
       pusher = to_push_elem
       pusher.wire_to(elem)      # XXX: depends on whether meth is a morphism?
       @bud_instance.push_elems[[self.object_id, meth, blk]] = elem
