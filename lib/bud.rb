@@ -75,7 +75,6 @@ module Bud
   #   * <tt>:port</tt>   port number for this instance
   #   * <tt>:ext_ip</tt>  IP address at which external nodes can contact this instance
   #   * <tt>:ext_port</tt>   port number to go with <tt>:ext_ip</tt>
-  #   * <tt>:bust_port</tt>  port number for the restful HTTP messages
   # * operating system interaction
   #   * <tt>:stdin</tt>  if non-nil, reading from the +stdio+ collection results in reading from this +IO+ handle
   #   * <tt>:stdout</tt> writing to the +stdio+ collection results in writing to this +IO+ handle; defaults to <tt>$stdout</tt>
