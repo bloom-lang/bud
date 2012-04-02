@@ -7,7 +7,6 @@ end
 
 require 'tc_aggs'
 require 'tc_attr_rewrite'
-require 'tc_bust' unless $quick_mode
 require 'tc_callback'
 require 'tc_channel'
 require 'tc_collections'
