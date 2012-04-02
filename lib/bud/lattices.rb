@@ -1,3 +1,6 @@
+require 'set'
+require 'bud/executor/elements'
+
 class Bud::Lattice
   @@lattice_kinds = {}
   # XXX: replace with sets
@@ -150,25 +153,21 @@ class Bud::LatticePushElement
     @outputs + @pendings
   end
 
-  # XXX: refactor with LatticeWrapper#method_missing?
   def method_missing(meth, *args, &blk)
     if @bud_instance.wiring?
-      elem = Bud::PushApplyMethod.new(@bud_instance, meth, args, &blk)
-      wire_to(elem)     # XXX: depends on whether meth is a morphism?
-      @bud_instance.push_elems[[self.object_id, meth, blk]] = elem
-      elem
+      Bud::PushApplyMethod.new(@bud_instance, self, meth, args, blk)
     else
       super
     end
   end
 
   # Push-based dataflow
-  def insert(v)
+  def insert(v, source)
     push_out(v)
   end
 
   def push_out(v)
-    @outputs.each {|o| o.insert(v)}
+    @outputs.each {|o| o.insert(v, self)}
     @pendings.each {|o| o <+ v}
   end
 
@@ -222,13 +221,24 @@ class Bud::LatticeScanner < Bud::LatticePushElement
   end
 end
 
+class Bud::LatticeWrapper; end
+
 # A push-based dataflow element that applies a method to a lattice value
 class Bud::PushApplyMethod < Bud::LatticePushElement
-  def initialize(bud_instance, meth, args, &blk)
+  SOURCE_TYPES = [Bud::LatticeWrapper, Bud::BudCollection,
+                  Bud::LatticePushElement, Bud::PushElement]
+
+  def initialize(bud_instance, recv, meth, args, blk)
     super(bud_instance)
+    @recv = recv
     @meth = meth
     @blk = blk
     @args = args.dup
+    @recv_cache = nil
+    @seen_recv = false
+
+    recv.wire_to(self, :output) # XXX: depends on whether method is a morph?
+    bud_instance.push_elems[[self.object_id, recv, meth, blk]] = self
 
     # Arguments that are normal Ruby values are assumed to remain invariant as
     # rule evaluation progresses; hence, we just pass along those values when
@@ -238,22 +248,45 @@ class Bud::PushApplyMethod < Bud::LatticePushElement
 
     # Map from input node to a list of indexes; the indexes identify the
     # positions in the args array that should be filled with the node's value
-    @push_inputs = {}
-    source_types = [Bud::LatticeWrapper, Bud::BudCollection,
-                    Bud::LatticePushElement, Bud::PushElement]
+    @input_sources = {}
+    @waiting_for_input = Set.new
     @args.each_with_index do |a, i|
-      if source_types.any?{|s| a.kind_of? s}
-        s.wire_to(self, :output)
-        @push_inputs[s] ||= []
-        @push_inputs[s] << i
-        @args[i] = nil
+      if SOURCE_TYPES.any?{|s| a.kind_of? s}
+        if a.kind_of? Bud::LatticeWrapper
+          a = a.to_push_elem
+        end
+        a.wire_to(self, :output)
+        @input_sources[a] ||= []
+        @input_sources[a] << i
+        @waiting_for_input << a
+        @args[i] = nil          # Substitute actual value before calling method
       end
     end
+
+    @seen_all_inputs = @waiting_for_input.empty?
   end
 
-  def insert(v)
-    res = v.send(@meth, *@args, &@blk)
-    push_out(res)
+  def insert(v, source)
+    if source == @recv
+      @seen_recv = true
+      @recv_cache = v           # XXX: what if we get a delta?
+    else
+      arg_indexes = @input_sources[source]
+      raise Bud::Error, "unknown input #{source}" if arg_indexes.nil?
+      arg_indexes.each do |i|
+        @args[i] = v            # XXX: what if we get a delta?
+      end
+
+      unless @seen_all_inputs
+        @waiting_for_input.delete(source)
+        @seen_all_inputs = @waiting_for_input.empty?
+      end
+    end
+
+    if @seen_all_inputs && @seen_recv
+      res = @recv_cache.send(@meth, *@args, &@blk)
+      push_out(res)
+    end
   end
 
   def inspect
@@ -395,7 +428,7 @@ class Bud::LatticeWrapper
       toplevel.scanners[this_stratum][[oid, @tabname]] = scanner
       toplevel.push_sources[this_stratum][[oid, @tabname]] = scanner
     end
-    toplevel.scanners[this_stratum][[oid, @tabname]]
+    return toplevel.scanners[this_stratum][[oid, @tabname]]
   end
 
   def flush_deltas
@@ -405,7 +438,7 @@ class Bud::LatticeWrapper
   end
 
   # Merge "i" into @new_delta
-  def insert(i)
+  def insert(i, source)
     @new_delta = do_merge(current_new_delta, i)
   end
 
@@ -413,11 +446,8 @@ class Bud::LatticeWrapper
     # If we're invoking a lattice method and we're currently wiring up the
     # dataflow, wire up a dataflow element to invoke the given method.
     if @bud_instance.wiring?
-      elem = Bud::PushApplyMethod.new(@bud_instance, meth, args, &blk)
       pusher = to_push_elem
-      pusher.wire_to(elem)      # XXX: depends on whether meth is a morphism?
-      @bud_instance.push_elems[[self.object_id, meth, blk]] = elem
-      elem
+      Bud::PushApplyMethod.new(@bud_instance, pusher, meth, args, blk)
     else
       super
     end
@@ -654,7 +684,7 @@ class Bud::SetLattice < Bud::Lattice
   morph :product do |i|
     rv = []
     @v.each do |a|
-      rv += i.pro {|b| [a,b]}
+      rv += i.reveal.map {|b| [a,b]}
     end
     wrap_unsafe(rv)
   end

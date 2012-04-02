@@ -131,7 +131,7 @@ module Bud
             elsif ou.class <= Bud::BudCollection
               ou.do_insert(item, ou.new_delta)
             elsif ou.class <= Bud::LatticeWrapper
-              ou.insert(item)
+              ou.insert(item, self)
             else
               raise Bud::Error, "expected either a PushElement or a BudCollection"
             end

@@ -69,6 +69,37 @@ class EmptyMaxMerge
   end
 end
 
+class MaxOverChannel
+  include Bud
+
+  state do
+    scratch :do_send, [:addr]
+    scratch :in_t, [:v]
+    channel :chn, [:@addr] => [:v]
+    table :chn_log, [] => [:v]
+    lmax :m
+  end
+
+  bloom do
+    chn <~ do_send {|t| [t.addr, m]}
+    chn_log <= chn {|c| [c.v]}
+    m <= in_t {|t| t[0]}
+  end
+end
+
+class MaxErrors
+  include Bud
+
+  state do
+    table :t
+    lmax :m
+  end
+
+  bloom do
+    m <= t {|t| t.val}
+  end
+end
+
 class TestMax < MiniTest::Unit::TestCase
   def test_simple
     i = SimpleMax.new
@@ -123,6 +154,50 @@ class TestMax < MiniTest::Unit::TestCase
     i.tick
     assert_equal(16, i.t[["m1"]].val.reveal)
     assert_equal(17, i.t[["m2"]].val.reveal)
+  end
+
+  def ntest_max_over_chn
+    src, dst = Array.new(2) { MaxOverChannel.new }
+    [src, dst].each {|n| n.run_bg}
+
+    expected_val = nil
+    q = Queue.new
+    dst.register_callback(:chn) do |t|
+      assert_equal(1, t.length)
+      assert_equal(expected_val, t.first.v.reveal)
+      q.push(true)
+    end
+
+    src.sync_do {
+      src.do_send <+ [[dst.ip_port]]
+    }
+    q.pop
+    dst.sync_do {
+      assert_equal(1, dst.chn_log.length)
+      assert_equal(nil, dst.chn_log.first.v.reveal)
+    }
+
+    expected_val = 30
+    src.sync_do {
+      src.m <+ [2, 15, 0, 10, 7, 20]
+      src.in_t <+ [[16], [30]]
+      src.do_send <+ [[dst.ip_port]]
+    }
+    q.pop
+    dst.sync_do {
+      assert_equal(1, dst.chn_log.length)
+      assert_equal(30, dst.chn_log.first.v.reveal)
+    }
+
+    [src, dst].each {|n| n.stop}
+  end
+
+  def test_merge_type_error
+    i = MaxErrors.new
+    i.t <+ [["y", self.class]]
+    assert_raises(Bud::TypeError) do
+      i.tick
+    end
   end
 
   def test_empty_max
@@ -194,6 +269,31 @@ class MaxCapacityPaths
       [l.from, p.to, l.to, p.c.min_of(l.c)]
     end
     max_cap <= path {|p| [p.from, p.to, p.c]}
+  end
+end
+
+# Compute all paths (transitive closure). This is done entirely using set
+# lattices, rather than via a combination of lattices and set-oriented
+# collections.
+class AllPathsL
+  include Bud
+
+  state do
+    lset :link
+    lset :path
+  end
+
+  bootstrap do
+    link <= [[['a', 'b', 1], ['a', 'b', 4],
+              ['b', 'c', 1], ['c', 'd', 1],
+              ['d', 'e', 1]]]
+  end
+
+  bloom do
+    path <= link
+    path <= path.product(link).pro do |p,l|
+      [[p[0], l[1], p[2] + l[2]]] if p[1] == l[0]
+    end
   end
 end
 
@@ -362,6 +462,26 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
                   ["d", "c", 7],
                   ["e", "b", 2],
                   ["e", "c", 2]], res)
+  end
+
+  def test_all_paths
+    i = AllPathsL.new
+    %w[link path].each {|r| assert_equal(0, i.collection_stratum(r))}
+
+    i.tick
+    assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
+                  ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
+                  ["b", "c", 1], ["b", "d", 2], ["b", "e", 3], ["c", "d", 1],
+                  ["c", "e", 2], ["d", "e", 1]], i.path.current_value.reveal.sort)
+
+    i.link <+ [[['e', 'f', 1]]]
+    i.tick
+    assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
+                  ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
+                  ["a", "f", 5], ["a", "f", 8], ["b", "c", 1], ["b", "d", 2],
+                  ["b", "e", 3], ["b", "f", 4], ["c", "d", 1], ["c", "e", 2],
+                  ["c", "f", 3], ["d", "e", 1], ["d", "f", 2], ["e", "f", 1]],
+                 i.path.current_value.reveal.sort)
   end
 end
 
