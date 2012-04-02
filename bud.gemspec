@@ -19,7 +19,6 @@ Gem::Specification.new do |s|
   s.add_dependency 'fastercsv'
   s.add_dependency 'gchart'
   s.add_dependency 'getopt'
-  s.add_dependency 'i18n'
   s.add_dependency 'msgpack'
   s.add_dependency 'ruby-graphviz'
   s.add_dependency 'ruby2ruby', '< 1.3.1'
