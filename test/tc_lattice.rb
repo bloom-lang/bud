@@ -627,7 +627,9 @@ class TestSet < MiniTest::Unit::TestCase
 
   def test_set_method_compose
     i = SetMethodCompose.new
-    %w[s1 s2 s3 s4].each {|r| assert_equal(0, i.collection_stratum(r))}
+    %w[s1 s2 s3 s4 s5 s6 s7 m1 done].each do |r|
+      assert_equal(0, i.collection_stratum(r))
+    end
 
     i.s4 <+ [[4], [5], [6], [7]]
     i.tick
