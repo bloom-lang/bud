@@ -839,7 +839,7 @@ class LatticeModParent
 
   bootstrap do
     x.m1 <= Bud::MaxLattice.new(0)
-    y.m1 <= Bud::MaxLattice.new(2)
+    y.m1 <= Bud::MaxLattice.new(4)
   end
 
   state do
@@ -849,7 +849,7 @@ class LatticeModParent
   end
 
   bloom do
-    m1 <= x.m1
+    m1 <= x.m1 + 3
     m1 <= y.m1
     s1 <= x.s1.merge(Bud::SetLattice.new([1,2,3]))
     s1 <= y.s1
@@ -862,11 +862,19 @@ class TestLatticesWithModules < MiniTest::Unit::TestCase
     i = LatticeModParent.new
     %w[m1 cnt s1 x.m1 x.s1 y.m1 y.s1].each {|r| assert_equal(0, i.collection_stratum(r))}
 
-    i.x.m1 <+ [5]
+    i.x.m1 <+ [3]
     i.s1 <+ Bud::SetLattice.new([4])
     i.tick
-    assert_equal(5, i.m1.current_value.reveal)
+    assert_equal(6, i.m1.current_value.reveal)
     assert_equal(0, i.cnt.current_value.reveal)
     assert_equal([1,2,3,4], i.s1.current_value.reveal.sort)
+
+    i.x.s1 <+ Bud::SetLattice.new([2, 6])
+    i.y.s1 <+ Bud::SetLattice.new([2, 5])
+    i.y.m1 <+ [5]
+    i.tick
+    assert_equal(6, i.m1.current_value.reveal)
+    assert_equal(2, i.cnt.current_value.reveal)
+    assert_equal([1,2,3,4,5,6], i.s1.current_value.reveal.sort)
   end
 end
