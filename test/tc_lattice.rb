@@ -577,6 +577,25 @@ class SetProduct
   end
 end
 
+class SetMethodCompose
+  include Bud
+
+  state do
+    lset :s1
+    lset :s2
+    lset :s3
+    lset :s4
+    lset :s5
+    lset :s6
+  end
+
+  bloom do
+    s1 <= s2.intersect(s3.intersect(s4))
+    s5 <= s2.intersect(s3.intersect(s4))
+    s6 <= s4.intersect(s2.intersect(s3))
+  end
+end
+
 class TestSet < MiniTest::Unit::TestCase
   def test_set_simple
     i = SimpleSet.new
@@ -596,6 +615,37 @@ class TestSet < MiniTest::Unit::TestCase
     i.s2 <+ [[2], [14]]
     i.tick
     assert_equal(true, i.done.current_value.reveal)
+  end
+
+  def test_set_method_compose
+    i = SetMethodCompose.new
+    %w[s1 s2 s3 s4].each {|r| assert_equal(0, i.collection_stratum(r))}
+
+    i.s4 <+ [[4], [5], [6], [7]]
+    i.tick
+    assert_equal([], i.s1.current_value.reveal)
+    assert_equal([], i.s5.current_value.reveal)
+    assert_equal([], i.s6.current_value.reveal)
+
+    i.s2 <+ [[4]]
+    i.s3 <+ [[10], [11]]
+    i.tick
+    assert_equal([], i.s1.current_value.reveal)
+    assert_equal([], i.s5.current_value.reveal)
+    assert_equal([], i.s6.current_value.reveal)
+
+    i.s3 <+ [[5], [6]]
+    i.s4 <+ [[10]]
+    i.tick
+    assert_equal([], i.s1.current_value.reveal)
+    assert_equal([], i.s5.current_value.reveal)
+    assert_equal([], i.s6.current_value.reveal)
+
+    i.s3 <+ [[4]]
+    i.tick
+    assert_equal([4], i.s1.current_value.reveal)
+    assert_equal([4], i.s5.current_value.reveal)
+    assert_equal([4], i.s6.current_value.reveal)
   end
 
   def test_set_product
