@@ -60,6 +60,8 @@ module Bud
             print "#{next_accum} "
             if o.class <= Bud::BudCollection
               puts "#{(o.object_id*2).to_s(16)}: #{o.qualified_tabname} (#{o.class})"
+            elsif o.class <= Bud::LatticeWrapper
+              puts "#{o.inspect}"
             else
               puts "#{(o.object_id*2).to_s(16)}: (#{o.class.name})"
             end

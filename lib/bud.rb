@@ -953,7 +953,10 @@ module Bud
     end
     bootstrap
 
-    @tables.each_value {|t| t.bootstrap} if toplevel == self
+    if toplevel == self
+      @tables.each_value {|t| t.bootstrap}
+      @lattices.each_value {|l| l.bootstrap}
+    end
     @done_bootstrap = true
   end
 

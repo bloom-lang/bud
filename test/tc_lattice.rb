@@ -700,7 +700,7 @@ class SimpleBag
 end
 
 class TestBag < MiniTest::Unit::TestCase
-  def ntest_bag_simple
+  def test_bag_simple
     i = SimpleBag.new
     %w[b1 b2 b_union b_intersect done].each do |r|
       assert_equal(0, i.collection_stratum(r))

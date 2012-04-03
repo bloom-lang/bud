@@ -453,6 +453,11 @@ class Bud::LatticeWrapper
     end
   end
 
+  def bootstrap
+    @storage = do_merge(current_value, @pending)
+    @pending = nil
+  end
+
   def tick
     if @new_delta
       raise Bud::Error, "orphaned delta value for lattice #{@tabname}: #{@new_delta.inspect}"
