@@ -102,11 +102,11 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def self.is_monotone(op)
     MONOTONE_WHITELIST.include?(op) ||
       is_morphism(op) ||
-      Bud::Lattice.global_mfuncs.has_key?(op)
+      Bud::Lattice.global_mfuncs.include?(op)
   end
 
   def self.is_morphism(op)
-    Bud::Lattice.global_morphs.has_key?(op)
+    Bud::Lattice.global_morphs.include?(op)
   end
 
   # rewrite constant array expressions to lambdas

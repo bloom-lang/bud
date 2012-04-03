@@ -3,9 +3,8 @@ require 'bud/executor/elements'
 
 class Bud::Lattice
   @@lattice_kinds = {}
-  # XXX: replace with sets
-  @@global_morphs = {}
-  @@global_mfuncs = {}
+  @@global_morphs = Set.new
+  @@global_mfuncs = Set.new
 
   def self.wrapper_name(name)
     if @wrapper_name
@@ -27,17 +26,17 @@ class Bud::Lattice
   end
 
   def self.morph(name, &block)
-    if mfuncs.has_key?(name) || @@global_mfuncs.has_key?(name)
+    if mfuncs.include?(name) || @@global_mfuncs.include?(name)
       raise Bud::CompileError, "#{name} declared as both monotone and morph"
     end
-    @morphs ||= {}
-    @morphs[name] = true
-    @@global_morphs[name] = true
+    @morphs ||= Set.new
+    @morphs << name
+    @@global_morphs << name
     define_method(name, &block)
   end
 
   def self.morphs
-    @morphs || {}
+    @morphs || Set.new
   end
 
   def self.global_morphs
@@ -45,17 +44,17 @@ class Bud::Lattice
   end
 
   def self.monotone(name, &block)
-    if morphs.has_key?(name) || @@global_morphs.has_key?(name)
+    if morphs.include?(name) || @@global_morphs.include?(name)
       raise Bud::CompileError, "#{name} declared as both monotone and morph"
     end
-    @mfuncs ||= {}
-    @mfuncs[name] = true
-    @@global_mfuncs[name] = true
+    @mfuncs ||= Set.new
+    @mfuncs << name
+    @@global_mfuncs << name
     define_method(name, &block)
   end
 
   def self.mfuncs
-    @mfuncs || {}
+    @mfuncs || Set.new
   end
 
   def self.global_mfuncs
