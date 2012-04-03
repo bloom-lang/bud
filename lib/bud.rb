@@ -251,6 +251,11 @@ module Bud
           tables[qname.to_sym] = t
         end
       end
+      mod_inst.lattices.each_pair do |name, t|
+        qname = "#{local_name}.#{name}".to_sym
+        raise Bud::Error if lattices.has_key? qname
+        lattices[qname] = t
+      end
       mod_inst.t_rules.each do |imp_rule|
         qname = "#{local_name}.#{imp_rule.lhs}"
         self.t_rules << [imp_rule.bud_obj, imp_rule.rule_id, qname, imp_rule.op,

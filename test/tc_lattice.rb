@@ -138,6 +138,7 @@ class TestMax < MiniTest::Unit::TestCase
     assert_equal(true, i.done.current_value.reveal)
   end
 
+  # XXX
   def ntest_embed_max
     i = EmbedMax.new
     %w[in_t t m1 m2].each {|r| assert_equal(0, i.collection_stratum(r))}
@@ -156,6 +157,7 @@ class TestMax < MiniTest::Unit::TestCase
     assert_equal(17, i.t[["m2"]].val.reveal)
   end
 
+  # XXX
   def ntest_max_over_chn
     src, dst = Array.new(2) { MaxOverChannel.new }
     [src, dst].each {|n| n.run_bg}
@@ -820,5 +822,51 @@ class TestBag < MiniTest::Unit::TestCase
                  i.b_sum.current_value.reveal.to_a.sort)
     assert_equal(true, i.has_foo.current_value.reveal)
     assert_equal(true, i.done.current_value.reveal)
+  end
+end
+
+module LatticeMod1
+  state do
+    lmax :m1
+    lset :s1
+  end
+end
+
+class LatticeModParent
+  include Bud
+  import LatticeMod1 => :x
+  import LatticeMod1 => :y
+
+  bootstrap do
+    x.m1 <= Bud::MaxLattice.new(0)
+    y.m1 <= Bud::MaxLattice.new(2)
+  end
+
+  state do
+    lmax :m1
+    lmax :cnt
+    lset :s1
+  end
+
+  bloom do
+    m1 <= x.m1
+    m1 <= y.m1
+    s1 <= x.s1.merge(Bud::SetLattice.new([1,2,3]))
+    s1 <= y.s1
+    cnt <= x.s1.size
+  end
+end
+
+class TestLatticesWithModules < MiniTest::Unit::TestCase
+  def test_lattice_module_simple
+    i = LatticeModParent.new
+    %w[m1 cnt s1 x.m1 x.s1 y.m1 y.s1].each {|r| assert_equal(0, i.collection_stratum(r))}
+
+    i.x.m1 <+ [5]
+    i.s1 <+ Bud::SetLattice.new([4])
+    i.tick
+    assert_equal(5, i.m1.current_value.reveal)
+    assert_equal(0, i.cnt.current_value.reveal)
+    assert_equal([1,2,3,4], i.s1.current_value.reveal.sort)
   end
 end
