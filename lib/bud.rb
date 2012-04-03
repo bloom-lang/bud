@@ -1059,6 +1059,8 @@ module Bud
   end
 
   # Return the stratum number of the given collection.
+  # NB: if a collection is not referenced by any rules, it is not currently
+  # assigned to a strata.
   def collection_stratum(collection)
     t_stratum.each do |t|
       return t.stratum if t.predicate == collection
