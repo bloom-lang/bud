@@ -507,7 +507,11 @@ class MapIntersect
 end
 
 class TestMap < MiniTest::Unit::TestCase
-  def ntest_map_intersect
+  def get_val_for_map(i, r)
+    i.send(r).current_value.reveal.map {|k,v| [k, v.reveal]}.sort
+  end
+
+  def test_map_intersect
     i = MapIntersect.new
     %w[m1 m2 m3 m4 done_m3 done_m4].each do |r|
       assert_equal(0, i.collection_stratum(r))
@@ -538,5 +542,211 @@ class TestMap < MiniTest::Unit::TestCase
     assert_equal([["y", 31], ["z", 32]], get_val_for_map(i, :m4))
     assert_equal(true, i.done_m3.current_value.reveal)
     assert_equal(true, i.done_m4.current_value.reveal)
+  end
+end
+
+class SimpleSet
+  include Bud
+
+  state do
+    lset :s1
+    lset :s2
+    lset :s3
+    lbool :done
+    scratch :in_t, [:v]
+  end
+
+  bloom do
+    s1 <= in_t {|t| [t.v]}
+    s3 <= s1.intersect(s2)
+    done <= s3.size.gt(3)
+  end
+end
+
+class SetProduct
+  include Bud
+
+  state do
+    lset :s1
+    lset :s2
+    lset :s3
+  end
+
+  bloom do
+    s3 <= s1.product(s2)
+  end
+end
+
+class TestSet < MiniTest::Unit::TestCase
+  def test_set_simple
+    i = SimpleSet.new
+    %w[s1 done in_t].each {|r| assert_equal(0, i.collection_stratum(r))}
+
+    i.tick
+    assert_equal(false, i.done.current_value.reveal)
+    i.in_t <+ [[2], [3]]
+    i.s2 <+ [[5], [6], [7]]
+    i.tick
+    assert_equal(false, i.done.current_value.reveal)
+    i.in_t <+ [[3], [5], [6]]
+    i.s2 <+ [[12]]
+    i.tick
+    assert_equal(false, i.done.current_value.reveal)
+    i.in_t <+ [[12]]
+    i.s2 <+ [[2], [14]]
+    i.tick
+    assert_equal(true, i.done.current_value.reveal)
+  end
+
+  def test_set_product
+    i = SetProduct.new
+    i.tick
+    assert_equal([], i.s3.current_value.reveal)
+
+    i.s1 <+ [[1], [2]]
+    i.tick
+    assert_equal([], i.s3.current_value.reveal)
+
+    i.s2 <+ [[3]]
+    i.tick
+    assert_equal([[1,3], [2,3]], i.s3.current_value.reveal.sort)
+
+    i.s1 <+ [[3]]
+    i.s2 <+ [[7]]
+    i.tick
+    assert_equal([[1,3], [1,7], [2,3], [2,7], [3,3], [3,7]],
+                 i.s3.current_value.reveal.sort)
+  end
+
+  # We want to check that the set lattice eliminates duplicates from its input,
+  # not just after application of the merge function. Since merges are called
+  # repeatedly during actual query execution, we need to test the set lattice's
+  # behavior outside the runtime.
+  def test_set_dup_elim
+    s = Bud::SetLattice.new([1,1,1,2,2])
+    assert_equal(false, s.size.gt(2).reveal)
+
+    s = s.merge(Bud::SetLattice.new([1,2]))
+    assert_equal(false, s.size.gt(2).reveal)
+
+    s = s.merge(Bud::SetLattice.new([3]))
+    assert_equal(true, s.size.gt(2).reveal)
+  end
+end
+
+class SimpleSum
+  include Bud
+
+  state do
+    scratch :in_t, [:which, :v]
+    lpset :s1
+    lpset :s2
+    lpset :s3
+    lbool :done
+  end
+
+  bloom do
+    s1 <= in_t {|t| [t.v] if t.which == "s1" }
+    s2 <= in_t {|t| [t.v] if t.which == "s2" }
+    s3 <= s1
+    s3 <= s2
+    done <= (s3.pos_sum + 5).gt(25)
+  end
+end
+
+class TestSum < MiniTest::Unit::TestCase
+  def test_sum_simple
+    i = SimpleSum.new
+    %w[in_t s1 s2 s3 done].each {|r| assert_equal(0, i.collection_stratum(r))}
+
+    i.in_t <+ [["s1", 5], ["s1", 3], ["s1", 7],
+               ["s2", 5], ["s2", 2]]
+    i.tick
+    assert_equal(false, i.done.current_value.reveal)
+
+    i.in_t <+ [["s2", 7]]
+    i.tick
+    assert_equal(false, i.done.current_value.reveal)
+
+    i.in_t <+ [["s2", 6]]
+    i.tick
+    assert_equal(true, i.done.current_value.reveal)
+  end
+end
+
+class SimpleBag
+  include Bud
+
+  state do
+    lbag :b1
+    lbag :b2
+    lbag :b_union
+    lbag :b_intersect
+    lbag :b_sum
+    lbool :has_foo
+    lbool :done
+  end
+
+  bloom do
+    b_union <= b1
+    b_union <= b2
+    b_intersect <= b1.intersect(b2)
+    b_intersect <= b2.intersect(b1)
+    b_sum <= b1 + b2
+    b_sum <= b2 + b1
+    has_foo <= b_sum.contains?("foo")
+    done <= b_intersect.mult("foo").gt(2)
+  end
+end
+
+class TestBag < MiniTest::Unit::TestCase
+  def ntest_bag_simple
+    i = SimpleBag.new
+    %w[b1 b2 b_union b_intersect done].each do |r|
+      assert_equal(0, i.collection_stratum(r))
+    end
+
+    i.b1 <+ [{"abc" => 2, "def" => 1}, {"abc" => 1}]
+    i.tick
+    assert_equal([["abc", 2], ["def", 1]],
+                 i.b_union.current_value.reveal.to_a.sort)
+    assert_equal([], i.b_intersect.current_value.reveal.to_a.sort)
+    assert_equal([["abc", 2], ["def", 1]],
+                 i.b_sum.current_value.reveal.to_a.sort)
+    assert_equal(false, i.has_foo.current_value.reveal)
+    assert_equal(false, i.done.current_value.reveal)
+
+    i.b2 <+ [{"foo" => 1, "def" => 1}]
+    i.tick
+    assert_equal([["abc", 2], ["def", 1], ["foo", 1]],
+                 i.b_union.current_value.reveal.to_a.sort)
+    assert_equal([["def", 1]], i.b_intersect.current_value.reveal.to_a.sort)
+    assert_equal([["abc", 2], ["def", 2], ["foo", 1]],
+                 i.b_sum.current_value.reveal.to_a.sort)
+    assert_equal(true, i.has_foo.current_value.reveal)
+    assert_equal(false, i.done.current_value.reveal)
+
+    i.b1 <+ [{"foo" => 2}, {"abc" => 2}]
+    i.tick
+    assert_equal([["abc", 2], ["def", 1], ["foo", 2]],
+                 i.b_union.current_value.reveal.to_a.sort)
+    assert_equal([["def", 1], ["foo", 1]],
+                 i.b_intersect.current_value.reveal.to_a.sort)
+    assert_equal([["abc", 2], ["def", 2], ["foo", 3]],
+                 i.b_sum.current_value.reveal.to_a.sort)
+    assert_equal(true, i.has_foo.current_value.reveal)
+    assert_equal(false, i.done.current_value.reveal)
+
+    i.b1 <+ [{"foo" => 3}]
+    i.b2 <+ [{"foo" => 4}]
+    i.tick
+    assert_equal([["abc", 2], ["def", 1], ["foo", 4]],
+                 i.b_union.current_value.reveal.to_a.sort)
+    assert_equal([["def", 1], ["foo", 3]],
+                 i.b_intersect.current_value.reveal.to_a.sort)
+    assert_equal([["abc", 2], ["def", 2], ["foo", 7]],
+                 i.b_sum.current_value.reveal.to_a.sort)
+    assert_equal(true, i.has_foo.current_value.reveal)
+    assert_equal(true, i.done.current_value.reveal)
   end
 end
