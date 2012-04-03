@@ -191,12 +191,13 @@ module Bud
         end
       end
 
-      # Similarly, check for non-monotone methods that are found in the builtin
-      # list of monotone operators
+      # Similarly, check for non-monotone lattice methods that are found in the
+      # builtin list of monotone operators. The "merge" method is implicitly
+      # monotone (XXX: should it be declared as a morph or monotone function?)
       meth_list.each do |m_str|
         m = m_str.to_sym
         next unless RuleRewriter::MONOTONE_WHITELIST.include? m
-        unless klass.mfuncs.has_key?(m) || klass.morphs.has_key?(m)
+        unless klass.mfuncs.has_key?(m) || klass.morphs.has_key?(m) || m == :merge
           raise Bud::CompileError, "method #{m} in #{wrap_name} must be monotone"
         end
       end

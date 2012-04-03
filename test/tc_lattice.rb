@@ -587,12 +587,20 @@ class SetMethodCompose
     lset :s4
     lset :s5
     lset :s6
+    lset :s7
+    lmax :m1
+    lbool :done
   end
 
   bloom do
     s1 <= s2.intersect(s3.intersect(s4))
+
     s5 <= s2.intersect(s3.intersect(s4))
     s6 <= s4.intersect(s2.intersect(s3))
+
+    s7 <= s2.intersect(s3.merge(s4))
+    m1 <= (s7.size.merge(s3.size + 1) + 7)
+    done <= (s7.size.merge(s3.size + 1) + 9).gt_eq(15)
   end
 end
 
@@ -626,6 +634,9 @@ class TestSet < MiniTest::Unit::TestCase
     assert_equal([], i.s1.current_value.reveal)
     assert_equal([], i.s5.current_value.reveal)
     assert_equal([], i.s6.current_value.reveal)
+    assert_equal([], i.s7.current_value.reveal)
+    assert_equal(8, i.m1.current_value.reveal)
+    assert_equal(false, i.done.current_value.reveal)
 
     i.s2 <+ [[4]]
     i.s3 <+ [[10], [11]]
@@ -633,6 +644,9 @@ class TestSet < MiniTest::Unit::TestCase
     assert_equal([], i.s1.current_value.reveal)
     assert_equal([], i.s5.current_value.reveal)
     assert_equal([], i.s6.current_value.reveal)
+    assert_equal([4], i.s7.current_value.reveal)
+    assert_equal(10, i.m1.current_value.reveal)
+    assert_equal(false, i.done.current_value.reveal)
 
     i.s3 <+ [[5], [6]]
     i.s4 <+ [[10]]
@@ -640,12 +654,18 @@ class TestSet < MiniTest::Unit::TestCase
     assert_equal([], i.s1.current_value.reveal)
     assert_equal([], i.s5.current_value.reveal)
     assert_equal([], i.s6.current_value.reveal)
+    assert_equal([4], i.s7.current_value.reveal)
+    assert_equal(12, i.m1.current_value.reveal)
+    assert_equal(false, i.done.current_value.reveal)
 
     i.s3 <+ [[4]]
     i.tick
     assert_equal([4], i.s1.current_value.reveal)
     assert_equal([4], i.s5.current_value.reveal)
     assert_equal([4], i.s6.current_value.reveal)
+    assert_equal([4], i.s7.current_value.reveal)
+    assert_equal(13, i.m1.current_value.reveal)
+    assert_equal(true, i.done.current_value.reveal)
   end
 
   def test_set_product
