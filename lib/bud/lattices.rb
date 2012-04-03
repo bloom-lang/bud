@@ -200,11 +200,13 @@ end
 
 # A push-based dataflow element that scans a lattice wrapper
 class Bud::LatticeScanner < Bud::LatticePushElement
-  attr_reader :collection
+  attr_reader :collection, :rescan_set, :invalidate_set
 
   def initialize(bud_instance, collection)
     super(bud_instance)
     @collection = collection
+    @rescan_set = []
+    @invalidate_set = []
   end
 
   def scan(first_iter)
