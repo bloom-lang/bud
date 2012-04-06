@@ -299,6 +299,29 @@ class AllPathsL
   end
 end
 
+# As above, except that we use the eqjoin method
+class AllPathsEqJoin
+  include Bud
+
+  state do
+    lset :link
+    lset :path
+  end
+
+  bootstrap do
+    link <= [[['a', 'b', 1], ['a', 'b', 4],
+              ['b', 'c', 1], ['c', 'd', 1],
+              ['d', 'e', 1]]]
+  end
+
+  bloom do
+    path <= link
+    path <= path.eqjoin(link, 1, 0) do |p,l|
+      [p[0], l[1], p[2] + l[2]]
+    end
+  end
+end
+
 class TestGraphPrograms < MiniTest::Unit::TestCase
   def test_spath_simple
     i = ShortestPathsL.new
@@ -468,6 +491,26 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
 
   def test_all_paths
     i = AllPathsL.new
+    %w[link path].each {|r| assert_equal(0, i.collection_stratum(r))}
+
+    i.tick
+    assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
+                  ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
+                  ["b", "c", 1], ["b", "d", 2], ["b", "e", 3], ["c", "d", 1],
+                  ["c", "e", 2], ["d", "e", 1]], i.path.current_value.reveal.sort)
+
+    i.link <+ [[['e', 'f', 1]]]
+    i.tick
+    assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
+                  ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
+                  ["a", "f", 5], ["a", "f", 8], ["b", "c", 1], ["b", "d", 2],
+                  ["b", "e", 3], ["b", "f", 4], ["c", "d", 1], ["c", "e", 2],
+                  ["c", "f", 3], ["d", "e", 1], ["d", "f", 2], ["e", "f", 1]],
+                 i.path.current_value.reveal.sort)
+  end
+
+  def test_all_paths_join
+    i = AllPathsEqJoin.new
     %w[link path].each {|r| assert_equal(0, i.collection_stratum(r))}
 
     i.tick
