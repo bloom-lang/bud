@@ -234,6 +234,7 @@ class RenameJoin
   
   bloom do
     temp :out <= (foo.rename(:floo, [:c1]=>[:c2]) * foo).lefts(:c1 => :key)
+    temp :out2 <= (foo.rename(:floo2, [:c1] => [:c2]) * foo).rights([floo2.c1, foo.key])
   end
 end
 
@@ -350,6 +351,7 @@ class TestJoins < MiniTest::Unit::TestCase
     p = RenameJoin.new
     p.tick
     assert_equal([['a', 1]], p.out.to_a)
+    assert_equal([['a', 1]], p.out2.to_a)
   end
 
   def test_partial_combos

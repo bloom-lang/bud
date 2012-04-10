@@ -167,9 +167,9 @@ module Bud
     public
     def pending_delete(o)
       if o.class <= Bud::PushElement
-         o.wire_to_delete self
+         o.wire_to(self, :delete)
       elsif o.class <= Bud::BudCollection
-        o.pro.wire_to_delete self
+        o.pro.wire_to(self, :delete)
       else
         @to_delete = @to_delete + o.map{|t| prep_tuple(t) unless t.nil?}
       end

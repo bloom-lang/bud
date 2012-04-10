@@ -209,24 +209,6 @@ class PushTests < MiniTest::Unit::TestCase
     assert_equal([[1,2],[1,3],[1,4],[1,7],[2,3],[2,4],[2,7],[3,4],[6,7]], p.path.to_a.sort)
     assert_equal([[1,1]], p.result.to_a)
   end 
-  class PushPredicates
-    include Bud
-    state do 
-      table :t_in
-      table :t_out1
-    end
-    bootstrap{t_in <= [[1,1],[2,2]]}
-    bloom do
-      t_out1 <= (t_in*t_in).lefts do |t1|
-        ['inc', 'inc'] if t_in.pro{|t| [t.key]}.include? 1
-      end
-    end
-  end
-  def test_predicates
-    p = PushPredicates.new
-    p.tick
-    assert_equal([['inc','inc']], p.t_out1.to_a)
-  end
 
   class BudtimeRecompute
     include Bud

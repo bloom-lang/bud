@@ -13,9 +13,9 @@ module Bud
   # p.insert(1)
   # p.insert(nil)
   class PushElement < BudCollection
-    attr_accessor :elem_name
     attr_accessor :rescan, :invalidated
-    attr_reader :inputs, :found_delta, :refcount, :wired_by, :outputs
+    attr_accessor :elem_name
+    attr_reader :found_delta, :refcount, :wired_by, :outputs
 
     def initialize(name_in, bud_instance, collection_name=nil, given_schema=nil, defer_schema=false, &blk)
       super(name_in, bud_instance, given_schema, defer_schema)
@@ -31,10 +31,6 @@ module Bud
       @collection_name = collection_name
       @invalidated = true
       @rescan = true
-    end
-
-    def wiring?
-      @bud_instance.toplevel.done_wiring == false
     end
 
     def wirings
@@ -81,40 +77,27 @@ module Bud
     def set_block(&blk)
       @blk = blk
     end
-    def wire_to(element)
-      unless element.respond_to? :insert
-        raise Bud::Error, "attempt to wire_to element without insert method"
+
+    def wire_to(element, kind=:output)
+      unless @bud_instance.wiring?
+        raise Bud::Error, "wire_to called outside wiring phase"
       end
-      # elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
-      # puts "wiring #{self.elem_name} to #{elem_name}"
-      @outputs << element
-      element.wired_by << self if element.respond_to? :wired_by
-    end
-    def wire_to_pending(element)
-      unless element.respond_to? :pending_merge
-        raise Bud::Error, "attempt to wire_to_pending element without pending_merge method"
+
+      case kind
+      when :output
+        raise Bud::Error unless element.respond_to? :insert
+        @outputs << element
+      when :pending
+        raise Bud::Error unless element.respond_to? :pending_merge
+        @pendings << element
+      when :delete
+        raise Bud::Error unless element.respond_to? :pending_delete
+        @deletes << element
+      when :delete_by_key
+        raise Bud::Error unless element.respond_to? :pending_delete_keys
+        @delete_keys << element
       end
-      # elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
-      # puts "wiring #{self.elem_name} to #{elem_name}(pending)"
-      @pendings << element
-      element.wired_by << self if element.respond_to? :wired_by
-    end
-    def wire_to_delete(element)
-      unless element.respond_to? :pending_delete
-        raise Bud::Error, "attempt to wire_to_delete element without pending_delete method"
-      end
-      # elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
-      # puts "wiring #{self.elem_name} to #{elem_name}(delete)"
-      @deletes << element
-      element.wired_by << self if element.respond_to? :wired_by
-    end
-    def wire_to_delete_by_key(element)
-      unless element.respond_to? :pending_delete_keys
-        raise Bud::Error, "attempt to wire_to_delete_by_key element without pending_delete_keys method"
-      end
-      # elem_name = element.respond_to?(:tabname) ? element.tabname : element.elem_name
-      # puts "wiring #{self.elem_name} to #{elem_name}(delete)"
-      @delete_keys << element
+
       element.wired_by << self if element.respond_to? :wired_by
     end
 
@@ -144,12 +127,8 @@ module Bud
         unless item.nil?
           @outputs.each do |ou|
             if ou.class <= Bud::PushElement
-              #the_name = ou.elem_name
-              # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
               ou.insert(item, self)
             elsif ou.class <= Bud::BudCollection
-              # the_name = ou.tabname
-              # puts "#{self.object_id%10000} (#{elem_name}) -> #{ou.object_id%10000} (#{the_name}): #{item.inspect}"
               ou.do_insert(item, ou.new_delta)
             else
               raise Bud::Error, "expected either a PushElement or a BudCollection"
@@ -210,19 +189,14 @@ module Bud
     public
     def stratum_end
     end
-    #public
-    #def set_schema(schema)
-    #  @schema=schema
-    #  setup_accessors
-    #end
-
 
     ####
     # and now, the Bloom-facing methods
+    # XXX: "the_name" parameter is unused
     public
-    def pro(the_name=@elem_name, the_schema=schema, &blk)
+    def pro(the_name=elem_name, the_schema=schema, &blk)
       toplevel = @bud_instance.toplevel
-      elem = Bud::PushElement.new('project' + object_id.to_s,
+      elem = Bud::PushElement.new("project#{object_id}",
                                   toplevel.this_rule_context,
                                   @collection_name, the_schema)
       self.wire_to(elem)
@@ -233,10 +207,11 @@ module Bud
 
     alias each pro
 
+    # XXX: "the_name" & "the_schema" parameters are unused
     public
     def each_with_index(the_name=elem_name, the_schema=schema, &blk)
       toplevel = @bud_instance.toplevel
-      elem = Bud::PushEachWithIndex.new('each_with_index' + object_id.to_s,
+      elem = Bud::PushEachWithIndex.new("each_with_index#{object_id}",
                                         toplevel.this_rule_context,
                                         @collection_name)
       elem.set_block(&blk)
@@ -273,7 +248,7 @@ module Bud
     end
 
     def merge(source)
-      if source.class <= PushElement and wiring?
+      if source.class <= PushElement and @bud_instance.wiring?
         source.wire_to(self)
       else
         source.each {|i| self << i}

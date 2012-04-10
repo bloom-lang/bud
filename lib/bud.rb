@@ -61,7 +61,7 @@ $bud_instances = {}        # Map from instance id => Bud instance
 module Bud
   attr_reader :budtime, :inbound, :options, :meta_parser, :viz, :rtracer, :dsock
   attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :app_tables
-  attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets, :done_wiring
+  attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap
   attr_accessor :stratified_rules
   attr_accessor :metrics, :periodics
@@ -74,7 +74,6 @@ module Bud
   #   * <tt>:port</tt>   port number for this instance
   #   * <tt>:ext_ip</tt>  IP address at which external nodes can contact this instance
   #   * <tt>:ext_port</tt>   port number to go with <tt>:ext_ip</tt>
-  #   * <tt>:bust_port</tt>  port number for the restful HTTP messages
   # * operating system interaction
   #   * <tt>:stdin</tt>  if non-nil, reading from the +stdio+ collection results in reading from this +IO+ handle
   #   * <tt>:stdout</tt> writing to the +stdio+ collection results in writing to this +IO+ handle; defaults to <tt>$stdout</tt>
@@ -196,6 +195,11 @@ module Bud
 
   def budtime
     toplevel? ? @budtime : toplevel.budtime
+  end
+
+  # Are we currently in the process of wiring together the dataflow?
+  def wiring?
+    toplevel? ? (@done_bootstrap && !@done_wiring) : toplevel.wiring?
   end
 
   private
@@ -998,20 +1002,20 @@ module Bud
         fixpoint = false
         first_iter = true
         until fixpoint
-          fixpoint = true
           @scanners[stratum].each_value {|s| s.scan(first_iter)}
+          fixpoint = true
           first_iter = false
           # flush any tuples in the pipes
           @push_sorted_elems[stratum].each {|p| p.flush}
           # tick deltas on any merge targets and look for more deltas
           # check to see if any joins saw a delta
-          push_joins[stratum].each do |p|
+          @push_joins[stratum].each do |p|
             if p.found_delta
               fixpoint = false
               p.tick_deltas
             end
           end
-          merge_targets[stratum].each do |t|
+          @merge_targets[stratum].each do |t|
             fixpoint = false if t.tick_deltas
           end
         end
@@ -1019,7 +1023,7 @@ module Bud
         @push_sorted_elems[stratum].each do |p|
           p.stratum_end
         end
-        merge_targets[stratum].each do |t|
+        @merge_targets[stratum].each do |t|
           t.flush_deltas
         end
       end
@@ -1051,6 +1055,17 @@ module Bud
     raise Bud::Error, "bud_clock undefined outside tick" unless @inside_tick
     @tick_clock_time ||= Time.now
     @tick_clock_time
+  end
+
+  # Return the stratum number of the given collection.
+  # NB: if a collection is not referenced by any rules, it is not currently
+  # assigned to a strata.
+  def collection_stratum(collection)
+    t_stratum.each do |t|
+      return t.stratum if t.predicate == collection
+    end
+
+    raise Bud::Error, "no such collection: #{collection}"
   end
 
   private

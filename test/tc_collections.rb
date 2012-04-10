@@ -79,25 +79,6 @@ class Grep
   end
 end
 
-class Union
-  include Bud
-
-  state do
-    table :link, [:from, :to, :cost]
-    table :delta_link, [:from, :to, :cost]
-    table :union, [:from, :to, :cost]
-  end
-
-  bootstrap do
-    link <= [['a', 'b', 1]]
-    delta_link <= [['a', 'b', 4]]
-  end
-
-  bloom do
-    union <= (delta_link <= link)
-  end
-end
-
 class BootstrapDerive
   include Bud
 
@@ -112,8 +93,8 @@ class BootstrapDerive
   end
 
   bloom do
-    t2 <= t1.map{|t| [t.key + 1, t.val + 1]}
-    t3 <= t2.map{|t| [t.key + 1, t.val + 1]}
+    t2 <= t1 {|t| [t.key + 1, t.val + 1]}
+    t3 <= t2 {|t| [t.key + 1, t.val + 1]}
   end
 end
 
@@ -128,8 +109,8 @@ class RowValueTest
   end
 
   bloom do
-    t3 <= t1.map {|t| t if t2.include? t}
-    t4 <= t1.map {|t| t if t2.has_key? [t.k]}
+    t3 <= t1 {|t| t if t2.include? t}
+    t4 <= t1 {|t| t if t2.has_key? [t.k]}
   end
 end
 
@@ -246,7 +227,7 @@ class EmptyPk
     table :t1, [] => [:foo, :bar]
   end
 
-  bloom :dummy do
+  bloom do
     t1 <= t1 # to force evaluation
   end
 end
@@ -278,13 +259,13 @@ class TestCollections < MiniTest::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
     program.tick
-    #assert_equal(1, program.scrtch2.length)
+    assert_equal(1, program.scrtch2.length)
     program.tick
-    assert_equal(program.scrtch.to_a, [["c", "d", 5, 6]])
-    #assert_equal(0, program.scrtch2.length)
+    assert_equal([["c", "d", 5, 6]], program.scrtch.to_a)
+    assert_equal(0, program.scrtch2.length)
     assert_equal(2, program.tbl.length)
-    assert_equal(program.the_keys.to_a.sort, [["c", "d"], ["z", "y"]].sort)
-    assert_equal(program.the_vals.to_a.sort, [[5,6], [9,8]].sort)
+    assert_equal([["c", "d"], ["z", "y"]], program.the_keys.to_a.sort)
+    assert_equal([[5,6], [9,8]], program.the_vals.to_a.sort)
   end
   
   def test_tuple_accessors
@@ -299,9 +280,9 @@ class TestCollections < MiniTest::Unit::TestCase
     # tick twice to get to 2nd timestep
     program.tick
     program.tick
-    assert_equal(1, program.scrtch.length )
-    #assert_equal(0, program.scrtch2.length )
-    assert_equal(2, program.tbl.length )
+    assert_equal(1, program.scrtch.length)
+    assert_equal(0, program.scrtch2.length)
+    assert_equal(2, program.tbl.length)
   end
 
   def test_dup_tables
@@ -323,13 +304,6 @@ class TestCollections < MiniTest::Unit::TestCase
     lines = program.matches.to_a
     assert_equal(1, lines.length)
     assert_equal(44, lines[0][0])
-  end
-
-  def test_union
-    s = Union.new
-    s.tick
-    assert_equal(2, s.union.length)
-    assert_equal(s.union.to_a, [["a", "b", 4], ["a", "b", 1]])
   end
 
   class DeleteKey
@@ -428,7 +402,7 @@ class TestCollections < MiniTest::Unit::TestCase
     }
     p.sync_do
     p.sync_do {
-      assert_equal(p.t1.to_a, [[5, 10]] )
+      assert_equal([[5, 10]], p.t1.to_a)
     }
     p.stop
   end
@@ -438,8 +412,8 @@ class TestCollections < MiniTest::Unit::TestCase
     b.run_bg
     2.times do
       b.sync_do {
-        assert_equal(b.t2.to_a.sort, [[6, 11]])
-        assert_equal( b.t3.to_a.sort, [[7, 12]])
+        assert_equal([[6, 11]], b.t2.to_a.sort)
+        assert_equal([[7, 12]], b.t3.to_a.sort)
       }
     end
 
@@ -470,14 +444,13 @@ class TestCollections < MiniTest::Unit::TestCase
 
   def test_filter_and_delete
     b = DelBug.new
-
     b.tick
-    assert_equal(b.buffer.to_a.sort, [[1,2], [3,4]])
+    assert_equal([[1,2], [3,4]], b.buffer.to_a.sort)
 
     b.to_delete <+ [[1,2]]
     b.tick
     b.tick
-    assert_equal(b.buffer.to_a.sort, [[3,4]])
+    assert_equal([[3,4]], b.buffer.to_a.sort)
   end
 
   def test_bad_declaration
@@ -532,16 +505,18 @@ class TestCollections < MiniTest::Unit::TestCase
       table :t1
     end
     bootstrap do
-      t1 << [1,1]
+      t1 <= [[1,1], [1000, 1000]]
     end
     bloom do
-      temp :t2 <= t1.rename(:bob)
+      temp :t2 <= t1.rename(:bob, [:a] => [:b]) {|t| t if t.a < 1000}
     end
   end
 
   def test_simple_rename
     p = SimpleRename.new
     p.tick
+    assert_equal(:t2, p.t2.tabname)
+    assert_equal([[1, 1]], p.t2.to_a)
   end
 
   def test_schema_preserve_keys
@@ -570,6 +545,30 @@ class TestCollections < MiniTest::Unit::TestCase
     p.run_bg
     p.sync_callback(:c1, [["hi", "miley", p.ip_port]], :t1)
     p.sync_callback(:c2, [["guy", p.ip_port, "smiley"]], :t1)
+  end
+
+  class TooManyColumns
+    include Bud
+
+    state do
+      table :t1
+      scratch :s1
+    end
+
+    bloom do
+      t1 <+ s1 {|s| [s.key, s.key, s.val]}
+    end
+  end
+
+  def test_too_many_columns
+    b = TooManyColumns.new
+    assert_raises(Bud::TypeError) { b.t1 <+ [[1, 5], [1, 2, 3]] }
+  end
+
+  def test_too_many_columns_rule
+    b = TooManyColumns.new
+    b.s1 <+ [[10, 20]]
+    assert_raises(Bud::TypeError) { b.tick }
   end
 end
 

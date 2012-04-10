@@ -1,3 +1,12 @@
+== 0.9.1 / ???
+
+* Reject attempts to insert a tuple into a collection with more fields than are
+  in the collection's schema
+  * Previous behavior was to ignore additional fields, but this was found to be
+    error-prone
+* Remove builtin support for BUST (web services API); this avoids the need to
+  depend on the json, nestful and i18n gems.
+
 == 0.9.0 / 2012-03-21
 
 * Major performance enhancements
