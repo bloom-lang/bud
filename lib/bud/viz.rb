@@ -4,6 +4,7 @@ require 'gchart'
 require 'bud/state'
 
 class VizOnline #:nodoc: all
+  attr_reader :logtab
   def initialize(bud_instance)
     @bud_instance = bud_instance
     @meta_tables = {'t_rules' => 1, 't_depends' => 1, 't_table_info' => 1, 't_cycle' => 1, 't_stratum' => 1, 't_depends_tc' => 1, 't_table_schema' => 1, 't_provides' => 1}
