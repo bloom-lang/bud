@@ -31,7 +31,7 @@ class VizHelper
 
   def summarize(dir, schema)
     table_io = {}
-    cardinalities.sort{|a, b| a[0] <=> b[0]}.each do |card|
+    cardinalities.to_a.sort{|a, b| a[0] <=> b[0]}.each do |card|
       table_io["#{card.table}_#{card.bud_time}"] = start_table(dir, card.table, card.bud_time, schema[card.table])
     end
 
@@ -44,7 +44,7 @@ class VizHelper
     end
 
     # fix: nested loops
-    times.sort.each do |time|
+    times.to_a.sort.each do |time|
       card_info = {}
       cardinalities.each do |card|
         if card.bud_time == time.bud_time
@@ -300,8 +300,8 @@ END_JS
       tab = key.shift
       time = key.shift
       # paa
-      tup = key[0]
-      MessagePack.unpack(v).each {|val| tup << val}
+      tup = key[0].to_a
+      MessagePack.unpack(v).each {|val| tup << val.to_a}
       if meta_tabs[tab]
         raise "non-zero budtime.(tab=#{tab}, time=#{time})  sure this is metadata?" if time != 0 #and strict
         meta[meta_tabs[tab]] ||= []
