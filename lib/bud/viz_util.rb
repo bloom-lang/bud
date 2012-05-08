@@ -178,14 +178,16 @@ module VizUtil #:nodoc: all
     rules = {}
     convertor = Syntax::Convertors::HTML.for_syntax "ruby"
     shredded_rules.each do |s|
-      fout = File.new("#{output_base}/#{s.rule_id}.html", "w+")
+      # b/c accessors don't make it through serialization anymore
+      bud_obj, rule_id, lhs, op, src, orig_src, nm_funcs_called = s.to_a
+      fout = File.new("#{output_base}/#{rule_id}.html", "w+")
       fout.puts header
-      fout.puts "<h1>Rule #{s.rule_id}</h1><br>"
+      fout.puts "<h1>Rule #{rule_id}</h1><br>"
 
-      c = convertor.convert(s.orig_src)
+      c = convertor.convert(orig_src)
       c.sub!(/^<pre>/, "<pre class=\"code\" style='font-size:20px'>\n")
       fout.puts c
-      rules[s.rule_id] = [s.lhs, s.orig_src]
+      rules[rule_id] = [lhs, orig_src]
       fout.close
     end
 
@@ -299,14 +301,13 @@ END_JS
       key = MessagePack.unpack(k)
       tab = key.shift
       time = key.shift
-      # paa
-      tup = key[0].to_a
-      MessagePack.unpack(v).each {|val| tup << val.to_a}
+      # paa: after switch to 1.9, v appears to always be empty
+      tup = key[0]
+      MessagePack.unpack(v).each {|val| tup << val}
       if meta_tabs[tab]
         raise "non-zero budtime.(tab=#{tab}, time=#{time})  sure this is metadata?" if time != 0 #and strict
         meta[meta_tabs[tab]] ||= []
         meta[meta_tabs[tab]] << tup
-        #ret << tup
       else
         data << [time, tab, tup]
       end
@@ -322,9 +323,13 @@ END_JS
       unless meta[:schminf][tab]
         meta[:schminf][tab] = []
       end
-      meta[:schminf][tab][ts[2]] = ts[1]
+      meta[:schminf][tab][ts[2]] = ts[1] if ts[2]
     end
     return meta, data
+  end
+
+  def mapstr(list)
+    list.map{|s| "<th> #{s} </th>"}.join(" ")
   end
 
   def start_table(dir, tab, time, schema)
@@ -334,12 +339,14 @@ END_JS
     fout.puts "<table border=1>"
     # issue with _snd schemas
     if !schema.nil? and schema[0] == "c_bud_time"
-      fout.puts "<tr>" 
+      fout.puts "<tr>"
       if schema[1].length == 2 and schema[1][0].class == Array and schema[1][1].class == Array
-        fout.puts schema[1][0].map{|s| "<th> #{s} </th>"}.join(" ")
-        fout.puts schema[1][1].map{|s| "<th> #{s} </th>"}.join(" ")
+        fout.puts mapstr(schema[1][0])
+        fout.puts mapstr(schema[1][1])
+      elsif schema[1].class == String
+        fout.puts mapstr(schema[1..-1])
       else
-        fout.puts schema[1].map{|s| "<th> #{s} </th>"}.join(" ")
+        fout.puts mapstr(schema[1])
       end
       fout.puts "<tr>"
     end
