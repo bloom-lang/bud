@@ -175,7 +175,7 @@ class ReblShell
   def self.do_exit
     begin
       lines = Readline::HISTORY.to_a.reverse.uniq.reverse
-      lines = lines[-@@maxhistsize, @@maxhistsize] if lines.nitems>@@maxhistsize
+      lines = lines[-@@maxhistsize, @@maxhistsize] if lines.size > @@maxhistsize
       File::open(@@histfile, File::WRONLY|File::CREAT|File::TRUNC) do |io|
         io.puts lines.join("\n")
       end

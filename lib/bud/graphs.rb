@@ -74,8 +74,10 @@ class GraphGen #:nodoc: all
     # bottom if the predicate is not in a NEG/+ cycle.  otherwise,
     # its name is "CYC" + concat(sort(predicate names))
     depends.each do |d|
-      head = d.lhs
-      body = d.body
+      # b/c bud_obj was pruned before serialization...
+      (bud_obj, rule_id, lhs, op, body, nm) = d.to_a
+      head = lhs
+      body = body
 
       if @builtin_tables.has_key?(head.to_sym) or @builtin_tables.has_key?(body.to_sym)
         next
@@ -83,9 +85,9 @@ class GraphGen #:nodoc: all
 
       head = name_of(head)
       body = name_of(body)
-      addonce(head, (head != d.lhs), true)
-      addonce(body, (body != d.body))
-      addedge(body, head, d.op, d.nm, (head != d.lhs), d.rule_id)
+      addonce(head, (head != lhs), true)
+      addonce(body, (body != body))
+      addedge(body, head, op, nm, (head != lhs), rule_id)
     end
   end
 

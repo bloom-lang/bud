@@ -4,6 +4,7 @@ require 'gchart'
 require 'bud/state'
 
 class VizOnline #:nodoc: all
+  attr_reader :logtab
   def initialize(bud_instance)
     @bud_instance = bud_instance
     @meta_tables = {'t_rules' => 1, 't_depends' => 1, 't_table_info' => 1, 't_cycle' => 1, 't_stratum' => 1, 't_depends_tc' => 1, 't_table_schema' => 1, 't_provides' => 1}
@@ -62,7 +63,7 @@ class VizOnline #:nodoc: all
       # bud instances cannot/must not be serialized.
       if row[0].class <= Bud
         row = row.to_a if row.class != Array
-        row = row[1..-1] if row[0].class <= Bud
+        row = [row[0].class.to_s] + row[1..-1] if row[0].class <= Bud
       end
       newrow = [tab, @bud_instance.budtime, row]
       begin
