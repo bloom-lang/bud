@@ -1,5 +1,8 @@
 == 0.9.2 / ???
 
+* Fix two bugs in reduce() operator
+  * Incorrect default value was sometimes returned
+  * Didn't handle reduce() outputs that aren't tuples with two fields
 * Better error message for reduce() operator
 
 == 0.9.1 / 2012-04-10

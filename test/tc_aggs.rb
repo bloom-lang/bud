@@ -452,4 +452,39 @@ class TestReduce < MiniTest::Unit::TestCase
     r = ReduceTypeError.new
     assert_raises(Bud::TypeError) { r.tick }
   end
+
+  class ReduceUnaryTuple
+    include Bud
+
+    state do
+      scratch :t1, [:v, :x]
+      scratch :t2, [:res]
+    end
+
+    bloom do
+      # Poor man's Boolean AND
+      t2 <= t1.reduce([[true]]) do |memo, t|
+        if t.v == false
+          [[false]]
+        else
+          memo
+        end
+      end
+    end
+  end
+
+  def test_reduce_unary_tuple
+    r = ReduceUnaryTuple.new
+    r.tick
+    assert_equal([[true]], r.t2.to_a)
+    r.t1 <+ [[true, 1], [true, 2]]
+    r.tick
+    assert_equal([[true]], r.t2.to_a)
+    r.t1 <+ [[false, 3], [true, 4]]
+    r.tick
+    assert_equal([[false]], r.t2.to_a)
+    # Given no input in a tick, revert to default value
+    r.tick
+    assert_equal([[true]], r.t2.to_a)
+  end
 end
