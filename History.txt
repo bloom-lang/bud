@@ -1,9 +1,11 @@
 == 0.9.2 / ???
 
+* Add new aggregate functions: bool_and() and bool_or()
 * Fix two bugs in reduce() operator
   * Incorrect default value was sometimes returned
   * Didn't handle reduce() outputs that aren't tuples with two fields
 * Better error message for reduce() operator
+* Improve MRI 1.9 compatibility
 
 == 0.9.1 / 2012-04-10
 
