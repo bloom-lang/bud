@@ -535,6 +535,9 @@ module Bud
 
     public
     def flush
+      unless @memo.kind_of? Enumerable
+        raise Bud::TypeError, "output of reduce must be Enumerable: #{@memo.inspect}"
+      end
       @memo.each do |k,v|
         push_out([k,v], false)
       end

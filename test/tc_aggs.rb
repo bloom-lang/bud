@@ -431,3 +431,25 @@ class TestAggs < MiniTest::Unit::TestCase
     assert_equal(["vote from agent 1", "vote from agent 2"], vc[3].sort)
   end
 end
+
+class TestReduce < MiniTest::Unit::TestCase
+  class ReduceTypeError
+    include Bud
+
+    state do
+      table :t1
+      table :t2
+    end
+
+    bootstrap { t1 <= [[5, 10]] }
+
+    bloom do
+      t2 <= t1.reduce(true) {|memo, s| true}
+    end
+  end
+
+  def test_reduce_type_error
+    r = ReduceTypeError.new
+    assert_raises(Bud::TypeError) { r.tick }
+  end
+end
