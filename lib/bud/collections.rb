@@ -678,16 +678,14 @@ module Bud
     public
     def *(collection)
       elem1 = to_push_elem
-      j = elem1.join(collection)
-      return j
+      return elem1.join(collection)
     end
 
     def group(key_cols, *aggpairs, &blk)
       elem = to_push_elem
       key_cols = key_cols.map{|k| canonicalize_col(k)} unless key_cols.nil?
       aggpairs = aggpairs.map{|ap| [ap[0], canonicalize_col(ap[1])].compact} unless aggpairs.nil?
-      g = elem.group(key_cols, *aggpairs, &blk)
-      return g
+      return elem.group(key_cols, *aggpairs, &blk)
     end
 
     def notin(collection, *preds, &blk)

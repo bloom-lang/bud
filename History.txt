@@ -1,4 +1,14 @@
-== 0.9.1 / ???
+== 0.9.2 / ???
+
+* Add new aggregate functions: bool_and() and bool_or()
+* Fix a bug in processing multi-way joins defined inside modules
+* Fix two bugs in reduce() operator
+  * Incorrect default value was sometimes returned
+  * Didn't handle reduce() outputs that aren't tuples with two fields
+* Better error message for reduce() operator
+* Improve MRI 1.9 compatibility
+
+== 0.9.1 / 2012-04-10
 
 * Reject attempts to insert a tuple into a collection with more fields than are
   in the collection's schema

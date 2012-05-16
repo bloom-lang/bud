@@ -678,3 +678,37 @@ class TestIncludeOverride < MiniTest::Unit::TestCase
     assert_equal([], b.t1.to_a)
   end
 end
+
+# Check that multi-way joins defined inside modules work correctly
+class TestMultiWayJoinInModule < MiniTest::Unit::TestCase
+  module NestedJoinDef
+    state do
+      scratch :t1
+      scratch :t2
+      scratch :t3
+      scratch :res, [:a, :b, :c, :d, :e, :f]
+    end
+
+    bootstrap do
+      t1 <= [[10, 20], [1, 2]]
+      t2 <= [[50, 10], [1, 3]]
+      t3 <= [[99, 50], [1, 4]]
+    end
+
+    bloom do
+      res <= (t1 * t2 * t3).combos(t1.key => t2.val, t2.key => t3.val) do |a, b, c|
+        [a.key, a.val, b.key, b.val, c.key, c.val]
+      end
+    end
+  end
+
+  class JoinUser
+    include Bud
+    import NestedJoinDef => :n
+  end
+
+  def test_multi_join
+    j = JoinUser.new
+    j.tick
+  end
+end
