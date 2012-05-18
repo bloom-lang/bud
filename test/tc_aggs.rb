@@ -232,6 +232,23 @@ class ChainAgg
   end
 end
 
+class BooleanAggs
+  include Bud
+
+  state do
+    scratch :s1, [:x, :v]
+    scratch :s2, [:v_and, :v_or]
+    scratch :s3, [:x] => [:x_v_and, :x_v_or]
+    table :s4, [:x, :x_v_and, :x_v_or]
+  end
+
+  bloom do
+    s2 <= s1.group(nil, bool_and(:v), bool_or(:v))
+    s3 <= s1.group([:x], bool_and(:v), bool_or(:v))
+    s4 <= s1.group([:x], bool_and(:v), bool_or(:v))
+  end
+end
+
 class TestAggs < MiniTest::Unit::TestCase
   def test_paths
     program = ShortestPaths.new
@@ -323,6 +340,29 @@ class TestAggs < MiniTest::Unit::TestCase
     p.run_bg
     q.pop
     assert_equal([[2,1]], p.t3.to_a)
+  end
+
+  def test_bool_aggs
+    p = BooleanAggs.new
+    p.s1 <+ [[1, true], [1, false], [2, false], [3, true]]
+    p.tick
+    assert_equal([[false, true]], p.s2.to_a)
+    assert_equal([[1, false, true], [2, false, false], [3, true, true]],
+                 p.s3.to_a.sort)
+    assert_equal([[1, false, true], [2, false, false], [3, true, true]],
+                 p.s4.to_a.sort)
+    p.tick
+    assert_equal([], p.s2.to_a)
+    assert_equal([], p.s3.to_a)
+    assert_equal([[1, false, true], [2, false, false], [3, true, true]],
+                 p.s4.to_a.sort)
+    p.s1 <+ [[1, false], [3, false]]
+    p.tick
+    assert_equal([[false, false]], p.s2.to_a)
+    assert_equal([[1, false, false], [3, false, false]], p.s3.to_a.sort)
+    assert_equal([[1, "false", "false"], [1, "false", "true"], [2, "false", "false"],
+                  [3, "false", "false"], [3, "true", "true"]],
+                 p.s4.to_a.map{|t| t.map{|t2| (t2 == false || t2 == true) ? t2.to_s : t2}}.sort)
   end
 
   class SimpleAgg
@@ -429,5 +469,62 @@ class TestAggs < MiniTest::Unit::TestCase
     vc = v.vote_cnt.to_a[0]
     assert_equal([1, "yes", 2], [vc[0], vc[1], vc[2]])
     assert_equal(["vote from agent 1", "vote from agent 2"], vc[3].sort)
+  end
+end
+
+class TestReduce < MiniTest::Unit::TestCase
+  class ReduceTypeError
+    include Bud
+
+    state do
+      table :t1
+      table :t2
+    end
+
+    bootstrap { t1 <= [[5, 10]] }
+
+    bloom do
+      t2 <= t1.reduce(true) {|memo, s| true}
+    end
+  end
+
+  def test_reduce_type_error
+    r = ReduceTypeError.new
+    assert_raises(Bud::TypeError) { r.tick }
+  end
+
+  class ReduceUnaryTuple
+    include Bud
+
+    state do
+      scratch :t1, [:v, :x]
+      scratch :t2, [:res]
+    end
+
+    bloom do
+      # Poor man's Boolean AND
+      t2 <= t1.reduce([[true]]) do |memo, t|
+        if t.v == false
+          [[false]]
+        else
+          memo
+        end
+      end
+    end
+  end
+
+  def test_reduce_unary_tuple
+    r = ReduceUnaryTuple.new
+    r.tick
+    assert_equal([[true]], r.t2.to_a)
+    r.t1 <+ [[true, 1], [true, 2]]
+    r.tick
+    assert_equal([[true]], r.t2.to_a)
+    r.t1 <+ [[false, 3], [true, 4]]
+    r.tick
+    assert_equal([[false]], r.t2.to_a)
+    # Given no input in a tick, revert to default value
+    r.tick
+    assert_equal([[true]], r.t2.to_a)
   end
 end

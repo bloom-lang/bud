@@ -264,20 +264,6 @@ module Bud
       return retval
     end
 
-    # given a * expression over 2 collections, form all combos of items that
-    # satisfy +preds+, and for any item from the 1st collection that has no
-    # matches in the 2nd, nil-pad it and include it in the output.
-    public
-    def join(elem2, &blk)
-      elem2 = elem2.to_push_elem unless elem2.class <= PushElement
-      # This constructs a left-deep tree!
-      join = Bud::PushSHJoin.new([self,elem2], @bud_instance, [])
-      @bud_instance.push_joins[@bud_instance.this_stratum] << join
-      elem2.wire_to(join)
-      self.wire_to(join)
-      return join
-    end
-
     undef do_insert
 
     public

@@ -518,8 +518,9 @@ module Bud
   class PushReduce < PushStatefulElement
     def initialize(elem_name, bud_instance, collection_name,
                    schema_in, initial, &blk)
-      @memo = initial
+      @initial = initial
       @blk = blk
+      reset_memo
       super(elem_name, bud_instance, collection_name, schema)
     end
 
@@ -528,13 +529,21 @@ module Bud
     end
 
     def invalidate_cache
-      @memo.clear
+      puts "#{self.class}/#{self.tabname} invalidated" if $BUD_DEBUG
+      reset_memo
+    end
+
+    def reset_memo
+      @memo = Marshal.load(Marshal.dump(@initial))
     end
 
     public
     def flush
-      @memo.each do |k,v|
-        push_out([k,v], false)
+      unless @memo.kind_of? Enumerable
+        raise Bud::TypeError, "output of reduce must be Enumerable: #{@memo.inspect}"
+      end
+      @memo.each do |t|
+        push_out(t, false)
       end
     end
   end
