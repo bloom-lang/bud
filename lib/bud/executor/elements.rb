@@ -1,8 +1,6 @@
 require 'set'
 require 'bud/collections'
 
-ELEMENT_BUFSIZE = 1
-
 module Bud
   # Usage example:
   # p = PushElement.new(:r) do |inp|
