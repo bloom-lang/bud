@@ -14,7 +14,6 @@ module Bud
       @origpreds = preds
       @localpreds = nil
       @selfjoins = []
-      @input_bufs = [[],[]]
       @missing_keys = Set.new
 
       # if any elements on rellist are PushSHJoins, suck up their contents
@@ -282,11 +281,7 @@ module Bud
       end
       raise Bud::Error, "item #{item.inspect} inserted into join from unknown source #{source.elem_name}" if offsets == $EMPTY
       offsets.each do |offset|
-        buf = @input_bufs[offset]
-        buf << item
-        if buf.length >= ELEMENT_BUFSIZE
-          flush_buf(buf, offset)
-        end
+        insert_item(item, offset)
       end
     end
 
@@ -379,25 +374,6 @@ module Bud
           push_out(result)
         end
       end
-    end
-
-    def flush_buf(buf, offset)
-      buf.each do |item|
-        insert_item(item, offset)
-      end
-      @input_bufs[offset] = []
-    end
-
-    public
-    def flush
-      @input_bufs.each_with_index do |buf, offset|
-        flush_buf(buf, offset) if buf.length > 0
-      end
-    end
-
-    public
-    def stratum_end
-      flush
     end
 
     ####
@@ -559,23 +535,66 @@ module Bud
     end
   end
 
-  class PushNotIn < PushSHJoin
+
+  # Consider "u <= s.notin(t, s.a => t.b)". notin is a non-monotonic operator, where u depends positively on s,
+  # but negatively on t. Stratification ensures that t is fully computed in a lower stratum, which means that we
+  # can expect multiple iterators on s's side only. If t's scanner were to push its elemends down first, every
+  # insert of s merely needs to be cross checked with the cached elements of 't', and pushed down to the next
+  # element if s notin t. However, if s's scanner were to fire first, we have to wait until the first flush, at which
+  # point we are sure to have seen all the t-side tuples in this tick.
+  class PushNotIn < PushStatefulElement
     def initialize(rellist, bud_instance, preds=nil, &blk) # :nodoc: all
-      if preds.nil? or preds.empty?
-        preds = positionwise_preds(bud_instance, rellist)
+      @lhs, @rhs = rellist
+      @lhs_keycols = nil
+      @rhs_keycols = nil
+      name_in = "#{@lhs.tabname}_notin_#{@rhs.tabname}"
+      super(name_in, bud_instance)
+      setup_preds(preds) unless preds.empty?
+      @rhs_rcvd = false
+      @hash_tables = [{},{}]
+      @rhs_rcvd = false
+      if @lhs_keycols.nil? and blk.nil?
+        # pointwise comparison. Could use zip, but it creates an array for each field pair
+        blk = lambda {|lhs, rhs|
+          lhs.to_a == rhs.to_a
+        }
       end
-      super(rellist, bud_instance, preds)
       set_block(&blk)
-      @cols = rellist[0].cols
-      @exclude = Set.new
     end
 
-    def positionwise_preds(bud_instance, rels)
-      # pairwise colnames, for the minimum number of columns from either
-      return [] if rels[0].cols.length != rels[1].cols.length
-      pairs = rels[0].cols.zip(rels[1].cols)
-      # make a hash of each pair, and return an array of hashes as expected by setup_pred
-      [pairs.reduce(Hash.new) {|h, it| h[it[0]]=it[1]; h}]
+    def setup_preds(preds)
+      # This is simpler than PushSHJoin's setup_preds, because notin is a binary operator where both lhs and rhs are
+      # collections.
+      # preds an array of hash_pairs. For now assume that the attributes are in the same order as the tables.
+      @lhs_keycols, @rhs_keycols = preds.reduce([[], []]) do |memo, item|
+        # each item is a hash
+        l = item.keys[0]
+        r = item.values[0]
+        memo[0] << find_col(l, @lhs)
+        memo[1] << find_col(r, @rhs)
+        memo
+      end
+    end
+    def find_col(colspec, rel)
+      if colspec.is_a? Symbol
+        col_desc = rel.send(colspec)
+        raise "Unknown column #{rel} in #{@rel.tabname}" if col_desc.nil?
+      elsif colspec.is_a? Array
+        col_desc = colspec
+      else
+        raise "Symbol or column spec expected. Got #{colspec}"
+      end
+      col_desc[1] # col_desc is of the form [tabname, colnum, colname]
+    end
+
+    def get_key(item, offset)
+      keycols = offset == 0 ? @lhs_keycols : @rhs_keycols
+      keycols.nil? ? $EMPTY : keycols.map{|col| item[col]}
+    end
+
+    public
+    def invalidate_at_tick
+      true
     end
 
     public
@@ -583,40 +602,68 @@ module Bud
       true
     end
 
-    def push_out(item) # item is a two element array, a tuple from rels[0] and rels[1]
-      # called from PushSHJoin::process_matches, but we don't push the item downstream until stratum end
-      do_exclude = @blk.nil? ? true : @blk.call(item)
-      #puts "#{item} ===>  #{do_exclude}"
-      @exclude << item[0] if do_exclude
+    def insert(item, source)
+      offset = source == @lhs ? 0 : 1
+      key = get_key(item, offset)
+      #puts "#{key}, #{item}, #{offset}"
+      (@hash_tables[offset][key] ||= Set.new).add item
+      if @rhs_rcvd and offset == 0
+        push_lhs(key, item)
+      end
+    end
+
+    def flush
+      # When flush is called the first time, both lhs and rhs scanners have been invoked, and because of stratification
+      # we know that the rhs is not growing any more, until the next tick.
+      unless @rhs_rcvd
+        @rhs_rcvd = true
+        @hash_tables[0].map{|key,values|
+          values.each{|item|
+            push_lhs(key, item)
+          }
+        }
+      end
+    end
+
+    def push_lhs(key, lhs_item)
+      rhs_values = @hash_tables[1][key]
+      process_match(lhs_item, rhs_values)
+    end
+
+    def process_match(lhs_item, rhs_values)
+      exclude = true
+      if rhs_values.nil?
+        # no corresponding rhs. Include in output
+        exclude = false
+      elsif not @blk.nil?
+        # for any lhs * rhs pair, if block returns true, do not push lhs. lhs is pushed
+        # only if there is no match (anti-join)
+        exclude = rhs_values.any?{|rhs_item| @blk.call(lhs_item, rhs_item)}
+      end
+      unless exclude
+        push_out(lhs_item)
+      end
     end
 
     public
-    def invalidate_cache
-      @exclude.clear
-    end
-
-    def stratum_end
-      flush
-      # Scan through all the cached left rel values, and push out those that are
-      # not in exclude
-      @hash_tables[0].each_value do |s|
-        s.each do |item|
-          next if @exclude.member? item
-          @outputs.each do |ou|
-            if ou.class <= Bud::PushElement
-              ou.insert(item, self)
-            elsif ou.class <= Bud::BudCollection
-              ou.do_insert(item, ou.new_delta)
-            else
-              raise Bud::Error, "expected either a PushElement or a BudCollection"
-            end
-          end
-          # for all the following, o is a BudCollection
-          @deletes.each{|o| o.pending_delete([item])}
-          @delete_keys.each{|o| o.pending_delete_keys([item])}
-          @pendings.each{|o| o.pending_merge([item])}
+    def push_out(item)
+      @outputs.each do |ou|
+        if ou.class <= Bud::PushElement
+          ou.insert(item, self)
+        elsif ou.class <= Bud::BudCollection
+          ou.do_insert(item, ou.new_delta)
+        else
+          raise Bud::Error, "expected either a PushElement or a BudCollection"
         end
       end
+      # for all the following, o is a BudCollection
+      @deletes.each{|o| o.pending_delete([item])}
+      @delete_keys.each{|o| o.pending_delete_keys([item])}
+      @pendings.each{|o| o.pending_merge([item])}
     end
+  end
+  def stratum_end
+    @hash_tables = [{},{}]
+    @rhs_rcvd = false
   end
 end
