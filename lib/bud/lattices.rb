@@ -314,28 +314,14 @@ class Bud::LatticeWrapper
     false
   end
 
-  def current_value(&blk)
+  def current_value
     @storage ||= @klass.new
-    if blk.nil?
-      @storage
-    else
-      @storage.pro(&blk)        # NB: not all lattices implement this method
-    end
+    @storage
   end
 
   def current_new_delta
     @new_delta ||= @klass.new
     @new_delta
-  end
-
-  private
-  def current_delta(&blk)
-    @delta ||= @klass.new
-    if blk.nil?
-      @delta
-    else
-      @delta.pro(&blk)          # NB: not all lattices implement this method
-    end
   end
 
   def current_pending
