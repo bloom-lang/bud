@@ -54,16 +54,40 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     ty
   end
 
+  def call_to_id(exp)
+    # convert a series of nested calls, a sexp of the form
+    #   s(:call,
+    #       s(:call, s(:call, nil, :a, s(:arglist)), :b, s(:arglist)),
+    #         :bar ,
+    #         s(:arglist)))
+    # to the string "a.b.bar"
+    raise "Malformed exp: #{exp}" unless (exp[0] == :call)
+    _, recv, op, args = exp
+    return recv.nil? ? op.to_s : call_to_id(recv) + "." + op.to_s
+  end
+
   def process_call(exp)
     recv, op, args = exp
     if OP_LIST.include?(op) and @context[1] == :block and @context.length == 4
       # NB: context.length is 4 when see a method call at the top-level of a
       # :defn block -- this is where we expect Bloom statements to appear
       do_rule(exp)
+    elsif op == :notin
+      # special case. In the rule  "z <= x.notin(y)", z depends positively on x, but negatively on y
+      # See further explanation in the "else" section for why this is a special case.
+      notintab = call_to_id(args[1])   # args expected to be of the form (:arglist (:call nil :y ...))
+      @tables[notintab.to_s] = true # "true" denotes non-monotonic dependency.
+      super
     else
+      # Parse a call of the form  a.b.c.foo.
+      # In the most general case, a.b is a nested module, a.b.c is a collection in that module, and
+      # a.b.c.foo is either a method or a field. If it is a method, and non-monotonic at that, we
+      # register a dependency between lhs and the table a.b.c.
+      # Note that notin is treated differently because in  a.b.c.notin(d.e.f), we register a non-monotonic
+      # dependency of lhs on "d.e.f", not with "a.b.c"
       ty, qn, _ = exp_id_type(recv, op, args) # qn = qualified name
       if ty == :collection or ty == :lattice
-        @tables[qn] = @nm if @collect
+        (@tables[qn] = @nm if @collect) unless @tables[qn]
       #elsif ty == :import .. do nothing
       elsif ty == :not_coll_id
         # check if receiver is a collection, and further if the current exp

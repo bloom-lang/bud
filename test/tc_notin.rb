@@ -122,3 +122,39 @@ class RecursiveNotInTest < MiniTest::Unit::TestCase # issue 255
     o.tick
   end
 end
+
+
+class StratifiedTest < MiniTest::Unit::TestCase # issue 271
+  class StratNotIn
+    include Bud
+    state do
+      table :link, [:from, :to]
+      table :path, link.schema
+      table :final_path, link.schema
+      scratch :fp, link.schema
+      table :excludes, link.schema
+    end
+    bloom do
+      path <= link
+      path <= (link * path).pairs(:to => :from) {|l,p| [l.from, p.to]}
+      fp <= path.notin(excludes, :from => :from)  # indirection to final_path via fp (issue 271)
+      final_path <= fp
+    end
+  end
+  class Unstrat < StratNotIn
+    bloom do
+      path <= link.notin(path) # Meaningless snippet, and should be marked unstratifiable.
+    end
+  end
+  def test_strat
+    o = StratNotIn.new
+    o.link <+ [[1,2], [2,3], [1,3], [3,4]]
+    o.excludes <+ [[1, :dummy]] # excludes all paths starting from 1. The :to field is never seen.
+    o.tick
+    assert_equal([[2,3],[2,4],[3,4]], o.final_path.to_a.sort)
+  end
+
+  def test_unstrat
+    assert_raises(Bud::CompileError) {Unstrat.new}
+  end
+end

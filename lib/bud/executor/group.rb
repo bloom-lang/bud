@@ -21,7 +21,6 @@ module Bud
         agg = (@groups[key].nil? or @groups[key][agg_ix].nil?) ? ap[0].send(:init, agg_input) : ap[0].send(:trans, @groups[key][agg_ix], agg_input)[0]
         @groups[key] ||= Array.new(@aggpairs.length)
         @groups[key][agg_ix] = agg
-        push_out(nil)
       end
     end
 
@@ -40,7 +39,6 @@ module Bud
         (1..grp.length-1).each {|i| outval << grp[i]}
         push_out(outval)
       end
-      #@groups = {}
     end
   end
 
@@ -82,23 +80,20 @@ module Bud
               @winners[key].delete t unless @winners[key].empty?
             end
           else
-            raise "strange result from argagg finalizer"
+            raise Bud::Error, "strange result from argagg finalizer"
           end
         end
         @groups[key] ||= Array.new(@aggpairs.length)
         @groups[key][agg_ix] = agg
-        #push_out(nil)
       end
     end
 
     def flush
-      @groups.keys.each {|g|
-        @winners[g].each{|t|
+      @groups.each_key do |g|
+        @winners[g].each do |t|
           push_out(t, false)
-        }
-      }
-      #@groups = {}
-      #@winners = {}
+        end
+      end
     end
   end
 end

@@ -70,6 +70,34 @@ module Bud
     [Max.new, x]
   end
 
+  class BooleanAnd < ArgExemplary #:nodoc: all
+    def trans(the_state, val)
+      if val == false
+        return val, :replace
+      else
+        return the_state, :ignore
+      end
+    end
+  end
+
+  def bool_and(x)
+    [BooleanAnd.new, x]
+  end
+
+  class BooleanOr < ArgExemplary #:nodoc: all
+    def trans(the_state, val)
+      if val == true
+        return val, :replace
+      else
+        return the_state, :ignore
+      end
+    end
+  end
+
+  def bool_or(x)
+    [BooleanOr.new, x]
+  end
+
   class Choose < ArgExemplary #:nodoc: all
     def trans(the_state, val)
       if the_state.nil?
