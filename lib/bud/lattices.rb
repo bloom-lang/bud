@@ -598,11 +598,6 @@ class Bud::MapLattice < Bud::Lattice
     Bud::MaxLattice.new(@v.size)
   end
 
-  morph :pro do |&blk|
-    # XXX: what type should this return?
-    @v.map(&blk)
-  end
-
   morph :intersect do |i|
     i_tbl = i.reveal
     # Scan the smaller map, probe the larger one
