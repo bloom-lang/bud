@@ -31,8 +31,12 @@ module Bud
   def define_lattice(name)
     check_collection_name(name)
 
-    self.singleton_class.send(:define_method, name) do |*args|
-      return @lattices[name]
+    self.singleton_class.send(:define_method, name) do |*args, &blk|
+      if blk.nil?
+        return @lattices[name]
+      else
+        return @lattices[name].pro(&blk)
+      end
     end
   end
 

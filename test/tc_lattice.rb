@@ -294,7 +294,30 @@ class AllPathsL
   bloom do
     path <= link
     path <= path.product(link).pro do |p,l|
-      [[p[0], l[1], p[2] + l[2]]] if p[1] == l[0]
+      [p[0], l[1], p[2] + l[2]] if p[1] == l[0]
+    end
+  end
+end
+
+# As above, except that we pass a block to product() directly
+class AllPathsImplicitProject
+  include Bud
+
+  state do
+    lset :link
+    lset :path
+  end
+
+  bootstrap do
+    link <= [[['a', 'b', 1], ['a', 'b', 4],
+              ['b', 'c', 1], ['c', 'd', 1],
+              ['d', 'e', 1]]]
+  end
+
+  bloom do
+    path <= link
+    path <= path.product(link) do |p,l|
+      [p[0], l[1], p[2] + l[2]] if p[1] == l[0]
     end
   end
 end
@@ -509,6 +532,26 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
                  i.path.current_value.reveal.sort)
   end
 
+  def test_all_paths_implicit_pro
+    i = AllPathsImplicitProject.new
+    %w[link path].each {|r| assert_equal(0, i.collection_stratum(r))}
+
+    i.tick
+    assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
+                  ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
+                  ["b", "c", 1], ["b", "d", 2], ["b", "e", 3], ["c", "d", 1],
+                  ["c", "e", 2], ["d", "e", 1]], i.path.current_value.reveal.sort)
+
+    i.link <+ [[['e', 'f', 1]]]
+    i.tick
+    assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
+                  ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
+                  ["a", "f", 5], ["a", "f", 8], ["b", "c", 1], ["b", "d", 2],
+                  ["b", "e", 3], ["b", "f", 4], ["c", "d", 1], ["c", "e", 2],
+                  ["c", "f", 3], ["d", "e", 1], ["d", "f", 2], ["e", "f", 1]],
+                 i.path.current_value.reveal.sort)
+  end
+
   def test_all_paths_join
     i = AllPathsEqJoin.new
     %w[link path].each {|r| assert_equal(0, i.collection_stratum(r))}
@@ -608,6 +651,21 @@ class SimpleSet
   end
 end
 
+class SetImplicitPro
+  include Bud
+
+  state do
+    lset :t1
+    lset :t2
+    lset :t3
+  end
+
+  bloom do
+    t2 <= t1 {|t| t + 1}
+    t3 <= t2 {|t| t + 2}
+  end
+end
+
 class SetProduct
   include Bud
 
@@ -668,6 +726,13 @@ class TestSet < MiniTest::Unit::TestCase
     i.s2 <+ [[2], [14]]
     i.tick
     assert_equal(true, i.done.current_value.reveal)
+  end
+
+  def test_set_implicit_pro
+    i = SetImplicitPro.new
+    i.t1 <+ [[10], [12]]
+    i.tick
+    assert_equal([13, 15], i.t3.current_value.reveal.sort)
   end
 
   def test_set_method_compose

@@ -88,7 +88,6 @@ class Bud::Lattice
 end
 
 # TODO:
-# * code blocks (pro)
 # * morphism optimization (seminaive)
 # * merge logic for set-oriented collections
 # * invalidation/rescan/non-monotonic stuff?
@@ -600,6 +599,7 @@ class Bud::MapLattice < Bud::Lattice
   end
 
   morph :pro do |&blk|
+    # XXX: what type should this return?
     @v.map(&blk)
   end
 
@@ -662,12 +662,21 @@ class Bud::SetLattice < Bud::Lattice
     wrap_unsafe(@v & i.reveal)
   end
 
-  morph :product do |i|
+  morph :product do |i, &blk|
     rv = []
     @v.each do |a|
-      rv += i.reveal.map {|b| [a,b]}
+      if blk.nil?
+        rv += i.reveal.map {|b| [a,b]}
+      else
+        rv += i.reveal.map{|b| blk.call(a, b)}.reject{|e| e.nil?}
+      end
     end
-    wrap_unsafe(rv)
+
+    if blk.nil?
+      wrap_unsafe(rv)
+    else
+      self.class.new(rv)
+    end
   end
 
   morph :contains? do |i|
@@ -675,7 +684,9 @@ class Bud::SetLattice < Bud::Lattice
   end
 
   morph :pro do |&blk|
-    @v.map(&blk)
+    # Don't use wrap_unsafe(), since the user-supplied code block might
+    # introduce duplicates or illegal elements.
+    self.class.new(@v.map(&blk).reject{|e| e.nil?})
   end
 
   monotone :size do
