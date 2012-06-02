@@ -210,10 +210,10 @@ class Bud::LatticeScanner < Bud::LatticePushElement
   end
 
   def scan(first_iter)
-    if first_iter || true # XXX
+    if first_iter
       push_out(@collection.current_value)
     else
-#      push_out(@collection.delta_value)
+      push_out(@collection.current_delta)
     end
   end
 
@@ -316,6 +316,11 @@ class Bud::LatticeWrapper
   def current_value
     @storage ||= @klass.new
     @storage
+  end
+
+  def current_delta
+    @delta ||= @klass.new
+    @delta
   end
 
   def current_new_delta
@@ -455,7 +460,6 @@ class Bud::LatticeWrapper
 
     @delta = @new_delta
     @new_delta = nil
-
     return result
   end
 
