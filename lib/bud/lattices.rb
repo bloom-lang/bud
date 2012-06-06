@@ -88,7 +88,6 @@ class Bud::Lattice
 end
 
 # TODO:
-# * morphism optimization (seminaive)
 # * merge logic for set-oriented collections
 # * invalidation/rescan/non-monotonic stuff?
 # * expressions on RHS ("CollExpr")
@@ -210,7 +209,7 @@ class Bud::LatticeScanner < Bud::LatticePushElement
   end
 
   def scan(first_iter)
-    if first_iter
+    if first_iter || @bud_instance.options[:disable_lattice_semi_naive]
       push_out(@collection.current_value)
     else
       push_out(@collection.current_delta)
@@ -237,8 +236,9 @@ class Bud::PushApplyMethod < Bud::LatticePushElement
     @args = args.dup
     @recv_cache = nil
     @seen_recv = false
+    @is_morph = Bud::Lattice.global_morphs.include? @meth
 
-    recv.wire_to(self, :output) # XXX: depends on whether method is a morph?
+    recv.wire_to(self, :output)
     bud_instance.push_elems[[self.object_id, recv, meth, blk]] = self
 
     # Arguments that are normal Ruby values are assumed to remain invariant as
@@ -250,7 +250,17 @@ class Bud::PushApplyMethod < Bud::LatticePushElement
     # Map from input node to a list of indexes; the indexes identify the
     # positions in the args array that should be filled with the node's value
     @input_sources = {}
+
+    # Similarly, map from input node to a cached value -- this is the last value
+    # we've seen from this input. If the input gave us a delta, we merge
+    # together all the deltas we've seen and cache the resulting value.  XXX: In
+    # the common case that the input is a scanner over a lattice wrapper, this
+    # means we do redundant work merging together deltas.
+    @input_caches = {}
+
+    # Inputs for which we haven't seen a value yet.
     @waiting_for_input = Set.new
+
     @args.each_with_index do |a, i|
       if SOURCE_TYPES.any?{|s| a.kind_of? s}
         if a.kind_of? Bud::LatticeWrapper
@@ -269,24 +279,52 @@ class Bud::PushApplyMethod < Bud::LatticePushElement
 
   def insert(v, source)
     if source == @recv
+      if @seen_recv
+        @recv_cache = @recv_cache.merge(v)
+      else
+        @recv_cache = v
+      end
       @seen_recv = true
-      @recv_cache = v           # XXX: what if we get a delta?
+      if @seen_all_inputs
+        if @is_morph
+          recv_val = v
+        else
+          recv_val = @recv_cache
+        end
+        res = recv_val.send(@meth, *@args, &@blk)
+        push_out(res)
+      end
     else
       arg_indexes = @input_sources[source]
       raise Bud::Error, "unknown input #{source}" if arg_indexes.nil?
+      arg_val = v
+      unless @is_morph
+        if @input_caches[source]
+          arg_val = @input_caches[source].merge(arg_val)
+        end
+      end
       arg_indexes.each do |i|
-        @args[i] = v            # XXX: what if we get a delta?
+        @args[i] = arg_val
       end
 
       unless @seen_all_inputs
         @waiting_for_input.delete(source)
         @seen_all_inputs = @waiting_for_input.empty?
       end
-    end
 
-    if @seen_all_inputs && @seen_recv
-      res = @recv_cache.send(@meth, *@args, &@blk)
-      push_out(res)
+      if @seen_all_inputs && @seen_recv
+        res = @recv_cache.send(@meth, *@args, &@blk)
+        push_out(res)
+      end
+
+      if @input_caches.has_key? source
+        @input_caches[source] = @input_caches[source].merge(v)
+      else
+        @input_caches[source] = v
+      end
+      arg_indexes.each do |i|
+        @args[i] = @input_caches[source]
+      end
     end
   end
 
@@ -374,7 +412,12 @@ class Bud::LatticeWrapper
     end
   end
 
+  # Merge "i" into @new_delta
   public
+  def insert(i, source)
+    @new_delta = do_merge(current_new_delta, i)
+  end
+
   def <=(i)
     if @bud_instance.wiring?
       setup_wiring(i, :output)
@@ -415,11 +458,6 @@ class Bud::LatticeWrapper
   end
 
   def add_rescan_invalidate(rescan, invalidate)
-  end
-
-  # Merge "i" into @new_delta
-  def insert(i, source)
-    @new_delta = do_merge(current_new_delta, i)
   end
 
   def method_missing(meth, *args, &blk)
@@ -493,7 +531,8 @@ class Bud::MaxLattice < Bud::Lattice
 
   # XXX: support MaxLattice input?
   morph :+ do |i|
-    raise Bud::Error, "cannot apply + to empty MaxLattice"  if @v.nil?
+    # Since bottom of lmax is negative infinity, + is a no-op
+    return self if @v.nil?
     reject_input(i, "+") unless i.class <= Numeric
     self.class.new(@v + i)
   end
@@ -529,7 +568,8 @@ class Bud::MinLattice < Bud::Lattice
 
   # XXX: support MinLattice input
   morph :+ do |i|
-    raise Bud::Error if @v.nil?
+    # Since bottom of lmin is infinity, + is a no-op
+    return self if @v.nil?
     reject_input(i, "+") unless i.class <= Numeric
     self.class.new(@v + i)
   end
