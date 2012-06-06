@@ -234,9 +234,8 @@ class Bud::PushApplyMethod < Bud::LatticePushElement
     @meth = meth
     @blk = blk
     @args = args.dup
-    @recv_cache = nil
-    @seen_recv = false
     @is_morph = Bud::Lattice.global_morphs.include? @meth
+    @recv_is_scanner = @recv.kind_of? Bud::LatticeScanner
 
     recv.wire_to(self, :output)
     bud_instance.push_elems[[self.object_id, recv, meth, blk]] = self
@@ -260,6 +259,8 @@ class Bud::PushApplyMethod < Bud::LatticePushElement
 
     # Inputs for which we haven't seen a value yet.
     @waiting_for_input = Set.new
+    @recv_cache = nil
+    @seen_recv = false
 
     @args.each_with_index do |a, i|
       if SOURCE_TYPES.any?{|s| a.kind_of? s}
@@ -280,7 +281,15 @@ class Bud::PushApplyMethod < Bud::LatticePushElement
   def insert(v, source)
     if source == @recv
       if @seen_recv
-        @recv_cache = @recv_cache.merge(v)
+        # Update the cached value for the method receiver. Note that if we're
+        # applying a method directly to a LatticeScanner (i.e., method applied
+        # to lattice wrapper), we can avoid maintaining a separate cache and
+        # instead use the wrapper's current value.
+        if @recv_is_scanner
+          @recv_cache = @recv.collection.current_value
+        else
+          @recv_cache = @recv_cache.merge(v)
+        end
       else
         @recv_cache = v
       end
