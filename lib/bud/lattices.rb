@@ -851,9 +851,10 @@ class Bud::HashSetLattice < Bud::Lattice
     wrap_unsafe(rv)
   end
 
-  # Assuming that this hashset contains tuples (arrays) as elements, this
-  # returns a list of tuples (possibly) empty whose idx'th column has the value
-  # "v".
+  # Assuming that this hashset contains tuples (arrays), this returns a list of
+  # tuples (possibly empty) whose idx'th column has the value "v".
+  # XXX: we assume that probe(idx, v) will only be called for a single value of
+  # idx!
   def probe(idx, v)
     @ht ||= build_ht(idx)
     return @ht[v] || []
@@ -863,8 +864,9 @@ class Bud::HashSetLattice < Bud::Lattice
   def build_ht(idx)
     rv = {}
     @v.each do |i|
-      rv[i[idx]] ||= []
-      rv[i[idx]] << i
+      field = i[idx]
+      rv[field] ||= []
+      rv[field] << i
     end
     rv
   end
