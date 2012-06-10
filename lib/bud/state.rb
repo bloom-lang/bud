@@ -203,6 +203,9 @@ module Bud
       meth_list.each do |m_str|
         m = m_str.to_sym
         next unless RuleRewriter::MONOTONE_WHITELIST.include? m
+        # XXX: ugly hack. We want to allow lattice class implementations to
+        # define their own equality semantics.
+        next if m == :==
         unless klass.mfuncs.include?(m) || klass.morphs.include?(m) || m == :merge
           raise Bud::CompileError, "method #{m} in #{wrap_name} must be monotone"
         end

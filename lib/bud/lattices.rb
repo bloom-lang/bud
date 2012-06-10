@@ -714,6 +714,13 @@ class Bud::SetLattice < Bud::Lattice
     wrap_unsafe(@v | i.reveal)
   end
 
+  # Override == because we don't keep the underlying array eagerly sorted
+  # XXX: probably not the right solution
+  def ==(o)
+    return false unless o.kind_of? Bud::SetLattice
+    return @v.sort == o.reveal.sort
+  end
+
   morph :intersect do |i|
     wrap_unsafe(@v & i.reveal)
   end
