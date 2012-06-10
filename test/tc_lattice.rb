@@ -774,6 +774,11 @@ class TestSet < Test::Unit::TestCase
     s = s.merge(Bud::SetLattice.new([3]))
     assert_equal(true, s.size.gt(2).reveal)
   end
+
+  def test_set_equality
+    assert(Bud::SetLattice.new([1,2,3]) == Bud::SetLattice.new([3,2,1]))
+    assert(Bud::SetLattice.new([1,2,3]) == Bud::SetLattice.new([2,3,2,1,3,2,1]))
+  end
 end
 
 class SimpleSum
