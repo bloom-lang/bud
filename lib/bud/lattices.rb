@@ -66,6 +66,14 @@ class Bud::Lattice
     raise Bud::TypeError, "illegal input to #{site}: #{i.inspect}"
   end
 
+  # The default equality semantics for lattice objects is based on reveal. Note
+  # that for certain lattices (e.g., set, map), this might not give the right
+  # behavior (e.g., since set's reveal returns an Array).
+  def ==(o)
+    return false unless o.kind_of? Bud::Lattice
+    return reveal == o.reveal
+  end
+
   # Return the state valued associated with a lattice instance. Note that this
   # is non-monotonic when invoked from user code; it should be used with care by
   # framework code.

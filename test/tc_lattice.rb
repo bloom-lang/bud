@@ -206,6 +206,10 @@ class TestMax < MiniTest::Unit::TestCase
     i = EmptyMaxMerge.new
     i.tick
   end
+
+  def test_max_equality
+    assert(Bud::MaxLattice.new(5) == Bud::MaxLattice.new(5))
+  end
 end
 
 # Based on Example 3.1 in "Monotonic Aggregation in Deductive Databases" (Ross
@@ -630,6 +634,13 @@ class TestMap < MiniTest::Unit::TestCase
     assert_equal([["y", 31], ["z", 32]], get_val_for_map(i, :m4))
     assert_equal(true, i.done_m3.current_value.reveal)
     assert_equal(true, i.done_m4.current_value.reveal)
+  end
+
+  def test_map_equality
+    assert(Bud::MapLattice.new({:k => Bud::MaxLattice.new(1),
+                                :a => Bud::MaxLattice.new(2)}) ==
+           Bud::MapLattice.new({:a => Bud::MaxLattice.new(2),
+                                :k => Bud::MaxLattice.new(1)}))
   end
 end
 
