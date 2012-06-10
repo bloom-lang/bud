@@ -205,6 +205,10 @@ class TestMax < Test::Unit::TestCase
     i = EmptyMaxMerge.new
     assert_nothing_raised { i.tick }
   end
+
+  def test_max_equality
+    assert(Bud::MaxLattice.new(5) == Bud::MaxLattice.new(5))
+  end
 end
 
 # Based on Example 3.1 in "Monotonic Aggregation in Deductive Databases" (Ross
