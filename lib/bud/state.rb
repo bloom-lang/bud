@@ -196,6 +196,11 @@ module Bud
         # XXX: ugly hack. We want to allow lattice class implementations to
         # define their own equality semantics.
         next if m == :==
+
+        # XXX: ugly hack. The convention is to define merge methods as normal
+        # Ruby methods, but we'd also like to allow them to be used in the body
+        # of monotonic rules.
+        next if m == :merge
         unless klass.mfuncs.has_key?(m) || klass.morphs.has_key?(m)
           raise Bud::CompileError, "method #{m} in #{wrap_name} must be monotone"
         end
