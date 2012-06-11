@@ -8,7 +8,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     :* => 1, :pairs => 1, :matches => 1, :combos => 1, :flatten => 1,
     :lefts => 1, :rights => 1, :map => 1, :flat_map => 1, :pro => 1,
     :schema => 1, :cols => 1, :key_cols => 1, :val_cols => 1,
-    :payloads => 1, :tabname => 1, :+@ => 1,
+    :payloads => 1, :tabname => 1, :+@ => 1, :new => 1,
     :current_value => 1, :current_morph_value => 1
   }
 
