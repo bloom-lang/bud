@@ -8,7 +8,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   OP_LIST = Set.new([:<<, :<, :<=])
   TEMP_OP_LIST = Set.new([:-@, :~, :+@])
   MONOTONE_WHITELIST = Set.new([:==, :+, :<=, :-, :<, :>, :*, :~,
-                                :pairs, :matches, :combos, :flatten,
+                                :pairs, :matches, :combos, :flatten, :new,
                                 :lefts, :rights, :map, :flat_map, :pro, :merge,
                                 :cols, :key_cols, :val_cols, :payloads, :lambda,
                                 :tabname, :ip_port, :port, :ip, :int_ip_port])
