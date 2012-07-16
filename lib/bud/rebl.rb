@@ -333,7 +333,7 @@ class LibRebl
       @rebl_class_inst.zk_tables.merge! @old_inst.zk_tables
 
       # Fix the bud instance pointers from copied tables.
-      @rebl_class_inst.tables.values.each do |v|
+      @rebl_class_inst.tables.each_value do |v|
         v.bud_instance = @rebl_class_inst
       end
     end
