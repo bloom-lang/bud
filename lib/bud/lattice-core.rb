@@ -67,8 +67,10 @@ class Bud::Lattice
   end
 
   # The default equality semantics for lattice objects is based on reveal. Note
-  # that for certain lattices (e.g., set, map), this might not give the right
-  # behavior (e.g., since set's reveal returns an Array).
+  # that this isn't always appropriate: if the intended equality semantics for
+  # the lattice type differ from the equality semantics of the object returned
+  # by reveal (e.g., a set lattice might return an array with an unpredictable
+  # order), the lattice type should override this behavior.
   def ==(o)
     return false unless o.kind_of? Bud::Lattice
     return reveal == o.reveal
@@ -99,7 +101,6 @@ end
 # * merge logic for set-oriented collections
 # * invalidation/rescan/non-monotonic stuff?
 # * expressions on RHS ("CollExpr")
-
 class Bud::LatticePushElement
   attr_reader :wired_by, :outputs
   attr_accessor :invalidated, :rescan
