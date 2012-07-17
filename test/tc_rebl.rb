@@ -179,4 +179,27 @@ class TestRebl < MiniTest::Unit::TestCase
     actual_output = rt.exec_rebl("/dump shortest")
     assert_equal(expected_output, actual_output)
   end
+
+  def test_no_leftovers     #Issue 274
+    rt = nil
+    actual_output = nil
+    begin
+      # Ignore the welcome messages.
+      $stdout = StringIO.new
+      rt = ReblTester.new
+    ensure
+      $stdout = STDOUT
+    end
+
+    # Check to see if help mode works
+    rt.exec_rebl("scratch :passing_clouds")
+    rt.exec_rebl(%{passing_clouds <= [[3, "Nimbus"], [2, "Cumulonimbus"]]})
+    rt.exec_rebl(%{stdio <~ passing_clouds.inspected})
+    actual_output = rt.exec_rebl("/tick")
+    assert_match(/3.*Nimbus/, actual_output)
+    assert_match(/2.*Cumulonmbus/, actual_output)
+    rt.exec_rebl("/rmrule 1")
+    actual_output = rt.exec_rebl("/tick")
+    assert_match(/\s*/, actual_output)
+  end
 end
