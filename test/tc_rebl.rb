@@ -13,7 +13,6 @@ def capture_stdout
   end
 end
 
-
 class ReblTester
   attr_reader :lib
 
@@ -22,15 +21,10 @@ class ReblTester
   end
 
   def exec_rebl(str)
-    # out = StringIO.new
-    # $stdout = out
-    out = capture_stdout do
+    return capture_stdout do
       $stdin = StringIO.new(str)
       ReblShell::rebl_loop(@lib, true)
     end
-    return out #.string
-  ensure
-    $stdout = STDOUT
   end
 end
 
@@ -45,15 +39,12 @@ class TestRebl < MiniTest::Unit::TestCase
     rt2 = nil
     ip_port2 = nil
     actual_output = nil
-    begin
-      # Ignore the welcome messages.
-      $stdout = StringIO.new
+    # Ignore the welcome messages.
+    capture_stdout do
       rt1 = ReblTester.new
       rt2 = ReblTester.new
       ip_port1 = "#{rt1.lib.ip}:#{rt1.lib.port}"
       ip_port2 = "#{rt2.lib.ip}:#{rt2.lib.port}"
-    ensure
-      $stdout = STDOUT
     end
 
     # Set up ping rules, send initial ping from rt1 to rt2
@@ -113,12 +104,9 @@ class TestRebl < MiniTest::Unit::TestCase
   def test_rebl_shortestpaths
     rt = nil
     actual_output = nil
-    begin
-      # Ignore the welcome messages.
-      $stdout = StringIO.new
+    # Ignore the welcome messages.
+    capture_stdout do
       rt = ReblTester.new
-    ensure
-      $stdout = STDOUT
     end
 
     # Check to see if help mode works
