@@ -326,6 +326,9 @@ class LibRebl
       @rebl_class_inst.tables.merge!(@old_inst.tables.reject do |k,v|
                                        @@builtin_tables.include? k
                                      end)
+      @rebl_class_inst.tables.each do |k,v|
+        v.invalidate_cache
+      end
       @rebl_class_inst.channels.merge!(@old_inst.channels.reject do |k,v|
                                          @@builtin_tables.include? k
                                        end)

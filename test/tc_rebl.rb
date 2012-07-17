@@ -13,7 +13,6 @@ def capture_stdout
   end
 end
 
-
 class ReblTester
   attr_reader :lib
 
@@ -22,15 +21,10 @@ class ReblTester
   end
 
   def exec_rebl(str)
-    # out = StringIO.new
-    # $stdout = out
-    out = capture_stdout do
+    return capture_stdout do
       $stdin = StringIO.new(str)
       ReblShell::rebl_loop(@lib, true)
     end
-    return out #.string
-  ensure
-    $stdout = STDOUT
   end
 end
 
@@ -45,15 +39,12 @@ class TestRebl < MiniTest::Unit::TestCase
     rt2 = nil
     ip_port2 = nil
     actual_output = nil
-    begin
-      # Ignore the welcome messages.
-      $stdout = StringIO.new
+    # Ignore the welcome messages.
+    capture_stdout do
       rt1 = ReblTester.new
       rt2 = ReblTester.new
       ip_port1 = "#{rt1.lib.ip}:#{rt1.lib.port}"
       ip_port2 = "#{rt2.lib.ip}:#{rt2.lib.port}"
-    ensure
-      $stdout = STDOUT
     end
 
     # Set up ping rules, send initial ping from rt1 to rt2
@@ -113,12 +104,9 @@ class TestRebl < MiniTest::Unit::TestCase
   def test_rebl_shortestpaths
     rt = nil
     actual_output = nil
-    begin
-      # Ignore the welcome messages.
-      $stdout = StringIO.new
+    # Ignore the welcome messages.
+    capture_stdout do
       rt = ReblTester.new
-    ensure
-      $stdout = STDOUT
     end
 
     # Check to see if help mode works
@@ -178,5 +166,25 @@ class TestRebl < MiniTest::Unit::TestCase
     expected_output = "[\"a\", \"b\", \"b\", 1]\n[\"a\", \"c\", \"b\", 2]\n[\"a\", \"d\", \"b\", 3]\n[\"a\", \"e\", \"b\", 4]\n[\"b\", \"c\", \"c\", 1]\n[\"b\", \"d\", \"c\", 2]\n[\"b\", \"e\", \"c\", 3]\n[\"c\", \"d\", \"d\", 1]\n[\"c\", \"e\", \"d\", 2]\n[\"d\", \"e\", \"e\", 1]\n"
     actual_output = rt.exec_rebl("/dump shortest")
     assert_equal(expected_output, actual_output)
+  end
+
+  # Issue 274 -- check that cached state is invalidated correctly when
+  # reinstanciating Bud.
+  def test_no_leftovers
+    # Ignore the welcome messages.
+    rt = nil
+    capture_stdout do
+      rt = ReblTester.new
+    end
+
+    rt.exec_rebl("scratch :passing_clouds")
+    rt.exec_rebl(%{passing_clouds <= [[3, "Nimbus"], [2, "Cumulonimbus"]]})
+    rt.exec_rebl(%{stdio <~ passing_clouds.inspected})
+    actual_output = rt.exec_rebl("/tick")
+    assert_match(/3.*Nimbus/, actual_output)
+    assert_match(/2.*Cumulonimbus/, actual_output)
+    rt.exec_rebl("/rmrule 1")
+    actual_output = rt.exec_rebl("/tick")
+    assert_match(/\s*/, actual_output)
   end
 end

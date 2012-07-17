@@ -133,7 +133,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     Bud::Lattice.global_morphs.include?(op)
   end
 
-  # rewrite constant array expressions to lambdas
+  # Rewrite top-level rhs array literals to lambdas. During wiring, these are
+  # turned into CollExpr elements.
   def lambda_rewrite(rhs)
     # the <= case
     if rhs[0] == :array
