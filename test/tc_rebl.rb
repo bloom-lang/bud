@@ -168,18 +168,15 @@ class TestRebl < MiniTest::Unit::TestCase
     assert_equal(expected_output, actual_output)
   end
 
-  def test_no_leftovers     #Issue 274
+  # Issue 274 -- check that cached state is invalidated correctly when
+  # reinstanciating Bud.
+  def test_no_leftovers
+    # Ignore the welcome messages.
     rt = nil
-    actual_output = nil
-    begin
-      # Ignore the welcome messages.
-      $stdout = StringIO.new
+    capture_stdout do
       rt = ReblTester.new
-    ensure
-      $stdout = STDOUT
     end
 
-    # Check to see if help mode works
     rt.exec_rebl("scratch :passing_clouds")
     rt.exec_rebl(%{passing_clouds <= [[3, "Nimbus"], [2, "Cumulonimbus"]]})
     rt.exec_rebl(%{stdio <~ passing_clouds.inspected})
