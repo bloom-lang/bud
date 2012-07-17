@@ -131,13 +131,7 @@ module Bud
             elsif ou.class <= Bud::BudCollection
               ou.do_insert(item, ou.new_delta)
             elsif ou.class <= Bud::LatticeWrapper
-              # NB: We need to wrap the input to the lattice merge in a
-              # singleton array; otherwise, if item is itself an Enumerable, the
-              # lattice merge code will assume it has been given a set of values
-              # and try to merge each element of the Enumerable, which isn't the
-              # desired behavior. An alternative would be to disable this merge
-              # behavior for this code path.
-              ou.insert([item], self)
+              ou.insert(item, self)
             else
               raise Bud::Error, "expected either a PushElement or a BudCollection"
             end

@@ -4,11 +4,13 @@ class SimpleMax
   include Bud
 
   state do
+    scratch :in_t, [:v]
     lmax :m
     lbool :done
   end
 
   bloom do
+    m <= in_t {|t| t.v}
     done <= m.gt(12)
   end
 end
@@ -116,10 +118,10 @@ class TestMax < MiniTest::Unit::TestCase
   def test_simple_implicit_merge
     i = SimpleMax.new
     %w[m done].each {|r| assert_equal(0, i.collection_stratum(r))}
-    i.m <+ [5, 10]
+    i.in_t <+ [[5], [10]]
     i.tick
     assert_equal(false, i.done.current_value.reveal)
-    i.m <+ [13]
+    i.in_t <+ [[13]]
     i.tick
     assert_equal(true, i.done.current_value.reveal)
   end
@@ -290,9 +292,9 @@ class AllPathsL
   end
 
   bootstrap do
-    link <= [[['a', 'b', 1], ['a', 'b', 4],
-              ['b', 'c', 1], ['c', 'd', 1],
-              ['d', 'e', 1]]]
+    link <= [['a', 'b', 1], ['a', 'b', 4],
+             ['b', 'c', 1], ['c', 'd', 1],
+             ['d', 'e', 1]]
   end
 
   bloom do
@@ -313,9 +315,9 @@ class AllPathsImplicitProject
   end
 
   bootstrap do
-    link <= [[['a', 'b', 1], ['a', 'b', 4],
-              ['b', 'c', 1], ['c', 'd', 1],
-              ['d', 'e', 1]]]
+    link <= [['a', 'b', 1], ['a', 'b', 4],
+             ['b', 'c', 1], ['c', 'd', 1],
+             ['d', 'e', 1]]
   end
 
   bloom do
@@ -336,9 +338,9 @@ class AllPathsEqJoin
   end
 
   bootstrap do
-    link <= [[['a', 'b', 1], ['a', 'b', 4],
-              ['b', 'c', 1], ['c', 'd', 1],
-              ['d', 'e', 1]]]
+    link <= [['a', 'b', 1], ['a', 'b', 4],
+             ['b', 'c', 1], ['c', 'd', 1],
+             ['d', 'e', 1]]
   end
 
   bloom do
@@ -526,7 +528,7 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
                   ["b", "c", 1], ["b", "d", 2], ["b", "e", 3], ["c", "d", 1],
                   ["c", "e", 2], ["d", "e", 1]], i.path.current_value.reveal.sort)
 
-    i.link <+ [[['e', 'f', 1]]]
+    i.link <+ [['e', 'f', 1]]
     i.tick
     assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
                   ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
@@ -546,7 +548,7 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
                   ["b", "c", 1], ["b", "d", 2], ["b", "e", 3], ["c", "d", 1],
                   ["c", "e", 2], ["d", "e", 1]], i.path.current_value.reveal.sort)
 
-    i.link <+ [[['e', 'f', 1]]]
+    i.link <+ [['e', 'f', 1]]
     i.tick
     assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
                   ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
@@ -566,7 +568,7 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
                   ["b", "c", 1], ["b", "d", 2], ["b", "e", 3], ["c", "d", 1],
                   ["c", "e", 2], ["d", "e", 1]], i.path.current_value.reveal.sort)
 
-    i.link <+ [[['e', 'f', 1]]]
+    i.link <+ [['e', 'f', 1]]
     i.tick
     assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
                   ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
@@ -612,23 +614,24 @@ class TestMap < MiniTest::Unit::TestCase
     assert_equal([], get_val_for_map(i, :m3))
     assert_equal([], get_val_for_map(i, :m4))
 
-    i.m1 <+ [{"x" => Bud::MaxLattice.new(15)}]
-    i.m2 <+ [{"y" => Bud::MaxLattice.new(20)}]
+    i.m1 <+ {"x" => Bud::MaxLattice.new(15)}
+    i.m2 <+ {"y" => Bud::MaxLattice.new(20)}
     i.tick
     assert_equal([], get_val_for_map(i, :m3))
     assert_equal([], get_val_for_map(i, :m4))
     assert_equal(false, i.done_m3.current_value.reveal)
     assert_equal(false, i.done_m4.current_value.reveal)
 
-    i.m1 <+ [{"y" => Bud::MaxLattice.new(25)}]
-    i.m2 <+ [{"z" => Bud::MaxLattice.new(30)}]
+    i.m1 <+ {"y" => Bud::MaxLattice.new(25)}
+    i.m2 <+ {"z" => Bud::MaxLattice.new(30)}
     i.tick
     assert_equal([["y", 25]], get_val_for_map(i, :m3))
     assert_equal([["y", 25]], get_val_for_map(i, :m4))
     assert_equal(false, i.done_m3.current_value.reveal)
     assert_equal(false, i.done_m4.current_value.reveal)
 
-    i.m1 <+ [{"y" => Bud::MaxLattice.new(31)}, {"z" => Bud::MaxLattice.new(32)}]
+    i.m1 <+ {"y" => Bud::MaxLattice.new(31)}
+    i.m1 <+ {"z" => Bud::MaxLattice.new(32)}
     i.tick
     assert_equal([["y", 31], ["z", 32]], get_val_for_map(i, :m3))
     assert_equal([["y", 31], ["z", 32]], get_val_for_map(i, :m4))
@@ -726,22 +729,22 @@ class TestSet < MiniTest::Unit::TestCase
     i.tick
     assert_equal(false, i.done.current_value.reveal)
     i.in_t <+ [[2], [3]]
-    i.s2 <+ [[5], [6], [7]]
+    [5, 6, 7].each {|v| i.s2 <+ [v]}
     i.tick
     assert_equal(false, i.done.current_value.reveal)
     i.in_t <+ [[3], [5], [6]]
-    i.s2 <+ [[12]]
+    i.s2 <+ [12]
     i.tick
     assert_equal(false, i.done.current_value.reveal)
     i.in_t <+ [[12]]
-    i.s2 <+ [[2], [14]]
+    [2, 14].each {|v| i.s2 <+ [v]}
     i.tick
     assert_equal(true, i.done.current_value.reveal)
   end
 
   def test_set_implicit_pro
     i = SetImplicitPro.new
-    i.t1 <+ [[10], [12]]
+    i.t1 <+ [10, 12]
     i.tick
     assert_equal([13, 15], i.t3.current_value.reveal.sort)
   end
@@ -752,7 +755,7 @@ class TestSet < MiniTest::Unit::TestCase
       assert_equal(0, i.collection_stratum(r))
     end
 
-    i.s4 <+ [[4], [5], [6], [7]]
+    [4, 5, 6, 7].each {|v| i.s4 <+ [v]}
     i.tick
     assert_equal([], i.s1.current_value.reveal)
     assert_equal([], i.s5.current_value.reveal)
@@ -761,8 +764,9 @@ class TestSet < MiniTest::Unit::TestCase
     assert_equal(8, i.m1.current_value.reveal)
     assert_equal(false, i.done.current_value.reveal)
 
-    i.s2 <+ [[4]]
-    i.s3 <+ [[10], [11]]
+    i.s2 <+ [4]
+    i.s3 <+ [10]
+    i.s3 <+ [11]
     i.tick
     assert_equal([], i.s1.current_value.reveal)
     assert_equal([], i.s5.current_value.reveal)
@@ -771,8 +775,9 @@ class TestSet < MiniTest::Unit::TestCase
     assert_equal(10, i.m1.current_value.reveal)
     assert_equal(false, i.done.current_value.reveal)
 
-    i.s3 <+ [[5], [6]]
-    i.s4 <+ [[10]]
+    i.s3 <+ [5]
+    i.s3 <+ [6]
+    i.s4 <+ [10]
     i.tick
     assert_equal([], i.s1.current_value.reveal)
     assert_equal([], i.s5.current_value.reveal)
@@ -781,7 +786,7 @@ class TestSet < MiniTest::Unit::TestCase
     assert_equal(12, i.m1.current_value.reveal)
     assert_equal(false, i.done.current_value.reveal)
 
-    i.s3 <+ [[4]]
+    i.s3 <+ [4]
     i.tick
     assert_equal([4], i.s1.current_value.reveal)
     assert_equal([4], i.s5.current_value.reveal)
@@ -796,16 +801,17 @@ class TestSet < MiniTest::Unit::TestCase
     i.tick
     assert_equal([], i.s3.current_value.reveal)
 
-    i.s1 <+ [[1], [2]]
+    i.s1 <+ [1]
+    i.s1 <+ [2]
     i.tick
     assert_equal([], i.s3.current_value.reveal)
 
-    i.s2 <+ [[3]]
+    i.s2 <+ [3]
     i.tick
     assert_equal([[1,3], [2,3]], i.s3.current_value.reveal.sort)
 
-    i.s1 <+ [[3]]
-    i.s2 <+ [[7]]
+    i.s1 <+ [3]
+    i.s2 <+ [7]
     i.tick
     assert_equal([[1,3], [1,7], [2,3], [2,7], [3,3], [3,7]],
                  i.s3.current_value.reveal.sort)
@@ -904,7 +910,8 @@ class TestBag < MiniTest::Unit::TestCase
       assert_equal(0, i.collection_stratum(r))
     end
 
-    i.b1 <+ [{"abc" => 2, "def" => 1}, {"abc" => 1}]
+    i.b1 <+ {"abc" => 2, "def" => 1}
+    i.b1 <+ {"abc" => 1}
     i.tick
     assert_equal([["abc", 2], ["def", 1]],
                  i.b_union.current_value.reveal.to_a.sort)
@@ -914,7 +921,7 @@ class TestBag < MiniTest::Unit::TestCase
     assert_equal(false, i.has_foo.current_value.reveal)
     assert_equal(false, i.done.current_value.reveal)
 
-    i.b2 <+ [{"foo" => 1, "def" => 1}]
+    i.b2 <+ {"foo" => 1, "def" => 1}
     i.tick
     assert_equal([["abc", 2], ["def", 1], ["foo", 1]],
                  i.b_union.current_value.reveal.to_a.sort)
@@ -924,7 +931,8 @@ class TestBag < MiniTest::Unit::TestCase
     assert_equal(true, i.has_foo.current_value.reveal)
     assert_equal(false, i.done.current_value.reveal)
 
-    i.b1 <+ [{"foo" => 2}, {"abc" => 2}]
+    i.b1 <+ {"foo" => 2}
+    i.b1 <+ {"abc" => 2}
     i.tick
     assert_equal([["abc", 2], ["def", 1], ["foo", 2]],
                  i.b_union.current_value.reveal.to_a.sort)
@@ -935,8 +943,8 @@ class TestBag < MiniTest::Unit::TestCase
     assert_equal(true, i.has_foo.current_value.reveal)
     assert_equal(false, i.done.current_value.reveal)
 
-    i.b1 <+ [{"foo" => 3}]
-    i.b2 <+ [{"foo" => 4}]
+    i.b1 <+ {"foo" => 3}
+    i.b2 <+ {"foo" => 4}
     i.tick
     assert_equal([["abc", 2], ["def", 1], ["foo", 4]],
                  i.b_union.current_value.reveal.to_a.sort)
@@ -986,7 +994,7 @@ class TestLatticesWithModules < MiniTest::Unit::TestCase
     i = LatticeModParent.new
     %w[m1 cnt s1 x.m1 x.s1 y.m1 y.s1].each {|r| assert_equal(0, i.collection_stratum(r))}
 
-    i.x.m1 <+ [3]
+    i.x.m1 <+ Bud::MaxLattice.new(3)
     i.s1 <+ Bud::SetLattice.new([4])
     i.tick
     assert_equal(6, i.m1.current_value.reveal)
@@ -995,7 +1003,7 @@ class TestLatticesWithModules < MiniTest::Unit::TestCase
 
     i.x.s1 <+ Bud::SetLattice.new([2, 6])
     i.y.s1 <+ Bud::SetLattice.new([2, 5])
-    i.y.m1 <+ [5]
+    i.y.m1 <+ Bud::MaxLattice.new(5)
     i.tick
     assert_equal(6, i.m1.current_value.reveal)
     assert_equal(2, i.cnt.current_value.reveal)

@@ -404,17 +404,6 @@ class Bud::LatticeWrapper
     raise Bud::Error unless lhs.class <= Bud::Lattice
     return lhs if rhs.nil?
 
-    # NB: we assume that all lattices are content with the default set =>
-    # lattice homomorphism: we convert each element of the set into a lattice
-    # value, and then fold over those lattice values using the merge function.
-    if rhs.class <= Enumerable && !(rhs.class <= Hash)
-      rhs.each do |r|
-        next if r.nil?
-        lhs = scalar_merge(lhs, r)
-      end
-      return lhs
-    end
-
     scalar_merge(lhs, rhs)
   end
 
