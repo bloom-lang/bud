@@ -182,7 +182,7 @@ class TestRebl < MiniTest::Unit::TestCase
     rt.exec_rebl(%{stdio <~ passing_clouds.inspected})
     actual_output = rt.exec_rebl("/tick")
     assert_match(/3.*Nimbus/, actual_output)
-    assert_match(/2.*Cumulonmbus/, actual_output)
+    assert_match(/2.*Cumulonimbus/, actual_output)
     rt.exec_rebl("/rmrule 1")
     actual_output = rt.exec_rebl("/tick")
     assert_match(/\s*/, actual_output)
