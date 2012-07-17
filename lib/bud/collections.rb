@@ -1,7 +1,6 @@
 require 'msgpack'
 
 $struct_classes = {}
-$EMPTY_HASH = {}
 module Bud
   ########
   #--
