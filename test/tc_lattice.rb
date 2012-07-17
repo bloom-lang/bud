@@ -526,7 +526,7 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
     assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
                   ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
                   ["b", "c", 1], ["b", "d", 2], ["b", "e", 3], ["c", "d", 1],
-                  ["c", "e", 2], ["d", "e", 1]], i.path.current_value.reveal.sort)
+                  ["c", "e", 2], ["d", "e", 1]].to_set, i.path.current_value.reveal)
 
     i.link <+ [['e', 'f', 1]]
     i.tick
@@ -534,8 +534,8 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
                   ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
                   ["a", "f", 5], ["a", "f", 8], ["b", "c", 1], ["b", "d", 2],
                   ["b", "e", 3], ["b", "f", 4], ["c", "d", 1], ["c", "e", 2],
-                  ["c", "f", 3], ["d", "e", 1], ["d", "f", 2], ["e", "f", 1]],
-                 i.path.current_value.reveal.sort)
+                  ["c", "f", 3], ["d", "e", 1], ["d", "f", 2], ["e", "f", 1]].to_set,
+                 i.path.current_value.reveal)
   end
 
   def test_all_paths_implicit_pro
@@ -546,7 +546,7 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
     assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
                   ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
                   ["b", "c", 1], ["b", "d", 2], ["b", "e", 3], ["c", "d", 1],
-                  ["c", "e", 2], ["d", "e", 1]], i.path.current_value.reveal.sort)
+                  ["c", "e", 2], ["d", "e", 1]].to_set, i.path.current_value.reveal)
 
     i.link <+ [['e', 'f', 1]]
     i.tick
@@ -554,8 +554,8 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
                   ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
                   ["a", "f", 5], ["a", "f", 8], ["b", "c", 1], ["b", "d", 2],
                   ["b", "e", 3], ["b", "f", 4], ["c", "d", 1], ["c", "e", 2],
-                  ["c", "f", 3], ["d", "e", 1], ["d", "f", 2], ["e", "f", 1]],
-                 i.path.current_value.reveal.sort)
+                  ["c", "f", 3], ["d", "e", 1], ["d", "f", 2], ["e", "f", 1]].to_set,
+                 i.path.current_value.reveal)
   end
 
   def test_all_paths_join
@@ -566,7 +566,7 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
     assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
                   ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
                   ["b", "c", 1], ["b", "d", 2], ["b", "e", 3], ["c", "d", 1],
-                  ["c", "e", 2], ["d", "e", 1]], i.path.current_value.reveal.sort)
+                  ["c", "e", 2], ["d", "e", 1]].to_set, i.path.current_value.reveal)
 
     i.link <+ [['e', 'f', 1]]
     i.tick
@@ -574,8 +574,8 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
                   ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
                   ["a", "f", 5], ["a", "f", 8], ["b", "c", 1], ["b", "d", 2],
                   ["b", "e", 3], ["b", "f", 4], ["c", "d", 1], ["c", "e", 2],
-                  ["c", "f", 3], ["d", "e", 1], ["d", "f", 2], ["e", "f", 1]],
-                 i.path.current_value.reveal.sort)
+                  ["c", "f", 3], ["d", "e", 1], ["d", "f", 2], ["e", "f", 1]].to_set,
+                 i.path.current_value.reveal)
   end
 end
 
@@ -746,7 +746,7 @@ class TestSet < MiniTest::Unit::TestCase
     i = SetImplicitPro.new
     i.t1 <+ [10, 12]
     i.tick
-    assert_equal([13, 15], i.t3.current_value.reveal.sort)
+    assert_equal([13, 15].to_set, i.t3.current_value.reveal)
   end
 
   def test_set_method_compose
@@ -808,13 +808,13 @@ class TestSet < MiniTest::Unit::TestCase
 
     i.s2 <+ [3]
     i.tick
-    assert_equal([[1,3], [2,3]], i.s3.current_value.reveal.sort)
+    assert_equal([[1,3], [2,3]].to_set, i.s3.current_value.reveal)
 
     i.s1 <+ [3]
     i.s2 <+ [7]
     i.tick
-    assert_equal([[1,3], [1,7], [2,3], [2,7], [3,3], [3,7]],
-                 i.s3.current_value.reveal.sort)
+    assert_equal([[1,3], [1,7], [2,3], [2,7], [3,3], [3,7]].to_set,
+                 i.s3.current_value.reveal)
   end
 
   # We want to check that the set lattice eliminates duplicates from its input,
