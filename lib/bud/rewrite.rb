@@ -134,7 +134,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   # Rewrite top-level rhs array literals to lambdas. During wiring, these are
-  # turned into CollExpr elements.
+  # turned into coll_expr collections.
   def lambda_rewrite(rhs)
     # the <= case
     if rhs[0] == :array
