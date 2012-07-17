@@ -171,124 +171,11 @@ class Bud::MapLattice < Bud::Lattice
   end
 end
 
-class Bud::SetLattice < Bud::Lattice
-  wrapper_name :lset
-
-  # XXX: We take an Enumerable as input. When converting a set-valued expression
-  # into a set lattice value, this is a little awkward: because of the "implicit
-  # fold" behavior, our input is an array of singleton arrays. It would be a bit
-  # nicer to allow the input to be an array of atoms; not clear the best way to
-  # achieve that.
-  def initialize(i=[])
-    reject_input(i) unless i.class <= Enumerable
-    i.each do |e|
-      reject_input(i) if e.class <= Bud::Lattice
-    end
-    @v = i.uniq
-  end
-
-  def merge(i)
-    wrap_unsafe(@v | i.reveal)
-  end
-
-  # Override == because we don't keep the underlying array eagerly sorted
-  # XXX: probably not the right solution
-  def ==(o)
-    return false unless o.kind_of? Bud::SetLattice
-    return @v.sort == o.reveal.sort
-  end
-
-  morph :intersect do |i|
-    wrap_unsafe(@v & i.reveal)
-  end
-
-  morph :product do |i, &blk|
-    rv = []
-    @v.each do |a|
-      if blk.nil?
-        rv += i.reveal.map {|b| [a,b]}
-      else
-        rv += i.reveal.map{|b| blk.call(a, b)}.reject{|e| e.nil?}
-      end
-    end
-
-    if blk.nil?
-      wrap_unsafe(rv)
-    else
-      self.class.new(rv)
-    end
-  end
-
-  morph :contains? do |i|
-    Bud::BoolLattice.new(@v.member? i)
-  end
-
-  morph :pro do |&blk|
-    # Don't use wrap_unsafe(), since the user-supplied code block might
-    # introduce duplicates or illegal elements.
-    self.class.new(@v.map(&blk).reject{|e| e.nil?})
-  end
-
-  monotone :size do
-    Bud::MaxLattice.new(@v.size)
-  end
-
-  # Assuming that this set contains tuples (arrays) as elements, this performs
-  # an equijoin between the current lattice and i. The join predicate is
-  # "self_t[lhs_idx] == i_t[rhs_idx]", for all tuples self_t and i_t in self and
-  # i, respectively. The return value is the result of passing pairs of join
-  # tuples to the user-supplied block.
-  morph :eqjoin do |i, lhs_idx, rhs_idx, &blk|
-    rv = []
-    @v.each do |a|
-      rv += i.probe(rhs_idx, a[lhs_idx]).map {|b| blk.call(a, b)}
-    end
-    wrap_unsafe(rv)
-  end
-
-  # Assuming that this set contains tuples (arrays) as elements, this returns a
-  # list of tuples (possibly) empty whose idx'th column has the value "v".
-  def probe(idx, v)
-    @ht ||= build_ht(idx)
-    return @ht[v] || []
-  end
-
-  private
-  def build_ht(idx)
-    rv = {}
-    @v.each do |i|
-      rv[i[idx]] ||= []
-      rv[i[idx]] << i
-    end
-    rv
-  end
-end
-
-# A set that admits only non-negative numbers. This allows "sum" to be an
-# order-preserving map.  Note that this does duplicate elimination on its input,
-# so it actually computes "SUM(DISTINCT ...)" in SQL.
-class Bud::PositiveSetLattice < Bud::SetLattice
-  wrapper_name :lpset
-
-  def initialize(i=[])
-    super
-    @v.each do |n|
-      reject_input(i) unless n.class <= Numeric
-      reject_input(i) if n < 0
-    end
-  end
-
-  monotone :pos_sum do
-    @sum = @v.reduce(0) {|sum,i| sum + i} if @sum.nil?
-    Bud::MaxLattice.new(@sum)
-  end
-end
-
 # Similar to SetLattice, except that we implement the lattice using a hash table
 # rather than an array. This makes merge() much cheaper but incurs somewhat more
 # overhead for small sets.
-class Bud::HashSetLattice < Bud::Lattice
-  wrapper_name :lhset
+class Bud::SetLattice < Bud::Lattice
+  wrapper_name :lset
 
   def initialize(i=[])
     reject_input(i) unless i.class <= Enumerable
@@ -308,10 +195,15 @@ class Bud::HashSetLattice < Bud::Lattice
     wrap_unsafe(@v & i.reveal)
   end
 
-  morph :product do |i|
+  morph :product do |i, &blk|
     rv = Set.new
     @v.each do |a|
-      rv.merge(i.pro {|b| [a,b]})
+      if blk.nil?
+        t = i.pro {|b| [a,b]}
+      else
+        t = i.pro {|b| blk.call(a, b)}
+      end
+      rv.merge(t)
     end
     wrap_unsafe(rv)
   end
@@ -321,7 +213,7 @@ class Bud::HashSetLattice < Bud::Lattice
   end
 
   morph :pro do |&blk|
-    @v.map(&blk)
+    @v.map(&blk).reject{|e| e.nil?}
   end
 
   monotone :size do
@@ -361,6 +253,26 @@ class Bud::HashSetLattice < Bud::Lattice
       rv[field] << i
     end
     rv
+  end
+end
+
+# A set that admits only non-negative numbers. This allows "sum" to be an
+# order-preserving map.  Note that this does duplicate elimination on its input,
+# so it actually computes "SUM(DISTINCT ...)" in SQL.
+class Bud::PositiveSetLattice < Bud::SetLattice
+  wrapper_name :lpset
+
+  def initialize(i=[])
+    super
+    @v.each do |n|
+      reject_input(i) unless n.class <= Numeric
+      reject_input(i) if n < 0
+    end
+  end
+
+  monotone :pos_sum do
+    @sum = @v.reduce(0) {|sum,i| sum + i} if @sum.nil?
+    Bud::MaxLattice.new(@sum)
   end
 end
 

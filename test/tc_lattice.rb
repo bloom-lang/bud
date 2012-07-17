@@ -757,10 +757,10 @@ class TestSet < MiniTest::Unit::TestCase
 
     [4, 5, 6, 7].each {|v| i.s4 <+ [v]}
     i.tick
-    assert_equal([], i.s1.current_value.reveal)
-    assert_equal([], i.s5.current_value.reveal)
-    assert_equal([], i.s6.current_value.reveal)
-    assert_equal([], i.s7.current_value.reveal)
+    assert_equal(Set.new, i.s1.current_value.reveal)
+    assert_equal(Set.new, i.s5.current_value.reveal)
+    assert_equal(Set.new, i.s6.current_value.reveal)
+    assert_equal(Set.new, i.s7.current_value.reveal)
     assert_equal(8, i.m1.current_value.reveal)
     assert_equal(false, i.done.current_value.reveal)
 
@@ -768,10 +768,10 @@ class TestSet < MiniTest::Unit::TestCase
     i.s3 <+ [10]
     i.s3 <+ [11]
     i.tick
-    assert_equal([], i.s1.current_value.reveal)
-    assert_equal([], i.s5.current_value.reveal)
-    assert_equal([], i.s6.current_value.reveal)
-    assert_equal([4], i.s7.current_value.reveal)
+    assert_equal(Set.new, i.s1.current_value.reveal)
+    assert_equal(Set.new, i.s5.current_value.reveal)
+    assert_equal(Set.new, i.s6.current_value.reveal)
+    assert_equal([4].to_set, i.s7.current_value.reveal)
     assert_equal(10, i.m1.current_value.reveal)
     assert_equal(false, i.done.current_value.reveal)
 
@@ -779,19 +779,19 @@ class TestSet < MiniTest::Unit::TestCase
     i.s3 <+ [6]
     i.s4 <+ [10]
     i.tick
-    assert_equal([], i.s1.current_value.reveal)
-    assert_equal([], i.s5.current_value.reveal)
-    assert_equal([], i.s6.current_value.reveal)
-    assert_equal([4], i.s7.current_value.reveal)
+    assert_equal(Set.new, i.s1.current_value.reveal)
+    assert_equal(Set.new, i.s5.current_value.reveal)
+    assert_equal(Set.new, i.s6.current_value.reveal)
+    assert_equal([4].to_set, i.s7.current_value.reveal)
     assert_equal(12, i.m1.current_value.reveal)
     assert_equal(false, i.done.current_value.reveal)
 
     i.s3 <+ [4]
     i.tick
-    assert_equal([4], i.s1.current_value.reveal)
-    assert_equal([4], i.s5.current_value.reveal)
-    assert_equal([4], i.s6.current_value.reveal)
-    assert_equal([4], i.s7.current_value.reveal)
+    assert_equal([4].to_set, i.s1.current_value.reveal)
+    assert_equal([4].to_set, i.s5.current_value.reveal)
+    assert_equal([4].to_set, i.s6.current_value.reveal)
+    assert_equal([4].to_set, i.s7.current_value.reveal)
     assert_equal(13, i.m1.current_value.reveal)
     assert_equal(true, i.done.current_value.reveal)
   end
@@ -799,12 +799,12 @@ class TestSet < MiniTest::Unit::TestCase
   def test_set_product
     i = SetProduct.new
     i.tick
-    assert_equal([], i.s3.current_value.reveal)
+    assert_equal(Set.new, i.s3.current_value.reveal)
 
     i.s1 <+ [1]
     i.s1 <+ [2]
     i.tick
-    assert_equal([], i.s3.current_value.reveal)
+    assert_equal(Set.new, i.s3.current_value.reveal)
 
     i.s2 <+ [3]
     i.tick
