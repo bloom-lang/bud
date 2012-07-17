@@ -390,21 +390,20 @@ class Bud::LatticeWrapper
   end
 
   def scalar_merge(lhs, rhs)
-    unless rhs.class <= @klass
-      rhs = @klass.new(rhs)
-    end
-    rv = lhs.merge(rhs)
-    unless rv.class <= Bud::Lattice
-      raise Bud::Error, "merge for #{lhs.class} does not return lattice value: #{rv.inspect}"
-    end
-    rv
   end
 
   def do_merge(lhs, rhs)
     raise Bud::Error unless lhs.class <= Bud::Lattice
     return lhs if rhs.nil?
 
-    scalar_merge(lhs, rhs)
+    unless rhs.class <= @klass
+      rhs = @klass.new(rhs)
+    end
+    rv = lhs.merge(rhs)
+    unless rv.class <= Bud::Lattice
+      raise Bud::Error, "#{lhs.class}\#merge did not return lattice value: #{rv.inspect}"
+    end
+    rv
   end
 
   def setup_wiring(input, kind)
