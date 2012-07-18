@@ -739,7 +739,7 @@ class SetMethodCompose
     s6 <= s4.intersect(s2.intersect(s3))
 
     s7 <= s2.intersect(s3.merge(s4))
-    m1 <= (s7.size.merge(s3.size + 1) + 7)
+    m1 <= s7.size.merge(s3.size + 1) + 7
     done <= (s7.size.merge(s3.size + 1) + 9).gt_eq(15)
   end
 end
