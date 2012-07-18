@@ -408,21 +408,19 @@ class Bud::LatticeWrapper
 
   def setup_wiring(input, kind)
     if input.class <= Bud::LatticeWrapper
-      add_merge_target
       input.to_push_elem.wire_to(self, kind)
     elsif (input.class <= Bud::LatticePushElement || input.class <= Bud::PushElement)
-      add_merge_target
       input.wire_to(self, kind)
     elsif input.class <= Bud::BudCollection
-      add_merge_target
       input.pro.wire_to(self, kind)
     elsif input.class <= Proc
-      add_merge_target
       tbl = register_coll_expr(input)
       tbl.pro.wire_to(self, kind)
     else
       raise Bud::Error, "unrecognized wiring input: #{input}"
     end
+
+    add_merge_target
   end
 
   private
