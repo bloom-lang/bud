@@ -1189,7 +1189,7 @@ module Bud
 
     public
     def each(&block)
-      @expr.call.each {|i| yield i}
+      @expr.call.each(&block)
     end
 
     public
@@ -1220,7 +1220,7 @@ module Bud
 
     public
     def each(&blk)
-      each_raw {|l| blk.call(l)}
+      each_raw(&blk)
     end
   end
 end
