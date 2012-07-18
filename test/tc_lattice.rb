@@ -744,6 +744,25 @@ class SetMethodCompose
   end
 end
 
+class CollectionToSet
+  include Bud
+
+  state do
+    lset :s1
+    table :t1
+    table :t2
+  end
+
+  bootstrap do
+    t1 <= [[3, 4]]
+  end
+
+  bloom do
+    s1 <= t1
+    s1 <= t2
+  end
+end
+
 class TestSet < MiniTest::Unit::TestCase
   def test_set_simple
     i = SimpleSet.new
@@ -838,6 +857,24 @@ class TestSet < MiniTest::Unit::TestCase
     i.tick
     assert_equal([[1,3], [1,7], [2,3], [2,7], [3,3], [3,7]].to_set,
                  i.s3.current_value.reveal)
+  end
+
+  # XXX: Unclear that this is actually the right behavior. The push-based
+  # runtime divides the collection into tuples; we then invoke the lattice
+  # constructor on each individual n-tuple, which forms an n element set. Then
+  # those sets are merged together, losing the tuple structure of the input.
+  #
+  # This can easily be worked-around (e.g., by wrapping the input tuples in an
+  # extra "layer" of brackets), but the right behavior is unclear.
+  def test_collection_to_set
+    i = CollectionToSet.new
+    i.tick
+    assert_equal([3, 4].to_set, i.s1.current_value.reveal)
+
+    i.t1 <+ [[5, 6], [1, 4]]
+    i.t2 <+ [[10, 11]]
+    i.tick
+    assert_equal([1, 3, 4, 5, 6, 10, 11].to_set, i.s1.current_value.reveal)
   end
 
   # We want to check that the set lattice eliminates duplicates from its input,
