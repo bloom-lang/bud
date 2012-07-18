@@ -413,9 +413,20 @@ class Bud::LatticeWrapper
     elsif (input.class <= Bud::LatticePushElement || input.class <= Bud::PushElement)
       add_merge_target
       input.wire_to(self, kind)
+    elsif input.class <= Proc
+      add_merge_target
+      tbl = register_coll_expr(input)
+      tbl.pro.wire_to(self, kind)
     else
-      raise Bud::Error
+      raise Bud::Error, "unrecognized wiring input: #{input}"
     end
+  end
+
+  private
+  def register_coll_expr(expr)
+    name = "expr_#{expr.object_id}".to_sym
+    @bud_instance.coll_expr(name, expr, nil)
+    @bud_instance.send(name)
   end
 
   # Merge "i" into @new_delta

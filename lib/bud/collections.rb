@@ -1249,7 +1249,19 @@ module Bud
 
     public
     def each(&block)
-      @expr.call.each(&block)
+      v = @expr.call
+
+      # XXX: Gross hack. We want to support RHS expressions that do not
+      # necessarily return BudCollections (they might instead return lattice
+      # values or hashes). Since it isn't easy to distinguish between these two
+      # cases statically, instead we just always use CollExpr; at runtime, if
+      # the value doesn't look like a traditional Bloom collection, we don't try
+      # to break it up into tuples.
+      if v.class <= Array || v.class <= BudCollection
+        v.each(&block)
+      else
+        yield v
+      end
     end
 
     public

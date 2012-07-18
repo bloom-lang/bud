@@ -137,16 +137,20 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   # turned into coll_expr collections.
   def lambda_rewrite(rhs)
     # the <= case
-    if rhs[0] == :array
+    if is_coll_literal(rhs[0])
       return s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, rhs)
     # the superator case
     elsif rhs[0] == :call \
-      and rhs[1] and rhs[1][0] and rhs[1][0] == :array \
+      and rhs[1] and rhs[1][0] and is_coll_literal(rhs[1][0]) \
       and rhs[2] and (rhs[2] == :+@ or rhs[2] == :-@ or rhs[2] == :~@)
       return s(rhs[0], s(:iter, s(:call, nil, :lambda, s(:arglist)), nil, rhs[1]), rhs[2], rhs[3])
     else
       return rhs
     end
+  end
+
+  def is_coll_literal(e)
+    [:array, :hash].include? e
   end
 
   def collect_rhs(exp)
