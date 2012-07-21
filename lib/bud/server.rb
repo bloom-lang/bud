@@ -59,11 +59,11 @@ class Bud::BudServer < EM::Connection #:nodoc: all
       raise Bud::Error, "bad inbound message of class #{obj.class}: #{obj.inspect}"
     end
 
-    # Deserialize any nested lattice values
-    tbl_name, tuple, lat_indexes = obj
-    lat_indexes.each do |i|
+    # Deserialize any nested marshalled values
+    tbl_name, tuple, marshall_indexes = obj
+    marshall_indexes.each do |i|
       if i < 0 || i >= tuple.length
-        raise Bud::Error, "bad inbound message: lattice at index #{i}, #{obj.inspect}"
+        raise Bud::Error, "bad inbound message: marshalled value at index #{i}, #{obj.inspect}"
       end
       tuple[i] = Marshal.load(tuple[i])
     end

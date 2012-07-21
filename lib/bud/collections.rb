@@ -822,22 +822,22 @@ module Bud
         end
 
         # Convert the tuple into a suitable wire format. Because MsgPack cannot
-        # marshal arbitrary Ruby objects (namely lattice values), we first
-        # encode nested lattice values using the Marshal, and then encode the
-        # entire tuple with MsgPack (obviously, this is gross). The wire format
-        # also includes an array of indices, indicating which fields hold
-        # Marshall'd objects.
-        lat_indexes = []
+        # marshal arbitrary Ruby objects that we need to send via channels (in
+        # particular, lattice values and Class instances), we first encode such
+        # values using Marshal, and then encode the entire tuple with
+        # MsgPack. Obviously, this is gross. The wire format also includes an
+        # array of indices, indicating which fields hold Marshall'd objects.
+        marshall_indexes = []
         wire_tuple = Array.new(t.length)
         t.each_with_index do |f, i|
-          if f.class <= Bud::Lattice
-            lat_indexes << i
+          if [Bud::Lattice, Class].any?{|t| f.class <= t}
+            marshall_indexes << i
             wire_tuple[i] = Marshal.dump(f)
           else
             wire_tuple[i] = f
           end
         end
-        wire_str = [@tabname, wire_tuple, lat_indexes].to_msgpack
+        wire_str = [@tabname, wire_tuple, marshall_indexes].to_msgpack
         @bud_instance.dsock.send_datagram(wire_str, the_locspec[0], the_locspec[1])
       end
       @pending.clear
