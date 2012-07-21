@@ -339,8 +339,8 @@ class Bud::MapLattice < Bud::Lattice
       @v[k]
     else
       raise Bud::Error if args.empty?
-      default = args.first
-      default.new
+      val_class = args.first
+      val_class.new
     end
   end
 
