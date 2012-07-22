@@ -334,24 +334,23 @@ module Bud
     def replay_join
       a = @hash_tables[0]
       b = @hash_tables[1]
+      return if (a.empty? or b.empty?)
 
-      if not(a.empty? or b.empty?)
-        if a.size < b.size
-          a.each_pair do |key, items|
-            the_matches = b[key]
-            unless the_matches.nil?
-              items.each do |item|
-                process_matches(item, the_matches, 1)
-              end
+      if a.size < b.size
+        a.each_pair do |key, items|
+          the_matches = b[key]
+          unless the_matches.nil?
+            items.each do |item|
+              process_matches(item, the_matches, 1)
             end
           end
-        else
-          b.each_pair do |key, items|
-            the_matches = a[key]
-            unless the_matches.nil?
-              items.each do |item|
-                process_matches(item, the_matches, 0)
-              end
+        end
+      else
+        b.each_pair do |key, items|
+          the_matches = a[key]
+          unless the_matches.nil?
+            items.each do |item|
+              process_matches(item, the_matches, 0)
             end
           end
         end
