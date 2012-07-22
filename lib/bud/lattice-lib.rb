@@ -110,17 +110,18 @@ class Bud::MapLattice < Bud::Lattice
   end
 
   # XXX: If the key is not in the map, we would like to return some generic
-  # "bottom" value that is shared by all lattice values. Unfortunately, such a
-  # value does not exist, so we need the caller to tell us which value to use if
-  # they care. Another alternative is to wire the types of the lattice value
-  # into the definition of the map lattice.
+  # "bottom" value that is shared by all lattice types. Unfortunately, such a
+  # value does not exist, so we need the caller to tell us which class to use as
+  # an optional second argument (if omitted, reading a non-existent key produces
+  # a runtime exception). Another alternative would be to specify the type of
+  # the map's values when the lmap is declared, but that limits code reuse.
   morph :at do |k, *args|
     if @v.has_key? k
       @v[k]
     else
       raise Bud::Error if args.empty?
-      default = args.first
-      default.new
+      val_class = args.first
+      val_class.new
     end
   end
 

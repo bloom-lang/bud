@@ -617,6 +617,21 @@ class MapBareHashLiteral
   end
 end
 
+class MapAt
+  include Bud
+
+  state do
+    lmap :m1
+    lset :s1
+    lset :s2
+  end
+
+  bloom do
+    s1 <= m1.at("abc", Bud::SetLattice)
+    s2 <= m1.at("xyz", Bud::SetLattice)
+  end
+end
+
 class TestMap < MiniTest::Unit::TestCase
   def get_val_for_map(i, r)
     i.send(r).current_value.reveal.map {|k,v| [k, v.reveal]}.sort
@@ -660,6 +675,23 @@ class TestMap < MiniTest::Unit::TestCase
     i = MapBareHashLiteral.new
     i.tick
     assert_equal([["j", 20], ["k", 15]], get_val_for_map(i, :m1))
+  end
+
+  def test_map_at
+    i = MapAt.new
+    %w[m1 s1 s2].each do |r|
+      assert_equal(0, i.collection_stratum(r))
+    end
+    i.tick
+    assert_equal(Set.new, i.s1.current_value.reveal)
+    assert_equal(Set.new, i.s2.current_value.reveal)
+
+    i.m1 <+ {"abc" => Bud::SetLattice.new([1])}
+    i.m1 <+ {"abc" => Bud::SetLattice.new([2])}
+    i.m1 <+ {"xyz" => Bud::SetLattice.new([2,3])}
+    i.tick
+    assert_equal([1,2].to_set, i.s1.current_value.reveal)
+    assert_equal([2,3].to_set, i.s2.current_value.reveal)
   end
 
   def test_map_equality
