@@ -136,8 +136,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     Bud::Lattice.global_morphs.include?(op)
   end
 
-  # Rewrite top-level rhs array literals to lambdas. During wiring, these are
-  # turned into coll_expr collections.
+  # Rewrite top-level rhs array and hash literals to lambdas. During wiring,
+  # these are turned into coll_expr collections.
   def lambda_rewrite(rhs)
     # the <= case
     if is_coll_literal(rhs[0])
