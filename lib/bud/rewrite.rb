@@ -73,24 +73,27 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       # :defn block -- this is where we expect Bloom statements to appear
       do_rule(exp)
     elsif op == :notin
-      # special case. In the rule  "z <= x.notin(y)", z depends positively on x, but negatively on y
-      # See further explanation in the "else" section for why this is a special case.
+      # Special case. In the rule "z <= x.notin(y)", z depends positively on x,
+      # but negatively on y See further explanation in the "else" section for
+      # why this is a special case.
       notintab = call_to_id(args[1])   # args expected to be of the form (:arglist (:call nil :y ...))
-      @tables[notintab.to_s] = true # "true" denotes non-monotonic dependency.
+      @tables[notintab.to_s] = true    # "true" denotes non-monotonic dependency
       super
     else
-      # Parse a call of the form  a.b.c.foo.
-      # In the most general case, a.b is a nested module, a.b.c is a collection in that module, and
-      # a.b.c.foo is either a method or a field. If it is a method, and non-monotonic at that, we
-      # register a dependency between lhs and the table a.b.c.
-      # Note that notin is treated differently because in  a.b.c.notin(d.e.f), we register a non-monotonic
-      # dependency of lhs on "d.e.f", not with "a.b.c"
+      # Parse a call of the form a.b.c.foo
+      #
+      # In the most general case, a.b is a nested module, a.b.c is a collection
+      # in that module, and a.b.c.foo is either a method or a field. If it is a
+      # method, and non-monotonic at that, we register a dependency between lhs
+      # and the table a.b.c.  Note that notin is treated differently because in
+      # a.b.c.notin(d.e.f), we register a non-monotonic dependency of lhs on
+      # "d.e.f", not with "a.b.c"
       ty, qn, _ = exp_id_type(recv, op, args) # qn = qualified name
       if ty == :collection or ty == :lattice
         (@tables[qn] = @nm if @collect) unless @tables[qn]
       #elsif ty == :import .. do nothing
       elsif ty == :not_coll_id
-        # check if receiver is a collection, and further if the current exp
+        # Check if receiver is a collection, and further if the current exp
         # represents a field lookup
         op_is_field_name = false
         if recv and recv.first == :call
@@ -100,17 +103,17 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
             op_is_field_name = true if cols and cols.include?(op)
           end
         end
-        # for CALM analysis, mark deletion rules as non-monotonic
+        # For CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
         if recv
-          # don't worry about monotone ops, table names, table.attr calls, or
+          # Don't worry about monotone ops, table names, table.attr calls, or
           # accessors of iterator variables
           unless RuleRewriter.is_monotone(op) or op_is_field_name or
                  recv.first == :lvar or op.to_s.start_with?("__")
             @nm = true
           end
         else
-          # function called (implicit receiver = Bud instance) in a user-defined
+          # Function called (implicit receiver = Bud instance) in a user-defined
           # code block. Check if it is non-monotonic (like budtime, that
           # produces a new value every time it is called)
           @nm_funcs_called = true unless RuleRewriter.is_monotone(op)

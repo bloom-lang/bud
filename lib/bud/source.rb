@@ -61,49 +61,4 @@ module Source
     end
     retval # array of lines
   end
-
-  # Tok is string tokenizer that extracts a substring matching the
-  # supplied regex, and internally advances past the matched substring.
-  # Leading white space is ignored.
-  # tok = Tok.new("foo 123")
-  # x = tok =~ /\w+/  # => x == 'foo'
-  # y = tok =~ /\d+/  # => y = '123'
-  class Tok
-    attr_accessor :str, :group
-    def initialize(str)
-      @str = str
-      @group = nil
-    end
-
-    # match regex at beginning of string, and advance. Return matched token
-    def =~(regex)
-      s = @str
-      skiplen = 0
-      if s =~ /^\s*/
-        skiplen = $&.length
-        s = s[skiplen .. -1]
-      end
-      if (s =~ regex) == 0
-        # Regexp.last_match is local to this thread and method; squirrel
-        # it away for use in tok.[]
-        @group = Regexp.last_match
-        skiplen += $&.length
-        @str = @str[skiplen .. -1]
-        return $&
-      else
-        nil
-      end
-    end
-
-    # get the nth subgroup match
-    # t = Tok.new("a1122b"); t =~ /a(1+)(2+)b/ ; #=> t[0] =  a1122b; t[1] = 11; t[2] = 22
-    def [](n)
-      @group ? @group[n] : nil
-    end
-    def pushBack(str)
-      @str = str + @str
-    end
-
-    def to_s; @str; end
-  end
 end

@@ -37,6 +37,11 @@ To run the unit tests:
     % gem install minitest      # unless already installed
     % cd test; ruby ts_bud.rb
 
+To run the unit tests and produce a code coverage report:
+
+    % gem install simplecov    # unless already installed
+    % cd test; COVERAGE=1 ruby ts_bud.rb
+
 ## Optional Dependencies
 
 The bud gem has a handful of mandatory dependencies. It also has one optional
