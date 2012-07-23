@@ -287,28 +287,36 @@ class LatticeRefRewriter < SexpProcessor
     self.require_empty = false
     self.expected = Sexp
     @bud_instance = bud_instance
-    @iter_stack = []
+    @elem_stack = []
   end
 
   def process_iter(exp)
     tag, recv, iter_args, body = exp
-
-    exp_id = exp.object_id
-    @iter_stack.push(exp_id)
-    new_body = process(body)
-    raise Bud::Error unless @iter_stack.pop == exp_id
-
+    new_body = push_and_process(body)
     return s(tag, process(recv), process(iter_args), new_body)
+  end
+
+  def process_array(exp)
+    new_body = exp.sexp_body.map {|t| push_and_process(t)}
+    return s(:array, *new_body)
   end
 
   def process_call(exp)
     tag, recv, op, args = exp
 
-    if recv.nil? and args == s(:arglist) and is_lattice?(op) and @iter_stack.size > 0
+    if recv.nil? and args == s(:arglist) and is_lattice?(op) and @elem_stack.size > 0
       return s(:call, exp, :current_value, s(:arglist))
     else
       return s(tag, process(recv), op, process(args))
     end
+  end
+
+  def push_and_process(exp)
+    obj_id = exp.object_id
+    @elem_stack.push(obj_id)
+    rv = process(exp)
+    raise Bud::Error unless @elem_stack.pop == obj_id
+    return rv
   end
 
   def is_lattice?(op)

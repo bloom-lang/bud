@@ -27,8 +27,8 @@ class MaxOfMax
   end
 
   bloom do
-    m1 <= in_t {|t| t[0] if t[0] % 2 == 0}
-    m2 <= in_t {|t| t[0] if t[0] % 2 == 1}
+    m1 <= in_t {|t| t.v if t.v % 2 == 0}
+    m2 <= in_t {|t| t.v if t.v % 2 == 1}
     m3 <= m1
     m3 <= m2
     done <= m3.gt(20)
@@ -49,8 +49,8 @@ class EmbedMax
     t <= [["m1", m1]]
     t <= [["m2", m2]]
 
-    m1 <= in_t {|t| t[0] if t[0] % 2 == 0}
-    m2 <= in_t {|t| t[0] if t[0] % 2 == 1}
+    m1 <= in_t {|t| t.v if t.v % 2 == 0}
+    m2 <= in_t {|t| t.v if t.v % 2 == 1}
   end
 end
 
@@ -140,10 +140,10 @@ class TestMax < MiniTest::Unit::TestCase
     assert_equal(true, i.done.current_value.reveal)
   end
 
-  # XXX
-  def ntest_embed_max
-    i = EmbedMax.new
-    %w[in_t t m1 m2].each {|r| assert_equal(0, i.collection_stratum(r))}
+  def test_embed_max
+    i = EmbedMax.new(:dump_rewrite => true)
+    # XXX
+#    %w[in_t t m1 m2].each {|r| assert_equal(0, i.collection_stratum(r))}
     i.tick
     i.in_t <+ [[5], [10], [7], [2], [13]]
     i.tick
