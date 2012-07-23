@@ -85,7 +85,7 @@ class MaxOverChannel
   bloom do
     chn <~ do_send {|t| [t.addr, m]}
     chn_log <= chn {|c| [c.v]}
-    m <= in_t {|t| t[0]}
+    m <= in_t {|t| t.v}
   end
 end
 
@@ -159,8 +159,7 @@ class TestMax < MiniTest::Unit::TestCase
     assert_equal(17, i.t[["m2"]].val.reveal)
   end
 
-  # XXX
-  def ntest_max_over_chn
+  def test_max_over_chn
     src, dst = Array.new(2) { MaxOverChannel.new }
     [src, dst].each {|n| n.run_bg}
 
@@ -183,7 +182,7 @@ class TestMax < MiniTest::Unit::TestCase
 
     expected_val = 30
     src.sync_do {
-      src.m <+ [2, 15, 0, 10, 7, 20]
+      [2, 15, 0, 10, 7, 20].each {|i| src.m <+ Bud::MaxLattice.new(i)}
       src.in_t <+ [[16], [30]]
       src.do_send <+ [[dst.ip_port]]
     }
