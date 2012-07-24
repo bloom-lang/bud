@@ -67,14 +67,12 @@ module Bud
     public
     def state_id # :nodoc: all
       object_id
-                 # Marshal.dump([@rels.map{|r| r.tabname}, @localpreds]).hash
     end
 
     # initialize the state for this join to be carried across iterations within a fixpoint
     private
     def setup_state
       sid = state_id
-
       @tabname = ("(" + @all_rels_below.map{|r| r.tabname}.join('*') +"):"+sid.to_s).to_sym
       @hash_tables = [{}, {}]
     end

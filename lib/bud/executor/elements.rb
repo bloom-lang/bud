@@ -144,7 +144,8 @@ module Bud
     # default for stateless elements
     public
     def add_rescan_invalidate(rescan, invalidate)
-      # if any of the source elements are in rescan mode, then put this node in rescan.
+      # if any of the source elements are in rescan mode, then put this node in
+      # rescan.
       srcs = non_temporal_predecessors
       if srcs.any?{|p| rescan.member? p}
         rescan << self
@@ -220,7 +221,7 @@ module Bud
     def join(elem2, &blk)
       # cached = @bud_instance.push_elems[[self.object_id,:join,[self,elem2], @bud_instance, blk]]
       # if cached.nil?
-        elem2  = elem2.to_push_elem unless elem2.class <= PushElement
+        elem2 = elem2.to_push_elem unless elem2.class <= PushElement
         toplevel = @bud_instance.toplevel
         join = Bud::PushSHJoin.new([self, elem2], toplevel.this_rule_context, [])
         self.wire_to(join)
@@ -291,7 +292,6 @@ module Bud
       # toplevel.push_elems[[self.object_id, :group, keycols, aggpairs, blk]]
       return g
     end
-
 
     def argagg(aggname, gbkey_cols, collection, &blk)
       gbkey_cols = gbkey_cols.map{|c| canonicalize_col(c)}
@@ -379,13 +379,6 @@ module Bud
         toplevel.push_elems[[self.object_id, :inspected]] = ins
       end
       toplevel.push_elems[[self.object_id, :inspected]]
-    end
-
-    def to_enum
-      # scr = @bud_instance.scratch(("scratch_" + Process.pid.to_s + "_" + object_id.to_s + "_" + rand(10000).to_s).to_sym, schema)
-      scr = []
-      self.wire_to(scr)
-      scr
     end
   end
 
