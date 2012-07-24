@@ -138,10 +138,9 @@ module Bud
     def invalidate_cache
       @rels.each_with_index do |source_elem, i|
         if source_elem.rescan
-
           puts "#{tabname} rel:#{i}(#{source_elem.tabname}) invalidated" if $BUD_DEBUG
           @hash_tables[i] = {}
-          if  i == 0
+          if i == 0
             # XXX This is not modular. We are doing invalidation work for outer joins, which is part of a
             # separate module PushSHOuterJoin.
             @missing_keys.clear # Only if i == 0 because outer joins in Bloom are left outer joins
