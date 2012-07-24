@@ -624,8 +624,13 @@ class OjChannelTest < MiniTest::Unit::TestCase
     assert_equal([[o.ip_port, "nrc", true]], rv.to_a.sort)
     rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "jmh", "qwerty"]], :resp)
     assert_equal([[o.ip_port, "jmh", false]], rv.to_a.sort)
-    rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "franklin", "qwerty"]], :resp)
+    rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "franklin", "cs186"]], :resp)
     assert_equal([[o.ip_port, "franklin", false]], rv.to_a.sort)
+    o.sync_do {
+      o.user_db <+ [["franklin", "cs186"]]
+    }
+    rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "franklin", "cs186"]], :resp)
+    assert_equal([[o.ip_port, "franklin", true]], rv.to_a.sort)
     o.stop
   end
 end
