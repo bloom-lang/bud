@@ -139,10 +139,12 @@ module Bud
           puts "#{tabname} rel:#{i}(#{source_elem.tabname}) invalidated" if $BUD_DEBUG
           @hash_tables[i] = {}
           if i == 0
-            # XXX This is not modular. We are doing invalidation work for outer joins, which is part of a
-            # separate module PushSHOuterJoin.
-            @missing_keys.clear # Only if i == 0 because outer joins in Bloom are left outer joins
-            # if i == 1, missing_keys will be corrected when items are populated in the rhs fork
+            # Only if i == 0 because outer joins in Bloom are left outer joins.
+            # If i == 1, missing_keys will be corrected when items are populated
+            # in the rhs fork.
+            # XXX This is not modular. We are doing invalidation work for outer
+            # joins, which is part of a separate module PushSHOuterJoin.
+            @missing_keys.clear
           end
         end
       end
