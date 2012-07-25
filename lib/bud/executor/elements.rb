@@ -481,7 +481,6 @@ module Bud
       @invalidate_set = invalidate
     end
 
-    public
     def add_rescan_invalidate(rescan, invalidate)
       # scanner elements are never directly connected to tables.
       rescan << self if invalidate.member? @collection

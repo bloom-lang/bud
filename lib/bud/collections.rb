@@ -73,6 +73,10 @@ module Bud
       @qualified_tabname ||= @bud_instance.toplevel?  ? tabname : "#{@bud_instance.qualified_name}.#{tabname}".to_sym
     end
 
+    def inspect
+      "#{self.class}:#{self.object_id.to_s(16)} [#{qualified_tabname}]"
+    end
+
     # The user-specified schema might come in two forms: a hash of Array =>
     # Array (key_cols => remaining columns), or simply an Array of columns (if
     # no key_cols were specified). Return a pair: [list of (all) columns, list
@@ -99,10 +103,6 @@ module Bud
       end
 
       return [cols, key_cols]
-    end
-
-    def inspect
-      "#{self.class}:#{self.object_id.to_s(16)} [#{qualified_tabname}]"
     end
 
     # produces the schema in a format that is useful as the schema specification for another table
