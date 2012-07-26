@@ -394,7 +394,7 @@ module Bud
     def add_rescan_invalidate(rescan, invalidate)
       # If an upstream node is set to rescan, a stateful node invalidates its
       # cache.  In addition, a stateful node always rescans its own contents
-      # (doesn't need to pass a rescan request to its its source nodes).
+      # (doesn't need to pass a rescan request to its source nodes).
       rescan << self
       srcs = non_temporal_predecessors
       if srcs.any? {|p| rescan.member? p}
