@@ -334,9 +334,8 @@ module Bud
     end
 
     def replay_join
-      a = @hash_tables[0]
-      b = @hash_tables[1]
-      return if (a.empty? or b.empty?)
+      a, b = @hash_tables
+      return if a.empty? or b.empty?
 
       if a.size < b.size
         a.each_pair do |key, items|
