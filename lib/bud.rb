@@ -448,7 +448,7 @@ module Bud
         end
 
         if elem.outputs.any?{|tab| not(tab.class <= PushElement) and nm_targets.member? tab.qualified_tabname.to_sym }
-          rescan += elem.wired_by
+          rescan.merge(elem.wired_by)
         end
       end
       rescan_invalidate_tc(stratum, rescan, invalidate)

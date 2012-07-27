@@ -634,3 +634,31 @@ class OjChannelTest < MiniTest::Unit::TestCase
     o.stop
   end
 end
+
+class TestScanReplay
+  include Bud
+
+  state do
+    table :t1
+    scratch :x1
+    scratch :x2
+  end
+
+  bloom do
+    x2 <= t1
+    x2 <= x1
+  end
+end
+
+class RescanTests < MiniTest::Unit::TestCase
+  def test_scan_replay
+    i = TestScanReplay.new
+    i.t1 <+ [[4, 8]]
+    i.x1 <+ [[5, 10]]
+    i.tick
+    assert_equal([[4, 8], [5, 10]], i.x2.to_a.sort)
+    i.x1 <+ [[5, 10]]
+    i.tick
+    assert_equal([[4, 8], [5, 10]], i.x2.to_a.sort)
+  end
+end

@@ -158,7 +158,7 @@ module Bud
       # finally, if this node is in rescan, pass the request on to all source
       # elements
       if rescan.member? self
-        rescan += srcs
+        rescan.merge(srcs)
       end
     end
 
@@ -560,7 +560,7 @@ module Bud
       # index.
       if rescan.member? self
         invalidate << self
-        rescan += srcs
+        rescan.merge(srcs)
       end
     end
 

@@ -746,7 +746,7 @@ module Bud
       srcs = non_temporal_predecessors
       if srcs.any? {|e| rescan.member? e}
         invalidate << self
-        rescan += srcs
+        rescan.merge(srcs)
       end
     end
 
