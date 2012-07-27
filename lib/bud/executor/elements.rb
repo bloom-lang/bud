@@ -482,8 +482,12 @@ module Bud
     end
 
     def add_rescan_invalidate(rescan, invalidate)
-      # scanner elements are never directly connected to tables.
+      # if the collection is to be invalidated, the scanner needs to be in
+      # rescan mode
       rescan << self if invalidate.member? @collection
+
+      # in addition, default PushElement rescan/invalidate logic applies
+      super
 
       # Note also that this node can be nominated for rescan by a target node;
       # in other words, a scanner element can be set to rescan even if the

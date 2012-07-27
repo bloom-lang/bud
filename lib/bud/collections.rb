@@ -188,6 +188,8 @@ module Bud
     def pro(the_name=tabname, the_schema=schema, &blk)
       if @bud_instance.wiring?
         pusher = to_push_elem(the_name, the_schema)
+        # If there is no code block evaluate, use the scanner directly
+        return pusher if blk.nil?
         pusher_pro = pusher.pro(&blk)
         pusher_pro.elem_name = the_name
         pusher_pro.tabname = the_name
