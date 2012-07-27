@@ -1,0 +1,80 @@
+Notes on Invalidate and Rescan in Bud
+=====================================
+
+(I'll use 'downstream' to mean rhs to lhs (like in budplot). In every stratum,
+data originates at scanned sources at the "top", winds its way through various
+PushElements and ends up in a collection at the "bottom". I'll also the term
+"elements" to mean both dataflow nodes (PushElements) and collections).
+
+Invalidation strategy works through two flags/signals, rescan and
+invalidate. Invalidation means a stateful PushElement or a scratch's contents
+are erased, or table is negated. Rescan means that tuples coming out of an
+element represent the entire collection (a full-scan), not just deltas.
+
+Earlier: all stateful elements were eagerly invalidated.
+  Collections with state: scratches, interfaces, channels, terminal
+  Elements with state: Group, join, sort, reduce, each_with_index
+
+Now: lazy invalidation where possible, based on the observation that the same
+state is often rederived downstream, which means that as long as there are no
+negations, one should be able to go on in incremental mode (working only on
+deltas, not on storage) from one tick to another.
+
+Observations:
+
+1. There are two kinds of elements that are (or may be) invalidated at the
+   beginning of every tick: source scratches (those that are not found on the
+   lhs of any rule), and tables that process pending negations.
+
+2. a. Invalidation implies rescan of its contents.
+
+   b. Rescan of its contents implies invalidation of downstream nodes.
+
+   c. Invalidation involves rebuilding of state, which means that if a node has
+      multiple sources, it has to ask the other sources to rescan as well.
+
+      Example:  x,y,z are scratches
+          z <= x.group(....)
+          z <= y.sort {}
+
+      If x is invalidated, it will rescan its contents. The group element then
+      invalidates its state, and rebuilds itself as x is scanned. Since group is
+      in rescan mode, z invalidates its state and is rebuilt from group.
+      However, since part of z's state state comes from y.sort, it asks its
+      source element (the sort node) for a rescan as well.
+
+    This push-pull negotiation can be run until fixpoint, until the elements
+    that need to be invalidated and rescanned is determined fully.
+
+3. If a node is stateless, it passes the rescan request upstream, and the
+   invalidations downstream. But if it is stateful, it need not pass a rescan
+   request upstream. In the example above, only the sort node needs to rescan
+   its buffer; y doesn't need to be scanned at all.
+
+4. Solving the above constraints to a fixpoint at every tick is a huge
+   overhead. So we determine the strategy at wiring time.
+
+    bud.default_invalidate/default_rescan == set of elements that we know
+    apriori will _always_ need the corresponding signal.
+
+    scanner.invalidate_set/rescan_set == for each scanner, the set of elements
+    to invalidate/rescan should that scanner's collection be negated.
+
+    bud.prepare_invalidation_scheme works as follows.
+
+    Start the process by determining which tables will invalidate at each tick,
+    and which PushElements will rescan at the beginning of each tick. Then run
+    rescan_invalidate_tc for a transitive closure, where each element gets to
+    determine its own presence in the rescan and invalidate sets, depending on
+    its source or target elements' presence in those sets. This creates the
+    default sets.
+
+    Then for each scanner, prime the pump by setting the scanner to rescan mode,
+    and determine what effect it has on the system, by running
+    rescan_invalidate_tc. All the elements that are not already in the default
+    sets are those that need to be additionally informed at run time, should we
+    discover that that scanner's collection has been negated at the beginning of
+    each tick.
+
+    The BUD_SAFE environment variable is used to force old-style behavior, where
+    every cached element is invalidated and fully scanned once every tick.
