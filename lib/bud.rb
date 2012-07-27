@@ -352,18 +352,18 @@ module Bud
       end
     end
 
-    # sanity check
+    # Sanity check
     @push_sorted_elems.each do |stratum_elems|
-      stratum_elems.each do |se|
-        se.check_wiring
-      end
+      stratum_elems.each {|se| se.check_wiring}
     end
 
-    # create sets of elements and collections to invalidate or rescan at the beginning of each tick.
+    # Create sets of elements and collections to invalidate or rescan at the
+    # beginning of each tick
     prepare_invalidation_scheme
 
-    # For all tables that are accessed (scanned) in a stratum higher than the one they are updated in, set
-    # a flag to track deltas accumulated in that tick (see: collection.tick_delta)
+    # For all tables that are accessed (scanned) in a stratum higher than the
+    # one they are updated in, set a flag to track deltas accumulated in that
+    # tick (see: collection.tick_delta)
     stratum_accessed = {}
     (@num_strata-1).downto(0) do |stratum|
       @scanners[stratum].each_value do |s|
@@ -384,24 +384,38 @@ module Bud
     end
   end
 
-  # All collections (elements included) are semantically required to erase any cached information at the start of a tick
-  # and start from a clean slate. prepare_invalidation_scheme prepares a just-in-time invalidation scheme that
-  # permits us to preserve data from one tick to the next, and to keep things in incremental mode unless there's a
-  # negation.
-  # This scheme solves the following constraints.
-  # 1. A full scan of an element's contents results in downstream elements getting full scans themselves (i.e no \
-  #    deltas). This effect is transitive.
-  # 2. Invalidation of an element's cache results in rebuilding of the cache and a consequent fullscan. See next.
-  # 3. Invalidation of an element requires upstream elements to rescan their contents, or to transitively pass the
-  #    request on further upstream. Any element that has a cache can rescan without passing on the request to higher
-  #    levels.
+  # All collections (elements included) are semantically required to erase any
+  # cached information at the start of a tick and start from a clean
+  # slate. prepare_invalidation_scheme prepares a just-in-time invalidation
+  # scheme that permits us to preserve data from one tick to the next, and to
+  # keep things in incremental mode unless there's a negation.
   #
-  # This set of constraints is solved once during wiring, resulting in four data structures
-  # @default_invalidate = set of elements and tables to always invalidate at every tick. Organized by stratum
-  # @default_rescan = set of elements and tables to always scan fully in the first iteration of every tick.
-  # scanner[stratum].invalidate = Set of elements to additionally invalidate if the scanner's table is invalidated at
-  #  run-time
-  # scanner[stratum].rescan = Similar to above.
+  # This scheme solves the following constraints.
+  #
+  # 1. A full scan of an element's contents results in downstream elements
+  #    getting full scans themselves (i.e., no deltas). This effect is
+  #    transitive.
+  # 2. Invalidation of an element's cache results in rebuilding of the cache and
+  #    a consequent fullscan. See next.
+  # 3. Invalidation of an element requires upstream elements to rescan their
+  #    contents, or to transitively pass the request on further upstream. Any
+  #    element that has a cache can rescan without passing on the request to
+  #    higher levels.
+  #
+  # This set of constraints is solved once during wiring, resulting in four data
+  # structures:
+  #
+  # @default_invalidate = Set of elements and tables to always invalidate at
+  #                       every tick.
+  #
+  # @default_rescan = Set of elements and tables to always scan fully in the
+  #                   first iteration of every tick.
+  #
+  # scanner[stratum].invalidate_set = Set of elements to additionally invalidate
+  #                                   if the scanner's table is invalidated at
+  #                                   run-time.
+  #
+  # scanner[stratum].rescan_set = Similar to above.
   def prepare_invalidation_scheme
     num_strata = @push_sorted_elems.size
     if $BUD_SAFE
@@ -979,7 +993,7 @@ module Bud
         num_strata = @push_sorted_elems.size
         # The following loop invalidates additional (non-default) elements and
         # tables that depend on the run-time invalidation state of a table.
-        # Loop once to set the flags
+        # Loop once to set the flags.
         num_strata.times do |stratum|
           @scanners[stratum].each_value do |scanner|
             if scanner.rescan
@@ -1034,7 +1048,6 @@ module Bud
       invoke_callbacks
       @budtime += 1
       @inbound.clear
-
       @reset_list.each {|e| e.invalidated = false; e.rescan = false}
 
     ensure
