@@ -452,7 +452,7 @@ class Bud::LatticeWrapper
     if @bud_instance.wiring?
       setup_wiring(i, :output)
     else
-      @new_delta = do_merge(current_new_delta, i) unless i.nil?
+      @new_delta = do_merge(current_new_delta, i)
     end
   end
 
@@ -460,7 +460,7 @@ class Bud::LatticeWrapper
     if @bud_instance.wiring?
       setup_wiring(i, :pending)
     else
-      @pending = do_merge(current_pending, i) unless i.nil?
+      @pending = do_merge(current_pending, i)
     end
   end
 
