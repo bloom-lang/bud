@@ -174,7 +174,19 @@ class Bud::LatticePushElement
   end
 
   def push_out(v)
-    @outputs.each {|o| o.insert(v, self)}
+    @outputs.each do |o|
+      # If we're connected to a traditional Bloom operator or collection,
+      # insert() takes a single tuple, so we need a way to divide the lattice
+      # value into a collection of tuple-like values. For now, hardcode a single
+      # way to do this: we simply assume the value embedded inside the lattice
+      # is Enumerable.
+      # XXX: rethink this.
+      if o.class <= Bud::BudCollection || o.class <= Bud::PushElement
+        v.reveal.each {|t| o.insert(t, self)}
+      else
+        o.insert(v, self)
+      end
+    end
     @pendings.each {|o| o <+ v}
   end
 

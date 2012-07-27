@@ -1101,3 +1101,27 @@ class TestLatticesWithModules < MiniTest::Unit::TestCase
     assert_equal([1,2,3,4,5,6], i.s1.current_value.reveal.sort)
   end
 end
+
+class RescanLattice
+  include Bud
+
+  state do
+    scratch :s1, [:a, :b]
+    lset :set_input
+    lset :set_derived
+  end
+
+  bloom do
+    set_derived <= set_input {|i| i + 1}
+    s1 <= set_derived {|i| [i, i + 2]}
+  end
+end
+
+class RescanLatticeTests < MiniTest::Unit::TestCase
+  def test_rescan_lattice
+    i = RescanLattice.new
+    i.set_input <+ Bud::SetLattice.new([5])
+    i.tick
+    assert_equal([[6, 8]], i.s1.to_a.sort)
+  end
+end

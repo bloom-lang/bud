@@ -204,7 +204,7 @@ class Bud::SetLattice < Bud::Lattice
       else
         t = i.pro {|b| blk.call(a, b)}
       end
-      rv.merge(t)
+      rv.merge(t.reveal)
     end
     wrap_unsafe(rv)
   end
@@ -214,7 +214,13 @@ class Bud::SetLattice < Bud::Lattice
   end
 
   morph :pro do |&blk|
-    @v.map(&blk).reject{|e| e.nil?}
+    # We don't use Set#map, since it returns an Array (ugh).
+    rv = Set.new
+    @v.each do |t|
+      val = blk.call(t)
+      rv << val unless val.nil?
+    end
+    wrap_unsafe(rv)
   end
 
   monotone :size do
