@@ -659,13 +659,11 @@ class TestJoinReplay
     scratch :x1
     scratch :x2
     scratch :x3
-    scratch :dummy
   end
 
   bloom do
     x1 <= (t1 * t2).pairs {|x,y| [x.key, y.val]}
     x1 <= (x2 * x3).pairs {|x,y| [x.key, y.val]}
-    dummy <= x1
   end
 end
 
