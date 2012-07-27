@@ -549,6 +549,9 @@ module Bud
       elsif o.class <= Bud::LatticePushElement
         add_merge_target
         o.wire_to self
+      elsif o.class <= Bud::LatticeWrapper
+        add_merge_target
+        o.to_push_elem.wire_to self
       else
         unless o.nil?
           o = o.uniq.compact if o.respond_to?(:uniq)
@@ -598,6 +601,12 @@ module Bud
         add_merge_target
         tbl = register_coll_expr(o)
         tbl.pro.wire_to(self, :pending)
+      elsif o.class <= Bud::LatticePushElement
+        add_merge_target
+        o.wire_to(self, :pending)
+      elsif o.class <= Bud::LatticeWrapper
+        add_merge_target
+        o.to_push_elem.wire_to(self, :pending)
       else
         pending_merge(o)
       end

@@ -1107,13 +1107,22 @@ class RescanLattice
 
   state do
     scratch :s1, [:a, :b]
+    scratch :s1_at_next, s1.schema
+    scratch :s2, [:v]
+    scratch :s2_at_next, s2.schema
     lset :set_input
     lset :set_derived
+    lset :set_as_tuple
   end
 
   bloom do
     set_derived <= set_input {|i| i + 1}
     s1 <= set_derived {|i| [i, i + 2]}
+    s1_at_next <+ set_derived {|i| [i, i + 2]}
+
+    set_as_tuple <= set_derived {|i| [i]}
+    s2 <= set_as_tuple
+    s2_at_next <+ set_as_tuple
   end
 end
 
@@ -1123,5 +1132,19 @@ class RescanLatticeTests < MiniTest::Unit::TestCase
     i.set_input <+ Bud::SetLattice.new([5])
     i.tick
     assert_equal([[6, 8]], i.s1.to_a.sort)
+    assert_equal([], i.s1_at_next.to_a.sort)
+    assert_equal([[6]], i.s2.to_a.sort)
+    assert_equal([], i.s2_at_next.to_a.sort)
+    i.set_input <+ Bud::SetLattice.new([4])
+    i.tick
+    assert_equal([[5, 7], [6, 8]], i.s1.to_a.sort)
+    assert_equal([[6, 8]], i.s1_at_next.to_a.sort)
+    assert_equal([[5], [6]], i.s2.to_a.sort)
+    assert_equal([[6]], i.s2_at_next.to_a.sort)
+    i.tick
+    assert_equal([[5, 7], [6, 8]], i.s1.to_a.sort)
+    assert_equal([[5, 7], [6, 8]], i.s1_at_next.to_a.sort)
+    assert_equal([[5], [6]], i.s2.to_a.sort)
+    assert_equal([[5], [6]], i.s2_at_next.to_a.sort)
   end
 end

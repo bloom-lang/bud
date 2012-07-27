@@ -175,19 +175,25 @@ class Bud::LatticePushElement
 
   def push_out(v)
     @outputs.each do |o|
-      # If we're connected to a traditional Bloom operator or collection,
-      # insert() takes a single tuple, so we need a way to divide the lattice
-      # value into a collection of tuple-like values. For now, hardcode a single
-      # way to do this: we simply assume the value embedded inside the lattice
-      # is Enumerable.
+      # If we're emitting outputs to a traditional Bloom collection, merge
+      # operators (e.g., <=, <+) take a collection of tuples, so we need to
+      # convert the lattice value into a collection of tuple-like values. For
+      # now, we hardcode a single way to do this: we simply assume the value
+      # embedded inside the lattice is Enumerable.
       # XXX: rethink this.
-      if o.class <= Bud::BudCollection || o.class <= Bud::PushElement
-        v.reveal.each {|t| o.insert(t, self)}
+      if o.class <= Bud::BudCollection
+        o <= v.reveal
       else
         o.insert(v, self)
       end
     end
-    @pendings.each {|o| o <+ v}
+    @pendings.each do |o|
+      if o.class <= Bud::BudCollection
+        o <+ v.reveal
+      else
+        o <+ v
+      end
+    end
   end
 
   def flush
@@ -365,6 +371,7 @@ end
 
 class Bud::LatticeWrapper
   attr_reader :tabname, :wired_by
+  attr_accessor :accumulate_tick_deltas
 
   def initialize(tabname, klass, bud_i)
     @tabname = tabname
