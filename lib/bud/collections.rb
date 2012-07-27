@@ -566,7 +566,7 @@ module Bud
       unless @delta.empty?
         puts "#{qualified_tabname}.tick_delta delta --> storage (#{@delta.size} elems)" if $BUD_DEBUG
         @storage.merge!(@delta)
-        @tick_delta += @delta.values if accumulate_tick_deltas
+        @tick_delta.concat(@delta.values) if accumulate_tick_deltas
         @delta.clear
       end
 
@@ -606,7 +606,7 @@ module Bud
       end
       unless @delta.empty?
         @storage.merge!(@delta)
-        @tick_delta += @delta.values if accumulate_tick_deltas
+        @tick_delta.concat(@delta.values) if accumulate_tick_deltas
         @delta.clear
       end
       unless @new_delta.empty?

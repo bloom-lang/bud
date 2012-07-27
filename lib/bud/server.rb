@@ -30,7 +30,7 @@ class Bud::BudServer < EM::Connection #:nodoc: all
 
       unless accepted.empty?
         @bud.inbound[tbl_name] ||= []
-        @bud.inbound[tbl_name] += accepted
+        @bud.inbound[tbl_name].concat(accepted)
       end
       buf_leftover[tbl_name] = saved unless saved.empty?
     end
