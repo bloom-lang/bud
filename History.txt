@@ -1,4 +1,10 @@
-== 0.9.3 / ???
+== 0.9.3 / 2012-07-27
+
+* Fix several serious bugs in caching/invalidation of materialized operator
+  state (#276)
+* Fix REBL regression with push-based runtime (#274)
+* Minor performance optimizations
+* Built-in support for code coverage with MRI 1.9 and SimpleCov
 
 == 0.9.2 / 2012-05-19
 
@@ -18,7 +24,7 @@
   * Previous behavior was to ignore additional fields, but this was found to be
     error-prone
 * Remove builtin support for BUST (web services API); this avoids the need to
-  depend on the json, nestful and i18n gems.
+  depend on the json, nestful and i18n gems
 
 == 0.9.0 / 2012-03-21
 

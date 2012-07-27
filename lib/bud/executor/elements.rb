@@ -148,7 +148,8 @@ module Bud
     # default for stateless elements
     public
     def add_rescan_invalidate(rescan, invalidate)
-      # if any of the source elements are in rescan mode, then put this node in rescan.
+      # if any of the source elements are in rescan mode, then put this node in
+      # rescan.
       srcs = non_temporal_predecessors
       if srcs.any?{|p| rescan.member? p}
         rescan << self
@@ -161,7 +162,7 @@ module Bud
       # finally, if this node is in rescan, pass the request on to all source
       # elements
       if rescan.member? self
-        rescan += srcs
+        rescan.merge(srcs)
       end
     end
 
@@ -224,7 +225,7 @@ module Bud
     def join(elem2, &blk)
       # cached = @bud_instance.push_elems[[self.object_id,:join,[self,elem2], @bud_instance, blk]]
       # if cached.nil?
-        elem2  = elem2.to_push_elem unless elem2.class <= PushElement
+        elem2 = elem2.to_push_elem unless elem2.class <= PushElement
         toplevel = @bud_instance.toplevel
         join = Bud::PushSHJoin.new([self, elem2], toplevel.this_rule_context, [])
         self.wire_to(join)
@@ -295,7 +296,6 @@ module Bud
       # toplevel.push_elems[[self.object_id, :group, keycols, aggpairs, blk]]
       return g
     end
-
 
     def argagg(aggname, gbkey_cols, collection, &blk)
       gbkey_cols = gbkey_cols.map{|c| canonicalize_col(c)}
@@ -384,13 +384,6 @@ module Bud
       end
       toplevel.push_elems[[self.object_id, :inspected]]
     end
-
-    def to_enum
-      # scr = @bud_instance.scratch(("scratch_" + Process.pid.to_s + "_" + object_id.to_s + "_" + rand(10000).to_s).to_sym, schema)
-      scr = []
-      self.wire_to(scr)
-      scr
-    end
   end
 
   class PushStatefulElement < PushElement
@@ -405,7 +398,7 @@ module Bud
     def add_rescan_invalidate(rescan, invalidate)
       # If an upstream node is set to rescan, a stateful node invalidates its
       # cache.  In addition, a stateful node always rescans its own contents
-      # (doesn't need to pass a rescan request to its its source nodes).
+      # (doesn't need to pass a rescan request to its source nodes).
       rescan << self
       srcs = non_temporal_predecessors
       if srcs.any? {|p| rescan.member? p}
@@ -492,10 +485,13 @@ module Bud
       @invalidate_set = invalidate
     end
 
-    public
     def add_rescan_invalidate(rescan, invalidate)
-      # scanner elements are never directly connected to tables.
+      # if the collection is to be invalidated, the scanner needs to be in
+      # rescan mode
       rescan << self if invalidate.member? @collection
+
+      # in addition, default PushElement rescan/invalidate logic applies
+      super
 
       # Note also that this node can be nominated for rescan by a target node;
       # in other words, a scanner element can be set to rescan even if the
@@ -572,7 +568,7 @@ module Bud
       # index.
       if rescan.member? self
         invalidate << self
-        rescan += srcs
+        rescan.merge(srcs)
       end
     end
 

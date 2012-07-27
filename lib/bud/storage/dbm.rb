@@ -141,7 +141,7 @@ module Bud
     def tick_deltas
       unless @delta.empty?
         merge_to_db(@delta)
-        @tick_delta += @delta.values if accumulate_tick_deltas
+        @tick_delta.concat(@delta.values) if accumulate_tick_deltas
         @delta.clear
       end
       unless @new_delta.empty?
@@ -155,7 +155,7 @@ module Bud
     def flush_deltas
       unless @delta.empty?
         merge_to_db(@delta)
-        @tick_delta += @delta.values
+        @tick_delta.concat(@delta.values) if accumulate_tick_deltas
         @delta.clear
       end
       merge_to_db(@new_delta)

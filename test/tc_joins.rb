@@ -624,8 +624,139 @@ class OjChannelTest < MiniTest::Unit::TestCase
     assert_equal([[o.ip_port, "nrc", true]], rv.to_a.sort)
     rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "jmh", "qwerty"]], :resp)
     assert_equal([[o.ip_port, "jmh", false]], rv.to_a.sort)
-    rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "franklin", "qwerty"]], :resp)
+    rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "franklin", "cs186"]], :resp)
     assert_equal([[o.ip_port, "franklin", false]], rv.to_a.sort)
+    o.sync_do {
+      o.user_db <+ [["franklin", "cs186"]]
+    }
+    rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "franklin", "cs186"]], :resp)
+    assert_equal([[o.ip_port, "franklin", true]], rv.to_a.sort)
     o.stop
+  end
+end
+
+class TestScanReplay
+  include Bud
+
+  state do
+    table :t1
+    scratch :x1
+    scratch :x2
+  end
+
+  bloom do
+    x2 <= t1
+    x2 <= x1
+  end
+end
+
+class TestJoinReplay
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    scratch :x1
+    scratch :x2
+    scratch :x3
+  end
+
+  bloom do
+    x1 <= (t1 * t2).pairs {|x,y| [x.key, y.val]}
+    x1 <= (x2 * x3).pairs {|x,y| [x.key, y.val]}
+  end
+end
+
+class TestAggReplay
+  include Bud
+
+  state do
+    table :t1
+    scratch :x1
+    scratch :x2
+  end
+
+  bloom do
+    x1 <= t1.group([:key], max(:val))
+    x1 <= x2.group([:key], max(:val))
+  end
+end
+
+class TestReduceReplay
+  include Bud
+
+  state do
+    table :t1, [:v, :x]
+    scratch :x1, [:res]
+    scratch :x2, [:v, :x]
+  end
+
+  bloom do
+    x1 <= t1.reduce([[true]]) do |memo, t|
+      if t.v == false
+        [[false]]
+      else
+        memo
+      end
+    end
+    x1 <= x2.reduce([[true]]) do |memo, t|
+      if t.v == false
+        [[false]]
+      else
+        memo
+      end
+    end
+  end
+end
+
+# Issue #276 and related bugs
+class RescanTests < MiniTest::Unit::TestCase
+  def test_scan_replay
+    i = TestScanReplay.new
+    i.t1 <+ [[4, 8]]
+    i.x1 <+ [[5, 10]]
+    i.tick
+    assert_equal([[4, 8], [5, 10]], i.x2.to_a.sort)
+    i.x1 <+ [[5, 10]]
+    i.tick
+    assert_equal([[4, 8], [5, 10]], i.x2.to_a.sort)
+  end
+
+  def test_join_replay
+    i = TestJoinReplay.new
+    i.t1 <+ [[2, 3]]
+    i.t2 <+ [[3, 4]]
+    i.x2 <+ [[5, 6]]
+    i.x3 <+ [[7, 8]]
+    i.tick
+    assert_equal([[2, 4], [5, 8]], i.x1.to_a.sort)
+    i.x2 <+ [[5, 6]]
+    i.x3 <+ [[7, 8]]
+    i.tick
+    assert_equal([[2, 4], [5, 8]], i.x1.to_a.sort)
+  end
+
+  def test_agg_replay
+    i = TestAggReplay.new
+    i.t1 <+ [[5, 10], [6, 11]]
+    i.x2 <+ [[7, 12]]
+    i.tick
+    assert_equal([[5, 10], [6, 11], [7, 12]], i.x1.to_a.sort)
+    i.x2 <+ [[7, 13]]
+    i.tick
+    assert_equal([[5, 10], [6, 11], [7, 13]], i.x1.to_a.sort)
+  end
+
+  def test_reduce_replay
+    i = TestReduceReplay.new
+    i.t1 <+ [[true, 1], [true, 2]]
+    i.x2 <+ [[true, 1], [false, 2]]
+    i.tick
+    assert_equal([[true], [false]], i.x1.to_a.sort {|a,b| a == true ? 1 : 0})
+    i.tick
+    assert_equal([[true]], i.x1.to_a.sort {|a,b| a == true ? 1 : 0})
+    i.x2 <+ [[true, 1], [false, 2]]
+    i.tick
+    assert_equal([[true], [false]], i.x1.to_a.sort {|a,b| a == true ? 1 : 0})
   end
 end

@@ -74,6 +74,10 @@ module Bud
       @qualified_tabname ||= @bud_instance.toplevel?  ? tabname : "#{@bud_instance.qualified_name}.#{tabname}".to_sym
     end
 
+    def inspect
+      "#{self.class}:#{self.object_id.to_s(16)} [#{qualified_tabname}]"
+    end
+
     # The user-specified schema might come in two forms: a hash of Array =>
     # Array (key_cols => remaining columns), or simply an Array of columns (if
     # no key_cols were specified). Return a pair: [list of (all) columns, list
@@ -100,10 +104,6 @@ module Bud
       end
 
       return [cols, key_cols]
-    end
-
-    def inspect
-      "#{self.class}:#{self.object_id.to_s(16)} [#{qualified_tabname}]"
     end
 
     # produces the schema in a format that is useful as the schema specification for another table
@@ -189,6 +189,8 @@ module Bud
     def pro(the_name=tabname, the_schema=schema, &blk)
       if @bud_instance.wiring?
         pusher = to_push_elem(the_name, the_schema)
+        # If there is no code block evaluate, use the scanner directly
+        return pusher if blk.nil?
         pusher_pro = pusher.pro(&blk)
         pusher_pro.elem_name = the_name
         pusher_pro.tabname = the_name
@@ -609,7 +611,7 @@ module Bud
       unless @delta.empty?
         puts "#{qualified_tabname}.tick_delta delta --> storage (#{@delta.size} elems)" if $BUD_DEBUG
         @storage.merge!(@delta)
-        @tick_delta += @delta.values if accumulate_tick_deltas
+        @tick_delta.concat(@delta.values) if accumulate_tick_deltas
         @delta.clear
       end
 
@@ -649,7 +651,7 @@ module Bud
       end
       unless @delta.empty?
         @storage.merge!(@delta)
-        @tick_delta += @delta.values if accumulate_tick_deltas
+        @tick_delta.concat(@delta.values) if accumulate_tick_deltas
         @delta.clear
       end
       unless @new_delta.empty?
@@ -789,7 +791,7 @@ module Bud
       srcs = non_temporal_predecessors
       if srcs.any? {|e| rescan.member? e}
         invalidate << self
-        rescan += srcs
+        rescan.merge(srcs)
       end
     end
 

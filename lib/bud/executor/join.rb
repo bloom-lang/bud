@@ -67,14 +67,19 @@ module Bud
     public
     def state_id # :nodoc: all
       object_id
-                 # Marshal.dump([@rels.map{|r| r.tabname}, @localpreds]).hash
+    end
+
+    def flush
+      if @rescan
+        replay_join
+        @rescan = false
+      end
     end
 
     # initialize the state for this join to be carried across iterations within a fixpoint
     private
     def setup_state
       sid = state_id
-
       @tabname = ("(" + @all_rels_below.map{|r| r.tabname}.join('*') +"):"+sid.to_s).to_sym
       @hash_tables = [{}, {}]
     end
@@ -138,14 +143,15 @@ module Bud
     def invalidate_cache
       @rels.each_with_index do |source_elem, i|
         if source_elem.rescan
-
           puts "#{tabname} rel:#{i}(#{source_elem.tabname}) invalidated" if $BUD_DEBUG
           @hash_tables[i] = {}
-          if  i == 0
-            # XXX This is not modular. We are doing invalidation work for outer joins, which is part of a
-            # separate module PushSHOuterJoin.
-            @missing_keys.clear # Only if i == 0 because outer joins in Bloom are left outer joins
-            # if i == 1, missing_keys will be corrected when items are populated in the rhs fork
+          if i == 0
+            # Only if i == 0 because outer joins in Bloom are left outer joins.
+            # If i == 1, missing_keys will be corrected when items are populated
+            # in the rhs fork.
+            # XXX This is not modular. We are doing invalidation work for outer
+            # joins, which is part of a separate module PushSHOuterJoin.
+            @missing_keys.clear
           end
         end
       end
@@ -269,10 +275,6 @@ module Bud
     public
     def insert(item, source)
       #puts "JOIN: #{source.tabname} -->  #{self.tabname} : #{item}/#{item.class}"
-      if @rescan
-        replay_join
-        @rescan = false
-      end
       if @selfjoins.include? source.elem_name
         offsets = []
         @relnames.each_with_index{|r,i| offsets << i if r == source.elem_name}
@@ -332,16 +334,15 @@ module Bud
     end
 
     def replay_join
-      a = @hash_tables[0]
-      b = @hash_tables[1]
-      return if (a.empty? or b.empty?)
+      a, b = @hash_tables
+      return if a.empty? or b.empty?
 
       if a.size < b.size
         a.each_pair do |key, items|
           the_matches = b[key]
           unless the_matches.nil?
             items.each do |item|
-              process_matches(item, the_matches, 1)
+              process_matches(item, the_matches, 0)
             end
           end
         end
@@ -350,7 +351,7 @@ module Bud
           the_matches = a[key]
           unless the_matches.nil?
             items.each do |item|
-              process_matches(item, the_matches, 0)
+              process_matches(item, the_matches, 1)
             end
           end
         end

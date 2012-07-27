@@ -325,12 +325,12 @@ module Bud
 
     # Check scan and merge_targets to see if any builtin_tables need to be added as well.
     @scanners.each do |scs|
-      @app_tables += scs.values.map {|s| s.collection}
+      @app_tables.merge(scs.values.map {|s| s.collection})
     end
     @merge_targets.each do |mts| #mts == merge_targets at stratum
-      @app_tables += mts
+      @app_tables.merge(mts)
     end
-    @app_tables = @app_tables.nil? ? [] : @app_tables.to_a
+    @app_tables = @app_tables.to_a
 
     # for each stratum create a sorted list of push elements in topological order
     @push_sorted_elems = []
@@ -461,7 +461,7 @@ module Bud
         end
 
         if elem.outputs.any?{|tab| not(tab.class <= PushElement) and not(tab.class <= LatticePushElement) and nm_targets.member? tab.qualified_tabname.to_sym }
-          rescan += elem.wired_by
+          rescan.merge(elem.wired_by)
         end
       end
       rescan_invalidate_tc(stratum, rescan, invalidate)

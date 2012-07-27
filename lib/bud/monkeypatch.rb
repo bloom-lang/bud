@@ -62,7 +62,7 @@ class Array
   alias :oldeq :==
   def ==(o)
     if o.kind_of? Struct
-      o = (o.to_a)
+      o = o.to_a
     end
     self.oldeq(o)
   end
