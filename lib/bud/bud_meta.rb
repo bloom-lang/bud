@@ -202,13 +202,13 @@ class BudMeta #:nodoc: all
       body.in_body = true
     end
 
-    nodes.values.each {|n| calc_stratum(n, false, false, [n.name])}
+    nodes.each_value {|n| calc_stratum(n, false, false, [n.name])}
     # Normalize stratum numbers because they may not be 0-based or consecutive
     remap = {}
     # if the nodes stratum numbers are [2, 3, 2, 4], remap = {2 => 0, 3 => 1, 4 => 2}
-    nodes.values.map {|n| n.stratum}.uniq.sort.each_with_index{|num, i|
+    nodes.values.map {|n| n.stratum}.uniq.sort.each_with_index do |num, i|
       remap[num] = i
-    }
+    end
     stratum_map = {}
     top_stratum = -1
     nodes.each_pair do |name, n|
@@ -233,8 +233,9 @@ class BudMeta #:nodoc: all
       node.edges.each do |edge|
         node.is_neg_head = edge.neg
         next if edge.op != "<="
+        raise if edge.temporal
         body_stratum = calc_stratum(edge.to, (neg or edge.neg), (edge.temporal or temporal), path + [edge.to.name])
-        node.is_neg_head = false #reset for next edge
+        node.is_neg_head = false # reset for next edge
         node.stratum = max(node.stratum, body_stratum + (edge.neg ? 1 : 0))
       end
       node.status = :done
@@ -261,7 +262,7 @@ class BudMeta #:nodoc: all
       else
         unless preds_in_lhs.include? pred.to_s
           # output interface underspecified if not in any rule's lhs
-          bud.t_underspecified << [pred, false]  #false indicates output mode.
+          bud.t_underspecified << [pred, false]  # false indicates output mode
           out.puts "Warning: output interface #{pred} not used"
         end
       end
