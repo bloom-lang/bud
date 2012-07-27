@@ -69,6 +69,13 @@ module Bud
       object_id
     end
 
+    def flush
+      if @rescan
+        replay_join
+        @rescan = false
+      end
+    end
+
     # initialize the state for this join to be carried across iterations within a fixpoint
     private
     def setup_state
@@ -268,10 +275,6 @@ module Bud
     public
     def insert(item, source)
       #puts "JOIN: #{source.tabname} -->  #{self.tabname} : #{item}/#{item.class}"
-      if @rescan
-        replay_join
-        @rescan = false
-      end
       if @selfjoins.include? source.elem_name
         offsets = []
         @relnames.each_with_index{|r,i| offsets << i if r == source.elem_name}
@@ -340,7 +343,7 @@ module Bud
           the_matches = b[key]
           unless the_matches.nil?
             items.each do |item|
-              process_matches(item, the_matches, 1)
+              process_matches(item, the_matches, 0)
             end
           end
         end
@@ -349,7 +352,7 @@ module Bud
           the_matches = a[key]
           unless the_matches.nil?
             items.each do |item|
-              process_matches(item, the_matches, 0)
+              process_matches(item, the_matches, 1)
             end
           end
         end

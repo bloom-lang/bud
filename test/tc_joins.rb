@@ -650,6 +650,25 @@ class TestScanReplay
   end
 end
 
+class TestJoinReplay
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    scratch :x1
+    scratch :x2
+    scratch :x3
+    scratch :dummy
+  end
+
+  bloom do
+    x1 <= (t1 * t2).pairs {|x,y| [x.key, y.val]}
+    x1 <= (x2 * x3).pairs {|x,y| [x.key, y.val]}
+    dummy <= x1
+  end
+end
+
 class RescanTests < MiniTest::Unit::TestCase
   def test_scan_replay
     i = TestScanReplay.new
@@ -660,5 +679,20 @@ class RescanTests < MiniTest::Unit::TestCase
     i.x1 <+ [[5, 10]]
     i.tick
     assert_equal([[4, 8], [5, 10]], i.x2.to_a.sort)
+  end
+
+  # issue #276
+  def test_join_replay
+    i = TestJoinReplay.new
+    i.t1 <+ [[2, 3]]
+    i.t2 <+ [[3, 4]]
+    i.x2 <+ [[5, 6]]
+    i.x3 <+ [[7, 8]]
+    i.tick
+    assert_equal([[2, 4], [5, 8]], i.x1.to_a.sort)
+    i.x2 <+ [[5, 6]]
+    i.x3 <+ [[7, 8]]
+    i.tick
+    assert_equal([[2, 4], [5, 8]], i.x1.to_a.sort)
   end
 end
