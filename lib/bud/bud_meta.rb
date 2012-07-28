@@ -27,6 +27,8 @@ class BudMeta #:nodoc: all
           # Deductive rules are assigned to strata based on the basic Datalog
           # stratification algorithm
           belongs_in = stratum_map[rule.lhs]
+          # If the rule body doesn't reference any collections, it won't be
+          # assigned a stratum, so just place it in stratum zero
           belongs_in ||= 0
           stratified_rules[belongs_in] << rule
         else
@@ -233,7 +235,6 @@ class BudMeta #:nodoc: all
       node.edges.each do |edge|
         node.is_neg_head = edge.neg
         next if edge.op != "<="
-        raise if edge.temporal
         body_stratum = calc_stratum(edge.to, (neg or edge.neg), (edge.temporal or temporal), path + [edge.to.name])
         node.is_neg_head = false # reset for next edge
         node.stratum = max(node.stratum, body_stratum + (edge.neg ? 1 : 0))
