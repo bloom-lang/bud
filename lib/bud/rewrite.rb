@@ -11,7 +11,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
                                 :pairs, :matches, :combos, :flatten, :new,
                                 :lefts, :rights, :map, :flat_map, :pro, :merge,
                                 :cols, :key_cols, :val_cols, :payloads, :lambda,
-                                :tabname, :ip_port, :port, :ip, :int_ip_port])
+                                :tabname, :ip_port, :port, :ip, :int_ip_port,
+                                :current_value])
 
   def initialize(seed, bud_instance)
     @bud_instance = bud_instance
