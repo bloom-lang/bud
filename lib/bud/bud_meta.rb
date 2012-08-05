@@ -23,7 +23,7 @@ class BudMeta #:nodoc: all
       # slot each rule into the stratum corresponding to its lhs pred (from stratum_map)
       stratified_rules = Array.new(top_stratum + 2) { [] }  # stratum -> [ rules ]
       @bud_instance.t_rules.each do |rule|
-        if rule.op.to_s == '<='
+        if rule.op == '<='
           # Deductive rules are assigned to strata based on the basic Datalog
           # stratification algorithm
           belongs_in = stratum_map[rule.lhs]
@@ -197,9 +197,9 @@ class BudMeta #:nodoc: all
     nodes = {}
     bud.t_depends.each do |d|
       #t_depends [:bud_instance, :rule_id, :lhs, :op, :body] => [:nm]
-      lhs = (nodes[d.lhs.to_s] ||= Node.new(d.lhs.to_s, :init, 0, [], true, false, false, false))
+      lhs = (nodes[d.lhs] ||= Node.new(d.lhs, :init, 0, [], true, false, false, false))
       lhs.in_lhs = true
-      body = (nodes[d.body.to_s] ||= Node.new(d.body.to_s, :init, 0, [], false, true, false, false))
+      body = (nodes[d.body] ||= Node.new(d.body, :init, 0, [], false, true, false, false))
       temporal = d.op != "<="
       lhs.edges << Edge.new(body, d.op, d.nm, temporal)
       body.in_body = true
@@ -235,7 +235,7 @@ class BudMeta #:nodoc: all
       node.status = :in_process
       node.edges.each do |edge|
         node.is_neg_head = edge.neg
-        next if edge.op != "<="
+        next unless edge.op == "<="
         body_stratum = calc_stratum(edge.to, (neg or edge.neg), (edge.temporal or temporal), path + [edge.to.name])
         node.is_neg_head = false # reset for next edge
         node.stratum = max(node.stratum, body_stratum + (edge.neg ? 1 : 0))
@@ -256,13 +256,13 @@ class BudMeta #:nodoc: all
     bud.t_provides.each do |p|
       pred, input = p.interface, p.input
       if input
-        unless preds_in_body.include? pred.to_s
+        unless preds_in_body.include? pred
           # input interface is underspecified if not used in any rule body
           bud.t_underspecified << [pred, true] # true indicates input mode
           out.puts "Warning: input interface #{pred} not used"
         end
       else
-        unless preds_in_lhs.include? pred.to_s
+        unless preds_in_lhs.include? pred
           # output interface underspecified if not in any rule's lhs
           bud.t_underspecified << [pred, false]  # false indicates output mode
           out.puts "Warning: output interface #{pred} not used"
