@@ -73,7 +73,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       do_rule(exp)
     elsif op == :notin
       # Special case. In the rule "z <= x.notin(y)", z depends positively on x,
-      # but negatively on y See further explanation in the "else" section for
+      # but negatively on y. See further explanation in the "else" section for
       # why this is a special case.
       notintab = call_to_id(args[1])   # args expected to be of the form (:arglist (:call nil :y ...))
       @tables[notintab.to_s] = true    # "true" denotes non-monotonic dependency
