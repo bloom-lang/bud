@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'bud/graphs'
 require 'bud/meta_algebra'
+require 'syntax/convertors/html'
 
 module TraceCardinality
   state do
