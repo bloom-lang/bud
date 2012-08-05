@@ -6,7 +6,7 @@ require 'set'
 class VizOnline #:nodoc: all
   attr_reader :logtab
 
-  META_TABLES = %w[t_cycle t_depends t_provides t_rules
+  META_TABLES = %w[t_cycle t_depends t_depends_tc t_provides t_rules
                    t_stratum t_table_info t_table_schema].to_set
 
   def initialize(bud_instance)
