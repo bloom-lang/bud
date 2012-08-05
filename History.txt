@@ -1,5 +1,7 @@
 == 0.9.3 / 2012-07-27
 
+* Change behavior of accum() aggregate to return a Set, rather than an Array in
+  an unspecified order
 * Fix several serious bugs in caching/invalidation of materialized operator
   state (#276)
 * Fix REBL regression with push-based runtime (#274)

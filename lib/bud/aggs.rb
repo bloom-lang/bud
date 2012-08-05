@@ -1,3 +1,5 @@
+require 'set'
+
 module Bud
   ######## Agg definitions
   class Agg #:nodoc: all
@@ -196,7 +198,7 @@ module Bud
 
   class Accum < Agg #:nodoc: all
     def init(x)
-      [x]
+      [x].to_set
     end
     def trans(the_state, val)
       the_state << val
@@ -205,8 +207,7 @@ module Bud
   end
 
   # aggregate method to be used in Bud::BudCollection.group.
-  # accumulates all x inputs into an array. note that the order of the elements
-  # in the resulting array is undefined.
+  # accumulates all x inputs into a set.
   def accum(x)
     [Accum.new, x]
   end
