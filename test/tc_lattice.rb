@@ -1148,3 +1148,38 @@ class RescanLatticeTests < MiniTest::Unit::TestCase
     assert_equal([[5], [6]], i.s2_at_next.to_a.sort)
   end
 end
+
+class LatticeEmbedJoin
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    lmax :m1
+    lmax :m2
+  end
+
+  bloom do
+    t1 <= (t2 * t3).lefts {|x| [x.key, m1]}
+    m1 <= m2
+  end
+end
+
+class TestLatticeEmbedDeltas < MiniTest::Unit::TestCase
+  def test_join_deltas
+    i = LatticeEmbedJoin.new
+    %w[t1 t2 t3 m1 m2].each {|r| assert_equal(0, i.collection_stratum(r))}
+    i.t2 <+ [[5, 10]]
+    i.t3 <+ [[10, 20]]
+    i.m1 <+ Bud::MaxLattice.new(5)
+    i.tick
+    assert_equal([[5, Bud::MaxLattice.new(5)]], i.t1.to_a)
+    i.m2 <+ Bud::MaxLattice.new(12)
+    i.tick
+    assert_equal([[5, Bud::MaxLattice.new(12)]], i.t1.to_a)
+    i.m1 <+ Bud::MaxLattice.new(14)
+    i.tick
+    assert_equal([[5, Bud::MaxLattice.new(14)]], i.t1.to_a)
+  end
+end

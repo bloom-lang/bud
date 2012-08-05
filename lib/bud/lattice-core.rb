@@ -370,7 +370,7 @@ class Bud::PushApplyMethod < Bud::LatticePushElement
 end
 
 class Bud::LatticeWrapper
-  attr_reader :tabname, :wired_by
+  attr_reader :tabname, :wired_by, :rescan_on_merge
   attr_accessor :accumulate_tick_deltas
 
   def initialize(tabname, klass, bud_i)
@@ -378,6 +378,7 @@ class Bud::LatticeWrapper
     @klass = klass
     @bud_instance = bud_i
     @wired_by = []
+    @rescan_on_merge = Set.new
   end
 
   def qualified_tabname
@@ -517,22 +518,26 @@ class Bud::LatticeWrapper
     if @new_delta
       raise Bud::Error, "orphaned delta value for lattice #{@tabname}: #{@new_delta.inspect}"
     end
-    @storage = do_merge(current_value, @pending)
+    merge_to_storage(@pending)
     @pending = nil
     @delta = nil
   end
 
-  def tick_deltas
-    result = false
-
-    if @new_delta
-      m = do_merge(current_value, @new_delta)
-      if m != current_value
-        @storage = m
-        result = true
+  def merge_to_storage(v)
+    m = do_merge(current_value, v)
+    if m != current_value
+      @storage = m
+      @rescan_on_merge.each do |e|
+        e.rescan = true
       end
+      return true
+    else
+      return false
     end
+  end
 
+  def tick_deltas
+    result = merge_to_storage(@new_delta)
     @delta = @new_delta
     @new_delta = nil
     return result

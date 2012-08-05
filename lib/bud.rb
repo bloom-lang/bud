@@ -510,6 +510,26 @@ module Bud
       end
     end
     @reset_list = to_reset.to_a
+
+    # For each lattice, find the set of tables that should be rescanned when
+    # there is a new delta for the lattice. That is, if we have a rule like:
+    # "t2 <= t1 {|t| [t.key, lat_foo]}", whenever there is a delta on lat_foo we
+    # should rescan t1 (to produce tuples with the updated lat_foo value).
+    # TODO:
+    # (1) support non-join ops to be rescanned (+ tests)
+    # (2) don't trigger rescan for rules that don't actually embed lattice
+    #    values (top-level refs are okay) => tweak rewrite code?
+    # (3) if t1 is fed by rules r1 and r2 but only r1 references lattice x,
+    #     don't trigger rescan of r2 on deltas for x (hard)
+    t_depends.each do |dep|
+      if @lattices.has_key? dep.body.to_sym and @tables.has_key? dep.lhs.to_sym
+        src_lat = @lattices[dep.body.to_sym]
+        dst_tbl = @tables[dep.lhs.to_sym]
+        dst_tbl.non_temporal_predecessors.each do |e|
+          src_lat.rescan_on_merge << e
+        end
+      end
+    end
   end
 
   # given rescan, invalidate sets, compute transitive closure
