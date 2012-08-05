@@ -197,7 +197,7 @@ class LibRebl
   attr_reader :ip, :port, :rebl_class_inst
   @@builtin_tables = [:stdio, :periodics_tbl, :halt, :localtick,
                       :t_depends, :t_cycle, :t_provides, :t_rules,
-                      :t_depends_tc, :t_stratum, :t_underspecified,
+                      :t_stratum, :t_underspecified,
                       :t_table_info, :t_table_schema, :rebl_breakpoint]
   @@classid = 0
 
