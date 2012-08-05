@@ -262,7 +262,7 @@ module Bud
 
     public
     def non_temporal_predecessors
-      @wired_by.map {|elem| elem if elem.outputs.include? self}
+      @wired_by.select {|elem| elem.outputs.include? self}
     end
 
     public
