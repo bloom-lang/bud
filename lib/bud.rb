@@ -266,7 +266,7 @@ module Bud
         qlname = "#{local_name}.#{imp_dep.lhs}"
         qrname = "#{local_name}.#{imp_dep.body}"
         self.t_depends << [imp_dep.bud_obj, imp_dep.rule_id, qlname,
-                           imp_dep.op, qrname, imp_dep.nm]
+                           imp_dep.op, qrname, imp_dep.nm, imp_dep.in_body]
       end
       mod_inst.t_provides.each do |imp_pro|
         qintname = "#{local_name}.#{imp_pro.interface}"
@@ -516,15 +516,14 @@ module Bud
     # "t2 <= t1 {|t| [t.key, lat_foo]}", whenever there is a delta on lat_foo we
     # should rescan t1 (to produce tuples with the updated lat_foo value).
     # TODO:
-    # (1) support non-join ops to be rescanned (+ tests)
-    # (2) don't trigger rescan for rules that don't actually embed lattice
-    #    values (top-level refs are okay) => tweak rewrite code?
-    # (3) if t1 is fed by rules r1 and r2 but only r1 references lattice x,
+    # (1) support non-join ops to be rescanned (+ tests) + lambdas
+    # (2) if t1 is fed by rules r1 and r2 but only r1 references lattice x,
     #     don't trigger rescan of r2 on deltas for x (hard)
     t_depends.each do |dep|
-      if @lattices.has_key? dep.body.to_sym and @tables.has_key? dep.lhs.to_sym
-        src_lat = @lattices[dep.body.to_sym]
-        dst_tbl = @tables[dep.lhs.to_sym]
+      src, dst = dep.body.to_sym, dep.lhs.to_sym
+      if @lattices.has_key? src and @tables.has_key? dst and dep.in_body
+        src_lat = @lattices[src]
+        dst_tbl = @tables[dst]
         dst_tbl.non_temporal_predecessors.each do |e|
           src_lat.rescan_on_merge << e
         end
@@ -1134,7 +1133,7 @@ module Bud
 
     # for BUD reflection
     table :t_rules, [:bud_obj, :rule_id] => [:lhs, :op, :src, :orig_src, :nm_funcs_called]
-    table :t_depends, [:bud_obj, :rule_id, :lhs, :op, :body] => [:nm]
+    table :t_depends, [:bud_obj, :rule_id, :lhs, :op, :body] => [:nm, :in_body]
     table :t_provides, [:interface] => [:input]
     table :t_underspecified, t_provides.schema
     table :t_stratum, [:predicate] => [:stratum]

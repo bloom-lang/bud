@@ -196,7 +196,7 @@ class BudMeta #:nodoc: all
     bud = @bud_instance.toplevel
     nodes = {}
     bud.t_depends.each do |d|
-      #t_depends [:bud_instance, :rule_id, :lhs, :op, :body] => [:nm]
+      #t_depends [:bud_instance, :rule_id, :lhs, :op, :body] => [:nm, :in_body]
       lhs = (nodes[d.lhs] ||= Node.new(d.lhs, :init, 0, [], true, false, false, false))
       lhs.in_lhs = true
       body = (nodes[d.body] ||= Node.new(d.body, :init, 0, [], false, true, false, false))

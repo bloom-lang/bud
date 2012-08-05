@@ -10,7 +10,7 @@ include VizUtil
 
 module Depends
   state do
-    table :depends, [:rid, :lhs, :op, :rhs, :nm]
+    table :depends, [:rid, :lhs, :op, :rhs, :nm, :in_body]
   end
 end
 

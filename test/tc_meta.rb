@@ -145,6 +145,7 @@ class TestMeta < MiniTest::Unit::TestCase
     tally = 0
     program.t_depends.each do |dep|
       next if VizUtil.ma_tables.keys.include? dep.lhs.to_sym
+      assert_equal(false, dep.in_body) unless dep.lhs == "link2" and dep.body == "empty"
       if dep.lhs == "shortest" and dep.body == "path"
         assert(dep.nm, "NM rule")
         tally += 1
@@ -156,6 +157,7 @@ class TestMeta < MiniTest::Unit::TestCase
         tally += 1
       elsif dep.lhs == "link2" and dep.body == "empty"
         assert(dep.nm, "NM rule")
+        assert(dep.in_body)
         tally += 1
       elsif dep.lhs == "link3" and dep.body == "shortest"
         assert(dep.nm, "NM rule")

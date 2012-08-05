@@ -23,6 +23,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     @rules = []
     @depends = []
     @nm_funcs_called = false
+    @iter_stack = []
+    @refs_in_body = Set.new
     super()
   end
 
@@ -67,6 +69,61 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     return recv.nil? ? op.to_s : call_to_id(recv) + "." + op.to_s
   end
 
+  # We want to distinguish between collection dependencies that occur in
+  # top-level expressions versus collections that are referenced inside rule
+  # bodies. We just want to set a flag when processing the :iter body, but
+  # annoyingly it seems that is hard to do without duplicating the
+  # implementation of process_iter().
+  #
+  # XXX: the whole RuleRewriter approach is wrong because it conflates
+  # converting ASTs to strings with doing analysis on ASTs. Those should be
+  # split into two separate passes.
+  def process_iter(exp)
+    iter = process exp.shift
+    args = exp.shift
+    args = (args == 0) ? '' : process(args)
+
+    @iter_stack.push(true)
+    body = exp.empty? ? nil : process(exp.shift)
+    @iter_stack.pop
+
+    do_process_iter(iter, args, body)
+  end
+
+  def do_process_iter(iter, args, body)
+    b, e = if iter == "END" then
+             [ "{", "}" ]
+           else
+             [ "do", "end" ]
+           end
+
+    iter.sub!(/\(\)$/, '')
+
+    # REFACTOR: ugh
+    result = []
+    result << "#{iter} {"
+    result << " |#{args}|" if args
+    if body then
+      result << " #{body.strip} "
+    else
+      result << ' '
+    end
+    result << "}"
+    result = result.join
+    return result if result !~ /\n/ and result.size < LINE_LENGTH
+
+    result = []
+    result << "#{iter} #{b}"
+    result << " |#{args}|" if args
+    result << "\n"
+    if body then
+      result << indent(body.strip)
+      result << "\n"
+    end
+    result << e
+    result.join
+  end
+
   def process_call(exp)
     recv, op, args = exp
     if OP_LIST.include?(op) and @context[1] == :block and @context.length == 4
@@ -92,6 +149,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       ty, qn, _ = exp_id_type(recv, op, args) # qn = qualified name
       if ty == :collection or ty == :lattice
         (@tables[qn] = @nm if @collect) unless @tables[qn]
+        @refs_in_body << qn unless @iter_stack.empty?
       #elsif ty == :import .. do nothing
       elsif ty == :not_coll_id
         # Check if receiver is a collection, and further if the current exp
@@ -167,6 +225,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   def reset_instance_vars
+    @refs_in_body = Set.new
     @tables = {}
     @nm = false
     @nm_funcs_called = false
@@ -184,7 +243,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
     @rules << [@bud_instance, @rule_indx, lhs, op, rule_txt, rule_txt_orig, @nm_funcs_called]
     @tables.each_pair do |t, nm|
-      @depends << [@bud_instance, @rule_indx, lhs, op, t, nm]
+      in_rule_body = @refs_in_body.include? t
+      @depends << [@bud_instance, @rule_indx, lhs, op, t, nm, in_rule_body]
     end
 
     reset_instance_vars

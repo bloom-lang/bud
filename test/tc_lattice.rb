@@ -1170,6 +1170,10 @@ class TestLatticeEmbedDeltas < MiniTest::Unit::TestCase
   def test_join_deltas
     i = LatticeEmbedJoin.new
     %w[t1 t2 t3 m1 m2].each {|r| assert_equal(0, i.collection_stratum(r))}
+    depends = i.t_depends.map {|t| [t.lhs, t.body, t.in_body, t.nm]}.to_set
+    assert_equal([["t1", "t2", false, false], ["t1", "t3", false, false],
+                  ["t1", "m1", true, false], ["m1", "m2", false, false]].to_set,
+                 depends)
     i.t2 <+ [[5, 10]]
     i.t3 <+ [[10, 20]]
     i.m1 <+ Bud::MaxLattice.new(5)

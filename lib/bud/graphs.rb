@@ -75,7 +75,7 @@ class GraphGen #:nodoc: all
     # its name is "CYC" + concat(sort(predicate names))
     depends.each do |d|
       # b/c bud_obj was pruned before serialization...
-      (bud_obj, rule_id, lhs, op, body, nm) = d.to_a
+      bud_obj, rule_id, lhs, op, body, nm, in_body = d.to_a
       head = lhs
       body = body
 

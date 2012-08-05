@@ -6,7 +6,7 @@ class DepAnalysis #:nodoc: all
 
   state do
     # Data inserted by client, usually from t_depends and t_provides
-    scratch :depends, [:lhs, :op, :body, :neg]
+    scratch :depends, [:lhs, :op, :body, :neg, :in_body]
     scratch :providing, [:pred, :input]
 
     # Intermediate state
