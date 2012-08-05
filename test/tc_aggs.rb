@@ -466,9 +466,8 @@ class TestAggs < MiniTest::Unit::TestCase
       v.votes_rcvd <+ [["127.0.0.1:12346", "127.0.0.1:12347", 1, "yes", "vote from agent 2"]]
     }
     assert_equal(1, v.vote_cnt.length)
-    vc = v.vote_cnt.to_a[0]
-    assert_equal([1, "yes", 2], [vc[0], vc[1], vc[2]])
-    assert_equal(["vote from agent 1", "vote from agent 2"], vc[3].sort)
+    vc = v.vote_cnt.to_a.first
+    assert_equal([1, "yes", 2, ["vote from agent 1", "vote from agent 2"].to_set], vc)
   end
 end
 

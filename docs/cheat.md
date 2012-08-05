@@ -239,7 +239,7 @@ Finally, we output every tuple of `bc` that does *not* appear in `t`.
 * `bc.group([:col1, :col2], min(:col3))`.  *akin to min(col3) GROUP BY col1,col2*
   * exemplary aggs: `min`, `max`, `bool_and`, `bool_or`, `choose`
   * summary aggs: `sum`, `avg`, `count`
-  * structural aggs: `accum`
+  * structural aggs: `accum` *accumulates inputs into a Set*
 * `bc.argmax([:attr1], :attr2)` &nbsp;&nbsp;&nbsp;&nbsp; *returns the bc items per attr1 that have highest attr2*
 * `bc.argmin([:attr1], :attr2)`
 * `bc.argagg(:exemplary_agg_name, [:attr1], :attr2))`.  *generalizes argmin/max: returns the bc items per attr1 that are chosen by the exemplary
