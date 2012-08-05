@@ -126,14 +126,13 @@ module Bud
     end
 
     def merge_tuple_to_db(key, tuple)
-      val = val_cols.map{|c| tuple[cols.index(c)]}
       key_s = MessagePack.pack(key)
-      val_s = MessagePack.pack(val)
       if @dbm.has_key?(key_s)
         old_tuple = self[key]
         raise_pk_error(tuple, old_tuple) if tuple != old_tuple
       else
-        @dbm[key_s] = val_s
+        val = val_cols.map{|c| tuple[cols.index(c)]}
+        @dbm[key_s] = MessagePack.pack(val)
       end
     end
 
