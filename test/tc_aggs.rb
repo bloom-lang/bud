@@ -105,25 +105,6 @@ class PriorityQ
   end
 end
 
-# XXX: not used by any tests
-class DupAggs
-  include Bud
-
-  state do
-    table :tab, [:i]
-  end
-
-  bootstrap do
-    tab << [1]
-    tab << [2]
-  end
-
-  bloom do
-    temp :out <= tab.group(nil, sum(tab.i), sum(tab.i))
-    p out.inspect
-  end
-end
-
 class RenameGroup
   include Bud
 
