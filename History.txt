@@ -50,5 +50,4 @@
   * Support for Bloom-based signal handling has been removed
   * Support for the "with" syntax has been removed
   * The Bloom-based "deployment" framework has been removed
-  * Support for Tokyo Cabinet-based collections has been removed
-
+  * Support for Tokyo Cabinet-backed collections has been removed

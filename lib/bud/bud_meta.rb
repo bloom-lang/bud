@@ -114,18 +114,16 @@ class BudMeta #:nodoc: all
     #    a.b.c == s(:call, s1,  :c, (:args))
     # where s1 == s(:call, s2,  :b, (:args))
     # where s2 == s(:call, nil, :a, (:args))
-
     tag, recv, name, args = pt
-    return nil unless tag == :call or args.length == 1
+    return nil unless tag == :call and args.length == 1
 
     if recv
       qn = get_qual_name(recv)
       return nil if qn.nil? or qn.size == 0
-      qn = "#{qn}.#{name}"
+      return "#{qn}.#{name}"
     else
-      qn = name.to_s
+      return name.to_s
     end
-    qn
   end
 
   # Perform some basic sanity checks on the AST of a rule block. We expect a
@@ -158,9 +156,9 @@ class BudMeta #:nodoc: all
 
       # Check that LHS references a named collection
       lhs_name = get_qual_name(lhs)
-      return [n, "Unexpected lhs format: #{lhs}"] if lhs.nil?
+      return [n, "unexpected lhs format: #{lhs}"] if lhs_name.nil?
       unless @bud_instance.tables.has_key? lhs_name.to_sym
-        return [n, "Collection does not exist: '#{lhs_name}'"]
+        return [n, "collection does not exist: '#{lhs_name}'"]
       end
 
       return [n, "illegal operator: '#{op}'"] unless [:<, :<=].include? op
