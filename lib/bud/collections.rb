@@ -1146,7 +1146,7 @@ module Bud
       # No cache to invalidate. Also, tables do not invalidate dependents,
       # because their own state is not considered invalidated; that happens only
       # if there were pending deletes at the beginning of a tick (see tick())
-      puts "******** invalidate_cache called on BudTable"
+      puts "******** invalidate_cache called on BudTable" if $BUD_DEBUG
     end
 
     public
