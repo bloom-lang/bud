@@ -145,8 +145,8 @@ module Bud
       end
       unless @new_delta.empty?
         # We allow @new_delta to contain duplicates but eliminate them here. We
-        # can't just allow duplicate delta tuples because that would allow
-        # spurious infinite loops.
+        # can't just allow duplicate delta tuples because that might cause
+        # spurious infinite delta processing loops.
         @new_delta.reject! {|key| self[key] == @new_delta[key]}
 
         @delta = @new_delta
@@ -166,7 +166,8 @@ module Bud
       @new_delta = {}
     end
 
-    # This is verbatim from BudTable.  Need to DRY up.  Should we be a subclass of BudTable?
+    # This is verbatim from BudTable.  Need to DRY up.  Should we be a subclass
+    # of BudTable?
     public
     def pending_delete(o)
       if o.class <= Bud::PushElement
@@ -174,8 +175,7 @@ module Bud
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to(self, :delete)
       else
-        # XXX: optimize
-        @to_delete = @to_delete + o.map{|t| prep_tuple(t) unless t.nil?}
+        @to_delete.concat(o.map{|t| prep_tuple(t) unless t.nil?})
       end
     end
     superator "<-" do |o|
@@ -189,7 +189,7 @@ module Bud
 
     alias << insert
 
-    # Remove to_delete and then add pending to db
+    # Remove to_delete and then move pending => delta.
     def tick
       deleted = nil
       @to_delete.each do |tuple|
