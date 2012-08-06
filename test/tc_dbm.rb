@@ -323,3 +323,42 @@ class TestDbmBootstrap < MiniTest::Unit::TestCase
     check_t
   end
 end
+
+class DbmCycleDelta
+  include Bud
+
+  state do
+    sync :t1, :dbm
+  end
+
+  bloom do
+    t1 <= t1
+  end
+end
+
+class TestDbmDelta < MiniTest::Unit::TestCase
+  def setup
+    setup_bud
+    @t = make_bud
+  end
+
+  def teardown
+    cleanup_bud(@t)
+    @t = nil
+  end
+
+  def make_bud
+    DbmCycleDelta.new(:dbm_dir => DBM_BUD_DIR, :dbm_truncate => false, :quiet => true, :port => 65432)
+  end
+
+  def test_sum_delta
+    @t.run_bg
+    @t.sync_do {
+      @t.t1 <+ [[10, 20]]
+    }
+    @t.sync_do {
+      assert_equal([[10, 20]], @t.t1.to_a)
+    }
+    @t.stop
+  end
+end

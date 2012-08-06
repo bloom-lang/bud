@@ -144,6 +144,11 @@ module Bud
         @delta.clear
       end
       unless @new_delta.empty?
+        # We allow @new_delta to contain duplicates but eliminate them here. We
+        # can't just allow duplicate delta tuples because that would allow
+        # spurious infinite loops.
+        @new_delta.reject! {|key| self[key] == @new_delta[key]}
+
         @delta = @new_delta
         @new_delta = {}
       end
@@ -169,6 +174,7 @@ module Bud
       elsif o.class <= Bud::BudCollection
         o.pro.wire_to(self, :delete)
       else
+        # XXX: optimize
         @to_delete = @to_delete + o.map{|t| prep_tuple(t) unless t.nil?}
       end
     end
@@ -203,7 +209,6 @@ module Bud
       @invalidated = !deleted.nil?
       unless @pending.empty?
         @delta = @pending
-#        merge_to_db(@pending)
         @pending = {}
       end
       flush
