@@ -24,13 +24,9 @@ module Bud
     end
   end
 
-  class Exemplary < Agg #:nodoc: all
-  end
-
   # ArgExemplary aggs are used by argagg. Canonical examples are min/min (argmin/max)
   # They must have a trivial final method and be monotonic, i.e. once a value v
-  # is discarded in favor of another, v can never be the final result
-
+  # is discarded in favor of another, v can never be the final result.
   class ArgExemplary < Agg #:nodoc: all
     def tie(the_state, val)
       (the_state == val)

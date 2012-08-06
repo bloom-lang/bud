@@ -494,3 +494,66 @@ class TestReduce < MiniTest::Unit::TestCase
     assert_equal([[true]], r.t2.to_a)
   end
 end
+
+class AggJoinRescan
+  include Bud
+
+  state do
+    table :sum_tbl, [:sum_v]
+    table :cnt_tbl, [:cnt_v]
+    table :t1
+    table :t2
+  end
+
+  bloom do
+    sum_tbl <= (t1 * t2).lefts.group([], sum(:val))
+    cnt_tbl <= (t1 * t2).lefts.group([], count)
+  end
+end
+
+class AggDupInputs
+  include Bud
+
+  state do
+    table :sum_tbl, [:cnt]
+    table :t1
+  end
+
+  bloom do
+    sum_tbl <= t1.group([], sum(:val))
+  end
+end
+
+class AggDupElimTests < MiniTest::Unit::TestCase
+  # Issue #278
+  def test_join_rescan
+    i = AggJoinRescan.new
+    i.t1 <+ [[10, 20]]
+    i.t2 <+ [[31, 41]]
+    i.tick
+    assert_equal([[20]], i.sum_tbl.to_a.sort)
+    assert_equal([[1]], i.cnt_tbl.to_a.sort)
+    i.tick
+    assert_equal([[20]], i.sum_tbl.to_a.sort)
+    assert_equal([[1]], i.cnt_tbl.to_a.sort)
+    i.t1 <+ [[5, 5]]
+    i.tick
+    assert_equal([[20], [25]], i.sum_tbl.to_a.sort)
+    assert_equal([[1], [2]], i.cnt_tbl.to_a.sort)
+    i.t2 <+ [[11, 13]]
+    i.tick
+    assert_equal([[20], [25]], i.sum_tbl.to_a.sort)
+    assert_equal([[1], [2]], i.cnt_tbl.to_a.sort)
+  end
+
+  def test_agg_dup_inputs
+    i = AggDupInputs.new
+    # Note that although the sum aggregate is passed the same value ("7") more
+    # than once, the input tuples to the grouping operation are not duplicates,
+    # so we want to sum each value separately. In other words, sum() implements
+    # the normal SQL SUM() behavior, not SUM(DISTINCT ...).
+    i.t1 <+ [[1, 7], [2, 7], [3, 7]]
+    i.tick
+    assert_equal([[21]], i.sum_tbl.to_a.sort)
+  end
+end

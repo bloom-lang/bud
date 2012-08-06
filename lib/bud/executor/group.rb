@@ -1,4 +1,5 @@
 require 'bud/executor/elements'
+require 'set'
 
 module Bud
   class PushGroup < PushStatefulElement
@@ -10,12 +11,28 @@ module Bud
       else
         @keys = keys_in.map{|k| k[1]}
       end
-      # ap[1] is nil for Count
+      # An aggpair is an array: [agg class instance, index of input field].
+      # ap[1] is nil for Count.
       @aggpairs = aggpairs_in.map{|ap| ap[1].nil? ? [ap[0]] : [ap[0], ap[1][1]]}
+
+      # Check whether we need to eliminate duplicates from our input (we might
+      # see duplicates because of the rescan/invalidation logic, as well as
+      # because we don't do duplicate elimination on the output of a projection
+      # operator). We don't need to dupelim if all the args are exemplary.
+      @elim_dups = @aggpairs.any? {|a| not a[0].kind_of? ArgExemplary}
+      if @elim_dups
+        @input_cache = Set.new
+      end
+
       super(elem_name, bud_instance, collection_name, schema_in, &blk)
     end
 
     def insert(item, source)
+      if @elim_dups
+        return if @input_cache.include? item
+        @input_cache << item
+      end
+
       key = @keys.map{|k| item[k]}
       @aggpairs.each_with_index do |ap, agg_ix|
         input_val = ap[1].nil? ? item : item[ap[1]]
@@ -32,6 +49,7 @@ module Bud
     def invalidate_cache
       puts "Group #{qualified_tabname} invalidated" if $BUD_DEBUG
       @groups.clear
+      @input_cache.clear if @elim_dups
     end
 
     def flush

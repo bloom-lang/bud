@@ -3,7 +3,7 @@
 * Change behavior of accum() aggregate to return a Set, rather than an Array in
   an unspecified order
 * Fix several serious bugs in caching/invalidation of materialized operator
-  state (#276)
+  state (#276, #278)
 * Avoid possible spurious infinite loop with dbm-backed collections
 * Fix REBL regression with push-based runtime (#274)
 * Minor performance optimizations
