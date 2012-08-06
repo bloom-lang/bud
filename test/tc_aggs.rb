@@ -310,7 +310,7 @@ class TestAggs < MiniTest::Unit::TestCase
     assert(p.choices.first.val <= 99)
     assert_equal(p.t2.first[0] + 1, p.t2.first[1])
   end
-  
+
   def test_chain_agg
     p = ChainAgg.new
     assert_equal(0, p.collection_stratum("t2"))
@@ -344,20 +344,6 @@ class TestAggs < MiniTest::Unit::TestCase
     assert_equal([[1, "false", "false"], [1, "false", "true"], [2, "false", "false"],
                   [3, "false", "false"], [3, "true", "true"]],
                  p.s4.to_a.map{|t| t.map{|t2| (t2 == false || t2 == true) ? t2.to_s : t2}}.sort)
-  end
-
-  class SimpleAgg
-    include Bud
-    state {table :t1}
-    bootstrap {t1 << [[1,1]]}
-    bloom do 
-	temp :t2 <= t1.group([:key])
-    end
-  end
-
-  def test_simple_agg
-    p = SimpleAgg.new
-    p.tick
   end
 
   class ArgminDups

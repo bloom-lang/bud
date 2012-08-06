@@ -14,7 +14,7 @@ module Bud
     #     b. :keep tells the caller to save this input
     #     c. :replace tells the caller to keep this input alone
     #     d. :delete, [t1, t2, ...] tells the caller to delete the remaining tuples
-    #  For things that do not descend from ArgExemplary, the 2nd part can simply be nil.
+    #  For aggs that do not inherit from ArgExemplary, the 2nd part can simply be nil.
     def trans(the_state, val)
       return the_state, :ignore
     end

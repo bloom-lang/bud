@@ -2,7 +2,8 @@ require 'bud/executor/elements'
 
 module Bud
   class PushGroup < PushStatefulElement
-    def initialize(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
+    def initialize(elem_name, bud_instance, collection_name,
+                   keys_in, aggpairs_in, schema_in, &blk)
       @groups = {}
       if keys_in.nil?
         @keys = []
@@ -17,10 +18,14 @@ module Bud
     def insert(item, source)
       key = @keys.map{|k| item[k]}
       @aggpairs.each_with_index do |ap, agg_ix|
-        agg_input = ap[1].nil? ? item : item[ap[1]]
-        agg = (@groups[key].nil? or @groups[key][agg_ix].nil?) ? ap[0].send(:init, agg_input) : ap[0].send(:trans, @groups[key][agg_ix], agg_input)[0]
+        input_val = ap[1].nil? ? item : item[ap[1]]
         @groups[key] ||= Array.new(@aggpairs.length)
-        @groups[key][agg_ix] = agg
+        if @groups[key][agg_ix].nil?
+          state_val = ap[0].send(:init, input_val)
+        else
+          state_val = ap[0].send(:trans, @groups[key][agg_ix], input_val)[0]
+        end
+        @groups[key][agg_ix] = state_val
       end
     end
 
