@@ -70,10 +70,7 @@ module Bud
     end
 
     def flush
-      if @rescan
-        replay_join
-        @rescan = false
-      end
+      replay_join if @rescan
     end
 
     # initialize the state for this join to be carried across iterations within a fixpoint
@@ -274,7 +271,12 @@ module Bud
 
     public
     def insert(item, source)
-      #puts "JOIN: #{source.tabname} -->  #{self.tabname} : #{item}/#{item.class}"
+      # If we need to reproduce the join's output, do that now before we process
+      # the to-be-inserted tuple. This avoids needless duplicates: if the
+      # to-be-inserted tuple produced any join output, we'd produce that output
+      # again if we didn't rescan now.
+      replay_join if @rescan
+
       if @selfjoins.include? source.elem_name
         offsets = []
         @relnames.each_with_index{|r,i| offsets << i if r == source.elem_name}
@@ -334,6 +336,7 @@ module Bud
     end
 
     def replay_join
+      @rescan = false
       a, b = @hash_tables
       return if a.empty? or b.empty?
 
