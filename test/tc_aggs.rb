@@ -511,6 +511,19 @@ class AggJoinRescan
   end
 end
 
+class AggProjWithDups
+  include Bud
+
+  state do
+    table :in_t
+    scratch :res_t, [:sum_v]
+  end
+
+  bloom do
+    res_t <= in_t {|t| [t.key + t.val]}.rename(:xyz, [:v]).group([], sum(:v))
+  end
+end
+
 class AggDupInputs
   include Bud
 
@@ -544,6 +557,16 @@ class AggDupElimTests < MiniTest::Unit::TestCase
     i.tick
     assert_equal([[20], [25]], i.sum_tbl.to_a.sort)
     assert_equal([[1], [2]], i.cnt_tbl.to_a.sort)
+  end
+
+  def test_agg_proj_with_dups
+    i = AggProjWithDups.new
+    i.in_t <+ [[6, 6], [5, 7], [4, 8], [0, 1]]
+    i.tick
+    assert_equal([[13]], i.res_t.to_a.sort)
+    i.in_t <+ [[2, 0]]
+    i.tick
+    assert_equal([[15]], i.res_t.to_a.sort)
   end
 
   def test_agg_dup_inputs
