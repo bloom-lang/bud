@@ -69,8 +69,7 @@ module Bud
     def initialize(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
       raise Bud::Error, "multiple aggpairs #{aggpairs_in.map{|a| a.class.name}} in ArgAgg; only one allowed" if aggpairs_in.length > 1
       super(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
-      @agg = @aggpairs[0][0]
-      @aggcol = @aggpairs[0][1]
+      @agg, @aggcol = @aggpairs[0]
       @winners = {}
     end
 
