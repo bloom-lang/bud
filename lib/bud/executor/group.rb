@@ -5,7 +5,6 @@ module Bud
   class PushGroup < PushStatefulElement
     def initialize(elem_name, bud_instance, collection_name,
                    keys_in, aggpairs_in, schema_in, &blk)
-      @groups = {}
       if keys_in.nil?
         @keys = []
       else
@@ -14,6 +13,7 @@ module Bud
       # An aggpair is an array: [agg class instance, index of input field].
       # ap[1] is nil for Count.
       @aggpairs = aggpairs_in.map{|ap| ap[1].nil? ? [ap[0]] : [ap[0], ap[1][1]]}
+      @groups = {}
 
       # Check whether we need to eliminate duplicates from our input (we might
       # see duplicates because of the rescan/invalidation logic, as well as
@@ -34,15 +34,18 @@ module Bud
       end
 
       key = @keys.map{|k| item[k]}
-      @aggpairs.each_with_index do |ap, agg_ix|
-        input_val = ap[1].nil? ? item : item[ap[1]]
-        @groups[key] ||= Array.new(@aggpairs.length)
-        if @groups[key][agg_ix].nil?
-          state_val = ap[0].send(:init, input_val)
-        else
-          state_val = ap[0].send(:trans, @groups[key][agg_ix], input_val)[0]
+      group_state = @groups[key]
+      if group_state.nil?
+        @groups[key] = @aggpairs.map do |ap|
+          input_val = ap[1].nil? ? item : item[ap[1]]
+          ap[0].init(input_val)
         end
-        @groups[key][agg_ix] = state_val
+      else
+        @aggpairs.each_with_index do |ap, agg_ix|
+          input_val = ap[1].nil? ? item : item[ap[1]]
+          state_val = ap[0].trans(group_state[agg_ix], input_val)[0]
+          group_state[agg_ix] = state_val
+        end
       end
     end
 

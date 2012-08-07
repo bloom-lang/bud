@@ -6,7 +6,8 @@
   state (#276, #278)
 * Avoid possible spurious infinite loop with dbm-backed collections
 * Fix REBL regression with push-based runtime (#274)
-* Minor performance optimizations
+* Optimization aggregation/grouping performance
+* Minor performance optimizations for simple projection rules
 * Built-in support for code coverage with MRI 1.9 and SimpleCov
 
 == 0.9.2 / 2012-05-19
