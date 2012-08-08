@@ -489,7 +489,8 @@ module Bud
         invalidate = dflt_invalidate.clone
         rescan_invalidate_tc(stratum, rescan, invalidate)
         prune_rescan_invalidate(rescan, invalidate)
-        to_reset += rescan + invalidate
+        to_reset.merge(rescan)
+        to_reset.merge(invalidate)
         # Give the diffs (from default) to scanner; these are elements that are
         # dependent on this scanner
         diffscan = (rescan - dflt_rescan).find_all {|elem| elem.class <= PushElement}
