@@ -717,6 +717,8 @@ class RescanTests < MiniTest::Unit::TestCase
     i.x1 <+ [[5, 10]]
     i.tick
     assert_equal([[4, 8], [5, 10]], i.x2.to_a.sort)
+    i.tick
+    assert_equal([[4, 8]], i.x2.to_a.sort)
     i.x1 <+ [[5, 10]]
     i.tick
     assert_equal([[4, 8], [5, 10]], i.x2.to_a.sort)
