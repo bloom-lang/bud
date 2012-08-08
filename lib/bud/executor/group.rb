@@ -12,7 +12,7 @@ module Bud
       end
       # An aggpair is an array: [agg class instance, index of input field].
       # ap[1] is nil for Count.
-      @aggpairs = aggpairs_in.map{|ap| ap[1].nil? ? [ap[0]] : [ap[0], ap[1][1]]}
+      @aggpairs = aggpairs_in.map{|ap| [ap[0], ap[1].nil? ? nil : ap[1][1]]}
       @groups = {}
 
       # Check whether we need to eliminate duplicates from our input (we might
@@ -24,6 +24,7 @@ module Bud
         @input_cache = Set.new
       end
 
+      @seen_new_data = false
       super(elem_name, bud_instance, collection_name, schema_in, &blk)
     end
 
@@ -33,6 +34,7 @@ module Bud
         @input_cache << item
       end
 
+      @seen_new_data = true
       key = @keys.map{|k| item[k]}
       group_state = @groups[key]
       if group_state.nil?
@@ -50,16 +52,22 @@ module Bud
     end
 
     def invalidate_cache
-      puts "Group #{qualified_tabname} invalidated" if $BUD_DEBUG
+      puts "#{self.class}/#{self.tabname} invalidated" if $BUD_DEBUG
       @groups.clear
       @input_cache.clear if @elim_dups
+      @seen_new_data = false
     end
 
     def flush
+      # If we haven't seen any input since the last call to flush(), we're done:
+      # our output would be the same as before.
+      return unless @seen_new_data
+      @seen_new_data = false
+
       @groups.each do |g, grps|
         grp = @keys == $EMPTY ? [[]] : [g]
         @aggpairs.each_with_index do |ap, agg_ix|
-          grp << ap[0].send(:final, grps[agg_ix])
+          grp << ap[0].final(grps[agg_ix])
         end
         outval = grp[0].flatten
         (1..grp.length-1).each {|i| outval << grp[i]}
@@ -70,7 +78,9 @@ module Bud
 
   class PushArgAgg < PushGroup
     def initialize(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
-      raise Bud::Error, "multiple aggpairs #{aggpairs_in.map{|a| a.class.name}} in ArgAgg; only one allowed" if aggpairs_in.length > 1
+      unless aggpairs_in.length == 1
+        raise Bud::Error, "multiple aggpairs #{aggpairs_in.map{|a| a.class.name}} in ArgAgg; only one allowed"
+      end
       super(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
       @agg, @aggcol = @aggpairs[0]
       @winners = {}
@@ -78,8 +88,7 @@ module Bud
 
     public
     def invalidate_cache
-      puts "#{self.class}/#{self.tabname} invalidated" if $BUD_DEBUG
-      @groups.clear
+      super
       @winners.clear
     end
 
@@ -87,6 +96,7 @@ module Bud
       key = @keys.map{|k| item[k]}
       group_state = @groups[key]
       if group_state.nil?
+        @seen_new_data = true
         @groups[key] = @aggpairs.map do |ap|
           @winners[key] = [item]
           input_val = item[ap[1]]
@@ -97,6 +107,7 @@ module Bud
           input_val = item[ap[1]]
           state_val, flag, *rest = ap[0].trans(group_state[agg_ix], input_val)
           group_state[agg_ix] = state_val
+          @seen_new_data = true unless flag == :ignore
 
           case flag
           when :ignore
@@ -117,6 +128,11 @@ module Bud
     end
 
     def flush
+      # If we haven't seen any input since the last call to flush(), we're done:
+      # our output would be the same as before.
+      return unless @seen_new_data
+      @seen_new_data = false
+
       @groups.each_key do |g|
         @winners[g].each do |t|
           push_out(t, false)
