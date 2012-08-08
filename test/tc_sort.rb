@@ -47,5 +47,32 @@ class TestSort < MiniTest::Unit::TestCase
     assert_equal([[0, [1]], [1, [5]], [2, [6]], [3, [100]]], r.to_a.sort)
     p.stop
   end
-end
 
+  class SortRescan
+    include Bud
+
+    state do
+      table :t1
+      scratch :s1
+      scratch :sort_res
+    end
+
+    bloom do
+      sort_res <= t1.sort
+      sort_res <= s1
+    end
+  end
+
+  def test_sort_rescan
+    i = SortRescan.new
+    i.t1 <+ [[3, 4], [5, 10]]
+    i.tick
+    assert_equal([[3, 4], [5, 10]], i.sort_res.to_a.sort)
+    i.tick
+    assert_equal([[3, 4], [5, 10]], i.sort_res.to_a.sort)
+    i.s1 <+ [[1, 1]]
+    i.t1 <+ [[9, 9]]
+    i.tick
+    assert_equal([[1, 1], [3, 4], [5, 10], [9, 9]], i.sort_res.to_a.sort)
+  end
+end

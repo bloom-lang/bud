@@ -312,29 +312,6 @@ module Bud
       end
     end
 
-    public
-    def rescan_at_tick
-      false
-    end
-
-    public
-    def add_rescan_invalidate(rescan, invalidate)
-      if non_temporal_predecessors.any? {|e| rescan.member? e}
-        rescan << self
-        invalidate << self
-      end
-
-      # The distinction between a join node and other stateful elements is that
-      # when a join node needs a rescan it doesn't tell all its sources to
-      # rescan. In fact, it doesn't have to pass a rescan request up to a
-      # source, because if a target needs a rescan, the join node has all the
-      # state necessary to feed the downstream node. And if a source node is in
-      # rescan, then at run-time only the state associated with that particular
-      # source node @hash_tables[offset] will be cleared, and will get filled up
-      # again because that source will rescan anyway.
-      invalidate_tables(rescan, invalidate)
-    end
-
     def replay_join
       @rescan = false
       a, b = @hash_tables

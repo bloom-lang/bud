@@ -5,8 +5,9 @@
 * Fix several serious bugs in caching/invalidation of materialized operator
   state (#276, #278)
 * Avoid possible spurious infinite loop with dbm-backed collections
+* Optimize aggregation/grouping performance
+* Fix bugs and improve performance of materialization of sort operator
 * Fix REBL regression with push-based runtime (#274)
-* Optimization aggregation/grouping performance
 * Minor performance optimizations for simple projection rules
 * Built-in support for code coverage with MRI 1.9 and SimpleCov
 

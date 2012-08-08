@@ -383,24 +383,15 @@ module Bud
   end
 
   class PushStatefulElement < PushElement
-    def rescan_at_tick
-      true
-    end
-
-    def rescan
-      true # always gives an entire dump of its contents
-    end
-
     def add_rescan_invalidate(rescan, invalidate)
-      # If an upstream node is set to rescan, a stateful node invalidates its
-      # cache.  In addition, a stateful node always rescans its own contents
-      # (doesn't need to pass a rescan request to its source nodes).
-      rescan << self
-      srcs = non_temporal_predecessors
-      if srcs.any? {|p| rescan.member? p}
+      if non_temporal_predecessors.any? {|e| rescan.member? e}
+        rescan << self
         invalidate << self
       end
 
+      # Note that we do not need to pass rescan requests up to our source
+      # elements, since a stateful element has enough local information to
+      # reproduce its output.
       invalidate_tables(rescan, invalidate)
     end
   end
@@ -430,27 +421,29 @@ module Bud
   class PushSort < PushStatefulElement
     def initialize(elem_name=nil, bud_instance=nil, collection_name=nil,
                    schema_in=nil, &blk)
-      @sortbuf = []
       super(elem_name, bud_instance, collection_name, schema_in, &blk)
+      @sortbuf = []
+      @seen_new_input = false
     end
 
     def insert(item, source)
       @sortbuf << item
+      @seen_new_input = true
     end
 
     def flush
-      unless @sortbuf.empty?
+      if @seen_new_input || @rescan
         @sortbuf.sort!(&@blk)
         @sortbuf.each do |t|
           push_out(t, false)
         end
-        @sortbuf = []
+        @seen_new_input = false
+        @rescan = false
       end
-      nil
     end
 
     def invalidate_cache
-      @sortbuf = []
+      @sortbuf.clear
     end
   end
 
