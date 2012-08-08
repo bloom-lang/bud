@@ -85,15 +85,20 @@ module Bud
 
     def insert(item, source)
       key = @keys.map{|k| item[k]}
-      @aggpairs.each_with_index do |ap, agg_ix|
-        agg_input = item[ap[1]]
-        if @groups[key].nil?
-          agg = ap[0].send(:init, agg_input)
+      group_state = @groups[key]
+      if group_state.nil?
+        @groups[key] = @aggpairs.map do |ap|
           @winners[key] = [item]
-        else
-          agg_result = ap[0].send(:trans, @groups[key][agg_ix], agg_input)
-          agg = agg_result[0]
-          case agg_result[1]
+          input_val = item[ap[1]]
+          ap[0].init(input_val)
+        end
+      else
+        @aggpairs.each_with_index do |ap, agg_ix|
+          input_val = item[ap[1]]
+          state_val, flag, *rest = ap[0].trans(group_state[agg_ix], input_val)
+          group_state[agg_ix] = state_val
+
+          case flag
           when :ignore
             # do nothing
           when :replace
@@ -101,15 +106,13 @@ module Bud
           when :keep
             @winners[key] << item
           when :delete
-            agg_result[2..-1].each do |t|
-              @winners[key].delete t unless @winners[key].empty?
+            rest.each do |t|
+              @winners[key].delete t
             end
           else
-            raise Bud::Error, "strange result from argagg finalizer"
+            raise Bud::Error, "strange result from argagg transition func: #{flag}"
           end
         end
-        @groups[key] ||= Array.new(@aggpairs.length)
-        @groups[key][agg_ix] = agg
       end
     end
 

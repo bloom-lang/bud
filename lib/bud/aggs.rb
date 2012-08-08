@@ -29,7 +29,7 @@ module Bud
   # is discarded in favor of another, v can never be the final result.
   class ArgExemplary < Agg #:nodoc: all
     def tie(the_state, val)
-      (the_state == val)
+      the_state == val
     end
     def final(the_state)
       the_state
@@ -182,7 +182,7 @@ module Bud
       return retval, nil
     end
     def final(the_state)
-      the_state[0]*1.0 / the_state[1]
+      the_state[0].to_f / the_state[1]
     end
   end
 
