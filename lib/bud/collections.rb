@@ -706,14 +706,6 @@ module Bud
     end
 
     public
-    def pretty_print_instance_variables
-      # list of attributes (in order) to print when pretty_print is called.
-      important = ["@tabname", "@storage", "@delta", "@new_delta", "@pending"]
-      # everything except bud_instance
-      important + (self.instance_variables - important - ["@bud_instance"])
-    end
-
-    public
     def uniquify_tabname # :nodoc: all
       # just append current number of microseconds
       @tabname = (@tabname.to_s + Time.new.tv_usec.to_s).to_sym
