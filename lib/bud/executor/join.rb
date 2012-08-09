@@ -133,7 +133,6 @@ module Bud
       else
         @keys = []
       end
-      # puts "@keys = #{@keys.inspect}"
     end
 
     public
@@ -469,7 +468,6 @@ module Bud
   end
 
   module PushSHOuterJoin
-
     private
     def insert_item(item, offset)
       if @keys.nil? or @keys.empty?
@@ -505,11 +503,9 @@ module Bud
 
     private
     def push_missing
-      if @missing_keys
-        @missing_keys.each do |key|
-          @hash_tables[0][key].each do |t|
-            push_out([t, @rels[1].null_tuple])
-          end
+      @missing_keys.each do |key|
+        @hash_tables[0][key].each do |t|
+          push_out([t, @rels[1].null_tuple])
         end
       end
     end
@@ -561,11 +557,11 @@ module Bud
     def find_col(colspec, rel)
       if colspec.is_a? Symbol
         col_desc = rel.send(colspec)
-        raise "Unknown column #{rel} in #{@rel.tabname}" if col_desc.nil?
+        raise Bud::Error, "unknown column #{colspec} in #{@rel.tabname}" if col_desc.nil?
       elsif colspec.is_a? Array
         col_desc = colspec
       else
-        raise "Symbol or column spec expected. Got #{colspec}"
+        raise Bud::Error, "symbol or column spec expected. Got #{colspec}"
       end
       col_desc[1] # col_desc is of the form [tabname, colnum, colname]
     end
