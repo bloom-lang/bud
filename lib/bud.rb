@@ -457,9 +457,7 @@ module Bud
 
     num_strata.times do |stratum|
       @push_sorted_elems[stratum].each do |elem|
-        if elem.rescan_at_tick
-          rescan << elem
-        end
+        rescan << elem if elem.rescan_at_tick
 
         if elem.outputs.any?{|tab| not(tab.class <= PushElement) and nm_targets.member? tab.qualified_tabname.to_sym }
           rescan.merge(elem.wired_by)
@@ -968,7 +966,7 @@ module Bud
   # One timestep of Bloom execution. This MUST be invoked from the EventMachine
   # thread; it is not intended to be called directly by client code.
   def tick_internal
-    puts "#{object_id}/#{port} : =============================================" if $BUD_DEBUG
+    puts "#{object_id}/#{port} : ============================================= (#{@budtime})" if $BUD_DEBUG
     begin
       starttime = Time.now if options[:metrics]
       if options[:metrics] and not @endtime.nil?
