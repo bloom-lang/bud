@@ -541,19 +541,14 @@ module Bud
     end
 
     def add_rescan_invalidate(rescan, invalidate)
-      srcs = non_temporal_predecessors
-      if srcs.any? {|p| rescan.member? p}
-        invalidate << self
-        rescan << self
-      end
-
-      invalidate_tables(rescan, invalidate)
+      super
 
       # This node has some state (@each_index), but not the tuples. If it is in
       # rescan mode, then it must ask its sources to rescan, and restart its
       # index.
       if rescan.member? self
         invalidate << self
+        srcs = non_temporal_predecessors
         rescan.merge(srcs)
       end
     end
