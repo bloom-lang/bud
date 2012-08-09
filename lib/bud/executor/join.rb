@@ -496,6 +496,11 @@ module Bud
     end
 
     public
+    def rescan_at_tick
+      true
+    end
+
+    public
     def stratum_end
       flush
       push_missing

@@ -709,6 +709,22 @@ class TestReduceReplay
   end
 end
 
+class TestOuterJoinReplay
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    scratch :s1
+  end
+
+  bloom do
+    s1 <= (t1 * t2).outer(:key => :key) {|x, y|
+      y == [nil,nil] ? [x.key + 1, x.val + 1] : [x.key, x.val]
+    }
+  end
+end
+
 # Issue #276 and related bugs
 class RescanTests < MiniTest::Unit::TestCase
   def test_scan_replay
@@ -760,5 +776,14 @@ class RescanTests < MiniTest::Unit::TestCase
     i.x2 <+ [[true, 1], [false, 2]]
     i.tick
     assert_equal([[true], [false]], i.x1.to_a.sort {|a,b| a == true ? 1 : 0})
+  end
+
+  def test_oj_replay
+    i = TestOuterJoinReplay.new
+    i.t1 <+ [[5, 10]]
+    i.tick
+    i.t2 <+ [[5, 11]]
+    i.tick
+    assert_equal([[5, 10]], i.s1.to_a)
   end
 end
