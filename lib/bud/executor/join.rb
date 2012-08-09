@@ -516,12 +516,15 @@ module Bud
   end
 
 
-  # Consider "u <= s.notin(t, s.a => t.b)". notin is a non-monotonic operator, where u depends positively on s,
-  # but negatively on t. Stratification ensures that t is fully computed in a lower stratum, which means that we
-  # can expect multiple iterators on s's side only. If t's scanner were to push its elemends down first, every
-  # insert of s merely needs to be cross checked with the cached elements of 't', and pushed down to the next
-  # element if s notin t. However, if s's scanner were to fire first, we have to wait until the first flush, at which
-  # point we are sure to have seen all the t-side tuples in this tick.
+  # Consider "u <= s.notin(t, s.a => t.b)". notin is a non-monotonic operator,
+  # where u depends positively on s, but negatively on t. Stratification ensures
+  # that t is fully computed in a lower stratum, which means that we can expect
+  # multiple iterators on s's side only. If t's scanner were to push its
+  # elemends down first, every insert of s merely needs to be cross checked with
+  # the cached elements of 't', and pushed down to the next element if s notin
+  # t. However, if s's scanner were to fire first, we have to wait until the
+  # first flush, at which point we are sure to have seen all the t-side tuples
+  # in this tick.
   class PushNotIn < PushStatefulElement
     def initialize(rellist, bud_instance, preds=nil, &blk) # :nodoc: all
       @lhs, @rhs = rellist
@@ -532,7 +535,6 @@ module Bud
       setup_preds(preds) unless preds.empty?
       @rhs_rcvd = false
       @hash_tables = [{},{}]
-      @rhs_rcvd = false
       if @lhs_keycols.nil? and blk.nil?
         # pointwise comparison. Could use zip, but it creates an array for each field pair
         blk = lambda {|lhs, rhs|
@@ -543,9 +545,10 @@ module Bud
     end
 
     def setup_preds(preds)
-      # This is simpler than PushSHJoin's setup_preds, because notin is a binary operator where both lhs and rhs are
-      # collections.
-      # preds an array of hash_pairs. For now assume that the attributes are in the same order as the tables.
+      # This is simpler than PushSHJoin's setup_preds, because notin is a binary
+      # operator where both lhs and rhs are collections.  preds an array of
+      # hash_pairs. For now assume that the attributes are in the same order as
+      # the tables.
       @lhs_keycols, @rhs_keycols = preds.reduce([[], []]) do |memo, item|
         # each item is a hash
         l = item.keys[0]
@@ -580,7 +583,6 @@ module Bud
     def insert(item, source)
       offset = source == @lhs ? 0 : 1
       key = get_key(item, offset)
-      #puts "#{key}, #{item}, #{offset}"
       (@hash_tables[offset][key] ||= Set.new).add item
       if @rhs_rcvd and offset == 0
         push_lhs(key, item)
@@ -588,15 +590,14 @@ module Bud
     end
 
     def flush
-      # When flush is called the first time, both lhs and rhs scanners have been invoked, and because of stratification
-      # we know that the rhs is not growing any more, until the next tick.
+      # When flush is called the first time, both lhs and rhs scanners have been
+      # invoked, and because of stratification we know that the rhs is not
+      # growing any more, until the next tick.
       unless @rhs_rcvd
         @rhs_rcvd = true
-        @hash_tables[0].map{|key,values|
-          values.each{|item|
-            push_lhs(key, item)
-          }
-        }
+        @hash_tables[0].each do |key,values|
+          values.each {|item| push_lhs(key, item)}
+        end
       end
     end
 
