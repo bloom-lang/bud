@@ -178,14 +178,12 @@ module Bud
     def <<(i)
       insert(i, nil)
     end
+
     public
     def flush
     end
-
     def invalidate_cache
-      #override to get rid of cached information.
     end
-    public
     def stratum_end
     end
 
@@ -353,7 +351,6 @@ module Bud
     end
 
     def reduce(initial, &blk)
-      @memo = initial
       retval = Bud::PushReduce.new("reduce#{Time.new.tv_usec}",
                                    @bud_instance, @collection_name,
                                    schema, initial, &blk)
