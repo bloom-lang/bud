@@ -521,7 +521,7 @@ module Bud
   # where u depends positively on s, but negatively on t. Stratification ensures
   # that t is fully computed in a lower stratum, which means that we can expect
   # multiple iterators on s's side only. If t's scanner were to push its
-  # elemends down first, every insert of s merely needs to be cross checked with
+  # elements down first, every insert of s merely needs to be cross checked with
   # the cached elements of 't', and pushed down to the next element if s notin
   # t. However, if s's scanner were to fire first, we have to wait until the
   # first flush, at which point we are sure to have seen all the t-side tuples
@@ -638,9 +638,15 @@ module Bud
       @delete_keys.each{|o| o.pending_delete_keys([item])}
       @pendings.each{|o| o.pending_merge([item])}
     end
-  end
-  def stratum_end
-    @hash_tables = [{},{}]
-    @rhs_rcvd = false
+
+    def invalidate_cache
+      puts "#{self.class}/#{self.tabname} invalidated" if $BUD_DEBUG
+      @hash_tables = [{},{}]
+      @rhs_rcvd = false
+    end
+
+    def stratum_end
+      @rhs_rcvd = false
+    end
   end
 end

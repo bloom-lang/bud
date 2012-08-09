@@ -158,3 +158,59 @@ class StratifiedTest < MiniTest::Unit::TestCase # issue 271
     assert_raises(Bud::CompileError) {Unstrat.new}
   end
 end
+
+class RescanNotIn
+  include Bud
+
+  state do
+    table :in_t
+    table :not_in
+    scratch :res_t
+  end
+
+  bloom do
+    res_t <= in_t.notin(not_in)
+  end
+end
+
+class RescanNotInScratch
+  include Bud
+
+  state do
+    scratch :in_t
+    scratch :not_in
+    scratch :res_t
+  end
+
+  bloom do
+    res_t <= in_t.notin(not_in)
+  end
+end
+
+
+class RescanNotInTest < MiniTest::Unit::TestCase
+  def test_notin_rescan
+    i = RescanNotIn.new
+    i.in_t <+ [[5, 10]]
+    i.tick
+    assert_equal([[5, 10]], i.res_t.to_a)
+    i.tick
+    assert_equal([[5, 10]], i.res_t.to_a)
+    i.not_in <+ [[5, 10]]
+    i.tick
+    assert_equal([], i.res_t.to_a)
+  end
+
+  def test_notin_rescan_scratch
+    i = RescanNotInScratch.new
+    i.in_t <+ [[5, 10]]
+    i.tick
+    assert_equal([[5, 10]], i.res_t.to_a)
+    i.tick
+    assert_equal([], i.res_t.to_a)
+    i.in_t <+ [[10, 20], [30, 40]]
+    i.not_in <+ [[10, 20]]
+    i.tick
+    assert_equal([[30, 40]], i.res_t.to_a)
+  end
+end
