@@ -573,11 +573,6 @@ module Bud
     end
 
     public
-    def invalidate_at_tick
-      true
-    end
-
-    public
     def rescan_at_tick
       true
     end
