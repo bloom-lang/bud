@@ -243,10 +243,10 @@ class Bud::SetLattice < Bud::Lattice
     Bud::MaxLattice.new(@v.size)
   end
 
-  # Assuming that this hashset contains tuples (arrays) as elements, this
-  # performs an equijoin between the current lattice and i. The join predicate
-  # is "self_t[lhs_idx] == i_t[rhs_idx]", for all tuples self_t and i_t in self
-  # and i, respectively. The return value is the result of passing pairs of join
+  # Assuming that this set contains tuples (arrays) as elements, this performs
+  # an equijoin between the current lattice and i. The join predicate is
+  # "self_t[lhs_idx] == i_t[rhs_idx]", for all tuples self_t and i_t in self and
+  # i, respectively. The return value is the result of passing pairs of join
   # tuples to the user-supplied block.
   morph :eqjoin do |i, lhs_idx, rhs_idx, &blk|
     rv = Set.new
@@ -258,10 +258,9 @@ class Bud::SetLattice < Bud::Lattice
     wrap_unsafe(rv)
   end
 
-  # Assuming that this hashset contains tuples (arrays), this returns a list of
+  # Assuming that this set contains tuples (arrays), this returns a list of
   # tuples (possibly empty) whose idx'th column has the value "v".
-  # XXX: we assume that probe(idx, v) will only be called for a single value of
-  # idx!
+  # XXX: we assume probe(idx, v) will only be called for a single value of idx!
   def probe(idx, v)
     @ht ||= build_ht(idx)
     return @ht[v] || []
