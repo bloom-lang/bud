@@ -631,6 +631,21 @@ class MapAt
   end
 end
 
+class MapApply
+  include Bud
+
+  state do
+    lmap :m1
+    lmap :m2
+    lmap :m3
+  end
+
+  bloom do
+    m2 <= m1.apply_monotone(:pos_sum)
+    m3 <= m1.apply_morph(:contains?, 3)
+  end
+end
+
 class TestMap < MiniTest::Unit::TestCase
   def get_val_for_map(i, r)
     i.send(r).current_value.reveal.map {|k,v| [k, v.reveal]}.sort
@@ -691,6 +706,24 @@ class TestMap < MiniTest::Unit::TestCase
     i.tick
     assert_equal([1,2].to_set, i.s1.current_value.reveal)
     assert_equal([2,3].to_set, i.s2.current_value.reveal)
+  end
+
+  def test_map_apply
+    i = MapApply.new
+    %w[m1 m2].each do |r|
+      assert_equal(0, i.collection_stratum(r))
+    end
+    i.m1 <+ {"xyz" => Bud::PositiveSetLattice.new([1,2])}
+    i.m1 <+ {"xyz" => Bud::PositiveSetLattice.new([3]),
+             "abc" => Bud::PositiveSetLattice.new([9, 10])}
+    i.tick
+    assert_equal([["abc", 19], ["xyz", 6]], get_val_for_map(i, :m2))
+    assert_equal([["abc", false], ["xyz", true]], get_val_for_map(i, :m3))
+    i.m1 <+ {"abc" => Bud::PositiveSetLattice.new([3]),
+             "xyz" => Bud::PositiveSetLattice.new([4])}
+    i.tick
+    assert_equal([["abc", 22], ["xyz", 10]], get_val_for_map(i, :m2))
+    assert_equal([["abc", true], ["xyz", true]], get_val_for_map(i, :m3))
   end
 
   def test_map_equality

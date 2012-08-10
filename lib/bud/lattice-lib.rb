@@ -126,6 +126,26 @@ class Bud::MapLattice < Bud::Lattice
     end
   end
 
+  morph :apply_morph do |sym, *args|
+    raise Bud::Error unless Bud::Lattice.global_morphs.include? sym
+    do_apply(sym, args)
+  end
+
+  monotone :apply_monotone do |sym, *args|
+    raise Bud::Error unless Bud::Lattice.global_mfuncs.include? sym
+    do_apply(sym, args)
+  end
+
+  def do_apply(sym, args)
+    rv = {}
+    @v.each_pair do |k, val|
+      res = val.send(sym, *args)
+      raise Bud::Error unless res.kind_of? Bud::Lattice
+      rv[k] = res
+    end
+    wrap_unsafe(rv)
+  end
+
   morph :key? do |k|
     Bud::BoolLattice.new(@v.has_key? k)
   end
