@@ -198,12 +198,9 @@ class Bud::SetLattice < Bud::Lattice
   wrapper_name :lset
 
   def initialize(i=[])
-    reject_input(i) unless i.class <= Enumerable
-    i.each do |e|
-      reject_input(i) if e.class <= Bud::Lattice
-    end
+    reject_input(i) if i.any? {|e| e.kind_of? Bud::Lattice}
 
-    i = Set.new(i) unless i.class <= Set
+    i = Set.new(i) unless i.kind_of? Set
     @v = i
   end
 
@@ -297,7 +294,7 @@ class Bud::PositiveSetLattice < Bud::SetLattice
   end
 
   monotone :pos_sum do
-    @sum = @v.reduce(0) {|sum,i| sum + i} if @sum.nil?
+    @sum = @v.reduce(:+) if @sum.nil?
     Bud::MaxLattice.new(@sum)
   end
 end
