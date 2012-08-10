@@ -93,8 +93,10 @@ class Bud::MapLattice < Bud::Lattice
 
   def initialize(i={})
     reject_input(i) unless i.class == Hash
-    i.keys.each {|k| reject_input(i) if k.class <= Bud::Lattice}
-    i.values.each {|v| reject_input(i) unless v.class <= Bud::Lattice}
+    i.each_pair do |k,val|
+      reject_input(i) if k.class <= Bud::Lattice
+      reject_input(i) unless val.class <= Bud::Lattice
+    end
     @v = i
   end
 
@@ -112,16 +114,15 @@ class Bud::MapLattice < Bud::Lattice
   # XXX: If the key is not in the map, we would like to return some generic
   # "bottom" value that is shared by all lattice types. Unfortunately, such a
   # value does not exist, so we need the caller to tell us which class to use as
-  # an optional second argument (if omitted, reading a non-existent key produces
+  # an optional second argument (if omitted, fetching a non-existent key yields
   # a runtime exception). Another alternative would be to specify the type of
-  # the map's values when the lmap is declared, but that limits code reuse.
+  # the map's values when the lmap is declared, but that hinders code reuse.
   morph :at do |k, *args|
     if @v.has_key? k
       @v[k]
     else
       raise Bud::Error if args.empty?
-      val_class = args.first
-      val_class.new
+      args.first.new
     end
   end
 
