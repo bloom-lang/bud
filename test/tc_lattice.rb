@@ -646,6 +646,19 @@ class MapApply
   end
 end
 
+class MapFromCollection
+  include Bud
+
+  state do
+    lmap :m1
+    scratch :s1
+  end
+
+  bloom do
+    m1 <= s1 {|t| {t.key => Bud::SetLattice.new([t.val])}}
+  end
+end
+
 class TestMap < MiniTest::Unit::TestCase
   def get_val_for_map(i, r)
     i.send(r).current_value.reveal.map {|k,v| [k, v.reveal]}.sort
@@ -724,6 +737,16 @@ class TestMap < MiniTest::Unit::TestCase
     i.tick
     assert_equal([["abc", 22], ["xyz", 10]], get_val_for_map(i, :m2))
     assert_equal([["abc", true], ["xyz", true]], get_val_for_map(i, :m3))
+  end
+
+  def test_map_from_collection
+    i = MapFromCollection.new
+    i.s1 <+ [[5, 10], [7, 9]]
+    i.tick
+    assert_equal([[5, [10].to_set], [7, [9].to_set]], get_val_for_map(i, :m1))
+    i.s1 <+ [[5, 10], [7, 11]]
+    i.tick
+    assert_equal([[5, [10].to_set], [7, [9, 11].to_set]], get_val_for_map(i, :m1))
   end
 
   def test_map_equality
