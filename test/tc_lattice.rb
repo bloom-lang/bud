@@ -727,10 +727,10 @@ class TestMap < MiniTest::Unit::TestCase
   end
 
   def test_map_equality
-    assert(Bud::MapLattice.new({:k => Bud::MaxLattice.new(1),
-                                :a => Bud::MaxLattice.new(2)}) ==
-           Bud::MapLattice.new({:a => Bud::MaxLattice.new(2),
-                                :k => Bud::MaxLattice.new(1)}))
+    assert(Bud::MapLattice.new(:k => Bud::MaxLattice.new(1),
+                               :a => Bud::MaxLattice.new(2)) ==
+           Bud::MapLattice.new(:a => Bud::MaxLattice.new(2),
+                               :k => Bud::MaxLattice.new(1)))
   end
 end
 
