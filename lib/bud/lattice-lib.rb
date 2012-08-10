@@ -193,9 +193,7 @@ class Bud::MapLattice < Bud::Lattice
   end
 end
 
-# Similar to SetLattice, except that we implement the lattice using a hash table
-# rather than an array. This makes merge() much cheaper but incurs somewhat more
-# overhead for small sets.
+# A set lattice contains zero or more primitive (non-lattice) values.
 class Bud::SetLattice < Bud::Lattice
   wrapper_name :lset
 
