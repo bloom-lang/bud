@@ -3,9 +3,12 @@
 * Change behavior of accum() aggregate to return a Set, rather than an Array in
   an unspecified order
 * Fix several serious bugs in caching/invalidation of materialized operator
-  state (#276)
+  state (#276, #278, #279)
+* Avoid possible spurious infinite loop with dbm-backed collections
+* Optimize aggregation/grouping performance
+* Fix bugs and improve performance of materialization of sort operator
 * Fix REBL regression with push-based runtime (#274)
-* Minor performance optimizations
+* Minor performance optimizations for simple projection rules
 * Built-in support for code coverage with MRI 1.9 and SimpleCov
 
 == 0.9.2 / 2012-05-19
@@ -49,5 +52,4 @@
   * Support for Bloom-based signal handling has been removed
   * Support for the "with" syntax has been removed
   * The Bloom-based "deployment" framework has been removed
-  * Support for Tokyo Cabinet-based collections has been removed
-
+  * Support for Tokyo Cabinet-backed collections has been removed

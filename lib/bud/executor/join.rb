@@ -70,10 +70,7 @@ module Bud
     end
 
     def flush
-      if @rescan
-        replay_join
-        @rescan = false
-      end
+      replay_join if @rescan
     end
 
     # initialize the state for this join to be carried across iterations within a fixpoint
@@ -136,7 +133,6 @@ module Bud
       else
         @keys = []
       end
-      # puts "@keys = #{@keys.inspect}"
     end
 
     public
@@ -274,7 +270,12 @@ module Bud
 
     public
     def insert(item, source)
-      #puts "JOIN: #{source.tabname} -->  #{self.tabname} : #{item}/#{item.class}"
+      # If we need to reproduce the join's output, do that now before we process
+      # the to-be-inserted tuple. This avoids needless duplicates: if the
+      # to-be-inserted tuple produced any join output, we'd produce that output
+      # again if we didn't rescan now.
+      replay_join if @rescan
+
       if @selfjoins.include? source.elem_name
         offsets = []
         @relnames.each_with_index{|r,i| offsets << i if r == source.elem_name}
@@ -310,30 +311,8 @@ module Bud
       end
     end
 
-    public
-    def rescan_at_tick
-      false
-    end
-
-    public
-    def add_rescan_invalidate(rescan, invalidate)
-      if non_temporal_predecessors.any? {|e| rescan.member? e}
-        rescan << self
-        invalidate << self
-      end
-
-      # The distinction between a join node and other stateful elements is that
-      # when a join node needs a rescan it doesn't tell all its sources to
-      # rescan. In fact, it doesn't have to pass a rescan request up to a
-      # source, because if a target needs a rescan, the join node has all the
-      # state necessary to feed the downstream node. And if a source node is in
-      # rescan, then at run-time only the state associated with that particular
-      # source node @hash_tables[offset] will be cleared, and will get filled up
-      # again because that source will rescan anyway.
-      invalidate_tables(rescan, invalidate)
-    end
-
     def replay_join
+      @rescan = false
       a, b = @hash_tables
       return if a.empty? or b.empty?
 
@@ -489,7 +468,6 @@ module Bud
   end
 
   module PushSHOuterJoin
-
     private
     def insert_item(item, offset)
       if @keys.nil? or @keys.empty?
@@ -518,6 +496,11 @@ module Bud
     end
 
     public
+    def rescan_at_tick
+      true
+    end
+
+    public
     def stratum_end
       flush
       push_missing
@@ -525,23 +508,24 @@ module Bud
 
     private
     def push_missing
-      if @missing_keys
-        @missing_keys.each do |key|
-          @hash_tables[0][key].each do |t|
-            push_out([t, @rels[1].null_tuple])
-          end
+      @missing_keys.each do |key|
+        @hash_tables[0][key].each do |t|
+          push_out([t, @rels[1].null_tuple])
         end
       end
     end
   end
 
 
-  # Consider "u <= s.notin(t, s.a => t.b)". notin is a non-monotonic operator, where u depends positively on s,
-  # but negatively on t. Stratification ensures that t is fully computed in a lower stratum, which means that we
-  # can expect multiple iterators on s's side only. If t's scanner were to push its elemends down first, every
-  # insert of s merely needs to be cross checked with the cached elements of 't', and pushed down to the next
-  # element if s notin t. However, if s's scanner were to fire first, we have to wait until the first flush, at which
-  # point we are sure to have seen all the t-side tuples in this tick.
+  # Consider "u <= s.notin(t, s.a => t.b)". notin is a non-monotonic operator,
+  # where u depends positively on s, but negatively on t. Stratification ensures
+  # that t is fully computed in a lower stratum, which means that we can expect
+  # multiple iterators on s's side only. If t's scanner were to push its
+  # elements down first, every insert of s merely needs to be cross checked with
+  # the cached elements of 't', and pushed down to the next element if s notin
+  # t. However, if s's scanner were to fire first, we have to wait until the
+  # first flush, at which point we are sure to have seen all the t-side tuples
+  # in this tick.
   class PushNotIn < PushStatefulElement
     def initialize(rellist, bud_instance, preds=nil, &blk) # :nodoc: all
       @lhs, @rhs = rellist
@@ -552,7 +536,6 @@ module Bud
       setup_preds(preds) unless preds.empty?
       @rhs_rcvd = false
       @hash_tables = [{},{}]
-      @rhs_rcvd = false
       if @lhs_keycols.nil? and blk.nil?
         # pointwise comparison. Could use zip, but it creates an array for each field pair
         blk = lambda {|lhs, rhs|
@@ -563,9 +546,10 @@ module Bud
     end
 
     def setup_preds(preds)
-      # This is simpler than PushSHJoin's setup_preds, because notin is a binary operator where both lhs and rhs are
-      # collections.
-      # preds an array of hash_pairs. For now assume that the attributes are in the same order as the tables.
+      # This is simpler than PushSHJoin's setup_preds, because notin is a binary
+      # operator where both lhs and rhs are collections.  preds an array of
+      # hash_pairs. For now assume that the attributes are in the same order as
+      # the tables.
       @lhs_keycols, @rhs_keycols = preds.reduce([[], []]) do |memo, item|
         # each item is a hash
         l = item.keys[0]
@@ -578,11 +562,11 @@ module Bud
     def find_col(colspec, rel)
       if colspec.is_a? Symbol
         col_desc = rel.send(colspec)
-        raise "Unknown column #{rel} in #{@rel.tabname}" if col_desc.nil?
+        raise Bud::Error, "unknown column #{colspec} in #{@rel.tabname}" if col_desc.nil?
       elsif colspec.is_a? Array
         col_desc = colspec
       else
-        raise "Symbol or column spec expected. Got #{colspec}"
+        raise Bud::Error, "symbol or column spec expected. Got #{colspec}"
       end
       col_desc[1] # col_desc is of the form [tabname, colnum, colname]
     end
@@ -593,11 +577,6 @@ module Bud
     end
 
     public
-    def invalidate_at_tick
-      true
-    end
-
-    public
     def rescan_at_tick
       true
     end
@@ -605,7 +584,6 @@ module Bud
     def insert(item, source)
       offset = source == @lhs ? 0 : 1
       key = get_key(item, offset)
-      #puts "#{key}, #{item}, #{offset}"
       (@hash_tables[offset][key] ||= Set.new).add item
       if @rhs_rcvd and offset == 0
         push_lhs(key, item)
@@ -613,15 +591,14 @@ module Bud
     end
 
     def flush
-      # When flush is called the first time, both lhs and rhs scanners have been invoked, and because of stratification
-      # we know that the rhs is not growing any more, until the next tick.
+      # When flush is called the first time, both lhs and rhs scanners have been
+      # invoked, and because of stratification we know that the rhs is not
+      # growing any more, until the next tick.
       unless @rhs_rcvd
         @rhs_rcvd = true
-        @hash_tables[0].map{|key,values|
-          values.each{|item|
-            push_lhs(key, item)
-          }
-        }
+        @hash_tables[0].each do |key,values|
+          values.each {|item| push_lhs(key, item)}
+        end
       end
     end
 
@@ -661,9 +638,15 @@ module Bud
       @delete_keys.each{|o| o.pending_delete_keys([item])}
       @pendings.each{|o| o.pending_merge([item])}
     end
-  end
-  def stratum_end
-    @hash_tables = [{},{}]
-    @rhs_rcvd = false
+
+    def invalidate_cache
+      puts "#{self.class}/#{self.tabname} invalidated" if $BUD_DEBUG
+      @hash_tables = [{},{}]
+      @rhs_rcvd = false
+    end
+
+    def stratum_end
+      @rhs_rcvd = false
+    end
   end
 end

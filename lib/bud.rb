@@ -470,9 +470,7 @@ module Bud
 
     num_strata.times do |stratum|
       @push_sorted_elems[stratum].each do |elem|
-        if elem.rescan_at_tick
-          rescan << elem
-        end
+        rescan << elem if elem.rescan_at_tick
 
         if elem.outputs.any?{|tab| not(tab.class <= PushElement) and not(tab.class <= LatticePushElement) and nm_targets.member? tab.qualified_tabname.to_sym }
           rescan.merge(elem.wired_by)
@@ -481,10 +479,16 @@ module Bud
       rescan_invalidate_tc(stratum, rescan, invalidate)
     end
 
+    puts "(PRE) Default rescan: #{rescan.inspect}" if $BUD_DEBUG
+    puts "(PRE) Default inval: #{invalidate.inspect}" if $BUD_DEBUG
+
     prune_rescan_invalidate(rescan, invalidate)
     # transitive closure
     @default_rescan = rescan.to_a
     @default_invalidate = invalidate.to_a
+
+    puts "(POST) Default rescan: #{rescan.inspect}" if $BUD_DEBUG
+    puts "(POST) Default inval: #{invalidate.inspect}" if $BUD_DEBUG
 
     # Now compute for each table that is to be scanned, the set of dependent
     # tables and elements that will be invalidated if that table were to be
@@ -502,7 +506,8 @@ module Bud
         invalidate = dflt_invalidate.clone
         rescan_invalidate_tc(stratum, rescan, invalidate)
         prune_rescan_invalidate(rescan, invalidate)
-        to_reset += rescan + invalidate
+        to_reset.merge(rescan)
+        to_reset.merge(invalidate)
         # Give the diffs (from default) to scanner; these are elements that are
         # dependent on this scanner
         diffscan = (rescan - dflt_rescan).find_all {|elem| elem.class <= PushElement}
@@ -1002,7 +1007,7 @@ module Bud
   # One timestep of Bloom execution. This MUST be invoked from the EventMachine
   # thread; it is not intended to be called directly by client code.
   def tick_internal
-    puts "#{object_id}/#{port} : =============================================" if $BUD_DEBUG
+    puts "#{object_id}/#{port} : ============================================= (#{@budtime})" if $BUD_DEBUG
     begin
       starttime = Time.now if options[:metrics]
       if options[:metrics] and not @endtime.nil?

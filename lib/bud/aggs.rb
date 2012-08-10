@@ -14,7 +14,7 @@ module Bud
     #     b. :keep tells the caller to save this input
     #     c. :replace tells the caller to keep this input alone
     #     d. :delete, [t1, t2, ...] tells the caller to delete the remaining tuples
-    #  For things that do not descend from ArgExemplary, the 2nd part can simply be nil.
+    #  For aggs that do not inherit from ArgExemplary, the 2nd part can simply be nil.
     def trans(the_state, val)
       return the_state, :ignore
     end
@@ -24,16 +24,12 @@ module Bud
     end
   end
 
-  class Exemplary < Agg #:nodoc: all
-  end
-
   # ArgExemplary aggs are used by argagg. Canonical examples are min/min (argmin/max)
   # They must have a trivial final method and be monotonic, i.e. once a value v
-  # is discarded in favor of another, v can never be the final result
-
+  # is discarded in favor of another, v can never be the final result.
   class ArgExemplary < Agg #:nodoc: all
     def tie(the_state, val)
-      (the_state == val)
+      the_state == val
     end
     def final(the_state)
       the_state
@@ -186,7 +182,7 @@ module Bud
       return retval, nil
     end
     def final(the_state)
-      the_state[0]*1.0 / the_state[1]
+      the_state[0].to_f / the_state[1]
     end
   end
 

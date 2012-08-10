@@ -1,39 +1,80 @@
 require 'bud/executor/elements'
+require 'set'
 
 module Bud
   class PushGroup < PushStatefulElement
-    def initialize(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
-      @groups = {}
+    def initialize(elem_name, bud_instance, collection_name,
+                   keys_in, aggpairs_in, schema_in, &blk)
       if keys_in.nil?
         @keys = []
       else
         @keys = keys_in.map{|k| k[1]}
       end
-      # ap[1] is nil for Count
-      @aggpairs = aggpairs_in.map{|ap| ap[1].nil? ? [ap[0]] : [ap[0], ap[1][1]]}
+      # An aggpair is an array: [agg class instance, index of input field].
+      # ap[1] is nil for Count.
+      @aggpairs = aggpairs_in.map{|ap| [ap[0], ap[1].nil? ? nil : ap[1][1]]}
+      @groups = {}
+
+      # Check whether we need to eliminate duplicates from our input (we might
+      # see duplicates because of the rescan/invalidation logic, as well as
+      # because we don't do duplicate elimination on the output of a projection
+      # operator). We don't need to dupelim if all the args are exemplary.
+      @elim_dups = @aggpairs.any? {|a| not a[0].kind_of? ArgExemplary}
+      if @elim_dups
+        @input_cache = Set.new
+      end
+
+      @seen_new_data = false
       super(elem_name, bud_instance, collection_name, schema_in, &blk)
     end
 
     def insert(item, source)
+      if @elim_dups
+        return if @input_cache.include? item
+        @input_cache << item
+      end
+
+      @seen_new_data = true
       key = @keys.map{|k| item[k]}
-      @aggpairs.each_with_index do |ap, agg_ix|
-        agg_input = ap[1].nil? ? item : item[ap[1]]
-        agg = (@groups[key].nil? or @groups[key][agg_ix].nil?) ? ap[0].send(:init, agg_input) : ap[0].send(:trans, @groups[key][agg_ix], agg_input)[0]
-        @groups[key] ||= Array.new(@aggpairs.length)
-        @groups[key][agg_ix] = agg
+      group_state = @groups[key]
+      if group_state.nil?
+        @groups[key] = @aggpairs.map do |ap|
+          input_val = ap[1].nil? ? item : item[ap[1]]
+          ap[0].init(input_val)
+        end
+      else
+        @aggpairs.each_with_index do |ap, agg_ix|
+          input_val = ap[1].nil? ? item : item[ap[1]]
+          state_val = ap[0].trans(group_state[agg_ix], input_val)[0]
+          group_state[agg_ix] = state_val
+        end
       end
     end
 
+    def add_rescan_invalidate(rescan, invalidate)
+      # XXX: need to understand why this is necessary; it is dissimilar to the
+      # way other stateful non-monotonic operators are handled.
+      rescan << self
+      super
+    end
+
     def invalidate_cache
-      puts "Group #{qualified_tabname} invalidated" if $BUD_DEBUG
+      puts "#{self.class}/#{self.tabname} invalidated" if $BUD_DEBUG
       @groups.clear
+      @input_cache.clear if @elim_dups
+      @seen_new_data = false
     end
 
     def flush
+      # If we haven't seen any input since the last call to flush(), we're done:
+      # our output would be the same as before.
+      return unless @seen_new_data
+      @seen_new_data = false
+
       @groups.each do |g, grps|
         grp = @keys == $EMPTY ? [[]] : [g]
         @aggpairs.each_with_index do |ap, agg_ix|
-          grp << ap[0].send(:final, grps[agg_ix])
+          grp << ap[0].final(grps[agg_ix])
         end
         outval = grp[0].flatten
         (1..grp.length-1).each {|i| outval << grp[i]}
@@ -44,31 +85,38 @@ module Bud
 
   class PushArgAgg < PushGroup
     def initialize(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
-      raise Bud::Error, "multiple aggpairs #{aggpairs_in.map{|a| a.class.name}} in ArgAgg; only one allowed" if aggpairs_in.length > 1
+      unless aggpairs_in.length == 1
+        raise Bud::Error, "multiple aggpairs #{aggpairs_in.map{|a| a.class.name}} in ArgAgg; only one allowed"
+      end
       super(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
-      @agg = @aggpairs[0][0]
-      @aggcol = @aggpairs[0][1]
+      @agg, @aggcol = @aggpairs[0]
       @winners = {}
     end
 
     public
     def invalidate_cache
-      puts "#{self.class}/#{self.tabname} invalidated" if $BUD_DEBUG
-      @groups.clear
+      super
       @winners.clear
     end
 
     def insert(item, source)
       key = @keys.map{|k| item[k]}
-      @aggpairs.each_with_index do |ap, agg_ix|
-        agg_input = item[ap[1]]
-        if @groups[key].nil?
-          agg = ap[0].send(:init, agg_input)
+      group_state = @groups[key]
+      if group_state.nil?
+        @seen_new_data = true
+        @groups[key] = @aggpairs.map do |ap|
           @winners[key] = [item]
-        else
-          agg_result = ap[0].send(:trans, @groups[key][agg_ix], agg_input)
-          agg = agg_result[0]
-          case agg_result[1]
+          input_val = item[ap[1]]
+          ap[0].init(input_val)
+        end
+      else
+        @aggpairs.each_with_index do |ap, agg_ix|
+          input_val = item[ap[1]]
+          state_val, flag, *rest = ap[0].trans(group_state[agg_ix], input_val)
+          group_state[agg_ix] = state_val
+          @seen_new_data = true unless flag == :ignore
+
+          case flag
           when :ignore
             # do nothing
           when :replace
@@ -76,19 +124,22 @@ module Bud
           when :keep
             @winners[key] << item
           when :delete
-            agg_result[2..-1].each do |t|
-              @winners[key].delete t unless @winners[key].empty?
+            rest.each do |t|
+              @winners[key].delete t
             end
           else
-            raise Bud::Error, "strange result from argagg finalizer"
+            raise Bud::Error, "strange result from argagg transition func: #{flag}"
           end
         end
-        @groups[key] ||= Array.new(@aggpairs.length)
-        @groups[key][agg_ix] = agg
       end
     end
 
     def flush
+      # If we haven't seen any input since the last call to flush(), we're done:
+      # our output would be the same as before.
+      return unless @seen_new_data
+      @seen_new_data = false
+
       @groups.each_key do |g|
         @winners[g].each do |t|
           push_out(t, false)

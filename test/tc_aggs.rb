@@ -105,25 +105,6 @@ class PriorityQ
   end
 end
 
-# XXX: not used by any tests
-class DupAggs
-  include Bud
-
-  state do
-    table :tab, [:i]
-  end
-
-  bootstrap do
-    tab << [1]
-    tab << [2]
-  end
-
-  bloom do
-    temp :out <= tab.group(nil, sum(tab.i), sum(tab.i))
-    p out.inspect
-  end
-end
-
 class RenameGroup
   include Bud
 
@@ -329,7 +310,7 @@ class TestAggs < MiniTest::Unit::TestCase
     assert(p.choices.first.val <= 99)
     assert_equal(p.t2.first[0] + 1, p.t2.first[1])
   end
-  
+
   def test_chain_agg
     p = ChainAgg.new
     assert_equal(0, p.collection_stratum("t2"))
@@ -363,20 +344,6 @@ class TestAggs < MiniTest::Unit::TestCase
     assert_equal([[1, "false", "false"], [1, "false", "true"], [2, "false", "false"],
                   [3, "false", "false"], [3, "true", "true"]],
                  p.s4.to_a.map{|t| t.map{|t2| (t2 == false || t2 == true) ? t2.to_s : t2}}.sort)
-  end
-
-  class SimpleAgg
-    include Bud
-    state {table :t1}
-    bootstrap {t1 << [[1,1]]}
-    bloom do 
-	temp :t2 <= t1.group([:key])
-    end
-  end
-
-  def test_simple_agg
-    p = SimpleAgg.new
-    p.tick
   end
 
   class ArgminDups
@@ -525,5 +492,91 @@ class TestReduce < MiniTest::Unit::TestCase
     # Given no input in a tick, revert to default value
     r.tick
     assert_equal([[true]], r.t2.to_a)
+  end
+end
+
+class AggJoinRescan
+  include Bud
+
+  state do
+    table :sum_tbl, [:sum_v]
+    table :cnt_tbl, [:cnt_v]
+    table :t1
+    table :t2
+  end
+
+  bloom do
+    sum_tbl <= (t1 * t2).lefts.group([], sum(:val))
+    cnt_tbl <= (t1 * t2).lefts.group([], count)
+  end
+end
+
+class AggProjWithDups
+  include Bud
+
+  state do
+    table :in_t
+    scratch :res_t, [:sum_v]
+  end
+
+  bloom do
+    res_t <= in_t {|t| [t.key + t.val]}.rename(:xyz, [:v]).group([], sum(:v))
+  end
+end
+
+class AggDupInputs
+  include Bud
+
+  state do
+    table :sum_tbl, [:cnt]
+    table :t1
+  end
+
+  bloom do
+    sum_tbl <= t1.group([], sum(:val))
+  end
+end
+
+class AggDupElimTests < MiniTest::Unit::TestCase
+  # Issue #278
+  def test_join_rescan
+    i = AggJoinRescan.new
+    i.t1 <+ [[10, 20]]
+    i.t2 <+ [[31, 41]]
+    i.tick
+    assert_equal([[20]], i.sum_tbl.to_a.sort)
+    assert_equal([[1]], i.cnt_tbl.to_a.sort)
+    i.tick
+    assert_equal([[20]], i.sum_tbl.to_a.sort)
+    assert_equal([[1]], i.cnt_tbl.to_a.sort)
+    i.t1 <+ [[5, 5]]
+    i.tick
+    assert_equal([[20], [25]], i.sum_tbl.to_a.sort)
+    assert_equal([[1], [2]], i.cnt_tbl.to_a.sort)
+    i.t2 <+ [[11, 13]]
+    i.tick
+    assert_equal([[20], [25]], i.sum_tbl.to_a.sort)
+    assert_equal([[1], [2]], i.cnt_tbl.to_a.sort)
+  end
+
+  def test_agg_proj_with_dups
+    i = AggProjWithDups.new
+    i.in_t <+ [[6, 6], [5, 7], [4, 8], [0, 1]]
+    i.tick
+    assert_equal([[13]], i.res_t.to_a.sort)
+    i.in_t <+ [[2, 0]]
+    i.tick
+    assert_equal([[15]], i.res_t.to_a.sort)
+  end
+
+  def test_agg_dup_inputs
+    i = AggDupInputs.new
+    # Note that although the sum aggregate is passed the same value ("7") more
+    # than once, the input tuples to the grouping operation are not duplicates,
+    # so we want to sum each value separately. In other words, sum() implements
+    # the normal SQL SUM() behavior, not SUM(DISTINCT ...).
+    i.t1 <+ [[1, 7], [2, 7], [3, 7]]
+    i.tick
+    assert_equal([[21]], i.sum_tbl.to_a.sort)
   end
 end

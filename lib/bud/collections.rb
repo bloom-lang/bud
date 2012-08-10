@@ -761,14 +761,6 @@ module Bud
     end
 
     public
-    def pretty_print_instance_variables
-      # list of attributes (in order) to print when pretty_print is called.
-      important = ["@tabname", "@storage", "@delta", "@new_delta", "@pending"]
-      # everything except bud_instance
-      important + (self.instance_variables - important - ["@bud_instance"])
-    end
-
-    public
     def uniquify_tabname # :nodoc: all
       # just append current number of microseconds
       @tabname = (@tabname.to_s + Time.new.tv_usec.to_s).to_sym
@@ -1218,7 +1210,7 @@ module Bud
       # No cache to invalidate. Also, tables do not invalidate dependents,
       # because their own state is not considered invalidated; that happens only
       # if there were pending deletes at the beginning of a tick (see tick())
-      puts "******** invalidate_cache called on BudTable"
+      puts "******** invalidate_cache called on BudTable" if $BUD_DEBUG
     end
 
     public
