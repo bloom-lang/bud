@@ -9,6 +9,7 @@
 * Fix bugs and improve performance of materialization of sort operator
 * Fix REBL regression with push-based runtime (#274)
 * Minor performance optimizations for simple projection rules
+* Remove dependency on gchart
 * Built-in support for code coverage with MRI 1.9 and SimpleCov
 
 == 0.9.2 / 2012-05-19

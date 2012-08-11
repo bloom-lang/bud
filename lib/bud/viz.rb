@@ -1,5 +1,3 @@
-require 'rubygems'
-require 'gchart'
 require 'bud/state'
 require 'set'
 

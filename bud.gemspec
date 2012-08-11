@@ -17,7 +17,6 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'eventmachine'
   s.add_dependency 'fastercsv'
-  s.add_dependency 'gchart'
   s.add_dependency 'getopt'
   s.add_dependency 'msgpack'
   s.add_dependency 'ruby-graphviz'
