@@ -1,4 +1,4 @@
-== 0.9.3 / 2012-07-27
+== 0.9.3 / 2012-08-20
 
 * Change behavior of accum() aggregate to return a Set, rather than an Array in
   an unspecified order
@@ -6,7 +6,7 @@
   state (#276, #278, #279)
 * Avoid possible spurious infinite loop with dbm-backed collections
 * Optimize aggregation/grouping performance
-* Fix bugs and improve performance of materialization of sort operator
+* Fix bugs and improve performance for materialization of sort operator
 * Fix REBL regression with push-based runtime (#274)
 * Minor performance optimizations for simple projection rules
 * Remove dependency on gchart
