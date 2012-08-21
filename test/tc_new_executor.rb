@@ -134,7 +134,7 @@ class PushTests < MiniTest::Unit::TestCase
     p.tick
     p.groupin <+ [[1,1],[1,2],[2,3],[2,4]]
     p.tick
-    assert_equal([[1,3],[2,7]], p.result.to_a)
+    assert_equal([[1,3],[2,7]], p.result.to_a.sort)
   end
   class PushArgAggTest
     include Bud
@@ -150,7 +150,7 @@ class PushTests < MiniTest::Unit::TestCase
     p = PushArgAggTest.new
     p.r1 <= [[1,'a'],[1,'b'],[2,'b'],[2,'a']]
     p.tick
-    assert_equal([[1,'a'],[1,'b']], p.result.to_a)
+    assert_equal([[1,'a'],[1,'b']], p.result.to_a.sort)
   end
   class PushArgAggTestNoGroup
     include Bud
@@ -167,7 +167,7 @@ class PushTests < MiniTest::Unit::TestCase
     p.tick
     p.r1 <+ [[1,'a'],[1,'b'],[2,'b'],[2,'a']]
     p.tick
-    assert_equal([[1,'a'],[1,'b']], p.result.to_a)
+    assert([[1,'a'],[1,'b']].sort == p.result.to_a.sort)
   end
   class PushInspected
     include Bud
@@ -184,7 +184,7 @@ class PushTests < MiniTest::Unit::TestCase
     p.tick
     p.r1 <+ [[1,1],[2,2]]
     p.tick
-    assert_equal([[ "[1, 1]" ],[ "[2, 2]" ]], p.result.to_a)
+    assert_equal([[ "[1, 1]" ],[ "[2, 2]" ]], p.result.to_a.sort)
   end
   class PushStrata
     include Bud
