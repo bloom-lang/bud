@@ -71,10 +71,10 @@ module Bud
       return unless @seen_new_data
       @seen_new_data = false
 
-      @groups.each do |g, grps|
-        rv = g
+      @groups.each do |key, group_state|
+        rv = key
         @aggpairs.each_with_index do |ap, agg_ix|
-          rv << ap[0].final(grps[agg_ix])
+          rv << ap[0].final(group_state[agg_ix])
         end
         push_out(rv)
       end
