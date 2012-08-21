@@ -72,7 +72,7 @@ module Bud
       @seen_new_data = false
 
       @groups.each do |key, group_state|
-        rv = key
+        rv = key.clone
         @aggpairs.each_with_index do |ap, agg_ix|
           rv << ap[0].final(group_state[agg_ix])
         end
