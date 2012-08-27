@@ -143,8 +143,6 @@ class TestMax < MiniTest::Unit::TestCase
   def test_embed_max
     i = EmbedMax.new
     %w[in_t t m1 m2].each {|r| assert_equal(0, i.collection_stratum(r))}
-    # XXX: broken
-    return
     i.in_t <+ [[5], [10], [7], [2], [13]]
     i.tick
     assert_equal(10, i.t[["m1"]].val.reveal)

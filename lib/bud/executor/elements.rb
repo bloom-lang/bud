@@ -451,6 +451,7 @@ module Bud
   class ScannerElement < PushElement
     attr_reader :collection
     attr_reader :rescan_set, :invalidate_set
+    attr_accessor :force_rescan
 
     def initialize(elem_name, bud_instance, collection_in,
                    the_schema=collection_in.schema, &blk)
@@ -458,6 +459,7 @@ module Bud
       @collection = collection_in
       @rescan_set = []
       @invalidate_set = []
+      @force_rescan = false
     end
 
     def rescan
@@ -489,7 +491,11 @@ module Bud
     end
 
     def scan(first_iter)
-      if first_iter
+      if @force_rescan
+        # Scan entire storage
+        @collection.each_raw {|item| push_out(item)}
+        @force_rescan = false
+      elsif first_iter
         if rescan
           # Scan entire storage
           @collection.each_raw {|item| push_out(item)}

@@ -528,7 +528,11 @@ class Bud::LatticeWrapper
     if m != current_value
       @storage = m
       @rescan_on_merge.each do |e|
-        e.rescan = true
+        if e.kind_of? Bud::ScannerElement
+          e.force_rescan = true
+        else
+          e.rescan = true
+        end
       end
       return true
     else
