@@ -143,8 +143,8 @@ class TestMax < MiniTest::Unit::TestCase
   def test_embed_max
     i = EmbedMax.new
     %w[in_t t m1 m2].each {|r| assert_equal(0, i.collection_stratum(r))}
-    return
     # XXX: broken
+    return
     i.in_t <+ [[5], [10], [7], [2], [13]]
     i.tick
     assert_equal(10, i.t[["m1"]].val.reveal)
@@ -1222,6 +1222,22 @@ class LatticeEmbedJoin
   end
 end
 
+class LatticeEmbedAgg
+  include Bud
+
+  state do
+    table :t1, [:v1, :v2] => [:embed_v]
+    table :t2, [:v1, :v2]
+    lset :s1
+  end
+
+  bloom do
+    t1 <= t2.group([:v1], max(:v2)) do |t|
+      t + [s1]
+    end
+  end
+end
+
 class TestLatticeEmbedDeltas < MiniTest::Unit::TestCase
   def test_join_deltas
     i = LatticeEmbedJoin.new
@@ -1241,5 +1257,25 @@ class TestLatticeEmbedDeltas < MiniTest::Unit::TestCase
     i.m1 <+ Bud::MaxLattice.new(14)
     i.tick
     assert_equal([[5, Bud::MaxLattice.new(14)]], i.t1.to_a)
+  end
+
+  def test_agg_deltas
+    i = LatticeEmbedAgg.new(:dump_rewrite => true)
+    %w[t2].each {|r| assert_equal(0, i.collection_stratum(r))}
+    %w[t1].each {|r| assert_equal(1, i.collection_stratum(r))}
+    depends = i.t_depends.map {|t| [t.lhs, t.body, t.in_body, t.nm]}.to_set
+    assert_equal([["t1", "t2", false, true], ["t1", "s1", true, true]].to_set,
+                 depends)
+    i.t2 <+ [[5, 10], [5, 11], [6, 12]]
+    i.s1 <+ Bud::SetLattice.new([7])
+    i.tick
+    assert_equal([[5, 11, Bud::SetLattice.new([7])],
+                  [6, 12, Bud::SetLattice.new([7])]], i.t1.to_a.sort)
+    i.s1 <+ Bud::SetLattice.new([9])
+    i.t2 <+ [[7, 19]]
+    i.tick
+    assert_equal([[5, 11, Bud::SetLattice.new([7, 9])],
+                  [6, 12, Bud::SetLattice.new([7, 9])],
+                  [7, 19, Bud::SetLattice.new([7, 9])]], i.t1.to_a.sort)
   end
 end
