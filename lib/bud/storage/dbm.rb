@@ -147,7 +147,7 @@ module Bud
         # We allow @new_delta to contain duplicates but eliminate them here. We
         # can't just allow duplicate delta tuples because that might cause
         # spurious infinite delta processing loops.
-        @new_delta.reject! {|key| self[key] == @new_delta[key]}
+        @new_delta.reject! {|key, val| self[key] == val}
 
         @delta = @new_delta
         @new_delta = {}

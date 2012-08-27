@@ -35,7 +35,7 @@ module Bud
       end
 
       @seen_new_data = true
-      key = @keys.map{|k| item[k]}
+      key = item.values_at(*@keys)
       group_state = @groups[key]
       if group_state.nil?
         @groups[key] = @aggpairs.map do |ap|
@@ -71,14 +71,12 @@ module Bud
       return unless @seen_new_data
       @seen_new_data = false
 
-      @groups.each do |g, grps|
-        grp = @keys == $EMPTY ? [[]] : [g]
+      @groups.each do |key, group_state|
+        rv = key.clone
         @aggpairs.each_with_index do |ap, agg_ix|
-          grp << ap[0].final(grps[agg_ix])
+          rv << ap[0].final(group_state[agg_ix])
         end
-        outval = grp[0].flatten
-        (1..grp.length-1).each {|i| outval << grp[i]}
-        push_out(outval)
+        push_out(rv)
       end
     end
   end

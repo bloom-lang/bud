@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = "bud"
-  s.version = "0.9.3"
+  s.version = "0.9.4"
   s.authors = ["Peter Alvaro", "Neil Conway", "Joseph M. Hellerstein", "William R. Marczak", "Sriram Srinivasan"]
   s.email = ["bloomdevs@gmail.com"]
   s.summary = "A prototype Bloom DSL for distributed programming."
@@ -17,7 +17,6 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'eventmachine'
   s.add_dependency 'fastercsv'
-  s.add_dependency 'gchart'
   s.add_dependency 'getopt'
   s.add_dependency 'msgpack'
   s.add_dependency 'ruby-graphviz'

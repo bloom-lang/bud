@@ -406,7 +406,7 @@ module Bud
 
     private
     def get_key_vals(t)
-      @key_colnums.map {|i| t[i]}
+      t.values_at(*@key_colnums)
     end
 
     public
