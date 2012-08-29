@@ -576,6 +576,24 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
   end
 end
 
+class SimpleMap
+  include Bud
+
+  state do
+    lmap :h
+    lmax :m1
+    lmax :m2
+    lset :hkeys
+    scratch :in_t, [:v]
+  end
+
+  bloom do
+    h <= {"x" => m1, "y" => m1}
+    h <= in_t {|t| {t.v => m2}}
+    hkeys <= h.key_set
+  end
+end
+
 class MapIntersect
   include Bud
 
@@ -660,6 +678,34 @@ end
 class TestMap < MiniTest::Unit::TestCase
   def get_val_for_map(i, r)
     i.send(r).current_value.reveal.map {|k,v| [k, v.reveal]}.sort
+  end
+
+  def test_map_simple
+    i = SimpleMap.new(:dump_rewrite => true)
+    %w[h m1 m2 in_t].each do |r|
+      assert_equal(0, i.collection_stratum(r))
+    end
+
+    [5, 12, 3].each {|n| i.m1 <+ Bud::MaxLattice.new(n)}
+    [3, 4, 5].each {|n| i.m2 <+ Bud::MaxLattice.new(n)}
+    i.in_t <+ [["y"], ["z"]]
+    i.tick
+    assert_equal(12, i.m1.current_value.reveal)
+    assert_equal([["x", 12], ["y", 12], ["z", 5]], get_val_for_map(i, :h))
+    assert_equal(["x", "y", "z"], i.hkeys.current_value.reveal.sort)
+
+    i.m2 <+ Bud::MaxLattice.new(15)
+    i.tick
+    assert_equal([["x", 12], ["y", 12], ["z", 5]], get_val_for_map(i, :h))
+    assert_equal(15, i.m2.current_value.reveal)
+    assert_equal(["x", "y", "z"], i.hkeys.current_value.reveal.sort)
+
+    i.m2 <+ Bud::MaxLattice.new(13)
+    i.in_t <+ [["y"], ["z"]]
+    i.tick
+    assert_equal([["x", 12], ["y", 15], ["z", 15]], get_val_for_map(i, :h))
+    assert_equal(15, i.m2.current_value.reveal)
+    assert_equal(["x", "y", "z"], i.hkeys.current_value.reveal.sort)
   end
 
   def test_map_intersect

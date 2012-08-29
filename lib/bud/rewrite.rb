@@ -362,6 +362,11 @@ class LatticeRefRewriter < SexpProcessor
     return s(:array, *new_body)
   end
 
+  def process_hash(exp)
+    new_body = exp.sexp_body.map {|t| push_and_process(t)}
+    return s(:hash, *new_body)
+  end
+
   def process_call(exp)
     tag, recv, op, args = exp
 
