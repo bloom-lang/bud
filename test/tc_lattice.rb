@@ -681,7 +681,7 @@ class TestMap < MiniTest::Unit::TestCase
   end
 
   def test_map_simple
-    i = SimpleMap.new(:dump_rewrite => true)
+    i = SimpleMap.new
     %w[h m1 m2 in_t].each do |r|
       assert_equal(0, i.collection_stratum(r))
     end
@@ -1282,6 +1282,21 @@ class LatticeEmbedAgg
   end
 end
 
+class LatticeEmbedCollExpr
+  include Bud
+
+  state do
+    table :t1
+    lmin :m1
+    lmin :m2
+  end
+
+  bloom do
+    t1 <= [["x", m1 + 1], ["y", m2 + 2]]
+    m1 <= m2 + 5
+  end
+end
+
 class TestLatticeEmbedDeltas < MiniTest::Unit::TestCase
   def test_join_deltas
     i = LatticeEmbedJoin.new
@@ -1304,7 +1319,7 @@ class TestLatticeEmbedDeltas < MiniTest::Unit::TestCase
   end
 
   def test_agg_deltas
-    i = LatticeEmbedAgg.new(:dump_rewrite => true)
+    i = LatticeEmbedAgg.new
     %w[t2].each {|r| assert_equal(0, i.collection_stratum(r))}
     %w[t1].each {|r| assert_equal(1, i.collection_stratum(r))}
     depends = i.t_depends.map {|t| [t.lhs, t.body, t.in_body, t.nm]}.to_set
@@ -1321,5 +1336,23 @@ class TestLatticeEmbedDeltas < MiniTest::Unit::TestCase
     assert_equal([[5, 11, Bud::SetLattice.new([7, 9])],
                   [6, 12, Bud::SetLattice.new([7, 9])],
                   [7, 19, Bud::SetLattice.new([7, 9])]], i.t1.to_a.sort)
+  end
+
+  def test_coll_expr_deltas
+    i = LatticeEmbedCollExpr.new
+    %w[t1 m1 m2].each {|r| assert_equal(0, i.collection_stratum(r))}
+
+    i.m2 <+ Bud::MinLattice.new(5)
+    i.m2 <+ Bud::MinLattice.new(4)
+    i.tick
+    assert_equal(9, i.m1.current_value.reveal)
+    assert_equal([["x", Bud::MinLattice.new(10)], ["y", Bud::MinLattice.new(6)]],
+                 i.t1.to_a.sort)
+
+    i.m2 <+ Bud::MinLattice.new(3)
+    i.tick
+    assert_equal(8, i.m1.current_value.reveal)
+    assert_equal([["x", Bud::MinLattice.new(9)], ["y", Bud::MinLattice.new(5)]],
+                 i.t1.to_a.sort)
   end
 end
