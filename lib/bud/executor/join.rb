@@ -552,10 +552,12 @@ module Bud
       # the tables.
       @lhs_keycols, @rhs_keycols = preds.reduce([[], []]) do |memo, item|
         # each item is a hash
-        l = item.keys[0]
-        r = item.values[0]
-        memo[0] << find_col(l, @lhs)
-        memo[1] << find_col(r, @rhs)
+        item.keys.each_with_index do |k, i|
+          l = item.keys[i]
+          r = item.values[i]
+          memo[0] << find_col(l, @lhs)
+          memo[1] << find_col(r, @rhs)
+        end
         memo
       end
     end
