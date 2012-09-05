@@ -688,7 +688,7 @@ class ScratchTickDeltas < MiniTest::Unit::TestCase
   end
 
   def test_scratch_accum_tick_deltas
-    i = AccumDeltasInScratch.new(:port => 23239)
+    i = AccumDeltasInScratch.new
     i.tick
     i.l <+ [[1, 2]]
     i.r <+ [[1, 2]]
