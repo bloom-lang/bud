@@ -214,3 +214,27 @@ class RescanNotInTest < MiniTest::Unit::TestCase
     assert_equal([[30, 40]], i.res_t.to_a)
   end
 end
+
+class TwoQuals
+  include Bud
+  state do
+    table :lside
+    table :rside
+    table :result
+  end
+
+  bloom do
+    result <= rside.notin(lside, :key => :key, :val => :val)
+  end
+end
+
+class TwoQualsTest < MiniTest::Unit::TestCase
+  def test_twoquals
+    f = TwoQuals.new
+    f.lside <+ [[1, 2]]
+    f.rside <+ [[1, 3]]
+    f.tick; f.tick
+    assert_equal([[1, 3]], f.result.to_a)
+  end
+end
+
