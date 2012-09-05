@@ -229,12 +229,12 @@ class TwoQuals
 end
 
 class TwoQualsTest < MiniTest::Unit::TestCase
+  # issue 282
   def test_twoquals
     f = TwoQuals.new
     f.lside <+ [[1, 2]]
     f.rside <+ [[1, 3]]
-    f.tick; f.tick
+    f.tick
     assert_equal([[1, 3]], f.result.to_a)
   end
 end
-
