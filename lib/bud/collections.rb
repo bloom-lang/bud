@@ -255,6 +255,11 @@ module Bud
     end
 
     public
+    def each_tick_delta(&block)
+      @tick_delta.each(&block)
+    end
+
+    public
     def invalidate_at_tick
       true # being conservative here as a default.
     end
@@ -713,8 +718,16 @@ module Bud
   end
 
   class BudScratch < BudCollection # :nodoc: all
+    # We don't need to accumulate @tick_delta separately from @storage for
+    # scratch collections, since @storage for scratches doesn't persistent
+    # across ticks (semantics-wise, at least).
     def accumulate_tick_deltas
       false
+    end
+
+    public
+    def each_tick_delta(&block)
+      @storage.each_value(&block)
     end
 
     public

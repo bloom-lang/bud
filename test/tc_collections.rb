@@ -664,3 +664,35 @@ class TestConstants < MiniTest::Unit::TestCase
     assert_equal([[0,'hi'],[1,'hi'],[2,'hi']], p.his.to_a.sort)
   end
 end
+
+class ScratchTickDeltas < MiniTest::Unit::TestCase
+  # issue 281
+  class AccumDeltasInScratch
+    include Bud
+
+    state do
+      scratch :l
+      scratch :r
+      table :lside
+      table :rside
+      scratch :result
+      scratch :result_s, [:v]
+    end
+
+    bloom do
+      lside <= l
+      rside <= r
+      result <= (lside * rside).lefts(:val => :val)
+      result_s <= result.inspected
+    end
+  end
+
+  def test_scratch_accum_tick_deltas
+    i = AccumDeltasInScratch.new(:port => 23239)
+    i.tick
+    i.l <+ [[1, 2]]
+    i.r <+ [[1, 2]]
+    i.tick
+    assert_equal([["[1, 2]"]], i.result_s.to_a)
+  end
+end

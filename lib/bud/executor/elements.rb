@@ -492,7 +492,7 @@ module Bud
         else
           # In the first iteration, tick_delta would be non-null IFF the
           # collection has grown in an earlier stratum
-          @collection.tick_delta.each {|item| push_out(item)}
+          @collection.each_tick_delta {|item| push_out(item)}
         end
       end
 
