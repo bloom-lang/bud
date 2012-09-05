@@ -689,6 +689,12 @@ class ScratchTickDeltas < MiniTest::Unit::TestCase
 
   def test_scratch_accum_tick_deltas
     i = AccumDeltasInScratch.new
+    %w[l r lside rside result].each do |r|
+      assert_equal(0, i.collection_stratum(r))
+    end
+    %w[result_s].each do |r|
+      assert_equal(1, i.collection_stratum(r))
+    end
     i.tick
     i.l <+ [[1, 2]]
     i.r <+ [[1, 2]]
