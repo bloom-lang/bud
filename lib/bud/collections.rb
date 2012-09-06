@@ -256,6 +256,11 @@ module Bud
     end
 
     public
+    def each_tick_delta(&block)
+      @tick_delta.each(&block)
+    end
+
+    public
     def invalidate_at_tick
       true # being conservative here as a default.
     end
@@ -621,16 +626,16 @@ module Bud
     public
     def tick_deltas # :nodoc: all
       unless @delta.empty?
-        puts "#{qualified_tabname}.tick_delta delta --> storage (#{@delta.size} elems)" if $BUD_DEBUG
+        puts "#{qualified_tabname}.tick_deltas delta --> storage (#{@delta.size} elems)" if $BUD_DEBUG
         @storage.merge!(@delta)
         @tick_delta.concat(@delta.values) if accumulate_tick_deltas
         @delta.clear
       end
 
       unless @new_delta.empty?
-        puts "#{qualified_tabname}.tick_delta new_delta --> delta (#{@new_delta.size} elems)" if $BUD_DEBUG
+        puts "#{qualified_tabname}.tick_deltas new_delta --> delta (#{@new_delta.size} elems)" if $BUD_DEBUG
 
-        # NB: key conflicts between different new_delta tuples are detected in
+        # NB: key conflicts between two new_delta tuples are detected in
         # do_insert().
         @new_delta.each_pair do |key, tup|
           merge_to_buf(@delta, key, tup, @storage[key])
@@ -768,8 +773,16 @@ module Bud
   end
 
   class BudScratch < BudCollection # :nodoc: all
+    # We don't need to accumulate @tick_delta separately from @storage for
+    # scratch collections, since @storage for scratches doesn't persistent
+    # across ticks (semantics-wise, at least).
     def accumulate_tick_deltas
       false
+    end
+
+    public
+    def each_tick_delta(&block)
+      @storage.each_value(&block)
     end
 
     public
@@ -863,9 +876,8 @@ module Bud
     end
 
     def bootstrap
-      # override BudCollection;  pending should not be moved into delta.
+      # override BudCollection; pending should not be moved into delta.
     end
-
 
     private
     def remove_at_sign!(cols)

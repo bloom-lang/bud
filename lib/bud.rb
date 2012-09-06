@@ -479,16 +479,13 @@ module Bud
       rescan_invalidate_tc(stratum, rescan, invalidate)
     end
 
-    puts "(PRE) Default rescan: #{rescan.inspect}" if $BUD_DEBUG
-    puts "(PRE) Default inval: #{invalidate.inspect}" if $BUD_DEBUG
-
     prune_rescan_invalidate(rescan, invalidate)
     # transitive closure
     @default_rescan = rescan.to_a
     @default_invalidate = invalidate.to_a
 
-    puts "(POST) Default rescan: #{rescan.inspect}" if $BUD_DEBUG
-    puts "(POST) Default inval: #{invalidate.inspect}" if $BUD_DEBUG
+    puts "Default rescan: #{rescan.inspect}" if $BUD_DEBUG
+    puts "Default inval: #{invalidate.inspect}" if $BUD_DEBUG
 
     # Now compute for each table that is to be scanned, the set of dependent
     # tables and elements that will be invalidated if that table were to be

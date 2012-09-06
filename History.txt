@@ -1,8 +1,13 @@
-== 0.9.4 / ???
+== 0.9.5 / ???
+
+== 0.9.4 / 2012-09-06
 
 * Optimize grouping performance
-* Fix regression in grouping operator with MRI 1.8 (#280)
 * Fix regression in dbm-backed collections with MRI 1.8
+* Fix regression in grouping operator with MRI 1.8 (#280)
+* Fix bug in programs that applied non-monotonic operators to scratch
+  collections under certain circumstances (#281)
+* Fix bug in "notin" with multiple qualifiers (#282)
 
 == 0.9.3 / 2012-08-20
 
