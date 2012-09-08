@@ -570,6 +570,26 @@ class TestCollections < MiniTest::Unit::TestCase
     b.s1 <+ [[10, 20]]
     assert_raises(Bud::TypeError) { b.tick }
   end
+
+  class PadMissingField
+    include Bud
+
+    state do
+      scratch :in_t, [:v]
+      scratch :out_t, [:v1, :v2]
+    end
+
+    bloom do
+      out_t <= in_t
+    end
+  end
+
+  def test_pad_missing_field
+    i = PadMissingField.new
+    i.in_t <+ [[5]]
+    i.tick
+    assert_equal([[5, nil]], i.out_t.to_a)
+  end
 end
 
 class TestUpsert < MiniTest::Unit::TestCase

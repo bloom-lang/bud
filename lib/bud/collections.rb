@@ -250,7 +250,9 @@ module Bud
     def rename(the_name, the_schema=nil, &blk)
       raise unless @bud_instance.wiring?
       # a scratch with this name should have been defined during rewriting
-      raise Bud::Error, "rename failed to define a scratch named #{the_name}" unless @bud_instance.respond_to? the_name
+      unless @bud_instance.respond_to? the_name
+        raise Bud::Error, "rename failed to define a scratch named #{the_name}"
+      end
       pro(the_name, the_schema, &blk)
     end
 
@@ -410,6 +412,7 @@ module Bud
       end
 
       @key_colnums.each do |i|
+        next if i >= o.length
         if is_lattice_val(o[i])
           raise Bud::TypeError, "lattice value cannot be a key for #{qualified_tabname}: #{o[i].inspect}"
         end
