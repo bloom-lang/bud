@@ -196,7 +196,12 @@ module Bud
         pusher_pro.tabname = the_name
         pusher_pro
       else
-        @storage.map(&blk)
+        rv = []
+        self.each do |t|
+          t = blk.call(t)
+          rv << t unless t.nil?
+        end
+        rv
       end
     end
 
@@ -208,7 +213,7 @@ module Bud
         pusher = to_push_elem(the_name, the_schema)
         pusher.each_with_index(the_name, the_schema, &blk)
       else
-        @storage.each_with_index(&blk)
+        super(&blk)
       end
     end
 

@@ -739,6 +739,27 @@ class TestEachWithIndex < MiniTest::Unit::TestCase
     end
   end
 
+  # Test that collection methods behave consistently outside Bud
+  def test_outside_bud
+    i = UseEachWithIndex.new
+    i.in_t <+ [[14]]
+    i.tick
+
+    i.in_t.each_with_index do |r, idx|
+      assert_equal([14], r)
+      assert_equal(0, idx)
+    end
+    i.in_t.each do |r|
+      assert_equal([14], r)
+    end
+    map_rv = i.in_t.map {|t| [t.v + 1]}
+    assert_equal([[15]], map_rv)
+
+    i.in_t <+ [[12]]
+    pro_rv = i.in_t.pro {|t| [t.v + 1] if t.v != 12}
+    assert_equal([[15]], pro_rv)
+  end
+
   def test_each_with_index
     i = UseEachWithIndex.new
     i.in_t <+ [[8]]
