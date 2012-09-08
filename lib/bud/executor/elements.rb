@@ -217,7 +217,7 @@ module Bud
                                         @collection_name)
       elem.set_block(&blk)
       self.wire_to(elem)
-      toplevel.push_elems[[self.object_id, :each, blk]] = elem
+      toplevel.push_elems[[self.object_id, :each_with_index, blk]] = elem
     end
 
     def join(elem2, &blk)

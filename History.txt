@@ -1,5 +1,7 @@
 == 0.9.5 / ???
 
+* Restore support for each_with_index() over Bud collections
+
 == 0.9.4 / 2012-09-06
 
 * Optimize grouping performance

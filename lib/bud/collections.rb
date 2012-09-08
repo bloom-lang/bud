@@ -200,6 +200,18 @@ module Bud
       end
     end
 
+    # XXX: Although we support each_with_index over Bud collections, using it is
+    # probably not a great idea: the index assigned to a given collection member
+    # is not defined by the language semantics.
+    def each_with_index(the_name=tabname, the_schema=schema, &blk)
+      if @bud_instance.wiring?
+        pusher = to_push_elem(the_name, the_schema)
+        pusher.each_with_index(the_name, the_schema, &blk)
+      else
+        @storage.each_with_index(&blk)
+      end
+    end
+
     # ruby 1.9 defines flat_map to return "a new array with the concatenated
     # results of running <em>block</em> once for every element". So we wire the
     # input to a pro(&blk), and wire the output of that pro to a group that does
@@ -219,7 +231,7 @@ module Bud
         end
         elem.set_block(&f)
         toplevel.push_elems[[self.object_id, :flatten]] = elem
-        return elem
+        elem
       else
         @storage.flat_map(&blk)
       end

@@ -702,3 +702,40 @@ class ScratchTickDeltas < MiniTest::Unit::TestCase
     assert_equal([["[1, 2]"]], i.result_s.to_a)
   end
 end
+
+class TestEachWithIndex < MiniTest::Unit::TestCase
+  class UseEachWithIndex
+    include Bud
+
+    state do
+      scratch :in_t, [:v]
+      table :res_t, [:nest_v, :idx]
+      table :res_t_block, [:v, :idx]
+    end
+
+    bloom do
+      res_t <= in_t.each_with_index
+      res_t_block <= in_t.each_with_index {|t, i| [t.v, i + 100]}
+    end
+  end
+
+  def test_each_with_index
+    i = UseEachWithIndex.new
+    i.in_t <+ [[8]]
+    i.tick
+    i.in_t <+ [[9]]
+    i.tick
+    assert_equal([[[8], 0], [[9], 0]], i.res_t.to_a.sort)
+    assert_equal([[8, 100], [9, 100]], i.res_t_block.to_a.sort)
+
+    i.in_t <+ [[4], [5], [6]]
+    i.tick
+    new_res = i.res_t.to_a.select {|t| t.nest_v.first <= 6}
+    assert_equal([4, 5, 6].to_set, new_res.map {|t| t.nest_v.first}.to_set)
+    assert_equal([0, 1, 2].to_set, new_res.map {|t| t.idx}.to_set)
+
+    new_res_b = i.res_t_block.to_a.select {|t| t.v <= 6}
+    assert_equal([4, 5, 6].to_set, new_res_b.map {|t| t.v}.to_set)
+    assert_equal([100, 101, 102].to_set, new_res_b.map {|t| t.idx}.to_set)
+  end
+end
