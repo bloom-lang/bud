@@ -63,7 +63,7 @@ module Bud
     end
 
     def flush
-      # Don't emit output unless a rescan is needed
+      # Don't emit fresh output unless a rescan is needed
       return unless @rescan
       @rescan = false
 
@@ -127,7 +127,7 @@ module Bud
     end
 
     def flush
-      # Don't emit output unless a rescan is needed
+      # Don't emit fresh output unless a rescan is needed
       return unless @rescan
       @rescan = false
 
