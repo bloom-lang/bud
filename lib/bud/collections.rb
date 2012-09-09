@@ -731,10 +731,10 @@ module Bud
     # for each distinct value of the grouping key columns, return the items in that group
     # that have the value of the exemplary aggregate +aggname+
     public
-    def argagg(aggname, gbkey_cols, collection)
+    def argagg(aggname, gbkey_cols, collection, &blk)
       elem = to_push_elem
       gbkey_cols = gbkey_cols.map{|k| canonicalize_col(k)} unless gbkey_cols.nil?
-      retval = elem.argagg(aggname, gbkey_cols, canonicalize_col(collection))
+      retval = elem.argagg(aggname, gbkey_cols, canonicalize_col(collection), &blk)
       # PushElement inherits the schema accessors from this Collection
       retval.extend @cols_access
       retval
@@ -744,16 +744,16 @@ module Bud
     # that group that have the minimum value of the attribute +col+. Note that
     # multiple tuples might be returned.
     public
-    def argmin(gbkey_cols, col)
-      argagg(:min, gbkey_cols, col)
+    def argmin(gbkey_cols, col, &blk)
+      argagg(:min, gbkey_cols, col, &blk)
     end
 
     # for each distinct value of the grouping key columns, return the items in
     # that group that have the maximum value of the attribute +col+. Note that
     # multiple tuples might be returned.
     public
-    def argmax(gbkey_cols, col)
-      argagg(:max, gbkey_cols, col)
+    def argmax(gbkey_cols, col, &blk)
+      argagg(:max, gbkey_cols, col, &blk)
     end
 
     # form a collection containing all pairs of items in +self+ and items in

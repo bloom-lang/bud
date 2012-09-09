@@ -295,7 +295,6 @@ module Bud
       return g
     end
 
-    # XXX: be consistent about block handling
     def argagg(aggname, gbkey_cols, collection, &blk)
       gbkey_cols = gbkey_cols.map{|c| canonicalize_col(c)}
       collection = canonicalize_col(collection)

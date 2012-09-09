@@ -596,7 +596,9 @@ class TestArgaggRescan
     heartbeat_buffer <= heartbeat {|h| [h.src] }
     heartbeat_buffer <- (hb_timer * heartbeat_buffer).rights
     heartbeat_log <= (hb_timer * heartbeat_buffer).pairs {|t, h| [h.src, t.val.to_f] }
-    last_heartbeat_stg <= heartbeat_log.argagg(:max, [:src], :time)
+    last_heartbeat_stg <= heartbeat_log.argagg(:max, [:src], :time) do |t|
+      [t[0], t[1] + 1.0]
+    end
   end
 end
 
@@ -608,8 +610,8 @@ class ArgaggRescanTest < MiniTest::Unit::TestCase
     assert_equal([], i.last_heartbeat_stg.to_a)
     i.hb_timer <+ [[8]]
     i.tick
-    assert_equal([["b", 8.0]], i.last_heartbeat_stg.to_a)
+    assert_equal([["b", 9.0]], i.last_heartbeat_stg.to_a)
     i.tick
-    assert_equal([["b", 8.0]], i.last_heartbeat_stg.to_a)
+    assert_equal([["b", 9.0]], i.last_heartbeat_stg.to_a)
   end
 end

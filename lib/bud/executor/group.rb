@@ -142,7 +142,7 @@ module Bud
 
       @groups.each_key do |g|
         @winners[g].each do |t|
-          push_out(t, false)
+          push_out(t)
         end
       end
     end
