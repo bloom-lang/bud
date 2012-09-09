@@ -353,10 +353,7 @@ class UnsafeFuncRewriter < SexpProcessor
     # We assume that unsafe funcs have a nil receiver (Bud instance is implicit
     # receiver).
     if recv.nil? and @elem_stack.size > 0
-      unless RuleRewriter.is_monotone(op)
-        puts "Unsafe func: #{op}"
-        @unsafe_func_called = true
-      end
+      @unsafe_func_called = true unless RuleRewriter.is_monotone(op)
     end
 
     return s(tag, process(recv), op, process(args))
