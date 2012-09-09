@@ -220,7 +220,7 @@ module Bud
     end
 
     def join(elem2, &blk)
-      elem2 = elem2.to_push_elem unless elem2.class <= PushElement
+      elem2 = elem2.to_push_elem unless elem2.kind_of? PushElement
       toplevel = @bud_instance.toplevel
       join = Bud::PushSHJoin.new([self, elem2], toplevel.this_rule_context, [])
       self.wire_to(join)
@@ -233,12 +233,13 @@ module Bud
       join(elem2, &blk)
     end
 
-    def notin(elem2, preds=nil, &blk)
+    def notin(elem2, *preds, &blk)
+      elem2 = elem2.to_push_elem unless elem2.kind_of? PushElement
       toplevel = @bud_instance.toplevel
       notin_elem = Bud::PushNotIn.new([self, elem2], toplevel.this_rule_context, preds, &blk)
       self.wire_to(notin_elem)
       elem2.wire_to(notin_elem)
-      toplevel.push_elems[[self.object_id, :notin, collection, toplevel, blk]] = notin_elem
+      toplevel.push_elems[[self.object_id, :notin, [self, elem2], toplevel, blk]] = notin_elem
       return notin_elem
     end
 

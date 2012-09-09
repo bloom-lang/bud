@@ -3,8 +3,9 @@
 * Lattice branch (Bloom^L) merged
 * Restore support for each_with_index() over Bud collections
 * Support user-specified code blocks in argagg(), argmin() and argmax()
-* Fix bug in chaining argmin() or argmax() expressions
 * Fix bug in argagg state materialization
+* Fix bug in chaining argmin() or argmax() expressions
+* Fix bug in chaining notin() expressions
 
 == 0.9.4 / 2012-09-06
 

@@ -772,7 +772,7 @@ module Bud
     def notin(collection, *preds, &blk)
       elem1 = to_push_elem
       elem2 = collection.to_push_elem
-      return elem1.notin(elem2, preds, &blk)
+      return elem1.notin(elem2, *preds, &blk)
     end
 
     def canonicalize_col(col)

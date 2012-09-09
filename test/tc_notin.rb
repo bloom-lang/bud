@@ -217,6 +217,7 @@ end
 
 class TwoQuals
   include Bud
+
   state do
     table :lside
     table :rside
@@ -228,12 +229,34 @@ class TwoQuals
   end
 end
 
+class TwoQualsChain
+  include Bud
+
+  state do
+    table :lside
+    table :rside, [:key, :val]
+    table :result
+  end
+
+  bloom do
+    result <= rside.argmax([:key], :val).notin(lside, :key => :key, :val => :val)
+  end
+end
+
 class TwoQualsTest < MiniTest::Unit::TestCase
   # issue 282
-  def test_twoquals
+  def test_two_quals
     f = TwoQuals.new
     f.lside <+ [[1, 2]]
     f.rside <+ [[1, 3]]
+    f.tick
+    assert_equal([[1, 3]], f.result.to_a)
+  end
+
+  def test_two_quals_chain
+    f = TwoQualsChain.new
+    f.lside <+ [[1, 2]]
+    f.rside <+ [[1, 3], [1, 1], [1, 2]]
     f.tick
     assert_equal([[1, 3]], f.result.to_a)
   end
