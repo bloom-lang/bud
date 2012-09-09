@@ -227,7 +227,7 @@ module Bud
       elem2.wire_to(join)
       toplevel.push_elems[[self.object_id, :join, [self, elem2], toplevel, blk]] = join
       toplevel.push_joins[toplevel.this_stratum] << join
-      return toplevel.push_elems[[self.object_id, :join, [self, elem2], toplevel, blk]]
+      return join
     end
     def *(elem2, &blk)
       join(elem2, &blk)
