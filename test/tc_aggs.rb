@@ -611,7 +611,7 @@ class ArgaggRescanTest < MiniTest::Unit::TestCase
     i.heartbeat <+ [["a", "b"]]
     i.tick
     assert_equal([], i.last_heartbeat_stg.to_a)
-    i.hb_timer <+ [[8]]
+    i.hb_timer <+ [[8], [7], [6]]
     i.tick
     assert_equal([["b", 9.0]], i.last_heartbeat_stg.to_a)
     i.tick
