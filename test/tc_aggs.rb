@@ -591,7 +591,8 @@ class TestArgaggRescan
     scratch :heartbeat, [:dst, :src]
     table :heartbeat_buffer, [:src]
     table :heartbeat_log, [:src, :time]
-    scratch :last_heartbeat_stg, [:src] => [:time]
+    scratch :last_heartbeat_aa, [:src] => [:time]
+    scratch :last_heartbeat_gp, [:src] => [:time]
     scratch :hb_timer, [:val]
   end
 
@@ -599,8 +600,11 @@ class TestArgaggRescan
     heartbeat_buffer <= heartbeat {|h| [h.src] }
     heartbeat_buffer <- (hb_timer * heartbeat_buffer).rights
     heartbeat_log <= (hb_timer * heartbeat_buffer).pairs {|t, h| [h.src, t.val.to_f] }
-    last_heartbeat_stg <= heartbeat_log.argagg(:max, [:src], :time) do |t|
+    last_heartbeat_aa <= heartbeat_log.argagg(:max, [:src], :time) do |t|
       [t[0], t[1] + 1.0]
+    end
+    last_heartbeat_gp <= heartbeat_log.group([:src], max(:time)) do |t|
+      [t[0], t[1] + 2.0]
     end
   end
 end
@@ -610,11 +614,14 @@ class ArgaggRescanTest < MiniTest::Unit::TestCase
     i = TestArgaggRescan.new
     i.heartbeat <+ [["a", "b"]]
     i.tick
-    assert_equal([], i.last_heartbeat_stg.to_a)
+    assert_equal([], i.last_heartbeat_aa.to_a)
+    assert_equal([], i.last_heartbeat_gp.to_a)
     i.hb_timer <+ [[8], [7], [6]]
     i.tick
-    assert_equal([["b", 9.0]], i.last_heartbeat_stg.to_a)
+    assert_equal([["b", 9.0]], i.last_heartbeat_aa.to_a)
+    assert_equal([["b", 10.0]], i.last_heartbeat_gp.to_a)
     i.tick
-    assert_equal([["b", 9.0]], i.last_heartbeat_stg.to_a)
+    assert_equal([["b", 9.0]], i.last_heartbeat_aa.to_a)
+    assert_equal([["b", 10.0]], i.last_heartbeat_gp.to_a)
   end
 end

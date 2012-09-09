@@ -24,7 +24,6 @@ module Bud
         @input_cache = Set.new
       end
 
-      @seen_new_data = false
       super(elem_name, bud_instance, collection_name, schema_in, &blk)
     end
 
@@ -34,7 +33,6 @@ module Bud
         @input_cache << item
       end
 
-      @seen_new_data = true
       key = item.values_at(*@keys)
       group_state = @groups[key]
       if group_state.nil?
@@ -62,15 +60,12 @@ module Bud
       puts "#{self.class}/#{self.tabname} invalidated" if $BUD_DEBUG
       @groups.clear
       @input_cache.clear if @elim_dups
-      @seen_new_data = false
     end
 
     def flush
-      # If we haven't seen any input since the last call to flush(), we're done:
-      # our output would be the same as before.
-      # XXX: optimization temporarily disabled
-      # return unless @seen_new_data
-      @seen_new_data = false
+      # Don't emit output unless a rescan is needed
+      return unless @rescan
+      @rescan = false
 
       @groups.each do |key, group_state|
         rv = key.clone
@@ -102,7 +97,6 @@ module Bud
       key = @keys.map{|k| item[k]}
       group_state = @groups[key]
       if group_state.nil?
-        @seen_new_data = true
         @groups[key] = @aggpairs.map do |ap|
           @winners[key] = [item]
           input_val = item[ap[1]]
@@ -113,7 +107,6 @@ module Bud
           input_val = item[ap[1]]
           state_val, flag, *rest = ap[0].trans(group_state[agg_ix], input_val)
           group_state[agg_ix] = state_val
-          @seen_new_data = true unless flag == :ignore
 
           case flag
           when :ignore
@@ -134,11 +127,9 @@ module Bud
     end
 
     def flush
-      # If we haven't seen any input since the last call to flush(), we're done:
-      # our output would be the same as before.
-      # XXX: optimization temporarily disabled
-      # return unless @seen_new_data
-      @seen_new_data = false
+      # Don't emit output unless a rescan is needed
+      return unless @rescan
+      @rescan = false
 
       @groups.each_key do |g|
         @winners[g].each do |t|
