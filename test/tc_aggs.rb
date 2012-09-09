@@ -580,3 +580,36 @@ class AggDupElimTests < MiniTest::Unit::TestCase
     assert_equal([[21]], i.sum_tbl.to_a.sort)
   end
 end
+
+class TestArgaggRescan
+  include Bud
+
+  state do
+    scratch :heartbeat, [:dst, :src]
+    table :heartbeat_buffer, [:src]
+    table :heartbeat_log, [:src, :time]
+    scratch :last_heartbeat_stg, [:src] => [:time]
+    scratch :hb_timer, [:val]
+  end
+
+  bloom do
+    heartbeat_buffer <= heartbeat {|h| [h.src] }
+    heartbeat_buffer <- (hb_timer * heartbeat_buffer).rights
+    heartbeat_log <= (hb_timer * heartbeat_buffer).pairs {|t, h| [h.src, t.val.to_f] }
+    last_heartbeat_stg <= heartbeat_log.argagg(:max, [:src], :time)
+  end
+end
+
+class ArgaggRescanTest < MiniTest::Unit::TestCase
+  def test_argagg_rescan
+    i = TestArgaggRescan.new
+    i.heartbeat <+ [["a", "b"]]
+    i.tick
+    assert_equal([], i.last_heartbeat_stg.to_a)
+    i.hb_timer <+ [[8]]
+    i.tick
+    assert_equal([["b", 8.0]], i.last_heartbeat_stg.to_a)
+    i.tick
+    assert_equal([["b", 8.0]], i.last_heartbeat_stg.to_a)
+  end
+end

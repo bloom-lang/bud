@@ -22,7 +22,6 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     @collect = false
     @rules = []
     @depends = []
-    @nm_funcs_called = false
     @iter_stack = []
     @refs_in_body = Set.new
     super()
@@ -164,18 +163,14 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
         end
         # For CALM analysis, mark deletion rules as non-monotonic
         @nm = true if op == :-@
+
+        # Don't worry about monotone ops, table names, table.attr calls, or
+        # accessors of iterator variables
         if recv
-          # Don't worry about monotone ops, table names, table.attr calls, or
-          # accessors of iterator variables
           unless RuleRewriter.is_monotone(op) or op_is_field_name or
                  recv.first == :lvar or op.to_s.start_with?("__")
             @nm = true
           end
-        else
-          # Function called (implicit receiver = Bud instance) in a user-defined
-          # code block. Check if it is non-monotonic (like budtime, that
-          # produces a new value every time it is called)
-          @nm_funcs_called = true unless RuleRewriter.is_monotone(op)
         end
       end
       if TEMP_OP_LIST.include? op
@@ -228,11 +223,10 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     @refs_in_body = Set.new
     @tables = {}
     @nm = false
-    @nm_funcs_called = false
     @temp_op = nil
   end
 
-  def record_rule(lhs, op, rhs_pos, rhs)
+  def record_rule(lhs, op, rhs_pos, rhs, unsafe_funcs_called)
     rule_txt_orig = "#{lhs} #{op} (#{rhs})"
     rule_txt = "#{lhs} #{op} (#{rhs_pos})"
     if op == :<
@@ -241,7 +235,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       op = op.to_s
     end
 
-    @rules << [@bud_instance, @rule_indx, lhs, op, rule_txt, rule_txt_orig, @nm_funcs_called]
+    @rules << [@bud_instance, @rule_indx, lhs, op, rule_txt,
+               rule_txt_orig, unsafe_funcs_called]
     @tables.each_pair do |t, nm|
       in_rule_body = @refs_in_body.include? t
       @depends << [@bud_instance, @rule_indx, lhs, op, t, nm, in_rule_body]
@@ -264,6 +259,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
     rhs_ast = RenameRewriter.new(@bud_instance).process(rhs_ast)
     rhs_ast = LatticeRefRewriter.new(@bud_instance).process(rhs_ast)
+    ufr = UnsafeFuncRewriter.new
+    rhs_ast = ufr.process(rhs_ast)
 
     if @bud_instance.options[:no_attr_rewrite]
       rhs = collect_rhs(rhs_ast)
@@ -276,7 +273,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       reset_instance_vars
       rhs_pos = collect_rhs(AttrNameRewriter.new(@bud_instance).process(rhs_ast_dup))
     end
-    record_rule(lhs, op, rhs_pos, rhs)
+    record_rule(lhs, op, rhs_pos, rhs, ufr.unsafe_func_called)
     drain(exp)
   end
 
@@ -333,6 +330,50 @@ class RenameRewriter < SexpProcessor
     end
 
     return s(call, process(recv), op, process(args))
+  end
+end
+
+# Check for whether the rule invokes any "unsafe" functions (funcs that might
+# return a different value every time they are called, e.g., budtime). Note that
+# although we call this a rewriter, it doesn't modify the input AST.
+class UnsafeFuncRewriter < SexpProcessor
+  attr_reader :unsafe_func_called
+
+  def initialize
+    super()
+    self.require_empty = false
+    self.expected = Sexp
+    @unsafe_func_called = false
+    @elem_stack = []
+  end
+
+  def process_call(exp)
+    tag, recv, op, args = exp
+
+    # We assume that unsafe funcs have a nil receiver (Bud instance is implicit
+    # receiver).
+    if recv.nil? and @elem_stack.size > 0
+      unless RuleRewriter.is_monotone(op)
+        puts "Unsafe func: #{op}"
+        @unsafe_func_called = true
+      end
+    end
+
+    return s(tag, process(recv), op, process(args))
+  end
+
+  def process_iter(exp)
+    tag, recv, iter_args, body = exp
+    new_body = push_and_process(body)
+    return s(tag, process(recv), process(iter_args), new_body)
+  end
+
+  def push_and_process(exp)
+    obj_id = exp.object_id
+    @elem_stack.push(obj_id)
+    rv = process(exp)
+    raise Bud::Error unless @elem_stack.pop == obj_id
+    return rv
   end
 end
 

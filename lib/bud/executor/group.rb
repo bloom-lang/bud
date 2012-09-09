@@ -68,7 +68,8 @@ module Bud
     def flush
       # If we haven't seen any input since the last call to flush(), we're done:
       # our output would be the same as before.
-      return unless @seen_new_data
+      # XXX: optimization temporarily disabled
+      # return unless @seen_new_data
       @seen_new_data = false
 
       @groups.each do |key, group_state|
@@ -135,7 +136,8 @@ module Bud
     def flush
       # If we haven't seen any input since the last call to flush(), we're done:
       # our output would be the same as before.
-      return unless @seen_new_data
+      # XXX: optimization temporarily disabled
+      # return unless @seen_new_data
       @seen_new_data = false
 
       @groups.each_key do |g|
