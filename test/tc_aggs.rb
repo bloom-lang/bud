@@ -59,6 +59,7 @@ class TiedPaths
     table :link, [:from, :to, :cost]
     table :path, [:from, :to, :nxt, :cost]
     table :shortest, [:from, :to] => [:nxt, :cost]
+    table :shortest2, shortest.schema
   end
 
   bootstrap do
@@ -74,6 +75,7 @@ class TiedPaths
       [l.from, p.to, p.from, l.cost+p.cost]
     end
     shortest <= path.argmin([path.from, path.to], path.cost).argagg(:max, [:from, :to], :nxt)
+    shortest2 <= path.argmin([path.from, path.to], path.cost).argmax([:from, :to], :nxt)
   end
 end
 
@@ -258,6 +260,7 @@ class TestAggs < MiniTest::Unit::TestCase
     program = TiedPaths.new
     program.tick
     assert_equal([["a", "c", "c", 2], ["b", "c", "c", 1], ["a", "b", "b", 1]].sort, program.shortest.to_a.sort)
+    assert_equal([["a", "c", "c", 2], ["b", "c", "c", 1], ["a", "b", "b", 1]].sort, program.shortest2.to_a.sort)
   end
 
   def test_non_exemplary

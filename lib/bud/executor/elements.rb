@@ -318,10 +318,10 @@ module Bud
       return aa
     end
     def argmax(gbcols, col, &blk)
-      argagg(gbcols, Bud::max(col), blk)
+      argagg(:max, gbcols, col, &blk)
     end
     def argmin(gbcols, col, &blk)
-      argagg(gbcols, Bud::min(col), blk)
+      argagg(:min, gbcols, col, &blk)
     end
     def sort(name=nil, bud_instance=nil, the_schema=nil, &blk)
       elem = Bud::PushSort.new(name, bud_instance, the_schema, &blk)
