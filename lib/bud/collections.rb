@@ -798,7 +798,7 @@ module Bud
       false
     end
 
-    # @tick_delta for scratches is @storage
+    # tick_delta for scratches is @storage, so iterate over that instead
     public
     def each_tick_delta(&block)
       @storage.each_value(&block)
