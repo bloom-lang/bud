@@ -625,3 +625,31 @@ class ArgaggRescanTest < MiniTest::Unit::TestCase
     assert_equal([["b", 10.0]], i.last_heartbeat_gp.to_a)
   end
 end
+
+class TestAccumPair
+  include Bud
+
+  state do
+    scratch :in_t, [:v1, :v2, :v3]
+    scratch :res_t, [:grp] => [:val]
+    scratch :res_t2, [:grp] => [:val]
+  end
+
+  bloom do
+    res_t  <= in_t.group([:v1], accum_pair(:v2, :v3))
+    res_t2 <= in_t.group([:v1], accum_pair(in_t.v2, in_t.v3))
+  end
+end
+
+class AccumPairTest < MiniTest::Unit::TestCase
+  def test_accum_pair
+    i = TestAccumPair.new
+    i.in_t <+ [[9, 3, 4], [9, 4, 3]]
+    i.in_t <+ [[8, 1, 2], [7, 8, 9]]
+    i.tick
+    assert_equal([[7, [[8, 9]].to_set], [8, [[1, 2]].to_set],
+                  [9, [[3, 4], [4, 3]].to_set]], i.res_t.to_a.sort)
+    assert_equal([[7, [[8, 9]].to_set], [8, [[1, 2]].to_set],
+                  [9, [[3, 4], [4, 3]].to_set]], i.res_t2.to_a.sort)
+  end
+end

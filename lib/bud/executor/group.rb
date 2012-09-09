@@ -12,17 +12,22 @@ module Bud
       end
       # An aggpair is an array: [agg class instance, array of indexes of input
       # agg input columns].  The second field is nil for Count.
-      @aggpairs = aggpairs_in.map{|ap| [ap[0], ap[1].nil? ? nil : ap[1][1]]}
+      @aggpairs = aggpairs_in.map do |ap|
+        agg, *rest = ap
+        if rest.empty?
+          [agg, nil]
+        else
+          [agg, rest.map {|r| r[1]}]
+        end
+      end
       @groups = {}
 
       # Check whether we need to eliminate duplicates from our input (we might
       # see duplicates because of the rescan/invalidation logic, as well as
       # because we don't do duplicate elimination on the output of a projection
       # operator). We don't need to dupelim if all the args are exemplary.
-      @elim_dups = @aggpairs.any? {|a| not a[0].kind_of? ArgExemplary}
-      if @elim_dups
-        @input_cache = Set.new
-      end
+      @elim_dups = @aggpairs.any? {|ap| not ap[0].kind_of? ArgExemplary}
+      @input_cache = Set.new if @elim_dups
 
       super(elem_name, bud_instance, collection_name, schema_in, &blk)
     end
@@ -37,14 +42,21 @@ module Bud
       group_state = @groups[key]
       if group_state.nil?
         @groups[key] = @aggpairs.map do |ap|
-          input_val = ap[1].nil? ? item : item[ap[1]]
-          ap[0].init(input_val)
+          if ap[1].nil?
+            ap[0].init(item)
+          else
+            ap[0].init(*item.values_at(*ap[1]))
+          end
         end
       else
         @aggpairs.each_with_index do |ap, agg_ix|
-          input_val = ap[1].nil? ? item : item[ap[1]]
-          state_val = ap[0].trans(group_state[agg_ix], input_val)[0]
-          group_state[agg_ix] = state_val
+          state_val = group_state[agg_ix]
+          if ap[1].nil?
+            trans_rv = ap[0].trans(state_val, item)
+          else
+            trans_rv = ap[0].trans(state_val, *item.values_at(*ap[1]))
+          end
+          group_state[agg_ix] = trans_rv[0]
         end
       end
     end
@@ -83,7 +95,6 @@ module Bud
         raise Bud::Error, "multiple aggpairs #{aggpairs_in.map{|a| a.class.name}} in ArgAgg; only one allowed"
       end
       super(elem_name, bud_instance, collection_name, keys_in, aggpairs_in, schema_in, &blk)
-      @agg, @aggcol = @aggpairs[0]
       @winners = {}
     end
 
@@ -99,13 +110,13 @@ module Bud
       if group_state.nil?
         @groups[key] = @aggpairs.map do |ap|
           @winners[key] = [item]
-          input_val = item[ap[1]]
-          ap[0].init(input_val)
+          input_vals = item.values_at(*ap[1])
+          ap[0].init(*input_vals)
         end
       else
         @aggpairs.each_with_index do |ap, agg_ix|
-          input_val = item[ap[1]]
-          state_val, flag, *rest = ap[0].trans(group_state[agg_ix], input_val)
+          input_vals = item.values_at(*ap[1])
+          state_val, flag, *rest = ap[0].trans(group_state[agg_ix], *input_vals)
           group_state[agg_ix] = state_val
 
           case flag

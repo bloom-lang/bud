@@ -1,6 +1,9 @@
 == 0.9.5 / ???
 
 * Lattice branch (Bloom^L) merged
+* Implement support for aggregate functions that take multiple input columns
+* Add built-in aggregate function accum_pair(x, y), which produces a Set of
+  pairs (two-element arrays [x,y]).
 * Restore support for each_with_index() over Bud collections
 * Support user-specified code blocks in argagg(), argmin() and argmax()
 * Fix bug in argagg state materialization

@@ -207,4 +207,20 @@ module Bud
   def accum(x)
     [Accum.new, x]
   end
+
+  class AccumPair < Agg #:nodoc: all
+    def init(fst, snd)
+      [[fst, snd]].to_set
+    end
+    def trans(the_state, fst, snd)
+      the_state << [fst, snd]
+      return the_state, nil
+    end
+  end
+
+  # aggregate method to be used in Bud::BudCollection.group.
+  # accumulates x, y inputs into a set of pairs (two element arrays).
+  def accum_pair(x, y)
+    [AccumPair.new, x, y]
+  end
 end

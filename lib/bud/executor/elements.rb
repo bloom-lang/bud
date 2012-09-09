@@ -279,7 +279,7 @@ module Bud
         the_schema = { keynames => aggcols }
       end
 
-      aggpairs = aggpairs.map{|ap| ap[1].nil? ? [ap[0]] : [ap[0], canonicalize_col(ap[1])]}
+      aggpairs = prep_aggpairs(aggpairs)
       toplevel = @bud_instance.toplevel
       g = Bud::PushGroup.new('grp'+Time.new.tv_usec.to_s, toplevel.this_rule_context,
                              @collection_name, keycols, aggpairs, the_schema, &blk)
