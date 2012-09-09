@@ -765,7 +765,7 @@ module Bud
 
     def group(key_cols, *aggpairs, &blk)
       key_cols = key_cols.map{|k| canonicalize_col(k)} unless key_cols.nil?
-      aggpairs = aggpairs.map{|ap| [ap[0], canonicalize_col(ap[1])].compact} unless aggpairs.nil?
+      aggpairs = aggpairs.map{|ap| [ap[0], canonicalize_col(ap[1])].compact}
       return to_push_elem.group(key_cols, *aggpairs, &blk)
     end
 

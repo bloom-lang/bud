@@ -280,7 +280,8 @@ module Bud
 
       aggpairs = aggpairs.map{|ap| ap[1].nil? ? [ap[0]] : [ap[0], canonicalize_col(ap[1])]}
       toplevel = @bud_instance.toplevel
-      g = Bud::PushGroup.new('grp'+Time.new.tv_usec.to_s, toplevel.this_rule_context, @collection_name, keycols, aggpairs, the_schema, &blk)
+      g = Bud::PushGroup.new('grp'+Time.new.tv_usec.to_s, toplevel.this_rule_context,
+                             @collection_name, keycols, aggpairs, the_schema, &blk)
       self.wire_to(g)
       toplevel.push_elems[[self.object_id, :group, keycols, aggpairs, blk]] = g
       return g
@@ -300,7 +301,8 @@ module Bud
         end
       end
       aggpairs = [[agg, collection]]
-      aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, toplevel.this_rule_context, @collection_name, gbkey_cols, aggpairs, schema, &blk)
+      aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, toplevel.this_rule_context,
+                               @collection_name, gbkey_cols, aggpairs, schema, &blk)
       self.wire_to(aa)
       toplevel.push_elems[[self.object_id, :argagg, gbkey_cols, aggpairs, blk]] = aa
       return aa
