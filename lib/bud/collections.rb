@@ -760,15 +760,13 @@ module Bud
     # +collection+
     public
     def *(collection)
-      elem1 = to_push_elem
-      return elem1.join(collection)
+      return to_push_elem.join(collection)
     end
 
     def group(key_cols, *aggpairs, &blk)
-      elem = to_push_elem
       key_cols = key_cols.map{|k| canonicalize_col(k)} unless key_cols.nil?
       aggpairs = aggpairs.map{|ap| [ap[0], canonicalize_col(ap[1])].compact} unless aggpairs.nil?
-      return elem.group(key_cols, *aggpairs, &blk)
+      return to_push_elem.group(key_cols, *aggpairs, &blk)
     end
 
     def notin(collection, *preds, &blk)
@@ -800,6 +798,7 @@ module Bud
       false
     end
 
+    # @tick_delta for scratches is @storage
     public
     def each_tick_delta(&block)
       @storage.each_value(&block)
