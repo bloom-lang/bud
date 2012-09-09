@@ -295,6 +295,7 @@ module Bud
       return g
     end
 
+    # XXX: be consistent about block handling
     def argagg(aggname, gbkey_cols, collection, &blk)
       gbkey_cols = gbkey_cols.map{|c| canonicalize_col(c)}
       collection = canonicalize_col(collection)
@@ -312,7 +313,7 @@ module Bud
       # if toplevel.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]].nil?
         aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, toplevel.this_rule_context, @collection_name, gbkey_cols, aggpairs, schema, &blk)
         self.wire_to(aa)
-        toplevel.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]] = aa
+        toplevel.push_elems[[self.object_id, :argagg, gbkey_cols, aggpairs, blk]] = aa
       # end
       # return toplevel.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]]
       return aa
