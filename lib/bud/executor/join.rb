@@ -59,12 +59,6 @@ module Bud
     end
 
     public
-    def copy_on_write
-      @refcount -= 1
-      return Bud::PushSHJoin.new(@all_rels_below, @bud_instance, [])
-    end
-
-    public
     def state_id # :nodoc: all
       object_id
     end
@@ -366,10 +360,6 @@ module Bud
     #          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
     public
     def pairs(*preds, &blk)
-      ## XXX Need to do this for all the join modifiers
-      unless @refcount == 1
-        return self.copy_on_write.pairs(preds, blk)
-      end
       @origpreds = preds
       setup_preds(preds) unless preds.empty?
       # given new preds, the state for the join will be different.  set it up again.

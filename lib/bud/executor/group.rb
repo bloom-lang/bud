@@ -10,8 +10,8 @@ module Bud
       else
         @keys = keys_in.map{|k| k[1]}
       end
-      # An aggpair is an array: [agg class instance, index of input field].
-      # ap[1] is nil for Count.
+      # An aggpair is an array: [agg class instance, array of indexes of input
+      # agg input columns].  The second field is nil for Count.
       @aggpairs = aggpairs_in.map{|ap| [ap[0], ap[1].nil? ? nil : ap[1][1]]}
       @groups = {}
 

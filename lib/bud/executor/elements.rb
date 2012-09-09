@@ -13,7 +13,7 @@ module Bud
   class PushElement < BudCollection
     attr_accessor :rescan, :invalidated
     attr_accessor :elem_name
-    attr_reader :found_delta, :refcount, :wired_by, :outputs
+    attr_reader :found_delta, :wired_by, :outputs
 
     def initialize(name_in, bud_instance, collection_name=nil, given_schema=nil, defer_schema=false, &blk)
       super(name_in, bud_instance, given_schema, defer_schema)
@@ -25,7 +25,6 @@ module Bud
       @wired_by = []
       @elem_name = name_in
       @found_delta = false
-      @refcount = 1
       @collection_name = collection_name
       @invalidated = true
       @rescan = true
@@ -221,18 +220,13 @@ module Bud
     end
 
     def join(elem2, &blk)
-      # cached = @bud_instance.push_elems[[self.object_id,:join,[self,elem2], @bud_instance, blk]]
-      # if cached.nil?
-        elem2 = elem2.to_push_elem unless elem2.class <= PushElement
-        toplevel = @bud_instance.toplevel
-        join = Bud::PushSHJoin.new([self, elem2], toplevel.this_rule_context, [])
-        self.wire_to(join)
-        elem2.wire_to(join)
-        toplevel.push_elems[[self.object_id, :join, [self, elem2], toplevel, blk]] = join
-        toplevel.push_joins[toplevel.this_stratum] << join
-      # else
-      #   cached.refcount += 1
-      # end
+      elem2 = elem2.to_push_elem unless elem2.class <= PushElement
+      toplevel = @bud_instance.toplevel
+      join = Bud::PushSHJoin.new([self, elem2], toplevel.this_rule_context, [])
+      self.wire_to(join)
+      elem2.wire_to(join)
+      toplevel.push_elems[[self.object_id, :join, [self, elem2], toplevel, blk]] = join
+      toplevel.push_joins[toplevel.this_stratum] << join
       return toplevel.push_elems[[self.object_id, :join, [self, elem2], toplevel, blk]]
     end
     def *(elem2, &blk)
@@ -286,12 +280,9 @@ module Bud
 
       aggpairs = aggpairs.map{|ap| ap[1].nil? ? [ap[0]] : [ap[0], canonicalize_col(ap[1])]}
       toplevel = @bud_instance.toplevel
-      # if @bud_instance.push_elems[[self.object_id, :group, keycols, aggpairs, blk]].nil?
-        g = Bud::PushGroup.new('grp'+Time.new.tv_usec.to_s, toplevel.this_rule_context, @collection_name, keycols, aggpairs, the_schema, &blk)
-        self.wire_to(g)
-        toplevel.push_elems[[self.object_id, :group, keycols, aggpairs, blk]] = g
-      # end
-      # toplevel.push_elems[[self.object_id, :group, keycols, aggpairs, blk]]
+      g = Bud::PushGroup.new('grp'+Time.new.tv_usec.to_s, toplevel.this_rule_context, @collection_name, keycols, aggpairs, the_schema, &blk)
+      self.wire_to(g)
+      toplevel.push_elems[[self.object_id, :group, keycols, aggpairs, blk]] = g
       return g
     end
 
@@ -309,12 +300,9 @@ module Bud
         end
       end
       aggpairs = [[agg, collection]]
-      # if toplevel.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]].nil?
-        aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, toplevel.this_rule_context, @collection_name, gbkey_cols, aggpairs, schema, &blk)
-        self.wire_to(aa)
-        toplevel.push_elems[[self.object_id, :argagg, gbkey_cols, aggpairs, blk]] = aa
-      # end
-      # return toplevel.push_elems[[self.object_id,:argagg, gbkey_cols, aggpairs, blk]]
+      aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, toplevel.this_rule_context, @collection_name, gbkey_cols, aggpairs, schema, &blk)
+      self.wire_to(aa)
+      toplevel.push_elems[[self.object_id, :argagg, gbkey_cols, aggpairs, blk]] = aa
       return aa
     end
     def argmax(gbcols, col, &blk)
