@@ -1356,3 +1356,40 @@ class TestLatticeEmbedDeltas < MiniTest::Unit::TestCase
                  i.t1.to_a.sort)
   end
 end
+
+class ChannelWithLatticeRhs
+  include Bud
+
+  state do
+    channel :chn, [:@addr] => [:v]
+    table :chn_at_next, chn.schema
+    table :chn_log, chn.schema
+    lbool :do_send
+  end
+
+  bloom do
+    chn <~ do_send.when_true {
+      [[ip_port, 'hello, world!']]
+    }
+    chn_at_next <+ do_send.when_true {
+      [[ip_port, 'hello, world!']]
+    }
+    chn_log <= chn
+  end
+end
+
+class TestChannelWithLatticeRhs < MiniTest::Unit::TestCase
+  def test_channel_rhs
+    i = ChannelWithLatticeRhs.new
+    i.run_bg
+    i.sync_do {
+      i.do_send <+ Bud::BoolLattice.new(true)
+    }
+    i.delta(:chn)
+    i.sync_do {
+      assert_equal([[i.ip_port, 'hello, world!']], i.chn_log.to_a)
+      assert_equal([[i.ip_port, 'hello, world!']], i.chn_at_next.to_a)
+    }
+    i.stop
+  end
+end

@@ -179,17 +179,19 @@ class Bud::LatticePushElement
       # operators (e.g., <=, <+) take a collection of tuples, so we need to
       # convert the lattice value into a collection of tuple-like values. For
       # now, we hardcode a single way to do this: we simply assume the value
-      # embedded inside the lattice is Enumerable.
+      # embedded inside the lattice is Enumerable. We also allow lattice
+      # morphisms to just produce Enumerable values directly, so we don't call
+      # reveal in that case.
       # XXX: rethink this.
       if o.class <= Bud::BudCollection
-        o <= v.reveal
+        o <= (v.class <= Bud::Lattice ? v.reveal : v)
       else
         o.insert(v, self)
       end
     end
     @pendings.each do |o|
       if o.class <= Bud::BudCollection
-        o <+ v.reveal
+        o.pending_merge(v.class <= Bud::Lattice ? v.reveal : v)
       else
         o <+ v
       end
