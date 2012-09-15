@@ -169,6 +169,14 @@ class Bud::MapLattice < Bud::Lattice
     wrap_unsafe(rv)
   end
 
+  # Produce a Bloom collection (array of tuples) from this lmap, optionally
+  # applying a user-provided code block to each (k,v) pair in turn. Note that
+  # this is slightly different from how projection over an lmap would work: we
+  # return an array, whereas projection would return an lmap.
+  morph :to_collection do |&blk|
+    @v.map(&blk)
+  end
+
   # Return true if this map is strictly smaller than or equal to the given
   # map. "x" is strictly smaller than or equal to "y" if:
   #     (a) every key in "x"  also appears in "y"
@@ -281,6 +289,9 @@ end
 # A set that admits only non-negative numbers. This allows "sum" to be an
 # order-preserving map.  Note that this does duplicate elimination on its input,
 # so it actually computes "SUM(DISTINCT ...)" in SQL.
+#
+# XXX: for methods that take a user-provided code block, we need to ensure that
+# the set continues to contain only positive numbers.
 class Bud::PositiveSetLattice < Bud::SetLattice
   wrapper_name :lpset
 

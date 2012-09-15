@@ -675,6 +675,25 @@ class MapFromCollection
   end
 end
 
+class MapToCollection
+  include Bud
+
+  state do
+    lmap :m1
+    lmap :m2
+    table :t1, [:k1, :k2] => [:v1]
+  end
+
+  bloom do
+    t1 <= m1.to_collection do |k,v|
+      [k, k + 1, v + 2] unless k == 99
+    end
+    t1 <= m2.to_collection do |k,v|
+      [k, k + 1, v + 2] unless k == 99
+    end
+  end
+end
+
 class TestMap < MiniTest::Unit::TestCase
   def get_val_for_map(i, r)
     i.send(r).current_value.reveal.map {|k,v| [k, v.reveal]}.sort
@@ -791,6 +810,23 @@ class TestMap < MiniTest::Unit::TestCase
     i.s1 <+ [[5, 10], [7, 11]]
     i.tick
     assert_equal([[5, [10].to_set], [7, [9, 11].to_set]], get_val_for_map(i, :m1))
+  end
+
+  def test_map_to_collection
+    i = MapToCollection.new
+    i.m1 <+ {10 => Bud::MinLattice.new(5),
+             11 => Bud::MinLattice.new(9),
+             99 => Bud::MinLattice.new(0)}
+    i.tick
+    assert_equal([[10, 11, Bud::MinLattice.new(7)],
+                  [11, 12, Bud::MinLattice.new(11)]], i.t1.to_a.sort)
+
+    i.m2 <+ {11 => Bud::MinLattice.new(7),
+             19 => Bud::MinLattice.new(1)}
+    i.tick
+    assert_equal([[10, 11, Bud::MinLattice.new(7)],
+                  [11, 12, Bud::MinLattice.new(9)],
+                  [19, 20, Bud::MinLattice.new(3)]], i.t1.to_a.sort)
   end
 
   def test_map_equality
