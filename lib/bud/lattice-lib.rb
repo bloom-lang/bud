@@ -343,7 +343,7 @@ class Bud::BagLattice < Bud::Lattice
     wrap_unsafe(rv)
   end
 
-  morph :mult do |k|
+  morph :card do |k|
     rv = @v[k]
     rv ||= 0
     Bud::MaxLattice.new(rv)
