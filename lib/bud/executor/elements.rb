@@ -84,17 +84,19 @@ module Bud
 
       case kind
       when :output
-        raise Bud::Error unless element.respond_to? :insert
+        raise Bud::Error, "cannot wire :output to #{element.class}" unless element.respond_to? :insert
         @outputs << element
       when :pending
-        raise Bud::Error unless element.respond_to? :pending_merge
+        raise Bud::Error, "cannot wire :pending to #{element.class}" unless element.respond_to? :pending_merge
         @pendings << element
       when :delete
-        raise Bud::Error unless element.respond_to? :pending_delete
+        raise Bud::Error, "cannot wire :delete to #{element.class}" unless element.respond_to? :pending_delete
         @deletes << element
       when :delete_by_key
-        raise Bud::Error unless element.respond_to? :pending_delete_keys
+        raise Bud::Error, "cannot wire :delete_by_key to #{element.class}" unless element.respond_to? :pending_delete_keys
         @delete_keys << element
+      else
+        raise Bud::Error, "unrecognized wiring kind: #{kind}"
       end
 
       element.wired_by << self if element.respond_to? :wired_by

@@ -121,6 +121,8 @@ class Bud::LatticePushElement
       @outputs << element
     when :pending
       @pendings << element
+    else
+      raise Bud::Error, "unrecognized wiring kind: #{kind}"
     end
 
     element.wired_by << self
@@ -415,7 +417,9 @@ class Bud::LatticeWrapper
   end
 
   def do_merge(lhs, rhs)
-    raise Bud::Error unless lhs.class <= Bud::Lattice
+    unless lhs.class <= Bud::Lattice
+      raise Bud::Error, "unexpected merge input: #{lhs.class}"
+    end
     return lhs if rhs.nil?
 
     unless rhs.class <= @klass
