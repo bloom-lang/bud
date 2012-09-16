@@ -119,31 +119,30 @@ module Bud
     end
 
     def push_out(item, do_block=true)
-      if item
-        if do_block && @blk
-          item = item.to_a if @blk.arity > 1
-          item = @blk.call item
-        end
+      return if item.nil?
 
-        unless item.nil?
-          @outputs.each do |ou|
-            if ou.class <= Bud::PushElement
-              ou.insert(item, self)
-            elsif ou.class <= Bud::BudCollection
-              ou.do_insert(item, ou.new_delta)
-            elsif ou.class <= Bud::LatticeWrapper
-              ou.insert(item, self)
-            else
-              raise Bud::Error, "expected either a PushElement or a BudCollection"
-            end
-          end
+      if do_block && @blk
+        item = item.to_a if @blk.arity > 1
+        item = @blk.call item
+        return if item.nil?
+      end
 
-          # for all the following, o is a BudCollection
-          @deletes.each{|o| o.pending_delete([item])}
-          @delete_keys.each{|o| o.pending_delete_keys([item])}
-          @pendings.each{|o| o.pending_merge([item])}
+      @outputs.each do |ou|
+        if ou.class <= Bud::PushElement
+          ou.insert(item, self)
+        elsif ou.class <= Bud::BudCollection
+          ou.do_insert(item, ou.new_delta)
+        elsif ou.class <= Bud::LatticeWrapper
+          ou.insert(item, self)
+        else
+          raise Bud::Error, "expected either a PushElement or a BudCollection"
         end
       end
+
+      # for all the following, o is a BudCollection
+      @deletes.each{|o| o.pending_delete([item])}
+      @delete_keys.each{|o| o.pending_delete_keys([item])}
+      @pendings.each{|o| o.pending_merge([item])}
     end
 
     # default for stateless elements
