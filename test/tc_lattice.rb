@@ -1126,7 +1126,7 @@ class SimpleBag
     b_sum <= b1 + b2
     b_sum <= b2 + b1
     has_foo <= b_sum.contains?("foo")
-    done <= b_intersect.card("foo").gt(2)
+    done <= b_intersect.multiplicity("foo").gt(2)
   end
 end
 
