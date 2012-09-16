@@ -413,9 +413,6 @@ class Bud::LatticeWrapper
     @pending
   end
 
-  def scalar_merge(lhs, rhs)
-  end
-
   def do_merge(lhs, rhs)
     unless lhs.class <= Bud::Lattice
       raise Bud::Error, "unexpected merge input: #{lhs.class}"

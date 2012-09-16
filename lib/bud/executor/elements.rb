@@ -84,16 +84,12 @@ module Bud
 
       case kind
       when :output
-        raise Bud::Error, "cannot wire :output to #{element.class}" unless element.respond_to? :insert
         @outputs << element
       when :pending
-        raise Bud::Error, "cannot wire :pending to #{element.class}" unless element.respond_to? :pending_merge
         @pendings << element
       when :delete
-        raise Bud::Error, "cannot wire :delete to #{element.class}" unless element.respond_to? :pending_delete
         @deletes << element
       when :delete_by_key
-        raise Bud::Error, "cannot wire :delete_by_key to #{element.class}" unless element.respond_to? :pending_delete_keys
         @delete_keys << element
       else
         raise Bud::Error, "unrecognized wiring kind: #{kind}"
@@ -135,14 +131,22 @@ module Bud
         elsif ou.class <= Bud::LatticeWrapper
           ou.insert(item, self)
         else
-          raise Bud::Error, "expected either a PushElement or a BudCollection"
+          raise Bud::Error, "expected output target: #{ou.class}"
         end
       end
 
-      # for all the following, o is a BudCollection
+      # for the following, o is a BudCollection
       @deletes.each{|o| o.pending_delete([item])}
       @delete_keys.each{|o| o.pending_delete_keys([item])}
-      @pendings.each{|o| o.pending_merge([item])}
+
+      # o is a LatticeWrapper or a BudCollection
+      @pendings.each do |o|
+        if o.class <= Bud::LatticeWrapper
+          o <+ item
+        else
+          o.pending_merge([item])
+        end
+      end
     end
 
     # default for stateless elements

@@ -1435,3 +1435,28 @@ class TestChannelWithLatticeRhs < MiniTest::Unit::TestCase
     i.stop
   end
 end
+
+class PendingLatticeMerge
+  include Bud
+
+  state do
+    lmap :m1
+    scratch :s1
+  end
+
+  bloom do
+    m1 <+ s1 {|t| {t.key => t.val}}
+  end
+end
+
+class TestPendingLatticeMerge < MiniTest::Unit::TestCase
+  def test_pending_merge
+    i = PendingLatticeMerge.new
+    i.s1 <+ [[5, Bud::MaxLattice.new(10)]]
+    i.tick
+    assert_equal(Bud::MapLattice.new, i.m1.current_value)
+    i.tick
+    assert_equal(Bud::MapLattice.new(5 => Bud::MaxLattice.new(10)),
+                 i.m1.current_value)
+  end
+end
