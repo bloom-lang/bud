@@ -361,6 +361,7 @@ class Bud::BagLattice < Bud::Lattice
   end
 
   monotone :size do
-    Bud::MaxLattice.new(@v.size)
+    @size = @v.values.reduce(:+) if @size.nil?
+    Bud::MaxLattice.new(@size)
   end
 end

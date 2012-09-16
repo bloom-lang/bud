@@ -1114,6 +1114,7 @@ class SimpleBag
     lbag :b_union
     lbag :b_intersect
     lbag :b_sum
+    lmax :b_sum_size
     lbool :has_foo
     lbool :done
   end
@@ -1125,6 +1126,7 @@ class SimpleBag
     b_intersect <= b2.intersect(b1)
     b_sum <= b1 + b2
     b_sum <= b2 + b1
+    b_sum_size <= b_sum.size
     has_foo <= b_sum.contains?("foo")
     done <= b_intersect.multiplicity("foo").gt(2)
   end
@@ -1145,6 +1147,7 @@ class TestBag < MiniTest::Unit::TestCase
     assert_equal([], i.b_intersect.current_value.reveal.to_a.sort)
     assert_equal([["abc", 2], ["def", 1]],
                  i.b_sum.current_value.reveal.to_a.sort)
+    assert_equal(3, i.b_sum_size.current_value.reveal)
     assert_equal(false, i.has_foo.current_value.reveal)
     assert_equal(false, i.done.current_value.reveal)
 
@@ -1155,6 +1158,7 @@ class TestBag < MiniTest::Unit::TestCase
     assert_equal([["def", 1]], i.b_intersect.current_value.reveal.to_a.sort)
     assert_equal([["abc", 2], ["def", 2], ["foo", 1]],
                  i.b_sum.current_value.reveal.to_a.sort)
+    assert_equal(5, i.b_sum_size.current_value.reveal)
     assert_equal(true, i.has_foo.current_value.reveal)
     assert_equal(false, i.done.current_value.reveal)
 
@@ -1167,6 +1171,7 @@ class TestBag < MiniTest::Unit::TestCase
                  i.b_intersect.current_value.reveal.to_a.sort)
     assert_equal([["abc", 2], ["def", 2], ["foo", 3]],
                  i.b_sum.current_value.reveal.to_a.sort)
+    assert_equal(7, i.b_sum_size.current_value.reveal)
     assert_equal(true, i.has_foo.current_value.reveal)
     assert_equal(false, i.done.current_value.reveal)
 
@@ -1179,6 +1184,7 @@ class TestBag < MiniTest::Unit::TestCase
                  i.b_intersect.current_value.reveal.to_a.sort)
     assert_equal([["abc", 2], ["def", 2], ["foo", 7]],
                  i.b_sum.current_value.reveal.to_a.sort)
+    assert_equal(11, i.b_sum_size.current_value.reveal)
     assert_equal(true, i.has_foo.current_value.reveal)
     assert_equal(true, i.done.current_value.reveal)
   end
