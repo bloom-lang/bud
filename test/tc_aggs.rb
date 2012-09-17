@@ -282,8 +282,7 @@ class TestAggs < MiniTest::Unit::TestCase
   def test_rename
     program = RenameGroup.new
     program.tick
-    shoes = program.shoes.to_a
-    assert_equal([["shoe", 10.5]], shoes)
+    assert_equal([["shoe", 10.5]], program.shoes.to_a)
   end
 
   def test_join_agg
@@ -324,6 +323,7 @@ class TestAggs < MiniTest::Unit::TestCase
     p.run_bg
     q.pop
     assert_equal([[2,1]], p.t3.to_a)
+    p.stop
   end
 
   def test_bool_aggs
