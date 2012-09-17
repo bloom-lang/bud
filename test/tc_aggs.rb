@@ -266,9 +266,9 @@ class TestAggs < MiniTest::Unit::TestCase
   def test_non_exemplary
     program = ShortestPaths.new
     program.tick
-    assert_raises(Bud::Error) {p = program.path.argagg(:count, [program.path.from, program.path.to], nil)}
-    assert_raises(Bud::Error) {p = program.path.argagg(:sum, [program.path.from, program.path.to], program.path.cost)}
-    assert_raises(Bud::Error) {p = program.path.argagg(:avg, [program.path.from, program.path.to], program.path.cost)}
+    assert_raises(Bud::Error) {program.path.argagg(:count, [program.path.from, program.path.to], nil)}
+    assert_raises(Bud::Error) {program.path.argagg(:sum, [program.path.from, program.path.to], program.path.cost)}
+    assert_raises(Bud::Error) {program.path.argagg(:avg, [program.path.from, program.path.to], program.path.cost)}
   end
 
   def test_argaggs
