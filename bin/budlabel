@@ -1,0 +1,41 @@
+require 'rubygems'
+require 'bud'
+require 'getopt/std'
+require 'bud/labeling/labeling'
+require 'bud/labeling/bloomgraph'
+require 'bud/labeling/budplot_style'
+
+$LOAD_PATH.unshift(".")
+
+@opts = Getopt::Std.getopts("r:i:p:CPA")
+
+unless @opts["r"] and @opts["i"]
+  puts "USAGE:"
+  puts "-r REQUIRE"
+  puts "-i INCLUDE"
+  puts "[-p INCLUDE PATH]"
+  puts "-C Concise output -- Associate a single label with each output interface"
+  puts "-P Path-based output -- For each output interface, attribute a label to paths from each input interface"
+  exit
+end
+
+if @opts["p"]
+  $LOAD_PATH.unshift @opts["p"]
+end
+
+require @opts["r"]
+c = Label.new(@opts["i"])
+
+if @opts["C"]
+  c.concise.each_pair do |k, v|
+    puts "#{k} = #{v}"
+  end
+end
+
+if @opts["P"]
+  c.paths.each do |z|
+    puts "#{z}"
+  end
+end
+
+c.write_graph
