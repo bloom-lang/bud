@@ -155,6 +155,19 @@ module Bud
     @channels[name] = @tables[name]
   end
 
+  # an alternative approach to declaring interfaces
+  def interfaces(direction, collections)
+    mode = case direction
+      when :input then true
+      when :output then false
+    else
+      raise "unrecognized interface type #{direction}"
+    end
+    collections.each do |tab|
+      t_provides << [tab.to_s, mode]
+    end 
+  end
+
   # Define methods to implement the state declarations for every registered kind
   # of lattice.
   def load_lattice_defs
