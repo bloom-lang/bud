@@ -239,15 +239,7 @@ class Label
       zips[to][from] ||= "Bot"
       zips[to][from] = disjunction(zips[to][from], final.last)
     end
-
-
-    zipped = zips.keys.map do |z|
-      inner = zips[z].keys.map do |k|
-        "#{k} : #{zips[z][k]}"
-      end
-      "#{z} = (#{inner.join('|')})"
-    end
-    zipped
+    zips
   end
   
   def disjunction(l, r)
@@ -291,7 +283,7 @@ class Label
     cls.new.tables.keys
   end
   
-  def write_graph
-    f.finish(internal_tabs, "#{@mod.to_s}.pdf")
+  def write_graph(fmt=:pdf)
+    f.finish(internal_tabs, "#{@mod.to_s}.#{fmt}", fmt)
   end
 end
