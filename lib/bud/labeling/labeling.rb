@@ -221,7 +221,7 @@ class Label
     @report = @f.validate if @report.nil?
   end
 
-  def concise
+  def output_report
     validate
     rep = {}
     @report.each do |from, to, path, labels, reason, final|
@@ -231,7 +231,7 @@ class Label
     rep
   end
 
-  def paths
+  def path_report
     validate
     zips = {}
     @report.each do |from, to, path, labels, reason, final|

@@ -42,13 +42,13 @@ if @opts["C"]
   puts "---------------"
   puts "Output\t\tLabel"
   puts "---------------"
-  c.concise.each_pair do |k, v|
+  c.output_report.each_pair do |k, v|
     puts [k, hreadable[v]].join("\t")
   end
 end
 
 if @opts["P"]
-  c.paths.each_pair do |output, inpaths|
+  c.path_report.each_pair do |output, inpaths|
     puts ""
     puts "--------------------"
     puts "Output\tInput\tLabel"

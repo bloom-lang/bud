@@ -1,6 +1,4 @@
-require 'rubygems'
-require 'bud'
-require 'minitest/autorun'
+require './test_common'
 require 'bud/labeling/labeling'
 
 module TestState
@@ -236,6 +234,25 @@ class TestBlazes < MiniTest::Unit::TestCase
     report = h.validate
     assert((report.map{|r| r.to_a.last}.include? ["D"]), "flow not reported as divergent : #{report}")
   end
+
+  def test_labeler1
+    l = Label.new("TestNM")
+    assert_equal({"response" => "D"}, l.output_report)
+    assert_equal({"response" => {"i1" => "A", "i2" => "D"}}, l.path_report)
+  end
+
+  def test_labeler2
+    l = Label.new("TestGroup")
+    assert_equal({"response" => "D"}, l.output_report)
+    assert_equal({"response" => {"i1" => "D"}}, l.path_report)
+  end
+
+  def test_labeler3
+    l = Label.new("TestMono")
+    assert_equal({"response" => "A"}, l.output_report)
+    assert_equal({"response" => {"i1" => "A", "i2" => "A"}}, l.path_report)
+  end
+
 
 end
 
