@@ -56,7 +56,7 @@ module TestDeletion
   end
 end
 
-module TestNest
+module TestNestMod
   import TestNM => :tnm
   state do
     interface input, :inn1
@@ -156,7 +156,7 @@ end
 
 class RollNest
   include BB
-  include TestNest
+  include TestNestMod
 end
 
 module BBG

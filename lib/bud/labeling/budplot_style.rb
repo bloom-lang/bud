@@ -24,11 +24,11 @@ module PDG
     bedge <= dep do |d|
       line = d.label == "A" ? "dashed" : "solid"
       circle = d.label == "N" ? "veeodot" : "normal"
-      [d.body, d.head, {:style => line, :arrowhead => circle, :penwidth => 5}]
+      [d.body, d.head, {:style => line, :arrowhead => circle, :penwidth => 4}]
     end
   end
 
-  bloom :endpointss do
+  bloom :endpoints do
     source <= t_provides do |p|
       if p.input and !dep_tc.map{|d| d.head}.include? p.interface
         [p.interface]
