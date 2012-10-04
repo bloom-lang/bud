@@ -137,6 +137,17 @@ class Divergence
   end
 end
 
+class InterfaceAlternate
+  include Bud
+  state do
+    channel :inc
+    channel :outc
+    table :stor
+    interfaces :input, [:inc, :stor]
+    interfaces :output, [:outc]
+  end
+end
+
 class TestMeta < MiniTest::Unit::TestCase
   def test_paths
     program = LocalShortestPaths.new
@@ -180,6 +191,14 @@ class TestMeta < MiniTest::Unit::TestCase
     dir = '/tmp/' + Time.new.to_f.to_s
     Dir.mkdir(dir)
     return dir
+  end
+
+  def test_interfaces
+    prog = InterfaceAlternate.new
+    prov = prog.t_provides{|p| p.to_a}
+    assert(prov.include? ["inc", true])
+    assert(prov.include? ["stor", true])
+    assert(prov.include? ["outc", false])
   end
 
   def test_visualization

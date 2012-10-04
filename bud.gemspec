@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
   s.rubyforge_project = 'bloom-lang'
 
   s.files = Dir['lib/**/*'] + Dir['bin/*'] + Dir['docs/**/*'] + Dir['examples/**/*'] + %w[README.md LICENSE History.txt]
-  s.executables = %w[rebl budplot budvis budtimelines]
+  s.executables = %w[rebl budplot budvis budtimelines budlabel]
   s.default_executable = 'rebl'
 
   s.add_dependency 'eventmachine'
