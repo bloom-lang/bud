@@ -114,7 +114,6 @@ class Bud::LatticePushElement
     @rescan = true
   end
 
-  # Wiring
   def wire_to(element, kind=:output)
     case kind
     when :output
