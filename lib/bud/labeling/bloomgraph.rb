@@ -2,8 +2,7 @@ require 'rubygems'
 require 'bud'
 require 'graphviz'
 
-# the idea is, a simple interface between graphviz and bud.
-
+# A simple interface between graphviz and bud
 module BudGraph
   state do
     interface input, :bnode, [:name] => [:meta]
@@ -25,10 +24,10 @@ module BloomGraph
   end
 
   def finish(ignore, name, fmt=:pdf)
-    ignore = it.to_set
+    it = ignore.to_set
     tick
     nodes.to_a.each do |n|
-      unless it[n.name.to_sym]
+      unless it.include? n.name.to_sym
         @graph.add_nodes(n.name, n.meta)
       end
     end
