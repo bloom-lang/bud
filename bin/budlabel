@@ -1,0 +1,63 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'bud'
+require 'getopt/std'
+require 'bud/labeling/labeling'
+require 'bud/labeling/bloomgraph'
+require 'bud/labeling/budplot_style'
+
+$LOAD_PATH.unshift(".")
+
+@opts = Getopt::Std.getopts("r:i:p:O:CP")
+
+unless @opts["r"] and @opts["i"]
+  puts "USAGE:"
+  puts "-r REQUIRE"
+  puts "-i INCLUDE"
+  puts "[-p INCLUDE PATH]"
+  puts "[-O <FMT> Output a graphviz representation of the module in FMT format (pdf if not specified)."
+  puts "-C Concise output -- Associate a single label with each output interface"
+  puts "-P Path-based output -- For each output interface, attribute a label to paths from each input interface"
+  exit
+end
+
+hreadable = {
+  "D" => "Diffluent: Nondeterministic output contents.",
+  "A" => "Asynchronous.  Nondeterministic output orders.",
+  "N" => "Nonmonotonic.  Output contents are sensitive to input orders.",
+  "Bot" => "Monotonic.  Order-insensitive and retraction-free."
+}
+
+if @opts["p"]
+  $LOAD_PATH.unshift @opts["p"]
+end
+
+require @opts["r"]
+c = Label.new(@opts["i"])
+
+puts "--- Report for module #{@opts["i"]} ---"
+
+if @opts["C"]
+  puts "---------------"
+  puts "Output\t\tLabel"
+  puts "---------------"
+  c.output_report.each_pair do |k, v|
+    puts [k, hreadable[v]].join("\t")
+  end
+end
+
+if @opts["P"]
+  c.path_report.each_pair do |output, inpaths|
+    puts ""
+    puts "--------------------"
+    puts "Output\tInput\tLabel"
+    puts "--------------------"
+    puts output
+    inpaths.each_pair do |inp, lbl|
+      puts "\t#{inp}\t#{hreadable[lbl]}"
+    end
+  end
+end
+
+c.write_graph(@opts["O"]) if @opts["O"]
