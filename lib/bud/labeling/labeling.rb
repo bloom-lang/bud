@@ -35,9 +35,9 @@ module Validate
       end
     end
 
-    scc <= scc_raw.reduce({}) do |memo, i|
+    scc <= scc_raw.reduce(Hash.new) do |memo, i|
       memo[i.pred] ||= []
-      memo[i.pred] = memo[i.pred] | i.cluster
+      memo[i.pred] |= i.cluster
       memo
     end
 
