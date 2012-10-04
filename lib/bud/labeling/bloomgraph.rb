@@ -25,8 +25,7 @@ module BloomGraph
   end
 
   def finish(ignore, name, fmt=:pdf)
-    it = {}
-    ignore.each{|i| it[i] = true}
+    ignore = it.to_set
     tick
     nodes.to_a.each do |n|
       unless it[n.name.to_sym]
@@ -35,7 +34,7 @@ module BloomGraph
     end
   
     edges.to_a.each do |e|
-      unless it[e.from.to_sym] or it[e.to.to_sym]
+      unless it.include? e.from.to_sym or it.include? e.to.to_sym
         @graph.add_edges(e.from, e.to, e.meta)
       end
     end

@@ -1,7 +1,5 @@
 require 'rubygems'
 require 'bud'
-require 'bud/labeling/bloomgraph'
-require 'bud/labeling/budplot_style'
 
 module Validate
   state do
@@ -87,15 +85,14 @@ module Validate
   end
 
   def validate
-    dp = {}
+    dp = Set.new
     divergent_preds.each do |p| 
-      dp[p.coll] = true
+      dp.add(p.coll)
     end
     report = []
     full_path.to_a.each do |p|
       state = ["Bot"]
       start_a = -1
-      have_seal = false
       p.label.each_with_index do |lbl, i|
         if lbl == "A"
           start_a = i + 1
@@ -103,7 +100,7 @@ module Validate
         os = state.first
         state = do_collapse(state, [lbl])
       end
-      if dp[p.head]
+      if dp.include? p.head
         report << (p.to_a + [:unguarded, ["D"]])
       else
         report << (p.to_a + [:path, state])
@@ -194,6 +191,9 @@ module GuardedAsync
   end
 end
 
+require 'bud/labeling/bloomgraph'
+require 'bud/labeling/budplot_style'
+
 module MetaMods
   include Validate
   include GuardedAsync
@@ -249,8 +249,6 @@ class Label
     elsif both.include? "N"
       if both.include? "A"
         return "D"
-      #elsif both.include? "Bot"
-      #  return "N"
       else
         return "N"
       end

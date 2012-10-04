@@ -23,7 +23,7 @@ unless @opts["r"] and @opts["i"]
 end
 
 hreadable = {
-  "D" => "Diffluent: Nondeterministic outputs contents.",
+  "D" => "Diffluent: Nondeterministic output contents.",
   "A" => "Asynchronous.  Nondeterministic output orders.",
   "N" => "Nonmonotonic.  Output contents are sensitive to input orders.",
   "Bot" => "Monotonic.  Order-insensitive and retraction-free."

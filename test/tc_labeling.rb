@@ -177,16 +177,6 @@ class RollHG
 end
 
 class TestBlazes < MiniTest::Unit::TestCase
-  def setup
-    @instances = []
-  end
-
-  def teardown
-    @instances.each do |i|
-      i.stop_bg
-    end
-  end
-
   def test_label1
     r = RolledUp.new
     r.tick

@@ -1,6 +1,7 @@
-#require 'bloomgraph'
+require 'bud/labeling/labeling'
 
 module PDG
+  include GuardedAsync
   # a bloomgraph program that plots a NM-and-async-aware PDG
   state do
     scratch :bodies, [:table] => [:type]
@@ -49,16 +50,4 @@ module PDG
     bnode << ["S", {:shape => "diamond", :color => "blue"}]
     bnode << ["T", {:shape => "diamond", :color => "blue"}]
   end
-
-  def coll_type(cn)
-    tab = self.tables[cn.to_sym]
-    if tab.nil?
-      tab = self.lattices[cn.to_sym]
-      if tab.nil?
-        return nil
-      end
-    end
-    tab.class
-  end
 end
-
