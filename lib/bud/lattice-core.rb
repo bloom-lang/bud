@@ -76,6 +76,15 @@ class Bud::Lattice
     return reveal == o.reveal
   end
 
+  def eql?(o)
+    return self == o
+  end
+
+  # Ensure hashing and equality semantics are consistent.
+  def hash
+    reveal.hash
+  end
+
   # Return the state valued associated with a lattice instance. Note that this
   # is non-monotonic when invoked from user code; it should be used with care by
   # framework code.

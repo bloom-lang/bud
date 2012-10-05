@@ -1460,3 +1460,19 @@ class TestPendingLatticeMerge < MiniTest::Unit::TestCase
                  i.m1.current_value)
   end
 end
+
+class TestLatticeHashing < MiniTest::Unit::TestCase
+  def test_lattice_hash_eq
+    m1 = Bud::MapLattice.new({:foo => Bud::MaxLattice.new(3)})
+    m2 = Bud::MapLattice.new({:foo => Bud::MaxLattice.new(3)})
+    assert(m1 == m2)
+    assert(m1.eql? m2)
+    assert_equal(m1.hash, m2.hash)
+
+    h = {}
+    h[m1] = 5
+    h[m2] = 10
+    assert_equal(1, h.size)
+    assert_equal({Bud::MapLattice.new({:foo => Bud::MaxLattice.new(3)}) => 10}, h)
+  end
+end
