@@ -11,6 +11,7 @@ class Class
 end
 
 # FIXME: Use a subclass of Struct.
+# FIXME: Should likely override eql? as well
 class Struct
   def <=>(o)
     if o.class == self.class
