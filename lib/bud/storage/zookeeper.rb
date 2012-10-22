@@ -12,8 +12,7 @@ module Bud
         raise Bud::Error, "zookeeper gem is not installed: zookeeper-backed stores cannot be used"
       end
 
-      # schema = {[:key] => [:val]}
-      super(name, bud_instance, nil)
+      super(name, bud_instance, [:key] => [:val, :opts])
 
       zk_path = zk_path.chomp("/") unless zk_path == "/"
       @zk = Zookeeper.new(zk_addr)
@@ -31,8 +30,8 @@ module Bud
     # EM startup to start watching for Zk events.
     def start_watchers
       # NB: Watcher callbacks are invoked in a separate Ruby thread.
-      @child_watcher = Zookeeper::WatcherCallback.new { get_and_watch }
-      @stat_watcher = Zookeeper::WatcherCallback.new { stat_and_watch }
+      @child_watcher = Zookeeper::Callbacks::WatcherCallback.new { get_and_watch }
+      @stat_watcher = Zookeeper::Callbacks::WatcherCallback.new { stat_and_watch }
       stat_and_watch
     end
 
@@ -128,8 +127,8 @@ module Bud
         ephemeral = false
         sequence = false
 
-        if t.length > 2
-          opts = t.last.first
+        opts = t.opts
+        unless opts.nil?
           if opts[:ephemeral] == true
             ephemeral = true
           end

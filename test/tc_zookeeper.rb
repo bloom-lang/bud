@@ -43,7 +43,7 @@ class ZkMirror
   end
 end
 
-class TestZk < Test::Unit::TestCase
+class TestZk < MiniTest::Unit::TestCase
   def setup
     zk_delete(ZK_ROOT)
   end
