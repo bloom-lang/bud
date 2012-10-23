@@ -8,39 +8,63 @@ module Bud
   # Persistent table implementation based on Zookeeper.
   class BudZkTable < BudPersistentCollection # :nodoc: all
     def initialize(name, zk_path, zk_addr, bud_instance)
-      unless defined? HAVE_ZOOKEEPER
+      unless defined? Bud::HAVE_ZOOKEEPER
         raise Bud::Error, "zookeeper gem is not installed: zookeeper-backed stores cannot be used"
       end
 
       super(name, bud_instance, [:key] => [:val, :opts])
 
-      zk_path = zk_path.chomp("/") unless zk_path == "/"
       @zk = Zookeeper.new(zk_addr)
+      zk_path = zk_path.chomp("/") unless zk_path == "/"
       @zk_path = zk_path
       @base_path = @zk_path
       @base_path += "/" unless @zk_path.end_with? "/"
       @store_mutex = Mutex.new
+      @zk_mutex = Mutex.new
       @next_storage = {}
       @saw_delta = false
       @child_watch_id = nil
-      @stat_watch_id = nil
     end
 
     # Since the watcher callbacks might invoke EventMachine, we wait until after
     # EM startup to start watching for Zk events.
     def start_watchers
-      # NB: Watcher callbacks are invoked in a separate Ruby thread.
-      @child_watcher = Zookeeper::Callbacks::WatcherCallback.new { get_and_watch }
-      @stat_watcher = Zookeeper::Callbacks::WatcherCallback.new { stat_and_watch }
+      # Watcher callbacks are invoked in a separate Ruby thread. Note that there
+      # is a possible deadlock between invoking watcher callbacks and calling
+      # close(): if we get a watcher event and a close at around the same time,
+      # the close might fire first. Closing the Zk handle will block on
+      # dispatching outstanding watchers, but it does so holding the @zk_mutex,
+      # causing a deadlock. Hence, we just have the watcher callback spin on the
+      # @zk_mutex, aborting if the handle is ever closed.
+      @child_watcher = Zookeeper::Callbacks::WatcherCallback.new do
+        while true
+          break if @zk.closed?
+          if @zk_mutex.try_lock
+            get_and_watch unless @zk.closed?
+            @zk_mutex.unlock
+            break
+          end
+        end
+      end
+
+      @stat_watcher = Zookeeper::Callbacks::WatcherCallback.new do
+        while true
+          break if @zk.closed?
+          if @zk_mutex.try_lock
+            stat_and_watch unless @zk.closed?
+            @zk_mutex.unlock
+            break
+          end
+        end
+      end
+
       stat_and_watch
     end
 
     def stat_and_watch
       r = @zk.stat(:path => @zk_path, :watcher => @stat_watcher)
-      @stat_watch_id = r[:req_id]
 
       unless r[:stat].exists
-        cancel_child_watch
         # The given @zk_path doesn't exist, so try to create it. Unclear
         # whether this is always the best behavior.
         r = @zk.create(:path => @zk_path)
@@ -53,27 +77,10 @@ module Bud
       get_and_watch unless @child_watch_id
     end
 
-    def cancel_child_watch
-      if @child_watch_id
-        @zk.unregister_watcher(@child_watch_id)
-        @child_watch_id = nil
-      end
-    end
-
-    def cancel_stat_watch
-      if @stat_watch_id
-        @zk.unregister_watcher(@stat_watch_id)
-        @stat_with_id = nil
-      end
-    end
-
     def get_and_watch
       r = @zk.get_children(:path => @zk_path, :watcher => @child_watcher)
+      return unless r[:stat].exists
       @child_watch_id = r[:req_id]
-      unless r[:stat].exists
-        cancel_child_watch
-        return
-      end
 
       # XXX: can we easily get snapshot isolation?
       new_children = {}
@@ -149,9 +156,8 @@ module Bud
     end
 
     def close
-      cancel_child_watch
-      cancel_stat_watch
-      @zk.close
+      # See notes in start_watchers.
+      @zk_mutex.synchronize { @zk.close }
     end
 
     superator "<~" do |o|

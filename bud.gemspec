@@ -30,5 +30,5 @@ Gem::Specification.new do |s|
 
   # Optional dependencies -- if we can't find these libraries, certain features
   # will be disabled.
-  # s.add_dependency 'zookeeper'
+  # s.add_dependency 'zookeeper', '>= 1.3.0'
 end
