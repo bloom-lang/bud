@@ -8,7 +8,7 @@ class Bud::Lattice
 
   def self.wrapper_name(name)
     if @wrapper_name
-      raise Bud::CompileError, "lattice #{self.class} has multiple names"
+      raise Bud::CompileError, "lattice #{self.name} has multiple wrapper names"
     end
     if @@lattice_kinds.has_key? name
       raise Bud::CompileError, "duplicate lattice definition: #{name}"
