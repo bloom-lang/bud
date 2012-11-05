@@ -248,7 +248,7 @@ module Bud
         pusher = self.pro
         pusher.sort("sort#{object_id}", @bud_instance, @cols, &blk)
       else
-        @storage.sort
+        @storage.values.sort(&blk)
       end
     end
 

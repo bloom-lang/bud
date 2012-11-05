@@ -266,6 +266,10 @@ class TestCollections < MiniTest::Unit::TestCase
     assert_equal(2, program.tbl.length)
     assert_equal([["c", "d"], ["z", "y"]], program.the_keys.to_a.sort)
     assert_equal([[5,6], [9,8]], program.the_vals.to_a.sort)
+    assert_equal([["c", "d", 5, 6], ["z", "y", 9, 8]],
+                 program.tbl.sort)
+    assert_equal([["z", "y", 9, 8], ["c", "d", 5, 6]],
+                 program.tbl.sort {|x,y| y <=> x})
   end
   
   def test_tuple_accessors
