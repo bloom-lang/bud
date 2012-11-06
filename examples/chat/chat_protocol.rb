@@ -1,7 +1,7 @@
 module ChatProtocol
   state do
+    channel :connect, [:@addr, :client] => [:nick]
     channel :mcast
-    channel :connect
   end
 
   DEFAULT_ADDR = "localhost:12345"

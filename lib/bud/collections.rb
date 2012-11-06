@@ -983,19 +983,15 @@ module Bud
     def payloads(&blk)
       return self.pro(&blk) if @is_loopback
 
-      if cols.size > 2
-        if @payload_struct.nil?
-          payload_cols = cols.dup
-          payload_cols.delete_at(@locspec_idx)
-          @payload_struct = Struct.new(*payload_cols)
-          @payload_colnums = payload_cols.map {|k| cols.index(k)}
-        end
-        retval = self.pro do |t|
-          @payload_struct.new(*t.values_at(*@payload_colnums))
-        end
-      else
-        # just return each tuple's non-locspec field value
-        retval = self.pro{|t| t[(@locspec_idx == 0) ? 1 : 0]}
+      if @payload_struct.nil?
+        payload_cols = cols.dup
+        payload_cols.delete_at(@locspec_idx)
+        @payload_struct = Struct.new(*payload_cols)
+        @payload_colnums = payload_cols.map {|k| cols.index(k)}
+      end
+
+      retval = self.pro do |t|
+        @payload_struct.new(*t.values_at(*@payload_colnums))
       end
       retval = retval.pro(&blk) unless blk.nil?
       return retval

@@ -1,6 +1,7 @@
 require 'rubygems'
+require 'backports'
 require 'bud'
-require 'chat_protocol'
+require_relative 'chat_protocol'
 
 class ChatClient
   include Bud
@@ -13,7 +14,7 @@ class ChatClient
   end
 
   bootstrap do
-    connect <~ [[@server, [ip_port, @nick]]]
+    connect <~ [[@server, ip_port, @nick]]
   end
 
   bloom do

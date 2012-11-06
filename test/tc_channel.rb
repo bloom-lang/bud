@@ -156,8 +156,23 @@ class ChannelWithKey
   end
 end
 
-class TestChannelWithKey < MiniTest::Unit::TestCase
-  def test_basic
+class PayloadForDefaultChannel
+  include Bud
+
+  state do
+    channel :chn
+    scratch :to_send, [:addr, :v]
+    table :chn_payloads, [:v]
+  end
+
+  bloom do
+    chn <~ to_send
+    chn_payloads <= chn.payloads
+  end
+end
+
+class TestPayloads < MiniTest::Unit::TestCase
+  def test_channel_with_key
     p1 = ChannelWithKey.new
     p2 = ChannelWithKey.new
 
@@ -203,6 +218,18 @@ class TestChannelWithKey < MiniTest::Unit::TestCase
 
     p1.stop
     p2.stop
+  end
+
+  def test_default_payloads
+    c = PayloadForDefaultChannel.new
+    c.run_bg
+
+    c.sync_callback(:to_send, [[c.ip_port, 5]], :chn)
+    c.sync_do {
+      assert_equal([[5]], c.chn_payloads.to_a)
+    }
+
+    c.stop
   end
 end
 

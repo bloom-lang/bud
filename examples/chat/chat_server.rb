@@ -1,6 +1,7 @@
 require 'rubygems'
+require 'backports'
 require 'bud'
-require 'chat_protocol'
+require_relative 'chat_protocol'
 
 class ChatServer
   include Bud
@@ -9,7 +10,7 @@ class ChatServer
   state { table :nodelist }
 
   bloom do
-    nodelist <= connect.payloads
+    nodelist <= connect { |c| [c.client, c.nick] }
     mcast <~ (mcast * nodelist).pairs { |m,n| [n.key, m.val] }
   end
 end

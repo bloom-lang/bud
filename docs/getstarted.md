@@ -128,7 +128,7 @@ Now that we've seen a bit of Bloom, we're ready to write our first interesting s
 
 Even though we're getting ahead of ourselves, let's have a peek at the Bloom statements that implement the server in `examples/chat/chat_server.rb`:
 
-    nodelist <= signup.payloads
+    nodelist <= connect { |c| [c.client, c.nick] }
     mcast <~ (mcast * nodelist).pairs { |m,n| [n.key, m.val] }
 
 That's it!  There is one statement for each of the two sentences describing the behavior of the "basic idea" above.  We'll go through these two statements in more detail shortly.  But it's nice to see right away how concisely and naturally a Bloom program can fit our intuitive description of a distributed service.
@@ -139,11 +139,11 @@ Now that we've satisfied our need to peek, let's take this a bit more methodical
 
     module ChatProtocol
       state do
+        channel :connect, [:@addr, :client] => [:nick]
         channel :mcast
-        channel :connect
       end
       
-    DEFAULT_ADDR = "localhost:12345"
+      DEFAULT_ADDR = "localhost:12345"
     end
 
 This defines a [Ruby mixin module](http://www.ruby-doc.org/docs/ProgrammingRuby/html/tut_modules.html) called `ChatProtocol` that has a couple special Bloom features:
@@ -167,7 +167,7 @@ Given this protocol (and the Ruby constant at the bottom), we're now ready to ex
       state { table :nodelist }
 
       bloom do
-        nodelist <= connect.payloads
+        nodelist <= connect { |c| [c.client, c.nick] }
         mcast <~ (mcast * nodelist).pairs { |m,n| [n.key, m.val] }
       end
     end
@@ -190,11 +190,11 @@ With those preliminaries aside, we have our first `bloom` block, which is how Bl
 
 The first is pretty simple: 
 
-     nodelist <= connect.payloads
+     nodelist <= connect { |c| [c.client, c.nick] }
 
-This says that whenever messages arrive on the channel named "connect", their payloads (i.e. their non-address field) should be instantaneously merged into the table nodelist, which will store them persistently.  Note that nodelist has a \[key/val\] pair structure, so we expect the payloads will have that structure as well.
+This says that whenever messages arrive on the channel named "connect", the client address and user-provided nickname should be instantaneously merged into the table "nodelist", which will store them persistently.  Note that nodelist has a \[key/val\] pair structure, so it is suitable for storing pairs of (IP address, nickname).
 
-The next Bloom statement is more complex.  Remember the description in the "basic idea" at the beginning of this section: the server needs to accept inbound chat messages from clients, and forward them to other clients.  
+The next Bloom statement is more complex.  Remember the description in the "basic idea" at the beginning of this section: the server needs to accept inbound chat messages from clients and forward them to other clients.  
 
     mcast <~ (mcast * nodelist).pairs { |m,n| [n.key, m.val] }
     
@@ -233,7 +233,7 @@ And here's the code:
       end
 
       bootstrap do
-        connect <~ [[@server, [ip_port, @nick]]]
+        connect <~ [[@server, ip_port, @nick]]
       end
 
       bloom do

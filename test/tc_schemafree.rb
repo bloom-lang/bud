@@ -11,7 +11,7 @@ class SchemaFree
   end
 
   bloom do
-    notes <= msgs.payloads
+    notes <= msgs.payloads {|p| p.val}
     msgs <~ send_me
   end
 end
