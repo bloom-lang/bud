@@ -143,27 +143,16 @@ class ChannelWithKey
     scratch :kickoff, [:addr, :v1, :v2]
     table :recv, c.key_cols => c.val_cols
     table :ploads
+    table :ploads_blk
+    table :ploads_blk_colnos
   end
 
   bloom do
     c <~ kickoff {|k| [k.addr, k.v1, k.v2]}
     recv <= c
     ploads <= c.payloads
-  end
-end
-
-class ChannelAddrInVal
-  include Bud
-
-  state do
-    channel :c, [:k1] => [:@addr, :v1]
-    scratch :kickoff, [:v1, :addr, :v2]
-    table :recv, c.key_cols => c.val_cols
-  end
-
-  bloom do
-    c <~ kickoff {|k| [k.v1, k.addr, k.v2]}
-    recv <= c
+    ploads_blk <= c.payloads {|m| [m.k1 + 1, m.v1 + 1]}
+    ploads_blk_colnos <= c.payloads {|m| [m[0] + 2, m[1] + 2]}
   end
 end
 
@@ -193,6 +182,8 @@ class TestChannelWithKey < MiniTest::Unit::TestCase
     p2.sync_do {
       assert_equal([[target_addr, 10, 20], [target_addr, 50, 100]], p2.recv.to_a.sort)
       assert_equal([[10, 20], [50, 100]], p2.ploads.to_a.sort)
+      assert_equal([[11, 21], [51, 101]], p2.ploads_blk.to_a.sort)
+      assert_equal([[12, 22], [52, 102]], p2.ploads_blk_colnos.to_a.sort)
     }
 
     # Check that inserting into a channel via <= is rejected
@@ -212,6 +203,21 @@ class TestChannelWithKey < MiniTest::Unit::TestCase
 
     p1.stop
     p2.stop
+  end
+end
+
+class ChannelAddrInVal
+  include Bud
+
+  state do
+    channel :c, [:k1] => [:@addr, :v1]
+    scratch :kickoff, [:v1, :addr, :v2]
+    table :recv, c.key_cols => c.val_cols
+  end
+
+  bloom do
+    c <~ kickoff {|k| [k.v1, k.addr, k.v2]}
+    recv <= c
   end
 end
 

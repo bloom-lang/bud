@@ -6,6 +6,8 @@
   pairs (two-element arrays [x,y]).
 * More consistent behavior for BudCollection#sort when used outside Bloom
   programs
+* Support passing a code block to BudChannel#payloads. Previously a code block
+  was allowed syntactically but wasn't evaluated
 * Restore support for each_with_index() over Bud collections
 * Restore functionality of Zookeeper-backed Bud collections and fix
   incompatibility with recent (> 0.4.4) versions of the Zookeeper gem
