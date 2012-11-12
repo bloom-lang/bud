@@ -111,11 +111,12 @@ class BudMeta #:nodoc: all
 
   def get_qual_name(pt)
     # expect to see a parse tree corresponding to a dotted name
-    #    a.b.c == s(:call, s1,  :c, (:arglist))
-    # where s1 == s(:call, s2,  :b, (:arglist))
-    # where s2 == s(:call, nil, :a, (:arglist))
-    tag, recv, name, args = pt
-    return nil unless tag == :call and args.length == 1
+    #    a.b.c == s(:call, s1,  :c)
+    # where s1 == s(:call, s2,  :b)
+    # where s2 == s(:call, nil, :a)
+    tag, recv, name, *args = pt
+    puts pt.inspect if tag == :call
+    return nil unless tag == :call and args.empty?
 
     if recv
       qn = get_qual_name(recv)
