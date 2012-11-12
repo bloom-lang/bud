@@ -8,18 +8,22 @@ module Source
   # Reads the block corresponding to the location (string of the form
   # "file:line_num").  Returns an ast for the block.
   def Source.read_block(location)
-    raise Bud::IllegalSourceError, "source must be present in a file; cannot read interactive shell or eval block" if location.start_with? '('
+    if location.start_with? '('
+      raise Bud::IllegalSourceError, "source must be present in a file; cannot read interactive shell or eval block"
+    end
     location =~ /^(.*):(\d+)/
     filename, num = $1, $2.to_i
-    raise Bud::IllegalSourceError, "couldn't determine filename from backtrace" if filename.nil?
+    if filename.nil?
+      raise Bud::IllegalSourceError, "couldn't determine filename from backtrace"
+    end
     lines = cache(filename, num)
     # Note: num is 1-based.
 
-    src_asts = [] # array of SrcAsts to be returned
+    src_asts = []   # array of SrcAsts to be returned
     ruby_parser = RubyParser.new
 
-    stmt = ""   # collection of lines that form one complete ruby statement
-    endok = true #
+    stmt = ""       # collection of lines that form one complete Ruby statement
+    endok = true
     ast = nil
     lines[num .. -1].each do |l|
       next if l =~ /^\s*#/
@@ -29,7 +33,7 @@ module Source
         ast = ruby_parser.parse stmt
         endok = true
       rescue => ex
-        #        puts "Syntax Error on #{l}: #{ex}"
+        # puts "Syntax Error on #{l}: #{ex}"
         endok = false
         ast = nil
       end
