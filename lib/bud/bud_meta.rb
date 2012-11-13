@@ -128,23 +128,16 @@ class BudMeta #:nodoc: all
   end
 
   # Perform some basic sanity checks on the AST of a rule block. We expect a
-  # rule block to consist of a :defn, a nested :scope, and then a sequence of
+  # rule block to consist of a :defn whose body consists of a sequence of
   # statements. Each statement is a :call node. Returns nil (no error found), a
   # Sexp (containing an error), or a pair of [Sexp, error message].
   def check_rule_ast(pt)
-    # :defn format: node tag, block name, args, nested scope
-    return pt if pt.sexp_type != :defn
-    scope = pt[3]
-    return pt if scope.sexp_type != :scope
-    block = scope[1]
+    # :defn format: node tag, block name, args, body_0, ..., body_n
+    tag, name, args, *body = pt
+    return pt if tag != :defn
 
-    block.each_with_index do |n,i|
-      if i == 0
-        return pt if n != :block
-        next
-      end
-
-      next if i == 1 and n.sexp_type == :nil # a block got rewritten to an empty block
+    body.each_with_index do |n,i|
+      next if i == 0 and n == s(:nil) # a block got rewritten to an empty block
 
       # Check for a common case
       if n.sexp_type == :lasgn

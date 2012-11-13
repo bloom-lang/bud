@@ -44,12 +44,13 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   def exp_id_type(recv, name, args) # call only if sexp type is :call
-    return $not_id unless args.size == 1
+    return $not_id unless args.empty?
     ty = $not_id
     if recv
       if recv.first == :call
-        # possibly nested reference.
-        rty, rqn, robj = exp_id_type(recv[1], recv[2], recv[3]) # rty, rqn, .. = receiver's type, qual name etc.
+        # possibly nested reference
+        # rty, rqn, .. = receiver's type, qual name etc.
+        rty, rqn, robj = exp_id_type(recv[1], recv[2], recv[3..-1])
         ty = resolve(robj, rqn, name) if rty == :import
       end
     else
@@ -127,7 +128,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   def process_call(exp)
-    recv, op, args = exp
+    recv, op, *args = exp
     if OP_LIST.include?(op) and @context[1] == :block and @context.length == 4
       # NB: context.length is 4 when see a method call at the top-level of a
       # :defn block -- this is where we expect Bloom statements to appear
@@ -154,11 +155,12 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
         @refs_in_body << qn unless @iter_stack.empty?
       #elsif ty == :import .. do nothing
       elsif ty == :not_coll_id
+        puts exp.inspect
         # Check if receiver is a collection, and further if the current exp
         # represents a field lookup
         op_is_field_name = false
         if recv and recv.first == :call
-          rty, _, robj = exp_id_type(recv[1], recv[2], recv[3])
+          rty, _, robj = exp_id_type(recv[1], recv[2], recv[3..-1])
           if rty == :collection
             cols = robj.cols
             op_is_field_name = true if cols and cols.include?(op)
@@ -542,36 +544,29 @@ class TempExpander < SexpProcessor # :nodoc: all
   end
 
   def process_defn(exp)
-    tag, name, args, scope = exp
-    if name.to_s =~ /^__bloom__.+/
-      block = scope[1]
+    tag, name, args, *body = exp
+    return exp unless name.to_s =~ /^__bloom__.+/
 
-      block.each_with_index do |n,i|
-        if i == 0
-          raise Bud::CompileError if n != :block
-          next
-        end
-
-        # temp declarations are misparsed if the RHS contains certain constructs
-        # (e.g., group, "do |f| ... end" rather than "{|f| ... }").  Rewrite to
-        # correct the misparsing.
-        if n.sexp_type == :iter
-          iter_body = n.sexp_body
-          new_n = fix_temp_decl(iter_body)
-          unless new_n.nil?
-            block[i] = n = new_n
-            @did_work = true
-          end
-        end
-
-        _, recv, meth, meth_args = n
-        if meth == KEYWORD and recv.nil?
-          block[i] = rewrite_me(n)
+    body.each_with_index do |n,i|
+      # temp declarations are misparsed if the RHS contains certain constructs
+      # (e.g., group, "do |f| ... end" rather than "{|f| ... }").  Rewrite to
+      # correct the misparsing.
+      if n.sexp_type == :iter
+        iter_body = n.sexp_body
+        new_n = fix_temp_decl(iter_body)
+        unless new_n.nil?
+          block[i] = n = new_n
           @did_work = true
         end
       end
+
+      _, recv, meth, meth_args = n
+      if meth == KEYWORD and recv.nil?
+        block[i] = rewrite_me(n)
+        @did_work = true
+      end
     end
-    s(tag, name, args, scope)
+    s(tag, name, args, *body)
   end
 
   private
