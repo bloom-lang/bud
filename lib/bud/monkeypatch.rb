@@ -140,7 +140,7 @@ class Module
   end
 
   # bloom statements to be registered with Bud runtime.  optional +block_name+ 
-  # allows for multiple bloom blocks per module, and overriding
+  # allows for multiple bloom blocks per module and method overriding
   def bloom(block_name=nil, &block)
     # If no block name was specified, generate a unique name
     if block_name.nil?
@@ -149,7 +149,7 @@ class Module
       @block_id += 1
     else
       unless block_name.class <= Symbol
-        raise Bud::CompileError, "bloom block names must be a symbol: #{block_name}"
+        raise Bud::CompileError, "block name must be a symbol: #{block_name}"
       end
     end
 
@@ -162,15 +162,22 @@ class Module
     # module; this indicates a likely programmer error.
     if instance_methods(false).include?(meth_name) ||
        instance_methods(false).include?(meth_name.to_sym)
-      raise Bud::CompileError, "duplicate named bloom block: '#{block_name}' in #{self}"
+      raise Bud::CompileError, "duplicate block name: '#{block_name}' in #{self}"
     end
     ast = Source.read_block(caller[0]) # pass in caller's location via backtrace
+
     # ast corresponds only to the statements of the block. Wrap it in a method
     # definition for backward compatibility for now.
-    # First wrap ast in a block if it is only a single statement
-    ast = s(:block) if ast.nil?
-    ast = s(:block, ast) unless ast.sexp_type == :block
-    ast = s(:defn, meth_name.to_sym, s(:args), s(:scope, ast))
+
+    # If the block contained multiple statements, the AST will have a top-level
+    # :block node. Since ruby_parser ASTs for metho definitions don't contain
+    # such a node, remove it.
+    if ast.sexp_type == :block
+      ast = ast.sexp_body
+    else
+      ast = [ast]
+    end
+    ast = s(:defn, meth_name.to_sym, s(:args), *ast)
     unless self.respond_to? :__bloom_asts__
       def self.__bloom_asts__
         @__bloom_asts__ ||= {}
