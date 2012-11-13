@@ -32,7 +32,7 @@ class ShortestPaths
     avrg <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)) do |t|
       [t[0], t[1], t[6], t[4], t[5]]
     end
-    avrg2 <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)).rename(:chump, [:from, :to] => [:mincol, :maxcol, :sumcol, :cntcol, :avgcol]).map do |t|
+    avrg2 <= path.group([:from, :to], min(:cost), max(path.cost), sum(:cost), count, avg(:cost)).rename(:chump, [:from, :to] => [:mincol, :maxcol, :sumcol, :cntcol, :avgcol]) do |t|
         [t.from, t.to, t.avgcol, t.sumcol, t.cntcol]
     end
   end
@@ -122,7 +122,7 @@ class RenameGroup
   end
 
   bloom do
-    shoes <= emp.group([:dname], avg(:sal)).rename(:tempo, [:dept] => [:avgsal]).map{|t| t if t.dept == 'shoe'}
+    shoes <= emp.group([:dname], avg(:sal)).rename(:tempo, [:dept] => [:avgsal]) {|t| t if t.dept == 'shoe'}
   end
 end
 
