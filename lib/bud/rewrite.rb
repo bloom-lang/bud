@@ -67,7 +67,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     #         :bar ,
     #         s(:args)))
     # to the string "a.b.bar"
-    raise "Malformed exp: #{exp}" unless (exp[0] == :call)
+    raise Bud::Error, "malformed exp: #{exp}" unless (exp[0] == :call)
     _, recv, op, args = exp
     return recv.nil? ? op.to_s : call_to_id(recv) + "." + op.to_s
   end
@@ -129,8 +129,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
   def process_call(exp)
     recv, op, *args = exp
-    if OP_LIST.include?(op) and @context[1] == :block and @context.length == 4
-      # NB: context.length is 4 when see a method call at the top-level of a
+    if OP_LIST.include?(op) and @context[1] == :defn and @context.length == 2
+      # NB: context.length is 2 when see a method call at the top-level of a
       # :defn block -- this is where we expect Bloom statements to appear
       do_rule(exp)
     elsif op == :notin
@@ -155,7 +155,6 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
         @refs_in_body << qn unless @iter_stack.empty?
       #elsif ty == :import .. do nothing
       elsif ty == :not_coll_id
-        puts exp.inspect
         # Check if receiver is a collection, and further if the current exp
         # represents a field lookup
         op_is_field_name = false
@@ -255,12 +254,6 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     lhs = process exp[0]
     op = exp[1]
     rhs_ast = map2pro(exp[2])
-
-    # Remove the outer s(:args) from the rhs AST. An AST subtree rooted with
-    # s(:args) is not really sensible and it causes Ruby2Ruby < 1.3.1 to
-    # misbehave (for example, s(:args, s(:hash, ...)) is misparsed.
-    raise Bud::CompileError unless rhs_ast.sexp_type == :args
-    rhs_ast = rhs_ast[1]
 
     rhs_ast = RenameRewriter.new(@bud_instance).process(rhs_ast)
     rhs_ast = LatticeRefRewriter.new(@bud_instance).process(rhs_ast)
@@ -413,7 +406,7 @@ class LatticeRefRewriter < SexpProcessor
   def process_call(exp)
     tag, recv, op, args = exp
 
-    if recv.nil? and args == s(:arglist) and is_lattice?(op) and @elem_stack.size > 0
+    if recv.nil? and args == s(:args) and is_lattice?(op) and @elem_stack.size > 0
       return s(:call, exp, :current_value, s(:args))
     else
       return s(tag, process(recv), op, process(args))
@@ -555,14 +548,14 @@ class TempExpander < SexpProcessor # :nodoc: all
         iter_body = n.sexp_body
         new_n = fix_temp_decl(iter_body)
         unless new_n.nil?
-          block[i] = n = new_n
+          body[i] = n = new_n
           @did_work = true
         end
       end
 
       _, recv, meth, meth_args = n
       if meth == KEYWORD and recv.nil?
-        block[i] = rewrite_me(n)
+        body[i] = rewrite_me(n)
         @did_work = true
       end
     end
@@ -590,18 +583,18 @@ class TempExpander < SexpProcessor # :nodoc: all
   end
 
   def rewrite_me(exp)
-    _, recv, meth, args = exp
+    _, recv, meth, *args = exp
 
     raise Bud::CompileError unless recv == nil
-    nest_call = args.sexp_body.first
+    nest_call = args.first
     raise Bud::CompileError unless nest_call.sexp_type == :call
 
-    nest_recv, nest_op, nest_args = nest_call.sexp_body
+    nest_recv, nest_op, *nest_args = nest_call.sexp_body
     raise Bud::CompileError unless nest_recv.sexp_type == :lit
 
     tmp_name = nest_recv.sexp_body.first
     @tmp_tables << tmp_name
     new_recv = s(:call, nil, tmp_name, s(:args))
-    return s(:call, new_recv, nest_op, nest_args)
+    return s(:call, new_recv, nest_op, *nest_args)
   end
 end

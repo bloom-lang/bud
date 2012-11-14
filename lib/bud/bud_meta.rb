@@ -115,7 +115,6 @@ class BudMeta #:nodoc: all
     # where s1 == s(:call, s2,  :b)
     # where s2 == s(:call, nil, :a)
     tag, recv, name, *args = pt
-    puts pt.inspect if tag == :call
     return nil unless tag == :call and args.empty?
 
     if recv
