@@ -165,13 +165,11 @@ class BudMeta #:nodoc: all
       # XXX: We don't check for illegal superators (e.g., "<--"). That would be
       # tricky, because they are encoded as a nested unary op in the rule body.
       if op == :<
-        return n unless rhs.sexp_type == :arglist
-        body = rhs[1]
-        return n unless body.sexp_type == :call
-        op_tail = body[2]
+        return n unless rhs.sexp_type == :call
+        op_tail = rhs[2]
         return n unless [:~, :-@, :+@].include? op_tail
-        rhs_args = body[3]
-        return n if rhs_args.sexp_type != :arglist or rhs_args.length != 1
+        rhs_args = rhs[3..-1]
+        return n unless rhs_args.empty?
       end
     end
 

@@ -331,7 +331,8 @@ class RenameRewriter < SexpProcessor
     tag, recv, op, *args = exp
 
     if op == :rename
-      _, namelit, schemahash = args
+      raise Bud::CompileError, "reduce takes two arguments" unless args.size == 2
+      namelit, schemahash = args
       register_scratch(namelit[1], schemahash)
     end
 
