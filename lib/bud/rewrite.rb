@@ -68,7 +68,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     #         s(:args)))
     # to the string "a.b.bar"
     raise Bud::Error, "malformed exp: #{exp}" unless (exp[0] == :call)
-    _, recv, op, args = exp
+    _, recv, op = exp
     return recv.nil? ? op.to_s : call_to_id(recv) + "." + op.to_s
   end
 
@@ -84,7 +84,6 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def process_iter(exp)
     iter = process exp.shift
     args = exp.shift
-    args = (args == 0) ? '' : process(args)
 
     @iter_stack.push(true)
     body = exp.empty? ? nil : process(exp.shift)
@@ -94,6 +93,15 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   def do_process_iter(iter, args, body)
+    args = case args
+           when 0 then
+             " ||"
+           else
+             a = process(args)[1..-2]
+             a = " |#{a}|" unless a.empty?
+             a
+           end
+
     b, e = if iter == "END" then
              [ "{", "}" ]
            else
@@ -105,7 +113,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     # REFACTOR: ugh
     result = []
     result << "#{iter} {"
-    result << " |#{args}|" if args
+    result << args
     if body then
       result << " #{body.strip} "
     else
@@ -117,7 +125,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
     result = []
     result << "#{iter} #{b}"
-    result << " |#{args}|" if args
+    result << args
     result << "\n"
     if body then
       result << indent(body.strip)
@@ -320,14 +328,14 @@ class RenameRewriter < SexpProcessor
   end
 
   def process_call(exp)
-    call, recv, op, args = exp
+    tag, recv, op, *args = exp
 
     if op == :rename
-      arglist, namelit, schemahash = args
+      _, namelit, schemahash = args
       register_scratch(namelit[1], schemahash)
     end
 
-    return s(call, process(recv), op, process(args))
+    return s(tag, process(recv), op, *(args.map{|a| process(a)}))
   end
 end
 
@@ -346,7 +354,7 @@ class UnsafeFuncRewriter < SexpProcessor
   end
 
   def process_call(exp)
-    tag, recv, op, args = exp
+    tag, recv, op, *args = exp
 
     # We assume that unsafe funcs have a nil receiver (Bud instance is implicit
     # receiver).
@@ -354,7 +362,7 @@ class UnsafeFuncRewriter < SexpProcessor
       @unsafe_func_called = true unless RuleRewriter.is_monotone(op)
     end
 
-    return s(tag, process(recv), op, process(args))
+    return s(tag, process(recv), op, *(args.map{|a| process(a)}))
   end
 
   def process_iter(exp)
@@ -404,12 +412,12 @@ class LatticeRefRewriter < SexpProcessor
   end
 
   def process_call(exp)
-    tag, recv, op, args = exp
+    tag, recv, op, *args = exp
 
     if recv.nil? and args == s(:args) and is_lattice?(op) and @elem_stack.size > 0
       return s(:call, exp, :current_value, s(:args))
     else
-      return s(tag, process(recv), op, process(args))
+      return s(tag, process(recv), op, *(args.map{|a| process(a)}))
     end
   end
 
@@ -480,7 +488,7 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
         end
       end
     end
-    (1..(exp.length-1)).each {|i| exp[i] = process(exp[i])}
+    (1..-1).each {|i| exp[i] = process(exp[i])}
     exp
   end
 
@@ -496,7 +504,7 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
   end
 
   def process_call(exp)
-    call, recv, op, args = exp
+    call, recv, op, *args = exp
 
     if recv and recv.class == Sexp and recv.first == :lvar and recv[1] and @iterhash[recv[1]]
       if @bud_instance.respond_to?(@iterhash[recv[1]])
@@ -507,14 +515,14 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
             col = cols.index(op) unless cols.nil?
             unless col.nil?
               op = :[]
-              args = s(:args, s(:lit, col))
+              args = [s(:args, s(:lit, col))]
             end
           end
         end
-        return s(call, recv, op, args)
+        return s(call, recv, op, *args)
       end
     end
-    return s(call, process(recv), op, process(args))
+    return s(call, process(recv), op, *(args.map{|a| process(a)}))
   end
 end
 
