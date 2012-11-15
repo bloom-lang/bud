@@ -63,9 +63,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def call_to_id(exp)
     # convert a series of nested calls, a sexp of the form
     #   s(:call,
-    #       s(:call, s(:call, nil, :a, s(:args)), :b, s(:args)),
-    #         :bar ,
-    #         s(:args)))
+    #       s(:call, s(:call, nil, :a), :b),
+    #         :bar))
     # to the string "a.b.bar"
     raise Bud::Error, "malformed exp: #{exp}" unless (exp[0] == :call)
     _, recv, op = exp
@@ -207,12 +206,12 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   def lambda_rewrite(rhs)
     # the <= case
     if is_coll_literal(rhs[0])
-      return s(:iter, s(:call, nil, :lambda, s(:args)), nil, rhs)
+      return s(:iter, s(:call, nil, :lambda), s(:args), rhs)
     # the superator case
     elsif rhs[0] == :call \
       and rhs[1] and rhs[1][0] and is_coll_literal(rhs[1][0]) \
       and rhs[2] and (rhs[2] == :+@ or rhs[2] == :-@ or rhs[2] == :~@)
-      return s(rhs[0], s(:iter, s(:call, nil, :lambda, s(:args)), nil, rhs[1]), rhs[2], rhs[3])
+      return s(rhs[0], s(:iter, s(:call, nil, :lambda), s(:args), rhs[1]), rhs[2], rhs[3])
     else
       return rhs
     end
@@ -415,8 +414,8 @@ class LatticeRefRewriter < SexpProcessor
   def process_call(exp)
     tag, recv, op, *args = exp
 
-    if recv.nil? and args == s(:args) and is_lattice?(op) and @elem_stack.size > 0
-      return s(:call, exp, :current_value, s(:args))
+    if recv.nil? and args.empty? and is_lattice?(op) and @elem_stack.size > 0
+      return s(:call, exp, :current_value)
     else
       return s(tag, process(recv), op, *(args.map{|a| process(a)}))
     end
@@ -603,7 +602,7 @@ class TempExpander < SexpProcessor # :nodoc: all
 
     tmp_name = nest_recv.sexp_body.first
     @tmp_tables << tmp_name
-    new_recv = s(:call, nil, tmp_name, s(:args))
+    new_recv = s(:call, nil, tmp_name)
     return s(:call, new_recv, nest_op, *nest_args)
   end
 end
