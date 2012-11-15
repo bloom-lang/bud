@@ -458,7 +458,7 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
       # now find iter vars and match up
       if exp[2][0] == :args and @collnames.size == 1 # single-table iter
         if @iterhash[exp[2][1]]
-          raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed"
+          raise Bud::CompileError, "redefinition of block variable \"#{exp[2][1]}\" not allowed"
         end
 
         # XXX: The BudChannel#payloads method assigns the correct schema to
@@ -481,7 +481,10 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
           @iterhash[exp[2][1]] = @collnames[0]
         else
           # join
-          raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
+          if @iterhash[exp[2][1]]
+            raise Bud::CompileError, "redefinition of block variable \"#{exp[2][1]}\" not allowed"
+          end
+
           @collnames.each_with_index do |c,i|
             next unless exp[2][i+1]
             @iterhash[exp[2][i+1]] = c

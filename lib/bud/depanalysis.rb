@@ -36,7 +36,7 @@ class DepAnalysis #:nodoc: all
 
     cycle <= depends_tc do |d|
       if d.lhs == d.body
-        unless  d.neg and !d.temporal
+        unless d.neg and !d.temporal
           [d.lhs, d.via, d.neg, d.temporal]
         end
       end
@@ -60,11 +60,10 @@ class DepAnalysis #:nodoc: all
           [p.pred, true]
         end
       else
-        unless depends_tc.map{|d| d.lhs if d.lhs != d.body}.include? p.pred
+        unless depends_tc.map{|dt| dt.lhs if dt.lhs != dt.body}.include? p.pred
           [p.pred, false]
         end
       end
     end
   end
 end
-
