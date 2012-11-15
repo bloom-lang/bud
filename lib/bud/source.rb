@@ -1,8 +1,4 @@
 require 'rubygems'
-
-gem 'ruby_parser', '3.0.1'
-#gem 'ruby_parser', '2.3.1'
-
 require 'ruby_parser'
 require 'bud/errors'
 
