@@ -66,7 +66,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     #       s(:call, s(:call, nil, :a), :b),
     #         :bar))
     # to the string "a.b.bar"
-    raise Bud::Error, "malformed exp: #{exp}" unless (exp[0] == :call)
+    raise Bud::CompileError, "malformed exp: #{exp}" unless exp.sexp_type == :call
     _, recv, op = exp
     return recv.nil? ? op.to_s : call_to_id(recv) + "." + op.to_s
   end
@@ -144,7 +144,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       # Special case. In the rule "z <= x.notin(y)", z depends positively on x,
       # but negatively on y. See further explanation in the "else" section for
       # why this is a special case.
-      notintab = call_to_id(args[1])   # args expected to be of the form (:args (:call nil :y ...))
+      notintab = call_to_id(args[0])   # args expected to be of the form (:call nil :y ...)
       @tables[notintab.to_s] = true    # "true" denotes non-monotonic dependency
       super
     else
@@ -582,16 +582,12 @@ class TempExpander < SexpProcessor # :nodoc: all
   def fix_temp_decl(iter_body)
     if iter_body.first.sexp_type == :call
       call_node = iter_body.first
+      _, recv, meth, *meth_args = call_node
 
-      _, recv, meth, meth_args = call_node
       if meth == KEYWORD and recv.nil?
-        _, lhs, op, rhs = meth_args.sexp_body.first
-
-        old_rhs_body = rhs.sexp_body
-        new_rhs_body = [:iter]
-        new_rhs_body += old_rhs_body
-        new_rhs_body += iter_body[1..-1]
-        rhs[1] = Sexp.from_array(new_rhs_body)
+        _, lhs, op, rhs = meth_args.first
+        new_rhs = s(:iter, rhs, *(iter_body[1..-1]))
+        meth_args.first[3] = new_rhs
         return call_node
       end
     end
@@ -601,7 +597,7 @@ class TempExpander < SexpProcessor # :nodoc: all
   def rewrite_me(exp)
     _, recv, meth, *args = exp
 
-    raise Bud::CompileError unless recv == nil
+    raise Bud::CompileError unless recv.nil?
     nest_call = args.first
     raise Bud::CompileError unless nest_call.sexp_type == :call
 
