@@ -111,11 +111,11 @@ class BudMeta #:nodoc: all
 
   def get_qual_name(pt)
     # expect to see a parse tree corresponding to a dotted name
-    #    a.b.c == s(:call, s1,  :c, (:arglist))
-    # where s1 == s(:call, s2,  :b, (:arglist))
-    # where s2 == s(:call, nil, :a, (:arglist))
-    tag, recv, name, args = pt
-    return nil unless tag == :call and args.length == 1
+    #    a.b.c == s(:call, s1,  :c)
+    # where s1 == s(:call, s2,  :b)
+    # where s2 == s(:call, nil, :a)
+    tag, recv, name, *args = pt
+    return nil unless tag == :call and args.empty?
 
     if recv
       qn = get_qual_name(recv)
@@ -127,23 +127,16 @@ class BudMeta #:nodoc: all
   end
 
   # Perform some basic sanity checks on the AST of a rule block. We expect a
-  # rule block to consist of a :defn, a nested :scope, and then a sequence of
+  # rule block to consist of a :defn whose body consists of a sequence of
   # statements. Each statement is a :call node. Returns nil (no error found), a
   # Sexp (containing an error), or a pair of [Sexp, error message].
   def check_rule_ast(pt)
-    # :defn format: node tag, block name, args, nested scope
-    return pt if pt.sexp_type != :defn
-    scope = pt[3]
-    return pt if scope.sexp_type != :scope
-    block = scope[1]
+    # :defn format: node tag, block name, args, body_0, ..., body_n
+    tag, name, args, *body = pt
+    return pt if tag != :defn
 
-    block.each_with_index do |n,i|
-      if i == 0
-        return pt if n != :block
-        next
-      end
-
-      next if i == 1 and n.sexp_type == :nil # a block got rewritten to an empty block
+    body.each_with_index do |n,i|
+      next if i == 0 and n == s(:nil) # a block got rewritten to an empty block
 
       # Check for a common case
       if n.sexp_type == :lasgn
@@ -172,13 +165,11 @@ class BudMeta #:nodoc: all
       # XXX: We don't check for illegal superators (e.g., "<--"). That would be
       # tricky, because they are encoded as a nested unary op in the rule body.
       if op == :<
-        return n unless rhs.sexp_type == :arglist
-        body = rhs[1]
-        return n unless body.sexp_type == :call
-        op_tail = body[2]
+        return n unless rhs.sexp_type == :call
+        op_tail = rhs[2]
         return n unless [:~, :-@, :+@].include? op_tail
-        rhs_args = body[3]
-        return n if rhs_args.sexp_type != :arglist or rhs_args.length != 1
+        rhs_args = rhs[3..-1]
+        return n unless rhs_args.empty?
       end
     end
 

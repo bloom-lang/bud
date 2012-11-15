@@ -19,24 +19,23 @@ module Source
     lines = cache(filename, num)
     # Note: num is 1-based.
 
-    src_asts = []   # array of SrcAsts to be returned
     ruby_parser = RubyParser.new
-
     stmt = ""       # collection of lines that form one complete Ruby statement
-    endok = true
     ast = nil
     lines[num .. -1].each do |l|
       next if l =~ /^\s*#/
-      break if endok and l =~ /^\s*([}]|end)/
-      stmt += l + "\n"
-      begin
-        ast = ruby_parser.parse stmt
-        endok = true
-      rescue => ex
-        # puts "Syntax Error on #{l}: #{ex}"
-        endok = false
-        ast = nil
+      if l =~ /^\s*([}]|end)/
+        # We found some syntax that looks like it might terminate the Ruby
+        # statement. Hence, try to parse it; if we don't find a syntax error,
+        # we're done.
+        begin
+          ast = ruby_parser.parse stmt
+          break
+        rescue
+          ast = nil
+        end
       end
+      stmt += l + "\n"
     end
     ast
   end

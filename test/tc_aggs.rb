@@ -113,6 +113,8 @@ class RenameGroup
   state do
     table :emp, [:ename, :dname] => [:sal]
     table :shoes, [:dname] => [:usualsal]
+    table :shoes2, shoes.schema
+    table :next_shoes, shoes.schema
   end
 
   bootstrap do
@@ -122,7 +124,9 @@ class RenameGroup
   end
 
   bloom do
-    shoes <= emp.group([:dname], avg(:sal)).rename(:tempo, [:dept] => [:avgsal]) {|t| t if t.dept == 'shoe'}
+    shoes <= emp.group([:dname], avg(:sal)).rename(:tempo, [:dept] => [:avgsal]).map {|t| t if t.dept == 'shoe'}
+    shoes2 <= emp.group([:dname], avg(:sal)).rename(:tempo2, [:dept] => [:avgsal]) {|t| t if t.dept == 'shoe'}
+    next_shoes <+ emp.group([:dname], avg(:sal)).rename(:tempo3, [:dept] => [:avgsal]).map {|t| t if t.dept == 'shoe'}
   end
 end
 
@@ -283,6 +287,12 @@ class TestAggs < MiniTest::Unit::TestCase
     program = RenameGroup.new
     program.tick
     assert_equal([["shoe", 10.5]], program.shoes.to_a)
+    assert_equal([], program.next_shoes.to_a)
+    assert_equal([["shoe", 10.5]], program.shoes2.to_a)
+    program.tick
+    assert_equal([["shoe", 10.5]], program.shoes.to_a)
+    assert_equal([["shoe", 10.5]], program.next_shoes.to_a)
+    assert_equal([["shoe", 10.5]], program.shoes2.to_a)
   end
 
   def test_join_agg

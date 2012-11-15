@@ -1,6 +1,9 @@
 == 0.9.5 / ???
 
 * Lattice branch (Bloom^L) merged
+* Compatibility with recent versions of ruby_parser (3.0.1+) and ruby2ruby
+  (2.0.1+). Older versions of these two gems are no longer supported
+* Optimize parsing of Bloom statements, particularly for large Bloom programs
 * Implement support for aggregate functions that take multiple input columns
 * Add built-in aggregate function accum_pair(x, y), which produces a Set of
   pairs (two-element arrays [x,y]).
