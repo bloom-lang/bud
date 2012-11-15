@@ -258,10 +258,10 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   def do_rule(exp)
-    lhs = process exp[0]
-    op = exp[1]
-    rhs_ast = map2pro(exp[2])
+    lhs, op, rhs_ast = exp
+    lhs = process(lhs)
 
+    rhs_ast = MapRewriter.new.process(rhs_ast)
     rhs_ast = RenameRewriter.new(@bud_instance).process(rhs_ast)
     rhs_ast = LatticeRefRewriter.new(@bud_instance).process(rhs_ast)
     ufr = UnsafeFuncRewriter.new
@@ -282,28 +282,30 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     drain(exp)
   end
 
-  # We want to rewrite "map" calls on BudCollections to "pro" calls. It is hard
-  # to do this precisely (issue #225), so we just replace map calls liberally
-  # and define Enumerable#pro as an alias for "map".
-  def map2pro(exp)
-    # the non-superator case
-    if exp[1] and exp[1][0] and exp[1][0] == :iter \
-      and exp[1][1] and exp[1][1][1] and exp[1][1][1][0] == :call
-      if exp[1][1][2] == :map
-        exp[1][1][2] = :pro
-      end
-    # the superator case
-    elsif exp[1] and exp[1][0] == :call and (exp[1][2] == :~@ or exp[1][2] == :+@ or exp[1][2] == :-@)
-      if exp[1][1] and exp[1][1][1] and exp[1][1][1][2] == :map
-        exp[1][1][1][2] = :pro
-      end
-    end
-    exp
-  end
-
   def drain(exp)
     exp.shift until exp.empty?
     return ""
+  end
+end
+
+# We want to rewrite "map" calls on BudCollections to "pro" calls. It is hard
+# to do this precisely (issue #225), so we just replace map calls liberally
+# and define Enumerable#pro as an alias for "map".
+class MapRewriter < SexpProcessor
+  def initialize
+    super
+    self.require_empty = false
+    self.expected = Sexp
+  end
+
+  def process_call(exp)
+    tag, recv, op, *args = exp
+
+    if op == :map and args.empty?
+      op = :pro
+    end
+
+    s(tag, process(recv), op, *(args.map{|a| process(a)}))
   end
 end
 
