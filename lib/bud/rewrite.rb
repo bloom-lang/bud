@@ -211,7 +211,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     elsif rhs[0] == :call \
       and rhs[1] and rhs[1][0] and is_coll_literal(rhs[1][0]) \
       and rhs[2] and (rhs[2] == :+@ or rhs[2] == :-@ or rhs[2] == :~@)
-      return s(rhs[0], s(:iter, s(:call, nil, :lambda), s(:args), rhs[1]), rhs[2], rhs[3])
+      return s(rhs[0], s(:iter, s(:call, nil, :lambda), s(:args), rhs[1]), rhs[2], *rhs[3..-1])
     else
       return rhs
     end

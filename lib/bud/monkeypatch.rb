@@ -170,9 +170,11 @@ class Module
     # definition for backward compatibility for now.
 
     # If the block contained multiple statements, the AST will have a top-level
-    # :block node. Since ruby_parser ASTs for metho definitions don't contain
+    # :block node. Since ruby_parser ASTs for method definitions don't contain
     # such a node, remove it.
-    if ast.sexp_type == :block
+    if ast.nil?
+      ast = []
+    elsif ast.sexp_type == :block
       ast = ast.sexp_body
     else
       ast = [ast]
