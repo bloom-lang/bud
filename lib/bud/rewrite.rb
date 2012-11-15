@@ -449,10 +449,12 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
   # iter vars
   def process_iter(exp)
     if exp[1] and exp[1][0] == :call
+      return exp unless exp[2]
       gather_collection_names(exp[1])
+      meth_name = exp[1][2]
 
       # now find iter vars and match up
-      if exp[2] and exp[2][0] == :lasgn and @collnames.size == 1 #single-table iter
+      if exp[2][0] == :args and @collnames.size == 1 # single-table iter
         if @iterhash[exp[2][1]]
           raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed"
         end
@@ -461,61 +463,65 @@ class AttrNameRewriter < SexpProcessor # :nodoc: all
         # tuples that pass through it (i.e., it omits the location specifier);
         # hence we don't want to apply the location rewrite to the code block
         # that is passed to payloads(). This is a dirty hack.
-        unless exp[1][2] == :payloads
+        unless meth_name == :payloads
           @iterhash[exp[2][1]] = @collnames[0]
         end
-      elsif exp[2] and exp[2][0] == :lasgn and @collnames.size > 1 and exp[1] # join iter with lefts/rights
-        case exp[1][2]
+      elsif exp[2][0] == :args and not @collnames.empty? # join iter with lefts/rights
+        case meth_name
         when :lefts
           @iterhash[exp[2][1]] = @collnames[0]
         when :rights
           @iterhash[exp[2][1]] = @collnames[1]
-        else
-          raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
-        end
-      elsif exp[2] and exp[2][0] == :masgn and not @collnames.empty? # join or reduce iter
-        return unless exp[2][1] and exp[2][1][0] == :array
-        if exp[1][2] == :reduce
+        when :reduce
           unless @collnames.length == 1
-            raise Bud::Error, "reduce should only have one associated collection, but has #{@collnames.inspect}"
+            raise Bud::CompileError, "reduce should only have one associated collection, but has #{@collnames.inspect}"
           end
-          @iterhash[exp[2][1][2][1]] = @collnames.first
-        else #join
-          @collnames.each_with_index do |c, i|
-            next unless exp[2][1][i+1] and exp[2][1][i+1][0] == :lasgn
-            @iterhash[exp[2][1][i+1][1]] = c
+          @iterhash[exp[2][1]] = @collnames[0]
+        else
+          # join
+          raise Bud::CompileError, "nested redefinition of block variable \"#{exp[2][1]}\" not allowed" if @iterhash[exp[2][1]]
+          @collnames.each_with_index do |c,i|
+            next unless exp[2][i+1]
+            @iterhash[exp[2][i+1]] = c
           end
         end
       end
     end
-    (1..-1).each {|i| exp[i] = process(exp[i])}
+    (1..(exp.length-1)).each {|i| exp[i] = process(exp[i])}
     exp
   end
 
   def gather_collection_names(exp)
-    if exp[0] == :call and exp[1].nil?
+    # We expect a reference to a collection name to look like a function call
+    # (nil receiver) with no arguments.
+    if exp.sexp_type == :call and exp[1].nil? and exp.length == 3
       @collnames << exp[2]
-    elsif exp[2] and exp[2] == :rename
-      arglist, namelit, schemahash = exp[3]
+    elsif exp.sexp_type == :call and exp[2] == :rename
+      namelit = exp[3]
       @collnames << namelit[1]
+    elsif exp.sexp_type == :call and [:group, :argagg].include?(exp[2])
+      # For grouping and argagg expressions, only look at the receiver (the
+      # collection we're grouping on); otherwise, we might mistakenly think some
+      # of the arguments to the grouping operation are collection names.
+      gather_collection_names(exp[1])
     else
-      exp.each { |e| gather_collection_names(e) if e and e.class <= Sexp }
+      exp.each { |e| gather_collection_names(e) if e.class <= Sexp }
     end
   end
 
   def process_call(exp)
     call, recv, op, *args = exp
 
-    if recv and recv.class == Sexp and recv.first == :lvar and recv[1] and @iterhash[recv[1]]
+    if recv.class == Sexp and recv.sexp_type == :lvar and @iterhash[recv[1]]
       if @bud_instance.respond_to?(@iterhash[recv[1]])
         if @bud_instance.send(@iterhash[recv[1]]).class <= Bud::BudCollection
           cols = @bud_instance.send(@iterhash[recv[1]]).cols
           if op != :[] and @bud_instance.send(@iterhash[recv[1]]).respond_to?(op)
-            # if the op is an attribute name in the schema, col is its index
-            col = cols.index(op) unless cols.nil?
-            unless col.nil?
+            # if the op is an attribute name in the schema, col_idx is its index
+            col_idx = cols.index(op) unless cols.nil?
+            unless col_idx.nil?
               op = :[]
-              args = [s(:args, s(:lit, col))]
+              args = [s(:lit, col_idx)]
             end
           end
         end
