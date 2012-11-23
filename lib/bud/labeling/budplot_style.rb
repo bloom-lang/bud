@@ -4,7 +4,7 @@ module PDG
   include GuardedAsync
   # a bloomgraph program that plots a NM-and-async-aware PDG
   state do
-    scratch :bodies, [:table] => [:type]
+    scratch :bodies, [:table] => [:tbl_type]
     scratch :source, [:pred]
     scratch :sink, [:pred]
   end
@@ -14,7 +14,7 @@ module PDG
     bodies <= dep{|d| [d.head, coll_type(d.head)]}
 
     bnode <= bodies do |b| 
-      shape = case b.type
+      shape = case b.tbl_type
         when Bud::BudTable then "rectangle"
         when Bud::LatticeWrapper then "triangle"
         else "oval"
