@@ -159,7 +159,7 @@ module Bud
       when :input then true
       when :output then false
     else
-      raise "unrecognized interface type #{direction}"
+      raise Bud::CompileError, "unrecognized interface type #{direction}"
     end
     collections.each do |tab|
       t_provides << [tab.to_s, mode]
