@@ -1,5 +1,4 @@
 require 'bud/executor/elements'
-require 'set'
 
 $EMPTY = []
 module Bud

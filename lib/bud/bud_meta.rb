@@ -1,6 +1,5 @@
 require 'bud/rewrite'
 
-
 class BudMeta #:nodoc: all
   def initialize(bud_instance, declarations)
     @bud_instance = bud_instance

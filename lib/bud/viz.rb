@@ -1,5 +1,4 @@
 require 'bud/state'
-require 'set'
 
 class VizOnline #:nodoc: all
   attr_reader :logtab

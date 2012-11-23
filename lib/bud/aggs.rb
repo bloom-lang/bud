@@ -1,5 +1,3 @@
-require 'set'
-
 module Bud
   ######## Agg definitions
   class Agg #:nodoc: all

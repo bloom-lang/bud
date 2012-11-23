@@ -1,4 +1,3 @@
-require 'set'
 require 'bud/executor/elements'
 
 class Bud::Lattice

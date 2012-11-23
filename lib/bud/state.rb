@@ -1,5 +1,3 @@
-require 'set'
-
 module Bud
   ######## methods for registering collection types
   private

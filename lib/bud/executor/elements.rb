@@ -1,4 +1,3 @@
-require 'set'
 require 'bud/collections'
 
 module Bud

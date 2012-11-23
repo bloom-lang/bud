@@ -1,5 +1,3 @@
-require 'msgpack'
-
 $struct_classes = {}
 module Bud
   ########

@@ -1,5 +1,4 @@
 require 'bud/executor/elements'
-require 'set'
 
 module Bud
   class PushGroup < PushStatefulElement

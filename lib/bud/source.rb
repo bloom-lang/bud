@@ -1,6 +1,4 @@
 require 'rubygems'
-require 'ruby_parser'
-require 'bud/errors'
 
 module Source
   $cached_file_info = Struct.new(:curr_file, :lines, :last_state_bloom_line).new

@@ -1,6 +1,4 @@
 require 'rubygems'
-require 'ruby2ruby'
-require 'set'
 
 class RuleRewriter < Ruby2Ruby # :nodoc: all
   attr_accessor :rule_indx, :rules, :depends

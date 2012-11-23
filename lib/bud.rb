@@ -1,16 +1,25 @@
 require 'rubygems'
+gem 'ruby2ruby', '>= 2.0.1'
+gem 'ruby_parser', '>= 3.0.2'
+
 require 'eventmachine'
 require 'msgpack'
+require 'ruby2ruby'
+require 'ruby_parser'
+require 'set'
 require 'socket'
 require 'superators19'
 require 'thread'
-require 'bud/errors'
 
+require 'bud/errors'
 require 'bud/monkeypatch'
 
 require 'bud/aggs'
 require 'bud/bud_meta'
 require 'bud/collections'
+require 'bud/executor/elements.rb'
+require 'bud/executor/group.rb'
+require 'bud/executor/join.rb'
 require 'bud/lattice-core'
 require 'bud/lattice-lib'
 require 'bud/metrics'
@@ -20,10 +29,6 @@ require 'bud/state'
 require 'bud/storage/dbm'
 require 'bud/storage/zookeeper'
 require 'bud/viz'
-
-require 'bud/executor/elements.rb'
-require 'bud/executor/group.rb'
-require 'bud/executor/join.rb'
 
 ILLEGAL_INSTANCE_ID = -1
 SIGNAL_CHECK_PERIOD = 0.2
