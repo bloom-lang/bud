@@ -67,13 +67,12 @@ module TestNestMod
   bloom do
     tnm.i1 <= inn1
     tnm.i2 <= inn2
-    outt <= tnm.response 
+    outt <= tnm.response
   end
 end
 
-# ``unguarded asynchrony'' is a hidden source of nondeterminism in otherwise monotonic bloom programs.
-#
-
+# ``unguarded asynchrony'' is a hidden source of nondeterminism in otherwise
+# monotonic bloom programs.
 module JoinProto
   state do
     interface input, :ileft
@@ -181,48 +180,44 @@ class TestBlazes < MiniTest::Unit::TestCase
     r = RolledUp.new
     r.tick
     report = r.validate
-
-
-    assert((report.map{|r| r.to_a.last}.include? ["D"]), "flow not reported as divergent : #{report}")
+    assert(report.map{|r| r.to_a.last}.include?(["D"]), "flow not reported as divergent : #{report}")
   end
 
   def test_label2
     r = RollGroup.new
     r.tick
     report = r.validate
-    assert((report.map{|r| r.to_a.last}.include? ["D"]), "flow not reported as divergent")
+    assert(report.map{|r| r.to_a.last}.include?(["D"]), "flow not reported as divergent")
   end
-  
+
   def test_mono
     r = RollupMono.new
     r.tick
     report = r.validate
-    assert(!(report.map{|r| r.to_a.last}.include? ["D"]), "flow not reported as confluent: #{report}")
+    assert(!report.map{|r| r.to_a.last}.include?(["D"]), "flow not reported as confluent: #{report}")
   end
-  
+
   def test_deletion
     r = RollDels.new
     r.tick
     report = r.validate
     reps = report.map{|r| [r[0], r[1], r.last]}
-
-    assert((reps.include? ["dguard", "response", ["D"]]), "deletion path nor marked D")
-    assert((reps.include? ["i2", "response", ["D"]]), "main path nor marked D #{reps}")
+    assert(reps.include?(["dguard", "response", ["D"]]), "deletion path nor marked D")
+    assert(reps.include?(["i2", "response", ["D"]]), "main path nor marked D #{reps}")
   end
 
   def test_nesting
     r = RollNest.new
     r.tick
     report = r.validate
-
-    assert((report.map{|r| r.to_a.last}.include? ["D"]), "flow not reported as divergent : #{report}")
+    assert(report.map{|r| r.to_a.last}.include?(["D"]), "flow not reported as divergent : #{report}")
   end
 
   def test_unguarded
     h = RollHG.new
     h.tick
     report = h.validate
-    assert((report.map{|r| r.to_a.last}.include? ["D"]), "flow not reported as divergent : #{report}")
+    assert(report.map{|r| r.to_a.last}.include?(["D"]), "flow not reported as divergent : #{report}")
   end
 
   def test_labeler1
@@ -242,14 +237,10 @@ class TestBlazes < MiniTest::Unit::TestCase
     assert_equal({"response" => "A"}, l.output_report)
     assert_equal({"response" => {"i1" => "A", "i2" => "A"}}, l.path_report)
   end
-
-
 end
 
 
-
-# tests covering just the GA part
-
+# Tests covering just the GA part
 module Extry
   include Bud
   include GuardedAsync
