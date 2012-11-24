@@ -1,4 +1,6 @@
-== 0.9.5 / ???
+== 0.9.6 / ???
+
+== 0.9.5 / 2012-11-24
 
 * Lattice branch (Bloom^L) merged
 * Compatibility with recent versions of ruby_parser (3.0.2+) and ruby2ruby
