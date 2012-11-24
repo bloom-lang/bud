@@ -203,6 +203,7 @@ end
 
 class Label
   attr_reader :f
+
   def initialize(mod)
     @report = nil
     @mod = Object.const_get(mod)
