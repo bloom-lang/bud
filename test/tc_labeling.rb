@@ -272,18 +272,24 @@ class TestBlazes < MiniTest::Unit::TestCase
   def test_bug
     c = BugC.new
     c.tick
-    assert_equal([["rchan", "lchan", "result", false], ["lchan", "rchan", "result", false]], c.rem_race.map{|r| r.to_a})
+    assert_equal([["rchan", "lchan", "result", false],
+                  ["lchan", "rchan", "result", false]].to_set,
+                 c.rem_race.map{|r| r.to_a}.to_set)
   end
 
   def test_hg
     c = HalfGuardC.new
     c.tick
-    assert_equal([["rchan", "lchan", "result", false], ["lchan", "rchan", "result", false]], c.rem_race.map{|r| r.to_a})
+    assert_equal([["rchan", "lchan", "result", false],
+                  ["lchan", "rchan", "result", false]].to_set,
+                 c.rem_race.map{|r| r.to_a}.to_set)
   end
 
   def test_full
     c = FullGuardC.new
     c.tick
-    assert_equal([["rchan", "lchan", "result", true], ["lchan", "rchan", "result", true]], c.rem_race.map{|r| r.to_a})
+    assert_equal([["rchan", "lchan", "result", true],
+                  ["lchan", "rchan", "result", true]].to_set,
+                 c.rem_race.map{|r| r.to_a}.to_set)
   end
 end
