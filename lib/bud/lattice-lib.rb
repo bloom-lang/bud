@@ -3,67 +3,59 @@ require 'bud/lattice-core'
 class Bud::MaxLattice < Bud::Lattice
   wrapper_name :lmax
 
-  def initialize(i=nil)
-    unless i.nil? || i.class <= Comparable
-      reject_input(i)
-    end
+  def initialize(i=-Float::INFINITY)
+    reject_input(i) unless i.class <= Comparable
     @v = i
   end
 
   def merge(i)
-    i_val = i.reveal
-    (@v.nil? || (i_val != nil && i_val > @v)) ? i : self
+    i.reveal > @v ? i : self
   end
 
   morph :gt do |k|
-    Bud::BoolLattice.new(!!(@v && @v > k))
+    Bud::BoolLattice.new(!!(@v > k))
   end
 
   morph :gt_eq do |k|
-    Bud::BoolLattice.new(!!(@v && @v >= k))
+    Bud::BoolLattice.new(!!(@v >= k))
   end
 
   # XXX: support MaxLattice input?
   morph :+ do |i|
-    # Since bottom of lmax is negative infinity, + is a no-op
-    return self if @v.nil?
+    # NB: since bottom of lmax is negative infinity, + is a no-op
     reject_input(i, "+") unless i.class <= Numeric
     self.class.new(@v + i)
   end
 
   morph :min_of do |i|
     reject_input(i, "min_of") unless i.class <= Numeric
-    (@v.nil? || i < @v) ? self.class.new(i) : self
+    i < @v ? self.class.new(i) : self
   end
 
   def lt_eq(k)
-    Bud::BoolLattice.new(!!(@v && @v <= k))
+    Bud::BoolLattice.new(!!(@v <= k))
   end
 end
 
 class Bud::MinLattice < Bud::Lattice
   wrapper_name :lmin
 
-  def initialize(i=nil)
-    unless i.nil? || i.class <= Comparable
-      reject_input(i)
-    end
+  def initialize(i=Float::INFINITY)
+    reject_input(i) unless i.nil? || i.class <= Comparable
     @v = i
   end
 
   def merge(i)
-    i_val = i.reveal
-    (@v.nil? || (i_val != nil && i_val < @v)) ? i : self
+    i.reveal < @v ? i : self
   end
 
   morph :lt do |k|
-    Bud::BoolLattice.new(!!(@v && @v < k))
+    Bud::BoolLattice.new(!!(@v < k))
   end
 
   # XXX: support MinLattice input
   morph :+ do |i|
     # Since bottom of lmin is infinity, + is a no-op
-    return self if @v.nil?
     reject_input(i, "+") unless i.class <= Numeric
     self.class.new(@v + i)
   end
@@ -304,8 +296,8 @@ class Bud::PositiveSetLattice < Bud::SetLattice
   end
 
   monotone :pos_sum do
-    @sum = @v.reduce(:+) if @sum.nil?
-    Bud::MaxLattice.new(@sum)
+    @sum = @v.reduce(Bud::MaxLattice.new(0), :+) if @sum.nil?
+    @sum
   end
 end
 
@@ -361,7 +353,7 @@ class Bud::BagLattice < Bud::Lattice
   end
 
   monotone :size do
-    @size = @v.values.reduce(:+) if @size.nil?
-    Bud::MaxLattice.new(@size)
+    @size = @v.values.reduce(Bud::MaxLattice.new(0), :+) if @size.nil?
+    @size
   end
 end

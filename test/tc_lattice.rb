@@ -161,11 +161,11 @@ class TestMax < MiniTest::Unit::TestCase
     src, dst = Array.new(2) { MaxOverChannel.new }
     [src, dst].each {|n| n.run_bg}
 
-    expected_val = nil
+    expected_val = Bud::MaxLattice.new
     q = Queue.new
     dst.register_callback(:chn) do |t|
       assert_equal(1, t.length)
-      assert_equal(expected_val, t.first.v.reveal)
+      assert_equal(expected_val, t.first.v)
       q.push(true)
     end
 
@@ -175,10 +175,10 @@ class TestMax < MiniTest::Unit::TestCase
     q.pop
     dst.sync_do {
       assert_equal(1, dst.chn_log.length)
-      assert_equal(nil, dst.chn_log.first.v.reveal)
+      assert_equal(expected_val, dst.chn_log.first.v)
     }
 
-    expected_val = 30
+    expected_val = Bud::MaxLattice.new(30)
     src.sync_do {
       [2, 15, 0, 10, 7, 20].each {|i| src.m <+ Bud::MaxLattice.new(i)}
       src.in_t <+ [[16], [30]]
@@ -187,7 +187,7 @@ class TestMax < MiniTest::Unit::TestCase
     q.pop
     dst.sync_do {
       assert_equal(1, dst.chn_log.length)
-      assert_equal(30, dst.chn_log.first.v.reveal)
+      assert_equal(expected_val, dst.chn_log.first.v)
     }
 
     [src, dst].each {|n| n.stop}
