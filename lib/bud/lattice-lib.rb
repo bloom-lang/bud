@@ -41,7 +41,7 @@ class Bud::MinLattice < Bud::Lattice
   wrapper_name :lmin
 
   def initialize(i=Float::INFINITY)
-    reject_input(i) unless i.nil? || i.class <= Comparable
+    reject_input(i) unless i.class <= Comparable
     @v = i
   end
 
