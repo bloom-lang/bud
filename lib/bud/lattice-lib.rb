@@ -1,5 +1,10 @@
 require 'bud/lattice-core'
 
+# Float::INFINITY only defined in MRI 1.9.2+
+unless defined? Float::INFINITY
+  Float::INFINITY = 1.0/0.0
+end
+
 class Bud::MaxLattice < Bud::Lattice
   wrapper_name :lmax
 
