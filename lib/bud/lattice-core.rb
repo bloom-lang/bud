@@ -436,6 +436,19 @@ class Bud::LatticeWrapper
     rv
   end
 
+  def do_unsafe_merge(lhs, rhs)
+    # return do_merge(lhs, rhs)
+    unless lhs.class <= Bud::Lattice
+      raise Bud::Error, "unexpected merge input: #{lhs.class}"
+    end
+    return lhs if rhs.nil?
+
+    unless rhs.class <= @klass
+      rhs = @klass.new(rhs)
+    end
+    lhs.merge_unsafe(rhs)
+  end
+
   def setup_wiring(input, kind)
     if input.class <= Bud::LatticeWrapper
       input.to_push_elem.wire_to(self, kind)
@@ -463,7 +476,11 @@ class Bud::LatticeWrapper
   # Merge "i" into @new_delta
   public
   def insert(i, source)
-    @new_delta = do_merge(current_new_delta, i)
+    if @klass == Bud::SetLattice
+      @new_delta = do_unsafe_merge(current_new_delta, i)
+    else
+      @new_delta = do_merge(current_new_delta, i)
+    end
   end
 
   def <=(i)
@@ -534,20 +551,36 @@ class Bud::LatticeWrapper
   end
 
   def merge_to_storage(v)
-    m = do_merge(current_value, v)
-    if m != current_value
-      @storage = m
-      @rescan_on_merge.each do |e|
-        if e.kind_of? Bud::ScannerElement
-          e.force_rescan = true
-        else
-          e.rescan = true
+    if @klass == Bud::SetLattice
+      old_size = current_value.reveal.size
+      @storage = do_unsafe_merge(current_value, v)
+      if @storage.reveal.size != old_size
+        @rescan_on_merge.each do |e|
+          if e.kind_of? Bud::ScannerElement
+            e.force_rescan = true
+          else
+            e.rescan = true
+          end
         end
+
+        return true
       end
-      return true
     else
-      return false
+      m = do_merge(current_value, v)
+      if m != current_value
+        @storage = m
+        @rescan_on_merge.each do |e|
+          if e.kind_of? Bud::ScannerElement
+            e.force_rescan = true
+          else
+            e.rescan = true
+          end
+        end
+        return true
+      end
     end
+
+    return false
   end
 
   def tick_deltas

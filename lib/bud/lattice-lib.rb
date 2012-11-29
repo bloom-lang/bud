@@ -213,6 +213,11 @@ class Bud::SetLattice < Bud::Lattice
     wrap_unsafe(@v | i.reveal)
   end
 
+  def merge_unsafe(i)
+    @v.merge(i.reveal)
+    self
+  end
+
   morph :intersect do |i|
     wrap_unsafe(@v & i.reveal)
   end
