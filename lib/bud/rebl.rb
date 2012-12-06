@@ -95,8 +95,11 @@ class ReblShell
   # and returns.  May raise an Exception.
   def self.rebl_loop(lib,noreadline=false)
     begin
-      line = Readline::readline('rebl> ') unless noreadline
-      line = gets if noreadline
+      if noreadline
+        line = gets
+      else
+        line = Readline::readline('rebl> ')
+      end
       do_exit if line.nil?
       line.strip!
       return if line.empty?
