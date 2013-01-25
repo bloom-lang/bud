@@ -52,7 +52,7 @@ module Bud
       # user-specified schema.
       @cols.each do |s|
         if s.to_s.start_with? "@"
-          raise Bud::Error, "illegal use of location specifier (@) in column #{s} of non-channel collection #{tabname}"
+          raise Bud::CompileError, "illegal use of location specifier (@) in column #{s} of non-channel collection #{tabname}"
         end
       end
 
@@ -1015,13 +1015,13 @@ module Bud
     end
 
     superator "<+" do |o|
-      raise Bud::Error, "illegal use of <+ with channel '#{@tabname}' on left"
+      raise Bud::CompileError, "illegal use of <+ with channel '#{@tabname}' on left"
     end
 
     undef merge
 
     def <=(o)
-      raise Bud::Error, "illegal use of <= with channel '#{@tabname}' on left"
+      raise Bud::CompileError, "illegal use of <= with channel '#{@tabname}' on left"
     end
   end
 
@@ -1101,7 +1101,11 @@ module Bud
 
     public
     def <=(o) #:nodoc: all
-      raise Bud::Error, "illegal use of <= with terminal '#{@tabname}' on left"
+      raise Bud::CompileError, "illegal use of <= with terminal '#{@tabname}' on left"
+    end
+
+    superator "<+" do |o|
+      raise Bud::CompileError, "illegal use of <+ with terminal '#{@tabname}' on left"
     end
 
     superator "<~" do |o|
@@ -1128,19 +1132,19 @@ module Bud
 
   class BudPeriodic < BudScratch # :nodoc: all
     def <=(o)
-      raise Bud::Error, "illegal use of <= with periodic '#{tabname}' on left"
+      raise Bud::CompileError, "illegal use of <= with periodic '#{tabname}' on left"
     end
 
     superator "<~" do |o|
-      raise Bud::Error, "illegal use of <~ with periodic '#{tabname}' on left"
+      raise Bud::CompileError, "illegal use of <~ with periodic '#{tabname}' on left"
     end
 
     superator "<-" do |o|
-      raise Bud::Error, "illegal use of <- with periodic '#{tabname}' on left"
+      raise Bud::CompileError, "illegal use of <- with periodic '#{tabname}' on left"
     end
 
     superator "<+" do |o|
-      raise Bud::Error, "illegal use of <+ with periodic '#{tabname}' on left"
+      raise Bud::CompileError, "illegal use of <+ with periodic '#{tabname}' on left"
     end
 
     def tick
@@ -1272,11 +1276,11 @@ module Bud
 
   class BudReadOnly < BudCollection # :nodoc: all
     superator "<+" do |o|
-      raise CompileError, "illegal use of <+ with read-only collection '#{@tabname}' on left"
+      raise Bud::CompileError, "illegal use of <+ with read-only collection '#{@tabname}' on left"
     end
     public
     def merge(o)  #:nodoc: all
-      raise CompileError, "illegal use of <= with read-only collection '#{@tabname}' on left"
+      raise Bud::CompileError, "illegal use of <= with read-only collection '#{@tabname}' on left"
     end
     public
     def invalidate_cache

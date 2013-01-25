@@ -243,7 +243,7 @@ class TestErrorHandling < MiniTest::Unit::TestCase
 
   def test_bad_next_channel
     p = BadNextChannel.new
-    assert_raises(Bud::Error) {p.tick}
+    assert_raises(Bud::CompileError) {p.tick}
   end
 
   class BadStdio
@@ -255,7 +255,7 @@ class TestErrorHandling < MiniTest::Unit::TestCase
 
   def test_bad_stdio
     p = BadStdio.new
-    assert_raises(Bud::Error) {p.tick}
+    assert_raises(Bud::CompileError) {p.tick}
   end
 
   class BadFileReader1

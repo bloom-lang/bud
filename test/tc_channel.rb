@@ -202,7 +202,7 @@ class TestPayloads < MiniTest::Unit::TestCase
     }
 
     # Check that inserting into a channel via <= is rejected
-    assert_raises(Bud::Error) {
+    assert_raises(Bud::CompileError) {
       p1.sync_do {
         p1.c <= [[target_addr, 60, 110]]
       }

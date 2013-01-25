@@ -466,7 +466,7 @@ class TestCollections < MiniTest::Unit::TestCase
   end
 
   def test_loc_spec_non_channel
-    assert_raises(Bud::Error) { LocSpecNonChannel.new }
+    assert_raises(Bud::CompileError) { LocSpecNonChannel.new }
   end
 
   def test_empty_pk_error
@@ -491,16 +491,31 @@ class TestCollections < MiniTest::Unit::TestCase
   def test_periodic_lhs_error
     b = InsertIntoPeriodicError.new
     b.run_bg
-    assert_raises(Bud::Error) {
+    assert_raises(Bud::CompileError) {
       b.sync_do { b.timer <+ [[5, 10]] }
     }
-    assert_raises(Bud::Error) {
+    assert_raises(Bud::CompileError) {
       b.sync_do { b.timer <= [[5, 10]] }
     }
-    assert_raises(Bud::Error) {
+    assert_raises(Bud::CompileError) {
       b.sync_do { b.timer <- [[5, 10]] }
     }
     b.stop
+  end
+
+  class StdioPendingInsert
+    include Bud
+
+    state { table :t1 }
+
+    bloom do
+      stdio <+ t1 {|t| ["Foo: #{t}"]}
+    end
+  end
+
+  def test_stdio_pending_insert
+    b = StdioPendingInsert.new
+    assert_raises(Bud::CompileError) { b.tick }
   end
 
   class SimpleRename
