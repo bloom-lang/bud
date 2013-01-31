@@ -11,11 +11,8 @@ class Bud::BudServer < EM::Connection #:nodoc: all
 
   def receive_data(data)
     # Feed the received data to the deserializer
-    @pac.feed data
-
-    # streaming deserialize
-    @pac.each do |obj|
-      message_received(obj)
+    @pac.feed_each(data) do |obj|
+      recv_message(obj)
     end
 
     # apply the channel filter to each channel's pending tuples
@@ -54,7 +51,7 @@ class Bud::BudServer < EM::Connection #:nodoc: all
     @bud.rtracer.sleep if @bud.options[:rtrace]
   end
 
-  def message_received(obj)
+  def recv_message(obj)
     unless (obj.class <= Array and obj.length == 3 and
             @bud.tables.include?(obj[0].to_sym) and
             obj[1].class <= Array and obj[2].class <= Array)
