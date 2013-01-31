@@ -17,7 +17,7 @@ module Source
     lines = cache(filename, num)
     # Note: num is 1-based.
 
-    parser = make_parser
+    parser = RubyParser.for_current_ruby
     stmt = ""       # collection of lines that form one complete Ruby statement
     ast = nil
     lines[num .. -1].each do |l|
@@ -36,21 +36,6 @@ module Source
       stmt += l + "\n"
     end
     ast
-  end
-
-  # ruby_parser 3.x can produce either 1.8- or 1.9-compatible ASTs. Since we
-  # want to eventually turn the ASTs back into code we can eval() using the
-  # current Ruby runtime, we want to generate an appropriately compatible AST.
-  def Source.make_parser
-    maj, min, patch = RUBY_VERSION.split(".")
-    case [maj.to_i, min.to_i]
-    when [1, 9] then
-      Ruby19Parser.new
-    when [1, 8] then
-      Ruby18Parser.new
-    else
-      raise Bud::Error, "unrecognized RUBY_VERSION: #{RUBY_VERSION}"
-    end
   end
 
   def Source.cache(filename, num)  # returns array of lines

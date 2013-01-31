@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'msgpack'
   s.add_dependency 'ruby-graphviz'
   s.add_dependency 'ruby2ruby', '>= 2.0.1'
-  s.add_dependency 'ruby_parser', '>= 3.0.2'
+  s.add_dependency 'ruby_parser', '>= 3.1.0'
   s.add_dependency 'superators19'
   s.add_dependency 'syntax'
   s.add_dependency 'uuid'
