@@ -258,12 +258,12 @@ class TestMeta < MiniTest::Unit::TestCase
 
     looks = str2struct(content)
 
-    assert_match(/upd -> \"interm, mystate\" \[.*label=\" \+\/\-\"/, content)
-    assert_match("S -> upd", content)
-    assert_match("S -> req", content)
-    assert_match("sinkhole -> \"\?\?\"", content)
-    refute_match(/upd -> \"\?\?\"/, content)
-    refute_match(/req -> \"\?\?\"/, content)
+    assert_match(/upd -> "interm, mystate"\s+\[.*label=" \+\/-"/m, content)
+    assert_match(/S -> upd/, content)
+    assert_match(/S -> req/, content)
+    assert_match(/sinkhole -> "??"/, content)
+    refute_match(/upd -> "\?\?"/, content)
+    refute_match(/req -> "\?\?"/, content)
     `rm -r #{dir}`
     program.stop
   end
