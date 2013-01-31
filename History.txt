@@ -1,5 +1,9 @@
 == 0.9.6 / ???
 
+* Reject attempts to insert into stdio via <+ (#288)
+* Improve MRI 1.8 compatibility
+* Require ruby_parser >= 3.1.0
+
 == 0.9.5 / 2012-11-24
 
 * Lattice branch (Bloom^L) merged
