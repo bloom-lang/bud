@@ -389,6 +389,20 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
                   ["c", "d", 5],
                   ["c", "e", 15],
                   ["d", "e", 10]], min_cost_r.sort)
+
+    # Check that we can also sort directly on the lattice values
+    min_cost_sorted = i.min_cost.to_a.sort {|a,b| [a.c, a.from, a.to] <=> [b.c, b.from, b.to]}
+    min_cost_sorted = min_cost_sorted.map {|t| [t.from, t.to, t.c.reveal]}
+    assert_equal([["c", "d", 5],
+                  ["a", "b", 10],
+                  ["d", "e", 10],
+                  ["a", "c", 15],
+                  ["c", "e", 15],
+                  ["a", "d", 20],
+                  ["b", "c", 20],
+                  ["b", "d", 25],
+                  ["a", "e", 30],
+                  ["b", "e", 35]], min_cost_sorted)
   end
 
   def test_spath_cyclic

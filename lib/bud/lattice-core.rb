@@ -1,6 +1,8 @@
 require 'bud/executor/elements'
 
 class Bud::Lattice
+  include Comparable
+
   @@lattice_kinds = {}
   @@global_morphs = Set.new
   @@global_mfuncs = Set.new
@@ -76,12 +78,17 @@ class Bud::Lattice
   end
 
   def eql?(o)
-    return self == o
+    self == o
   end
 
   # Ensure hashing and equality semantics are consistent.
   def hash
     reveal.hash
+  end
+
+  # Similarly, use reveal'ed value to implement Comparable.
+  def <=>(o)
+    reveal <=> o.reveal
   end
 
   # Return the state valued associated with a lattice instance. Note that this
