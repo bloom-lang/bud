@@ -77,8 +77,8 @@ def process(mods)
   d = make_instance(mods)
 
   interfaces = {}
-  d.t_provides.each do |name, is_input|
-    interfaces[name] = is_input
+  d.t_provides.to_a.each do |prov|
+    interfaces[prov.interface] = prov.input
   end
 
   tabinf = {}
@@ -205,9 +205,14 @@ if ARGV.length < 2
   exit
 end
 
-@opts = Getopt::Std.getopts("t:")
-
-
+@opts = Getopt::Std.getopts("I:t:")
+unless @opts["I"].nil?
+  if @opts["I"].class == Array
+    @opts["I"].each{|i| $:.unshift i} 
+  else  
+    $:.unshift @opts["I"]
+  end
+end
 
 @data = get_trace_data
 `mkdir bud_doc`
