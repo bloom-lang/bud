@@ -336,9 +336,12 @@ class RenameRewriter < SexpProcessor
   end
 end
 
-# Check for whether the rule invokes any "unsafe" functions (funcs that might
-# return a different value every time they are called, e.g., budtime). Note that
-# although we call this a rewriter, it doesn't modify the input AST.
+# Check for whether the rule invokes any "unsafe" functions (functions that
+# might return a different value every time they are called, e.g., budtime). The
+# test for "unsafe" functions is pretty naive: any function call with a nil
+# receiver is treated as unsafe.
+#
+# Note that although we call this a rewriter, it doesn't modify the input AST.
 class UnsafeFuncRewriter < SexpProcessor
   attr_reader :unsafe_func_called
 
