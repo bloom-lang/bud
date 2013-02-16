@@ -523,8 +523,7 @@ module Bud
     # "t2 <= t1 {|t| [t.key, lat_foo]}", whenever there is a delta on lat_foo we
     # should rescan t1 (to produce tuples with the updated lat_foo value).
     # TODO:
-    # (1) support non-join ops to be rescanned (+ tests) + lambdas
-    # (2) if t1 is fed by rules r1 and r2 but only r1 references lattice x,
+    # (1) if t1 is fed by rules r1 and r2 but only r1 references lattice x,
     #     don't trigger rescan of r2 on deltas for x (hard)
     t_depends.each do |dep|
       src, dst = dep.body.to_sym, dep.lhs.to_sym
