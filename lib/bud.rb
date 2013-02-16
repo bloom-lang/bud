@@ -530,19 +530,26 @@ module Bud
     # (1) if t1 is fed by rules r1 and r2 but only r1 references lattice x,
     #     don't trigger rescan of r2 on deltas for x (hard)
     t_depends.each do |dep|
-      src, dst = dep.body.to_sym, dep.lhs.to_sym
-      if @lattices.has_key? src and @tables.has_key? dst and dep.in_body
+      src, target_name = dep.body.to_sym, dep.lhs.to_sym
+      if @lattices.has_key? src and dep.in_body
         src_lat = @lattices[src]
-        dst_tbl = @tables[dst]
+        if @tables.has_key? target_name
+          target = @tables[target_name]
+        else
+          target = @lattices[target_name]
+        end
 
         # Conservatively, we rescan all the elements that feed the lhs (target)
-        # collection via deductive rules; we then also need to potentially
-        # rescan ancestors of those elements as well (e.g., setting a stateless
-        # PushElement to rescan does nothing; we want to tell its ancestor
-        # ScannerElement to rescan).
-        lat_rescan = dst_tbl.non_temporal_predecessors.to_set
+        # collection via positive (non-deletion) rules; we then also need to
+        # potentially rescan ancestors of those elements as well (e.g., setting
+        # a stateless PushElement to rescan does nothing; we want to tell its
+        # ancestor ScannerElement to rescan).
+        #
+        # XXX: do we need to consider all transitively reachable nodes for
+        # rescan?
+        lat_rescan = target.positive_predecessors.to_set
         lat_inval = Set.new
-        dst_tbl.non_temporal_predecessors.each do |e|
+        target.positive_predecessors.each do |e|
           e.add_rescan_invalidate(lat_rescan, lat_inval)
         end
         src_lat.rescan_on_delta.merge(lat_rescan)
@@ -550,7 +557,7 @@ module Bud
     end
   end
 
-  # given rescan, invalidate sets, compute transitive closure
+  # Given rescan, invalidate sets, compute transitive closure
   def rescan_invalidate_tc(stratum, rescan, invalidate)
     rescan_len = rescan.size
     invalidate_len = invalidate.size

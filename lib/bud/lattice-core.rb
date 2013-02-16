@@ -424,6 +424,10 @@ class Bud::LatticeWrapper
     add_merge_target
   end
 
+  def positive_predecessors
+    @wired_by.select {|e| e.outputs.include?(self) || e.pendings.include?(self)}
+  end
+
   private
   def register_coll_expr(expr)
     name = "expr_#{expr.object_id}".to_sym

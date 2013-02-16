@@ -284,7 +284,12 @@ module Bud
 
     public
     def non_temporal_predecessors
-      @wired_by.select {|elem| elem.outputs.include? self}
+      @wired_by.select {|e| e.outputs.include? self}
+    end
+
+    public
+    def positive_predecessors
+      @wired_by.select {|e| e.outputs.include?(self) || e.pendings.include?(self)}
     end
 
     public

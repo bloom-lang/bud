@@ -1516,3 +1516,31 @@ class TestLatticeBootstrapNoRules < MiniTest::Unit::TestCase
     b.tick
   end
 end
+
+class Bug290
+  include Bud
+
+  state do
+    lmax :cloq
+    table :truth, []=>[:val]
+  end
+
+  bootstrap do
+    truth <+ [[true]]
+    cloq <+ Bud::MaxLattice.new(0)
+  end
+
+  bloom do
+    cloq <+ truth {|t| cloq + 1}
+  end
+end
+
+class Bug290Test < MiniTest::Unit::TestCase
+  def test_no_bug
+    b = Bug290.new
+    5.times do |i|
+      b.tick
+      assert_equal(Bud::MaxLattice.new(i), b.cloq.current_value)
+    end
+  end
+end

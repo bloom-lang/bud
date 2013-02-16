@@ -12,7 +12,7 @@ module Bud
   class PushElement < BudCollection
     attr_accessor :rescan, :invalidated
     attr_accessor :elem_name
-    attr_reader :found_delta, :wired_by, :outputs
+    attr_reader :found_delta, :wired_by, :outputs, :pendings
 
     def initialize(name_in, bud_instance, collection_name=nil, given_schema=nil, defer_schema=false, &blk)
       super(name_in, bud_instance, given_schema, defer_schema)

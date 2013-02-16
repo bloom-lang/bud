@@ -5,6 +5,8 @@
 * Improve MRI 1.8 compatibility
 * Require ruby_parser >= 3.1.0
 * Fix bug in bootstrap blocks for lattice values
+* Fix bug in rescan/invalidation for rules that reference lattice values and use
+  the <+ or <~ operators (#290)
 
 == 0.9.5 / 2012-11-24
 
