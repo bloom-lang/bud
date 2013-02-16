@@ -388,7 +388,7 @@ class Bud::PushApplyMethod < Bud::LatticePushElement
 end
 
 class Bud::LatticeWrapper
-  attr_reader :tabname, :wired_by, :rescan_on_merge
+  attr_reader :tabname, :wired_by, :rescan_on_delta
   attr_accessor :accumulate_tick_deltas
 
   def initialize(tabname, klass, bud_i)
@@ -396,7 +396,7 @@ class Bud::LatticeWrapper
     @klass = klass
     @bud_instance = bud_i
     @wired_by = []
-    @rescan_on_merge = Set.new
+    @rescan_on_delta = Set.new
   end
 
   def qualified_tabname
@@ -554,7 +554,7 @@ class Bud::LatticeWrapper
     m = do_merge(current_value, v)
     if m != current_value
       @storage = m
-      @rescan_on_merge.each do |e|
+      @rescan_on_delta.each do |e|
         if e.kind_of? Bud::ScannerElement
           e.force_rescan = true
         else

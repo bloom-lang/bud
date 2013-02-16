@@ -521,10 +521,11 @@ module Bud
     end
     @reset_list = to_reset.to_a
 
-    # For each lattice, find the set of tables that should be rescanned when
-    # there is a new delta for the lattice. That is, if we have a rule like:
+    # For each lattice, find the collections that should be rescanned when there
+    # is a new delta for the lattice. That is, if we have a rule like:
     # "t2 <= t1 {|t| [t.key, lat_foo]}", whenever there is a delta on lat_foo we
     # should rescan t1 (to produce tuples with the updated lat_foo value).
+    #
     # TODO:
     # (1) if t1 is fed by rules r1 and r2 but only r1 references lattice x,
     #     don't trigger rescan of r2 on deltas for x (hard)
@@ -533,9 +534,18 @@ module Bud
       if @lattices.has_key? src and @tables.has_key? dst and dep.in_body
         src_lat = @lattices[src]
         dst_tbl = @tables[dst]
+
+        # Conservatively, we rescan all the elements that feed the lhs (target)
+        # collection via deductive rules; we then also need to potentially
+        # rescan ancestors of those elements as well (e.g., setting a stateless
+        # PushElement to rescan does nothing; we want to tell its ancestor
+        # ScannerElement to rescan).
+        lat_rescan = dst_tbl.non_temporal_predecessors.to_set
+        lat_inval = Set.new
         dst_tbl.non_temporal_predecessors.each do |e|
-          src_lat.rescan_on_merge << e
+          e.add_rescan_invalidate(lat_rescan, lat_inval)
         end
+        src_lat.rescan_on_delta.merge(lat_rescan)
       end
     end
   end
