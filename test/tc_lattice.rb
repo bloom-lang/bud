@@ -1490,3 +1490,29 @@ class TestLatticeHashing < MiniTest::Unit::TestCase
     assert_equal({Bud::MapLattice.new({:foo => Bud::MaxLattice.new(3)}) => 10}, h)
   end
 end
+
+class BootstrapNoRules
+  include Bud
+
+  state do
+    lmax :cloq
+    lmax :other
+  end
+
+  bootstrap do
+    cloq <= Bud::MaxLattice.new(3)
+  end
+
+  bloom do
+    other <= other
+  end
+end
+
+class TestLatticeBootstrapNoRules < MiniTest::Unit::TestCase
+  def test_bootstrap
+    b = BootstrapNoRules.new
+    b.tick
+    assert_equal(3, b.cloq.current_value.reveal)
+    b.tick
+  end
+end

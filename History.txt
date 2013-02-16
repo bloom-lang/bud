@@ -1,9 +1,10 @@
 == 0.9.6 / ???
 
 * Reject attempts to insert into stdio via <+ (#288)
-* Support Comparable for Bud::Lattice values
+* Support "Comparable" for Bud::Lattice values
 * Improve MRI 1.8 compatibility
 * Require ruby_parser >= 3.1.0
+* Fix bug in bootstrap blocks for lattice values
 
 == 0.9.5 / 2012-11-24
 

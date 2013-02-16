@@ -528,8 +528,17 @@ class Bud::LatticeWrapper
   end
 
   def bootstrap
-    @storage = do_merge(current_value, @pending)
-    @pending = nil
+    # Bootstrap blocks might install lattice values via either <= (@new_delta)
+    # or <+ (@pending).
+    if @new_delta
+      merge_to_storage(@new_delta)
+      @new_delta = nil
+    end
+
+    if @pending
+      merge_to_storage(@pending)
+      @pending = nil
+    end
   end
 
   def tick
