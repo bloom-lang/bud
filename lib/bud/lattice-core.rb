@@ -407,6 +407,31 @@ class Bud::LatticeWrapper
     false
   end
 
+  def setup_wiring(input, kind)
+    if input.class <= Bud::LatticeWrapper
+      input.to_push_elem.wire_to(self, kind)
+    elsif (input.class <= Bud::LatticePushElement || input.class <= Bud::PushElement)
+      input.wire_to(self, kind)
+    elsif input.class <= Bud::BudCollection
+      input.pro.wire_to(self, kind)
+    elsif input.class <= Proc
+      tbl = register_coll_expr(input)
+      tbl.pro.wire_to(self, kind)
+    else
+      raise Bud::Error, "unrecognized wiring input: #{input}"
+    end
+
+    add_merge_target
+  end
+
+  private
+  def register_coll_expr(expr)
+    name = "expr_#{expr.object_id}".to_sym
+    @bud_instance.coll_expr(name, expr, nil)
+    @bud_instance.send(name)
+  end
+
+  public
   def current_value
     @storage ||= @klass.new
     @storage
@@ -441,30 +466,6 @@ class Bud::LatticeWrapper
       raise Bud::Error, "#{lhs.class}\#merge did not return lattice value: #{rv.inspect}"
     end
     rv
-  end
-
-  def setup_wiring(input, kind)
-    if input.class <= Bud::LatticeWrapper
-      input.to_push_elem.wire_to(self, kind)
-    elsif (input.class <= Bud::LatticePushElement || input.class <= Bud::PushElement)
-      input.wire_to(self, kind)
-    elsif input.class <= Bud::BudCollection
-      input.pro.wire_to(self, kind)
-    elsif input.class <= Proc
-      tbl = register_coll_expr(input)
-      tbl.pro.wire_to(self, kind)
-    else
-      raise Bud::Error, "unrecognized wiring input: #{input}"
-    end
-
-    add_merge_target
-  end
-
-  private
-  def register_coll_expr(expr)
-    name = "expr_#{expr.object_id}".to_sym
-    @bud_instance.coll_expr(name, expr, nil)
-    @bud_instance.send(name)
   end
 
   # Merge "i" into @new_delta
