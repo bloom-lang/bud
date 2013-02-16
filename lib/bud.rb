@@ -326,7 +326,7 @@ module Bud
     # the user-defined tables and lattices.  We start @app_tables off as a set,
     # then convert to an array later.
     @app_tables = (@tables.keys - @builtin_tables.keys).map {|t| @tables[t]}.to_set
-    @app_tables += @lattices.values
+    @app_tables.merge(@lattices.values)
 
     # Check scan and merge_targets to see if any builtin_tables need to be added as well.
     @scanners.each do |scs|
@@ -346,7 +346,7 @@ module Bud
       seen = Set.new(working)
       sorted_elems = [] # sorted elements in this stratum
       while not working.empty?
-        sorted_elems += working
+        sorted_elems.concat(working)
         wired_to = []
         working.each do |e|
           e.wirings.each do |out|
