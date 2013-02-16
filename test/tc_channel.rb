@@ -27,6 +27,7 @@ end
 class TestTickle < MiniTest::Unit::TestCase
   def test_tickle_run_bg
     c = TickleCount.new
+    assert_equal(2, c.stratified_rules.length)
     q = Queue.new
     c.register_callback(:loopback_done) do |t|
       assert_equal([[5]], t.to_a)

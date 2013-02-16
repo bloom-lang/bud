@@ -9,8 +9,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
                         :pairs, :matches, :combos, :flatten, :new,
                         :lefts, :rights, :map, :flat_map, :pro, :merge,
                         :cols, :key_cols, :val_cols, :payloads, :lambda,
-                        :tabname, :ip_port, :port, :ip, :int_ip_port,
-                        :current_value].to_set
+                        :tabname, :current_value].to_set
 
   def initialize(seed, bud_instance)
     @bud_instance = bud_instance
@@ -339,13 +338,15 @@ end
 # Check for whether the rule invokes any "unsafe" functions (functions that
 # might return a different value every time they are called, e.g., budtime). The
 # test for "unsafe" functions is pretty naive: any function call with a nil
-# receiver is treated as unsafe unless it is monotone or it denotes a lattice
-# identifier. In the latter case, the rule is akin to an implicit join with the
-# lattice, so we only rescan it on deltas to the lattice (see "rescan_on_merge"
-# in LatticeWrapper).
+# receiver is treated as unsafe unless it is belongs to a list of "safe"
+# functions (below) or it denotes a lattice identifier. In the latter case, the
+# rule is akin to an implicit join with the lattice, so we only rescan it on
+# deltas to the lattice (see "rescan_on_merge" in LatticeWrapper).
 #
 # Although this is called a rewriter, it doesn't modify the input AST.
 class UnsafeFuncRewriter < SexpProcessor
+  SAFE_FUNC_LIST = [:int_ip_port, :ip_port, :ip, :port].to_set
+
   attr_reader :unsafe_func_called
 
   def initialize(bud_instance)
@@ -363,7 +364,7 @@ class UnsafeFuncRewriter < SexpProcessor
     # We assume that unsafe funcs have a nil receiver (Bud instance is implicit
     # receiver).
     if recv.nil? and @elem_stack.size > 0
-      unless RuleRewriter.is_monotone(op) || is_lattice?(op)
+      unless is_safe_func(op) || is_lattice?(op)
         @unsafe_func_called = true
       end
     end
@@ -387,6 +388,10 @@ class UnsafeFuncRewriter < SexpProcessor
 
   def is_lattice?(op)
     @bud_instance.lattices.has_key? op.to_sym
+  end
+
+  def is_safe_func(op)
+    SAFE_FUNC_LIST.include? op
   end
 end
 
