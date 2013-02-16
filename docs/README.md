@@ -20,14 +20,14 @@ try the following:
   `budplot` tools for visualizing Bloom program analyses.
 * [bfs.md][bfs]: A walkthrough of the Bloom distributed filesystem.
 
-[intro]:          /bloom-lang/bud/blob/master/docs/intro.md
-[getstarted]:     /bloom-lang/bud/blob/master/docs/getstarted.md
-[operational]:    /bloom-lang/bud/blob/master/docs/operational.md
-[cheat]:          /bloom-lang/bud/blob/master/docs/cheat.md
-[modules]:        /bloom-lang/bud/blob/master/docs/modules.md
-[ruby_hooks]:     /bloom-lang/bud/blob/master/docs/ruby_hooks.md
-[visualizations]: /bloom-lang/bud/blob/master/docs/visualizations.md
-[bfs]:            /bloom-lang/bud/blob/master/docs/bfs.md
+[intro]:          /docs/intro.md
+[getstarted]:     /docs/getstarted.md
+[operational]:    /docs/operational.md
+[cheat]:          /docs/cheat.md
+[modules]:        /docs/modules.md
+[ruby_hooks]:     /docs/ruby_hooks.md
+[visualizations]: /docs/visualizations.md
+[bfs]:            /docs/bfs.md
 
 In addition, the [bud-sandbox](http://github.com/bloom-lang/bud-sandbox) GitHub
 repository contains lots of useful libraries and example programs built using
