@@ -489,8 +489,11 @@ module Bud
     @default_rescan = rescan.to_a
     @default_invalidate = invalidate.to_a
 
-    puts "Default rescan: #{rescan.inspect}" if $BUD_DEBUG
-    puts "Default inval: #{invalidate.inspect}" if $BUD_DEBUG
+    if $BUD_DEBUG
+      puts "Default rescan: #{rescan.inspect}"
+      puts "Default inval: #{invalidate.inspect}"
+      puts "NM targets: #{nm_targets.inspect}"
+    end
 
     # Now compute for each table that is to be scanned, the set of dependent
     # tables and elements that will be invalidated if that table were to be
