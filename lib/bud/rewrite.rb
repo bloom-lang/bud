@@ -3,14 +3,14 @@ require 'rubygems'
 class RuleRewriter < Ruby2Ruby # :nodoc: all
   attr_accessor :rule_indx, :rules, :depends
 
-  OP_LIST = Set.new([:<<, :<, :<=])
-  TEMP_OP_LIST = Set.new([:-@, :~, :+@])
-  MONOTONE_WHITELIST = Set.new([:==, :+, :<=, :-, :<, :>, :*, :~,
-                                :pairs, :matches, :combos, :flatten, :new,
-                                :lefts, :rights, :map, :flat_map, :pro, :merge,
-                                :cols, :key_cols, :val_cols, :payloads, :lambda,
-                                :tabname, :ip_port, :port, :ip, :int_ip_port,
-                                :current_value])
+  OP_LIST = [:<<, :<, :<=].to_set
+  TEMP_OP_LIST = [:-@, :~, :+@].to_set
+  MONOTONE_WHITELIST = [:==, :+, :<=, :-, :<, :>, :*, :~,
+                        :pairs, :matches, :combos, :flatten, :new,
+                        :lefts, :rights, :map, :flat_map, :pro, :merge,
+                        :cols, :key_cols, :val_cols, :payloads, :lambda,
+                        :tabname, :ip_port, :port, :ip, :int_ip_port,
+                        :current_value].to_set
 
   def initialize(seed, bud_instance)
     @bud_instance = bud_instance
