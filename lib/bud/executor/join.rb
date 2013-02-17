@@ -526,7 +526,8 @@ module Bud
       @rhs_rcvd = false
       @hash_tables = [{},{}]
       if @lhs_keycols.nil? and blk.nil?
-        # pointwise comparison. Could use zip, but it creates an array for each field pair
+        # Pointwise comparison. Could use zip, but it creates an array for each
+        # field pair.
         blk = lambda {|lhs, rhs|
           lhs.to_a == rhs.to_a
         }
@@ -536,7 +537,7 @@ module Bud
 
     def setup_preds(preds)
       # This is simpler than PushSHJoin's setup_preds, because notin is a binary
-      # operator where both lhs and rhs are collections.  preds an array of
+      # operator where both lhs and rhs are collections. preds is an array of
       # hash_pairs. For now assume that the attributes are in the same order as
       # the tables.
       @lhs_keycols, @rhs_keycols = preds.reduce([[], []]) do |memo, item|
@@ -548,6 +549,7 @@ module Bud
         memo
       end
     end
+
     def find_col(colspec, rel)
       if colspec.is_a? Symbol
         col_desc = rel.send(colspec)
