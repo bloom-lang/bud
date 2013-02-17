@@ -7,6 +7,7 @@
 * Fix bug in bootstrap blocks for lattice values
 * Fix bug in rescan/invalidation for rules that reference lattice values and use
   the <+ or <~ operators (#290)
+* Fix bug in rescan logic for notin operator (#291)
 
 == 0.9.5 / 2012-11-24
 
