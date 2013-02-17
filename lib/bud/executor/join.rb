@@ -631,9 +631,15 @@ module Bud
     end
 
     def invalidate_cache
-      puts "#{self.class}/#{self.tabname} invalidated" if $BUD_DEBUG
-      @hash_tables = [{},{}]
-      @rhs_rcvd = false
+      if @lhs.rescan
+        puts "#{tabname} rel:#{@lhs.tabname} invalidated" if $BUD_DEBUG
+        @hash_tables[0] = {}
+      end
+      if @rhs.rescan
+        puts "#{tabname} rel:#{@rhs.tabname} invalidated" if $BUD_DEBUG
+        @hash_tables[1] = {}
+        @rhs_rcvd = false
+      end
     end
 
     def stratum_end

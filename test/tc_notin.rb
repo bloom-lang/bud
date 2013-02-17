@@ -187,6 +187,20 @@ class RescanNotInScratch
   end
 end
 
+class RescanNotInMix
+  include Bud
+
+  state do
+    scratch :inp, [:payload]
+    table :delivered, inp.schema
+    scratch :outp, inp.schema
+  end
+
+  bloom do
+    outp <= inp.notin(delivered, :payload => :payload)
+    delivered <+ inp
+  end
+end
 
 class RescanNotInTest < MiniTest::Unit::TestCase
   def test_notin_rescan
@@ -212,6 +226,18 @@ class RescanNotInTest < MiniTest::Unit::TestCase
     i.not_in <+ [[10, 20]]
     i.tick
     assert_equal([[30, 40]], i.res_t.to_a)
+  end
+
+  def test_notin_rescan_mix
+    i = RescanNotInMix.new
+    i.inp <+ [["foo"]]
+    i.tick
+    assert_equal([["foo"]], i.outp.to_a)
+    4.times do
+      i.inp <+ [["foo"]]
+      i.tick
+      assert_equal([], i.outp.to_a)
+    end
   end
 end
 
