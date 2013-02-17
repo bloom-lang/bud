@@ -1205,7 +1205,7 @@ module Bud
       begin
         eval_rule(rule.bud_obj, rule.src)
       rescue Exception => e
-        err_msg = "** Exception while wiring rule: #{rule.src}\n ****** #{e}"
+        err_msg = "** Exception while wiring rule: #{rule.orig_src}\n ****** #{e}"
         # Create a new exception for accomodating err_msg, but reuse original backtrace
         new_e = (e.class <= Bud::Error) ? e.class.new(err_msg) : Bud::Error.new(err_msg)
         new_e.set_backtrace(e.backtrace)
