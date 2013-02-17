@@ -566,7 +566,7 @@ module Bud
 
     def get_key(item, offset)
       keycols = offset == 0 ? @lhs_keycols : @rhs_keycols
-      keycols.nil? ? $EMPTY : keycols.map{|col| item[col]}
+      keycols.nil? ? $EMPTY : item.values_at(*keycols)
     end
 
     public
