@@ -233,8 +233,17 @@ class RescanNotInTest < MiniTest::Unit::TestCase
     i.inp <+ [["foo"]]
     i.tick
     assert_equal([["foo"]], i.outp.to_a)
-    4.times do
+    3.times do
       i.inp <+ [["foo"]]
+      i.tick
+      assert_equal([], i.outp.to_a)
+    end
+
+    i.inp <+ [["bar"], ["foo"]]
+    i.tick
+    assert_equal([["bar"]], i.outp.to_a)
+    3.times do
+      i.inp <+ [["bar"], ["foo"]]
       i.tick
       assert_equal([], i.outp.to_a)
     end
