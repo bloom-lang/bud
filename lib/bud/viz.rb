@@ -14,7 +14,7 @@ class VizOnline #:nodoc: all
     @logtab = new_tab("the_big_log", [:table, :time, :contents], bud_instance)
     tmp_set = []
     @bud_instance.tables.each do |name, tbl|
-      next if name == "the_big_log"
+      next if name == "the_big_log" || name == :localtick
       # Temp collections don't have a schema until a fact has been inserted into
       # them; for now, we just include an empty schema for them in the viz
       if tbl.schema.nil?
