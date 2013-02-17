@@ -616,6 +616,8 @@ module Bud
     end
 
     def invalidate_cache
+      raise Bud::Error if @rhs_rcvd     # sanity check; should already be reset
+
       if @lhs.rescan
         puts "#{tabname} rel:#{@lhs.tabname} invalidated" if $BUD_DEBUG
         @hash_tables[0] = {}
@@ -623,7 +625,6 @@ module Bud
       if @rhs.rescan
         puts "#{tabname} rel:#{@rhs.tabname} invalidated" if $BUD_DEBUG
         @hash_tables[1] = {}
-        @rhs_rcvd = false
       end
     end
 
