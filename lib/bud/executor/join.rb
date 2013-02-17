@@ -601,7 +601,6 @@ module Bud
     end
 
     def process_match(lhs_item, rhs_values)
-      exclude = true
       if rhs_values.nil?
         # no corresponding rhs. Include in output
         exclude = false
@@ -609,10 +608,11 @@ module Bud
         # for any lhs * rhs pair, if block returns true, do not push lhs. lhs is pushed
         # only if there is no match (anti-join)
         exclude = rhs_values.any?{|rhs_item| @blk.call(lhs_item, rhs_item)}
+      else
+        exclude = true
       end
-      unless exclude
-        push_out(lhs_item, false)
-      end
+
+      push_out(lhs_item, false) unless exclude
     end
 
     def invalidate_cache
