@@ -609,25 +609,8 @@ module Bud
         exclude = rhs_values.any?{|rhs_item| @blk.call(lhs_item, rhs_item)}
       end
       unless exclude
-        push_out(lhs_item)
+        push_out(lhs_item, false)
       end
-    end
-
-    public
-    def push_out(item)
-      @outputs.each do |ou|
-        if ou.class <= Bud::PushElement
-          ou.insert(item, self)
-        elsif ou.class <= Bud::BudCollection
-          ou.do_insert(item, ou.new_delta)
-        else
-          raise Bud::Error, "expected either a PushElement or a BudCollection"
-        end
-      end
-      # for all the following, o is a BudCollection
-      @deletes.each{|o| o.pending_delete([item])}
-      @delete_keys.each{|o| o.pending_delete_keys([item])}
-      @pendings.each{|o| o.pending_merge([item])}
     end
 
     def invalidate_cache

@@ -130,7 +130,7 @@ module Bud
         elsif ou.class <= Bud::LatticeWrapper
           ou.insert(item, self)
         else
-          raise Bud::Error, "expected output target: #{ou.class}"
+          raise Bud::Error, "unexpected output target: #{ou.class}"
         end
       end
 
