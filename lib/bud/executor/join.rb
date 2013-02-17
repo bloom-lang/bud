@@ -552,8 +552,10 @@ module Bud
 
     def find_col(colspec, rel)
       if colspec.is_a? Symbol
+        unless rel.respond_to? colspec
+          raise Bud::Error, "attribute :#{colspec} not found in #{rel.tabname}"
+        end
         col_desc = rel.send(colspec)
-        raise Bud::Error, "unknown column #{colspec} in #{@rel.tabname}" if col_desc.nil?
       elsif colspec.is_a? Array
         col_desc = colspec
       else
