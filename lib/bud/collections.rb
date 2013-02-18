@@ -1071,10 +1071,8 @@ module Bud
     public
     def flush #:nodoc: all
       out_io = get_out_io
-      @pending.each_value do |p|
-        out_io.puts p[0]
-        out_io.flush
-      end
+      @pending.each_value {|p| out_io.puts p[0]}
+      out_io.flush
       @pending.clear
     end
 
