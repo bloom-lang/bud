@@ -38,7 +38,6 @@ class TestRebl < MiniTest::Unit::TestCase
     ip_port1 = nil
     rt2 = nil
     ip_port2 = nil
-    actual_output = nil
     # Ignore the welcome messages.
     capture_stdout do
       rt1 = ReblTester.new
@@ -101,13 +100,17 @@ class TestRebl < MiniTest::Unit::TestCase
     stop_time2 = rt2.lib.rebl_class_inst.budtime
   end
 
-  def test_rebl_shortestpaths
+  def start_tester
     rt = nil
-    actual_output = nil
     # Ignore the welcome messages.
     capture_stdout do
       rt = ReblTester.new
     end
+    return rt
+  end
+
+  def test_rebl_shortestpaths
+    rt = start_tester
 
     # Check to see if help mode works
     rt.exec_rebl("/help")
@@ -171,12 +174,7 @@ class TestRebl < MiniTest::Unit::TestCase
   # Issue 274 -- check that cached state is invalidated correctly when
   # reinstanciating Bud.
   def test_no_leftovers
-    # Ignore the welcome messages.
-    rt = nil
-    capture_stdout do
-      rt = ReblTester.new
-    end
-
+    rt = start_tester
     rt.exec_rebl("scratch :passing_clouds")
     rt.exec_rebl(%{passing_clouds <= [[3, "Nimbus"], [2, "Cumulonimbus"]]})
     rt.exec_rebl(%{stdio <~ passing_clouds.inspected})
