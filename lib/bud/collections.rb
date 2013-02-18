@@ -1031,8 +1031,8 @@ module Bud
   end
 
   class BudTerminal < BudScratch # :nodoc: all
-    def initialize(name, given_schema, bud_instance, prompt=false) # :nodoc: all
-      super(name, bud_instance, given_schema)
+    def initialize(name, bud_instance, prompt=false) # :nodoc: all
+      super(name, bud_instance, [:line])
       @prompt = prompt
     end
 
@@ -1040,25 +1040,10 @@ module Bud
     def start_stdin_reader # :nodoc: all
       # XXX: Ugly hack. Rather than sending terminal data to EM via UDP,
       # we should add the terminal file descriptor to the EM event loop.
-      @reader = Thread.new do
+      Thread.new do
         begin
-          toplevel = @bud_instance.toplevel
           while true
-            out_io = get_out_io
-            out_io.print("#{tabname} > ") if @prompt
-
-            in_io = toplevel.options[:stdin]
-            s = in_io.gets
-            break if s.nil? # Hit EOF
-            s = s.chomp if s
-            tup = [s]
-
-            ip = toplevel.ip
-            port = toplevel.port
-            EventMachine::schedule do
-              socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
-              socket.send_datagram([tabname, tup, []].to_msgpack, ip, port)
-            end
+            break unless read_line
           end
         rescue Exception
           puts "terminal reader thread failed: #{$!}"
@@ -1066,6 +1051,26 @@ module Bud
           exit
         end
       end
+    end
+
+    def read_line
+      toplevel = @bud_instance.toplevel
+      if @prompt
+        get_out_io.print("#{tabname} > ")
+      end
+
+      in_io = toplevel.options[:stdin]
+      input_str = in_io.gets
+      return false if input_str.nil? # Hit EOF
+      input_str.chomp!
+
+      EventMachine::schedule do
+        socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
+        socket.send_datagram([tabname, [input_str], []].to_msgpack,
+                             toplevel.ip, toplevel.port)
+      end
+
+      return true
     end
 
     public
@@ -1128,7 +1133,9 @@ module Bud
     def get_out_io
       rv = @bud_instance.toplevel.options[:stdout]
       rv ||= $stdout
-      raise Bud::Error, "attempting to write to terminal #{tabname} that was already closed" if rv.closed?
+      if rv.closed?
+        raise Bud::Error, "attempt to write to closed terminal '#{tabname}'"
+      end
       rv
     end
   end

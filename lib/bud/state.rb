@@ -149,7 +149,7 @@ module Bud
       @terminal = name
     end
     define_collection(name)
-    @tables[name] = Bud::BudTerminal.new(name, [:line], self)
+    @tables[name] = Bud::BudTerminal.new(name, self)
     @channels[name] = @tables[name]
   end
 
