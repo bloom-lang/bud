@@ -224,14 +224,14 @@ Output the facts in `bc` that do not appear in `bc2`, as follows. First, we form
      :attr2`).
 
   2. If a code block is specified, invoke the block on every pair of matching
-     tuples in the join result. Any matches for which the block returns `nil`
+     tuples in the join result. Any matches for which the block returns `false`
      are removed from `t`.
 
 Finally, we output every tuple of `bc` that does *not* appear in `t`.
 
     # output items from foo if (a) there is no matching key in bar, or
     # (b) all matching keys in bar have a smaller value
-    stdio <~ foo.notin(bar, :key=>:key) {|f, b| true if f.val <= b.val}
+    stdio <~ foo.notin(bar, :key=>:key) {|f, b| f.val <= b.val}
 
     
 ## SQL-style grouping/aggregation (and then some) ##

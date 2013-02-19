@@ -944,6 +944,24 @@ class CollectionToSet
   end
 end
 
+class NotInToLattice
+  include Bud
+
+  state do
+    lset :s1
+    scratch :t1
+    table :t2
+  end
+
+  bootstrap do
+    t2 <= [[1, 1]]
+  end
+
+  bloom do
+    s1 <= t1.notin(t2, :key => :key)
+  end
+end
+
 class TestSet < MiniTest::Unit::TestCase
   def test_set_simple
     i = SimpleSet.new
@@ -1056,6 +1074,13 @@ class TestSet < MiniTest::Unit::TestCase
     i.t2 <+ [[10, 11]]
     i.tick
     assert_equal([1, 3, 4, 5, 6, 10, 11].to_set, i.s1.current_value.reveal)
+  end
+
+  def test_collection_notin_to_set
+    i = NotInToLattice.new
+    i.t1 <+ [[1, 5], [2, 10], [3, 15]]
+    i.tick
+    assert_equal([2, 3, 10, 15].to_set, i.s1.current_value.reveal)
   end
 
   # We want to check that the set lattice eliminates duplicates from its input,
@@ -1488,5 +1513,59 @@ class TestLatticeHashing < MiniTest::Unit::TestCase
     h[m2] = 10
     assert_equal(1, h.size)
     assert_equal({Bud::MapLattice.new({:foo => Bud::MaxLattice.new(3)}) => 10}, h)
+  end
+end
+
+class BootstrapNoRules
+  include Bud
+
+  state do
+    lmax :cloq
+    lmax :other
+  end
+
+  bootstrap do
+    cloq <= Bud::MaxLattice.new(3)
+  end
+
+  bloom do
+    other <= other
+  end
+end
+
+class TestLatticeBootstrapNoRules < MiniTest::Unit::TestCase
+  def test_bootstrap
+    b = BootstrapNoRules.new
+    b.tick
+    assert_equal(3, b.cloq.current_value.reveal)
+    b.tick
+  end
+end
+
+class Bug290
+  include Bud
+
+  state do
+    lmax :cloq
+    table :truth, []=>[:val]
+  end
+
+  bootstrap do
+    truth <+ [[true]]
+    cloq <+ Bud::MaxLattice.new(0)
+  end
+
+  bloom do
+    cloq <+ truth {|t| cloq + 1}
+  end
+end
+
+class Bug290Test < MiniTest::Unit::TestCase
+  def test_no_bug
+    b = Bug290.new
+    5.times do |i|
+      b.tick
+      assert_equal(Bud::MaxLattice.new(i), b.cloq.current_value)
+    end
   end
 end

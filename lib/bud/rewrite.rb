@@ -3,14 +3,13 @@ require 'rubygems'
 class RuleRewriter < Ruby2Ruby # :nodoc: all
   attr_accessor :rule_indx, :rules, :depends
 
-  OP_LIST = Set.new([:<<, :<, :<=])
-  TEMP_OP_LIST = Set.new([:-@, :~, :+@])
-  MONOTONE_WHITELIST = Set.new([:==, :+, :<=, :-, :<, :>, :*, :~,
-                                :pairs, :matches, :combos, :flatten, :new,
-                                :lefts, :rights, :map, :flat_map, :pro, :merge,
-                                :cols, :key_cols, :val_cols, :payloads, :lambda,
-                                :tabname, :ip_port, :port, :ip, :int_ip_port,
-                                :current_value])
+  OP_LIST = [:<<, :<, :<=].to_set
+  TEMP_OP_LIST = [:-@, :~, :+@].to_set
+  MONOTONE_WHITELIST = [:==, :+, :<=, :-, :<, :>, :*, :~,
+                        :pairs, :matches, :combos, :flatten, :new,
+                        :lefts, :rights, :map, :flat_map, :pro, :merge,
+                        :cols, :key_cols, :val_cols, :payloads, :lambda,
+                        :tabname, :current_value].to_set
 
   def initialize(seed, bud_instance)
     @bud_instance = bud_instance
@@ -259,7 +258,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     rhs_ast = MapRewriter.new.process(rhs_ast)
     rhs_ast = RenameRewriter.new(@bud_instance).process(rhs_ast)
     rhs_ast = LatticeRefRewriter.new(@bud_instance).process(rhs_ast)
-    ufr = UnsafeFuncRewriter.new
+    ufr = UnsafeFuncRewriter.new(@bud_instance)
     rhs_ast = ufr.process(rhs_ast)
 
     if @bud_instance.options[:no_attr_rewrite]
@@ -336,16 +335,25 @@ class RenameRewriter < SexpProcessor
   end
 end
 
-# Check for whether the rule invokes any "unsafe" functions (funcs that might
-# return a different value every time they are called, e.g., budtime). Note that
-# although we call this a rewriter, it doesn't modify the input AST.
+# Check for whether the rule invokes any "unsafe" functions (functions that
+# might return a different value every time they are called, e.g., budtime). The
+# test for "unsafe" functions is pretty naive: any function call with a nil
+# receiver is treated as unsafe unless it is belongs to a list of "safe"
+# functions (below) or it denotes a lattice identifier. In the latter case, the
+# rule is akin to an implicit join with the lattice, so we only rescan it on
+# deltas to the lattice (see "rescan_on_merge" in LatticeWrapper).
+#
+# Although this is called a rewriter, it doesn't modify the input AST.
 class UnsafeFuncRewriter < SexpProcessor
+  SAFE_FUNC_LIST = [:int_ip_port, :ip_port, :ip, :port].to_set
+
   attr_reader :unsafe_func_called
 
-  def initialize
+  def initialize(bud_instance)
     super()
     self.require_empty = false
     self.expected = Sexp
+    @bud_instance = bud_instance
     @unsafe_func_called = false
     @elem_stack = []
   end
@@ -356,7 +364,9 @@ class UnsafeFuncRewriter < SexpProcessor
     # We assume that unsafe funcs have a nil receiver (Bud instance is implicit
     # receiver).
     if recv.nil? and @elem_stack.size > 0
-      @unsafe_func_called = true unless RuleRewriter.is_monotone(op)
+      unless is_safe_func(op) || is_lattice?(op)
+        @unsafe_func_called = true
+      end
     end
 
     return s(tag, process(recv), op, *(args.map{|a| process(a)}))
@@ -374,6 +384,14 @@ class UnsafeFuncRewriter < SexpProcessor
     rv = process(exp)
     raise Bud::Error unless @elem_stack.pop == obj_id
     return rv
+  end
+
+  def is_lattice?(op)
+    @bud_instance.lattices.has_key? op.to_sym
+  end
+
+  def is_safe_func(op)
+    SAFE_FUNC_LIST.include? op
   end
 end
 

@@ -326,7 +326,7 @@ module Bud
     # the user-defined tables and lattices.  We start @app_tables off as a set,
     # then convert to an array later.
     @app_tables = (@tables.keys - @builtin_tables.keys).map {|t| @tables[t]}.to_set
-    @app_tables += @lattices.values
+    @app_tables.merge(@lattices.values)
 
     # Check scan and merge_targets to see if any builtin_tables need to be added as well.
     @scanners.each do |scs|
@@ -346,7 +346,7 @@ module Bud
       seen = Set.new(working)
       sorted_elems = [] # sorted elements in this stratum
       while not working.empty?
-        sorted_elems += working
+        sorted_elems.concat(working)
         wired_to = []
         working.each do |e|
           e.wirings.each do |out|
@@ -489,8 +489,11 @@ module Bud
     @default_rescan = rescan.to_a
     @default_invalidate = invalidate.to_a
 
-    puts "Default rescan: #{rescan.inspect}" if $BUD_DEBUG
-    puts "Default inval: #{invalidate.inspect}" if $BUD_DEBUG
+    if $BUD_DEBUG
+      puts "Default rescan: #{rescan.inspect}"
+      puts "Default inval: #{invalidate.inspect}"
+      puts "NM targets: #{nm_targets.inspect}"
+    end
 
     # Now compute for each table that is to be scanned, the set of dependent
     # tables and elements that will be invalidated if that table were to be
@@ -518,27 +521,43 @@ module Bud
     end
     @reset_list = to_reset.to_a
 
-    # For each lattice, find the set of tables that should be rescanned when
-    # there is a new delta for the lattice. That is, if we have a rule like:
+    # For each lattice, find the collections that should be rescanned when there
+    # is a new delta for the lattice. That is, if we have a rule like:
     # "t2 <= t1 {|t| [t.key, lat_foo]}", whenever there is a delta on lat_foo we
     # should rescan t1 (to produce tuples with the updated lat_foo value).
+    #
     # TODO:
-    # (1) support non-join ops to be rescanned (+ tests) + lambdas
-    # (2) if t1 is fed by rules r1 and r2 but only r1 references lattice x,
+    # (1) if t1 is fed by rules r1 and r2 but only r1 references lattice x,
     #     don't trigger rescan of r2 on deltas for x (hard)
     t_depends.each do |dep|
-      src, dst = dep.body.to_sym, dep.lhs.to_sym
-      if @lattices.has_key? src and @tables.has_key? dst and dep.in_body
+      src, target_name = dep.body.to_sym, dep.lhs.to_sym
+      if @lattices.has_key? src and dep.in_body
         src_lat = @lattices[src]
-        dst_tbl = @tables[dst]
-        dst_tbl.non_temporal_predecessors.each do |e|
-          src_lat.rescan_on_merge << e
+        if @tables.has_key? target_name
+          target = @tables[target_name]
+        else
+          target = @lattices[target_name]
         end
+
+        # Conservatively, we rescan all the elements that feed the lhs (target)
+        # collection via positive (non-deletion) rules; we then also need to
+        # potentially rescan ancestors of those elements as well (e.g., setting
+        # a stateless PushElement to rescan does nothing; we want to tell its
+        # ancestor ScannerElement to rescan).
+        #
+        # XXX: do we need to consider all transitively reachable nodes for
+        # rescan?
+        lat_rescan = target.positive_predecessors.to_set
+        lat_inval = Set.new
+        target.positive_predecessors.each do |e|
+          e.add_rescan_invalidate(lat_rescan, lat_inval)
+        end
+        src_lat.rescan_on_delta.merge(lat_rescan)
       end
     end
   end
 
-  # given rescan, invalidate sets, compute transitive closure
+  # Given rescan, invalidate sets, compute transitive closure
   def rescan_invalidate_tc(stratum, rescan, invalidate)
     rescan_len = rescan.size
     invalidate_len = invalidate.size
@@ -1186,7 +1205,7 @@ module Bud
       begin
         eval_rule(rule.bud_obj, rule.src)
       rescue Exception => e
-        err_msg = "** Exception while wiring rule: #{rule.src}\n ****** #{e}"
+        err_msg = "** Exception while wiring rule: #{rule.orig_src}\n ****** #{e}"
         # Create a new exception for accomodating err_msg, but reuse original backtrace
         new_e = (e.class <= Bud::Error) ? e.class.new(err_msg) : Bud::Error.new(err_msg)
         new_e.set_backtrace(e.backtrace)

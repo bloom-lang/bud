@@ -388,7 +388,7 @@ class Bud::PushApplyMethod < Bud::LatticePushElement
 end
 
 class Bud::LatticeWrapper
-  attr_reader :tabname, :wired_by, :rescan_on_merge
+  attr_reader :tabname, :wired_by, :rescan_on_delta
   attr_accessor :accumulate_tick_deltas
 
   def initialize(tabname, klass, bud_i)
@@ -396,7 +396,7 @@ class Bud::LatticeWrapper
     @klass = klass
     @bud_instance = bud_i
     @wired_by = []
-    @rescan_on_merge = Set.new
+    @rescan_on_delta = Set.new
   end
 
   def qualified_tabname
@@ -407,6 +407,35 @@ class Bud::LatticeWrapper
     false
   end
 
+  def setup_wiring(input, kind)
+    if input.class <= Bud::LatticeWrapper
+      input.to_push_elem.wire_to(self, kind)
+    elsif (input.class <= Bud::LatticePushElement || input.class <= Bud::PushElement)
+      input.wire_to(self, kind)
+    elsif input.class <= Bud::BudCollection
+      input.pro.wire_to(self, kind)
+    elsif input.class <= Proc
+      tbl = register_coll_expr(input)
+      tbl.pro.wire_to(self, kind)
+    else
+      raise Bud::Error, "unrecognized wiring input: #{input}"
+    end
+
+    add_merge_target
+  end
+
+  def positive_predecessors
+    @wired_by.select {|e| e.outputs.include?(self) || e.pendings.include?(self)}
+  end
+
+  private
+  def register_coll_expr(expr)
+    name = "expr_#{expr.object_id}".to_sym
+    @bud_instance.coll_expr(name, expr, nil)
+    @bud_instance.send(name)
+  end
+
+  public
   def current_value
     @storage ||= @klass.new
     @storage
@@ -441,30 +470,6 @@ class Bud::LatticeWrapper
       raise Bud::Error, "#{lhs.class}\#merge did not return lattice value: #{rv.inspect}"
     end
     rv
-  end
-
-  def setup_wiring(input, kind)
-    if input.class <= Bud::LatticeWrapper
-      input.to_push_elem.wire_to(self, kind)
-    elsif (input.class <= Bud::LatticePushElement || input.class <= Bud::PushElement)
-      input.wire_to(self, kind)
-    elsif input.class <= Bud::BudCollection
-      input.pro.wire_to(self, kind)
-    elsif input.class <= Proc
-      tbl = register_coll_expr(input)
-      tbl.pro.wire_to(self, kind)
-    else
-      raise Bud::Error, "unrecognized wiring input: #{input}"
-    end
-
-    add_merge_target
-  end
-
-  private
-  def register_coll_expr(expr)
-    name = "expr_#{expr.object_id}".to_sym
-    @bud_instance.coll_expr(name, expr, nil)
-    @bud_instance.send(name)
   end
 
   # Merge "i" into @new_delta
@@ -527,8 +532,17 @@ class Bud::LatticeWrapper
   end
 
   def bootstrap
-    @storage = do_merge(current_value, @pending)
-    @pending = nil
+    # Bootstrap blocks might install lattice values via either <= (@new_delta)
+    # or <+ (@pending).
+    if @new_delta
+      merge_to_storage(@new_delta)
+      @new_delta = nil
+    end
+
+    if @pending
+      merge_to_storage(@pending)
+      @pending = nil
+    end
   end
 
   def tick
@@ -544,7 +558,7 @@ class Bud::LatticeWrapper
     m = do_merge(current_value, v)
     if m != current_value
       @storage = m
-      @rescan_on_merge.each do |e|
+      @rescan_on_delta.each do |e|
         if e.kind_of? Bud::ScannerElement
           e.force_rescan = true
         else

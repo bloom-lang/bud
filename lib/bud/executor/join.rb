@@ -526,7 +526,8 @@ module Bud
       @rhs_rcvd = false
       @hash_tables = [{},{}]
       if @lhs_keycols.nil? and blk.nil?
-        # pointwise comparison. Could use zip, but it creates an array for each field pair
+        # Pointwise comparison. Could use zip, but it creates an array for each
+        # field pair.
         blk = lambda {|lhs, rhs|
           lhs.to_a == rhs.to_a
         }
@@ -536,7 +537,7 @@ module Bud
 
     def setup_preds(preds)
       # This is simpler than PushSHJoin's setup_preds, because notin is a binary
-      # operator where both lhs and rhs are collections.  preds an array of
+      # operator where both lhs and rhs are collections. preds is an array of
       # hash_pairs. For now assume that the attributes are in the same order as
       # the tables.
       @lhs_keycols, @rhs_keycols = preds.reduce([[], []]) do |memo, item|
@@ -548,10 +549,13 @@ module Bud
         memo
       end
     end
+
     def find_col(colspec, rel)
       if colspec.is_a? Symbol
+        unless rel.respond_to? colspec
+          raise Bud::Error, "attribute :#{colspec} not found in #{rel.tabname}"
+        end
         col_desc = rel.send(colspec)
-        raise Bud::Error, "unknown column #{colspec} in #{@rel.tabname}" if col_desc.nil?
       elsif colspec.is_a? Array
         col_desc = colspec
       else
@@ -562,7 +566,7 @@ module Bud
 
     def get_key(item, offset)
       keycols = offset == 0 ? @lhs_keycols : @rhs_keycols
-      keycols.nil? ? $EMPTY : keycols.map{|col| item[col]}
+      keycols.nil? ? $EMPTY : item.values_at(*keycols)
     end
 
     public
@@ -597,7 +601,6 @@ module Bud
     end
 
     def process_match(lhs_item, rhs_values)
-      exclude = true
       if rhs_values.nil?
         # no corresponding rhs. Include in output
         exclude = false
@@ -605,33 +608,24 @@ module Bud
         # for any lhs * rhs pair, if block returns true, do not push lhs. lhs is pushed
         # only if there is no match (anti-join)
         exclude = rhs_values.any?{|rhs_item| @blk.call(lhs_item, rhs_item)}
+      else
+        exclude = true
       end
-      unless exclude
-        push_out(lhs_item)
-      end
-    end
 
-    public
-    def push_out(item)
-      @outputs.each do |ou|
-        if ou.class <= Bud::PushElement
-          ou.insert(item, self)
-        elsif ou.class <= Bud::BudCollection
-          ou.do_insert(item, ou.new_delta)
-        else
-          raise Bud::Error, "expected either a PushElement or a BudCollection"
-        end
-      end
-      # for all the following, o is a BudCollection
-      @deletes.each{|o| o.pending_delete([item])}
-      @delete_keys.each{|o| o.pending_delete_keys([item])}
-      @pendings.each{|o| o.pending_merge([item])}
+      push_out(lhs_item, false) unless exclude
     end
 
     def invalidate_cache
-      puts "#{self.class}/#{self.tabname} invalidated" if $BUD_DEBUG
-      @hash_tables = [{},{}]
-      @rhs_rcvd = false
+      raise Bud::Error if @rhs_rcvd     # sanity check; should already be reset
+
+      if @lhs.rescan
+        puts "#{tabname} rel:#{@lhs.tabname} invalidated" if $BUD_DEBUG
+        @hash_tables[0] = {}
+      end
+      if @rhs.rescan
+        puts "#{tabname} rel:#{@rhs.tabname} invalidated" if $BUD_DEBUG
+        @hash_tables[1] = {}
+      end
     end
 
     def stratum_end
