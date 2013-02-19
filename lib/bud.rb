@@ -265,7 +265,7 @@ module Bud
       mod_inst.t_rules.each do |imp_rule|
         qname = "#{local_name}.#{imp_rule.lhs}"
         self.t_rules << [imp_rule.bud_obj, imp_rule.rule_id, qname, imp_rule.op,
-                         imp_rule.src, imp_rule.orig_src, imp_rule.nm_funcs_called]
+                         imp_rule.src, imp_rule.orig_src, imp_rule.unsafe_funcs_called]
       end
       mod_inst.t_depends.each do |imp_dep|
         qlname = "#{local_name}.#{imp_dep.lhs}"
@@ -453,18 +453,19 @@ module Bud
 
     # By default, all tables are considered sources unless they appear on the
     # lhs.  We only consider non-temporal rules because invalidation is only
-    # about this tick.  Also, we track (in nm_targets) those tables that are the
-    # targets of user-defined code blocks that call non-monotonic functions
-    # (such as budtime). Elements that feed these tables are forced to rescan
-    # their contents, and thus forced to re-execute these code blocks.
-    nm_targets = Set.new
+    # about this tick.  Also, we track (in unsafe_targets) those tables that are
+    # the targets of user-defined code blocks that call "unsafe" functions that
+    # produce a different value in every tick (e.g., budtime). Elements that
+    # feed these tables are forced to rescan their contents, and thus forced to
+    # re-execute these code blocks.
+    unsafe_targets = Set.new
     t_rules.each do |rule|
       lhs = rule.lhs.to_sym
       if rule.op == "<="
         # Note that lattices cannot be sources
         @tables[lhs].is_source = false if @tables.has_key? lhs
       end
-      nm_targets << lhs if rule.nm_funcs_called
+      unsafe_targets << lhs if rule.unsafe_funcs_called
     end
 
     # Compute a set of tables and elements that should be explicitly told to
@@ -477,7 +478,7 @@ module Bud
       @push_sorted_elems[stratum].each do |elem|
         rescan << elem if elem.rescan_at_tick
 
-        if elem.outputs.any?{|tab| not(tab.class <= PushElement) and not(tab.class <= LatticePushElement) and nm_targets.member? tab.qualified_tabname.to_sym }
+        if elem.outputs.any?{|tab| not(tab.class <= PushElement) and not(tab.class <= LatticePushElement) and unsafe_targets.member? tab.qualified_tabname.to_sym }
           rescan.merge(elem.wired_by)
         end
       end
@@ -492,7 +493,7 @@ module Bud
     if $BUD_DEBUG
       puts "Default rescan: #{rescan.inspect}"
       puts "Default inval: #{invalidate.inspect}"
-      puts "NM targets: #{nm_targets.inspect}"
+      puts "Unsafe targets: #{unsafe_targets.inspect}"
     end
 
     # Now compute for each table that is to be scanned, the set of dependent
@@ -1158,7 +1159,7 @@ module Bud
     @periodics = table :periodics_tbl, [:pername] => [:period]
 
     # for BUD reflection
-    table :t_rules, [:bud_obj, :rule_id] => [:lhs, :op, :src, :orig_src, :nm_funcs_called]
+    table :t_rules, [:bud_obj, :rule_id] => [:lhs, :op, :src, :orig_src, :unsafe_funcs_called]
     table :t_depends, [:bud_obj, :rule_id, :lhs, :op, :body] => [:nm, :in_body]
     table :t_provides, [:interface] => [:input]
     table :t_underspecified, t_provides.schema

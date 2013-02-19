@@ -180,7 +180,7 @@ module VizUtil #:nodoc: all
     convertor = Syntax::Convertors::HTML.for_syntax "ruby"
     shredded_rules.each do |s|
       # b/c accessors don't make it through serialization anymore
-      bud_obj, rule_id, lhs, op, src, orig_src, nm_funcs_called = s.to_a
+      bud_obj, rule_id, lhs, op, src, orig_src, unsafe_funcs_called = s.to_a
       fout = File.new("#{output_base}/#{rule_id}-#{lhs}.html", "w+")
       fout.puts header
       fout.puts "<h1>Rule #{rule_id}</h1><br>"
