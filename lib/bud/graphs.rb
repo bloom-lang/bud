@@ -167,7 +167,7 @@ class GraphGen #:nodoc: all
       @edges[ekey].arrowsize = 2
 
       @edges[ekey].color = (@nodes[body]["color"].source || "")
-      @edges[ekey].URL = "#{rule_id}.html" unless rule_id.nil?
+      @edges[ekey].URL = "#{rule_id}-#{head}.html" unless rule_id.nil?
       if head =~ /_msg\z/
         @edges[ekey].minlen = 2
       else

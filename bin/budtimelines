@@ -10,7 +10,7 @@ include VizUtil
 
 module Depends
   state do
-    table :depends, [:rid, :lhs, :op, :rhs, :nm, :in_body]
+    table :depends, [:bud_obj, :rid, :lhs, :op, :rhs, :nm, :in_body]
   end
 end
 
@@ -49,7 +49,7 @@ end
 module DeltaLogic
   include TPSchema
   bloom do
-    zerod_cards <= cardinalities{|c| c + [c.bud_time-1]}
+    zerod_cards <= cardinalities{|c| c.to_a + [c.bud_time-1]}
     zerod_cards <= (times * depends).pairs do |t, d|
       unless cardinalities{|c| c[1] if c[0] == t.bud_time}.include? d[1]
         [t.bud_time, d[1], 0, t.bud_time - 1]

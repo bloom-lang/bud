@@ -201,7 +201,7 @@ def get_trace_data
 end
 
 if ARGV.length < 2
-  puts "Usage: budplot LIST_OF_FILES LIST_OF_MODULES_OR_CLASSES"
+  puts "Usage: budplot [-I PATH_TO_RUBY_INCLUDES] LIST_OF_FILES LIST_OF_MODULES_OR_CLASSES"
   exit
 end
 
