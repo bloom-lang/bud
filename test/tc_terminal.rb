@@ -2,7 +2,7 @@ require './test_common'
 require 'stringio' 
 
 
-class TerminalTester
+class StdinReader
   include Bud
   state do
     scratch :saw_input, stdio.schema
@@ -19,7 +19,7 @@ class TestTerminal < MiniTest::Unit::TestCase
     input_str = input_lines.join("\n") + "\n"
     input_buf = StringIO.new(input_str)
     q = Queue.new
-    b = TerminalTester.new(:stdin => input_buf)
+    b = StdinReader.new(:stdin => input_buf)
     b.register_callback(:saw_input) do |tbl|
       tbl.to_a.each {|t| q.push(t)}
     end

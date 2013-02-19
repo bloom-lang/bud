@@ -1038,8 +1038,6 @@ module Bud
 
     public
     def start_stdin_reader # :nodoc: all
-      # XXX: Ugly hack. Rather than sending terminal data to EM via UDP,
-      # we should add the terminal file descriptor to the EM event loop.
       Thread.new do
         begin
           while true
@@ -1053,6 +1051,9 @@ module Bud
       end
     end
 
+    # XXX: Ugly hack. Rather than sending terminal data to EM via UDP, we should
+    # add the terminal file descriptor to the EM event loop.
+    private
     def read_line
       toplevel = @bud_instance.toplevel
       if @prompt
@@ -1098,7 +1099,6 @@ module Bud
         @tick_delta.clear
       end
       @invalidated = true # channels and terminals are always invalidated.
-      raise Bud::Error, "orphaned pending tuples in terminal" unless @pending.empty?
     end
 
     public
