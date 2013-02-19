@@ -3,18 +3,18 @@ require 'bud/state'
 class VizOnline #:nodoc: all
   attr_reader :logtab
 
-  META_TABLES = %w[t_cycle t_depends t_depends_tc t_provides t_rules
-                   t_stratum t_table_info t_table_schema].to_set
+  META_TABLES = %w[t_cycle t_depends t_provides t_rules t_stratum
+                   t_table_info t_table_schema t_underspecified].to_set
 
   def initialize(bud_instance)
     @bud_instance = bud_instance
     @bud_instance.options[:dbm_dir] = "DBM_#{@bud_instance.class}_#{bud_instance.options[:tag]}_#{bud_instance.object_id}_#{bud_instance.port}"
     @table_info = bud_instance.tables[:t_table_info]
     @table_schema = bud_instance.tables[:t_table_schema]
-    @logtab = new_tab("the_big_log", [:table, :time, :contents], bud_instance)
+    @logtab = new_tab(:the_big_log, [:table, :time, :contents], bud_instance)
     tmp_set = []
     @bud_instance.tables.each do |name, tbl|
-      next if name == "the_big_log" || name == :localtick
+      next if name == :the_big_log || name == :localtick
       # Temp collections don't have a schema until a fact has been inserted into
       # them; for now, we just include an empty schema for them in the viz
       if tbl.schema.nil?
@@ -56,11 +56,11 @@ class VizOnline #:nodoc: all
         row = row[0]
       end
 
-      # bud.t_depends and t_rules have bud object in field[0]. Remove them since
-      # bud instances cannot/must not be serialized.
+      # bud.t_depends and t_rules have bud object in field[0]. Replace them with
+      # a string, since bud instances cannot/must not be serialized.
       if row[0].class <= Bud
-        row = row.to_a if row.class != Array
-        row = [row[0].class.to_s] + row[1..-1] if row[0].class <= Bud
+        row = row.to_a
+        row = [row[0].class.to_s] + row[1..-1]
       end
       newrow = [tab, @bud_instance.budtime, row]
       begin
@@ -74,10 +74,9 @@ class VizOnline #:nodoc: all
   def do_cards
     @bud_instance.tables.each do |t|
       tab = t[0]
-      next if tab == "the_big_log"
+      next if tab == :the_big_log
       next if @bud_instance.budtime > 0 and META_TABLES.include? tab.to_s
-      # PAA: why did we previously exclude periodics?
-      add_rows(t[1], tab) #####unless t[1].class == Bud::BudPeriodic
+      add_rows(t[1], tab)
       if t[1].class == Bud::BudChannel
         add_rows(t[1].pending, "#{tab}_snd")
       end

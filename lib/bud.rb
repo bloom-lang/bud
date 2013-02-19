@@ -1159,14 +1159,14 @@ module Bud
     @periodics = table :periodics_tbl, [:pername] => [:period]
 
     # for BUD reflection
-    table :t_rules, [:bud_obj, :rule_id] => [:lhs, :op, :src, :orig_src, :unsafe_funcs_called]
+    table :t_cycle, [:predicate, :via, :neg, :temporal]
     table :t_depends, [:bud_obj, :rule_id, :lhs, :op, :body] => [:nm, :in_body]
     table :t_provides, [:interface] => [:input]
-    table :t_underspecified, t_provides.schema
+    table :t_rules, [:bud_obj, :rule_id] => [:lhs, :op, :src, :orig_src, :unsafe_funcs_called]
     table :t_stratum, [:predicate] => [:stratum]
-    table :t_cycle, [:predicate, :via, :neg, :temporal]
     table :t_table_info, [:tab_name, :tab_type]
     table :t_table_schema, [:tab_name, :col_name, :ord, :loc]
+    table :t_underspecified, t_provides.schema
 
     # Identify builtin tables as such
     @builtin_tables = @tables.clone if toplevel
