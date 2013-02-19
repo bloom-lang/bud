@@ -389,7 +389,7 @@ end
 
 class Bud::LatticeWrapper
   attr_reader :tabname, :wired_by, :rescan_on_delta
-  attr_accessor :accumulate_tick_deltas
+  attr_accessor :accumulate_tick_deltas, :bud_instance
 
   def initialize(tabname, klass, bud_i)
     @tabname = tabname
