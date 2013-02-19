@@ -233,7 +233,7 @@ class ShortestPathsL
 end
 
 # Compute shortest paths in a slightly different manner (closer to R&S): add
-# links to the end of a previously-discovered path, rather than prepending them
+# links to the end of a previously discovered path, rather than prepending them
 # to the beginning; this means the "next" field actually points backward from
 # the end of the path.
 class ShortestPathsVariant
@@ -1238,12 +1238,12 @@ end
 
 class LatticeModParent
   include Bud
-  import LatticeMod1 => :x
-  import LatticeMod1 => :y
+  import LatticeMod1 => :x1
+  import LatticeMod1 => :x2
 
   bootstrap do
-    x.m1 <= Bud::MaxLattice.new(0)
-    y.m1 <= Bud::MaxLattice.new(4)
+    x1.m1 <= Bud::MaxLattice.new(0)
+    x2.m1 <= Bud::MaxLattice.new(4)
   end
 
   state do
@@ -1253,29 +1253,29 @@ class LatticeModParent
   end
 
   bloom do
-    m1 <= x.m1 + 3
-    m1 <= y.m1
-    s1 <= x.s1.merge(Bud::SetLattice.new([1,2,3]))
-    s1 <= y.s1
-    cnt <= x.s1.size
+    m1 <= x1.m1 + 3
+    m1 <= x2.m1
+    s1 <= x1.s1.merge(Bud::SetLattice.new([1,2,3]))
+    s1 <= x2.s1
+    cnt <= x1.s1.size
   end
 end
 
 class TestLatticesWithModules < MiniTest::Unit::TestCase
   def test_lattice_module_simple
     i = LatticeModParent.new
-    %w[m1 cnt s1 x.m1 x.s1 y.m1 y.s1].each {|r| assert_equal(0, i.collection_stratum(r))}
+    %w[m1 cnt s1 x1.m1 x1.s1 x2.m1 x2.s1].each {|r| assert_equal(0, i.collection_stratum(r))}
 
-    i.x.m1 <+ Bud::MaxLattice.new(3)
+    i.x1.m1 <+ Bud::MaxLattice.new(3)
     i.s1 <+ Bud::SetLattice.new([4])
     i.tick
     assert_equal(6, i.m1.current_value.reveal)
     assert_equal(0, i.cnt.current_value.reveal)
     assert_equal([1,2,3,4], i.s1.current_value.reveal.sort)
 
-    i.x.s1 <+ Bud::SetLattice.new([2, 6])
-    i.y.s1 <+ Bud::SetLattice.new([2, 5])
-    i.y.m1 <+ Bud::MaxLattice.new(5)
+    i.x1.s1 <+ Bud::SetLattice.new([2, 6])
+    i.x2.s1 <+ Bud::SetLattice.new([2, 5])
+    i.x2.m1 <+ Bud::MaxLattice.new(5)
     i.tick
     assert_equal(6, i.m1.current_value.reveal)
     assert_equal(2, i.cnt.current_value.reveal)
