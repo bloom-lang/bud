@@ -203,6 +203,7 @@ class Bud::SetLattice < Bud::Lattice
   wrapper_name :lset
 
   def initialize(i=Set.new)
+    reject_input(i) unless i.kind_of? Enumerable
     reject_input(i) if i.any? {|e| e.kind_of? Bud::Lattice}
 
     i = Set.new(i) unless i.kind_of? Set

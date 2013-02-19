@@ -4,7 +4,9 @@ require 'rubygems'
 require 'bud'
 require 'abbrev'
 require 'tempfile'
-TABLE_TYPES = ["table", "scratch", "channel", "loopback", "periodic", "sync", "store"]
+
+TABLE_TYPES = ["table", "scratch", "channel", "loopback", "periodic",
+               "sync", "store", "interface", "interfaces"]
 
 # The class to which rebl adds user-specified rules and declarations.
 class ReblBase
@@ -93,7 +95,7 @@ class ReblShell
 
   # One step of the rebl shell loop: processes one rebl shell line from stdin
   # and returns.  May raise an Exception.
-  def self.rebl_loop(lib,noreadline=false)
+  def self.rebl_loop(lib, noreadline=false)
     begin
       if noreadline
         line = gets
@@ -113,7 +115,7 @@ class ReblShell
         else
           puts "invalid command or ambiguous command prefix"
         end
-      elsif TABLE_TYPES.include? split_line[0]
+      elsif is_collection? split_line[0]
         # Collection
         lib.add_collection(line)
       else
@@ -189,6 +191,12 @@ class ReblShell
     puts "\n" + @@exit_message
     exit!
   end
+
+  # Checks if a given string refers to a collection type (one of the builtin
+  # collection types or a wrapper_name for a lattice).
+  def self.is_collection?(c)
+    TABLE_TYPES.include?(c) || Bud::Lattice.lattice_kinds.has_key?(c.to_sym)
+  end
 end
 
 
@@ -236,11 +244,14 @@ class LibRebl
   def dump(c)
     if c.nil?
       puts "Error: dump must be passed a collection name"
-    elsif not @rebl_class_inst.tables.has_key? c.to_sym
-      puts "Error: non-existent collection \"#{c}\""
-    else
+    elsif @rebl_class_inst.tables.has_key? c.to_sym
       tups = @rebl_class_inst.tables[c.to_sym].to_a.sort
       puts(tups.empty? ? "(empty)" : tups.sort.map{|t| "#{t}"}.join("\n"))
+    elsif @rebl_class_inst.lattices.has_key? c.to_sym
+      val = @rebl_class_inst.lattices[c.to_sym].current_value
+      puts val.inspect
+    else
+      puts "Error: non-existent collection \"#{c}\""
     end
   end
 
@@ -337,9 +348,13 @@ class LibRebl
                                        end)
       @rebl_class_inst.dbm_tables.merge! @old_inst.dbm_tables
       @rebl_class_inst.zk_tables.merge! @old_inst.zk_tables
+      @rebl_class_inst.lattices.merge! @old_inst.lattices
 
       # Fix the bud instance pointers from copied tables.
       @rebl_class_inst.tables.each_value do |v|
+        v.bud_instance = @rebl_class_inst
+      end
+      @rebl_class_inst.lattices.each_value do |v|
         v.bud_instance = @rebl_class_inst
       end
     end

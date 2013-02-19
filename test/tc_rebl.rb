@@ -185,4 +185,28 @@ class TestRebl < MiniTest::Unit::TestCase
     actual_output = rt.exec_rebl("/tick")
     assert_match(/\s*/, actual_output)
   end
+
+  def test_rebl_lattice
+    rt = start_tester
+    rt.exec_rebl("lset :s1")
+    rt.exec_rebl("lmax :m1")
+
+    expected = "1: lset :s1\n2: lmax :m1\n"
+    assert_equal(expected, rt.exec_rebl("/lscollections"))
+
+    rt.exec_rebl("m1 <= s1.size")
+    rt.exec_rebl("s1 <= [[1], [2], [3]]")
+    assert_equal(expected, rt.exec_rebl("/lscollections"))
+
+    rt.exec_rebl("/tick")
+    assert_equal("<lmax: 3>\n", rt.exec_rebl("/dump m1"))
+
+    # We expect that removing a rule does that remove previously derived
+    # conclusions
+    rt.exec_rebl("/rmrule 1")
+    rt.exec_rebl("s1 <= [[4], [5], [6]]")
+    rt.exec_rebl("/tick")
+    assert_equal("<lmax: 3>\n", rt.exec_rebl("/dump m1"))
+    assert_equal("<lset: #<Set: {1, 2, 3, 4, 5, 6}>>\n", rt.exec_rebl("/dump s1"))
+  end
 end
