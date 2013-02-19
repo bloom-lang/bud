@@ -181,7 +181,7 @@ module VizUtil #:nodoc: all
     shredded_rules.each do |s|
       # b/c accessors don't make it through serialization anymore
       bud_obj, rule_id, lhs, op, src, orig_src, nm_funcs_called = s.to_a
-      fout = File.new("#{output_base}/#{rule_id}.html", "w+")
+      fout = File.new("#{output_base}/#{rule_id}-#{lhs}.html", "w+")
       fout.puts header
       fout.puts "<h1>Rule #{rule_id}</h1><br>"
 
@@ -364,7 +364,12 @@ END_JS
   def write_table_content(fn, row)
     stream = File.open(fn, "a")
     stream.puts "<tr>"
-    stream.puts row.map{|c| "<td>#{c.to_s}</td>"}.join(" ")
+    if row.class < Enumerable
+      stream.puts row.map{|c| "<td>#{c.to_s}</td>"}.join(" ")
+    else
+      # special case for periodics
+      stream.puts "<td>#{row.to_s}</td>"
+    end
     stream.puts "</tr>"
     stream.close
   end
