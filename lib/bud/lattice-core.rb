@@ -114,8 +114,6 @@ end
 
 # TODO:
 # * merge logic for set-oriented collections
-# * invalidation/rescan/non-monotonic stuff?
-# * expressions on RHS ("CollExpr")
 class Bud::LatticePushElement
   attr_reader :wired_by, :outputs
   attr_accessor :invalidated, :rescan
