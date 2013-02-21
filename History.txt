@@ -1,10 +1,14 @@
 == 0.9.6 / ???
 
-* Reject attempts to insert into stdio via <+ (#288)
+* Support syntax sugar for initializing lattices (#294). For example, rather
+  than writing "foo <= Bud::MaxLattice.new(2)", you can now just write "foo <=
+  2". Note that, due to a bug in the superator gem, you cannot use this syntax
+  with the <+ operator.
 * Support "Comparable" for Bud::Lattice values
 * Add support for lattices to rebl
-* Improve MRI 1.8 compatibility
+* Reject attempts to insert into stdio via <+ (#288)
 * Restore functionality of reading from stdio (i.e., stdin) with MRI 1.9
+* Improve MRI 1.8 compatibility
 * Require ruby_parser >= 3.1.0
 * Fix bug in bootstrap blocks for lattice values
 * Fix bug in rescan/invalidation for rules that reference lattice values and use

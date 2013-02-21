@@ -63,11 +63,30 @@ class EmptyMaxMerge
   end
 
   bootstrap do
-    m1 <= Bud::MaxLattice.new(5)
+    m1 <= 5
   end
 
   bloom do
     m1 <= m2
+  end
+end
+
+class MaxConstructorImplicit
+  include Bud
+
+  state do
+    lmax :m1
+    lmax :m2
+    lmax :m3
+  end
+
+  bootstrap do
+    m1 <= 5
+  end
+
+  bloom do
+    m2 <= 6
+    m3 <= -7
   end
 end
 
@@ -157,6 +176,19 @@ class TestMax < MiniTest::Unit::TestCase
     assert_equal(17, i.t[["m2"]].val.reveal)
   end
 
+  def test_empty_max
+    i = EmptyMaxMerge.new
+    i.tick
+  end
+
+  def test_max_implicit_cons
+    i = MaxConstructorImplicit.new
+    i.tick
+    assert_equal(Bud::MaxLattice.new(5), i.m1.current_value)
+    assert_equal(Bud::MaxLattice.new(6), i.m2.current_value)
+    assert_equal(Bud::MaxLattice.new(-7), i.m3.current_value)
+  end
+
   def test_max_over_chn
     src, dst = Array.new(2) { MaxOverChannel.new }
     [src, dst].each {|n| n.run_bg}
@@ -199,11 +231,6 @@ class TestMax < MiniTest::Unit::TestCase
     assert_raises(Bud::TypeError) do
       i.tick
     end
-  end
-
-  def test_empty_max
-    i = EmptyMaxMerge.new
-    i.tick
   end
 
   def test_max_equality
@@ -1242,8 +1269,8 @@ class LatticeModParent
   import LatticeMod1 => :x2
 
   bootstrap do
-    x1.m1 <= Bud::MaxLattice.new(0)
-    x2.m1 <= Bud::MaxLattice.new(4)
+    x1.m1 <= 0
+    x2.m1 <= 4
   end
 
   state do

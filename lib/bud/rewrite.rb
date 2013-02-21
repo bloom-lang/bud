@@ -195,15 +195,17 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     Bud::Lattice.global_morphs.include?(op)
   end
 
-  # Rewrite top-level rhs array and hash literals to lambdas. During wiring,
-  # these are turned into coll_expr collections.
+  # Rewrite top-level rhs literal expressions into lambdas. During wiring, these
+  # are turned into coll_expr collections. For normal relational Bloom, the only
+  # literal we expect to see is an array literal, but lattices can be
+  # initialized with other kinds of literals (e.g., integers for lmax).
   def lambda_rewrite(rhs)
     # the <= case
-    if is_coll_literal(rhs[0])
+    if is_rhs_literal(rhs[0])
       return s(:iter, s(:call, nil, :lambda), s(:args), rhs)
     # the superator case
     elsif rhs[0] == :call \
-      and rhs[1] and rhs[1][0] and is_coll_literal(rhs[1][0]) \
+      and rhs[1] and rhs[1][0] and is_rhs_literal(rhs[1][0]) \
       and rhs[2] and (rhs[2] == :+@ or rhs[2] == :-@ or rhs[2] == :~@)
       return s(rhs[0], s(:iter, s(:call, nil, :lambda), s(:args), rhs[1]), rhs[2], *rhs[3..-1])
     else
@@ -211,8 +213,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     end
   end
 
-  def is_coll_literal(e)
-    [:array, :hash].include? e
+  def is_rhs_literal(e)
+    [:array, :hash, :lit].include? e
   end
 
   def collect_rhs(exp)
