@@ -296,3 +296,33 @@ class TwoQualsTest < MiniTest::Unit::TestCase
     assert_equal([[1, 3]], f.result.to_a)
   end
 end
+
+class NotInSelf
+  include Bud
+
+  state do
+    table :t1, [:id] => [:foo]
+    scratch :res, t1.schema
+  end
+
+  bloom do
+    res <= t1.notin(t1, :foo => :id)
+  end
+end
+
+class NotInSelfTest < MiniTest::Unit::TestCase
+  def test_self_notin
+    n = NotInSelf.new
+    n.t1 <+ [[5, 10], [10, 10], [12, 11]]
+    n.tick
+    assert_equal([[12, 11]], n.res.to_a.sort)
+
+    n.t1 <+ [[11, 13]]
+    n.tick
+    assert_equal([[11, 13]], n.res.to_a.sort)
+
+    n.t1 <+ [[13, 10]]
+    n.tick
+    assert_equal([], n.res.to_a.sort)
+  end
+end

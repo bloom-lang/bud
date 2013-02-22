@@ -575,7 +575,16 @@ module Bud
     end
 
     def insert(item, source)
-      offset = source == @lhs ? 0 : 1
+      if source == @lhs && source == @rhs       # Self join
+        do_insert(item, 0)
+        do_insert(item, 1)
+      else
+        offset = source == @lhs ? 0 : 1
+        do_insert(item, offset)
+      end
+    end
+
+    def do_insert(item, offset)
       key = get_key(item, offset)
       (@hash_tables[offset][key] ||= Set.new).add item
       if @rhs_rcvd and offset == 0
