@@ -965,18 +965,36 @@ module Bud
         # values using Marshal, and then encode the entire tuple with
         # MsgPack. Obviously, this is gross. The wire format also includes an
         # array of indices, indicating which fields hold Marshall'd objects.
+        wire_buf = StringIO.new
+        packer = MessagePack::Packer.new(wire_buf)
+        packer.write_array_header(3)
+        packer.write(qualified_tabname.to_s)
+        # The second element, wire_tuple, is an array.  We will write it
+        # one element at a time:
+        packer.write_array_header(t.length)
+        packer.flush
         marshall_indexes = []
-        wire_tuple = Array.new(t.length)
         t.each_with_index do |f, i|
+          # Performance optimization for cases where we know that we can't
+          # marshal the field using MsgPack:
           if [Bud::Lattice, Class].any?{|t| f.class <= t}
             marshall_indexes << i
-            wire_tuple[i] = Marshal.dump(f)
+            wire_buf << Marshal.dump(f).to_msgpack
           else
-            wire_tuple[i] = f
+            begin
+              wire_buf << f.to_msgpack
+            rescue NoMethodError
+              # If MsgPack can't marshal the field, fall back to Marshal.
+              # This handles fields that contain nested non-MsgPack-able
+              # objects (in these cases, the entire field is Marshal'd.)
+              marshall_indexes << i
+              wire_buf << Marshal.dump(f).to_msgpack
+            end
           end
         end
-        wire_str = [qualified_tabname.to_s, wire_tuple, marshall_indexes].to_msgpack
-        toplevel.dsock.send_datagram(wire_str, the_locspec[0], the_locspec[1])
+        packer.write(marshall_indexes)
+        packer.flush
+        toplevel.dsock.send_datagram(wire_buf.string, the_locspec[0], the_locspec[1])
       end
       @pending.clear
     end

@@ -46,7 +46,7 @@ class Struct
     false
   end
 
-  def to_msgpack(out='')
+  def to_msgpack(out=nil)
     self.to_a.to_msgpack(out)
   end
 

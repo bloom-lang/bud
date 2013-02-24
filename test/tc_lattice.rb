@@ -1596,3 +1596,24 @@ class Bug290Test < MiniTest::Unit::TestCase
     end
   end
 end
+
+class MarshalingNestedLatticeObjects
+  include Bud
+
+  state do
+    loopback :lb
+  end
+
+  bootstrap do
+    # Lattice nested in a Ruby object:
+    lb <~ [ [ "localhost", [Bud::MaxLattice.new(0)]] ]
+  end
+
+end
+
+class TestMarshalingNestedLatticeObjects < MiniTest::Unit::TestCase
+  def test_marshal
+    b = MarshalingNestedLatticeObjects.new
+    b.tick
+  end
+end
