@@ -874,6 +874,8 @@ module Bud
       given_schema ||= [:@address, :val]
       @is_loopback = loopback
       @locspec_idx = nil
+      @wire_buf = StringIO.new
+      @packer = MessagePack::Packer.new(@wire_buf)
 
       # We're going to mutate the caller's given_schema (to remove the location
       # specifier), so make a deep copy first. We also save a ref to the
@@ -964,37 +966,40 @@ module Bud
         # particular, lattice values and Class instances), we first encode such
         # values using Marshal, and then encode the entire tuple with
         # MsgPack. Obviously, this is gross. The wire format also includes an
-        # array of indices, indicating which fields hold Marshall'd objects.
-        wire_buf = StringIO.new
-        packer = MessagePack::Packer.new(wire_buf)
-        packer.write_array_header(3)
-        packer.write(qualified_tabname.to_s)
-        # The second element, wire_tuple, is an array.  We will write it
-        # one element at a time:
-        packer.write_array_header(t.length)
-        packer.flush
+        # array of indices, indicating which fields hold Marshall'd values.
+        @packer.write_array_header(3)
+        @packer.write(qualified_tabname.to_s)
+        # The second element, wire_tuple, is an array.  We will write it one
+        # element at a time:
+        @packer.write_array_header(t.length)
+        @packer.flush
         marshall_indexes = []
-        t.each_with_index do |f, i|
+        t.each_with_index do |f,i|
           # Performance optimization for cases where we know that we can't
           # marshal the field using MsgPack:
           if [Bud::Lattice, Class].any?{|t| f.class <= t}
             marshall_indexes << i
-            wire_buf << Marshal.dump(f).to_msgpack
+            @wire_buf << Marshal.dump(f).to_msgpack
           else
             begin
-              wire_buf << f.to_msgpack
+              @wire_buf << f.to_msgpack
             rescue NoMethodError
               # If MsgPack can't marshal the field, fall back to Marshal.
               # This handles fields that contain nested non-MsgPack-able
               # objects (in these cases, the entire field is Marshal'd.)
               marshall_indexes << i
-              wire_buf << Marshal.dump(f).to_msgpack
+              @wire_buf << Marshal.dump(f).to_msgpack
             end
           end
         end
-        packer.write(marshall_indexes)
-        packer.flush
-        toplevel.dsock.send_datagram(wire_buf.string, the_locspec[0], the_locspec[1])
+        @packer.write(marshall_indexes)
+        @packer.flush
+        toplevel.dsock.send_datagram(@wire_buf.string,
+                                     the_locspec[0], the_locspec[1])
+
+        # Reset output buffer
+        @wire_buf.rewind
+        @wire_buf.truncate(0)
       end
       @pending.clear
     end

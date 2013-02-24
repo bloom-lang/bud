@@ -4,6 +4,11 @@
   than writing "foo <= Bud::MaxLattice.new(2)", you can now just write "foo <=
   2". Note that, due to a bug in the superator gem, you cannot use this syntax
   with the <+ operator.
+* Allow nested lattice values to be sent over channels (#295, patch from Josh
+  Rosen). Lattice values could previously be sent as a field value in a tuple
+  delivered over a channel, but they could not be embedded arbitrarily deeply
+  within tuples (e.g., lattices nested within an array could not previously be
+  sent as a field value).
 * Support "Comparable" for Bud::Lattice values
 * Add support for lattices to rebl
 * Reject attempts to insert into stdio via <+ (#288)

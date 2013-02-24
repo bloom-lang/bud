@@ -1597,23 +1597,34 @@ class Bug290Test < MiniTest::Unit::TestCase
   end
 end
 
-class MarshalingNestedLatticeObjects
+class MarshalNestedLattices
   include Bud
 
   state do
     loopback :lb
+    table :stash
   end
 
   bootstrap do
-    # Lattice nested in a Ruby object:
-    lb <~ [ [ "localhost", [Bud::MaxLattice.new(0)]] ]
+    lb <~ [ ["localhost", [Bud::MaxLattice.new(0)]] ]
   end
 
+  bloom do
+    stash <= lb
+  end
 end
 
-class TestMarshalingNestedLatticeObjects < MiniTest::Unit::TestCase
+class TestMarshalNestedLattices < MiniTest::Unit::TestCase
   def test_marshal
-    b = MarshalingNestedLatticeObjects.new
-    b.tick
+    b = MarshalNestedLattices.new
+    q = Queue.new
+    b.register_callback(:lb) do |t|
+      q.push(true)
+    end
+    b.run_bg
+    q.pop
+    b.stop
+
+    assert_equal([["localhost", [Bud::MaxLattice.new(0)]]], b.stash.to_a)
   end
 end
