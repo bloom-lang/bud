@@ -214,6 +214,11 @@ class Bud::SetLattice < Bud::Lattice
     wrap_unsafe(@v | i.reveal)
   end
 
+  # Override default "inspect" implementation to produce slightly nicer output
+  def inspect
+    "<#{self.class.wrapper}: #{reveal.to_a.sort.inspect}>"
+  end
+
   morph :intersect do |i|
     wrap_unsafe(@v & i.reveal)
   end

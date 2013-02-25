@@ -207,6 +207,6 @@ class TestRebl < MiniTest::Unit::TestCase
     rt.exec_rebl("s1 <= [[4], [5], [6]]")
     rt.exec_rebl("/tick")
     assert_equal("<lmax: 3>\n", rt.exec_rebl("/dump m1"))
-    assert_equal("<lset: #<Set: {1, 2, 3, 4, 5, 6}>>\n", rt.exec_rebl("/dump s1"))
+    assert_equal("<lset: [1, 2, 3, 4, 5, 6]>\n", rt.exec_rebl("/dump s1"))
   end
 end
