@@ -303,7 +303,7 @@ class SpaceTime
           params[:URL] = "DBM_#{k}/tm_#{item}.svg"
         end
         snd = @subs[k].add_nodes(label, params)
-        unless @head[k].id == snd.id
+        unless @head[k].object_id == snd.object_id
           @subs[k].add_edges(@head[k], snd, :weight => 2)
           @head[k] = snd
         end
