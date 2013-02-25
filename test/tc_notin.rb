@@ -301,12 +301,12 @@ class NotInSelf
   include Bud
 
   state do
-    table :t1, [:id] => [:foo]
+    table :t1, [:ident] => [:foo]
     scratch :res, t1.schema
   end
 
   bloom do
-    res <= t1.notin(t1, :foo => :id)
+    res <= t1.notin(t1, :foo => :ident)
   end
 end
 
