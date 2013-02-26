@@ -600,6 +600,11 @@ module Bud
     public
     # instantaneously merge items from collection +o+ into +buf+
     def <=(collection)
+      toplevel = bud_instance.toplevel
+      if not (toplevel.inside_budinit or toplevel.inside_tick)
+        raise Bud::CompileError, "illegal use of <= outside of bloom block"
+      end
+
       merge(collection)
     end
 
