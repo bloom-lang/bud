@@ -15,6 +15,7 @@ Gem::Specification.new do |s|
   s.executables = %w[rebl budplot budvis budtimelines budlabel]
   s.default_executable = 'rebl'
 
+  s.add_dependency 'backports'
   s.add_dependency 'eventmachine'
   s.add_dependency 'fastercsv'
   s.add_dependency 'getopt'
