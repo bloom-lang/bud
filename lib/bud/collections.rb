@@ -1078,11 +1078,9 @@ module Bud
     # add the terminal file descriptor to the EM event loop.
     private
     def read_line
-      toplevel = @bud_instance.toplevel
-      if @prompt
-        get_out_io.print("#{tabname} > ")
-      end
+      get_out_io.print("#{tabname} > ") if @prompt
 
+      toplevel = @bud_instance.toplevel
       in_io = toplevel.options[:stdin]
       input_str = in_io.gets
       return false if input_str.nil? # Hit EOF
