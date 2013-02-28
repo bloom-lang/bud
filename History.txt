@@ -1,5 +1,7 @@
 == 0.9.7 / ???
 
+* Add Travis CI integration hooks (#300, Josh Rosen)
+
 == 0.9.6 / 2013-02-25
 
 * Support syntax sugar for initializing lattices (#294). For example, rather
