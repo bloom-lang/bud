@@ -71,7 +71,7 @@ module Bud
   attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :app_tables, :lattices
   attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap
-  attr_reader :inside_budinit, :inside_tick
+  attr_reader :inside_tick
   attr_accessor :stratified_rules
   attr_accessor :metrics, :periodics
   attr_accessor :this_rule_context, :qualified_name
@@ -143,7 +143,6 @@ module Bud
     @push_sorted_elems = nil
     @running_async = false
     @bud_started = false
-	@inside_budinit = true
 
     # Setup options (named arguments), along with default values
     @options = options.clone
@@ -173,7 +172,6 @@ module Bud
       @push_joins = num_strata.times.map{[]}
       @merge_targets = num_strata.times.map{Set.new}
     end
-	@inside_budinit = false
   end
 
   def module_wrapper_class(mod)

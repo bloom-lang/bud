@@ -331,13 +331,13 @@ class TestCollections < MiniTest::Unit::TestCase
     d = DeleteKey.new
     d.tick
     assert_equal(1, d.t1.length)
-    d.del_buf <= [[5, 11]] # shouldn't delete
+    d.del_buf <+ [[5, 11]] # shouldn't delete
     d.tick
     assert_equal(1, d.t1.length)
     d.tick
     assert_equal(1, d.t1.length)
 
-    d.del_buf <= [[5, 10]] # should delete
+    d.del_buf <+ [[5, 10]] # should delete
     d.tick
     assert_equal(1, d.t1.length)
     d.tick
@@ -666,6 +666,14 @@ class TestTransitivity < MiniTest::Unit::TestCase
     assert_equal([[1,1]], p.t1.to_a)
     assert_equal([[1,1]], p.t2.to_a)
     assert_equal([[1,1]], p.t3.to_a)
+  end
+
+  def test_instant_merge_outside_bud
+    program = BabyBud.new
+    program.tbl <+ [['a', 'b', 'c', 'd']]
+    program.scrtch <+ [['a', 'b', 'c', 'd']]
+    assert_raises(Bud::CompileError) { program.tbl <= [['a', 'b', 'c', 'd']] }
+    assert_raises(Bud::CompileError) { program.scrtch <= [['a', 'b', 'c', 'd']] }
   end
 end
 

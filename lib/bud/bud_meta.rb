@@ -17,7 +17,7 @@ class BudMeta #:nodoc: all
       # stratum_map = {fully qualified pred => stratum}. Copy stratum_map data
       # into t_stratum format.
       raise unless @bud_instance.t_stratum.to_a.empty?
-      @bud_instance.t_stratum <= stratum_map.to_a
+      @bud_instance.t_stratum.merge(stratum_map.to_a)
 
       # slot each rule into the stratum corresponding to its lhs pred (from stratum_map)
       stratified_rules = Array.new(top_stratum + 2) { [] }  # stratum -> [ rules ]

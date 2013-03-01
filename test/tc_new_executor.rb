@@ -13,7 +13,7 @@ class PushTests < MiniTest::Unit::TestCase
   end
   def test_simple
     p = SimplePush.new
-    p.r1 <= [[:a,1]]
+    p.r1 <+ [[:a,1]]
     p.tick
     assert_equal([[:a,1]], p.r2.to_a)
     p.tick
@@ -75,9 +75,9 @@ class PushTests < MiniTest::Unit::TestCase
   end
   def test_two_joins
     p = PushTwoJoins.new
-    p.r1 <= [[:a,1]]
-    p.r2 <= [[:a,2]]
-    p.r3 <= [[:a,3]]
+    p.r1 <+ [[:a,1]]
+    p.r2 <+ [[:a,2]]
+    p.r3 <+ [[:a,3]]
     p.tick
     assert_equal([[:a,6]], p.t1.to_a)
   end
@@ -148,7 +148,7 @@ class PushTests < MiniTest::Unit::TestCase
   end
   def test_argagg
     p = PushArgAggTest.new
-    p.r1 <= [[1,'a'],[1,'b'],[2,'b'],[2,'a']]
+    p.r1 <+ [[1,'a'],[1,'b'],[2,'b'],[2,'a']]
     p.tick
     assert_equal([[1,'a'],[1,'b']], p.result.to_a.sort)
   end
