@@ -1,6 +1,11 @@
 == 0.9.7 / ???
 
 * Add Travis CI integration hooks (#300, Josh Rosen)
+* Reject <= on collections from outside Bloom rules (#289, Aaron Davidson). The
+  previous behavior was error-prone: inserting into a scratch collection via <=
+  was not rejected, but the inserted data would immediately be discarded at the
+  beginning of the next tick. Hence, more consistent to simply require <+ or <~
+  for all insertions from outside Bloom rules.
 
 == 0.9.6 / 2013-02-25
 
