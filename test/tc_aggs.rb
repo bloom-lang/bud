@@ -376,7 +376,7 @@ class TestAggs < MiniTest::Unit::TestCase
 
   def test_argmin_dups
     a = ArgminDups.new
-    a.t1 <= [[1, 2, 3], [5, 5, 5]]
+    a.t1 <+ [[1, 2, 3], [5, 5, 5]]
     a.tick
     assert_equal([[1, 2, 3]], a.t2.to_a)
     assert_equal([[1, 2, 3]], a.t3.to_a)

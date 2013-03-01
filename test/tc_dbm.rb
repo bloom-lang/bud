@@ -76,7 +76,7 @@ class TestDbm < MiniTest::Unit::TestCase
 
   def test_basic_ins
     assert_equal(0, @t.t1.length)
-    @t.in_buf <= [['1', '2', '3', '4'],
+    @t.in_buf <+ [['1', '2', '3', '4'],
                   ['1', '3', '3', '4']]
     @t.tick
     assert_equal(2, @t.t1.length)
@@ -86,7 +86,7 @@ class TestDbm < MiniTest::Unit::TestCase
   end
 
   def test_key_conflict_delta
-    @t.in_buf <= [['1', '2', '3', '4'],
+    @t.in_buf <+ [['1', '2', '3', '4'],
                   ['1', '2', '3', '5']]
     assert_raises(Bud::KeyConstraintError) {@t.tick}
   end
@@ -99,7 +99,7 @@ class TestDbm < MiniTest::Unit::TestCase
   end
 
   def test_key_merge
-    @t.in_buf <= [['1', '2', '3', '4'],
+    @t.in_buf <+ [['1', '2', '3', '4'],
                   ['1', '2', '3', '4'],
                   ['1', '2', '3', '4'],
                   ['1', '2', '3', '4'],
@@ -107,7 +107,7 @@ class TestDbm < MiniTest::Unit::TestCase
                   ['6', '10', '3', '4'],
                   ['6', '10', '3', '4']]
 
-    @t.t1 <= [['1', '2', '3', '4'],
+    @t.t1 <+ [['1', '2', '3', '4'],
               ['1', '2', '3', '4']]
 
     @t.tick
@@ -146,7 +146,7 @@ class TestDbm < MiniTest::Unit::TestCase
   end
 
   def test_pending_ins
-    @t.pending_buf <= [['1', '2', '3', '4']]
+    @t.pending_buf <+ [['1', '2', '3', '4']]
     @t.tick
     assert_equal(0, @t.t1.length)
     @t.tick
@@ -154,31 +154,31 @@ class TestDbm < MiniTest::Unit::TestCase
   end
 
   def test_pending_key_conflict
-    @t.pending_buf <= [['1', '2', '3', '4']]
-    @t.pending_buf2 <= [['1', '2', '3', '5']]
+    @t.pending_buf <+ [['1', '2', '3', '4']]
+    @t.pending_buf2 <+ [['1', '2', '3', '5']]
     assert_raises(Bud::KeyConstraintError) {@t.tick}
   end
 
   def test_basic_del
-    @t.t1 <= [['1', '2', '3', '4'],
+    @t.t1 <+ [['1', '2', '3', '4'],
               ['1', '3', '3', '4'],
               ['2', '4', '3', '4']]
     @t.tick
     assert_equal(3, @t.t1.length)
 
-    @t.del_buf <= [['2', '4', '3', '4']] # should delete
+    @t.del_buf <+ [['2', '4', '3', '4']] # should delete
     @t.tick
     assert_equal(3, @t.t1.length)
     @t.tick
     assert_equal(2, @t.t1.length)
 
-    @t.del_buf <= [['1', '3', '3', '5']] # shouldn't delete
+    @t.del_buf <+ [['1', '3', '3', '5']] # shouldn't delete
     @t.tick
     assert_equal(2, @t.t1.length)
     @t.tick
     assert_equal(2, @t.t1.length)
 
-    @t.del_buf <= [['1', '3', '3', '4']] # should delete
+    @t.del_buf <+ [['1', '3', '3', '4']] # should delete
     @t.tick
     assert_equal(2, @t.t1.length)
     @t.tick
@@ -186,7 +186,7 @@ class TestDbm < MiniTest::Unit::TestCase
   end
 
   def test_chain
-    @t.chain_start <= [[5, 10],
+    @t.chain_start <+ [[5, 10],
                        [10, 15]]
     @t.tick
     assert_equal(2, @t.t2.length)
@@ -194,7 +194,7 @@ class TestDbm < MiniTest::Unit::TestCase
     assert_equal(2, @t.t4.length)
     assert_equal([10,18], @t.t4[[10]])
 
-    @t.chain_del <= [[5,10]]
+    @t.chain_del <+ [[5,10]]
     @t.tick
     assert_equal(2, @t.chain_start.length)
     assert_equal(2, @t.t2.length)
@@ -222,9 +222,9 @@ class TestDbm < MiniTest::Unit::TestCase
   end
 
   def test_join
-    @t.join_t1 <= [[12, 50, 100],
+    @t.join_t1 <+ [[12, 50, 100],
                    [15, 50, 120]]
-    @t.join_t2 <= [[12, 70, 150],
+    @t.join_t2 <+ [[12, 70, 150],
                    [6, 20, 30]]
     @t.tick
 

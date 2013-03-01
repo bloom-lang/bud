@@ -71,6 +71,7 @@ module Bud
   attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :app_tables, :lattices
   attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap
+  attr_reader :inside_tick
   attr_accessor :stratified_rules
   attr_accessor :metrics, :periodics
   attr_accessor :this_rule_context, :qualified_name
