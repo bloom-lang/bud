@@ -123,6 +123,17 @@ class Bud::MapLattice < Bud::Lattice
     end
   end
 
+  morph :filter do
+    rv = {}
+    @v.each_pair do |k, val|
+      unless val.class <= Bud::BoolLattice
+        raise Bud::Error, "filter invoked on non-boolean map value: #{val}"
+      end
+      rv[k] = val if val.reveal == true
+    end
+    wrap_unsafe(rv)
+  end
+
   morph :apply_morph do |sym, *args|
     unless Bud::Lattice.global_morphs.include? sym
       raise Bud::Error, "apply_morph called with non-morphism: #{sym}"
