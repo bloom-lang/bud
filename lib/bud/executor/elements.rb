@@ -17,10 +17,10 @@ module Bud
     def initialize(name_in, bud_instance, collection_name=nil, given_schema=nil, defer_schema=false, &blk)
       super(name_in, bud_instance, given_schema, defer_schema)
       @blk = blk
-      @outputs = []
-      @pendings = []
-      @deletes = []
-      @delete_keys = []
+      @outputs = Set.new
+      @pendings = Set.new
+      @deletes = Set.new
+      @delete_keys = Set.new
       @wired_by = []
       @elem_name = name_in
       @found_delta = false
