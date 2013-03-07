@@ -7,7 +7,7 @@ module Bud
 
     def initialize(rellist, bud_instance, preds=nil) # :nodoc: all
       @rels = rellist
-      @relnames = @rels.map{|r| r.elem_name}
+      @relnames = @rels.map{|r| r.qualified_tabname}
       @cols = []
       @bud_instance = bud_instance
       @origpreds = preds
@@ -29,8 +29,8 @@ module Bud
       # check for self-joins: we currently only handle 2 instances of the same
       # table per rule
       counts = @all_rels_below.reduce({}) do |memo, r|
-        memo[r.elem_name] ||= 0
-        memo[r.elem_name] += 1
+        memo[r.qualified_tabname] ||= 0
+        memo[r.qualified_tabname] += 1
         memo
       end
       counts.each do |name, cnt|
@@ -44,10 +44,11 @@ module Bud
       index = 0
       retval = @all_rels_below.reduce({}) do |memo, r|
         index += 1
-        memo[r.tabname.to_s] ||= 0
-        newstr = r.tabname.to_s + ((memo[r.tabname.to_s] > 0) ? ("_" + memo[r.tabname.to_s].to_s) : "")
+        r_name = r.qualified_tabname.to_s
+        memo[r_name] ||= 0
+        newstr = r_name + ((memo[r_name] > 0) ? ("_" + memo[r_name].to_s) : "")
         @cols << newstr.to_sym
-        memo[r.tabname.to_s] += 1
+        memo[r_name] += 1
         memo
       end
 
@@ -70,7 +71,7 @@ module Bud
     private
     def setup_state
       sid = state_id
-      @tabname = ("(" + @all_rels_below.map{|r| r.tabname}.join('*') +"):"+sid.to_s).to_sym
+      @tabname = ("(" + @all_rels_below.map{|r| r.qualified_tabname}.join('*') +"):"+sid.to_s).to_sym
       @hash_tables = [{}, {}]
     end
 
@@ -82,7 +83,7 @@ module Bud
       allpreds = canonicalize_localpreds(@rels, allpreds)
       # check for refs to collections that aren't being joined, Issue 191
       unless @rels[0].class <= Bud::PushSHJoin
-        tabnames = @rels.map{ |r| r.tabname }
+        tabnames = @rels.map{ |r| r.qualified_tabname }
         allpreds.each do |p|
           unless tabnames.include? p[0][0]
             raise Bud::CompileError, "illegal predicate: collection #{p[0][0]} is not being joined"
@@ -96,9 +97,9 @@ module Bud
         # reject if it doesn't match the right (leaf node) of the join
         # or reject if it does match, but it can be evaluated by a lower join
         # i.e. one that also has this table on the right (lead node)
-        p[1][0] != @rels[1].tabname \
-        or (p[0][0] != @rels[1].tabname \
-            and p[1][0] == @rels[1].tabname and @selfjoins.include? @rels[1].tabname)
+        p[1][0] != @rels[1].qualified_tabname \
+        or (p[0][0] != @rels[1].qualified_tabname \
+            and p[1][0] == @rels[1].qualified_tabname and @selfjoins.include? @rels[1].qualified_tabname)
       end
 
       # only allow preds on the same table name if they're on a self-joined table
@@ -109,7 +110,7 @@ module Bud
       end
 
       @localpreds += allpreds.map do |p|
-        p if p[0][0] == p[1][0] and (p[1][0] == @rels[0].tabname or p[1][0] == @rels[1].tabname)
+        p if p[0][0] == p[1][0] and (p[1][0] == @rels[0].qualified_tabname or p[1][0] == @rels[1].qualified_tabname)
       end.compact
       otherpreds = allpreds - @localpreds
       unless otherpreds.empty?
@@ -132,7 +133,7 @@ module Bud
     def invalidate_cache
       @rels.each_with_index do |source_elem, i|
         if source_elem.rescan
-          puts "#{tabname} rel:#{i}(#{source_elem.tabname}) invalidated" if $BUD_DEBUG
+          puts "#{qualified_tabname} rel:#{i}(#{source_elem.qualified_tabname}) invalidated" if $BUD_DEBUG
           @hash_tables[i] = {}
           if i == 0
             # Only if i == 0 because outer joins in Bloom are left outer joins.
@@ -156,7 +157,7 @@ module Bud
       # referenced in entry.
       subtuple = 0
       all_rels_below[0..all_rels_below.length-1].each_with_index do |t,i|
-        if t.tabname == entry[0]
+        if t.qualified_tabname == entry[0]
           subtuple = i
           break
         end
@@ -197,15 +198,16 @@ module Bud
       dorels = (rel.nil? ? @all_rels_below : [rel])
       match = nil
       dorels.each do |r|
-        match ||= r if bud_instance.tables[r.elem_name].respond_to?(aname)
-        if bud_instance.tables[r.elem_name].respond_to?(aname) and match != r
-          raise Bud::CompileError, "ambiguous attribute :#{aname} in both #{match.tabname} and #{r.tabname}"
+        r_name = r.qualified_tabname
+        match ||= r if bud_instance.tables[r_name].respond_to?(aname)
+        if bud_instance.tables[r_name].respond_to?(aname) and match != r
+          raise Bud::CompileError, "ambiguous attribute :#{aname} in both #{match.qualified_tabname} and #{r_name}"
         end
       end
       if match.nil?
-        raise Bud::CompileError, "attribute :#{aname} not found in any of #{dorels.map{|t| t.tabname}.inspect}"
+        raise Bud::CompileError, "attribute :#{aname} not found in any of #{dorels.map{|t| t.qualified_tabname}.inspect}"
       end
-      bud_instance.tables[match.elem_name].send(aname)
+      bud_instance.tables[match.qualified_tabname].send(aname)
     end
 
     protected
@@ -225,7 +227,7 @@ module Bud
     def canonicalize_localpreds(rel_list, preds) # :nodoc:all
       retval = preds.map do |p|
         # reverse if lhs is rel_list[1], *unless* it's a self-join!
-        (p[0][0] == rel_list[1].tabname and p[0][0] != p[1][0]) ? p.reverse : p
+        (p[0][0] == rel_list[1].qualified_tabname and p[0][0] != p[1][0]) ? p.reverse : p
       end
     end
 
@@ -240,8 +242,8 @@ module Bud
           # skip skips
           next if (skips.include? pred)
           # assumption of left-deep joins here
-          if pred[1][0] != @rels[1].tabname
-            raise Bud::Error, "expected rhs table to be #{@rels[1].tabname}, not #{pred[1][0]}"
+          if pred[1][0] != @rels[1].qualified_tabname
+            raise Bud::Error, "expected rhs table to be #{@rels[1].qualified_tabname}, not #{pred[1][0]}"
           end
           rfield = right[pred[1][1]]
           if left_is_array
@@ -269,11 +271,11 @@ module Bud
       # again if we didn't rescan now.
       replay_join if @rescan
 
-      if @selfjoins.include? source.elem_name
+      if @selfjoins.include? source.qualified_tabname
         offsets = []
-        @relnames.each_with_index{|r,i| offsets << i if r == source.elem_name}
+        @relnames.each_with_index{|r,i| offsets << i if r == source.qualified_tabname}
       else
-        offsets = [@relnames.index(source.elem_name)]
+        offsets = [@relnames.index(source.qualified_tabname)]
       end
       raise Bud::Error, "item #{item.inspect} inserted into join from unknown source #{source.elem_name}" if offsets == $EMPTY
       offsets.each do |offset|
@@ -378,7 +380,7 @@ module Bud
 
     public
     def rights(*preds, &blk)
-      @cols = blk.nil? ? @bud_instance.tables[@rels[1].tabname].cols : nil
+      @cols = blk.nil? ? @bud_instance.tables[@rels[1].qualified_tabname].cols : nil
       setup_accessors if blk.nil?
       pairs(*preds) do |x,y|
         blk.nil? ? y : blk.call(y)
@@ -387,7 +389,7 @@ module Bud
 
     public
     def lefts(*preds, &blk)
-      @cols = blk.nil? ? @bud_instance.tables[@rels[0].tabname].cols : nil
+      @cols = blk.nil? ? @bud_instance.tables[@rels[0].qualified_tabname].cols : nil
       setup_accessors if blk.nil?
       pairs(*preds) do |x,y|
         blk.nil? ? x : blk.call(x)
@@ -520,7 +522,7 @@ module Bud
       @lhs, @rhs = rellist
       @lhs_keycols = nil
       @rhs_keycols = nil
-      name_in = "#{@lhs.tabname}_notin_#{@rhs.tabname}"
+      name_in = "#{@lhs.qualified_tabname}_notin_#{@rhs.qualified_tabname}"
       super(name_in, bud_instance)
       setup_preds(preds) unless preds.empty?
       @rhs_rcvd = false
@@ -553,7 +555,7 @@ module Bud
     def find_col(colspec, rel)
       if colspec.is_a? Symbol
         unless rel.respond_to? colspec
-          raise Bud::Error, "attribute :#{colspec} not found in #{rel.tabname}"
+          raise Bud::Error, "attribute :#{colspec} not found in #{rel.qualified_tabname}"
         end
         col_desc = rel.send(colspec)
       elsif colspec.is_a? Array
@@ -628,11 +630,11 @@ module Bud
       raise Bud::Error if @rhs_rcvd     # sanity check; should already be reset
 
       if @lhs.rescan
-        puts "#{tabname} rel:#{@lhs.tabname} invalidated" if $BUD_DEBUG
+        puts "#{tabname} rel:#{@lhs.qualified_tabname} invalidated" if $BUD_DEBUG
         @hash_tables[0] = {}
       end
       if @rhs.rescan
-        puts "#{tabname} rel:#{@rhs.tabname} invalidated" if $BUD_DEBUG
+        puts "#{tabname} rel:#{@rhs.qualified_tabname} invalidated" if $BUD_DEBUG
         @hash_tables[1] = {}
       end
     end

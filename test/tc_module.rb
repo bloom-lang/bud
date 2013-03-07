@@ -705,10 +705,49 @@ class TestMultiWayJoinInModule < MiniTest::Unit::TestCase
   class JoinUser
     include Bud
     import NestedJoinDef => :n
+
+    state do
+      scratch :res, n.res.schema
+    end
+
+    bloom do
+      res <= n.res
+    end
   end
 
   def test_multi_join
     j = JoinUser.new
     j.tick
+    assert_equal([[10, 20, 50, 10, 99, 50]], j.res.to_a)
+  end
+end
+
+class JoinModQualifier
+  include Bud
+  import RootMod => :r
+
+  bootstrap do
+    r.t <= [[5]]
+  end
+
+  state do
+    table :t
+    table :x1
+    table :x2
+  end
+
+  bloom do
+    x1 <= (t * r.t).pairs(:key => :k) {|t1,t2| [t1.val, t2.k]}
+    x2 <= (t * r.t).rights(:key => :k) {|t2| [t2.k, 3]}
+  end
+end
+
+class TestJoinWithModuleQualifier < MiniTest::Unit::TestCase
+  def test_mod_join
+    b = JoinModQualifier.new
+    b.t <+ [[5, 10], [6, 11]]
+    b.tick
+    assert_equal([[10,5]], b.x1.to_a)
+    assert_equal([[5,3]], b.x2.to_a)
   end
 end

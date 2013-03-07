@@ -135,7 +135,7 @@ module Bud
       @cols_access = Module.new do
         sc.each_with_index do |c, i|
           define_method c do
-            [@tabname, i, c]
+            [qualified_tabname, i, c]
           end
         end
       end
@@ -397,7 +397,7 @@ module Bud
     private
     def raise_pk_error(new, old)
       key = get_key_vals(old)
-      raise Bud::KeyConstraintError, "key conflict inserting #{new.inspect} into \"#{tabname}\": existing tuple #{old.inspect}, key = #{key.inspect}"
+      raise Bud::KeyConstraintError, "key conflict inserting #{new.inspect} into \"#{qualified_tabname}\": existing tuple #{old.inspect}, key = #{key.inspect}"
     end
 
     private
