@@ -981,6 +981,21 @@ class CollectionToSet
   end
 end
 
+class SetToCollection
+  include Bud
+
+  state do
+    lset :s1
+    lset :s2
+    table :t1
+  end
+
+  bloom do
+    t1 <= s1 {|v| [v, 5]}
+    t1 <= s2
+  end
+end
+
 class NotInToLattice
   include Bud
 
@@ -1112,6 +1127,15 @@ class TestSet < MiniTest::Unit::TestCase
     i.tick
     assert_equal([1, 3, 4, 5, 6, 10, 11].to_set, i.s1.current_value.reveal)
   end
+
+  def test_set_to_collection
+    i = SetToCollection.new
+    i.s1 <+ Bud::SetLattice.new([1, 2])
+    i.s2 <+ Bud::SetLattice.new([[5, 10]])
+    i.tick
+    assert_equal([[1, 5], [2, 5], [5, 10]], i.t1.to_a.sort)
+  end
+
 
   def test_collection_notin_to_set
     i = NotInToLattice.new
