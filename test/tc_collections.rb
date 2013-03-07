@@ -271,7 +271,7 @@ class TestCollections < MiniTest::Unit::TestCase
     assert_equal([["z", "y", 9, 8], ["c", "d", 5, 6]],
                  program.tbl.sort {|x,y| y <=> x})
   end
-  
+
   def test_tuple_accessors
     program = BabyBud.new
     program.tick
@@ -304,14 +304,16 @@ class TestCollections < MiniTest::Unit::TestCase
 
   def test_grep
     program = Grep.new(/[Bb]loom/)
-    # use callback and run_bg to make sure that file_reader works in background
-    # Issue #304
-    program.register_callback(:matches) {
-      lines = program.matches.to_a
-      assert_equal(1, lines.length)
-      assert_equal(44, lines[0][0]) 
-    }
+    # Make sure that file_reader works in background
+    q = Queue.new
+    program.register_callback(:matches) { q.push(true) }
     program.run_bg
+    q.pop
+    program.stop_bg
+
+    lines = program.matches.to_a
+    assert_equal(1, lines.length)
+    assert_equal(44, lines[0][0])
   end
 
   class DeleteKey
@@ -646,7 +648,7 @@ class TestUpsert < MiniTest::Unit::TestCase
     assert_equal([[2,'y']], p.t2.to_a)
   end
 end
-  
+
 class TestTransitivity < MiniTest::Unit::TestCase
   class TransitivityTest
     include Bud
@@ -663,7 +665,7 @@ class TestTransitivity < MiniTest::Unit::TestCase
       t3 <= t2
     end
   end
-  
+
   def test_transitivity
     p = TransitivityTest.new
     p.tick
@@ -684,7 +686,7 @@ end
 class TestCollExpr < MiniTest::Unit::TestCase
   class CollExprTest
     include Bud
-    state do 
+    state do
       table :his
       coll_expr :e, lambda {[[budtime, 'hi']]}
     end
@@ -692,7 +694,7 @@ class TestCollExpr < MiniTest::Unit::TestCase
       his <= e
     end
   end
-  
+
   def test_coll_expr
     p = CollExprTest.new
     3.times { p.tick }
@@ -708,7 +710,7 @@ class TestConstants < MiniTest::Unit::TestCase
       his <= [[budtime, 'hi']]
     end
   end
-  
+
   def test_str_out
     p = StrOut.new
     3.times { p.tick }

@@ -8,6 +8,7 @@
   for all insertions from outside Bloom rules.
 * Fix bug in join rules whose qualifiers reference collections defined inside
   imported modules (#301)
+* Fix regression in file_reader collections (#304)
 * Optimize notin self joins
 
 == 0.9.6 / 2013-02-25
