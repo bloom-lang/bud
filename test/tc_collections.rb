@@ -304,10 +304,14 @@ class TestCollections < MiniTest::Unit::TestCase
 
   def test_grep
     program = Grep.new(/[Bb]loom/)
-    program.tick
-    lines = program.matches.to_a
-    assert_equal(1, lines.length)
-    assert_equal(44, lines[0][0])
+    # use callback and run_bg to make sure that file_reader works in background
+    # Issue #304
+    program.register_callback(:matches) {
+      lines = program.matches.to_a
+      assert_equal(1, lines.length)
+      assert_equal(44, lines[0][0]) 
+    }
+    program.run_bg
   end
 
   class DeleteKey

@@ -1369,6 +1369,11 @@ module Bud
       # NEEDS A TRY/RESCUE BLOCK
       @fd = File.open(@filename, "r")
       @linenum = 0
+      @invalidated = true
+    end
+    
+    def tick
+      @invalidated = true
     end
 
     public
