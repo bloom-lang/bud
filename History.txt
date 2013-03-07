@@ -9,6 +9,8 @@
 * Fix bug in join rules whose qualifiers reference collections defined inside
   imported modules (#301)
 * Fix regression in file_reader collections (#304)
+* Rename lset#apply_monotone to lset#apply. Also, allow #apply to take either
+  monotone functions or morphisms, and improve error reporting.
 * Optimize notin self joins
 
 == 0.9.6 / 2013-02-25

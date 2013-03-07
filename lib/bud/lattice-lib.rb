@@ -124,12 +124,20 @@ class Bud::MapLattice < Bud::Lattice
   end
 
   morph :apply_morph do |sym, *args|
-    raise Bud::Error unless Bud::Lattice.global_morphs.include? sym
+    unless Bud::Lattice.global_morphs.include? sym
+      raise Bud::Error, "apply_morph called with non-morphism: #{sym}"
+    end
     do_apply(sym, args)
   end
 
-  monotone :apply_monotone do |sym, *args|
-    raise Bud::Error unless Bud::Lattice.global_mfuncs.include? sym
+  # NB: "apply" can be used with both monotone functions and morphisms. We also
+  # provide apply_morph, which is slightly faster when theprogrammer knows they
+  # are applying a morphism.
+  monotone :apply do |sym, *args|
+    unless Bud::Lattice.global_mfuncs.include?(sym) ||
+           Bud::Lattice.global_morphs.include?(sym)
+      raise Bud::Error, "apply called with non-monotone function: #{sym}"
+    end
     do_apply(sym, args)
   end
 

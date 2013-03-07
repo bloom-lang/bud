@@ -695,11 +695,13 @@ class MapApply
     lmap :m1
     lmap :m2
     lmap :m3
+    lmap :m4
   end
 
   bloom do
-    m2 <= m1.apply_monotone(:pos_sum)
+    m2 <= m1.apply(:pos_sum)
     m3 <= m1.apply_morph(:contains?, 3)
+    m4 <= m1.apply(:intersect, Bud::PositiveSetLattice.new([2,3]))
   end
 end
 
@@ -836,11 +838,15 @@ class TestMap < MiniTest::Unit::TestCase
     i.tick
     assert_equal([["abc", 19], ["xyz", 6]], get_val_for_map(i, :m2))
     assert_equal([["abc", false], ["xyz", true]], get_val_for_map(i, :m3))
+    assert_equal([["abc", [].to_set],
+                  ["xyz", [2,3].to_set]], get_val_for_map(i, :m4))
     i.m1 <+ {"abc" => Bud::PositiveSetLattice.new([3]),
              "xyz" => Bud::PositiveSetLattice.new([4])}
     i.tick
     assert_equal([["abc", 22], ["xyz", 10]], get_val_for_map(i, :m2))
     assert_equal([["abc", true], ["xyz", true]], get_val_for_map(i, :m3))
+    assert_equal([["abc", [3].to_set],
+                  ["xyz", [2,3].to_set]], get_val_for_map(i, :m4))
   end
 
   def test_map_from_collection
