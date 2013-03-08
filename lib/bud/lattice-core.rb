@@ -112,8 +112,6 @@ class Bud::Lattice
   end
 end
 
-# TODO:
-# * merge logic for set-oriented collections
 class Bud::LatticePushElement
   attr_reader :wired_by, :outputs
   attr_accessor :invalidated, :rescan
@@ -123,6 +121,7 @@ class Bud::LatticePushElement
     @wired_by = []
     @outputs = []
     @pendings = []
+    @deletes = []
     @invalidated = true
     @rescan = true
   end
@@ -133,6 +132,8 @@ class Bud::LatticePushElement
       @outputs << element
     when :pending
       @pendings << element
+    when :delete
+      @deletes << element
     else
       raise Bud::Error, "unrecognized wiring kind: #{kind}"
     end
@@ -141,7 +142,7 @@ class Bud::LatticePushElement
   end
 
   def check_wiring
-    if @outputs.empty? and @pendings.empty?
+    if @outputs.empty? and @pendings.empty? and @deletes.empty?
       raise Bud::Error, "no output specified for #{inspect}"
     end
   end
@@ -149,12 +150,15 @@ class Bud::LatticePushElement
   def print_wiring(depth=0, accum="")
     puts "#{'  ' * depth}#{accum} #{inspect}"
 
-    [@outputs, @pendings].each do |buf|
-      if buf == @outputs
-        next_accum = "=> "
-      else
-        next_accum = "+> "
-      end
+    [@outputs, @pendings, @deletes].each do |buf|
+      next_accum = case buf
+                   when @outputs
+                     "=> "
+                   when @pendings
+                     "+> "
+                   when @deletes
+                     "-> "
+                   end
 
       buf.each do |o|
         if o.respond_to? :print_wiring
@@ -171,7 +175,7 @@ class Bud::LatticePushElement
   end
 
   def wirings
-    @outputs + @pendings
+    @outputs + @pendings + @deletes
   end
 
   def method_missing(meth, *args, &blk)
@@ -209,6 +213,10 @@ class Bud::LatticePushElement
       else
         o <+ v
       end
+    end
+    @deletes.each do |o|
+      raise Bud::Error unless o.class <= Bud::BudCollection
+      o.pending_delete(v.class <= Bud::Lattice ? v.reveal : v)
     end
   end
 

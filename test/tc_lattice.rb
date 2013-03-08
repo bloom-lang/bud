@@ -988,11 +988,34 @@ class SetToCollection
     lset :s1
     lset :s2
     table :t1
+    table :t2
   end
 
   bloom do
     t1 <= s1 {|v| [v, 5]}
     t1 <= s2
+    t2 <- s1 {|v| [v, 5]}
+    t2 <- s2
+  end
+end
+
+class SetToChannel
+  include Bud
+
+  def initialize(addr)
+    @serv_addr = addr
+    super()
+  end
+
+  state do
+    lset :s1
+    lset :s2
+    channel :c1
+  end
+
+  bloom do
+    c1 <~ s1 {|v| [@serv_addr, v]}
+    c1 <~ s2
   end
 end
 
@@ -1130,12 +1153,42 @@ class TestSet < MiniTest::Unit::TestCase
 
   def test_set_to_collection
     i = SetToCollection.new
-    i.s1 <+ Bud::SetLattice.new([1, 2])
-    i.s2 <+ Bud::SetLattice.new([[5, 10]])
+    i.s1 <+ [1, 2]
+    i.s2 <+ [[5, 10]]
+    i.t2 <+ [[1, 5], [2, 6], [4, 9], [5, 10]]
     i.tick
     assert_equal([[1, 5], [2, 5], [5, 10]], i.t1.to_a.sort)
+    assert_equal([[1, 5], [2, 6], [4, 9], [5, 10]], i.t2.to_a.sort)
+    i.tick
+    assert_equal([[2,6], [4, 9]], i.t2.to_a.sort)
   end
 
+  def test_set_to_channel
+    sink = SetToChannel.new("")
+    sink.run_bg
+    source = SetToChannel.new(sink.ip_port)
+    source.run_bg
+
+    q = Queue.new
+    sink.register_callback(:c1) do |vals|
+      vals.to_a.each do |v|
+        q.push(v)
+      end
+    end
+
+    source.sync_do {
+      source.s1 <+ ["foo"]
+      source.s2 <+ [[sink.ip_port, "bar"]]
+    }
+
+    rv = []
+    rv << q.pop
+    rv << q.pop
+
+    assert_equal([[sink.ip_port, "bar"], [sink.ip_port, "foo"]], rv.sort)
+
+    sink.stop ; source.stop
+  end
 
   def test_collection_notin_to_set
     i = NotInToLattice.new
