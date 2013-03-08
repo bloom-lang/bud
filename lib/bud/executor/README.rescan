@@ -3,7 +3,8 @@ Notes on Invalidate and Rescan in Bud
 
 (I'll use 'downstream' to mean rhs to lhs (like in budplot). In every stratum,
 data originates at scanned sources at the "top", winds its way through various
-PushElements and ends up in a collection at the "bottom". I'll also the term
+PushElements and ends up in a collection at the "bottom". That is, data flows
+from "upstream" producers to "downstream" consumers. I'll also the term
 "elements" to mean both dataflow nodes (PushElements) and collections).
 
 Invalidation strategy works through two flags/signals, rescan and

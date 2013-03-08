@@ -497,9 +497,9 @@ module Bud
       puts "Unsafe targets: #{unsafe_targets.inspect}"
     end
 
-    # Now compute for each table that is to be scanned, the set of dependent
-    # tables and elements that will be invalidated if that table were to be
-    # invalidated at run time.
+    # For each collection that is to be scanned, compute the set of dependent
+    # tables and elements that will need invalidation and/or rescan if that
+    # table were to be invalidated at run time.
     dflt_rescan = rescan
     dflt_invalidate = invalidate
     to_reset = rescan + invalidate

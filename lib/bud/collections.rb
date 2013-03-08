@@ -1244,7 +1244,7 @@ module Bud
     end
 
     def invalidated=(val)
-      raise Bud::Error, "internal error: must not set invalidate on tables"
+      raise Bud::Error, "cannot not set invalidate on table '#{@tabname}'"
     end
 
     def pending_delete(o)
@@ -1301,7 +1301,7 @@ module Bud
       # No cache to invalidate. Also, tables do not invalidate dependents,
       # because their own state is not considered invalidated; that happens only
       # if there were pending deletes at the beginning of a tick (see tick())
-      puts "******** invalidate_cache called on BudTable" if $BUD_DEBUG
+      puts "******** invalidate_cache called on table '#{@tabname}'" if $BUD_DEBUG
     end
 
     public

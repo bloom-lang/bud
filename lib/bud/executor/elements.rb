@@ -158,8 +158,8 @@ module Bud
         rescan << self
       end
 
-      # pass the current state to the non-element outputs, and see if they end
-      # up marking this node for rescan
+      # pass the current state to each output collection, and see if they end up
+      # marking this node for rescan
       invalidate_tables(rescan, invalidate)
 
       # finally, if this node is in rescan, pass the request on to all source
@@ -171,9 +171,9 @@ module Bud
 
     def invalidate_tables(rescan, invalidate)
       # exchange rescan and invalidate information with tables. If this node is
-      # in rescan, it may invalidate a target table (if it is a scratch). And if
-      # the target node is invalidated, this node marks itself for rescan to
-      # enable a refill of that table at run-time
+      # in rescan, it may invalidate an output table (if it is a scratch). And
+      # if the output table is going to be invalidated, this node marks itself
+      # for rescan to enable a refill of that table at run-time
       @outputs.each do |o|
         unless o.class <= PushElement
           o.add_rescan_invalidate(rescan, invalidate)
