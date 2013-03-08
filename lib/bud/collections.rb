@@ -1215,8 +1215,8 @@ module Bud
     public
     def tick #:nodoc: all
       if $BUD_DEBUG
-        puts "#{tabname}. storage -= pending deletes" unless @to_delete.empty? and @to_delete_by_key.empty?
-        puts "#{tabname}. delta += pending" unless @pending.empty?
+        puts "#{tabname}.storage -= pending deletes" unless @to_delete.empty? and @to_delete_by_key.empty?
+        puts "#{tabname}.delta += pending" unless @pending.empty?
       end
       @tick_delta.clear
       deleted = nil
