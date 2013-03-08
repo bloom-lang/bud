@@ -18,7 +18,7 @@ module Bud
     attr_reader :cols, :key_cols # :nodoc: all
     attr_reader :struct
     attr_reader :storage, :delta, :new_delta, :pending, :tick_delta # :nodoc: all
-    attr_reader :wired_by, :to_delete
+    attr_reader :wired_by
     attr_accessor :invalidated, :rescan
     attr_accessor :is_source
     attr_accessor :accumulate_tick_deltas # updated in bud.do_wiring
