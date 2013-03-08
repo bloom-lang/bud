@@ -1069,7 +1069,7 @@ module Bud
           end
         end
 
-        # Loop a second time to actually call invalidate_cache.  e can't merge
+        # Loop a second time to actually call invalidate_cache.  We can't merge
         # this with the loops above because some versions of invalidate_cache
         # (e.g., join) depend on the rescan state of other elements.
         num_strata.times do |stratum|
