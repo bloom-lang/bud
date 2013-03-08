@@ -1068,7 +1068,10 @@ module Bud
             end
           end
         end
-        # Loop a second time to actually call invalidate_cache
+
+        # Loop a second time to actually call invalidate_cache.  e can't merge
+        # this with the loops above because some versions of invalidate_cache
+        # (e.g., join) depend on the rescan state of other elements.
         num_strata.times do |stratum|
           @push_sorted_elems[stratum].each {|e| e.invalidate_cache if e.invalidated}
         end
