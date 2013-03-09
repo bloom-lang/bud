@@ -240,10 +240,12 @@ class PushTests < MiniTest::Unit::TestCase
       table :src, [:str]
       table :sink, src.schema
       scratch :dummy, sink.schema
+      scratch :event_src, src.schema
     end
 
     bloom do
       sink <= src
+      sink <= event_src
       dummy <= sink
     end
   end
@@ -251,11 +253,12 @@ class PushTests < MiniTest::Unit::TestCase
   def test_delete_rescan
     b = DeleteRescan.new
     b.src <+ [["v1"], ["v2"]]
+    b.event_src <+ [["v3"]]
     b.tick
-    assert_equal([["v1"], ["v2"]], b.sink.to_a.sort)
-    assert_equal([["v1"], ["v2"]], b.dummy.to_a.sort)
+    assert_equal([["v1"], ["v2"], ["v3"]], b.sink.to_a.sort)
+    assert_equal([["v1"], ["v2"], ["v3"]], b.dummy.to_a.sort)
 
-    b.sink <- [["v1"]]
+    b.sink <- [["v1"], ["v3"]]
     b.tick
     assert_equal([["v1"], ["v2"]], b.sink.to_a.sort)
     assert_equal([["v1"], ["v2"]], b.dummy.to_a.sort)
