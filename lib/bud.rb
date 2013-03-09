@@ -445,7 +445,6 @@ module Bud
           rescan << elem
         end
       end
-      #prune_rescan_invalidate(rescan, invalidate)
       @default_rescan = rescan.to_a
       @default_invalidate = invalidate.to_a
       @reset_list = [] # Nothing to reset at end of tick. It'll be overwritten anyway
@@ -517,6 +516,7 @@ module Bud
         # We don't want to reset invalidation/rescan flags for the scanner's
         # collection at end-of-tick.
         invalidate.delete(scanner.collection)
+        rescan.delete(scanner)
         to_reset.merge(rescan)
         to_reset.merge(invalidate)
 
