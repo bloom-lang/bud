@@ -393,7 +393,8 @@ module Bud
   end
 
   class PushPredicate < PushStatefulElement
-    def initialize(pred_symbol, elem_name=nil, collection_name=nil, bud_instance=nil, schema_in=nil, &blk)
+    def initialize(pred_symbol, elem_name=nil, collection_name=nil,
+                   bud_instance=nil, schema_in=nil, &blk)
       @pred_symbol = pred_symbol
       @in_buf = []
       super(elem_name, bud_instance, collection_name, schema_in, &blk)

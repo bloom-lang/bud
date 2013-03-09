@@ -273,4 +273,47 @@ class PushTests < MiniTest::Unit::TestCase
     assert_equal([["v2"]], b.sink.to_a.sort)
     assert_equal([["v2"]], b.dummy.to_a.sort)
   end
+
+  class DeleteRescanNM
+    include Bud
+
+    state do
+      table :src, [:str]
+      table :src_del, [:str]
+      table :xyz, [:str]
+      table :abc, [:str]
+      table :sink, src.schema
+      scratch :dummy, sink.schema
+    end
+
+    bloom do
+      src_del <= xyz.notin(abc)
+      sink <= src.notin(src_del, :str => :str)
+      dummy <= sink
+    end
+  end
+
+  def test_delete_rescan_nm
+    b = DeleteRescanNM.new(:print_wiring => true)
+    b.src <+ [["v1"], ["v2"], ["v4"]]
+    b.src_del <+ [["v1"], ["v3"]]
+    b.tick
+    assert_equal([["v2"], ["v4"]], b.sink.to_a.sort)
+    assert_equal([["v2"], ["v4"]], b.dummy.to_a.sort)
+
+    b.sink <- [["v2"]]
+    b.tick
+    assert_equal([["v2"], ["v4"]], b.sink.to_a.sort)
+    assert_equal([["v2"], ["v4"]], b.dummy.to_a.sort)
+
+    b.src_del <+ [["v2"]]
+    b.tick
+    assert_equal([["v2"], ["v4"]], b.sink.to_a.sort)
+    assert_equal([["v2"], ["v4"]], b.dummy.to_a.sort)
+
+    b.sink <- [["v2"]]
+    b.tick
+    assert_equal([["v4"]], b.sink.to_a.sort)
+    assert_equal([["v4"]], b.dummy.to_a.sort)
+  end
 end
