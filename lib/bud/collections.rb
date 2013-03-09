@@ -1115,7 +1115,7 @@ module Bud
     public
     def tick #:nodoc: all
       unless @pending.empty?
-        @delta = @pending #  pending used for input tuples in this case.
+        @delta = @pending       # pending used for input tuples in this case
         @tick_delta = @pending.values
         @pending.clear
       else
@@ -1123,7 +1123,7 @@ module Bud
         @delta.clear
         @tick_delta.clear
       end
-      @invalidated = true # channels and terminals are always invalidated.
+      @invalidated = true       # channels and terminals are always invalidated
     end
 
     public
@@ -1244,7 +1244,9 @@ module Bud
     end
 
     def invalidated=(val)
-      raise Bud::Error, "cannot not set invalidate on table '#{@tabname}'"
+      # Might be reset to false at end-of-tick, but shouldn't be set to true
+      raise Bud::Error, "cannot not set invalidate on table '#{@tabname}'" if val
+      super
     end
 
     def pending_delete(o)

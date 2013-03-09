@@ -505,20 +505,22 @@ module Bud
     num_strata.times do |stratum|
       @scanners[stratum].each_value do |scanner|
         # If it is going to be always invalidated, it doesn't need further
-        # examination
+        # examination. Lattice scanners also don't get invalidated.
         next if dflt_rescan.member? scanner
+        next if scanner.class <= LatticeScanner
 
         rescan = dflt_rescan.clone
         invalidate = dflt_invalidate + [scanner.collection]
         rescan_invalidate_tc(stratum, rescan, invalidate)
         prune_rescan_invalidate(rescan, invalidate)
 
-        # We don't want to reset invalidation/rescan flags for the scanner's
-        # collection at end-of-tick.
-        invalidate.delete(scanner.collection)
-        rescan.delete(scanner)
+        # Make sure we reset the rescan/invalidate flag for this scanner at
+        # end-of-tick, but we can remove the scanner from its own
+        # rescan_set/inval_set.
         to_reset.merge(rescan)
         to_reset.merge(invalidate)
+        rescan.delete(scanner)
+        invalidate.delete(scanner.collection)
 
         # Give the diffs (from default) to scanner; these are elements that are
         # dependent on this scanner
