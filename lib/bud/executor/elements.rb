@@ -151,18 +151,18 @@ module Bud
     # default for stateless elements
     public
     def add_rescan_invalidate(rescan, invalidate)
-      # if any of the source elements are in rescan mode, then put this node in
-      # rescan.
+      # If any of the source elements are in rescan mode, then put this node in
+      # rescan
       srcs = non_temporal_predecessors
       if srcs.any?{|p| rescan.member? p}
         rescan << self
       end
 
-      # pass the current state to each output collection, and see if they end up
+      # Pass the current state to each output collection and see if they end up
       # marking this node for rescan
       invalidate_tables(rescan, invalidate)
 
-      # finally, if this node is in rescan, pass the request on to all source
+      # Finally, if this node is in rescan, pass the request on to all source
       # elements
       if rescan.member? self
         rescan.merge(srcs)
@@ -477,8 +477,9 @@ module Bud
       # rescan mode
       rescan << self if invalidate.member? @collection
 
-      # in addition, default PushElement rescan/invalidate logic applies
-      super
+      # Pass the current state to each output collection and see if they end up
+      # marking this node for rescan
+      invalidate_tables(rescan, invalidate)
 
       # Note also that this node can be nominated for rescan by a target node;
       # in other words, a scanner element can be set to rescan even if the
