@@ -232,4 +232,42 @@ class PushTests < MiniTest::Unit::TestCase
     b.tick
     assert_equal(4, b.t2.to_a.length)
   end
+
+  class DeleteRescan
+    include Bud
+
+    state do
+      table :src, [:str]
+      table :sink, src.schema
+      scratch :dummy, sink.schema
+    end
+
+    bloom do
+      sink <= src
+      dummy <= sink
+    end
+  end
+
+  def test_delete_rescan
+    b = DeleteRescan.new
+    b.src <+ [["v1"], ["v2"]]
+    b.tick
+    assert_equal([["v1"], ["v2"]], b.sink.to_a.sort)
+    assert_equal([["v1"], ["v2"]], b.dummy.to_a.sort)
+
+    b.sink <- [["v1"]]
+    b.tick
+    assert_equal([["v1"], ["v2"]], b.sink.to_a.sort)
+    assert_equal([["v1"], ["v2"]], b.dummy.to_a.sort)
+
+    b.src <- [["v1"]]
+    b.tick
+    assert_equal([["v1"], ["v2"]], b.sink.to_a.sort)
+    assert_equal([["v1"], ["v2"]], b.dummy.to_a.sort)
+
+    b.sink <- [["v1"], ["v2"]]
+    b.tick
+    assert_equal([["v2"]], b.sink.to_a.sort)
+    assert_equal([["v2"]], b.dummy.to_a.sort)
+  end
 end

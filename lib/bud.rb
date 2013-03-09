@@ -499,7 +499,7 @@ module Bud
 
     # For each collection that is to be scanned, compute the set of dependent
     # tables and elements that will need invalidation and/or rescan if that
-    # table were to be invalidated at run time.
+    # table were to be invalidated at runtime.
     dflt_rescan = rescan
     dflt_invalidate = invalidate
     to_reset = rescan + invalidate
@@ -509,12 +509,17 @@ module Bud
         # examination
         next if dflt_rescan.member? scanner
 
-        rescan = dflt_rescan + [scanner]  # add scanner to scan set
-        invalidate = dflt_invalidate.clone
+        rescan = dflt_rescan.clone
+        invalidate = dflt_invalidate + [scanner.collection]
         rescan_invalidate_tc(stratum, rescan, invalidate)
         prune_rescan_invalidate(rescan, invalidate)
+
+        # We don't want to reset invalidation/rescan flags for the scanner's
+        # collection at end-of-tick.
+        invalidate.delete(scanner.collection)
         to_reset.merge(rescan)
         to_reset.merge(invalidate)
+
         # Give the diffs (from default) to scanner; these are elements that are
         # dependent on this scanner
         diffscan = (rescan - dflt_rescan).find_all {|elem| elem.class <= PushElement}
