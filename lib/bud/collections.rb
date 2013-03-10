@@ -63,7 +63,7 @@ module Bud
       if @cols.empty?
         @cols = nil
       else
-        @struct = ($struct_classes[@cols] ||= Struct.new(*@cols))
+        @struct = ($struct_classes[@cols] ||= Bud::TupleStruct.new(*@cols))
         @structlen = @struct.members.length
       end
       setup_accessors
@@ -409,7 +409,7 @@ module Bud
     private
     def prep_tuple(o)
       return o if o.class == @struct
-      if o.class == Array
+      if o.kind_of? Array
         if @struct.nil?
           sch = (1 .. o.length).map{|i| "c#{i}".to_sym}
           init_schema(sch)
@@ -1023,7 +1023,7 @@ module Bud
       if @payload_struct.nil?
         payload_cols = cols.dup
         payload_cols.delete_at(@locspec_idx)
-        @payload_struct = Struct.new(*payload_cols)
+        @payload_struct = Bud::TupleStruct.new(*payload_cols)
         @payload_colnums = payload_cols.map {|k| cols.index(k)}
       end
 

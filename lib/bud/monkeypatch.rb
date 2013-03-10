@@ -10,9 +10,10 @@ class Class
   end
 end
 
-# FIXME: Use a subclass of Struct.
-# FIXME: Should likely override eql? as well
-class Struct
+# FIXME: Should likely override #hash and #eql? as well.
+class Bud::TupleStruct < Struct
+  include Comparable
+
   def <=>(o)
     if o.class == self.class
       self.each_with_index do |e, i|
@@ -27,16 +28,13 @@ class Struct
     end
   end
 
-  alias oldeq :==
   def ==(o)
     if o.class == self.class
-      return oldeq(o)
+      return super
     elsif o.class == Array
       begin
         self.each_with_index do |el, i|
-          if el != o[i]
-            return false
-          end
+          return false if el != o[i]
         end
         return true
       rescue StandardError
@@ -62,9 +60,7 @@ end
 class Array
   alias :oldeq :==
   def ==(o)
-    if o.kind_of? Struct
-      o = o.to_a
-    end
+    o = o.to_a if o.kind_of? Bud::TupleStruct
     self.oldeq(o)
   end
 end
@@ -125,7 +121,6 @@ class Module
     @bud_import_tbl ||= {}
     @bud_import_tbl
   end
-
 
   # the block of Bloom collection declarations.  one per module.
   def state(&block)

@@ -813,3 +813,32 @@ class TestEachWithIndex < MiniTest::Unit::TestCase
     assert_equal([100, 101, 102].to_set, new_res_b.map {|t| t.idx}.to_set)
   end
 end
+
+class TestBudStruct < MiniTest::Unit::TestCase
+  MyStruct = Bud::TupleStruct.new(:x, :y)
+
+  def test_struct_hashing
+    v1 = MyStruct.new(1, 2)
+    v2 = MyStruct.new(1, 2)
+    assert_equal(v1, v2)
+    assert_equal([1, 2], v1)
+
+    h = {}
+    h[v1] = 1
+    assert(h.has_key? v2)
+  end
+
+  def test_struct_comparable
+    v1 = MyStruct.new(1, 2)
+    v2 = MyStruct.new(1, 3)
+    v3 = MyStruct.new(5, 1)
+    v4 = MyStruct.new(9, 0)
+
+    assert_equal(0, v1 <=> v1)
+    assert_equal(-1, v1 <=> v2)
+    assert_equal(1, v2 <=> v1)
+    assert(v1 < v2)
+    assert(v2 > v1)
+    assert_equal([v1, v2, v3, v4], [v2, v4, v3, v1].sort)
+  end
+end
