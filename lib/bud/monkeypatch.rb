@@ -139,8 +139,9 @@ class Module
     define_method(meth_name, &block)
   end
 
-  # bloom statements to be registered with Bud runtime.  optional +block_name+ 
-  # allows for multiple bloom blocks per module and method overriding
+  # bloom statements to be registered with Bud runtime.  optional +block_name+
+  # assigns a name for the block; this is useful documentation, and also allows
+  # the block to be overridden in a child class.
   def bloom(block_name=nil, &block)
     # If no block name was specified, generate a unique name
     if block_name.nil?
