@@ -173,10 +173,12 @@ module Bud
       # in rescan, it may invalidate an output table (if it is a scratch). And
       # if the output table is going to be invalidated, this node marks itself
       # for rescan to enable a refill of that table at run-time.
-      @outputs.each do |o|
-        unless o.class <= PushElement
-          o.add_rescan_invalidate(rescan, invalidate)
-          rescan << self if invalidate.member? o
+      [@outputs, @pendings].each do |v|
+        v.each do |o|
+          unless o.class <= PushElement
+            o.add_rescan_invalidate(rescan, invalidate)
+            rescan << self if invalidate.member? o
+          end
         end
       end
     end
@@ -254,6 +256,7 @@ module Bud
       end
     end
     alias <= merge
+
     superator "<~" do |o|
       raise Bud::Error, "illegal use of <~ with pusher '#{tabname}' on left"
     end
@@ -465,15 +468,15 @@ module Bud
       @collection.invalidate_at_tick # need to scan afresh if collection invalidated.
     end
 
-    # collection of others to rescan/invalidate if this scanner's collection
-    # were to be invalidated.
+    # What should be rescanned/invalidated if this scanner's collection were to
+    # be invalidated.
     def invalidate_at_tick(rescan, invalidate)
       @rescan_set = rescan
       @invalidate_set = invalidate
     end
 
     def add_rescan_invalidate(rescan, invalidate)
-      # if the collection is to be invalidated, the scanner needs to be in
+      # If the collection is to be invalidated, the scanner needs to be in
       # rescan mode
       rescan << self if invalidate.member? @collection
 
@@ -488,12 +491,10 @@ module Bud
 
     def scan(first_iter)
       if @force_rescan
-        # Scan entire storage
         @collection.each_raw {|item| push_out(item)}
         @force_rescan = false
       elsif first_iter
         if rescan
-          # Scan entire storage
           @collection.each_raw {|item| push_out(item)}
         else
           # In the first iteration, tick_delta would be non-null IFF the

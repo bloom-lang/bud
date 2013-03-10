@@ -8,6 +8,8 @@
   for all insertions from outside Bloom rules.
 * Fix bug in join rules whose qualifiers reference collections defined inside
   imported modules (#301)
+* Fix several bugs in rescan/invalidation logic for tables in the presence of
+  upstream deletions (#303)
 * Fix regression in file_reader collections (#304)
 * Rename lmap#apply_monotone to lmap#apply. Also, allow #apply to take either
   monotone functions or morphisms, and improve error reporting.

@@ -351,4 +351,43 @@ class PushTests < MiniTest::Unit::TestCase
     b.tick
     assert_equal([["v2"]], b.sink.to_a.sort)
   end
+
+  class DeleteRescanPending
+    include Bud
+
+    state do
+      table :src, [:str]
+      table :sink, src.schema
+    end
+
+    bloom do
+      sink <+ src
+    end
+  end
+
+  def test_delete_rescan_pending
+    b = DeleteRescanPending.new
+    b.src <+ [["v1"], ["v2"]]
+    b.tick
+    assert_equal([], b.sink.to_a)
+    b.tick
+    assert_equal([["v1"], ["v2"]], b.sink.to_a.sort)
+
+    b.sink <- [["v1"]]
+    b.tick
+    assert_equal([["v1"], ["v2"]], b.sink.to_a.sort)
+    b.tick
+    assert_equal([["v1"], ["v2"]], b.sink.to_a.sort)
+
+    b.src <- [["v1"]]
+    b.sink <- [["v1"]]
+    b.tick
+    assert_equal([["v1"], ["v2"]], b.sink.to_a.sort)
+    b.tick
+    assert_equal([["v1"], ["v2"]], b.sink.to_a.sort)
+
+    b.sink <- [["v1"]]
+    b.tick
+    assert_equal([["v2"]], b.sink.to_a.sort)
+  end
 end
