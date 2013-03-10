@@ -166,11 +166,11 @@ module Bud
     do_rewrite
     if toplevel == self
       # initialize per-stratum state
-      num_strata = @stratified_rules.length
-      @scanners = num_strata.times.map{{}}
-      @push_sources = num_strata.times.map{{}}
-      @push_joins = num_strata.times.map{[]}
-      @merge_targets = num_strata.times.map{Set.new}
+      @num_strata = @stratified_rules.length
+      @scanners = @num_strata.times.map{{}}
+      @push_sources = @num_strata.times.map{{}}
+      @push_joins = @num_strata.times.map{[]}
+      @merge_targets = @num_strata.times.map{Set.new}
     end
   end
 
@@ -319,8 +319,6 @@ module Bud
   end
 
   def do_wiring
-    @num_strata = @stratified_rules.length
-
     @stratified_rules.each_with_index { |rules, stratum| eval_rules(rules, stratum) }
 
     # Prepare list of tables that will be actively used at run time. First, all
@@ -366,6 +364,23 @@ module Bud
       @scanners[stratum].each_value do |s|
         stratum_targets << s.collection
       end
+    end
+
+    # We create "orphan" scanners for collections that don't appear on the RHS
+    # of any rules, but do appear on the LHS of at least one rule. These
+    # scanners aren't needed to compute the fixpoint, but they are used as part
+    # of rescan/invalidation (e.g., if an orphaned collection receives a manual
+    # deletion operation, we need to arrange for the collection to be
+    # re-filled).
+    @orphan_scanners = []       # Pairs of [scanner, stratum]
+    @app_tables.each do |t|
+      next unless t.class <= Bud::BudCollection         # skip lattice wrappers
+      next if t.scanner_cnt > 0
+
+      stratum = collection_stratum(t.qualified_tabname.to_s)
+      next if stratum.nil?
+      @orphan_scanners << [Bud::ScannerElement.new(t.tabname, self, t, t.schema),
+                           stratum]
     end
 
     # Sanity check
@@ -433,13 +448,12 @@ module Bud
   #
   # scanner[stratum].rescan_set = Similar to above.
   def prepare_invalidation_scheme
-    num_strata = @push_sorted_elems.size
     if $BUD_SAFE
       @app_tables = @tables.values + @lattices.values # No collections excluded
 
       rescan = Set.new
       invalidate = @app_tables.select {|t| t.class <= BudScratch}.to_set
-      num_strata.times do |stratum|
+      @num_strata.times do |stratum|
         @push_sorted_elems[stratum].each do |elem|
           invalidate << elem
           rescan << elem
@@ -474,7 +488,7 @@ module Bud
     invalidate = @app_tables.select {|t| t.invalidate_at_tick}.to_set
     rescan = Set.new
 
-    num_strata.times do |stratum|
+    @num_strata.times do |stratum|
       @push_sorted_elems[stratum].each do |elem|
         rescan << elem if elem.rescan_at_tick
 
@@ -502,31 +516,29 @@ module Bud
     dflt_rescan = rescan
     dflt_invalidate = invalidate
     to_reset = rescan + invalidate
-    num_strata.times do |stratum|
-      @scanners[stratum].each_value do |scanner|
-        # If it is going to be always invalidated, it doesn't need further
-        # examination. Lattice scanners also don't get invalidated.
-        next if dflt_rescan.member? scanner
-        next if scanner.class <= LatticeScanner
+    each_scanner do |scanner, stratum|
+      # If it is going to be always invalidated, it doesn't need further
+      # examination. Lattice scanners also don't get invalidated.
+      next if dflt_rescan.member? scanner
+      next if scanner.class <= LatticeScanner
 
-        rescan = dflt_rescan.clone
-        invalidate = dflt_invalidate + [scanner.collection]
-        rescan_invalidate_tc(stratum, rescan, invalidate)
-        prune_rescan_invalidate(rescan, invalidate)
+      rescan = dflt_rescan.clone
+      invalidate = dflt_invalidate + [scanner.collection]
+      rescan_invalidate_tc(stratum, rescan, invalidate)
+      prune_rescan_invalidate(rescan, invalidate)
 
-        # Make sure we reset the rescan/invalidate flag for this scanner at
-        # end-of-tick, but we can remove the scanner from its own
-        # rescan_set/inval_set.
-        to_reset.merge(rescan)
-        to_reset.merge(invalidate)
-        rescan.delete(scanner)
-        invalidate.delete(scanner.collection)
+      # Make sure we reset the rescan/invalidate flag for this scanner at
+      # end-of-tick, but we can remove the scanner from its own
+      # rescan_set/inval_set.
+      to_reset.merge(rescan)
+      to_reset.merge(invalidate)
+      rescan.delete(scanner)
+      invalidate.delete(scanner.collection)
 
-        # Give the diffs (from default) to scanner; these are elements that are
-        # dependent on this scanner
-        diffscan = (rescan - dflt_rescan).find_all {|elem| elem.class <= PushElement}
-        scanner.invalidate_at_tick(diffscan, (invalidate - dflt_invalidate).to_a)
-      end
+      # Give the diffs (from default) to scanner; these are elements that are
+      # dependent on this scanner
+      diffscan = (rescan - dflt_rescan).find_all {|elem| elem.class <= PushElement}
+      scanner.invalidate_at_tick(diffscan, (invalidate - dflt_invalidate).to_a)
     end
     @reset_list = to_reset.to_a
 
@@ -568,6 +580,12 @@ module Bud
 
   # Given rescan, invalidate sets, compute transitive closure
   def rescan_invalidate_tc(stratum, rescan, invalidate)
+    # XXX: hack. If there's nothing in the given stratum, don't do
+    # anything. This can arise if we have an orphan scanner whose input is a
+    # non-monotonic operator; the stratum(LHS) = stratum(RHS) + 1, but there's
+    # nothing else in stratum(LHS).
+    return if @push_sorted_elems[stratum].nil?
+
     rescan_len = rescan.size
     invalidate_len = invalidate.size
     while true
@@ -582,6 +600,18 @@ module Bud
 
   def prune_rescan_invalidate(rescan, invalidate)
     rescan.delete_if {|e| e.rescan_at_tick}
+  end
+
+  def each_scanner
+    @num_strata.times do |stratum|
+      @scanners[stratum].each_value do |scanner|
+        yield scanner, stratum
+      end
+    end
+
+    @orphan_scanners.each do |scanner,stratum|
+      yield scanner, stratum
+    end
   end
 
   def do_rewrite
@@ -1060,26 +1090,23 @@ module Bud
           elem.invalidate_cache unless elem.class <= PushElement
         }
 
-        num_strata = @push_sorted_elems.size
         # The following loop invalidates additional (non-default) elements and
         # tables that depend on the run-time invalidation state of a table.
         # Loop once to set the flags.
-        num_strata.times do |stratum|
-          @scanners[stratum].each_value do |scanner|
-            if scanner.rescan
-              scanner.rescan_set.each {|e| e.rescan = true}
-              scanner.invalidate_set.each {|e|
-                e.invalidated = true
-                e.invalidate_cache unless e.class <= PushElement
-              }
-            end
+        each_scanner do |scanner, stratum|
+          if scanner.rescan
+            scanner.rescan_set.each {|e| e.rescan = true}
+            scanner.invalidate_set.each {|e|
+              e.invalidated = true
+              e.invalidate_cache unless e.class <= PushElement
+            }
           end
         end
 
         # Loop a second time to actually call invalidate_cache.  We can't merge
         # this with the loops above because some versions of invalidate_cache
         # (e.g., join) depend on the rescan state of other elements.
-        num_strata.times do |stratum|
+        @num_strata.times do |stratum|
           @push_sorted_elems[stratum].each {|e| e.invalidate_cache if e.invalidated}
         end
       end
@@ -1145,14 +1172,14 @@ module Bud
   end
 
   # Return the stratum number of the given collection.
-  # NB: if a collection does not appear on the RHS of any rules, it is not
-  # currently assigned to a strata.
+  # NB: if a collection does not appear on the lhs or rhs of any rules, it is
+  # not currently assigned to a strata.
   def collection_stratum(collection)
     t_stratum.each do |t|
       return t.stratum if t.predicate == collection
     end
 
-    raise Bud::Error, "no such collection: #{collection}"
+    return nil
   end
 
   private

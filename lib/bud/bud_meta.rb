@@ -265,9 +265,6 @@ class BudMeta #:nodoc: all
       da = ::DepAnalysis.new
       da.providing <+ @bud_instance.tables[:t_provides].to_a
       da.depends <+ @bud_instance.t_depends.map{|d| [d.lhs, d.op, d.body, d.nm]}
-
-      #@bud_instance.tables[:t_provides].each {|t| da.providing <+ t}
-      #@bud_instance.tables[:t_depends].each {|t| da.depends_tc <+ t}
       da.tick_internal
       @dependency_analysis = da
     end

@@ -316,4 +316,39 @@ class PushTests < MiniTest::Unit::TestCase
     assert_equal([["v4"]], b.sink.to_a.sort)
     assert_equal([["v4"]], b.dummy.to_a.sort)
   end
+
+  # Identical to DeleteRescan, except that "sink" does not appear on the RHS of
+  # any rules. Hence it doesn't get a scanner, so the previous invalidation
+  # coding didn't operate correctly.
+  class DeleteRescanOrphan
+    include Bud
+
+    state do
+      table :src, [:str]
+      table :sink, src.schema
+    end
+
+    bloom do
+      sink <= src
+    end
+  end
+
+  def test_delete_rescan_orphan
+    b = DeleteRescanOrphan.new
+    b.src <+ [["v1"], ["v2"]]
+    b.tick
+    assert_equal([["v1"], ["v2"]], b.sink.to_a.sort)
+
+    b.sink <- [["v1"]]
+    b.tick
+    assert_equal([["v1"], ["v2"]], b.sink.to_a.sort)
+
+    b.src <- [["v1"]]
+    b.tick
+    assert_equal([["v1"], ["v2"]], b.sink.to_a.sort)
+
+    b.sink <- [["v1"], ["v2"]]
+    b.tick
+    assert_equal([["v2"]], b.sink.to_a.sort)
+  end
 end

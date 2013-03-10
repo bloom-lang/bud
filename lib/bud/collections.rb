@@ -18,7 +18,7 @@ module Bud
     attr_reader :cols, :key_cols # :nodoc: all
     attr_reader :struct
     attr_reader :storage, :delta, :new_delta, :pending, :tick_delta # :nodoc: all
-    attr_reader :wired_by
+    attr_reader :wired_by, :scanner_cnt
     attr_accessor :invalidated, :rescan
     attr_accessor :is_source
     attr_accessor :accumulate_tick_deltas # updated in bud.do_wiring
@@ -28,6 +28,7 @@ module Bud
       @bud_instance = bud_instance
       @invalidated = true
       @is_source = true # unless it shows up on the lhs of some rule
+      @scanner_cnt = 0
       @wired_by = []
       @accumulate_tick_deltas = false
       init_schema(given_schema) unless given_schema.nil? and defer_schema
@@ -716,6 +717,7 @@ module Bud
                                           self, the_schema)
         toplevel.scanners[this_stratum][[oid, the_name]] = scanner
         toplevel.push_sources[this_stratum][[oid, the_name]] = scanner
+        @scanner_cnt += 1
       end
       return toplevel.scanners[this_stratum][[oid, the_name]]
     end
