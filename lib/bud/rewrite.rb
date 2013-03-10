@@ -366,7 +366,7 @@ class UnsafeFuncRewriter < SexpProcessor
     # We assume that unsafe funcs have a nil receiver (Bud instance is implicit
     # receiver).
     if recv.nil? and @elem_stack.size > 0
-      unless is_safe_func(op) || is_lattice?(op)
+      unless is_safe_func(op) || is_collection_name?(op)
         @unsafe_func_called = true
       end
     end
@@ -388,8 +388,8 @@ class UnsafeFuncRewriter < SexpProcessor
     return rv
   end
 
-  def is_lattice?(op)
-    @bud_instance.lattices.has_key? op.to_sym
+  def is_collection_name?(op)
+    @bud_instance.tables.has_key?(op.to_sym) || @bud_instance.lattices.has_key?(op.to_sym)
   end
 
   def is_safe_func(op)
