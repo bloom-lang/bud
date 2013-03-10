@@ -17,12 +17,15 @@ class Bud::TupleStruct < Struct
   def <=>(o)
     if o.class == self.class
       self.each_with_index do |e, i|
-        cmp = e <=> o[i]
-        return cmp if cmp != 0
+        other = o[i]
+        next if e == other
+        return nil if e.nil?
+        return nil if other.nil?
+        return e <=> other
       end
       return 0
     elsif o.nil?
-      return -1
+      return nil
     else
       raise "Comparison (<=>) between #{o.class} and #{self.class} not implemented"
     end
