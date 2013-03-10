@@ -294,7 +294,7 @@ class PushTests < MiniTest::Unit::TestCase
   end
 
   def test_delete_rescan_nm
-    b = DeleteRescanNM.new(:print_wiring => true)
+    b = DeleteRescanNM.new
     b.src <+ [["v1"], ["v2"], ["v4"]]
     b.src_del <+ [["v1"], ["v3"]]
     b.tick

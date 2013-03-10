@@ -194,7 +194,8 @@ class TestMeta < MiniTest::Unit::TestCase
   end
 
   def test_interfaces
-    prog = InterfaceAlternate.new
+    out_buf = StringIO.new
+    prog = InterfaceAlternate.new(:stdout => out_buf)
     prov = prog.t_provides{|p| p.to_a}
     assert(prov.include? ["inc", true])
     assert(prov.include? ["stor", true])
