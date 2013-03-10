@@ -151,8 +151,7 @@ module Bud
     # default for stateless elements
     public
     def add_rescan_invalidate(rescan, invalidate)
-      # If any of the source elements are in rescan mode, then put this node in
-      # rescan
+      # If any sources are in rescan mode, then put this node in rescan
       srcs = non_temporal_predecessors
       if srcs.any?{|p| rescan.member? p}
         rescan << self
@@ -170,10 +169,10 @@ module Bud
     end
 
     def invalidate_tables(rescan, invalidate)
-      # exchange rescan and invalidate information with tables. If this node is
+      # Exchange rescan and invalidate information with tables. If this node is
       # in rescan, it may invalidate an output table (if it is a scratch). And
       # if the output table is going to be invalidated, this node marks itself
-      # for rescan to enable a refill of that table at run-time
+      # for rescan to enable a refill of that table at run-time.
       @outputs.each do |o|
         unless o.class <= PushElement
           o.add_rescan_invalidate(rescan, invalidate)

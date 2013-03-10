@@ -845,6 +845,11 @@ module Bud
     public
     def add_rescan_invalidate(rescan, invalidate)
       srcs = non_temporal_predecessors
+
+      # XXX: this seems wrong. We might rescan a node for many reasons (e.g.,
+      # because another one of the node's outputs needs to be refilled). We only
+      # need to invalidate + rescan this scratch if one of the inputs to this
+      # collection is *invalidated*.
       if srcs.any? {|e| rescan.member? e}
         invalidate << self
         rescan.merge(srcs)

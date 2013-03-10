@@ -378,6 +378,7 @@ module Bud
       next if t.scanner_cnt > 0
 
       stratum = collection_stratum(t.qualified_tabname.to_s)
+      # if the collection also doesn't appear on any LHSs, skip it
       next if stratum.nil?
       @orphan_scanners << [Bud::ScannerElement.new(t.tabname, self, t, t.schema),
                            stratum]
