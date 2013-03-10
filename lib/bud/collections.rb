@@ -447,7 +447,7 @@ module Bud
                       when @delta.object_id; "delta"
                       when @new_delta.object_id; "new_delta"
                     end
-        puts "#{qualified_tabname}.#{storetype} ==> #{t}"
+        puts "#{qualified_tabname}.#{storetype} ==> #{t.inspect}"
       end
       return if t.nil? # silently ignore nils resulting from map predicates failing
       t = prep_tuple(t)
