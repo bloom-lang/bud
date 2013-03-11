@@ -334,58 +334,89 @@ built-in lattice types are currently supported:
     <td><b>Name</b></td>
     <td><b>Description</b></td>
     <td><b>Initial Value</b></td>
+    <td><b>Monotone Functions</b></td>
   </tr>
 
   <tr>
-    <td><code>lset</code></td>
+    <td><code>lbool</code></td>
     <td>Threshold test (<code>false</code> => <code>true</code> conditional)</td>
     <td>false</td>
+    <td>when_true</td>
   </tr>
 
   <tr>
     <td><code>lmax</code></td>
     <td>Increasing numeric value</td>
     <td>-&infin;</td>
+    <td>gt(n), gt_eq(n), +(n), -(n)</td>
   </tr>
 
   <tr>
     <td><code>lmin</code></td>
     <td>Decreasing numeric value</td>
     <td>+&infin;</td>
+    <td>lt(n), lt_eq(n), +(n), -(n)</td>
   </tr>
 
   <tr>
     <td><code>lset</code></td>
     <td>Growing set of values</td>
     <td>empty set</td>
+    <td>contains?, eqjoin, filter, intersect, product, project, size</td>
   </tr>
 
   <tr>
     <td><code>lpset</code></td>
     <td>Growing set of non-negative numeric values</td>
     <td>empty set</td>
+    <td>contains?, eqjoin, filter, intersect, product, project, size, sum</td>
   </tr>
 
   <tr>
     <td><code>lbag</code></td>
     <td>Growing multiset of values</td>
     <td>empty multiset</td>
+    <td>contains?, multiplicity, intersect, product, project, size</td>
   </tr>
 
   <tr>
     <td><code>lmap</code></td>
     <td>Map from keys to lattice values</td>
     <td>empty map</td>
+    <td>at, intersect, key?, key_set, project, size</td>
   </tr>
 </table>
 
 Lattices can be declared in `state` blocks in a similar manner to traditional
-Bud collections:
+Bud collections. Similarly, Bloom rules can invoke functions on lattice
+values. A simple Bloom program that uses lattices to compute a quorum vote is as
+follows:
 
-    state do
-      lset :votes
-      lmax :vote_cnt
-    end
+```ruby
+QUORUM_SIZE = 5
+RESULT_ADDR = "example.org"
+
+class QuorumVote
+  include Bud
+
+  state do
+    channel :vote_chn, [:@addr, :voter_id]
+    channel :result_chn, [:@addr]
+    lset    :votes
+    lmax    :vote_cnt
+    lbool   :vote_done
+  end
+
+  bloom do
+    votes      <= vote_chn {|v| v.voter_id}
+    vote_cnt   <= votes.size
+    got_quorum <= vote_cnt.gt_eq(QUORUM_SIZE)
+    result_chn <~ got_quorum.when_true { [RESULT_ADDR] }
+  end
+end
+```
+
+For more information on lattice support in Bloom, see this [recent paper](http://db.cs.berkeley.edu/papers/socc12-blooml.pdf).
 
 ## Bud Modules ##
 A Bud module combines state (collections) and logic (Bloom rules). Using modules allows your program to be decomposed into a collection of smaller units.
