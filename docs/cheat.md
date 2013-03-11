@@ -21,14 +21,22 @@ As in Ruby, backslash is used to escape a newline.<br>
     end
     
 ## State Declarations ##
-A `state` block contains Bud collection definitions. A Bud collection is a *set*
-of *facts*; each fact is an array of Ruby values. Note that collections do not
-contain duplicates (inserting a duplicate fact into a collection is ignored).
+
+A `state` block contains definitions of two kinds of program state:
+*collections* and *lattices*. A Bud collection is a *set* of *facts*; each fact
+is an array of Ruby values. Note that collections do not contain duplicates
+(inserting a duplicate fact into a collection is ignored).
 
 Like a table in a relational database, a subset of the columns in a collection
 makeup the collection's _key_. Attempting to insert two facts into a collection
 that agree on the key columns (but are not duplicates) results in a runtime
 exception.
+
+A lattice represents a value that *grows* over time, where the definition of
+"growth" depends on the kind of lattice in question. For example, an `lset`
+lattice contains a set of facts that grows over time (similar to a traditional
+Bud collection), whereas an `lmax` lattice holds an increasing integer
+value. For more information on lattices, see the section below.
 
 ### Default Declaration Syntax ###
 *BudCollection :name, [keys] => [values]*
@@ -312,6 +320,64 @@ Temp collections are scratches defined within a `bloom` block:
 The schema of a temp collection in inherited from the rhs; if the rhs has no
 schema, a simple one is manufactured to suit the data found in the rhs at
 runtime: `[c0, c1, ...]`.
+
+## Lattices ##
+
+In addition to traditional Bud collections and relational-style statements that
+operate over collections, Bud also supports lattices and rules that operate over
+lattices. Lattices provide a way to represent values that grow over time, where
+the notion of "growth" depends on the kind of lattice. The following built-in
+lattice types are currently supported:
+
+<table>
+  <tr>
+    <td>**Name**</td>
+    <td>**Description**</td>
+  </tr>
+
+  <tr>
+    <td>`lset`</td>
+    <td>Threshold test (`false` => `true` conditional)</td>
+  </tr>
+
+  <tr>
+    <td>`lmax`</td>
+    <td>Increasing numeric value</td>
+  </tr>
+
+  <tr>
+    <td>`lmin`</td>
+    <td>Decreasing numeric value</td>
+  </tr>
+
+  <tr>
+    <td>`lset`</td>
+    <td>Growing set of values</td>
+  </tr>
+
+  <tr>
+    <td>`lpset`</td>
+    <td>Growing set of non-negative numeric values</td>
+  </tr>
+
+  <tr>
+    <td>`lbag`</td>
+    <td>Growing multiset of values</td>
+  </tr>
+
+  <tr>
+    <td>`lmap`</td>
+    <td>Map from keys to lattice values</td>
+  </tr>
+</table>
+
+Lattices can be declared in `state` blocks in a similar manner to traditional
+Bud collections:
+
+    state do
+      lset :votes
+      lmax :vote_cnt
+    end
 
 ## Bud Modules ##
 A Bud module combines state (collections) and logic (Bloom rules). Using modules allows your program to be decomposed into a collection of smaller units.
