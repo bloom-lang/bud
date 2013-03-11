@@ -273,44 +273,52 @@ class Bud::SetLattice < Bud::Lattice
     Bud::MaxLattice.new(@v.size)
   end
 
-  # Assuming that this set contains tuples (arrays) as elements, this performs
-  # an equijoin between the current lattice and i. The join predicate is
-  # "self_t[lhs_idx] == i_t[rhs_idx]", for all tuples self_t and i_t in self and
-  # i, respectively. The return value is the result of passing pairs of join
-  # tuples to the user-supplied block.
-  morph :eqjoin do |i, lhs_idx, rhs_idx, &blk|
+  # Assuming that this set contains Structs (tuples with named field accessors)
+  # as elements, this performs an equijoin between the current lattice and
+  # i. `preds` is a hash of join predicates; each k/v pair in the hash is an
+  # equality predicate that self_tup[k] == i_tup[v]. The return value is the
+  # result of passing pairs of join tuples to the user-supplied code block.
+  morph :eqjoin do |i, preds, &blk|
+    raise unless preds.size == 1
+    lhs_sym, rhs_sym = preds.first
+
     rv = Set.new
     @v.each do |a|
-      i.probe(rhs_idx, a[lhs_idx]).each do |b|
+      i.probe_symbol(rhs_sym, a[lhs_sym]).each do |b|
         rv << blk.call(a, b)
       end
     end
     wrap_unsafe(rv)
   end
 
-  # Assuming that this set contains tuples (arrays), this returns a list of
-  # tuples (possibly empty) whose idx'th column has the value "v".
-  # XXX: we assume probe(idx, v) will only be called for a single value of idx!
-  def probe(idx, v)
-    @ht ||= build_ht(idx)
-    return @ht[v] || []
+  # Assuming that this set contains structs, this returns an array of structs
+  # (possibly empty) whose "sym" column is equal to the value "v".
+  def probe_symbol(sym, v)
+    build_index(sym)
+    index = @join_indexes[sym]
+    return index[v] || []
   end
 
   private
-  def build_ht(idx)
-    rv = {}
-    @v.each do |i|
-      field = i[idx]
-      rv[field] ||= []
-      rv[field] << i
+  def build_index(sym)
+    @join_indexes ||= {}
+    return @join_indexes[sym] if @join_indexes.has_key? sym
+
+    ht = {}
+    @v.each do |val|
+      field = val[sym]
+      ht[field] ||= []
+      ht[field] << val
     end
-    rv
+
+    @join_indexes[sym] = ht
+    return ht
   end
 end
 
-# A set that admits only non-negative numbers. This allows "sum" to be an
-# order-preserving map.  Note that this does duplicate elimination on its input,
-# so it actually computes "SUM(DISTINCT ...)" in SQL.
+# A set that admits only non-negative numbers. This allows "sum" to be a
+# monotone function.  Note that this does duplicate elimination on its input, so
+# it actually computes "SUM(DISTINCT ...)" in SQL.
 #
 # XXX: for methods that take a user-provided code block, we need to ensure that
 # the set continues to contain only positive numbers.

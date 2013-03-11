@@ -356,21 +356,26 @@ end
 class AllPathsEqJoin
   include Bud
 
+  LinkTuple = Struct.new(:from, :to, :cost)
+  PathTuple = Struct.new(:from, :to, :cost)
+
   state do
     lset :link
     lset :path
   end
 
   bootstrap do
-    link <= [['a', 'b', 1], ['a', 'b', 4],
-             ['b', 'c', 1], ['c', 'd', 1],
-             ['d', 'e', 1]]
+    link <= [LinkTuple.new('a', 'b', 1),
+             LinkTuple.new('a', 'b', 4),
+             LinkTuple.new('b', 'c', 1),
+             LinkTuple.new('c', 'd', 1),
+             LinkTuple.new('d', 'e', 1)]
   end
 
   bloom do
     path <= link
-    path <= path.eqjoin(link, 1, 0) do |p,l|
-      [p[0], l[1], p[2] + l[2]]
+    path <= path.eqjoin(link, :to => :from) do |p,l|
+      PathTuple.new(p.from, l.to, p.cost + l.cost)
     end
   end
 end
@@ -601,19 +606,21 @@ class TestGraphPrograms < MiniTest::Unit::TestCase
     %w[link path].each {|r| assert_equal(0, i.collection_stratum(r))}
 
     i.tick
+    path_val = i.path.current_value.reveal.map {|v| v.to_a}
     assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
                   ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
                   ["b", "c", 1], ["b", "d", 2], ["b", "e", 3], ["c", "d", 1],
-                  ["c", "e", 2], ["d", "e", 1]].to_set, i.path.current_value.reveal)
+                  ["c", "e", 2], ["d", "e", 1]].to_set, path_val.to_set)
 
-    i.link <+ [['e', 'f', 1]]
+    i.link <+ [AllPathsEqJoin::LinkTuple.new('e', 'f', 1)]
     i.tick
+    path_val = i.path.current_value.reveal.map {|v| v.to_a}
     assert_equal([["a", "b", 1], ["a", "b", 4], ["a", "c", 2], ["a", "c", 5],
                   ["a", "d", 3], ["a", "d", 6], ["a", "e", 4], ["a", "e", 7],
                   ["a", "f", 5], ["a", "f", 8], ["b", "c", 1], ["b", "d", 2],
                   ["b", "e", 3], ["b", "f", 4], ["c", "d", 1], ["c", "e", 2],
                   ["c", "f", 3], ["d", "e", 1], ["d", "f", 2], ["e", "f", 1]].to_set,
-                 i.path.current_value.reveal)
+                 path_val.to_set)
   end
 end
 

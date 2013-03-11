@@ -6,8 +6,8 @@
   was not rejected, but the inserted data would immediately be discarded at the
   beginning of the next tick. Hence, more consistent to simply require <+ or <~
   for all insertions from outside Bloom rules.
-* Fix bug in join rules whose qualifiers reference collections defined inside
-  imported modules (#301)
+* Fix bug in join operators whose qualifiers reference collections defined
+  inside imported modules (#301)
 * Fix several bugs in rescan/invalidation logic for tables in the presence of
   upstream deletions (#303)
 * Fix regression in file_reader collections (#304)
@@ -16,6 +16,10 @@
 * Add lmap#filter. This takes an lmap whose values are elements of the lbool
   lattice and returns an lmap containing only those k/v pairs where the value is
   true.
+* More intuitive lattice equi-join syntax (lset#eqjoin). Rather than specifying
+  the join predicate(s) using array indexes, instead allow them to be specified
+  using a hash of field names, as in traditional Bloom joins. This only works
+  when the lset contains Structs.
 * Support deletion rules (<-) with lattice values on the RHS
 * Optimize notin self joins
 
