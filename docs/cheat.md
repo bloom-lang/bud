@@ -325,49 +325,57 @@ runtime: `[c0, c1, ...]`.
 
 In addition to traditional Bud collections and relational-style statements that
 operate over collections, Bud also supports lattices and rules that operate over
-lattices. Lattices provide a way to represent values that grow over time, where
-the notion of "growth" depends on the kind of lattice. The following built-in
-lattice types are currently supported:
+lattices. Lattices provide a way to represent values that *grow over time*,
+where the definition of "growth" depends on the kind of lattice. The following
+built-in lattice types are currently supported:
 
 <table>
   <tr>
-    <td>**Name**</td>
-    <td>**Description**</td>
+    <td><b>Name</b></td>
+    <td><b>Description</b></td>
+    <td><b>Initial Value</b></td>
   </tr>
 
   <tr>
-    <td>`lset`</td>
-    <td>Threshold test (`false` => `true` conditional)</td>
+    <td><code>lset</code></td>
+    <td>Threshold test (<code>false</code> => <code>true</code> conditional)</td>
+    <td>false</td>
   </tr>
 
   <tr>
-    <td>`lmax`</td>
+    <td><code>lmax</code></td>
     <td>Increasing numeric value</td>
+    <td>-&infin;</td>
   </tr>
 
   <tr>
-    <td>`lmin`</td>
+    <td><code>lmin</code></td>
     <td>Decreasing numeric value</td>
+    <td>+&infin;</td>
   </tr>
 
   <tr>
-    <td>`lset`</td>
+    <td><code>lset</code></td>
     <td>Growing set of values</td>
+    <td>empty set</td>
   </tr>
 
   <tr>
-    <td>`lpset`</td>
+    <td><code>lpset</code></td>
     <td>Growing set of non-negative numeric values</td>
+    <td>empty set</td>
   </tr>
 
   <tr>
-    <td>`lbag`</td>
+    <td><code>lbag</code></td>
     <td>Growing multiset of values</td>
+    <td>empty multiset</td>
   </tr>
 
   <tr>
-    <td>`lmap`</td>
+    <td><code>lmap</code></td>
     <td>Map from keys to lattice values</td>
+    <td>empty map</td>
   </tr>
 </table>
 
