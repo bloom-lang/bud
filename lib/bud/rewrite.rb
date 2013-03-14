@@ -8,7 +8,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   MONOTONE_WHITELIST = [:==, :+, :<=, :-, :<, :>, :*, :~,
                         :pairs, :matches, :combos, :flatten, :new,
                         :lefts, :rights, :map, :flat_map, :pro, :merge,
-                        :cols, :key_cols, :val_cols, :payloads, :lambda,
+                        :schema, :cols, :key_cols, :val_cols, :payloads, :lambda,
                         :tabname, :current_value].to_set
 
   def initialize(seed, bud_instance)
