@@ -199,20 +199,22 @@ module Bud
       match = nil
       dorels.each do |r|
         r_name = r.qualified_tabname
-        match ||= r if bud_instance.tables[r_name].respond_to?(aname)
-        if bud_instance.tables[r_name].respond_to?(aname) and match != r
+        tbl = bud_instance.toplevel.tables[r_name]
+        match ||= r if tbl.respond_to?(aname)
+        if tbl.respond_to?(aname) and match != r
           raise Bud::CompileError, "ambiguous attribute :#{aname} in both #{match.qualified_tabname} and #{r_name}"
         end
       end
       if match.nil?
-        raise Bud::CompileError, "attribute :#{aname} not found in any of #{dorels.map{|t| t.qualified_tabname}.inspect}"
+        rel_names = dorels.map{|t| t.qualified_tabname.to_s}.to_s
+        raise Bud::CompileError, "attribute :#{aname} not found in any of #{rel_names}"
       end
-      bud_instance.tables[match.qualified_tabname].send(aname)
+      match.send(aname)
     end
 
+    # decompose each pred into a binary pred
     protected
     def decomp_preds(*preds) # :nodoc:all
-                             # decompose each pred into a binary pred
       return nil if preds.empty? or preds == [nil]
       newpreds = []
       preds.each do |p|
@@ -380,7 +382,7 @@ module Bud
 
     public
     def rights(*preds, &blk)
-      @cols = blk.nil? ? @bud_instance.tables[@rels[1].qualified_tabname].cols : nil
+      @cols = blk.nil? ? @bud_instance.toplevel.tables[@rels[1].qualified_tabname].cols : nil
       setup_accessors if blk.nil?
       pairs(*preds) do |x,y|
         blk.nil? ? y : blk.call(y)
@@ -389,7 +391,7 @@ module Bud
 
     public
     def lefts(*preds, &blk)
-      @cols = blk.nil? ? @bud_instance.tables[@rels[0].qualified_tabname].cols : nil
+      @cols = blk.nil? ? @bud_instance.toplevel.tables[@rels[0].qualified_tabname].cols : nil
       setup_accessors if blk.nil?
       pairs(*preds) do |x,y|
         blk.nil? ? x : blk.call(x)

@@ -679,9 +679,9 @@ class TestIncludeOverride < MiniTest::Unit::TestCase
   end
 end
 
-# Check that multi-way joins defined inside modules work correctly
-class TestMultiWayJoinInModule < MiniTest::Unit::TestCase
-  module NestedJoinDef
+# Check that joins defined inside modules work correctly
+class TestJoinInModule < MiniTest::Unit::TestCase
+  module NestedMultiJoinDef
     state do
       scratch :t1
       scratch :t2
@@ -702,9 +702,9 @@ class TestMultiWayJoinInModule < MiniTest::Unit::TestCase
     end
   end
 
-  class JoinUser
+  class MultiJoinUser
     include Bud
-    import NestedJoinDef => :n
+    import NestedMultiJoinDef => :n
 
     state do
       scratch :res, n.res.schema
@@ -716,9 +716,55 @@ class TestMultiWayJoinInModule < MiniTest::Unit::TestCase
   end
 
   def test_multi_join
-    j = JoinUser.new
+    j = MultiJoinUser.new
     j.tick
     assert_equal([[10, 20, 50, 10, 99, 50]], j.res.to_a)
+  end
+
+  module NestedBinaryJoin
+    state do
+      table :t1
+      table :t2
+      table :t3
+      table :t4
+      table :t5
+    end
+
+    bootstrap do
+      t1 <= [[3, 4], [7, 8], [11, 17]]
+      t2 <= [[3, 10], [5, 11], [11, 20]]
+    end
+
+    bloom do
+      t3 <= (t1 * t2).pairs(:key => :key) {|x,y| [x.key, x.val + y.val]}
+      t4 <= (t1 * t2).lefts(:key => :key)
+      t5 <= (t1 * t2).rights(:key => :key)
+    end
+  end
+
+  class BinaryJoinUser
+    include Bud
+    import NestedBinaryJoin => :n
+
+    state do
+      scratch :t3_copy, n.t3.schema
+      scratch :t4_copy, n.t4.schema
+      scratch :t5_copy, n.t5.schema
+    end
+
+    bloom do
+      t3_copy <= n.t3
+      t4_copy <= n.t4
+      t5_copy <= n.t5
+    end
+  end
+
+  def test_binary_join
+    j = BinaryJoinUser.new
+    j.tick
+    assert_equal([[3, 14], [11, 37]], j.t3_copy.to_a.sort)
+    assert_equal([[3, 4], [11, 17]], j.t4_copy.to_a.sort)
+    assert_equal([[3, 10], [11, 20]], j.t5_copy.to_a.sort)
   end
 end
 
