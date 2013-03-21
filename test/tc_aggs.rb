@@ -386,6 +386,39 @@ class TestAggs < MiniTest::Unit::TestCase
     assert_equal([[1, 2, 4], [1, 3, 5]], a.t2.to_a.sort)
     assert_equal([[1, 2, 4]], a.t3.to_a.sort)
   end
+  
+  class Argminmax
+    include Bud
+
+    state do
+      scratch :t1, [:a, :b, :c]
+      scratch :t_mina, [:a, :b, :c]
+      scratch :t_minb, [:a, :b, :c]
+      scratch :t_maxa, [:a, :b, :c]
+      scratch :t_maxb, [:a, :b, :c]
+    end
+
+    bloom do
+      t_mina <= t1.argmin([], :a)
+      t_minb <= t1.argmin([], :b)
+      t_maxa <= t1.argmax([], :a)
+      t_maxb <= t1.argmax([], :b)
+    end
+  end
+  
+  def test_argminmax_complex_type
+    a = Argminmax.new
+    a.t1 <+ [ [[123, 456], ["a", ["b"]], 1] ]
+    a.t1 <+ [ [[123, 455], ["b", ["b"]], 2] ]
+    a.t1 <+ [ [[123, 456], ["a", ["a"]], 3] ]
+    a.tick
+    # Testing min
+    assert_equal([[[123, 455], ["b", ["b"]], 2]], a.t_mina.to_a)
+    assert_equal([[[123, 456], ["a", ["a"]], 3]], a.t_minb.to_a)
+    # Testing max
+    assert_equal([[[123, 456], ["a", ["b"]], 1], [[123, 456], ["a", ["a"]], 3]], a.t_maxa.to_a)
+    assert_equal([[[123, 455], ["b", ["b"]], 2]], a.t_maxb.to_a)
+  end
 
   class SerializerTest
     include Bud

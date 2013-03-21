@@ -36,7 +36,7 @@ module Bud
 
   class Min < ArgExemplary #:nodoc: all
     def trans(the_state, val)
-      if the_state < val
+      if (the_state <=> val) < 0
         return the_state, :ignore
       elsif the_state == val
         return the_state, :keep
@@ -53,8 +53,10 @@ module Bud
 
   class Max < ArgExemplary #:nodoc: all
     def trans(the_state, val)
-      if the_state > val
+      if (the_state <=> val) > 0
         return the_state, :ignore
+      elsif the_state == val
+        return the_state, :keep
       else
         return val, :replace
       end
