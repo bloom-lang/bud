@@ -242,19 +242,6 @@ class Bud::SetLattice < Bud::Lattice
     wrap_unsafe(@v & i.reveal)
   end
 
-  morph :product do |i, &blk|
-    rv = Set.new
-    @v.each do |a|
-      if blk.nil?
-        t = i.pro {|b| [a,b]}
-      else
-        t = i.pro {|b| blk.call(a, b)}
-      end
-      rv.merge(t.reveal)
-    end
-    wrap_unsafe(rv)
-  end
-
   morph :contains? do |i|
     Bud::BoolLattice.new(@v.member? i)
   end
@@ -277,46 +264,58 @@ class Bud::SetLattice < Bud::Lattice
   # accessors), this performs an equijoin between the current lattice and
   # i. `preds` is a hash of join predicates; each k/v pair in the hash is an
   # equality predicate that self_tup[k] == i_tup[v]. The return value is the
-  # result of passing pairs of join tuples to the user-supplied code block.
-  morph :eqjoin do |i, preds, &blk|
-    raise unless preds.size == 1
-    lhs_sym, rhs_sym = preds.first
-
+  # result of passing pairs of join tuples to the user-supplied code block
+  # (values for which the code block returns nil are omitted from the
+  # result). Note that if no predicates are passed, this computes the Cartesian
+  # product (in which case the input elements do not need to be Structs).
+  morph :eqjoin do |*args, &blk|
+    # Need to emulate default block arguments for MRI 1.8
+    i, preds = args
+    preds ||= {}
     rv = Set.new
     @v.each do |a|
-      i.probe_symbol(rhs_sym, a[lhs_sym]).each do |b|
+      i.probe(a, preds).each do |b|
         if blk.nil?
           rv << [a,b]
         else
-          rv << blk.call(a, b)
+          val = blk.call(a, b)
+          rv << val unless val.nil?
         end
       end
     end
     wrap_unsafe(rv)
   end
 
-  # Assuming that this set contains structs, this returns an array of structs
-  # (possibly empty) whose "sym" column is equal to the value "v".
-  def probe_symbol(sym, v)
-    build_index(sym)
-    index = @join_indexes[sym]
-    return index[v] || []
+  # Assuming that this set contains Structs, this method takes a value "val" and
+  # a hash of predicates "preds". It returns all the structs t where val[k] =
+  # t[v] for all k,v in preds; an empty array is returned if no matches found.
+  def probe(val, preds)
+    return @v if preds.empty?
+
+    probe_val = schema_fetch(val, preds.keys)
+    build_index(preds.values)
+    index = @join_indexes[preds.values]
+    return index[probe_val] || []
   end
 
   private
-  def build_index(sym)
-    @join_indexes ||= {}
-    return @join_indexes[sym] if @join_indexes.has_key? sym
+  def schema_fetch(val, cols)
+    cols.map {|s| val[s]}
+  end
 
-    ht = {}
+  def build_index(cols)
+    @join_indexes ||= {}
+    return @join_indexes[cols] if @join_indexes.has_key? cols
+
+    idx = {}
     @v.each do |val|
-      field = val[sym]
-      ht[field] ||= []
-      ht[field] << val
+      index_val = schema_fetch(val, cols)
+      idx[index_val] ||= []
+      idx[index_val] << val
     end
 
-    @join_indexes[sym] = ht
-    return ht
+    @join_indexes[cols] = idx
+    return idx
   end
 end
 

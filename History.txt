@@ -20,6 +20,8 @@
   the join predicate(s) using array indexes, instead allow them to be specified
   using a hash of field names, as in traditional Bloom joins. This only works
   when the lset contains Structs.
+* Remove lset#project, and allow lset#eqjoin to take zero predicates; in the
+  latter case, eqjoin computes the Cartesian product.
 * Support deletion rules (<-) with lattice values on the RHS
 * Optimize notin self joins
 

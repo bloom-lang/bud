@@ -323,13 +323,13 @@ class AllPathsL
 
   bloom do
     path <= link
-    path <= path.product(link).pro do |p,l|
+    path <= path.eqjoin(link).pro do |p,l|
       [p[0], l[1], p[2] + l[2]] if p[1] == l[0]
     end
   end
 end
 
-# As above, except that we pass a block to product() directly
+# As above, except that we pass a block to eqjoin() directly
 class AllPathsImplicitProject
   include Bud
 
@@ -346,7 +346,7 @@ class AllPathsImplicitProject
 
   bloom do
     path <= link
-    path <= path.product(link) do |p,l|
+    path <= path.eqjoin(link) do |p,l|
       [p[0], l[1], p[2] + l[2]] if p[1] == l[0]
     end
   end
@@ -938,7 +938,7 @@ class SetProduct
   end
 
   bloom do
-    s3 <= s1.product(s2)
+    s3 <= s1.eqjoin(s2)
   end
 end
 
@@ -952,6 +952,7 @@ class SetEqjoin
     lset :s2
     lset :s3
     lset :s4
+    lset :s5
   end
 
   bloom do
@@ -959,6 +960,7 @@ class SetEqjoin
       [x.a, x.b, y.a]
     end
     s4 <= s1.eqjoin(s2, :a => :b)
+    s5 <= s1.eqjoin(s2, :a => :a, :b => :b) {|x,y| x}
   end
 end
 
@@ -1167,10 +1169,14 @@ class TestSet < MiniTest::Unit::TestCase
     assert_equal(Set.new, i.s4.current_value.reveal)
 
     i.s1 <+ [SetEqjoin::JoinTuple.new(1, 2)]
-    i.s2 <+ [SetEqjoin::JoinTuple.new(3, 4)]
+    i.s2 <+ [SetEqjoin::JoinTuple.new(1, 2),
+             SetEqjoin::JoinTuple.new(1, 8),
+             SetEqjoin::JoinTuple.new(3, 4)]
     i.tick
     assert_equal(Set.new, i.s3.current_value.reveal)
     assert_equal(Set.new, i.s4.current_value.reveal)
+    assert_equal([SetEqjoin::JoinTuple.new(1, 2)].to_set,
+                 i.s5.current_value.reveal)
 
     i.s1 <+ [SetEqjoin::JoinTuple.new(4, 7)]
     i.tick
@@ -1178,6 +1184,8 @@ class TestSet < MiniTest::Unit::TestCase
     assert_equal([[SetEqjoin::JoinTuple.new(4, 7),
                    SetEqjoin::JoinTuple.new(3, 4)]].to_set,
                  i.s4.current_value.reveal)
+    assert_equal([SetEqjoin::JoinTuple.new(1, 2)].to_set,
+                 i.s5.current_value.reveal)
   end
 
   # XXX: Unclear that this is actually the right behavior. The push-based
