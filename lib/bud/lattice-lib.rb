@@ -273,8 +273,8 @@ class Bud::SetLattice < Bud::Lattice
     Bud::MaxLattice.new(@v.size)
   end
 
-  # Assuming that this set contains Structs (tuples with named field accessors)
-  # as elements, this performs an equijoin between the current lattice and
+  # Assuming that the elements of this set are Structs (tuples with named field
+  # accessors), this performs an equijoin between the current lattice and
   # i. `preds` is a hash of join predicates; each k/v pair in the hash is an
   # equality predicate that self_tup[k] == i_tup[v]. The return value is the
   # result of passing pairs of join tuples to the user-supplied code block.
@@ -285,7 +285,11 @@ class Bud::SetLattice < Bud::Lattice
     rv = Set.new
     @v.each do |a|
       i.probe_symbol(rhs_sym, a[lhs_sym]).each do |b|
-        rv << blk.call(a, b)
+        if blk.nil?
+          rv << [a,b]
+        else
+          rv << blk.call(a, b)
+        end
       end
     end
     wrap_unsafe(rv)

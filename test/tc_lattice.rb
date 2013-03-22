@@ -942,6 +942,26 @@ class SetProduct
   end
 end
 
+class SetEqjoin
+  include Bud
+
+  JoinTuple = Struct.new(:a, :b)
+
+  state do
+    lset :s1
+    lset :s2
+    lset :s3
+    lset :s4
+  end
+
+  bloom do
+    s3 <= s1.eqjoin(s2, :a => :b) do |x,y|
+      [x.a, x.b, y.a]
+    end
+    s4 <= s1.eqjoin(s2, :a => :b)
+  end
+end
+
 class SetMethodCompose
   include Bud
 
@@ -1138,6 +1158,26 @@ class TestSet < MiniTest::Unit::TestCase
     i.tick
     assert_equal([[1,3], [1,7], [2,3], [2,7], [3,3], [3,7]].to_set,
                  i.s3.current_value.reveal)
+  end
+
+  def test_set_eqjoin
+    i = SetEqjoin.new
+    i.tick
+    assert_equal(Set.new, i.s3.current_value.reveal)
+    assert_equal(Set.new, i.s4.current_value.reveal)
+
+    i.s1 <+ [SetEqjoin::JoinTuple.new(1, 2)]
+    i.s2 <+ [SetEqjoin::JoinTuple.new(3, 4)]
+    i.tick
+    assert_equal(Set.new, i.s3.current_value.reveal)
+    assert_equal(Set.new, i.s4.current_value.reveal)
+
+    i.s1 <+ [SetEqjoin::JoinTuple.new(4, 7)]
+    i.tick
+    assert_equal([[4, 7, 3]].to_set, i.s3.current_value.reveal)
+    assert_equal([[SetEqjoin::JoinTuple.new(4, 7),
+                   SetEqjoin::JoinTuple.new(3, 4)]].to_set,
+                 i.s4.current_value.reveal)
   end
 
   # XXX: Unclear that this is actually the right behavior. The push-based
