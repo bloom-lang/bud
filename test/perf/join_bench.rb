@@ -2,7 +2,8 @@ require "rubygems"
 require "bud"
 require "benchmark"
 
-JOIN_INPUT_SIZE = 10000
+JOIN_INPUT_SIZE = 20000
+NUM_RUNS = 10
 
 class HashJoinBench
   include Bud
@@ -10,6 +11,7 @@ class HashJoinBench
   state do
     table :t1
     table :t2
+    table :t3
   end
 
   bootstrap do
@@ -21,19 +23,18 @@ class HashJoinBench
   end
 
   bloom do
-    temp :k <= (t1 * t2).pairs(:key => :key)
-    stdio <~ k.map {|t1, t2| ["Join result: #{[t1,t2].inspect}"]}
+    t3 <= (t1 * t2).pairs(:key => :key)
+    stdio <~ t3 {|t1, t2| ["Join result: #{[t1,t2].inspect}"]}
   end
 end
 
 b = HashJoinBench.new
-b.run_bg
+b.tick
 t = Benchmark.measure do
-  b.sync_do {
-    9.times do
-      b.tick
-    end
-  }
+  NUM_RUNS.times do
+    b.t1 <- [[0, 50000]]
+    b.t1 <+ [[0, 50000]]
+    b.tick
+  end
 end
-puts "Time taken for 10 joins: #{t}"
-b.stop
+puts "Time taken for #{NUM_RUNS} joins: #{t}"
