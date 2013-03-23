@@ -212,9 +212,8 @@ module Bud
 
     alias each pro
 
-    # XXX: "the_name" & "the_schema" parameters are unused
     public
-    def each_with_index(the_name=elem_name, the_schema=schema, &blk)
+    def each_with_index(&blk)
       toplevel = @bud_instance.toplevel
       elem = Bud::PushEachWithIndex.new("each_with_index#{object_id}",
                                         toplevel.this_rule_context,

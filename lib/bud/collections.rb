@@ -14,8 +14,8 @@ module Bud
   class BudCollection
     include Enumerable
 
-    attr_accessor :bud_instance, :tabname  # :nodoc: all
-    attr_reader :cols, :key_cols # :nodoc: all
+    attr_accessor :bud_instance  # :nodoc: all
+    attr_reader :tabname, :cols, :key_cols # :nodoc: all
     attr_reader :struct
     attr_reader :storage, :delta, :new_delta, :pending, :tick_delta # :nodoc: all
     attr_reader :wired_by, :scanner_cnt
@@ -189,11 +189,8 @@ module Bud
       if @bud_instance.wiring?
         pusher = to_push_elem(the_name, the_schema)
         # If there is no code block evaluate, use the scanner directly
-        return pusher if blk.nil?
-        pusher_pro = pusher.pro(&blk)
-        pusher_pro.elem_name = the_name
-        pusher_pro.tabname = the_name
-        pusher_pro
+        pusher = pusher.pro(&blk) unless blk.nil?
+        pusher
       else
         rv = []
         self.each do |t|
@@ -210,7 +207,7 @@ module Bud
     def each_with_index(the_name=tabname, the_schema=schema, &blk)
       if @bud_instance.wiring?
         pusher = to_push_elem(the_name, the_schema)
-        pusher.each_with_index(the_name, the_schema, &blk)
+        pusher.each_with_index(&blk)
       else
         super(&blk)
       end
@@ -252,7 +249,7 @@ module Bud
     end
 
     def rename(the_name, the_schema=nil, &blk)
-      raise unless @bud_instance.wiring?
+      raise Bud::Error unless @bud_instance.wiring?
       # a scratch with this name should have been defined during rewriting
       unless @bud_instance.respond_to? the_name
         raise Bud::Error, "rename failed to define a scratch named #{the_name}"
