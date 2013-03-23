@@ -412,11 +412,10 @@ class TestAggs < MiniTest::Unit::TestCase
     a.t1 <+ [ [[123, 455], ["b", ["b"]], 2] ]
     a.t1 <+ [ [[123, 456], ["a", ["a"]], 3] ]
     a.tick
-    # Testing min
     assert_equal([[[123, 455], ["b", ["b"]], 2]], a.t_mina.to_a)
     assert_equal([[[123, 456], ["a", ["a"]], 3]], a.t_minb.to_a)
-    # Testing max
-    assert_equal([[[123, 456], ["a", ["b"]], 1], [[123, 456], ["a", ["a"]], 3]], a.t_maxa.to_a)
+    assert_equal([[[123, 456], ["a", ["a"]], 3], [[123, 456], ["a", ["b"]], 1]],
+                 a.t_maxa.to_a.sort)
     assert_equal([[[123, 455], ["b", ["b"]], 2]], a.t_maxb.to_a)
   end
 
