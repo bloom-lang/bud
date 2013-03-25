@@ -118,7 +118,9 @@ class Bud::MapLattice < Bud::Lattice
     if @v.has_key? k
       @v[k]
     else
-      raise Bud::Error if args.empty?
+      if args.empty?
+        raise Bud::Error, "missing key for lmap#at(#{k}) but no bottom type given"
+      end
       args.first.new
     end
   end
