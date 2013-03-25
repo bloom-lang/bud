@@ -560,7 +560,7 @@ class TempExpander < SexpProcessor # :nodoc: all
   attr_reader :tmp_tables
   attr_accessor :did_work
 
-  KEYWORD = :temp
+  TEMP_KEYWORD = :temp
 
   def initialize
     super()
@@ -588,8 +588,8 @@ class TempExpander < SexpProcessor # :nodoc: all
       end
 
       _, recv, meth, meth_args = n
-      if meth == KEYWORD and recv.nil?
-        body[i] = rewrite_me(n)
+      if meth == TEMP_KEYWORD and recv.nil?
+        body[i] = rewrite_temp(n)
         @did_work = true
       end
     end
@@ -602,7 +602,7 @@ class TempExpander < SexpProcessor # :nodoc: all
       call_node = iter_body.first
       _, recv, meth, *meth_args = call_node
 
-      if meth == KEYWORD and recv.nil?
+      if meth == TEMP_KEYWORD and recv.nil?
         _, lhs, op, rhs = meth_args.first
         new_rhs = s(:iter, rhs, *(iter_body[1..-1]))
         meth_args.first[3] = new_rhs
@@ -612,7 +612,7 @@ class TempExpander < SexpProcessor # :nodoc: all
     return nil
   end
 
-  def rewrite_me(exp)
+  def rewrite_temp(exp)
     _, recv, meth, *args = exp
 
     raise Bud::CompileError unless recv.nil?
@@ -620,7 +620,10 @@ class TempExpander < SexpProcessor # :nodoc: all
     raise Bud::CompileError unless nest_call.sexp_type == :call
 
     nest_recv, nest_op, *nest_args = nest_call.sexp_body
-    raise Bud::CompileError unless nest_recv.sexp_type == :lit
+    unless nest_recv.sexp_type == :lit
+      recv_src = Ruby2Ruby.new.process(Marshal.load(Marshal.dump(nest_recv)))
+      raise Bud::CompileError, "argument to temp must be a symbol: #{recv_src}"
+    end
 
     tmp_name = nest_recv.sexp_body.first
     @tmp_tables << tmp_name

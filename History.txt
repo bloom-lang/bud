@@ -24,6 +24,7 @@
   latter case, eqjoin computes the Cartesian product.
 * Support deletion rules (<-) with lattice values on the RHS
 * Optimize notin self joins
+* Improve error reporting for syntax errors on temp collections (#310)
 
 == 0.9.6 / 2013-02-25
 
