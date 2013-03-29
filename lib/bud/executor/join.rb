@@ -525,7 +525,7 @@ module Bud
       @lhs_keycols = nil
       @rhs_keycols = nil
       name_in = "#{@lhs.qualified_tabname}_notin_#{@rhs.qualified_tabname}"
-      super(name_in, bud_instance)
+      super(name_in, bud_instance, nil, @lhs.schema)
       setup_preds(preds) unless preds.empty?
       @rhs_rcvd = false
       @hash_tables = [{},{}]

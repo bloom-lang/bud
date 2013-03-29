@@ -326,3 +326,34 @@ class NotInSelfTest < MiniTest::Unit::TestCase
     assert_equal([], n.res.to_a.sort)
   end
 end
+
+class NotInChain
+  include Bud
+
+  state do
+    table :t1
+    table :t2_implicit
+    table :t2, [:foo2, :bar2]
+    table :t3, [:foo3, :bar3]
+    table :t4, [:foo4, :bar4]
+    table :t5
+  end
+
+  bloom do
+    t1 <= t2.notin(t3, :foo2 => :bar3).notin(t4, :foo2 => :foo4)
+    t2_implicit <= t2
+    t5 <= t2_implicit.notin(t3, :key => :bar3).notin(t4, :key => :foo4)
+  end
+end
+
+class NotInChainTest < MiniTest::Unit::TestCase
+  def test_notin_chain
+    n = NotInChain.new
+    n.t2 <+ [[4, 9], [5, 10], [6, 11], [8, 10], [12, 9]]
+    n.t3 <+ [[20, 5], [21, 6], [22, 7]]
+    n.t4 <+ [[8, 8], [9, 9]]
+    n.tick
+    assert_equal([[4, 9], [12, 9]], n.t1.to_a.sort)
+    assert_equal([[4, 9], [12, 9]], n.t5.to_a.sort)
+  end
+end

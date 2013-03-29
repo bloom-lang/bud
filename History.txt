@@ -23,6 +23,7 @@
 * Remove lset#project, and allow lset#eqjoin to take zero predicates; in the
   latter case, eqjoin computes the Cartesian product.
 * Support deletion rules (<-) with lattice values on the RHS
+* Improve chaining of notin operations
 * Optimize notin self joins
 * Improve error reporting for syntax errors on temp collections (#310)
 
