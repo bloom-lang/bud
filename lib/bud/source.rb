@@ -17,7 +17,9 @@ module Source
     lines = cache(filename, num)
     # Note: num is 1-based.
 
-    parser = RubyParser.for_current_ruby
+    # for_current_ruby might object if the current Ruby version is not supported
+    # by RubyParser; bravely try to continue on regardless
+    parser = RubyParser.for_current_ruby rescue RubyParser.new
     stmt = ""       # collection of lines that form one complete Ruby statement
     ast = nil
     lines[num .. -1].each do |l|

@@ -1,6 +1,10 @@
 == 0.9.7 / ???
 
-* Add Travis CI integration hooks (#300, Josh Rosen)
+* Avoid raising an exception when Bud is used with Ruby 2.0. There isn't
+  anything special that Bud itself needs to do to support Ruby 2.0, but
+  RubyParser doesn't properly support 2.0 yet. So using 2.0-only syntax in Bud
+  rules is unlikely to work (until RubyParser is updated), but no other problems
+  have been observed.
 * Reject <= on collections from outside Bloom rules (#289, Aaron Davidson). The
   previous behavior was error-prone: inserting into a scratch collection via <=
   was not rejected, but the inserted data would immediately be discarded at the
@@ -11,6 +15,13 @@
 * Fix several bugs in rescan/invalidation logic for tables in the presence of
   upstream deletions (#303)
 * Fix regression in file_reader collections (#304)
+* Improve chaining of notin operators
+* Optimize notin self joins
+* Improve error reporting for syntax errors on temp collections (#310)
+* Add Travis CI integration hooks (#300, Josh Rosen)
+
+Lattices:
+
 * Rename lmap#apply_monotone to lmap#apply. Also, allow #apply to take either
   monotone functions or morphisms, and improve error reporting.
 * Add lmap#filter. This takes an lmap whose values are elements of the lbool
@@ -23,9 +34,6 @@
 * Remove lset#project, and allow lset#eqjoin to take zero predicates; in the
   latter case, eqjoin computes the Cartesian product.
 * Support deletion rules (<-) with lattice values on the RHS
-* Improve chaining of notin operations
-* Optimize notin self joins
-* Improve error reporting for syntax errors on temp collections (#310)
 
 == 0.9.6 / 2013-02-25
 
