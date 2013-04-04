@@ -11,11 +11,12 @@ documentation.
 Main deficiencies at this point are:
 
 - No Ruby constraints: Within Bloom programs the full power of Ruby is also
-  available, including mutable state.  This allows programmers to get outside
-  the Bloom framework and lose cleanliness.
+  available, including mutable state. This allows programmers to get outside the
+  Bloom framework and lose cleanliness.
 
-- Compatibility: Bud only works with Ruby (MRI) 1.8.7 and 1.9. JRuby and other
-  Ruby implementations are currently not supported.
+- Compatibility: Bud only works with Ruby (MRI) 1.8.7 and 1.9. Bud also has
+  experimental support for Ruby 2.0. JRuby and other Ruby implementations are
+  currently not supported.
 
 ## Installation
 
