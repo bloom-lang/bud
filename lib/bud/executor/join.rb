@@ -337,6 +337,8 @@ module Bud
 
     private
     def process_matches(item, the_matches, offset)
+      left_is_array = @all_rels_below.length > 2
+
       the_matches.each do |m|
         if offset == 0
           left = item
@@ -345,7 +347,7 @@ module Bud
           left = m
           right = item
         end
-        left_is_array = all_rels_below.length > 2
+
         if @localpreds.nil? or @localpreds.length == 1 or test_locals(left, left_is_array, right, @localpreds.first)
           result = left_is_array ? left + [right] : [left, right] # FIX: reduce arrays being created.
           push_out(result)
