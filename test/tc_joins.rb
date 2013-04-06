@@ -262,6 +262,24 @@ class PartlyQualifiedCombo
   end
 end
 
+class Issue313
+  include Bud
+
+  state do
+    scratch :explicit_tc, [:from, :to]
+    scratch :use_tiebreak, [:from, :to]
+    scratch :sem_hist, [:from, :to]
+    scratch :result, [:from, :to]
+  end
+
+  bloom do
+    result <= (sem_hist * use_tiebreak * explicit_tc).combos(sem_hist.from => use_tiebreak.from,
+                                                             sem_hist.to => explicit_tc.from,
+                                                             sem_hist.from => explicit_tc.to) do |s,t,e|
+      [s.to, t.to]
+    end
+  end
+end
 
 class TestJoins < MiniTest::Unit::TestCase
   def test_combos
@@ -359,6 +377,15 @@ class TestJoins < MiniTest::Unit::TestCase
     p.tick
     assert_equal(1, p.result1.length)
     assert_equal(p.result2.to_a[0].sort, p.result1.to_a[0].sort)
+  end
+
+  def test_issue_313
+    i = Issue313.new
+    i.explicit_tc <+ [[1, 10000]]
+    i.sem_hist <+ [[10000, 1]]
+    i.use_tiebreak <+ [[1, 2]]
+    i.tick
+    assert_equal([], i.result.to_a.sort)
   end
 
   class FlattenJoins

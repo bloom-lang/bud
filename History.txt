@@ -12,6 +12,8 @@
   for all insertions from outside Bloom rules.
 * Fix bug in join operators whose qualifiers reference collections defined
   inside imported modules (#301)
+* Fix bug in join operators when the same table/column name appears on the LHS
+  multiple join qualifiers (#313)
 * Fix several bugs in rescan/invalidation logic for tables in the presence of
   upstream deletions (#303)
 * Fix regression in file_reader collections (#304)

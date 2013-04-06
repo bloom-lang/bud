@@ -132,11 +132,19 @@ module Bud
         end
       end
 
-      # set up schema accessors, which are class methods
+      # Setup schema accessors, which are class methods. Note that the same
+      # table/column name might appear multiple times on the LHS of a single
+      # join (e.g., (foo * bar).combos(foo.x => bar.y, foo.x => bar.z)). Because
+      # the join predicates are represented as a hash, we need the two instances
+      # of foo.x to be distinct values (otherwise the resulting hash will only
+      # have a single key). Hence, we add a unique ID to the value returned by
+      # schema accessors.
       @cols_access = Module.new do
         sc.each_with_index do |c, i|
           define_method c do
-            [qualified_tabname, i, c]
+            @counter ||= 0
+            @counter += 1
+            [qualified_tabname, i, c, @counter]
           end
         end
       end
