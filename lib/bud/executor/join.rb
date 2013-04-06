@@ -17,7 +17,7 @@ module Bud
 
       # if any elements on rellist are PushSHJoins, suck up their contents
       @all_rels_below = []
-      rellist.each do |r|
+      @rels.each do |r|
         if r.class <= PushSHJoin
           @all_rels_below += r.all_rels_below
           preds += r.origpreds
@@ -81,18 +81,19 @@ module Bud
       # print "setting up preds for #{@relnames.inspect}(#{self.object_id}): "
       allpreds = disambiguate_preds(preds)
       allpreds = canonicalize_localpreds(@rels, allpreds)
-      # check for refs to collections that aren't being joined, Issue 191
+
+      # check for refs to collections that aren't being joined
       unless @rels[0].class <= Bud::PushSHJoin
-        tabnames = @rels.map{ |r| r.qualified_tabname }
         allpreds.each do |p|
-          unless tabnames.include? p[0][0]
+          unless @relnames.include? p[0][0]
             raise Bud::CompileError, "illegal predicate: collection #{p[0][0]} is not being joined"
           end
-          unless tabnames.include? p[1][0]
+          unless @relnames.include? p[1][0]
             raise Bud::CompileError, "illegal predicate: collection #{p[1][0]} is not being joined"
           end
         end
       end
+
       @localpreds = allpreds.reject do |p|
         # reject if it doesn't match the right (leaf node) of the join
         # or reject if it does match, but it can be evaluated by a lower join
@@ -238,11 +239,11 @@ module Bud
     # left is a tuple or an array (combo) of joined tuples.
     def test_locals(left, left_is_array, right, *skips)
       retval = true
-      if (skips and @localpreds.length > skips.length)
+      if skips and @localpreds.length > skips.length
         # check remainder of the predicates
         @localpreds.each do |pred|
           # skip skips
-          next if (skips.include? pred)
+          next if skips.include? pred
           # assumption of left-deep joins here
           if pred[1][0] != @rels[1].qualified_tabname
             raise Bud::Error, "expected rhs table to be #{@rels[1].qualified_tabname}, not #{pred[1][0]}"
