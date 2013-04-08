@@ -253,12 +253,6 @@ Finally, we output every tuple of `bc` that does *not* appear in `t`.
 * `bc.argagg(:exemplary_agg_name, [:attr1], :attr2))`.  *generalizes argmin/max: returns the bc items per attr1 that are chosen by the exemplary
 aggregate named*
 
-### Built-in Aggregates: ###
-
-* Exemplary aggs: `min`, `max`, `choose`
-* Summary aggs: `count`, `sum`, `avg`
-* Structural aggs: `accum`
-
 Note that custom aggregation can be written using `reduce`.
 
 ## Collection Combination (Join) ###
