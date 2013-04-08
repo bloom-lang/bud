@@ -270,7 +270,7 @@ module Bud
 
     def group(keycols, *aggpairs, &blk)
       # establish schema
-      keycols = [] if keycols.nil?
+      keycols ||= []
       keycols = keycols.map{|c| canonicalize_col(c)}
       keynames = keycols.map{|k| k[2]}
       aggcolsdups = aggpairs.map{|ap| ap[0].class.name.split("::").last}
@@ -294,6 +294,7 @@ module Bud
     end
 
     def argagg(aggname, gbkey_cols, collection, &blk)
+      gbkey_cols ||= []
       gbkey_cols = gbkey_cols.map{|c| canonicalize_col(c)}
       collection = canonicalize_col(collection)
       toplevel = @bud_instance.toplevel

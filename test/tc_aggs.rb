@@ -364,13 +364,13 @@ class TestAggs < MiniTest::Unit::TestCase
 
     state do
       scratch :t1, [:a, :b, :c]
-      scratch :t2, [:a, :b, :c]
-      scratch :t3, [:a, :b, :c]
+      scratch :t2, t1.schema
+      scratch :t3, t1.schema
     end
 
     bloom do
       t2 <= t1.argmin([], :a)
-      t3 <= t2.argmin([], :b)
+      t3 <= t2.argmin(nil, :b)
     end
   end
 
