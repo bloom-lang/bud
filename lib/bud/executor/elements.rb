@@ -298,14 +298,10 @@ module Bud
       collection = canonicalize_col(collection)
       toplevel = @bud_instance.toplevel
       agg = toplevel.send(aggname, collection)[0]
-      raise Bud::Error, "#{aggname} not declared exemplary" unless agg.class <= Bud::ArgExemplary
-      keynames = gbkey_cols.map do |k|
-        if k.class == Symbol
-          k.to_s
-        else
-          k[2]
-        end
+      unless agg.class <= Bud::ArgExemplary
+        raise Bud::Error, "#{aggname} not declared exemplary"
       end
+
       aggpairs = [[agg, collection]]
       aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, toplevel.this_rule_context,
                                @collection_name, gbkey_cols, aggpairs, schema, &blk)
