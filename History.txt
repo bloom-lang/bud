@@ -18,6 +18,7 @@
   upstream deletions (#303)
 * Fix regression in file_reader collections (#304)
 * Improve chaining of notin operators
+* Optimize join evaluation
 * Optimize notin self joins
 * Improve error reporting for syntax errors on temp collections (#310)
 * Add Travis CI integration hooks (#300, Josh Rosen)

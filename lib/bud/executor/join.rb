@@ -11,8 +11,9 @@ module Bud
       @cols = []
       @bud_instance = bud_instance
       @origpreds = preds
-      @localpreds = nil
+      @localpreds = []
       @selfjoins = []
+      @keys = []
       @missing_keys = Set.new
 
       # if any elements on rellist are PushSHJoins, suck up their contents
@@ -25,6 +26,7 @@ module Bud
           @all_rels_below << r
         end
       end
+      @left_is_array = @all_rels_below.length > 2
 
       # check for self-joins: we currently only handle 2 instances of the same
       # table per rule
@@ -95,7 +97,7 @@ module Bud
       @localpreds = allpreds.reject do |p|
         # reject if it doesn't match the right (leaf node) of the join
         # or reject if it does match, but it can be evaluated by a lower join
-        # i.e. one that also has this table on the right (lead node)
+        # i.e. one that also has this table on the right (leaf node)
         p[1][0] != @rels[1].qualified_tabname \
         or (p[0][0] != @rels[1].qualified_tabname \
             and p[1][0] == @rels[1].qualified_tabname and @selfjoins.include? @rels[1].qualified_tabname)
@@ -123,8 +125,14 @@ module Bud
         @right_offset = @localpreds.first[1][1]
         @left_subtuple, @left_offset = join_offset(@localpreds.first[0])
         @keys = [[@left_subtuple, @left_offset], [1, @right_offset]]
-      else
-        @keys = []
+
+        # We evaluate the first predicate via probing the hash table, so remove
+        # it from the list of @localpreds to be checked separately.
+        @localpreds.shift
+
+        if @left_is_array
+          @left_join_offset = @localpreds.map {|p| join_offset(p[0])}
+        end
       end
     end
 
@@ -235,31 +243,23 @@ module Bud
     private
     # right is a tuple
     # left is a tuple or an array (combo) of joined tuples.
-    def test_locals(left, left_is_array, right, *skips)
-      retval = true
-      if skips and @localpreds.length > skips.length
-        # check remainder of the predicates
-        @localpreds.each do |pred|
-          # skip skips
-          next if skips.include? pred
-          # assumption of left-deep joins here
-          if pred[1][0] != @rels[1].qualified_tabname
-            raise Bud::Error, "expected rhs table to be #{@rels[1].qualified_tabname}, not #{pred[1][0]}"
-          end
-          rfield = right[pred[1][1]]
-          if left_is_array
-            ix, off = join_offset(pred[0])
-            lfield = left[ix][off]
-          else
-            lfield = left[pred[0][1]]
-          end
-          if lfield != rfield
-            retval = false
-            break
-          end
+    def test_locals(left, right)
+      @localpreds.each_with_index do |pred,i|
+        # assumption of left-deep joins here
+        if pred[1][0] != @rels[1].qualified_tabname
+          raise Bud::Error, "expected rhs table to be #{@rels[1].qualified_tabname}, not #{pred[1][0]}"
         end
+        rfield = right[pred[1][1]]
+        if @left_is_array
+          ix, off = @left_join_offset[i]
+          lfield = left[ix][off]
+        else
+          lfield = left[pred[0][1]]
+        end
+        return false if lfield != rfield
       end
-      return retval
+
+      return true
     end
 
     undef do_insert
@@ -286,11 +286,11 @@ module Bud
 
     protected
     def insert_item(item, offset)
-      if @keys.nil? or @keys.empty?
+      if @keys.empty?
         the_key = nil
       else
         # assumes left-deep trees
-        if all_rels_below.length > 2 and offset == 0
+        if @left_is_array and offset == 0
           the_key = item[@keys[0][0]][@keys[0][1]]
         else
           the_key = item[@keys[offset][1]]
@@ -335,8 +335,6 @@ module Bud
 
     private
     def process_matches(item, the_matches, offset)
-      left_is_array = @all_rels_below.length > 2
-
       the_matches.each do |m|
         if offset == 0
           left = item
@@ -346,8 +344,8 @@ module Bud
           right = item
         end
 
-        if @localpreds.nil? or @localpreds.length == 1 or test_locals(left, left_is_array, right, @localpreds.first)
-          result = left_is_array ? left + [right] : [left, right] # FIX: reduce arrays being created.
+        if test_locals(left, right)
+          result = @left_is_array ? left + [right] : [left, right] # FIX: reduce arrays being created.
           push_out(result)
         end
       end
@@ -467,7 +465,7 @@ module Bud
       if @keys.nil? or @keys.empty?
         the_key = nil
       else
-        if all_rels_below.length > 2 and offset == 1
+        if @left_is_array and offset == 1
           the_key = item[@keys[1][0]][@keys[1][1]]
         else
           the_key = item[@keys[offset][1]]
