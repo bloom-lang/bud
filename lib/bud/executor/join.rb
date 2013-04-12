@@ -41,12 +41,10 @@ module Bud
       # derive schema: one column for each table.
       # duplicated inputs get distinguishing numeral
       @cols = []
-      index = 0
       retval = @all_rels_below.reduce({}) do |memo, r|
-        index += 1
         r_name = r.qualified_tabname.to_s
         memo[r_name] ||= 0
-        newstr = r_name + ((memo[r_name] > 0) ? ("_" + memo[r_name].to_s) : "")
+        newstr = r_name + (memo[r_name] > 0 ? "_#{memo[r_name]}" : "")
         @cols << newstr.to_sym
         memo[r_name] += 1
         memo
@@ -110,9 +108,9 @@ module Bud
         end
       end
 
-      @localpreds += allpreds.map do |p|
-        p if p[0][0] == p[1][0] and (p[1][0] == @rels[0].qualified_tabname or p[1][0] == @rels[1].qualified_tabname)
-      end.compact
+      @localpreds += allpreds.select do |p|
+        p[0][0] == p[1][0] and (p[1][0] == @rels[0].qualified_tabname or p[1][0] == @rels[1].qualified_tabname)
+      end
       otherpreds = allpreds - @localpreds
       unless otherpreds.empty?
         unless @rels[0].class <= Bud::PushSHJoin
