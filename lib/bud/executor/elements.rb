@@ -114,8 +114,6 @@ module Bud
     end
 
     def push_out(item, do_block=true)
-      return if item.nil?
-
       if do_block && @blk
         item = item.to_a if @blk.arity > 1
         item = @blk.call item

@@ -1361,6 +1361,7 @@ module Bud
     public
     def each(&block)
       v = @expr.call
+      return if v.nil? or v == [nil]
 
       # XXX: Gross hack. We want to support RHS expressions that do not
       # necessarily return BudCollections (they might instead return lattice
