@@ -131,7 +131,7 @@ module Bud
         @localpreds.shift
 
         if @left_is_array
-          @left_join_offset = @localpreds.map {|p| join_offset(p[0])}
+          @left_join_offsets = @localpreds.map {|p| join_offset(p[0])}
         end
       end
     end
@@ -246,12 +246,9 @@ module Bud
     def test_locals(left, right)
       @localpreds.each_with_index do |pred,i|
         # assumption of left-deep joins here
-        if pred[1][0] != @rels[1].qualified_tabname
-          raise Bud::Error, "expected rhs table to be #{@rels[1].qualified_tabname}, not #{pred[1][0]}"
-        end
         rfield = right[pred[1][1]]
         if @left_is_array
-          ix, off = @left_join_offset[i]
+          ix, off = @left_join_offsets[i]
           lfield = left[ix][off]
         else
           lfield = left[pred[0][1]]
