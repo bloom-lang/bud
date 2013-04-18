@@ -588,7 +588,8 @@ module Bud
       key = get_key(item, offset)
       (@hash_tables[offset][key] ||= Set.new).add item
       if @rhs_rcvd and offset == 0
-        push_lhs(key, item)
+        rhs_values = @hash_tables[1][key]
+        process_match(item, rhs_values)
       end
     end
 
@@ -599,14 +600,10 @@ module Bud
       unless @rhs_rcvd
         @rhs_rcvd = true
         @hash_tables[0].each do |key,values|
-          values.each {|item| push_lhs(key, item)}
+          rhs_values = @hash_tables[1][key]
+          values.each {|item| process_match(item, rhs_values)}
         end
       end
-    end
-
-    def push_lhs(key, lhs_item)
-      rhs_values = @hash_tables[1][key]
-      process_match(lhs_item, rhs_values)
     end
 
     def process_match(lhs_item, rhs_values)
