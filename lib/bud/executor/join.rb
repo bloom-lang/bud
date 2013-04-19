@@ -482,9 +482,11 @@ module Bud
 
     private
     def push_missing
+      left_hash = @hash_tables[0]
+      null_tuple = @rels[1].null_tuple
       @missing_keys.each do |key|
-        @hash_tables[0][key].each do |t|
-          push_out([t, @rels[1].null_tuple])
+        left_hash[key].each do |t|
+          push_out([t, null_tuple])
         end
       end
     end
