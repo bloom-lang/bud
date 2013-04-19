@@ -256,16 +256,15 @@ module Bud
 
     protected
     def insert_item(item, offset)
-      the_key = []
       # assumes left-deep trees
       if @left_is_array and offset == 0
-        @keys.each do |k|
+        the_key = @keys.map do |k|
           left_subtuple, left_offset = k.first
-          the_key << item[left_subtuple][left_offset]
+          item[left_subtuple][left_offset]
         end
       else
-        @keys.each do |k|
-          the_key << item[k[offset][1]]
+        the_key = @keys.map do |k|
+          item[k[offset][1]]
         end
       end
 
