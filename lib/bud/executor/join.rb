@@ -457,13 +457,15 @@ module Bud
   end
 
   module PushSHOuterJoin
+    # XXX: duplicates code from PushSHJoin
     private
     def insert_item(item, offset)
-      if @keys.nil? or @keys.empty?
+      if @keys.empty?
         the_key = nil
       else
         if @left_is_array and offset == 1
-          the_key = item[@keys[1][0]][@keys[1][1]]
+          left_subtuple, left_offset = keys.first
+          the_key = item[left_subtuple][left_offset]
         else
           the_key = item[@keys[offset][1]]
         end
