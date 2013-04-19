@@ -122,13 +122,12 @@ module Bud
       end
 
       if @localpreds.length > 0
-        @right_offset = @localpreds.first[1][1]
-        @left_subtuple, @left_offset = join_offset(@localpreds.first[0])
-        @keys = [[@left_subtuple, @left_offset], [1, @right_offset]]
-
         # We evaluate the first predicate via probing the hash table, so remove
         # it from the list of @localpreds to be checked separately.
-        @localpreds.shift
+        first_pred = @localpreds.shift
+        @right_offset = first_pred[1][1]
+        @left_subtuple, @left_offset = join_offset(first_pred[0])
+        @keys = [[@left_subtuple, @left_offset], [1, @right_offset]]
 
         if @left_is_array
           @left_join_offsets = @localpreds.map {|p| join_offset(p[0])}
@@ -288,7 +287,8 @@ module Bud
       else
         # assumes left-deep trees
         if @left_is_array and offset == 0
-          the_key = item[@keys[0][0]][@keys[0][1]]
+          left_subtuple, left_offset = @keys.first
+          the_key = item[left_subtuple][left_offset]
         else
           the_key = item[@keys[offset][1]]
         end
