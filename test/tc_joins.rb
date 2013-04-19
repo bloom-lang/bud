@@ -655,6 +655,21 @@ class OjMultiplePreds
   end
 end
 
+class OjMultipleRelsError
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    scratch :s4
+  end
+
+  bloom do
+    s4 <= (t1 * t2 * t3).outer(:key => :key)
+  end
+end
+
 class TestOuterJoins < MiniTest::Unit::TestCase
   def test_oj_channel
     o = OjChannel.new
@@ -680,6 +695,11 @@ class TestOuterJoins < MiniTest::Unit::TestCase
     i.tick
 
     assert_equal([[5, 10]], i.t3.to_a.sort)
+  end
+
+  def test_oj_multi_rel_error
+    i = OjMultipleRelsError.new
+    assert_raises(Bud::Error) { i.tick }
   end
 end
 

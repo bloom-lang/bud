@@ -353,6 +353,9 @@ module Bud
     # matches in the 2nd, nil-pad it and include it in the output.
     public
     def outer(*preds, &blk)
+      if @all_rels_below.length > 2
+        raise Bud::Error, "outer joins cannot be used with more than 2 join relations"
+      end
       pairs(*preds, &blk)
       self.extend(Bud::PushSHOuterJoin)
     end
@@ -546,7 +549,7 @@ module Bud
       else
         raise Bud::Error, "symbol or column spec expected. Got #{colspec}"
       end
-      col_desc[1] # col_desc is of the form [tabname, colnum, colname]
+      col_desc[1] # col_desc is of the form [tabname, colnum, colname, seqno]
     end
 
     def get_key(item, offset)
