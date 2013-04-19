@@ -255,9 +255,7 @@ class PartlyQualifiedCombo
   end
 
   bloom do
-    # result is never populated
     result1 <= (tee * arr * ess).combos(arr.key => ess.key)
-    # but it is when the join is specified in this order
     result2 <= (arr * ess * tee).combos(arr.key => ess.key)
   end
 end
@@ -406,7 +404,7 @@ class TestJoins < MiniTest::Unit::TestCase
   
   def test_flatten_joins
     p = FlattenJoins.new
-    p.tick; #p.tick
+    p.tick
     assert_equal(2, p.out.length)
     assert_equal(1, p.out2.length)
   end
@@ -479,7 +477,7 @@ class TestJoins < MiniTest::Unit::TestCase
   
   def test_shared_join
     p = SharedJoin.new
-    p.tick;#p.tick
+    p.tick
     assert_equal([[1, 1, 1], [2, 1, 1], [3, 2, 2], [3, 3, 2]], p.out1.to_a.sort)
     assert_equal([[1, 1], [2, 1], [3, 2]], p.out2.to_a.sort)
   end
@@ -601,7 +599,7 @@ class TestIssue192 < MiniTest::Unit::TestCase
     p = Issue192.new
     p.intab1 << [-1]
     p.intab2 << [-1]
-    p.tick;
+    p.tick
     assert_equal([[0]], p.outtab1.to_a)
     assert_equal([[0]], p.outtab2.to_a)    
   end
@@ -643,7 +641,21 @@ class OjChannel
   end
 end
 
-class OjChannelTest < MiniTest::Unit::TestCase
+class OjMultiplePreds
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    scratch :t3
+  end
+
+  bloom do
+    t3 <= (t1 * t2).outer(:key => :key, :val => :val) {|x,y| x}
+  end
+end
+
+class TestOuterJoins < MiniTest::Unit::TestCase
   def test_oj_channel
     o = OjChannel.new
     o.run_bg
@@ -659,6 +671,15 @@ class OjChannelTest < MiniTest::Unit::TestCase
     rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "franklin", "cs186"]], :resp)
     assert_equal([[o.ip_port, "franklin", true]], rv.to_a.sort)
     o.stop
+  end
+
+  def test_oj_multi_preds
+    i = OjMultiplePreds.new
+    i.t1 <+ [[5, 10]]
+    i.t2 <+ [[5, 11]]
+    i.tick
+
+    assert_equal([[5, 10]], i.t3.to_a.sort)
   end
 end
 

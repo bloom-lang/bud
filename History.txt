@@ -12,13 +12,14 @@
   or <~ for all insertions from outside Bloom rules.
 * Fix bug in join operators whose qualifiers reference collections defined
   inside imported modules (#301)
-* Fix bug in join operators when the same table/column name appears on the LHS
-  of multiple join qualifiers (#313)
+* Fix bug in join operators when the same table and column name appears on the
+  LHS of multiple join predicates (#313)
+* Fix bug in outer joins with multiple predicates (#315)
 * Fix several bugs in rescan/invalidation logic for tables in the presence of
   upstream deletions (#303)
 * Fix regression in file_reader collections (#304)
 * Improve chaining of notin operators
-* Optimize join evaluation
+* Optimize join evaluation with multiple predicates
 * Optimize notin self joins
 * Improve error reporting for syntax errors on temp collections (#310)
 * Add Travis CI integration hooks (#300, Josh Rosen)

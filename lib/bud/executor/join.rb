@@ -121,17 +121,10 @@ module Bud
         @rels[0].setup_preds(otherpreds)
       end
 
-      if @localpreds.length > 0
-        # We evaluate the first predicate via probing the hash table, so remove
-        # it from the list of @localpreds to be checked separately.
-        first_pred = @localpreds.shift
-        @right_offset = first_pred[1][1]
-        @left_subtuple, @left_offset = join_offset(first_pred[0])
-        @keys = [[@left_subtuple, @left_offset], [1, @right_offset]]
-
-        if @left_is_array
-          @left_join_offsets = @localpreds.map {|p| join_offset(p[0])}
-        end
+      @localpreds.each do |lp|
+        right_offset = lp[1][1]
+        left_subtuple, left_offset = join_offset(lp[0])
+        @keys << [[left_subtuple, left_offset], [1, right_offset]]
       end
     end
 
@@ -239,25 +232,6 @@ module Bud
       end
     end
 
-    private
-    # right is a tuple
-    # left is a tuple or an array (combo) of joined tuples.
-    def test_locals(left, right)
-      @localpreds.each_with_index do |pred,i|
-        # assumption of left-deep joins here
-        rfield = right[pred[1][1]]
-        if @left_is_array
-          ix, off = @left_join_offsets[i]
-          lfield = left[ix][off]
-        else
-          lfield = left[pred[0][1]]
-        end
-        return false if lfield != rfield
-      end
-
-      return true
-    end
-
     undef do_insert
 
     public
@@ -285,12 +259,17 @@ module Bud
       if @keys.empty?
         the_key = nil
       else
+        the_key = []
         # assumes left-deep trees
         if @left_is_array and offset == 0
-          left_subtuple, left_offset = @keys.first
-          the_key = item[left_subtuple][left_offset]
+          @keys.each do |k|
+            left_subtuple, left_offset = k.first
+            the_key << item[left_subtuple][left_offset]
+          end
         else
-          the_key = item[@keys[offset][1]]
+          @keys.each do |k|
+            the_key << item[k[offset][1]]
+          end
         end
       end
       #build
@@ -341,10 +320,9 @@ module Bud
           right = item
         end
 
-        if test_locals(left, right)
-          result = @left_is_array ? left + [right] : [left, right] # FIX: reduce arrays being created.
-          push_out(result)
-        end
+        # FIX: reduce arrays being created
+        result = @left_is_array ? left + [right] : [left, right]
+        push_out(result)
       end
     end
 
@@ -463,11 +441,16 @@ module Bud
       if @keys.empty?
         the_key = nil
       else
+        the_key = []
         if @left_is_array and offset == 1
-          left_subtuple, left_offset = keys.first
-          the_key = item[left_subtuple][left_offset]
+          @keys.each do |k|
+            left_subtuple, left_offset = k.first
+            the_key << item[left_subtuple][left_offset]
+          end
         else
-          the_key = item[@keys[offset][1]]
+          @keys.each do |k|
+            the_key << item[k[offset][1]]
+          end
         end
       end
       #build
