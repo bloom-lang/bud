@@ -223,15 +223,15 @@ end
 
 class RenameJoin
   include Bud
-  
+
   state do
     table :foo
   end
-  
+
   bootstrap do
     foo << ['a', 1]
   end
-  
+
   bloom do
     temp :out <= (foo.rename(:floo, [:c1]=>[:c2]) * foo).lefts(:c1 => :key)
     temp :out2 <= (foo.rename(:floo2, [:c1] => [:c2]) * foo).rights([floo2.c1, foo.key])
@@ -362,7 +362,7 @@ class TestJoins < MiniTest::Unit::TestCase
     p5 = UnJoinedTableRef.new
     assert_raises(Bud::CompileError) {p5.tick}    # Issue 191
   end
-  
+
   def test_rename_join
     p = RenameJoin.new
     p.tick
@@ -401,14 +401,14 @@ class TestJoins < MiniTest::Unit::TestCase
       temp :out2 <= (t1 * t2).flatten(:key_1 => :key)
     end
   end
-  
+
   def test_flatten_joins
     p = FlattenJoins.new
     p.tick
     assert_equal(2, p.out.length)
     assert_equal(1, p.out2.length)
   end
-  
+
   class InspectJoins
     include Bud
     state do
@@ -426,15 +426,15 @@ class TestJoins < MiniTest::Unit::TestCase
       temp :out2 <= (t1 * t2 * t3).inspected
     end
   end
-  
+
   def test_inspect_joins
     p = InspectJoins.new
     p.tick
   end
-  
+
   class LeftJoinChannel
     include Bud
-    state do 
+    state do
       loopback :c
       table :t
     end
@@ -445,13 +445,13 @@ class TestJoins < MiniTest::Unit::TestCase
       temp :out <= (c * t).outer(:val => :key)
     end
   end
-  
+
   def test_left_join_channel
     p = LeftJoinChannel.new
     p.run_bg
     p.sync_callback(:c, [[p.ip_port,1]], :out)
   end
-  
+
   class SharedJoin
     include Bud
     state do
@@ -474,14 +474,14 @@ class TestJoins < MiniTest::Unit::TestCase
       out2 <= (t1 * t2).pairs(:val=>:val) {|a,b| [a.key, a.val]}
     end
   end
-  
+
   def test_shared_join
     p = SharedJoin.new
     p.tick
     assert_equal([[1, 1, 1], [2, 1, 1], [3, 2, 2], [3, 3, 2]], p.out1.to_a.sort)
     assert_equal([[1, 1], [2, 1], [3, 2]], p.out2.to_a.sort)
   end
-  
+
   class CascadedMatchJoins
     include Bud
     state do
@@ -501,7 +501,7 @@ class TestJoins < MiniTest::Unit::TestCase
       temp :outrpairs <= (t1 * t2).pairs(:key => :key).rights
     end
   end
-  
+
   def test_cascaded_match_joins
     p = CascadedMatchJoins.new
     p.tick
@@ -590,7 +590,7 @@ class Issue192
 
  bloom do
    outtab1 <= (intab1 * intab2).rights {|k| [k.x + 1]}
-   outtab2 <= (intab1 * intab2).pairs {|j, k| [k.x + 1]}                           
+   outtab2 <= (intab1 * intab2).pairs {|j, k| [k.x + 1]}
  end
 end
 
@@ -601,7 +601,7 @@ class TestIssue192 < MiniTest::Unit::TestCase
     p.intab2 << [-1]
     p.tick
     assert_equal([[0]], p.outtab1.to_a)
-    assert_equal([[0]], p.outtab2.to_a)    
+    assert_equal([[0]], p.outtab2.to_a)
   end
 end
 
