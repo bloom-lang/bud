@@ -14,6 +14,7 @@ module Bud
       @localpreds = []
       @selfjoins = []
       @keys = []
+      @key_attnos = [[], []]
       @missing_keys = Set.new
 
       # if any elements on rellist are PushSHJoins, suck up their contents
@@ -126,6 +127,14 @@ module Bud
         left_subtuple, left_offset = join_offset(lp[0])
         @keys << [[left_subtuple, left_offset], [1, right_offset]]
       end
+
+      # Optimize for a common case. When we're just fetching key values from
+      # an input tuple, lookup the column offsets we need to fetch for each
+      # input. This doesn't apply when we're computing the key for the left
+      # input and @left_is_array is true.
+      @key_attnos = []
+      @key_attnos[0] = @keys.map {|k| k[0][1]}
+      @key_attnos[1] = @keys.map {|k| k[1][1]}
     end
 
     public
@@ -263,9 +272,7 @@ module Bud
           item[left_subtuple][left_offset]
         end
       else
-        the_key = @keys.map do |k|
-          item[k[offset][1]]
-        end
+        the_key = item.values_at(*@key_attnos[offset])
       end
 
       #build
@@ -434,16 +441,13 @@ module Bud
     # XXX: duplicates code from PushSHJoin
     private
     def insert_item(item, offset)
-      the_key = []
       if @left_is_array and offset == 1
-        @keys.each do |k|
+        the_key = @keys.map do |k|
           left_subtuple, left_offset = k.first
-          the_key << item[left_subtuple][left_offset]
+          item[left_subtuple][left_offset]
         end
       else
-        @keys.each do |k|
-          the_key << item[k[offset][1]]
-        end
+        the_key = item.values_at(*@key_attnos[offset])
       end
 
       #build
@@ -456,7 +460,8 @@ module Bud
         if the_matches.nil? and offset == 0 # only doing Left Outer Join right now
           @missing_keys << the_key
         else
-          @missing_keys.delete(the_key) # no longer missing no matter which side this tuple is
+          # no longer missing no matter which side this tuple is
+          @missing_keys.delete(the_key)
           process_matches(item, the_matches, offset) unless the_matches.nil?
         end
       end
