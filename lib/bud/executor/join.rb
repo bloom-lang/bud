@@ -256,22 +256,19 @@ module Bud
 
     protected
     def insert_item(item, offset)
-      if @keys.empty?
-        the_key = nil
+      the_key = []
+      # assumes left-deep trees
+      if @left_is_array and offset == 0
+        @keys.each do |k|
+          left_subtuple, left_offset = k.first
+          the_key << item[left_subtuple][left_offset]
+        end
       else
-        the_key = []
-        # assumes left-deep trees
-        if @left_is_array and offset == 0
-          @keys.each do |k|
-            left_subtuple, left_offset = k.first
-            the_key << item[left_subtuple][left_offset]
-          end
-        else
-          @keys.each do |k|
-            the_key << item[k[offset][1]]
-          end
+        @keys.each do |k|
+          the_key << item[k[offset][1]]
         end
       end
+
       #build
       # puts "building #{item.inspect} into @source[#{offset}] on key #{the_key.inspect}"
       if (@hash_tables[offset][the_key] ||= Set.new).add? item
@@ -438,21 +435,18 @@ module Bud
     # XXX: duplicates code from PushSHJoin
     private
     def insert_item(item, offset)
-      if @keys.empty?
-        the_key = nil
+      the_key = []
+      if @left_is_array and offset == 1
+        @keys.each do |k|
+          left_subtuple, left_offset = k.first
+          the_key << item[left_subtuple][left_offset]
+        end
       else
-        the_key = []
-        if @left_is_array and offset == 1
-          @keys.each do |k|
-            left_subtuple, left_offset = k.first
-            the_key << item[left_subtuple][left_offset]
-          end
-        else
-          @keys.each do |k|
-            the_key << item[k[offset][1]]
-          end
+        @keys.each do |k|
+          the_key << item[k[offset][1]]
         end
       end
+
       #build
       # puts "building #{item.inspect} into @source[#{offset}] on key #{the_key.inspect}"
       if (@hash_tables[offset][the_key] ||= Set.new).add? item
