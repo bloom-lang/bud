@@ -444,14 +444,7 @@ module Bud
     # XXX: duplicates code from PushSHJoin
     private
     def insert_item(item, offset)
-      if @left_is_array and offset == 1
-        the_key = @keys.map do |k|
-          left_subtuple, left_offset = k.first
-          item[left_subtuple][left_offset]
-        end
-      else
-        the_key = item.values_at(*@key_attnos[offset])
-      end
+      the_key = item.values_at(*@key_attnos[offset])
 
       #build
       # puts "building #{item.inspect} into @source[#{offset}] on key #{the_key.inspect}"
