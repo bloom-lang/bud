@@ -1,4 +1,4 @@
-== 0.9.7 / ???
+== 0.9.7 / 2013-04-22
 
 * Avoid raising an exception when Bud is used with Ruby 2.0. There isn't
   anything special that Bud itself needs to do to support Ruby 2.0, but
@@ -7,9 +7,9 @@
   have been observed.
 * Reject <= on collections from outside Bloom rules (#289, Aaron Davidson). The
   previous behavior was error-prone: inserting into a scratch collection via <=
-  was not rejected, but the inserted data would immediately be discarded at the
-  beginning of the next tick. Hence, it is more consistent to simply require <+
-  or <~ for all insertions from outside Bloom rules.
+  was not rejected but the inserted data would immediately be discarded at the
+  beginning of the next tick. Hence, it is simpler to require <+ or <~ for all
+  insertions from outside Bloom rules.
 * Fix bug in join operators whose qualifiers reference collections defined
   inside imported modules (#301)
 * Fix bug in join operators when the same table and column name appears on the
