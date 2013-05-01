@@ -21,6 +21,14 @@ class StdioEcho
   end
 end
 
+class StdioBootstrap
+  include Bud
+
+  bootstrap do
+    stdio <~ [["hello from bootstrap!"]]
+  end
+end
+
 class TestTerminal < MiniTest::Unit::TestCase
   def test_stdin
     input_lines = ["line1", "line2", "line3"]
@@ -52,5 +60,12 @@ class TestTerminal < MiniTest::Unit::TestCase
     end
 
     b.stop
+  end
+
+  def test_stdio_bootstrap
+    output_buf = StringIO.new
+    b = StdioBootstrap.new(:stdout => output_buf)
+    b.tick
+    assert_equal("hello from bootstrap!\n", output_buf.string)
   end
 end

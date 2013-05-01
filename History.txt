@@ -1,5 +1,7 @@
 == 0.9.8 / ???
 
+* Fix bug with insertions into stdio inside bootstrap blocks
+
 == 0.9.7 / 2013-04-22
 
 * Avoid raising an exception when Bud is used with Ruby 2.0. There isn't

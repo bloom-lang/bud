@@ -1112,6 +1112,11 @@ module Bud
     end
 
     public
+    def bootstrap
+      # override BudCollection; pending should not be moved into delta.
+    end
+
+    public
     def flush #:nodoc: all
       out_io = get_out_io
       @pending.each_value {|p| out_io.puts p[0]}
