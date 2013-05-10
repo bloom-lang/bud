@@ -36,6 +36,38 @@ class TestErrorHandling < MiniTest::Unit::TestCase
     assert_raises(Bud::CompileError) { IllegalOp.new }
   end
 
+  class IllegalAsyncOp
+    include Bud
+
+    state do
+      table :t1
+    end
+
+    bloom do
+      t1 <~ t1 {|x| ["foo"]}
+    end
+  end
+
+  def test_illegal_async_op
+    assert_raises(Bud::CompileError) { IllegalAsyncOp.new.tick }
+  end
+
+  class IllegalAsyncLattice
+    include Bud
+
+    state do
+      lmap :m1
+    end
+
+    bloom do
+      m1 <~ m1
+    end
+  end
+
+  def test_illegal_async_lattice
+    assert_raises(Bud::CompileError) { IllegalAsyncLattice.new.tick }
+  end
+
   class InsertInBloomBlock
     include Bud
 
@@ -286,8 +318,7 @@ class TestErrorHandling < MiniTest::Unit::TestCase
 
   def test_bad_file_reader_2
     File.open("/tmp/foo#{Process.pid}", 'a')
-    p = BadFileReader2.new
-    assert_raises(Bud::CompileError) {p.tick}
+    assert_raises(Bud::CompileError) { BadFileReader2.new.tick}
   end
 
   class BadFileReader3
@@ -302,8 +333,7 @@ class TestErrorHandling < MiniTest::Unit::TestCase
 
   def test_bad_file_reader_3
     File.open("/tmp/foo#{Process.pid}", 'a')
-    p = BadFileReader3.new
-    assert_raises(Bud::Error) {p.tick}
+    assert_raises(Bud::CompileError) { BadFileReader3.new.tick}
   end
 
   class BadOp

@@ -650,6 +650,11 @@ module Bud
       end
     end
 
+    superator "<~" do |o|
+      # Overridden when <~ is defined (i.e., channels and terminals)
+      raise Bud::CompileError, "#{tabname} cannot appear on the lhs of a <~ operator"
+    end
+
     def tick
       raise Bud::Error, "tick must be overriden in #{self.class}"
     end

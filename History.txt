@@ -1,6 +1,8 @@
 == 0.9.8 / ???
 
 * Fix bug with insertions into stdio inside bootstrap blocks
+* Improve error message when <~ applied to a collection type that doesn't
+  support it (#316)
 
 == 0.9.7 / 2013-04-22
 

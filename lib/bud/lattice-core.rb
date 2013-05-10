@@ -500,6 +500,11 @@ class Bud::LatticeWrapper
     end
   end
 
+  superator "<~" do |o|
+    # Overridden when <~ is defined (i.e., channels and terminals)
+    raise Bud::CompileError, "#{tabname} cannot appear on the lhs of a <~ operator"
+  end
+
   # XXX: refactor with BudCollection to avoid duplication of code
   def add_merge_target
     toplevel = @bud_instance.toplevel
