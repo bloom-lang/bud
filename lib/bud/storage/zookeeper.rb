@@ -26,6 +26,13 @@ module Bud
       @child_watch_id = nil
     end
 
+    def invalidate_at_tick
+      true
+    end
+
+    def invalidate_cache
+    end
+
     # Since the watcher callbacks might invoke EventMachine, we wait until after
     # EM startup to start watching for Zk events.
     def start_watchers
