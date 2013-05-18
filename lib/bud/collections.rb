@@ -1393,7 +1393,7 @@ module Bud
   end
 
   class BudFileReader < BudReadOnly # :nodoc: all
-    def initialize(name, filename, delimiter, bud_instance) # :nodoc: all
+    def initialize(name, filename, bud_instance) # :nodoc: all
       super(name, bud_instance, {[:lineno] => [:text]})
       @filename = filename
       @storage = {}

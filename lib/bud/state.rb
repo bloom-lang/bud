@@ -128,9 +128,9 @@ module Bud
   end
 
   # declare a collection to be read from +filename+.  rhs of statements only
-  def file_reader(name, filename, delimiter='\n')
+  def file_reader(name, filename)
     define_collection(name)
-    @tables[name] = Bud::BudFileReader.new(name, filename, delimiter, self)
+    @tables[name] = Bud::BudFileReader.new(name, filename, self)
   end
 
   # declare a collection to be auto-populated every +period+ seconds.  schema <tt>[:key] => [:val]</tt>.
