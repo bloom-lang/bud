@@ -205,7 +205,7 @@ The rhs is our first introduction to the `*` operator of Bloom collections, and 
 The remaining lines of plain Ruby simply instantiate and run the ChatServer class (which includes the `Bud` module) using an ip and port given on the command line (or the default from ChatProtocol.rb).
 
 #### `*`'s and Clouds ####
-You can think of out use of the `*` operator in the rhs of the second statement in a few different ways:
+You can think of our use of the `*` operator on the rhs of the second statement in a few different ways:
 
 * If you're familiar with event-loop programming, this implements an *event handler* for messages on the mcast channel: whenever an mcast message arrives, this handler performs lookups in the nodelist table to form new messages.  (It is easy to add "filters" to these handlers as arguments to `pairs`.)  The resulting messages are dispatched via the mcast channel accordingly.  This is a very common pattern in Bloom programs: handling channel messages via lookups in a table.
 
