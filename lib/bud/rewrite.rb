@@ -9,7 +9,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
                         :pairs, :matches, :combos, :flatten, :new,
                         :lefts, :rights, :map, :flat_map, :pro, :merge,
                         :schema, :cols, :key_cols, :val_cols, :payloads, :lambda,
-                        :tabname, :current_value].to_set
+                        :tabname, :current_value, :channel_schema].to_set
 
   def initialize(seed, bud_instance)
     @bud_instance = bud_instance
