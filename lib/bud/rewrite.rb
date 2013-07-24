@@ -60,7 +60,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     #       s(:call, s(:call, nil, :a), :b),
     #         :bar))
     # to the string "a.b.bar"
-    raise Bud::CompileError, "malformed exp: #{exp}" unless exp.sexp_type == :call
+    raise Bud::CompileError, "malformed expression: #{exp}" unless exp.sexp_type == :call
     _, recv, op = exp
     return recv.nil? ? op.to_s : call_to_id(recv) + "." + op.to_s
   end
@@ -138,6 +138,9 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       # Special case. In the rule "z <= x.notin(y)", z depends positively on x,
       # but negatively on y. See further explanation in the "else" section for
       # why this is a special case.
+      if args.first.sexp_type != :call
+        raise Bud::CompileError, "illegal argument to notin: #{args.first}"
+      end
       notintab = call_to_id(args[0])   # args expected to be of the form (:call nil :y ...)
       @tables[notintab.to_s] = true    # "true" denotes non-monotonic dependency
       super
