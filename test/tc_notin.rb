@@ -346,8 +346,25 @@ class NotInChain
   end
 end
 
+class NotInChainJoin
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    table :res1
+    table :res2
+  end
+
+  bloom do
+    res1 <= (t1 * t2).lefts(:val => :key).notin(t3)
+    res2 <= ((t1 * t3).pairs(:val => :key) {|x,y| [x.key + 1, x.val + 1]}).notin(t3)
+  end
+end
+
 class NotInChainTest < MiniTest::Unit::TestCase
-  def test_notin_chain
+  def test_chain_notin
     n = NotInChain.new
     n.t2 <+ [[4, 9], [5, 10], [6, 11], [8, 10], [12, 9]]
     n.t3 <+ [[20, 5], [21, 6], [22, 7]]
@@ -355,5 +372,15 @@ class NotInChainTest < MiniTest::Unit::TestCase
     n.tick
     assert_equal([[4, 9], [12, 9]], n.t1.to_a.sort)
     assert_equal([[4, 9], [12, 9]], n.t5.to_a.sort)
+  end
+
+  def test_chain_join
+    n = NotInChainJoin.new
+    n.t1 <+ [[1, 2], [3, 4], [5, 6]]
+    n.t2 <+ [[2, 4], [6, 8]]
+    n.t3 <+ [[1, 2], [2, 4], [6, 7]]
+    n.tick
+    assert_equal([[5, 6]], n.res1.to_a.sort)
+    assert_equal([[2, 3]], n.res2.to_a.sort)
   end
 end
