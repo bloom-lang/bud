@@ -501,7 +501,7 @@ module Bud
       @lhs, @rhs = rellist
       @lhs_keycols = nil
       @rhs_keycols = nil
-      name_in = "#{@lhs.qualified_tabname}_notin_#{@rhs.qualified_tabname}"
+      name_in = "#{@lhs.qualified_tabname}_notin_#{@rhs.qualified_tabname}".to_sym
       super(name_in, bud_instance, nil, @lhs.schema)
       setup_preds(preds) unless preds.empty?
       @rhs_rcvd = false

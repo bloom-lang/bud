@@ -250,7 +250,7 @@ module Bud
     def sort(&blk)
       if @bud_instance.wiring?
         pusher = self.pro
-        pusher.sort("sort#{object_id}", @bud_instance, @cols, &blk)
+        pusher.sort("sort#{object_id}".to_sym, @bud_instance, @cols, &blk)
       else
         @storage.values.sort(&blk)
       end

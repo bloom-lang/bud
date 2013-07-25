@@ -199,7 +199,7 @@ module Bud
     public
     def pro(the_name=elem_name, the_schema=schema, &blk)
       toplevel = @bud_instance.toplevel
-      elem = Bud::PushElement.new("project#{object_id}",
+      elem = Bud::PushElement.new("project#{object_id}".to_sym,
                                   toplevel.this_rule_context,
                                   @collection_name, the_schema)
       self.wire_to(elem)
@@ -213,7 +213,7 @@ module Bud
     public
     def each_with_index(&blk)
       toplevel = @bud_instance.toplevel
-      elem = Bud::PushEachWithIndex.new("each_with_index#{object_id}",
+      elem = Bud::PushEachWithIndex.new("each_with_index#{object_id}".to_sym,
                                         toplevel.this_rule_context,
                                         @collection_name)
       elem.set_block(&blk)
@@ -284,7 +284,7 @@ module Bud
 
       aggpairs = prep_aggpairs(aggpairs)
       toplevel = @bud_instance.toplevel
-      g = Bud::PushGroup.new('grp'+Time.new.tv_usec.to_s, toplevel.this_rule_context,
+      g = Bud::PushGroup.new("grp#{Time.new.tv_usec}".to_sym, toplevel.this_rule_context,
                              @collection_name, keycols, aggpairs, the_schema, &blk)
       self.wire_to(g)
       toplevel.push_elems[[self.object_id, :group, keycols, aggpairs, blk]] = g
@@ -302,7 +302,7 @@ module Bud
       end
 
       aggpairs = [[agg, collection]]
-      aa = Bud::PushArgAgg.new('argagg'+Time.new.tv_usec.to_s, toplevel.this_rule_context,
+      aa = Bud::PushArgAgg.new("argagg#{Time.new.tv_usec}".to_sym, toplevel.this_rule_context,
                                @collection_name, gbkey_cols, aggpairs, schema, &blk)
       self.wire_to(aa)
       toplevel.push_elems[[self.object_id, :argagg, gbkey_cols, aggpairs, blk]] = aa
@@ -346,7 +346,7 @@ module Bud
     end
 
     def reduce(initial, &blk)
-      retval = Bud::PushReduce.new("reduce#{Time.new.tv_usec}",
+      retval = Bud::PushReduce.new("reduce#{Time.new.tv_usec}".to_sym,
                                    @bud_instance, @collection_name,
                                    schema, initial, &blk)
       self.wire_to(retval)
