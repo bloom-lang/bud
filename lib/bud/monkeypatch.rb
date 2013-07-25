@@ -19,8 +19,7 @@ class Bud::TupleStruct < Struct
       self.each_with_index do |e, i|
         other = o[i]
         next if e == other
-        return nil if e.nil?
-        return nil if other.nil?
+        return nil if e.nil? or other.nil?
         return e <=> other
       end
       return 0
