@@ -1,4 +1,3 @@
-$struct_classes = {}
 module Bud
   ########
   #--
@@ -63,7 +62,7 @@ module Bud
       if @cols.empty?
         @cols = nil
       else
-        @struct = ($struct_classes[@cols] ||= Bud::TupleStruct.new(*@cols))
+        @struct = Bud::TupleStruct.new_struct(@cols)
         @structlen = @struct.members.length
       end
       setup_accessors
