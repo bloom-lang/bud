@@ -10,10 +10,22 @@ class Class
   end
 end
 
+$struct_classes = {}
+$struct_lock = Mutex.new
+
 # FIXME: Should likely override #hash and #eql? as well.
 class Bud::TupleStruct < Struct
   include Comparable
 
+  def self.new_struct(cols)
+    $struct_lock.synchronize {
+      ($struct_classes[cols] ||= Bud::TupleStruct.new(*cols))
+    }
+  end
+
+  # XXX: This only considers two TupleStruct instances to be equal if they have
+  # the same schema (column names) AND the same contents; unclear if structural
+  # equality (consider only values, not column names) would be better.
   def <=>(o)
     if o.class == self.class
       self.each_with_index do |e, i|
