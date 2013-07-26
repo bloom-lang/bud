@@ -1028,6 +1028,12 @@ module Bud
       @pending.clear
     end
 
+    def insert_inbound(t, addr)
+      t = prep_tuple(t)
+      t.source_address = addr
+      insert(t)
+    end
+
     public
     # project to the non-address fields
     def payloads(&blk)

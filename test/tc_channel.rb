@@ -450,7 +450,7 @@ class TestChannelFilter < MiniTest::Unit::TestCase
       return [tups, []] unless tbl_name == :chn
       res = []
       tups.each do |t|
-        res << t if t[1] == 3
+        res << t if t[0][1] == 3
       end
       return [res, []]
     end

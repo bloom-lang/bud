@@ -67,7 +67,7 @@ $bud_instances = {}        # Map from instance id => Bud instance
 #
 # :main: Bud
 module Bud
-  attr_reader :budtime, :inbound, :options, :meta_parser, :viz, :rtracer, :dsock
+  attr_reader :budtime, :inbound, :periodic_inbound, :options, :meta_parser, :viz, :rtracer, :dsock
   attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :app_tables, :lattices
   attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap
@@ -100,11 +100,11 @@ module Bud
   #     network messages delivered to this Bud instance. At the start of each
   #     tick, the code block is invoked for every channel with any incoming
   #     messages; the code block is passed the name of the channel and an array
-  #     containing the inbound messages. It should return a two-element array
-  #     containing "accepted" and "postponed" messages, respectively. Accepted
-  #     messages are delivered during this tick, and postponed messages are
-  #     buffered and passed to the filter in subsequent ticks. Any messages that
-  #     aren't in either array are dropped.
+  #     containing pairs: [message, address-of-message-source]. It should return
+  #     a two-element array containing "accepted" and "postponed" message pairs,
+  #     respectively. Accepted messages are delivered during this tick, and
+  #     postponed messages are buffered and passed to the filter in subsequent
+  #     ticks. Any messages that aren't in either array are dropped.
   # * storage configuration
   #   * <tt>:dbm_dir</tt> filesystem directory to hold DBM-backed collections
   #   * <tt>:dbm_truncate</tt> if true, DBM-backed collections are opened with +OTRUNC+
@@ -133,7 +133,6 @@ module Bud
     @inside_tick = false
     @tick_clock_time = nil
     @budtime = 0
-    @inbound = {}
     @done_bootstrap = false
     @done_wiring = false
     @instance_id = ILLEGAL_INSTANCE_ID # Assigned when we start running
@@ -143,6 +142,10 @@ module Bud
     @push_sorted_elems = nil
     @running_async = false
     @bud_started = false
+    # Map from periodic_name => tup
+    @periodic_inbound = {}
+    # Map from channel_name => [[tup, source-address], ...]
+    @inbound = {}
 
     # Setup options (named arguments), along with default values
     @options = options.clone
@@ -1149,6 +1152,7 @@ module Bud
       invoke_callbacks
       @budtime += 1
       @inbound.clear
+      @periodic_inbound.clear
       @reset_list.each {|e| e.invalidated = false; e.rescan = false}
 
     ensure
@@ -1217,8 +1221,14 @@ module Bud
   def receive_inbound
     @inbound.each do |tbl_name, msg_buf|
       puts "channel #{tbl_name} rcv: #{msg_buf}" if $BUD_DEBUG
-      msg_buf.each do |b|
-        tables[tbl_name] << b
+      msg_buf.each do |t, addr|
+        tables[tbl_name].insert_inbound(t, addr)
+      end
+    end
+    @periodic_inbound.each do |tbl_name, msg_buf|
+      puts "periodic #{tbl_name} rcv: #{msg_buf}" if $BUD_DEBUG
+      msg_buf.each do |t|
+        tables[tbl_name] << t
       end
     end
   end
@@ -1261,8 +1271,8 @@ module Bud
 
   def make_periodic_timer(name, period)
     EventMachine::PeriodicTimer.new(period) do
-      @inbound[name.to_sym] ||= []
-      @inbound[name.to_sym] << [gen_id, Time.now]
+      @periodic_inbound[name.to_sym] ||= []
+      @periodic_inbound[name.to_sym] << [gen_id, Time.now]
       tick_internal if @running_async
     end
   end

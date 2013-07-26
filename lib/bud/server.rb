@@ -45,7 +45,12 @@ class Bud::BudServer < EM::Connection #:nodoc: all
       @bud.inbound.each do |chn_name, t|
         puts "    #{t.inspect} (channel: #{chn_name})"
       end
+      puts "Periodics:"
+      @bud.periodic_inbound.each do |tbl_name, t|
+        puts "    #{t.inspect} (periodic: #{tbl_name})"
+      end
       @bud.inbound.clear
+      @bud.periodic_inbound.clear
     end
 
     @bud.rtracer.sleep if @bud.options[:rtrace]
@@ -67,7 +72,8 @@ class Bud::BudServer < EM::Connection #:nodoc: all
       tuple[i] = Marshal.load(tuple[i])
     end
 
-    obj = [tbl_name, tuple]
+    port, ip = Socket.unpack_sockaddr_in(get_peername)
+    obj = [tbl_name, [tuple, "#{ip}:#{port}"]]
     @bud.rtracer.recv(obj) if @bud.options[:rtrace]
     @filter_buf[obj[0].to_sym] ||= []
     @filter_buf[obj[0].to_sym] << obj[1]

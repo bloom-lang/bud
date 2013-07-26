@@ -14,6 +14,8 @@ end
 class Bud::TupleStruct < Struct
   include Comparable
 
+  attr_accessor :source_address
+
   def self.new_struct(tbl_name, cols)
     c = Bud::TupleStruct.new(*cols)
     c.instance_variable_set(:@__table_name, tbl_name)
@@ -41,7 +43,8 @@ class Bud::TupleStruct < Struct
         next if e == other
         return e <=> other
       end
-      return self.length <=> o_len
+      return self.source_address <=> o.source_address ||
+             self.length <=> o_len
     elsif o.nil?
       return nil
     else
@@ -55,6 +58,7 @@ class Bud::TupleStruct < Struct
     end
 
     return false if self.length != o.length
+    return false if self.source_address != o.source_address
     self.each_with_index do |el, i|
       return false if el != o[i]
     end
