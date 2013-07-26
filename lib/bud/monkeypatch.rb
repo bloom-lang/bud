@@ -58,7 +58,8 @@ class Bud::TupleStruct < Struct
     end
 
     return false if self.length != o.length
-    return false if self.source_address != o.source_address
+    return false if o.kind_of? Bud::TupleStruct and
+                    self.source_address != o.source_address
     self.each_with_index do |el, i|
       return false if el != o[i]
     end

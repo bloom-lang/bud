@@ -1131,6 +1131,13 @@ module Bud
     end
 
     public
+    def insert_inbound(t, addr)
+      t = prep_tuple(t)
+      t.source_address = addr
+      insert(t)
+    end
+
+    public
     def flush #:nodoc: all
       out_io = get_out_io
       @pending.each_value {|p| out_io.puts p[0]}
