@@ -392,6 +392,8 @@ class TestCollections < MiniTest::Unit::TestCase
     t.tick
     assert_equal([[6, :t1], [7, :t1]], t.t2.to_a.sort)
     assert_equal([[7, :t2], [8, :t2]], t.t3.to_a.sort)
+    assert(t.t2.all? {|v| v.table_name == :t2})
+    assert(t.t3.all? {|v| v.table_name == :t3})
   end
 
   def test_types
