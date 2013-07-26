@@ -352,24 +352,18 @@ class TestCollections < MiniTest::Unit::TestCase
 
   def test_row_equality
     rv = RowValueTest.new
-    rv.run_bg
-    rv.sync_do {
-      rv.t1 <+ [[5, 10],
-                [6, 11]]
-      rv.t2 <+ [[5, 10],
-                [6, 15],
-                [7, 12]]
-    }
+    rv.t1 <+ [[5, 10],
+              [6, 11]]
+    rv.t2 <+ [[5, 10],
+              [6, 15],
+              [7, 12]]
+    rv.tick
 
-    rv.sync_do {
-      assert_equal(1, rv.t3.length)
-      assert_equal(2, rv.t4.length)
+    assert_equal(1, rv.t3.length)
+    assert_equal(2, rv.t4.length)
 
-      cnt = rv.t4.select {|t| t == [5, 10, 15]}
-      assert_equal([], cnt)
-    }
-
-    rv.stop
+    cnt = rv.t4.select {|t| t == [5, 10, 15]}
+    assert_equal([], cnt)
   end
 
   def test_types
