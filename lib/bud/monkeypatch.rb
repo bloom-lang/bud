@@ -10,31 +10,39 @@ class Class
   end
 end
 
-$struct_classes = {}
-$struct_lock = Mutex.new
-
 # FIXME: Should likely override #hash and #eql? as well.
 class Bud::TupleStruct < Struct
   include Comparable
 
-  def self.new_struct(cols)
-    $struct_lock.synchronize {
-      ($struct_classes[cols] ||= Bud::TupleStruct.new(*cols))
-    }
+  def self.new_struct(tbl_name, cols)
+    c = Bud::TupleStruct.new(*cols)
+    c.instance_variable_set(:@__table_name, tbl_name)
+    c
   end
 
-  # XXX: This only considers two TupleStruct instances to be equal if they have
-  # the same schema (column names) AND the same contents; unclear if structural
-  # equality (consider only values, not column names) would be better.
+  # XXX: The table_name of a tuple might be incorrect in certain obscure
+  # circumstances -- e.g., when passing tuples through deductive rules with no
+  # code blocks, we don't convert the underlying tuple from one Struct instance
+  # to another.
+  def table_name
+    self.class.instance_variable_get(:@__table_name)
+  end
+
+  # Note that we implement structural equality -- two tuples from different
+  # tables are considered equal if they have the same number of columns and the
+  # same content for each column (column names might differ).
+  # XXX: Shouldn't we implement <=> for Array as well?
   def <=>(o)
-    if o.class == self.class
+    if o.kind_of? Bud::TupleStruct
+      o_len = o.length
       self.each_with_index do |e, i|
+        break if i >= o_len
         other = o[i]
         next if e == other
         return nil if e.nil? or other.nil?
         return e <=> other
       end
-      return 0
+      return self.length <=> o_len
     elsif o.nil?
       return nil
     else
@@ -43,16 +51,15 @@ class Bud::TupleStruct < Struct
   end
 
   def ==(o)
-    if o.class == self.class
-      return super
-    elsif o.class == Array
-      return false if self.length != o.length
-      self.each_with_index do |el, i|
-        return false if el != o[i]
-      end
-      return true
+    unless o.kind_of? Bud::TupleStruct or o.class == Array
+      return false
     end
-    false
+
+    return false if self.length != o.length
+    self.each_with_index do |el, i|
+      return false if el != o[i]
+    end
+    return true
   end
 
   def to_msgpack(out=nil)

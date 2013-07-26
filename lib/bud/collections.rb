@@ -62,7 +62,7 @@ module Bud
       if @cols.empty?
         @cols = nil
       else
-        @struct = Bud::TupleStruct.new_struct(@cols)
+        @struct = Bud::TupleStruct.new_struct(qualified_tabname, @cols)
         @structlen = @struct.members.length
       end
       setup_accessors

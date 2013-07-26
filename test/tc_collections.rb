@@ -364,6 +364,9 @@ class TestCollections < MiniTest::Unit::TestCase
 
     cnt = rv.t4.select {|t| t == [5, 10, 15]}
     assert_equal([], cnt)
+
+    assert(rv.t1.all? {|t| t.table_name == :t1})
+    assert(rv.t4.all? {|t| t.table_name == :t4})
   end
 
   def test_types

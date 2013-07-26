@@ -350,7 +350,7 @@ end
 #
 # Although this is called a rewriter, it doesn't modify the input AST.
 class UnsafeFuncRewriter < SexpProcessor
-  SAFE_FUNC_LIST = [:int_ip_port, :ip_port, :ip, :port].to_set
+  SAFE_FUNC_LIST = [:int_ip_port, :ip_port, :ip, :port, :table_name].to_set
 
   attr_reader :unsafe_func_called
 
