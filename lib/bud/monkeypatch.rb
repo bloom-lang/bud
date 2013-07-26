@@ -66,6 +66,19 @@ class Bud::TupleStruct < Struct
     return true
   end
 
+  def hash
+    h = 17
+    # When combining hash functions, we don't use XOR (since it is commutative);
+    # rather, we use a trick per Bob Jenkins.
+    self.each {|e| h = (h * 31) + e.hash}
+    h ^= @source_address.hash
+    h
+  end
+
+  def eql?(o)
+    self == o
+  end
+
   def to_msgpack(out=nil)
     self.to_a.to_msgpack(out)
   end
