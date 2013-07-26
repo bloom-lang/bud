@@ -39,7 +39,6 @@ class Bud::TupleStruct < Struct
         break if i >= o_len
         other = o[i]
         next if e == other
-        return nil if e.nil? or other.nil?
         return e <=> other
       end
       return self.length <=> o_len
