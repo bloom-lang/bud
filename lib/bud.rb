@@ -1211,12 +1211,12 @@ module Bud
     @builtin_tables = @tables.clone if toplevel
   end
 
-  # Handle any inbound tuples off the wire. Received messages are placed
-  # directly into the storage of the appropriate local channel. The inbound
+  # Handle tuples from channels and periodics. Received messages are placed
+  # directly into the storage of the appropriate local collection. The inbound
   # queue is cleared at the end of the tick.
   def receive_inbound
     @inbound.each do |tbl_name, msg_buf|
-      puts "channel #{tbl_name} rcv:  #{msg_buf}" if $BUD_DEBUG
+      puts "channel #{tbl_name} rcv: #{msg_buf}" if $BUD_DEBUG
       msg_buf.each do |b|
         tables[tbl_name] << b
       end
