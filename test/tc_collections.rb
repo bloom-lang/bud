@@ -114,6 +114,21 @@ class RowValueTest
   end
 end
 
+class TableNameTest
+  include Bud
+
+  state do
+    scratch :t1, [:key]
+    table :t2, [:key, :tbl_name]
+    table :t3, t2.schema
+  end
+
+  bloom do
+    t2 <= t1 {|t| [t.key + 1, t.table_name]}
+    t3 <= t2 {|t| [t.key + 1, t.table_name]}
+  end
+end
+
 class BendTypes
   include Bud
 
@@ -367,6 +382,16 @@ class TestCollections < MiniTest::Unit::TestCase
 
     assert(rv.t1.all? {|t| t.table_name == :t1})
     assert(rv.t4.all? {|t| t.table_name == :t4})
+  end
+
+  def test_table_name
+    t = TableNameTest.new
+    assert_equal(0, t.collection_stratum("t2"))
+    assert_equal(0, t.collection_stratum("t3"))
+    t.t1 <+ [[5], [6]]
+    t.tick
+    assert_equal([[6, :t1], [7, :t1]], t.t2.to_a.sort)
+    assert_equal([[7, :t2], [8, :t2]], t.t3.to_a.sort)
   end
 
   def test_types
