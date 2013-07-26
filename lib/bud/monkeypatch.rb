@@ -46,14 +46,11 @@ class Bud::TupleStruct < Struct
     if o.class == self.class
       return super
     elsif o.class == Array
-      begin
-        self.each_with_index do |el, i|
-          return false if el != o[i]
-        end
-        return true
-      rescue StandardError
-        return false
+      return false if self.length != o.length
+      self.each_with_index do |el, i|
+        return false if el != o[i]
       end
+      return true
     end
     false
   end
