@@ -10,7 +10,6 @@ class Class
   end
 end
 
-# FIXME: Should likely override #hash and #eql? as well.
 class Bud::TupleStruct < Struct
   include Comparable
 

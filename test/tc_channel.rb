@@ -509,3 +509,56 @@ class TestChannelFilter < MiniTest::Unit::TestCase
     dst.stop
   end
 end
+
+class UseSourceAddress
+  include Bud
+
+  state do
+    channel :chn, [:@addr, :id]
+    scratch :in_t, chn.schema
+    table :log, chn.schema
+    table :done, chn.schema
+  end
+
+  bloom do
+    chn <~ in_t
+    chn <~ chn {|c| [c.source_address, c.id + 1] if c.id < 10}
+    log <= chn
+    done <= chn {|c| c if c.id >= 10}
+  end
+end
+
+class SourceAddressTest < MiniTest::Unit::TestCase
+  def test_source_addr
+    u1 = UseSourceAddress.new
+    u2 = UseSourceAddress.new
+
+    u1.run_bg
+    u2.run_bg
+
+    q = Queue.new
+    u2.register_callback(:done) do
+      q.push(true)
+    end
+    u1.sync_do {
+      u1.in_t <+ [[u2.ip_port, 0]]
+    }
+
+    q.pop
+
+    u1.sync_do {
+      vals = [1,3,5,7,9]
+      res = vals.map {|v| [u1.ip_port, v]}
+      assert_equal(res.sort, u1.log.to_a.sort)
+    }
+    u2.sync_do {
+      vals = [0,2,4,6,8,10]
+      res = vals.map {|v| [u2.ip_port, v]}
+      assert_equal(res.sort, u2.log.to_a.sort)
+    }
+
+
+    u1.stop
+    u2.stop
+  end
+end
