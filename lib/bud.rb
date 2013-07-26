@@ -93,6 +93,7 @@ module Bud
   #   * <tt>:rtrace</tt>  if true, generate +budplot+ outputs
   #   * <tt>:dump_rewrite</tt> if true, dump results of internal rewriting of Bloom code to a file
   #   * <tt>:print_wiring</tt> if true, print the wiring diagram of the program to stdout
+  #   * <tt>:channel_stats</tt> if true, print stats about sent & recv channel messages
   #   * <tt>:metrics</tt> if true, dumps a hash of internal performance metrics
   # * controlling execution
   #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
@@ -996,6 +997,16 @@ module Bud
     end
     @bud_started = false
     @running_async = false
+
+    if @options[:channel_stats]
+      puts "Stats for #{ip_port}:"
+      @channels.each do |name, c|
+        next if c.kind_of? Bud::BudTerminal
+        puts "chn #{name}: sent #{c.num_sent}, recv #{c.num_recv}"
+      end
+      puts "====="
+    end
+
     if do_shutdown_cb
       @post_shutdown_callbacks.each {|cb| cb.call}
     end

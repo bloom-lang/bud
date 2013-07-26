@@ -888,7 +888,7 @@ module Bud
   # makes use of @storage and @delta, whereas the outgoing side only deals with
   # @pending. XXX Maybe we should be using aliases instead.
   class BudChannel < BudCollection
-    attr_reader :locspec_idx # :nodoc: all
+    attr_reader :locspec_idx, :num_sent, :num_recv # :nodoc: all
 
     def initialize(name, bud_instance, given_schema=nil, loopback=false) # :nodoc: all
       given_schema ||= [:@address, :val]
@@ -896,6 +896,8 @@ module Bud
       @locspec_idx = nil
       @wire_buf = StringIO.new
       @packer = MessagePack::Packer.new(@wire_buf)
+      @num_sent = 0
+      @num_recv = 0
 
       # We're going to mutate the caller's given_schema (to remove the location
       # specifier), so make a deep copy first. We also save a ref to the
@@ -1025,6 +1027,7 @@ module Bud
         @wire_buf.rewind
         @wire_buf.truncate(0)
       end
+      @num_sent += @pending.size if toplevel.options[:channel_stats]
       @pending.clear
     end
 
@@ -1032,6 +1035,7 @@ module Bud
       t = prep_tuple(t)
       t.source_address = addr
       insert(t)
+      @num_recv += 1 if @bud_instance.toplevel.options[:channel_stats]
     end
 
     public
