@@ -1215,18 +1215,18 @@ module Bud
     @builtin_tables = @tables.clone if toplevel
   end
 
-  # Handle tuples from channels and periodics. Received messages are placed
-  # directly into the storage of the appropriate local collection. The inbound
-  # queue is cleared at the end of the tick.
+  # Handle external inputs: channels, terminals, and periodics. Received
+  # messages are placed directly into the storage of the appropriate local
+  # collection. The inbound queue is cleared at the end of the tick.
   def receive_inbound
     @inbound.each do |tbl_name, msg_buf|
-      puts "channel #{tbl_name} rcv: #{msg_buf}" if $BUD_DEBUG
+      puts "recv via #{tbl_name}: #{msg_buf}" if $BUD_DEBUG
       msg_buf.each do |t, addr|
         tables[tbl_name].insert_inbound(t, addr)
       end
     end
     @periodic_inbound.each do |tbl_name, msg_buf|
-      puts "periodic #{tbl_name} rcv: #{msg_buf}" if $BUD_DEBUG
+      puts "recv via #{tbl_name}: #{msg_buf}" if $BUD_DEBUG
       msg_buf.each do |t|
         tables[tbl_name] << t
       end
