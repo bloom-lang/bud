@@ -270,6 +270,23 @@ class SchemaPreserveKeys
   end
 end
 
+class StructArrayConcat
+  include Bud
+
+  state do
+    table :t1
+    table :t2, [:a, :b, :c]
+    table :t3
+    table :t4, [:a, :b, :c, :d]
+  end
+
+  bloom do
+    t2 <= t1 {|t| t + [5]}
+    t2 <= t1 {|t| [9] + t}
+    t4 <= (t1 * t3).pairs {|x,y| x + y}
+  end
+end
+
 class TestCollections < MiniTest::Unit::TestCase
   def test_simple_deduction
     program = BabyBud.new
@@ -576,6 +593,16 @@ class TestCollections < MiniTest::Unit::TestCase
     assert_equal({[:a] => [:b]}, s.t2.schema)
     s.inputt <+ [[5, 10], [5, 11]]
     assert_raises(Bud::KeyConstraintError) { s.tick }
+  end
+
+  def test_struct_array_concat
+    s = StructArrayConcat.new
+    s.t1 <+ [[5, 10], [6, 12]]
+    s.t3 <+ [[7, 8]]
+    s.tick
+    assert_equal([[5, 10, 5], [6, 12, 5], [9, 5, 10], [9, 6, 12]].sort,
+                 s.t2.to_a.sort)
+    assert_equal([[5, 10, 7, 8], [6, 12, 7, 8]], s.t4.to_a.sort)
   end
 
   class FunkyPayloads

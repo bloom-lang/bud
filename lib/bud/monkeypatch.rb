@@ -78,6 +78,10 @@ class Bud::TupleStruct < Struct
     self == o
   end
 
+  def +(o)
+    self.to_ary + o.to_ary
+  end
+
   def to_msgpack(out=nil)
     self.to_a.to_msgpack(out)
   end
@@ -87,6 +91,7 @@ class Bud::TupleStruct < Struct
   end
 
   alias :to_s :inspect
+  alias :to_ary :to_a
 end
 
 # XXX: TEMPORARY/UGLY hack to ensure that arrays and structs compare. This can be
