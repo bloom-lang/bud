@@ -12,6 +12,7 @@ class BudMeta #:nodoc: all
 
     stratified_rules = []
     if @bud_instance.toplevel == @bud_instance
+      rce_rewrite
       nodes, stratum_map, top_stratum = stratify_preds
 
       # stratum_map = {fully qualified pred => stratum}. Copy stratum_map data
@@ -283,5 +284,21 @@ class BudMeta #:nodoc: all
       end
     end
     fout.close
+  end
+
+  # Rewrite the program to apply the Redundant Communication Elimination (RCE)
+  # optimization. We consider each channel in turn; if all the downstream
+  # consumers (i.e., receivers) of a channel are persistent, then we can avoid
+  # repeated deliveries of the same tuple without changing the semantics of the
+  # program. To apply RCE to a channel, we (a) create a sender-side
+  # "approximation" of the set of delivered channel tuples (b) we add a negation
+  # clause to all the rules that derive tuples into the channel -- we only
+  # attempt to send messages that aren't in the approximation (c) we insert a
+  # protocol to propagate information from receivers to senders in order to
+  # fill-in the approximation. Right now, (c) uses a simple unicast ACK'ing
+  # protocol, but many variations are possible.
+  def rce_rewrite
+    # For every channel, consider all rules where the channel appears on the LHS
+    # and all the rules where the channel appears on the RHS.
   end
 end
