@@ -45,10 +45,8 @@ class BudMeta #:nodoc: all
   end
 
   def shred_rules
-    # to completely characterize the rules of a bud class we must extract
-    # from all parent classes/modules
-    # after making this pass, we no longer care about the names of methods.
-    # we are shredding down to the granularity of rule heads.
+    # After making this pass, we no longer care about the names of methods.  We
+    # are shredding down to the granularity of rule heads.
     seed = 0
     rulebag = {}
     @bud_instance.class.ancestors.reverse.each do |anc|
