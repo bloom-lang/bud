@@ -194,7 +194,7 @@ implicit map:
     end
 
 ## BudCollection-Specific Methods ##
-`bc.schema`: returns the schema of `bc` (Hash of key column names => non-key column names). Note that for channels, this omits the location specifier (<tt>@</tt>).<br>
+`bc.schema`: returns the schema of `bc` (Hash of key column names => non-key column names; if no non-key columns, just an Array of key column names). Note that for channels, this omits the location specifier (<tt>@</tt>).<br>
 
 `bc.cols`: returns the column names in `bc` as an Array<br>
 
