@@ -360,19 +360,19 @@ class BudMeta #:nodoc: all
   # we need to install dependencies for newly created rules manually.
   def rce_for_channel(chn)
     bud = @bud_instance.toplevel
+    chn_coll = bud.channels[chn.to_sym]
     puts "RCE channel: #{chn}"
 
     # Create an "approx" collection to hold a conservative estimate of the
     # channel tuples that have been delivered.
     approx_name = "#{chn}_approx"
-    chn_schema = bud.channels[chn.to_sym].schema
+    chn_schema = chn_coll.schema
     puts "DDL: table #{approx_name}, #{chn_schema}"
     bud.table approx_name, chn_schema
 
     ack_name = "#{chn}_ack"
-    ack_keys, ack_vals = chn_schema.first
-    ack_keys = [:@sender] + ack_keys
-    ack_schema = { ack_keys => ack_vals }
+    ack_keys = [:@sender] + chn_coll.key_cols
+    ack_schema = { ack_keys => chn_coll.val_cols }
     puts "DDL: channel #{ack_name}, #{ack_schema}"
     bud.channel ack_name, ack_schema
 
