@@ -109,9 +109,6 @@ module Bud
   #   * <tt>:dbm_dir</tt> filesystem directory to hold DBM-backed collections
   #   * <tt>:dbm_truncate</tt> if true, DBM-backed collections are opened with +OTRUNC+
   def initialize(options={})
-    # capture the binding for a subsequent 'eval'. This ensures that local
-    # variable names introduced later in this method don't interfere with
-    # table names used in the eval block.
     options[:dump_rewrite] ||= ENV["BUD_DUMP_REWRITE"].to_i > 0
     options[:dump_ast]     ||= ENV["BUD_DUMP_AST"].to_i > 0
     options[:print_wiring] ||= ENV["BUD_PRINT_WIRING"].to_i > 0
