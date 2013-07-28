@@ -298,7 +298,51 @@ class BudMeta #:nodoc: all
   # fill-in the approximation. Right now, (c) uses a simple unicast ACK'ing
   # protocol, but many variations are possible.
   def rce_rewrite
-    # For every channel, consider all rules where the channel appears on the LHS
-    # and all the rules where the channel appears on the RHS.
+    # For every channel, consider all rules where the channel appears on either
+    # the LHS or the RHS.
+    bud = @bud_instance.toplevel
+    lhs_ref_chn = Set.new
+    rhs_ref_chn = Set.new
+    unsafe_chn = Set.new
+
+    # Find all the channels referenced by at least one async rule on the LHS
+    bud.t_depends.each do |d|
+      if d.op == "<~" and bud.channels.has_key?(d.lhs.to_sym)
+        chn_coll = bud.channels[d.lhs.to_sym]
+        # bud.channels includes both channels and terminals
+        next if chn_coll.nil? or not chn_coll.kind_of? Bud::BudChannel
+        lhs_ref_chn.add(d.lhs)
+      end
+    end
+
+    # Find all channels such that (1) the channel appears on the RHS of at least
+    # one deductive rule (2) for every rule where the channel appears on the
+    # RHS, the rule is a deductive rule with an LHS collection that is a
+    # persistent table or a lattice. The second test is overly conservative but
+    # safe; it should be relaxed shortly. (We should allow <+ and maybe <~
+    # rules, as well as chains of rules that derive into scratch collections as
+    # long as ALL such chains terminate in persistent storage, provided some
+    # conditions (e.g., guarded async) are satisfied).
+    bud.t_depends.each do |d|
+      next unless lhs_ref_chn.include? d.body
+
+      if d.op != "<="
+        unsafe_chn.add(d.body)
+        next
+      end
+
+      lhs_tbl = bud.tables[d.lhs.to_sym]
+      unless lhs_tbl and lhs_tbl.kind_of? Bud::BudTable
+        unsafe_chn.add(d.body)
+        next
+      end
+
+      # TODO: check that the rule that derives from chn into the lhs is safe
+      # (e.g., joins against a scratch are not allowed).
+      rhs_ref_chn.add(d.body)
+    end
+
+    good_chn = rhs_ref_chn - unsafe_chn
+    puts "GOOD channels: #{good_chn.inspect}"
   end
 end
