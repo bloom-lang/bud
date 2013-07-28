@@ -1,7 +1,7 @@
 require 'rubygems'
 
 class RuleRewriter < Ruby2Ruby # :nodoc: all
-  attr_accessor :rule_indx, :rules, :depends
+  attr_accessor :rule_idx, :rules, :depends
 
   OP_LIST = [:<<, :<, :<=].to_set
   TEMP_OP_LIST = [:-@, :~, :+@].to_set
@@ -11,11 +11,11 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
                         :schema, :cols, :key_cols, :val_cols, :payloads, :lambda,
                         :tabname, :current_value].to_set
 
-  def initialize(seed, bud_instance)
+  def initialize(bud_instance, rule_idx)
     @bud_instance = bud_instance
     @tables = {}
     @nm = false
-    @rule_indx = seed
+    @rule_idx = rule_idx
     @collect = false
     @rules = []
     @depends = []
@@ -245,15 +245,15 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       op = op.to_s
     end
 
-    @rules << [@bud_instance, @rule_indx, lhs, op, rule_txt,
+    @rules << [@bud_instance, @rule_idx, lhs, op, rule_txt,
                rule_txt_orig, unsafe_funcs_called]
     @tables.each_pair do |t, nm|
       in_rule_body = @refs_in_body.include? t
-      @depends << [@bud_instance, @rule_indx, lhs, op, t, nm, in_rule_body]
+      @depends << [@bud_instance, @rule_idx, lhs, op, t, nm, in_rule_body]
     end
 
     reset_instance_vars
-    @rule_indx += 1
+    @rule_idx += 1
   end
 
   def do_rule(exp)
