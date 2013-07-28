@@ -270,7 +270,7 @@ class TestMeta < MiniTest::Unit::TestCase
   end
 
   def test_labels
-    p = Divergence.new(:output => :dot)
+    p = Divergence.new(:output => :dot, :disable_rce => true)
     p.run_bg
     p.sync_do   # XXX: why is this necessary?
 

@@ -198,7 +198,7 @@ class TestBlazes < MiniTest::Unit::TestCase
   end
 
   def test_deletion
-    r = RollDels.new
+    r = RollDels.new(:disable_rce => true)
     r.tick
     report = r.validate
     reps = report.map{|r| [r[0], r[1], r.last]}

@@ -301,9 +301,8 @@ class BudMeta #:nodoc: all
   # fill-in the approximation. Right now, (c) uses a simple unicast ACK'ing
   # protocol, but many variations are possible.
   def rce_rewrite
-    # For every channel, consider all rules where the channel appears on either
-    # the LHS or the RHS.
-    bud = @bud_instance.toplevel
+    bud = @bud_instance
+    return if bud.options[:disable_rce]
     lhs_ref_chn = Set.new
     rhs_ref_chn = Set.new
     unsafe_chn = Set.new
@@ -345,6 +344,15 @@ class BudMeta #:nodoc: all
       rhs_ref_chn.add(d.body)
     end
 
+    # XXX: for now, we don't allow any rules where the RHS references a
+    # lattice. This should be possible for requires improving the lattice code.
+    bud.t_depends.each do |d|
+      if d.op == "<~" and lhs_ref_chn.include?(d.lhs) and
+         bud.lattices.has_key?(d.body.to_sym)
+        unsafe_chn.add(d.lhs)
+      end
+    end
+
     rce_chn = rhs_ref_chn - unsafe_chn
     rce_chn.each {|c| rce_for_channel(c)}
   end
@@ -360,16 +368,17 @@ class BudMeta #:nodoc: all
   # we need to install dependencies for newly created rules manually.
   def rce_for_channel(chn)
     chn_coll = @bud_instance.channels[chn.to_sym]
+    chn_prefix = chn.gsub(/\./, "__")
     puts "RCE channel: #{chn}"
 
     # Create an "approx" collection to hold a conservative estimate of the
     # channel tuples that have been delivered.
-    approx_name = "#{chn}_approx"
+    approx_name = "#{chn_prefix}_approx"
     chn_schema = chn_coll.schema
     puts "DDL: table #{approx_name}, #{chn_schema}"
     @bud_instance.table(approx_name.to_sym, chn_schema)
 
-    ack_name = "#{chn}_ack"
+    ack_name = "#{chn_prefix}_ack"
     ack_keys = [:@sender] + chn_coll.key_cols
     ack_schema = { ack_keys => chn_coll.val_cols }
     puts "DDL: channel #{ack_name}, #{ack_schema}"
@@ -385,19 +394,29 @@ class BudMeta #:nodoc: all
     # Finally, rewrite (delete + recreate) every rule with channel on LHS to add
     # negation against approx collection.
     @bud_instance.t_rules.each do |r|
-      add_rce_negation(r, approx_name) if r.lhs == chn
+      add_rce_negation(r, approx_name, chn_schema) if r.lhs == chn
     end
   end
 
-  def add_rce_negation(rule, approx_name)
+  def add_rce_negation(rule, approx_name, approx_schema)
     # Modify t_rules tuple in-place to change its definition
     rule.src = append_notin(rule.src, approx_name)
     rule.orig_src = append_notin(rule.orig_src, approx_name)
 
     # Add NM dependency between lhs and approx collection
-    depends_tup = [@bud_instance, rule.rule_id, rule.lhs, rule.op,
+    depends_tup = [rule.bud_obj, rule.rule_id, rule.lhs, rule.op,
                    approx_name, true, false]
     @bud_instance.t_depends << depends_tup
+
+    # This is a bit gross: if the rule is defined inside an imported module (and
+    # hence rule.bud_obj is not the toplevel instance), we need to ensure that
+    # approx collection referenced by the negation is defined inside the
+    # subordinate Bud instance. Normally definitions would be made first inside
+    # the subordinate instance and then automatically copied up to the toplevel,
+    # but that import process has already happened by this point.
+    if rule.bud_obj != rule.bud_obj.toplevel
+      rule.bud_obj.table(approx_name, approx_schema)
+    end
   end
 
   # Add a notin(approx_name) clause to the end of the given Bloom rule. Because
