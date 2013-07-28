@@ -359,8 +359,7 @@ class BudMeta #:nodoc: all
   # Note that we've done rewriting but not stratification at this point. Hence
   # we need to install dependencies for newly created rules manually.
   def rce_for_channel(chn)
-    bud = @bud_instance.toplevel
-    chn_coll = bud.channels[chn.to_sym]
+    chn_coll = @bud_instance.channels[chn.to_sym]
     puts "RCE channel: #{chn}"
 
     # Create an "approx" collection to hold a conservative estimate of the
@@ -368,21 +367,35 @@ class BudMeta #:nodoc: all
     approx_name = "#{chn}_approx"
     chn_schema = chn_coll.schema
     puts "DDL: table #{approx_name}, #{chn_schema}"
-    bud.table approx_name, chn_schema
+    @bud_instance.table(approx_name.to_sym, chn_schema)
 
     ack_name = "#{chn}_ack"
     ack_keys = [:@sender] + chn_coll.key_cols
     ack_schema = { ack_keys => chn_coll.val_cols }
     puts "DDL: channel #{ack_name}, #{ack_schema}"
-    bud.channel ack_name, ack_schema
+    @bud_instance.channel(ack_name.to_sym, ack_schema)
 
     # Install two rules: one to send an ack whenever a channel message is
     # delivered, and another to persist acks in the approx collection.
+    install_rule(ack_name, "<~", chn,
+                 "#{ack_name} <~ #{chn} {|c| [c.source_address] + c}")
+    install_rule(approx_name, "<=", ack_name,
+                 "#{approx_name} <= #{ack_name}.payloads")
 
     # Finally, rewrite (delete + recreate) every rule with channel on LHS to add
     # negation against approx collection.
   end
 
-  def install_rule(src)
+  def install_rule(lhs, op, rhs, src)
+    # We assume the rule doesn't invoke unsafe functions, is monotonic, and
+    # doesn't reference the rhs inside the rule body itself. We also don't
+    # bother to do rewriting on the supplied rule text, or check that it is
+    # wellformed.
+    rule_tup = [@bud_instance, @rule_idx, lhs, op, src, src, false]
+    depends_tup = [@bud_instance, @rule_idx, lhs, op, rhs, false, false]
+
+    @bud_instance.t_rules << rule_tup
+    @bud_instance.t_depends << depends_tup
+    @rule_idx += 1
   end
 end
