@@ -1,10 +1,13 @@
 require 'bud/rewrite'
 
 class BudMeta #:nodoc: all
-  def initialize(bud_instance, declarations)
-    @bud_instance = bud_instance
-    @declarations = declarations
-    @dependency_analysis = nil # the results of bud_meta are analyzed further using a helper bloom instance. See depanalysis())
+  def initialize(bud_i)
+    @bud_instance = bud_i
+    @declarations = bud_i.methods.select {|m| m =~ /^__bloom__.+$/}.map {|m| m.to_s}
+
+    # The results of bud_meta are analyzed further using a helper Bloom
+    # instance. See depanalysis().
+    @dependency_analysis = nil
   end
 
   def meta_rewrite

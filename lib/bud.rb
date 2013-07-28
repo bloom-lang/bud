@@ -158,8 +158,6 @@ module Bud
     resolve_imports
     call_state_methods
 
-    @declarations = self.class.instance_methods.select {|m| m =~ /^__bloom__.+$/}.map {|m| m.to_s}
-
     @viz = VizOnline.new(self) if @options[:trace]
     @rtracer = RTrace.new(self) if @options[:rtrace]
 
@@ -616,7 +614,7 @@ module Bud
   end
 
   def do_rewrite
-    @meta_parser = BudMeta.new(self, @declarations)
+    @meta_parser = BudMeta.new(self)
     @stratified_rules = @meta_parser.meta_rewrite
   end
 
