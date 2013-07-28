@@ -342,7 +342,44 @@ class BudMeta #:nodoc: all
       rhs_ref_chn.add(d.body)
     end
 
-    good_chn = rhs_ref_chn - unsafe_chn
-    puts "GOOD channels: #{good_chn.inspect}"
+    rce_chn = rhs_ref_chn - unsafe_chn
+    rce_chn.each {|c| rce_for_channel(c)}
+  end
+
+  # Apply the RCE optimization to the given channel. That requires two separate
+  # things: (1) adding notin clauses to every rule that has the channel on the
+  # lhs, to avoid duplicate derivations (2) adding a channel and a communication
+  # rule to communicate the set of delivered messages at each remote node. There
+  # are multiple strategies possible for #2; right now we just use a simple ACK
+  # scheme (one ACK per delivered message).
+  #
+  # Note that we've done rewriting but not stratification at this point. Hence
+  # we need to install dependencies for newly created rules manually.
+  def rce_for_channel(chn)
+    bud = @bud_instance.toplevel
+    puts "RCE channel: #{chn}"
+
+    # Create an "approx" collection to hold a conservative estimate of the
+    # channel tuples that have been delivered.
+    approx_name = "#{chn}_approx"
+    chn_schema = bud.channels[chn.to_sym].schema
+    puts "DDL: table #{approx_name}, #{chn_schema}"
+    bud.table approx_name, chn_schema
+
+    ack_name = "#{chn}_ack"
+    ack_keys, ack_vals = chn_schema.first
+    ack_keys = [:@sender] + ack_keys
+    ack_schema = { ack_keys => ack_vals }
+    puts "DDL: channel #{ack_name}, #{ack_schema}"
+    bud.channel ack_name, ack_schema
+
+    # Install two rules: one to send an ack whenever a channel message is
+    # delivered, and another to persist acks in the approx collection.
+
+    # Finally, rewrite (delete + recreate) every rule with channel on LHS to add
+    # negation against approx collection.
+  end
+
+  def install_rule(src)
   end
 end
