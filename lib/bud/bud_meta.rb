@@ -380,10 +380,47 @@ class BudMeta #:nodoc: all
     install_rule(ack_name, "<~", chn,
                  "#{ack_name} <~ #{chn} {|c| [c.source_address] + c}")
     install_rule(approx_name, "<=", ack_name,
-                 "#{approx_name} <= #{ack_name}.payloads")
+                 "#{approx_name} <= (#{ack_name}.payloads)")
 
     # Finally, rewrite (delete + recreate) every rule with channel on LHS to add
     # negation against approx collection.
+    @bud_instance.t_rules.each do |r|
+      add_rce_negation(r, approx_name) if r.lhs == chn
+    end
+  end
+
+  def add_rce_negation(rule, approx_name)
+    # Modify t_rules tuple in-place to change its definition
+    rule.src = append_notin(rule.src, approx_name)
+    rule.orig_src = append_notin(rule.orig_src, approx_name)
+
+    # Add NM dependency between lhs and approx collection
+    depends_tup = [@bud_instance, rule.rule_id, rule.lhs, rule.op,
+                   approx_name, true, false]
+    @bud_instance.t_depends << depends_tup
+  end
+
+  # Add a notin(approx_name) clause to the end of the given Bloom rule. Because
+  # of how the <~ operator is parsed (as a superator), we can't easily do this
+  # via text munging, so parse into an AST, munge AST, and then get source back.
+  def append_notin(src, approx_name)
+    parser = RubyParser.for_current_ruby rescue RubyParser.new
+    ast = parser.parse(src)
+
+    # Expected format: a top-level call to the "<" method with lhs collection as
+    # the receiver. The operand to the < is a call to the ~ method, with the
+    # actual rule RHS as the receiver; hence, we want to insert the notin
+    # between the original ~ receiver and the ~.
+    c1, lhs, angle_op, rhs = ast
+    c2, rhs_body, tilde_op = rhs
+
+    raise Bud::CompileError unless c1 == :call and c2 == :call and
+                                   angle_op == :< and tilde_op == :~
+
+    rhs[1] = s(:call, rhs_body, :notin,
+               s(:call, nil, approx_name.to_sym))
+
+    return Ruby2Ruby.new.process(ast)
   end
 
   def install_rule(lhs, op, rhs, src)
