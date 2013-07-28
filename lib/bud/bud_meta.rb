@@ -4,6 +4,7 @@ class BudMeta #:nodoc: all
   def initialize(bud_i)
     @bud_instance = bud_i
     @declarations = bud_i.methods.select {|m| m =~ /^__bloom__.+$/}.map {|m| m.to_s}
+    @rule_idx = 0
 
     # The results of bud_meta are analyzed further using a helper Bloom
     # instance. See depanalysis().
@@ -51,14 +52,13 @@ class BudMeta #:nodoc: all
   def shred_rules
     # After making this pass, we no longer care about the names of methods.  We
     # are shredding down to the granularity of rule heads.
-    seed = 0
     rulebag = {}
     @bud_instance.class.ancestors.reverse.each do |anc|
       @declarations.each do |meth_name|
-        rw = rewrite_rule_block(anc, meth_name, seed)
+        rw = rewrite_rule_block(anc, meth_name)
         if rw
-          seed = rw.rule_indx
           rulebag[meth_name] = rw
+          @rule_idx = rw.rule_idx
         end
       end
     end
@@ -69,7 +69,7 @@ class BudMeta #:nodoc: all
     end
   end
 
-  def rewrite_rule_block(klass, block_name, seed)
+  def rewrite_rule_block(klass, block_name)
     return unless klass.respond_to? :__bloom_asts__
 
     pt = klass.__bloom_asts__[block_name]
@@ -105,7 +105,7 @@ class BudMeta #:nodoc: all
       end
       raise Bud::CompileError, "#{error_msg} in rule block \"#{block_name}\"#{src_msg}"
     end
-    rewriter = RuleRewriter.new(seed, @bud_instance)
+    rewriter = RuleRewriter.new(@bud_instance, @rule_idx)
     rewriter.process(pt)
     return rewriter
   end
