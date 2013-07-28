@@ -202,8 +202,8 @@ class TestBlazes < MiniTest::Unit::TestCase
     r.tick
     report = r.validate
     reps = report.map{|r| [r[0], r[1], r.last]}
-    assert(reps.include?(["dguard", "response", ["D"]]), "deletion path nor marked D")
-    assert(reps.include?(["i2", "response", ["D"]]), "main path nor marked D #{reps}")
+    assert(reps.include?(["dguard", "response", ["D"]]), "deletion path not marked D")
+    assert(reps.include?(["i2", "response", ["D"]]), "main path not marked D #{reps}")
   end
 
   def test_nesting
