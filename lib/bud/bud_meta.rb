@@ -319,22 +319,24 @@ class BudMeta #:nodoc: all
 
     # Find all channels such that (1) the channel appears on the RHS of at least
     # one deductive rule (2) for every rule where the channel appears on the
-    # RHS, the rule is a deductive rule with an LHS collection that is a
-    # persistent table or a lattice. The second test is overly conservative but
-    # safe; it should be relaxed shortly. (We should allow <+ and maybe <~
-    # rules, as well as chains of rules that derive into scratch collections as
-    # long as ALL such chains terminate in persistent storage, provided some
-    # conditions (e.g., guarded async) are satisfied).
+    # RHS, the rule is a deductive or @next rule with an LHS collection that is
+    # a persistent table or a lattice. The second test is overly conservative
+    # but safe; it should be relaxed shortly. (We should allow chains of rules
+    # that derive into scratch collections as long as ALL such chains terminate
+    # in persistent storage, provided some conditions (e.g., guarded async) are
+    # satisfied).
     bud.t_depends.each do |d|
       next unless lhs_ref_chn.include? d.body
 
-      if d.op != "<="
+      if d.op == "<-"
         unsafe_chn.add(d.body)
         next
       end
 
+      # Note that we allow the receiver to redirect channel output to terminals
+      # (stdio). Technically this isn't safe, but it is useful for development.
       lhs_tbl = bud.tables[d.lhs.to_sym]
-      unless lhs_tbl and lhs_tbl.kind_of? Bud::BudTable
+      unless lhs_tbl and (lhs_tbl.kind_of? Bud::BudTable or lhs_tbl.kind_of? Bud::BudTerminal)
         unsafe_chn.add(d.body)
         next
       end
