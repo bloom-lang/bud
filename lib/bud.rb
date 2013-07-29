@@ -997,7 +997,7 @@ module Bud
     @running_async = false
 
     if @options[:channel_stats]
-      puts "Stats for #{ip_port}: (budtime = #{@budtime})"
+      puts "Stats for #{port}: (budtime = #{@budtime})"
       @channels.each do |name, c|
         next if c.kind_of? Bud::BudTerminal
         puts "chn #{name}: sent #{c.num_sent}, recv #{c.num_recv}"
