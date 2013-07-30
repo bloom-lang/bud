@@ -411,7 +411,7 @@ module Bud
       end
       setup_accessors
       pairs(*preds) do |x,y|
-        blk.nil? ? x.to_a + y.to_a : blk.call(x.to_a + y.to_a)
+        blk.nil? ? x + y : blk.call(x + y)
       end
     end
 
@@ -510,7 +510,7 @@ module Bud
         # Pointwise comparison. Could use zip, but it creates an array for each
         # field pair.
         blk = lambda {|lhs, rhs|
-          lhs.to_a == rhs.to_a
+          lhs == rhs
         }
       end
       set_block(&blk)
