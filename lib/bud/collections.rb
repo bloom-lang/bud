@@ -936,10 +936,6 @@ module Bud
       # override BudCollection; pending should not be moved into delta.
     end
 
-    def channel_schema
-      @raw_schema
-    end
-
     private
     def remove_at_sign!(cols)
       i = cols.find_index {|c| c.to_s.start_with? "@"}
