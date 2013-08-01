@@ -377,13 +377,13 @@ class BudMeta #:nodoc: all
     # channel tuples that have been delivered.
     approx_name = "#{chn_prefix}_approx"
     chn_schema = chn_coll.schema
-    puts "DDL: table #{approx_name}, #{chn_schema}"
+    puts "DDL: table #{approx_name}, #{chn_schema.inspect}"
     @bud_instance.table(approx_name.to_sym, chn_schema)
 
     ack_name = "#{chn_prefix}_ack"
     ack_keys = [:@sender] + chn_coll.key_cols
     ack_schema = { ack_keys => chn_coll.val_cols }
-    puts "DDL: channel #{ack_name}, #{ack_schema}"
+    puts "DDL: channel #{ack_name}, #{ack_schema.inspect}"
     @bud_instance.channel(ack_name.to_sym, ack_schema)
 
     # Install two rules: one to send an ack whenever a channel message is

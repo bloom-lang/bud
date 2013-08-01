@@ -514,7 +514,7 @@ class UseSourceAddress
   include Bud
 
   state do
-    channel :chn, [:@addr, :id]
+    channel :chn, [:@addr, :msg_id]
     scratch :in_t, chn.schema
     table :log, chn.schema
     table :done, chn.schema
@@ -522,9 +522,9 @@ class UseSourceAddress
 
   bloom do
     chn <~ in_t
-    chn <~ chn {|c| [c.source_address, c.id + 1] if c.id < 10}
+    chn <~ chn {|c| [c.source_address, c.msg_id + 1] if c.msg_id < 10}
     log <= chn
-    done <= chn {|c| c if c.id >= 10}
+    done <= chn {|c| c if c.msg_id >= 10}
   end
 end
 
