@@ -39,7 +39,6 @@ $BUD_SAFE = ENV["BUD_SAFE"].to_i > 0
 $signal_lock = Mutex.new
 $got_shutdown_signal = false
 $signal_handler_setup = false
-$em_loop_running = false
 $instance_id = 0
 $bud_instances = {}        # Map from instance id => Bud instance
 
@@ -1315,7 +1314,9 @@ module Bud
   end
 
   # Signal handling. If multiple Bud instances are running inside a single
-  # process, we want a SIGINT or SIGTERM signal to cleanly shutdown all of them.
+  # process, we want a SIGINT or SIGTERM signal to cleanly shutdown all of
+  # them. Note that we don't try to do any significant work in the signal
+  # handlers themselves: we just set a flag that is checked by a periodic timer.
   def self.init_signal_handlers(b)
     $signal_lock.synchronize {
       # Initialize or re-initialize signal handlers if necessary.
