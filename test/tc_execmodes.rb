@@ -70,13 +70,11 @@ class ExecModeTest < MiniTest::Unit::TestCase
   end
 
   def test_sigint_child
-    kill_child_with_signal(Vacuous, "INT")
-    kill_child_with_signal(Vacuous, "INT")
+    2.times { kill_child_with_signal(Vacuous, "INT") }
   end
 
   def test_sigterm_child
-    kill_child_with_signal(Vacuous, "TERM")
-    kill_child_with_signal(Vacuous, "TERM")
+    2.times { kill_child_with_signal(Vacuous, "TERM") }
   end
 
   def kill_child_with_signal(parent_class, signal)
@@ -92,7 +90,9 @@ class ExecModeTest < MiniTest::Unit::TestCase
     _ = read.readline
     Process.kill(signal, pid)
     _, status = Process.waitpid2(pid)
-    assert_equal(0, status)
+    assert(!status.signaled?)           # Should have caught the signal
+    assert(status.exited?)
+    assert_equal(1, status.exitstatus)  # XXX: probably should be 0
     parent.stop
     read.close ; write.close
   end

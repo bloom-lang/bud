@@ -110,9 +110,6 @@ module Bud
   #   * <tt>:dbm_dir</tt> filesystem directory to hold DBM-backed collections
   #   * <tt>:dbm_truncate</tt> if true, DBM-backed collections are opened with +OTRUNC+
   def initialize(options={})
-    # capture the binding for a subsequent 'eval'. This ensures that local
-    # variable names introduced later in this method don't interfere with
-    # table names used in the eval block.
     options[:dump_rewrite] ||= ENV["BUD_DUMP_REWRITE"].to_i > 0
     options[:dump_ast]     ||= ENV["BUD_DUMP_AST"].to_i > 0
     options[:print_wiring] ||= ENV["BUD_PRINT_WIRING"].to_i > 0
@@ -739,16 +736,30 @@ module Bud
   # method blocks until Bud has been shutdown. If +stop_em+ is true, the
   # EventMachine event loop is also shutdown; this will interfere with the
   # execution of any other Bud instances in the same process (as well as
-  # anything else that happens to use EventMachine).
+  # anything else that happens to use EventMachine). We always shutdown the EM
+  # loop if there are no more running Bud instances (this does interfere with
+  # other EM-using apps, but it is necessary).
   def stop(stop_em=false, do_shutdown_cb=true)
     schedule_and_wait do
       do_shutdown(do_shutdown_cb)
     end
 
+    # If we're shutting down the last active Bud instance, shutdown the EM event
+    # loop as well. This is probably good practice in general, but it also
+    # prevents weird EM behavior -- it seems as though EM::ConnectionNotBound
+    # exceptions can be raised if the EM event loop is left running and
+    # subsequent events arrive.
+    $signal_lock.synchronize {
+      stop_em = true if $bud_instances.empty? and EventMachine::reactor_running?
+    }
+
     if stop_em
       Bud.stop_em_loop
-      EventMachine::reactor_thread.join
+      unless Thread.current == EventMachine::reactor_thread
+        EventMachine::reactor_thread.join
+      end
     end
+
     report_metrics if options[:metrics]
   end
   alias :stop_bg :stop
@@ -1301,10 +1312,10 @@ module Bud
         EventMachine::release_machine
         EventMachine::instance_variable_set('@reactor_running', false)
       end
+
       # Shutdown all the Bud instances inherited from the parent process, but
       # don't invoke their shutdown callbacks
       Bud.shutdown_all_instances(false)
-
       $got_shutdown_signal = false
       $signal_handler_setup = false
 
@@ -1324,16 +1335,16 @@ module Bud
   end
 
   # Signal handling. If multiple Bud instances are running inside a single
-  # process, we want a SIGINT or SIGTERM signal to cleanly shutdown all of them.
+  # process, we want a SIGINT or SIGTERM signal to cleanly shutdown all of
+  # them. Note that we don't try to do any significant work in the signal
+  # handlers themselves: we just set a flag that is checked by a periodic timer.
   def self.init_signal_handlers(b)
     $signal_lock.synchronize {
-      # If we setup signal handlers and then fork a new process, we want to
-      # reinitialize the signal handler in the child process.
+      # Initialize or re-initialize signal handlers if necessary.
       unless b.options[:signal_handling] == :none || $signal_handler_setup
         EventMachine::PeriodicTimer.new(SIGNAL_CHECK_PERIOD) do
           if $got_shutdown_signal
             Bud.shutdown_all_instances
-            Bud.stop_em_loop
             $got_shutdown_signal = false
           end
         end
