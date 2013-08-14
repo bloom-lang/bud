@@ -17,6 +17,8 @@ class BudMeta #:nodoc: all
     stratified_rules = []
     if @bud_instance.toplevel == @bud_instance
       rce_rewrite
+      rse_rewrite
+
       nodes, stratum_map, top_stratum = stratify_preds
 
       # stratum_map = {fully qualified pred => stratum}. Copy stratum_map data
@@ -291,7 +293,7 @@ class BudMeta #:nodoc: all
 
   # Rewrite the program to apply the Redundant Communication Elimination (RCE)
   # optimization. We consider each channel in turn; if all the downstream
-  # consumers (i.e., receivers) of a channel are persistent, then we can avoid
+  # consumers (i.e., receivers) of a channel are idempotent, then we can avoid
   # repeated deliveries of the same tuple without changing the semantics of the
   # program. To apply RCE to a channel, we (a) create a sender-side
   # "approximation" of the set of delivered channel tuples (b) we add a negation
@@ -455,5 +457,123 @@ class BudMeta #:nodoc: all
     @bud_instance.t_rules << rule_tup
     @bud_instance.t_depends << depends_tup
     @rule_idx += 1
+  end
+
+  # Redundant Storage Elimination (RSE). Look for situations like X.notin(Y),
+  # where both X and Y are persistent collections, X does not appear on the RHS
+  # of any other rules, and Y does not appear on the LHS of a deletion rule.
+  # Hence, when a new tuple appears in Y, the matching tuples in X can be
+  # reclaimed (=> physically deleted). We extend this analysis to handle an
+  # additional case that is important in practice: we allow X = (A*B), where A
+  # and B are both persistent collections. In order to reclaim tuples from A, we
+  # need a seal on B (that matches the join predicate); vice versa for
+  # reclaiming tuples from B.
+  #
+  # RSE reclaimation is implemented by installing a set of rules (and associated
+  # state) that identifies and removes redundant tuples.
+  #
+  # TODO:
+  #  * the test for persistence is too simple (should also allow scratches
+  #    defined by monotone rules over persistent collections)
+  def rse_rewrite
+    bud = @bud_instance
+    return if bud.options[:disable_rse]
+
+    # XXX: we reparse all the rules here, which is unfortunate
+    parser = RubyParser.for_current_ruby rescue RubyParser.new
+    bud.t_rules.each do |r|
+      ast = parser.parse(r.orig_src)
+      rhs = find_rule_rhs(ast)
+
+      n = NotInCollector.new
+      n.process(rhs)
+
+      good = n.simple_nots.select {|neg| check_simple_not(neg, r, bud)}
+      puts "GOOD: #{good.inspect}"
+
+      n.join_nots.each do |neg|
+      end
+    end
+  end
+
+  def check_simple_not(neg, r, bud)
+    puts "Simple not: #{neg.inspect}"
+
+    # Check that the inner notin operand ("X" above) is persistent and does
+    # not appear on the RHS of any other rules. Persistence is not
+    # semantically necessary, but there is little value in inferring
+    # deletions for non-persistent collections.
+    inner_tbl = bud.tables[neg.inner]
+    return false unless inner_tbl.kind_of? Bud::BudTable
+
+    bud.t_depends.each do |d|
+      next if d.rule_id == r.rule_id and d.bud_obj == r.bud_obj
+      return false if d.body == neg.inner.to_s
+    end
+
+    # Check that the outer notin operand ("Y" above) does not appear on the
+    # LHS of any deletion rules.
+    outer_tbl = bud.tables[neg.outer]
+    return false unless outer_tbl.kind_of? Bud::BudTable
+
+    bud.t_depends.each do |d|
+      return false if d.lhs == neg.outer.to_s and d.op == "<-"
+    end
+
+    return true
+  end
+
+  def find_rule_rhs(ast)
+    raise Bud::Error unless ast.sexp_type == :call
+
+    # We need to distinguish between normal rules and <~ rules -- the latter
+    # invoke a superator, which has a different AST
+    _, lhs, op, rest = ast
+    if op == :<
+      # Async rule (superator invocation)
+      raise Bud::Error unless rest.sexp_type == :call
+      _, rhs, tilde_op = rest
+    else
+      rhs = rest
+    end
+
+    puts "RHS: #{rhs.inspect}"
+    return rhs
+  end
+
+  # Search an AST to look for notin operators that are candidates for RSE. We
+  # distinguish between two types of notins: "simple" notins (where the notin
+  # receiver is a collection) and notins applied to a join expression.
+  class NotInCollector < SexpProcessor
+    attr_reader :simple_nots
+    attr_reader :join_nots
+
+    SimpleNot = Struct.new(:inner, :outer)
+
+    def initialize
+      super()
+      self.require_empty = false
+      self.expected = Sexp
+      @simple_nots = Set.new
+      @join_nots = Set.new
+    end
+
+    def process_call(exp)
+      _, recv, meth, args = exp
+
+      if meth == :notin
+        raise unless recv.sexp_type == :call
+        raise unless args.sexp_type == :call
+        _, r_recv, r_meth, r_args = recv
+        _, a_recv, a_meth, a_args = args
+
+        if r_recv.nil? and r_args.nil?
+          # Simple negation
+          @simple_nots << SimpleNot.new(r_meth, a_meth)
+        end
+      end
+
+      exp
+    end
   end
 end
