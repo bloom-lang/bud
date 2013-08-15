@@ -499,13 +499,13 @@ class BudMeta #:nodoc: all
   def check_simple_not(neg, r, bud)
     puts "Simple not: #{neg.inspect}"
 
-    # Check that the inner notin operand ("X" above) is persistent and does
-    # not appear on the RHS of any other rules. Persistence is not
-    # semantically necessary, but there is little value in inferring
-    # deletions for non-persistent collections.
-    inner_tbl = bud.tables[neg.inner]
-    return false unless inner_tbl.kind_of? Bud::BudTable
+    # Check that both notin operands are persistent. Requiring the inner operand
+    # ("X") above to be persistent is not necessary for correctness, there is
+    # little value in inferring deletions for non-persistent collections.
+    return false unless is_persistent_tbl(bud, neg.inner)
+    return false unless is_persistent_tbl(bud, neg.outer)
 
+    # Check that inner operand does not appear on the RHS of any other rules
     bud.t_depends.each do |d|
       next if d.rule_id == r.rule_id and d.bud_obj == r.bud_obj
       return false if d.body == neg.inner.to_s
@@ -513,14 +513,17 @@ class BudMeta #:nodoc: all
 
     # Check that the outer notin operand ("Y" above) does not appear on the
     # LHS of any deletion rules.
-    outer_tbl = bud.tables[neg.outer]
-    return false unless outer_tbl.kind_of? Bud::BudTable
-
     bud.t_depends.each do |d|
       return false if d.lhs == neg.outer.to_s and d.op == "<-"
     end
 
     return true
+  end
+
+  # XXX: should also support scratches defined from monotone rules over
+  # persistent collections
+  def is_persistent_tbl(bud, t)
+    bud.tables[t].kind_of? Bud::BudTable
   end
 
   def find_rule_rhs(ast)
