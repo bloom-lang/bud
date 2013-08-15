@@ -390,9 +390,9 @@ class BudMeta #:nodoc: all
 
     # Install two rules: one to send an ack whenever a channel message is
     # delivered, and another to persist acks in the approx collection.
-    install_rule(ack_name, "<~", chn,
+    install_rule(ack_name, "<~", [chn],
                  "#{ack_name} <~ #{chn} {|c| [c.source_address] + c}")
-    install_rule(approx_name, "<=", ack_name,
+    install_rule(approx_name, "<=", [ack_name],
                  "#{approx_name} <= (#{ack_name}.payloads)")
 
     # Finally, rewrite (delete + recreate) every rule with channel on LHS to add
@@ -446,16 +446,17 @@ class BudMeta #:nodoc: all
     return Ruby2Ruby.new.process(ast)
   end
 
-  def install_rule(lhs, op, rhs, src)
-    # We assume the rule doesn't invoke unsafe functions, is monotonic, and
-    # doesn't reference the rhs inside the rule body itself. We also don't
-    # bother to do rewriting on the supplied rule text, or check that it is
-    # wellformed.
-    rule_tup = [@bud_instance, @rule_idx, lhs, op, src, src, false]
-    depends_tup = [@bud_instance, @rule_idx, lhs, op, rhs, false, false]
-
+  # We assume the rule doesn't invoke unsafe functions and doesn't reference
+  # the rhs inside the rule body itself. We also don't bother to do rewriting
+  # on the supplied rule text, or check that it is well-formed.
+  def install_rule(lhs, op, rhs_rels, src, is_nm=false)
+    rule_tup = [@bud_instance, @rule_idx, lhs.to_s, op, src, src, false]
     @bud_instance.t_rules << rule_tup
-    @bud_instance.t_depends << depends_tup
+
+    rhs_rels.each do |r|
+      depends_tup = [@bud_instance, @rule_idx, lhs.to_s, op, r.to_s, is_nm, false]
+      @bud_instance.t_depends << depends_tup
+    end
     @rule_idx += 1
   end
 
@@ -479,35 +480,52 @@ class BudMeta #:nodoc: all
     bud = @bud_instance
     return if bud.options[:disable_rse]
 
-    # XXX: we reparse all the rules here, which is unfortunate
     parser = RubyParser.for_current_ruby rescue RubyParser.new
+    simple_nots = Set.new
+    join_nots = Set.new
+
+    # XXX: we reparse all the rules here, which is unfortunate
     bud.t_rules.each do |r|
       ast = parser.parse(r.orig_src)
       rhs = find_rule_rhs(ast)
 
-      n = NotInCollector.new
+      n = NotInCollector.new(simple_nots, join_nots, r)
       n.process(rhs)
+    end
 
-      good = n.simple_nots.select {|neg| check_simple_not(neg, r, bud)}
-      puts "GOOD: #{good.inspect}"
+    simple_nots.each do |neg|
+      next unless check_simple_not(neg)
 
-      n.join_nots.each do |neg|
+      # Install deletion rule. If the source negation operator has any quals,
+      # we install a join on the same quals; otherwise, we can simply delete
+      # from X when a tuple appears in Y.
+      puts "neg: #{neg.inspect}"
+      if neg.quals.empty?
+        install_rule(neg.inner, "<-", [neg.outer],
+                     "#{neg.inner} <- #{neg.outer}", true)
+      else
+        install_rule(neg.inner, "<-", [neg.inner, neg.outer],
+                     "#{neg.inner} <- (#{neg.inner} * #{neg.outer}).lefts(#{neg.quals})", true)
       end
+    end
+
+    join_nots.each do |neg|
     end
   end
 
-  def check_simple_not(neg, r, bud)
+  def check_simple_not(neg)
+    bud = @bud_instance
     puts "Simple not: #{neg.inspect}"
 
     # Check that both notin operands are persistent. Requiring the inner operand
     # ("X") above to be persistent is not necessary for correctness, there is
     # little value in inferring deletions for non-persistent collections.
-    return false unless is_persistent_tbl(bud, neg.inner)
-    return false unless is_persistent_tbl(bud, neg.outer)
+    return false unless is_persistent_tbl(neg.inner)
+    return false unless is_persistent_tbl(neg.outer)
 
     # Check that inner operand does not appear on the RHS of any other rules
     bud.t_depends.each do |d|
-      next if d.rule_id == r.rule_id and d.bud_obj == r.bud_obj
+      next if d.rule_id == neg.rule_id and d.bud_obj == neg.bud_obj
       return false if d.body == neg.inner.to_s
     end
 
@@ -522,8 +540,8 @@ class BudMeta #:nodoc: all
 
   # XXX: should also support scratches defined from monotone rules over
   # persistent collections
-  def is_persistent_tbl(bud, t)
-    bud.tables[t].kind_of? Bud::BudTable
+  def is_persistent_tbl(t)
+    @bud_instance.tables[t].kind_of? Bud::BudTable
   end
 
   def find_rule_rhs(ast)
@@ -540,43 +558,71 @@ class BudMeta #:nodoc: all
       rhs = rest
     end
 
-    puts "RHS: #{rhs.inspect}"
     return rhs
   end
 
   # Search an AST to look for notin operators that are candidates for RSE. We
   # distinguish between two types of notins: "simple" notins (where the notin
   # receiver is a collection) and notins applied to a join expression.
+  #
+  # TODO: support notins with code blocks in RSE. Right now, such notins are
+  # skipped by the NotInCollector.
   class NotInCollector < SexpProcessor
-    attr_reader :simple_nots
-    attr_reader :join_nots
+    SimpleNot = Struct.new(:inner, :outer, :quals, :rule_id, :bud_obj)
 
-    SimpleNot = Struct.new(:inner, :outer)
-
-    def initialize
+    def initialize(simple_nots, join_nots, rule)
       super()
       self.require_empty = false
       self.expected = Sexp
-      @simple_nots = Set.new
-      @join_nots = Set.new
+      @simple_nots = simple_nots
+      @join_nots = join_nots
+      @rule = rule
     end
 
     def process_call(exp)
-      _, recv, meth, args = exp
+      _, recv, meth, *args = exp
 
-      if meth == :notin
-        raise unless recv.sexp_type == :call
-        raise unless args.sexp_type == :call
-        _, r_recv, r_meth, r_args = recv
-        _, a_recv, a_meth, a_args = args
+      collect_notin(recv, args) if meth == :notin
 
-        if r_recv.nil? and r_args.nil?
-          # Simple negation
-          @simple_nots << SimpleNot.new(r_meth, a_meth)
-        end
-      end
+      process(recv) unless recv.nil?
+      args.each {|a| process(a)}
 
       exp
+    end
+
+    def collect_notin(recv, args)
+      return unless recv.sexp_type == :call
+
+      # Skip this notin if it has a code block (i.e., an iter that immediately
+      # surrounds the notin's :call node).
+      return if @context[1] == :iter
+
+      # First argument is the outer operand to the notin. If present, second
+      # argument is a hash of notin quals.
+      outer, quals = args
+
+      raise unless outer.sexp_type == :call
+      _, o_recv, o_meth, o_args = outer
+
+      qual_h = {}
+      if quals
+        raise unless quals.sexp_type == :hash
+
+        qual_ary = quals.sexp_body.map do |q|
+          raise unless q.sexp_type == :lit
+          q.sexp_body.first
+        end
+
+        qual_h = Hash[*qual_ary]
+        puts "quals: #{qual_h.inspect}"
+      end
+
+      # Simple negation: inner operand is a simple collection
+      _, r_recv, r_meth, r_args = recv
+      if r_recv.nil? and r_args.nil?
+        @simple_nots << SimpleNot.new(r_meth, o_meth, qual_h,
+                                      @rule.rule_id, @rule.bud_obj)
+      end
     end
   end
 end
