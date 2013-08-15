@@ -497,7 +497,7 @@ module Bud
   # first flush, at which point we are sure to have seen all the t-side tuples
   # in this tick.
   class PushNotIn < PushStatefulElement
-    def initialize(rellist, bud_instance, preds=nil, &blk) # :nodoc: all
+    def initialize(rellist, bud_instance, preds, &blk) # :nodoc: all
       @lhs, @rhs = rellist
       @lhs_keycols = nil
       @rhs_keycols = nil
