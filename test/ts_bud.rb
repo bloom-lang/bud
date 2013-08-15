@@ -15,6 +15,7 @@ require 'tc_delta'
 require 'tc_errors'
 require 'tc_execmodes' unless $quick_mode
 require 'tc_exists'
+require 'tc_gc'
 require 'tc_halt'
 require 'tc_inheritance'
 require 'tc_interface'

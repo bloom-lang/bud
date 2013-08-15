@@ -499,7 +499,6 @@ class BudMeta #:nodoc: all
       # Install deletion rule. If the source negation operator has any quals,
       # we install a join on the same quals; otherwise, we can simply delete
       # from X when a tuple appears in Y.
-      puts "neg: #{neg.inspect}"
       if neg.quals.empty?
         install_rule(neg.inner, "<-", [neg.outer],
                      "#{neg.inner} <- #{neg.outer}", true)
@@ -515,7 +514,6 @@ class BudMeta #:nodoc: all
 
   def check_simple_not(neg)
     bud = @bud_instance
-    puts "Simple not: #{neg.inspect}"
 
     # Check that both notin operands are persistent. Requiring the inner operand
     # ("X") above to be persistent is not necessary for correctness, there is
@@ -614,7 +612,6 @@ class BudMeta #:nodoc: all
         end
 
         qual_h = Hash[*qual_ary]
-        puts "quals: #{qual_h.inspect}"
       end
 
       # Simple negation: inner operand is a simple collection
