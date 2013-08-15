@@ -521,6 +521,10 @@ class BudMeta #:nodoc: all
     return false unless is_persistent_tbl(neg.inner)
     return false unless is_persistent_tbl(neg.outer)
 
+    # Skip notin self joins: RSE would result in inferring a deletion rule for
+    # the collection, which would then make RSE illegal.
+    return false if neg.inner == neg.outer
+
     # Check that inner operand does not appear on the RHS of any other rules
     bud.t_depends.each do |d|
       next if d.rule_id == neg.rule_id and d.bud_obj == neg.bud_obj
