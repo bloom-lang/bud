@@ -472,8 +472,9 @@ class BudMeta #:nodoc: all
   # state) that identifies and removes redundant tuples.
   #
   # TODO:
-  #  * the test for persistence is too simple (should also allow scratches
-  #    defined by monotone rules over persistent collections)
+  #   * support code blocks for notin
+  #   * support more tlist expressions for join RSE
+  #   * support more than binary joins
   def rse_rewrite
     bud = @bud_instance
     return if bud.options[:disable_rse]
@@ -509,32 +510,40 @@ class BudMeta #:nodoc: all
     end
 
     join_nots.each do |neg|
+      next unless check_neg_outer(neg.outer)
     end
   end
 
-  def check_simple_not(neg)
-    bud = @bud_instance
+  def check_join_not(n)
+    return false unless check_neg_outer(n.outer)
+  end
 
-    # Check that both notin operands are persistent. Requiring the inner operand
-    # ("X") above to be persistent is not necessary for correctness, there is
-    # little value in inferring deletions for non-persistent collections.
-    return false unless is_persistent_tbl(neg.inner)
-    return false unless is_persistent_tbl(neg.outer)
-
+  def check_simple_not(n)
     # Skip notin self joins: RSE would result in inferring a deletion rule for
     # the collection, which would then make RSE illegal.
-    return false if neg.inner == neg.outer
+    return false if n.inner == n.outer
+
+    return check_neg_inner(n.inner, n.rule_id, n.bud_obj) &&
+           check_neg_outer(n.outer)
+  end
+
+  def check_neg_inner(rel, rule_id, bud_obj)
+    return false unless is_persistent_tbl(rel)
 
     # Check that inner operand does not appear on the RHS of any other rules
-    bud.t_depends.each do |d|
-      next if d.rule_id == neg.rule_id and d.bud_obj == neg.bud_obj
-      return false if d.body == neg.inner.to_s
+    @bud_instance.t_depends.each do |d|
+      next if d.rule_id == rule_id and d.bud_obj == bud_obj
+      return false if d.body == rel.to_s
     end
 
-    # Check that the outer notin operand ("Y" above) does not appear on the
-    # LHS of any deletion rules.
-    bud.t_depends.each do |d|
-      return false if d.lhs == neg.outer.to_s and d.op == "<-"
+    return true
+  end
+
+  def check_neg_outer(rel)
+    return false unless is_persistent_tbl(rel)
+
+    @bud_instance.t_depends.each do |d|
+      return false if d.lhs == rel.to_s and d.op == "<-"
     end
 
     return true
@@ -571,6 +580,7 @@ class BudMeta #:nodoc: all
   # skipped by the NotInCollector.
   class NotInCollector < SexpProcessor
     SimpleNot = Struct.new(:inner, :outer, :quals, :rule_id, :bud_obj)
+    JoinNot = Struct.new(:join_rels, :join_quals, :tlist, :outer, :not_quals)
 
     def initialize(simple_nots, join_nots, rule)
       super()
@@ -599,7 +609,6 @@ class BudMeta #:nodoc: all
       # First, we need to determine whether this is a join. Right now, we only
       # support binary inner joins.
       return unless i_recv.sexp_type == :call
-
       _, c_recv, c_meth, c_args = i_recv
       return unless [:pairs, :combos].include? c_meth
 
@@ -610,25 +619,35 @@ class BudMeta #:nodoc: all
       # as a single hash literal
       if c_args
         return unless c_args.sexp_type == :hash
-        join_preds = quals_from_hash_ast(c_args)
+        join_quals = quals_from_hash_ast(c_args)
       end
 
       # Find the targetlist by looking at the body of the iter code block. Right
       # now, we only support very simple targetlist expressions (simple column
       # references); resolve column references by looking up the local variable
       # names introduced in the iter block.
+      var_tbl = {}
+      var_list = i_block_args.sexp_body
+      var_list.each_with_index {|v,i| var_tbl[v] = join_rels[i]}
+
+      tlist = []
       return unless i_body.sexp_type == :array
       i_body.sexp_body.each do |arr_elem|
         return unless arr_elem.sexp_type == :call
         _, lvar, ref_col = arr_elem
         return unless lvar.sexp_type == :lvar
         ref_var = lvar.sexp_body.first
+        return unless var_tbl.has_key? ref_var
 
-        puts "Variable ref: #{ref_var}.#{ref_col}"
+        tlist << [var_tbl[ref_var], ref_col]
       end
 
       puts "join rels: #{join_rels.inspect}"
-      puts "join preds: #{join_preds.inspect}"
+      puts "join preds: #{join_quals.inspect}"
+      puts "tlist: #{tlist.inspect}"
+
+      outer, not_quals = collect_notin_args(args)
+      @join_nots << JoinNot.new(join_rels, join_quals, tlist, outer, not_quals)
     end
 
     def get_join_rels(join_ast)
@@ -655,24 +674,34 @@ class BudMeta #:nodoc: all
     end
 
     def collect_notin(recv, args)
+      # Skip this notin if it has a code block (i.e., an iter that immediately
+      # surrounds the notin's :call node).
+      return if @context[1] == :iter
+
       # If the notin receiver is passed a code block, it can't be a simple
       # notin, but it might still be a join notin
       if recv.sexp_type == :iter
         return collect_iter_notin(recv, args)
       end
 
+      # Simple negation: inner operand is a simple collection
       return unless recv.sexp_type == :call
+      _, r_recv, r_meth, r_args = recv
+      return unless r_recv.nil? and r_args.nil?
 
-      # Skip this notin if it has a code block (i.e., an iter that immediately
-      # surrounds the notin's :call node).
-      return if @context[1] == :iter
+      outer, quals = collect_notin_args(args)
+      @simple_nots << SimpleNot.new(r_meth, outer, quals,
+                                    @rule.rule_id, @rule.bud_obj)
+    end
 
+    def collect_notin_args(args)
       # First argument is the outer operand to the notin. If present, second
       # argument is a hash of notin quals.
       outer, quals = args
 
       raise unless outer.sexp_type == :call
       _, o_recv, o_meth, o_args = outer
+      raise unless o_recv.nil? and o_args.nil?
 
       qual_h = {}
       if quals
@@ -680,12 +709,7 @@ class BudMeta #:nodoc: all
         qual_h = quals_from_hash_ast(quals)
       end
 
-      # Simple negation: inner operand is a simple collection
-      _, r_recv, r_meth, r_args = recv
-      if r_recv.nil? and r_args.nil?
-        @simple_nots << SimpleNot.new(r_meth, o_meth, qual_h,
-                                      @rule.rule_id, @rule.bud_obj)
-      end
+      return o_meth, qual_h
     end
   end
 end
