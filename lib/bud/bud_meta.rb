@@ -474,6 +474,13 @@ class BudMeta #:nodoc: all
   # RSE reclaimation is implemented by installing a set of rules (and associated
   # state) that identifies and removes redundant tuples.
   #
+  # RSE for joins requires the user to provide seals to identify when partitions
+  # of the input are immutable/complete. At present, we do this by creating
+  # "seal tables" on an as-needed basis (based on the predicates of the join
+  # whose inputs we want to reclaim from); the user provides seals by inserting
+  # into those tables. This is a bit weird, because the user is inserting into
+  # tables that they haven't explicitly created.
+  #
   # TODO:
   #   * support code blocks for notin
   #   * support more tlist expressions for join RSE
@@ -536,17 +543,14 @@ class BudMeta #:nodoc: all
     join_nots.each do |neg|
       next unless check_neg_outer(neg.outer)
 
-      done_common_work = false
-      neg.join_rels.each do |r|
-        next unless check_neg_inner(r, neg.rule_id, neg.bud_obj)
+      do_rels = neg.join_rels.select {|r| check_neg_inner(r, neg.rule_id, neg.bud_obj)}
+      next if do_rels.empty?
 
-        unless done_common_work
-          buf_name = create_join_buf(neg)
-          create_missing_buf(neg, buf_name)
-          done_common_work = true
-        end
+      join_buf = create_join_buf(neg)
+      missing_buf = create_missing_buf(neg, join_buf)
 
-        create_del_rule(neg, r)
+      do_rels.each do |r|
+        create_del_rules(neg, r, missing_buf)
       end
     end
   end
@@ -564,7 +568,6 @@ class BudMeta #:nodoc: all
         lhs_schema << "#{r}_#{c}".to_sym
       end
     end
-    puts "scratch :#{lhs_name}, #{lhs_schema.inspect}"
     @bud_instance.scratch(lhs_name.to_sym, lhs_schema)
 
     # Build the join predicate. We want the original join predicates, plus we need to
@@ -602,11 +605,34 @@ class BudMeta #:nodoc: all
     qual_text = "(" + qual_list.join(", ") + ")"
     rhs_text = "((#{lhs} * #{rhs}).pairs#{qual_text} {|x,y| x + y}).notin(#{join_buf})"
     rule_text = "#{lhs_name} <= #{rhs_text}"
-
     install_rule(lhs_name, "<=", jneg.join_rels, [join_buf], rule_text)
+
+    return lhs_name
   end
 
-  def create_del_rule(jneg, r)
+  def create_del_rules(jneg, rel, missing_buf)
+    jneg.join_quals.each do |q|
+      if rel == jneg.join_rels.first
+        rel_qual = q.first
+      else
+        rel_qual = q.last
+      end
+      seal_name = "seal_#{rel}_#{rel_qual}"
+      @bud_instance.table(seal_name.to_sym, [rel_qual.to_sym])
+
+      notin_quals = []
+      rel_tbl = @bud_instance.tables[rel.to_sym]
+      rel_tbl.cols.each do |c|
+        notin_quals << ":#{c} => :#{rel}_#{c}"
+      end
+
+      qual_str = notin_quals.join(", ")
+      rhs_text = "(#{rel} * #{seal_name}).lefts(:#{rel_qual} => :#{rel_qual}).notin(#{missing_buf}, #{qual_str})"
+      rule_text = "#{rel} <- #{rhs_text}"
+      install_rule(rel, "<-", [], [rel, seal_name, missing_buf], rule_text)
+
+      puts "RSE: #{rel} <- (#{rel} * #{seal_name})"
+    end
   end
 
   def check_simple_not(n)
@@ -681,7 +707,6 @@ class BudMeta #:nodoc: all
     def process_call(exp)
       _, recv, meth, *args = exp
 
-      puts exp.inspect if meth == :notin
       collect_notin(recv, args) if meth == :notin
 
       process(recv) unless recv.nil?
@@ -728,10 +753,6 @@ class BudMeta #:nodoc: all
 
         tlist << [var_tbl[ref_var], ref_col]
       end
-
-      puts "join rels: #{join_rels.inspect}"
-      puts "join preds: #{join_quals.inspect}"
-      puts "tlist: #{tlist.inspect}"
 
       outer, not_quals = collect_notin_args(args)
       @join_nots << JoinNot.new(join_rels, join_quals, tlist, outer, not_quals,
