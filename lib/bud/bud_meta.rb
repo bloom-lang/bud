@@ -504,7 +504,7 @@ class BudMeta #:nodoc: all
       ast = parser.parse(r.orig_src)
       rhs = find_rule_rhs(ast)
 
-      n = NotInCollector.new(simple_nots, join_nots, r)
+      n = NotInCollector.new(simple_nots, join_nots, r, bud)
       n.process(rhs)
     end
 
@@ -704,13 +704,14 @@ class BudMeta #:nodoc: all
     JoinNot = Struct.new(:join_rels, :join_quals, :tlist, :outer,
                          :not_quals, :rule_id, :bud_obj)
 
-    def initialize(simple_nots, join_nots, rule)
+    def initialize(simple_nots, join_nots, rule, bud)
       super()
       self.require_empty = false
       self.expected = Sexp
       @simple_nots = simple_nots
       @join_nots = join_nots
       @rule = rule
+      @bud_instance = bud
     end
 
     def process_call(exp)
@@ -743,29 +744,57 @@ class BudMeta #:nodoc: all
         join_quals = quals_from_hash_ast(c_args)
       end
 
-      # Find the targetlist by looking at the body of the iter code block. Right
-      # now, we only support very simple targetlist expressions (simple column
-      # references); resolve column references by looking up the local variable
-      # names introduced in the iter block.
-      var_tbl = {}
-      var_list = i_block_args.sexp_body
-      var_list.each_with_index {|v,i| var_tbl[v] = join_rels[i]}
-
-      tlist = []
-      return unless i_body.sexp_type == :array
-      i_body.sexp_body.each do |arr_elem|
-        return unless arr_elem.sexp_type == :call
-        _, lvar, ref_col = arr_elem
-        return unless lvar.sexp_type == :lvar
-        ref_var = lvar.sexp_body.first
-        return unless var_tbl.has_key? ref_var
-
-        tlist << [var_tbl[ref_var], ref_col]
-      end
-
+      tlist = get_tlist(i_block_args, i_body, join_rels)
+      return if tlist.nil?
       outer, not_quals = collect_notin_args(args)
       @join_nots << JoinNot.new(join_rels, join_quals, tlist, outer, not_quals,
                                 @rule.rule_id, @rule.bud_obj)
+    end
+
+    # Find the targetlist by looking at the body of the iter code block. We only
+    # support very simple targetlist expressions: array literals containing
+    # simple column references, addition (array concatenation) operators, and
+    # whole-tuple references. We resolve tuple and column references by looking
+    # up the local variable names introduced by the iter block args; whole tuple
+    # refs are expanded by looking at the catalog.
+    def get_tlist(block_args, block_body, join_rels)
+      var_tbl = {}
+      var_list = block_args.sexp_body
+      var_list.each_with_index {|v,i| var_tbl[v] = join_rels[i]}
+
+      catch (:skip) do
+        return get_tlist_from_ast(block_body, var_tbl, join_rels)
+      end
+    end
+
+    def get_tlist_from_ast(ast, var_tbl, join_rels)
+      case ast.sexp_type
+      when :array
+        ast.sexp_body.map {|e| tlist_column_ref(e, var_tbl)}
+      when :call
+        _, recv, op, args = ast
+        throw :skip unless op == :+
+        get_tlist_from_ast(recv, var_tbl, join_rels) + get_tlist_from_ast(args, var_tbl, join_rels)
+      when :lvar
+        _, ref_var = ast
+        throw :skip unless var_tbl.has_key? ref_var
+        ref_tbl_name = var_tbl[ref_var]
+        ref_coll = @bud_instance.tables[ref_tbl_name]
+        throw :skip if ref_coll.nil?
+        ref_coll.cols.map {|c| [ref_tbl_name, c]}
+      else
+        throw :skip
+      end
+    end
+
+    def tlist_column_ref(ref, var_tbl)
+      throw :skip unless ref.sexp_type == :call
+      _, lvar, ref_col = ref
+      throw :skip unless lvar.sexp_type == :lvar
+      ref_var = lvar.sexp_body.first
+      throw :skip unless var_tbl.has_key? ref_var
+
+      [var_tbl[ref_var], ref_col]
     end
 
     def get_join_rels(join_ast)
