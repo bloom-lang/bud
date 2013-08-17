@@ -388,9 +388,9 @@ class BudMeta #:nodoc: all
 
     # Install two rules: one to send an ack whenever a channel message is
     # delivered, and another to persist acks in the approx collection.
-    install_rule(ack_name, "<~", [chn],
+    install_rule(ack_name, "<~", [chn], [],
                  "#{ack_name} <~ #{chn} {|c| [c.source_address] + c}")
-    install_rule(approx_name, "<=", [ack_name],
+    install_rule(approx_name, "<=", [ack_name], [],
                  "#{approx_name} <= (#{ack_name}.payloads)")
 
     # Finally, rewrite (delete + recreate) every rule with channel on LHS to add
@@ -447,13 +447,16 @@ class BudMeta #:nodoc: all
   # We assume the rule doesn't invoke unsafe functions and doesn't reference
   # the rhs inside the rule body itself. We also don't bother to do rewriting
   # on the supplied rule text, or check that it is well-formed.
-  def install_rule(lhs, op, rhs_rels, src, is_nm=false)
+  def install_rule(lhs, op, rhs_rels, rhs_nm_rels, src)
     rule_tup = [@bud_instance, @rule_idx, lhs.to_s, op, src, src, false]
     @bud_instance.t_rules << rule_tup
 
-    rhs_rels.each do |r|
-      depends_tup = [@bud_instance, @rule_idx, lhs.to_s, op, r.to_s, is_nm, false]
-      @bud_instance.t_depends << depends_tup
+    [rhs_rels, rhs_nm_rels].each do |ary|
+      is_nm = (ary == rhs_nm_rels)
+      ary.each do |r|
+        depends_tup = [@bud_instance, @rule_idx, lhs.to_s, op, r.to_s, is_nm, false]
+        @bud_instance.t_depends << depends_tup
+      end
     end
     @rule_idx += 1
   end
@@ -474,7 +477,13 @@ class BudMeta #:nodoc: all
   # TODO:
   #   * support code blocks for notin
   #   * support more tlist expressions for join RSE
-  #   * support more than binary joins
+  #   * support more join types (e.g., lefts/rights/matches, > 2 way joins, outer, old-style join quals)
+  #   * support persistent scratches (defined via monotone rules)
+  #   * support projection/selection in addition to join
+  #   * refactor: rewrite joins to materialize as a temp rel
+  #   * check that it works with modules
+  #   * unit tests
+  #   * support for cartesian product
   def rse_rewrite
     bud = @bud_instance
     return if bud.options[:disable_rse]
@@ -501,21 +510,103 @@ class BudMeta #:nodoc: all
       # we install a join on the same quals; otherwise, we can simply delete
       # from X when a tuple appears in Y.
       if neg.quals.empty?
-        install_rule(neg.inner, "<-", [neg.outer],
-                     "#{neg.inner} <- #{neg.outer}", true)
+        install_rule(neg.inner, "<-", [], [neg.outer],
+                     "#{neg.inner} <- #{neg.outer}")
       else
-        install_rule(neg.inner, "<-", [neg.inner, neg.outer],
-                     "#{neg.inner} <- (#{neg.inner} * #{neg.outer}).lefts(#{neg.quals})", true)
+        install_rule(neg.inner, "<-", [], [neg.inner, neg.outer],
+                     "#{neg.inner} <- (#{neg.inner} * #{neg.outer}).lefts(#{neg.quals})")
       end
     end
 
+    # When the inner input to the negation is a join, proceed as follows:
+    #    * For each join input, check whether we can reclaim from that input
+    #      (e.g., input is persistent and not referenced on the RHS of another
+    #      rule). Stop if neither input can be reclaimed.
+    #
+    #    * Create a scratch collection to hold join tuples that have appeared in
+    #      the negation.
+    #
+    #    * Create a scratch collection to identify join results that have not
+    #      yet appeared in the negation
+    #
+    #    * For each collection c we can reclaim from, install a deletion rule
+    #      that reclaims tuples when (a) there is a seal on c' that matches the
+    #      join key (b) all the tuples in a given seal group have appeared in
+    #      the negation.
     join_nots.each do |neg|
       next unless check_neg_outer(neg.outer)
+
+      done_common_work = false
+      neg.join_rels.each do |r|
+        next unless check_neg_inner(r, neg.rule_id, neg.bud_obj)
+
+        unless done_common_work
+          buf_name = create_join_buf(neg)
+          create_missing_buf(neg, buf_name)
+          done_common_work = true
+        end
+
+        create_del_rule(neg, r)
+      end
     end
   end
 
-  def check_join_not(n)
-    return false unless check_neg_outer(n.outer)
+  def create_join_buf(jneg)
+    # Define the LHS (join buf) collection. The collection's schema is simply
+    # the concatenation of the columns from both join inputs; we disambiguate
+    # column names by adding a prefix.
+    lhs, rhs = jneg.join_rels
+    lhs_name = "#{lhs}_#{rhs}_joinbuf"
+    lhs_schema = []
+    jneg.join_rels.each do |r|
+      r_coll = @bud_instance.tables[r.to_sym]
+      r_coll.cols.each do |c|
+        lhs_schema << "#{r}_#{c}".to_sym
+      end
+    end
+    puts "scratch :#{lhs_name}, #{lhs_schema.inspect}"
+    @bud_instance.scratch(lhs_name.to_sym, lhs_schema)
+
+    # Build the join predicate. We want the original join predicates, plus we need to
+    # invert the targetlist of the original join
+    qual_list = join_quals_to_str(jneg)
+
+    outer_rel = @bud_instance.tables[jneg.outer.to_sym]
+    jneg.tlist.each_with_index do |t,i|
+      i_col = outer_rel.cols[i]
+      qual_list << "#{jneg.outer}.#{i_col} => #{t[0]}.#{t[1]}"
+    end
+
+    qual_text = "(" + qual_list.join(", ") + ")"
+    rhs_text = "(#{jneg.outer} * #{lhs} * #{rhs}).combos#{qual_text} {|_,x,y| x + y}"
+    rule_text = "#{lhs_name} <= #{rhs_text}"
+    install_rule(lhs_name, "<=", jneg.join_rels + [jneg.outer], [], rule_text)
+
+    return lhs_name
+  end
+
+  def join_quals_to_str(jneg)
+    lhs, rhs = jneg.join_rels
+    jneg.join_quals.map do |q|
+      "#{lhs}.#{q[0]} => #{rhs}.#{q[1]}"
+    end
+  end
+
+  def create_missing_buf(jneg, join_buf)
+    lhs, rhs = jneg.join_rels
+    lhs_name = "#{lhs}_#{rhs}_missing"
+    join_buf_rel = @bud_instance.tables[join_buf.to_sym]
+    @bud_instance.scratch(lhs_name.to_sym, join_buf_rel.schema)
+
+    qual_list = join_quals_to_str(jneg)
+    qual_text = "(" + qual_list.join(", ") + ")"
+    rhs_text = "((#{lhs} * #{rhs}).pairs#{qual_text} {|x,y| x + y}).notin(#{join_buf})"
+    rule_text = "#{lhs_name} <= #{rhs_text}"
+
+    install_rule(lhs_name, "<=", jneg.join_rels, [join_buf], rule_text)
+  end
+
+  def create_del_rule(jneg, r)
   end
 
   def check_simple_not(n)
@@ -549,8 +640,6 @@ class BudMeta #:nodoc: all
     return true
   end
 
-  # XXX: should also support scratches defined from monotone rules over
-  # persistent collections
   def is_persistent_tbl(t)
     @bud_instance.tables[t].kind_of? Bud::BudTable
   end
@@ -575,12 +664,10 @@ class BudMeta #:nodoc: all
   # Search an AST to look for notin operators that are candidates for RSE. We
   # distinguish between two types of notins: "simple" notins (where the notin
   # receiver is a collection) and notins applied to a join expression.
-  #
-  # TODO: support notins with code blocks in RSE. Right now, such notins are
-  # skipped by the NotInCollector.
   class NotInCollector < SexpProcessor
     SimpleNot = Struct.new(:inner, :outer, :quals, :rule_id, :bud_obj)
-    JoinNot = Struct.new(:join_rels, :join_quals, :tlist, :outer, :not_quals)
+    JoinNot = Struct.new(:join_rels, :join_quals, :tlist, :outer,
+                         :not_quals, :rule_id, :bud_obj)
 
     def initialize(simple_nots, join_nots, rule)
       super()
@@ -647,7 +734,8 @@ class BudMeta #:nodoc: all
       puts "tlist: #{tlist.inspect}"
 
       outer, not_quals = collect_notin_args(args)
-      @join_nots << JoinNot.new(join_rels, join_quals, tlist, outer, not_quals)
+      @join_nots << JoinNot.new(join_rels, join_quals, tlist, outer, not_quals,
+                                @rule.rule_id, @rule.bud_obj)
     end
 
     def get_join_rels(join_ast)
