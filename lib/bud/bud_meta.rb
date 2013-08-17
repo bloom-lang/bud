@@ -610,15 +610,24 @@ class BudMeta #:nodoc: all
     return lhs_name
   end
 
+  # Install rules to reclaim from "rel" when legal. Reclaiming from "rel"
+  # requires looking for seals against the other operand in the join that
+  # involves "rel".
   def create_del_rules(jneg, rel, missing_buf)
+    if rel == jneg.join_rels.first
+      other_rel = jneg.join_rels.last
+    else
+      other_rel = jneg.join_rels.first
+    end
+
     jneg.join_quals.each do |q|
-      if rel == jneg.join_rels.first
-        rel_qual = q.first
+      if other_rel == jneg.join_rels.first
+        orel_qual, rel_qual = q
       else
-        rel_qual = q.last
+        rel_qual, orel_qual = q
       end
-      seal_name = "seal_#{rel}_#{rel_qual}"
-      @bud_instance.table(seal_name.to_sym, [rel_qual.to_sym])
+      seal_name = "seal_#{other_rel}_#{orel_qual}"
+      @bud_instance.table(seal_name.to_sym, [orel_qual.to_sym])
 
       notin_quals = []
       rel_tbl = @bud_instance.tables[rel.to_sym]
@@ -627,7 +636,7 @@ class BudMeta #:nodoc: all
       end
 
       qual_str = notin_quals.join(", ")
-      rhs_text = "(#{rel} * #{seal_name}).lefts(:#{rel_qual} => :#{rel_qual}).notin(#{missing_buf}, #{qual_str})"
+      rhs_text = "(#{rel} * #{seal_name}).lefts(:#{rel_qual} => :#{orel_qual}).notin(#{missing_buf}, #{qual_str})"
       rule_text = "#{rel} <- #{rhs_text}"
       install_rule(rel, "<-", [], [rel, seal_name, missing_buf], rule_text)
 
