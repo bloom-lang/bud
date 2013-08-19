@@ -30,6 +30,21 @@ class SimpleRseQual
   end
 end
 
+class JoinRse
+  include Bud
+
+  state do
+    table :node, [:addr, :epoch]
+    table :sbuf, [:id] => [:epoch, :val]
+    scratch :res, [:addr] + sbuf.cols
+    table :res_approx, res.schema
+  end
+
+  bloom do
+    res <= ((sbuf * node).pairs(:epoch => :epoch) {|s,n| [n.addr] + s}).notin(res_approx)
+  end
+end
+
 class TestRse < MiniTest::Unit::TestCase
   def test_simple_rse
     s = SimpleRse.new
@@ -54,5 +69,41 @@ class TestRse < MiniTest::Unit::TestCase
 
     assert_equal([[3, 6]], s.res.to_a.sort)
     assert_equal([[3, 6]], s.sbuf.to_a.sort)
+  end
+
+  def test_join_rse
+    j = JoinRse.new
+    j.node <+ [["foo", 1], ["bar", 1], ["bar", 2]]
+    j.sbuf <+ [[100, 1, "x"], [101, 1, "y"]]
+    2.times { j.tick }
+    assert_equal([[100, 1, "x"], [101, 1, "y"]], j.sbuf.to_a.sort)
+    assert_equal([["bar", 1], ["bar", 2], ["foo", 1]], j.node.to_a.sort)
+
+    j.res_approx <+ [["foo", 100, 1, "x"], ["foo", 101, 1, "y"]]
+    2.times { j.tick }
+    assert_equal([[100, 1, "x"], [101, 1, "y"]], j.sbuf.to_a.sort)
+    assert_equal([["bar", 1], ["bar", 2], ["foo", 1]], j.node.to_a.sort)
+
+    # No more messages in epoch 1
+    j.seal_sbuf_epoch <+ [[1]]
+    2.times { j.tick }
+    assert_equal([[100, 1, "x"], [101, 1, "y"]], j.sbuf.to_a.sort)
+    assert_equal([["bar", 1], ["bar", 2]], j.node.to_a.sort)
+
+    # No more node addresses in epoch 1
+    j.seal_node_epoch <+ [[1]]
+    2.times { j.tick }
+    assert_equal([[100, 1, "x"], [101, 1, "y"]], j.sbuf.to_a.sort)
+    assert_equal([["bar", 1], ["bar", 2]], j.node.to_a.sort)
+
+    j.res_approx <+ [["bar", 100, 1, "x"]]
+    2.times { j.tick }
+    assert_equal([[101, 1, "y"]], j.sbuf.to_a.sort)
+    assert_equal([["bar", 1], ["bar", 2]], j.node.to_a.sort)
+
+    j.res_approx <+ [["bar", 101, 1, "y"]]
+    2.times { j.tick }
+    assert_equal([], j.sbuf.to_a.sort)
+    assert_equal([["bar", 2]], j.node.to_a.sort)
   end
 end
