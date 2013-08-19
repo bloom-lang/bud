@@ -489,8 +489,6 @@ class BudMeta #:nodoc: all
   #   * support projection/selection in addition to join
   #   * refactor: rewrite joins to materialize as a temp rel
   #   * check that it works with modules
-  #   * unit tests
-  #   * support for cartesian product
   def rse_rewrite
     bud = @bud_instance
     return if bud.options[:disable_rse]
@@ -536,8 +534,8 @@ class BudMeta #:nodoc: all
     #    * Create a scratch collection to identify join results that have not
     #      yet appeared in the negation
     #
-    #    * For each collection c we can reclaim from, install a deletion rule
-    #      that reclaims tuples when (a) there is a seal on c' that matches the
+    #    * For each collection c we can reclaim from, install deletion rules
+    #      that reclaim tuples when (a) there is a seal on c' that matches the
     #      join key (b) all the tuples in a given seal group have appeared in
     #      the negation.
     join_nots.each do |neg|
@@ -549,9 +547,7 @@ class BudMeta #:nodoc: all
       join_buf = create_join_buf(neg)
       missing_buf = create_missing_buf(neg, join_buf)
 
-      do_rels.each do |r|
-        create_del_rules(neg, r, missing_buf)
-      end
+      do_rels.each {|r| create_del_rules(neg, r, missing_buf)}
     end
   end
 
@@ -602,7 +598,12 @@ class BudMeta #:nodoc: all
     @bud_instance.scratch(lhs_name.to_sym, join_buf_rel.schema)
 
     qual_list = join_quals_to_str(jneg)
-    qual_text = "(" + qual_list.join(", ") + ")"
+    if qual_list.empty?
+      qual_text = ""
+    else
+      qual_text = "(" + qual_list.join(", ") + ")"
+    end
+
     rhs_text = "((#{lhs} * #{rhs}).pairs#{qual_text} {|x,y| x + y}).notin(#{join_buf})"
     rule_text = "#{lhs_name} <= #{rhs_text}"
     install_rule(lhs_name, "<=", jneg.join_rels, [join_buf], rule_text)
@@ -612,13 +613,22 @@ class BudMeta #:nodoc: all
 
   # Install rules to reclaim from "rel" when legal. Reclaiming from "rel"
   # requires looking for seals against the other operand in the join that
-  # involves "rel".
+  # involves "rel". We can make use of seals on each of the join qualifiers,
+  # plus "whole-relation" seals (i.e., seals that guarantee that one of the join
+  # input collections is henceforth immutable).
   def create_del_rules(jneg, rel, missing_buf)
     if rel == jneg.join_rels.first
       other_rel = jneg.join_rels.last
     else
       other_rel = jneg.join_rels.first
     end
+
+    notin_quals = []
+    rel_tbl = @bud_instance.tables[rel.to_sym]
+    rel_tbl.cols.each do |c|
+      notin_quals << ":#{c} => :#{rel}_#{c}"
+    end
+    qual_str = notin_quals.join(", ")
 
     jneg.join_quals.each do |q|
       if other_rel == jneg.join_rels.first
@@ -629,19 +639,21 @@ class BudMeta #:nodoc: all
       seal_name = "seal_#{other_rel}_#{orel_qual}"
       @bud_instance.table(seal_name.to_sym, [orel_qual.to_sym])
 
-      notin_quals = []
-      rel_tbl = @bud_instance.tables[rel.to_sym]
-      rel_tbl.cols.each do |c|
-        notin_quals << ":#{c} => :#{rel}_#{c}"
-      end
-
-      qual_str = notin_quals.join(", ")
       rhs_text = "(#{rel} * #{seal_name}).lefts(:#{rel_qual} => :#{orel_qual}).notin(#{missing_buf}, #{qual_str})"
       rule_text = "#{rel} <- #{rhs_text}"
       install_rule(rel, "<-", [], [rel, seal_name, missing_buf], rule_text)
-
       puts "RSE: #{rel} <- (#{rel} * #{seal_name})"
     end
+
+    # Whole-relation seals; the column in the seal relation is ignored, but we
+    # add a dummy column to avoid creating a collection with zero columns.
+    seal_name = "seal_#{other_rel}"
+    @bud_instance.table(seal_name.to_sym, [:ignored])
+
+    rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{qual_str})"
+    rule_text = "#{rel} <- #{rhs_text}"
+    install_rule(rel, "<-", [], [rel, seal_name, missing_buf], rule_text)
+    puts "RSE: #{rel} <- (#{rel} * #{seal_name})"
   end
 
   def check_simple_not(n)
@@ -739,6 +751,7 @@ class BudMeta #:nodoc: all
 
       # Optional join predicates; right now, we assume the predicates are passed
       # as a single hash literal
+      join_quals = []
       if c_args
         return unless c_args.sexp_type == :hash
         join_quals = quals_from_hash_ast(c_args)
