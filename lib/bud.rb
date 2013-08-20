@@ -117,6 +117,7 @@ module Bud
     @tables = {}
     @lattices = {}
     @channels = {}
+    @immutables = {}
     @dbm_tables = {}
     @zk_tables = {}
     @stratified_rules = []
@@ -1084,6 +1085,17 @@ module Bud
     if toplevel == self
       @tables.each_value {|t| t.bootstrap}
       @lattices.each_value {|l| l.bootstrap}
+
+      # Emit seal tuples for all the immutable collections, if a seal collection
+      # happens to exist. Right now, we only create seal collections when they
+      # would be useful for RSE, but this can easily be changed.
+      @immutables.each_key do |i|
+        seal_name = "seal_#{i}".to_sym
+        seal_tbl = @tables[seal_name]
+        unless seal_tbl.nil?
+          seal_tbl <= [["..."]]
+        end
+      end
     end
     @done_bootstrap = true
   end

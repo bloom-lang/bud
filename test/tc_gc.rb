@@ -61,6 +61,25 @@ class JoinRseNoQual
   end
 end
 
+class JoinRseImmutable
+  include Bud
+
+  state do
+    immutable :node, [:addr]
+    table :sbuf, [:id] => [:val]
+    scratch :res, sbuf.cols + node.cols # Reverse column order for fun
+    table :res_approx, res.schema
+  end
+
+  bootstrap do
+    node <= [["foo"], ["bar"]]
+  end
+
+  bloom do
+    res <= ((sbuf * node).pairs {|s,n| s + n}).notin(res_approx)
+  end
+end
+
 class TestRse < MiniTest::Unit::TestCase
   def test_simple_rse
     s = SimpleRse.new
@@ -156,5 +175,47 @@ class TestRse < MiniTest::Unit::TestCase
     2.times { j. tick }
     assert_equal([], j.node.to_a.sort)
     assert_equal([], j.sbuf.to_a.sort)
+  end
+
+  # Immutable collections are automatically sealed
+  def test_join_rse_immutable
+    j = JoinRseImmutable.new
+    j.sbuf <+ [[1, "a"], [2, "b"], [3, "c"]]
+    2.times { j.tick }
+    assert_equal([[1, "a"], [2, "b"], [3, "c"]], j.sbuf.to_a.sort)
+
+    j.res_approx <+ [[1, "a", "bar"], [1, "a", "foo"]]
+    2.times { j.tick }
+    assert_equal([[2, "b"], [3, "c"]], j.sbuf.to_a.sort)
+  end
+end
+
+class ImmutableCollection
+  include Bud
+
+  state do
+    immutable :foo, [:x] => [:y]
+    table :baz, foo.schema
+  end
+
+  bootstrap do
+    foo <= [[5, 10], [6, 12]]
+  end
+
+  bloom do
+    baz <= foo
+  end
+end
+
+class TestImmutable < MiniTest::Unit::TestCase
+  def test_simple
+    i = ImmutableCollection.new
+    i.tick
+    assert_equal([[5, 10], [6, 12]], i.foo.to_a.sort)
+    assert_equal([[5, 10], [6, 12]], i.baz.to_a.sort)
+
+    assert_raises(Bud::CompileError) do
+      i.foo <+ [[7, 15]]
+    end
   end
 end

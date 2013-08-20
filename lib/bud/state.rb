@@ -60,6 +60,13 @@ module Bud
     @tables[name] = Bud::BudTable.new(name, self, schema)
   end
 
+  # declare an in-memory, non-transient, immutable collection.  default schema <tt>[:key] => [:val]</tt>.
+  def immutable(name, schema=nil)
+    define_collection(name)
+    @tables[name] = Bud::BudImmutable.new(name, self, schema)
+    @immutables[name] = @tables[name]
+  end
+
   # declare a collection-generating expression.  default schema <tt>[:key] => [:val]</tt>.
   def coll_expr(name, expr, schema=nil)
     define_collection(name)
