@@ -749,12 +749,11 @@ class BudMeta #:nodoc: all
       join_rels = get_join_rels(c_recv)
       return unless join_rels
 
-      # Optional join predicates; right now, we assume the predicates are passed
-      # as a single hash literal
+      # Optional join predicates
       join_quals = []
       if c_args
         return unless c_args.sexp_type == :hash
-        join_quals = quals_from_hash_ast(c_args)
+        join_quals = quals_from_hash_ast(c_args, join_rels)
       end
 
       tlist = get_tlist(i_block_args, i_body, join_rels)
@@ -824,13 +823,41 @@ class BudMeta #:nodoc: all
       return l_meth, r_meth
     end
 
-    def quals_from_hash_ast(h)
-      qual_ary = h.sexp_body.map do |q|
-        raise unless q.sexp_type == :lit
-        q.sexp_body.first
+    # We support two syntax variants for the join quals: ":foo => :bar" or
+    # "x.foo => y.bar". We transform the latter into the former by consulting
+    # the optional list of join rels supplied by the caller (we'll need to do
+    # something smarter if/when non-binary joins are supported).
+    def quals_from_hash_ast(h, join_rels=nil)
+      # Form an array of [:a, :b] pairs for each ":a => :b" qual (either syntax)
+      qual_ary = h.sexp_body.each_slice(2).map do |q1, q2|
+        types = [q1, q2].map(&:sexp_type)
+        if types == [:lit, :lit]
+          l = q1.sexp_body.first
+          r = q2.sexp_body.first
+          {l => r}
+        elsif types == [:call, :call]
+          l_rel, l_col = parse_call_ref(q1, join_rels)
+          r_rel, r_col = parse_call_ref(q2, join_rels)
+          if l_rel == join_rels.first
+            {l_col => r_col}
+          else
+            {r_col => l_col}
+          end
+        else
+          raise
+        end
       end
 
-      Hash[*qual_ary]
+      qual_ary.reduce({}) {|h, pair| h.merge(pair)}
+    end
+
+    def parse_call_ref(c, rels)
+      raise if rels.nil?
+      _, recv, col_name = c
+      raise unless recv.sexp_type == :call
+      _, _, rel_name = recv
+      raise unless rels.include? rel_name
+      return rel_name, col_name
     end
 
     def collect_notin(recv, args)

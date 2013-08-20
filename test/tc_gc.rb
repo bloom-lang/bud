@@ -45,6 +45,21 @@ class JoinRse
   end
 end
 
+class JoinRseVariantQuals
+  include Bud
+
+  state do
+    table :node, [:addr, :epoch]
+    table :sbuf, [:id] => [:epoch, :val]
+    scratch :res, [:addr] + sbuf.cols
+    table :res_approx, res.schema
+  end
+
+  bloom do
+    res <= ((sbuf * node).pairs(node.epoch => sbuf.epoch) {|s,n| [n.addr] + s}).notin(res_approx)
+  end
+end
+
 # RSE for joins with no join predicate -- i.e., cartesian products
 class JoinRseNoQual
   include Bud
@@ -108,6 +123,42 @@ class TestRse < MiniTest::Unit::TestCase
 
   def test_join_rse
     j = JoinRse.new
+    j.node <+ [["foo", 1], ["bar", 1], ["bar", 2]]
+    j.sbuf <+ [[100, 1, "x"], [101, 1, "y"]]
+    2.times { j.tick }
+    assert_equal([[100, 1, "x"], [101, 1, "y"]], j.sbuf.to_a.sort)
+    assert_equal([["bar", 1], ["bar", 2], ["foo", 1]], j.node.to_a.sort)
+
+    j.res_approx <+ [["foo", 100, 1, "x"], ["foo", 101, 1, "y"]]
+    2.times { j.tick }
+    assert_equal([[100, 1, "x"], [101, 1, "y"]], j.sbuf.to_a.sort)
+    assert_equal([["bar", 1], ["bar", 2], ["foo", 1]], j.node.to_a.sort)
+
+    # No more messages in epoch 1
+    j.seal_sbuf_epoch <+ [[1]]
+    2.times { j.tick }
+    assert_equal([[100, 1, "x"], [101, 1, "y"]], j.sbuf.to_a.sort)
+    assert_equal([["bar", 1], ["bar", 2]], j.node.to_a.sort)
+
+    # No more node addresses in epoch 1
+    j.seal_node_epoch <+ [[1]]
+    2.times { j.tick }
+    assert_equal([[100, 1, "x"], [101, 1, "y"]], j.sbuf.to_a.sort)
+    assert_equal([["bar", 1], ["bar", 2]], j.node.to_a.sort)
+
+    j.res_approx <+ [["bar", 100, 1, "x"]]
+    2.times { j.tick }
+    assert_equal([[101, 1, "y"]], j.sbuf.to_a.sort)
+    assert_equal([["bar", 1], ["bar", 2]], j.node.to_a.sort)
+
+    j.res_approx <+ [["bar", 101, 1, "y"]]
+    2.times { j.tick }
+    assert_equal([], j.sbuf.to_a.sort)
+    assert_equal([["bar", 2]], j.node.to_a.sort)
+  end
+
+  def test_join_rse_variant_qual
+    j = JoinRseVariantQuals.new
     j.node <+ [["foo", 1], ["bar", 1], ["bar", 2]]
     j.sbuf <+ [[100, 1, "x"], [101, 1, "y"]]
     2.times { j.tick }
