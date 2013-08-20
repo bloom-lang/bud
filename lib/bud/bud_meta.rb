@@ -484,7 +484,7 @@ class BudMeta #:nodoc: all
   # TODO:
   #   * support code blocks for notin
   #   * support more tlist expressions for join RSE
-  #   * support more join types (e.g., lefts/rights/matches, > 2 way joins, outer, old-style join quals)
+  #   * support more join types (e.g., lefts/rights/matches, > 2 way joins, outer)
   #   * support persistent scratches (defined via monotone rules)
   #   * support projection/selection in addition to join
   #   * refactor: rewrite joins to materialize as a temp rel
@@ -828,7 +828,7 @@ class BudMeta #:nodoc: all
     # the optional list of join rels supplied by the caller (we'll need to do
     # something smarter if/when non-binary joins are supported).
     def quals_from_hash_ast(h, join_rels=nil)
-      # Form an array of [:a, :b] pairs for each ":a => :b" qual (either syntax)
+      # Form {:a => :b} hashes for each ":a => :b" qual (either syntax)
       qual_ary = h.sexp_body.each_slice(2).map do |q1, q2|
         types = [q1, q2].map(&:sexp_type)
         if types == [:lit, :lit]
