@@ -60,11 +60,13 @@ module Bud
     @tables[name] = Bud::BudTable.new(name, self, schema)
   end
 
-  # declare an in-memory, non-transient, immutable collection.  default schema <tt>[:key] => [:val]</tt>.
-  def immutable(name, schema=nil)
+  # declare an in-memory, non-transient collection that can only be inserted
+  # into during the bootstrap phase; from then only, values can only be removed.
+  # default schema <tt>[:key] => [:val]</tt>.
+  def sealed(name, schema=nil)
     define_collection(name)
-    @tables[name] = Bud::BudImmutable.new(name, self, schema)
-    @immutables[name] = @tables[name]
+    @tables[name] = Bud::BudSealed.new(name, self, schema)
+    @sealed_tables[name] = @tables[name]
   end
 
   # declare a collection-generating expression.  default schema <tt>[:key] => [:val]</tt>.

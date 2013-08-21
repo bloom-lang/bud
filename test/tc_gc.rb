@@ -76,11 +76,11 @@ class JoinRseNoQual
   end
 end
 
-class JoinRseImmutable
+class JoinRseSealed
   include Bud
 
   state do
-    immutable :node, [:addr]
+    sealed :node, [:addr]
     table :sbuf, [:id] => [:val]
     scratch :res, sbuf.cols + node.cols # Reverse column order for fun
     table :res_approx, res.schema
@@ -228,9 +228,9 @@ class TestRse < MiniTest::Unit::TestCase
     assert_equal([], j.sbuf.to_a.sort)
   end
 
-  # Immutable collections are automatically sealed
-  def test_join_rse_immutable
-    j = JoinRseImmutable.new
+  # Sealed collections don't need an explicit seal
+  def test_join_rse_sealed
+    j = JoinRseSealed.new
     j.sbuf <+ [[1, "a"], [2, "b"], [3, "c"]]
     2.times { j.tick }
     assert_equal([[1, "a"], [2, "b"], [3, "c"]], j.sbuf.to_a.sort)
@@ -241,11 +241,11 @@ class TestRse < MiniTest::Unit::TestCase
   end
 end
 
-class ImmutableCollection
+class SealedCollection
   include Bud
 
   state do
-    immutable :foo, [:x] => [:y]
+    sealed :foo, [:x] => [:y]
     table :baz, foo.schema
   end
 
@@ -258,9 +258,9 @@ class ImmutableCollection
   end
 end
 
-class TestImmutable < MiniTest::Unit::TestCase
+class TestSealed < MiniTest::Unit::TestCase
   def test_simple
-    i = ImmutableCollection.new
+    i = SealedCollection.new
     i.tick
     assert_equal([[5, 10], [6, 12]], i.foo.to_a.sort)
     assert_equal([[5, 10], [6, 12]], i.baz.to_a.sort)

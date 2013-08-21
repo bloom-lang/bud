@@ -1355,15 +1355,14 @@ module Bud
     end
   end
 
-  # XXX: rename this. We currently allow deletions, so not really "immutable".
-  class BudImmutable < BudTable
+  class BudSealed < BudTable
     def initialize(name, bud_instance, given_schema)
       super(name, bud_instance, given_schema)
     end
 
     def merge(o)
       if @bud_instance.done_bootstrap
-        raise Bud::CompileError, "illegal use of <= with immutable collection '#{tabname}' on left"
+        raise Bud::CompileError, "illegal use of <= with sealed collection '#{tabname}' on left"
       end
 
       super
@@ -1371,14 +1370,14 @@ module Bud
 
     def <<(item)
       if @bud_instance.done_bootstrap
-        raise Bud::CompileError, "illegal use of << with immutable collection '#{tabname}' on left"
+        raise Bud::CompileError, "illegal use of << with sealed collection '#{tabname}' on left"
       end
 
       super
     end
 
     superator "<+" do |o|
-      raise Bud::CompileError, "illegal use of <+ with immutable collection '#{tabname}' on left"
+      raise Bud::CompileError, "illegal use of <+ with sealed collection '#{tabname}' on left"
     end
   end
 

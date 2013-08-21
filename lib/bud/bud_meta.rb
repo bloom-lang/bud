@@ -475,11 +475,11 @@ class BudMeta #:nodoc: all
   # state) that identifies and removes redundant tuples.
   #
   # RSE for joins requires the user to provide seals to identify when partitions
-  # of the input are immutable/complete. At present, we do this by creating
-  # "seal tables" on an as-needed basis (based on the predicates of the join
-  # whose inputs we want to reclaim from); the user provides seals by inserting
-  # into those tables. This is a bit weird, because the user is inserting into
-  # tables that they haven't explicitly created.
+  # of the input are complete. At present, we do this by creating "seal tables"
+  # on an as-needed basis (based on the predicates of the join whose inputs we
+  # want to reclaim from); the user provides seals by inserting into those
+  # tables. This is a bit weird, because the user is inserting into tables that
+  # they haven't explicitly created.
   #
   # TODO:
   #   * support code blocks for notin
@@ -615,7 +615,7 @@ class BudMeta #:nodoc: all
   # requires looking for seals against the other operand in the join that
   # involves "rel". We can make use of seals on each of the join qualifiers,
   # plus "whole-relation" seals (i.e., seals that guarantee that one of the join
-  # input collections is henceforth immutable).
+  # input collections cannot grow in the future).
   def create_del_rules(jneg, rel, missing_buf)
     if rel == jneg.join_rels.first
       other_rel = jneg.join_rels.last
