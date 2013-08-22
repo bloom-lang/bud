@@ -1377,7 +1377,11 @@ module Bud
     end
 
     superator "<+" do |o|
-      raise Bud::CompileError, "illegal use of <+ with sealed collection '#{tabname}' on left"
+      if @bud_instance.done_bootstrap
+        raise Bud::CompileError, "illegal use of <+ with sealed collection '#{tabname}' on left"
+      end
+
+      pending_merge(o)
     end
   end
 
