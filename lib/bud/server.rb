@@ -43,11 +43,13 @@ class Bud::BudServer < EM::Connection #:nodoc: all
       puts e.backtrace
       puts "Inbound messages:"
       @bud.inbound.each do |chn_name, t|
-        puts "    #{t.inspect} (channel: #{chn_name})"
+        tuples = t.map(&:first)
+        puts "    #{tuples.inspect} (channel: #{chn_name})"
       end
       puts "Periodics:"
       @bud.periodic_inbound.each do |tbl_name, t|
-        puts "    #{t.inspect} (periodic: #{tbl_name})"
+        tuples = t.map(&:first)
+        puts "    #{tuples.inspect} (periodic: #{tbl_name})"
       end
       @bud.inbound.clear
       @bud.periodic_inbound.clear
