@@ -1011,7 +1011,7 @@ module Bud
     if @options[:channel_stats]
       puts "Stats for #{port}: (budtime = #{@budtime})"
       @channels.each do |name, c|
-        next if c.kind_of? Bud::BudTerminal
+        next if c.kind_of? Bud::BudTerminal or name == :localtick
         puts "chn #{name}: sent #{c.num_sent}, recv #{c.num_recv}"
       end
       puts "====="
