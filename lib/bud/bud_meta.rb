@@ -389,7 +389,7 @@ class BudMeta #:nodoc: all
     # Install two rules: one to send an ack whenever a channel message is
     # delivered, and another to persist acks in the approx collection.
     install_rule(ack_name, "<~", [chn], [],
-                 "#{ack_name} <~ #{chn} {|c| [c.source_address] + c}")
+                 "#{ack_name} <~ #{chn} {|c| [c.source_addr] + c}")
     install_rule(approx_name, "<=", [ack_name], [],
                  "#{approx_name} <= (#{ack_name}.payloads)")
 

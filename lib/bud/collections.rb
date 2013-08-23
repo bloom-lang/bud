@@ -1029,7 +1029,7 @@ module Bud
 
     def insert_inbound(t, addr)
       t = prep_tuple(t)
-      t.source_address = addr
+      t.source_addr = addr
       insert(t)
       @num_recv += 1 if @bud_instance.toplevel.options[:channel_stats]
     end
@@ -1133,7 +1133,7 @@ module Bud
     public
     def insert_inbound(t, addr)
       t = prep_tuple(t)
-      t.source_address = addr
+      t.source_addr = addr
       insert(t)
     end
 

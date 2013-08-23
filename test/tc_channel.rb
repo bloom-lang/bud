@@ -522,7 +522,7 @@ class UseSourceAddress
 
   bloom do
     chn <~ in_t
-    chn <~ chn {|c| [c.source_address, c.msg_id + 1] if c.msg_id < 10}
+    chn <~ chn {|c| [c.source_addr, c.msg_id + 1] if c.msg_id < 10}
     log <= chn
     done <= chn {|c| c if c.msg_id >= 10}
   end

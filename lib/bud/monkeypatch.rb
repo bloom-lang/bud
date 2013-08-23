@@ -13,7 +13,7 @@ end
 class Bud::TupleStruct < Struct
   include Comparable
 
-  attr_accessor :source_address
+  attr_accessor :source_addr
 
   def self.new_struct(tbl_name, cols)
     c = Bud::TupleStruct.new(*cols)
@@ -42,7 +42,7 @@ class Bud::TupleStruct < Struct
         next if e == other
         return e <=> other
       end
-      return self.source_address <=> o.source_address ||
+      return self.source_addr <=> o.source_addr ||
              self.length <=> o_len
     elsif o.nil?
       return nil
@@ -58,7 +58,7 @@ class Bud::TupleStruct < Struct
 
     return false if self.length != o.length
     return false if o.kind_of? Bud::TupleStruct and
-                    self.source_address != o.source_address
+                    self.source_addr != o.source_addr
     self.each_with_index do |el, i|
       return false if el != o[i]
     end
@@ -70,7 +70,7 @@ class Bud::TupleStruct < Struct
     # When combining hash functions, we don't use XOR (since it is commutative);
     # rather, we use a trick per Bob Jenkins.
     self.each {|e| h = (h * 31) + e.hash}
-    h ^= @source_address.hash
+    h ^= @source_addr.hash
     h
   end
 
