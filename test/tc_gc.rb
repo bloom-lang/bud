@@ -14,7 +14,7 @@ class SimpleRse
   end
 end
 
-class SimpleRseQual
+class RseQual
   include Bud
 
   state do
@@ -27,6 +27,68 @@ class SimpleRseQual
   # anyway
   bloom do
     res <= sbuf.notin(sbuf_val_seen, :val => :val)
+  end
+end
+
+# Situations where a reference to the reclaimed relation on the RHS of a rule
+# SHOULD NOT prohibit RSE.
+class RseRhsRef
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    table :t4
+    table :t5
+    scratch :s1
+    scratch :res
+  end
+
+  bloom do
+    res <= t1.notin(t2)
+    t3 <= t1                                                    # identity
+    t4 <= t1 {|t| [t.key + 100, t.val + 100] if t.key < 100}    # sel, proj
+    s1 <= t1
+    t5 <= s1
+  end
+end
+
+# Situations where a reference to the reclaimed relation on the RHS of a rule
+# SHOULD prohibit RSE.
+class RseRhsRefBad
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    table :t4
+    table :t5
+    table :t6, [:cnt]
+    table :t7
+    table :t8
+    table :t9
+    scratch :s1
+    scratch :some_event
+    scratch :res
+  end
+
+  bloom do
+    # Deletion from a persistent table
+    res <= t1.notin(t2)
+    t3 <= t1
+    t3 <- some_event
+
+    # Reference in a grouping/agg expression
+    res <= t4.notin(t5)
+    t6 <= t4.group(nil, count)
+
+    # Dataflow reaches both persistent and non-persistent endpoints
+    # XXX: not clear that we actually need to disallow this
+    res <= t7.notin(t8)
+    t9 <= t7
+    s1 <= t7
   end
 end
 
@@ -107,8 +169,8 @@ class TestRse < MiniTest::Unit::TestCase
     assert_equal([[6, 12]], s.sbuf.to_a.sort)
   end
 
-  def test_simple_rse_qual
-    s = SimpleRseQual.new
+  def test_rse_qual
+    s = RseQual.new
     s.sbuf <+ [[1, 5], [2, 5], [3, 6]]
     s.tick
     assert_equal([[1, 5], [2, 5], [3, 6]].sort, s.res.to_a.sort)
@@ -119,6 +181,30 @@ class TestRse < MiniTest::Unit::TestCase
 
     assert_equal([[3, 6]], s.res.to_a.sort)
     assert_equal([[3, 6]], s.sbuf.to_a.sort)
+  end
+
+  def test_rse_rhs_ref
+    s = RseRhsRef.new
+    s.t1 <+ [[1, 1], [2, 2]]
+    s.t2 <+ [[2, 2], [3, 3]]
+    2.times { s.tick }
+
+    assert_equal([[1, 1]], s.t1.to_a.sort)
+  end
+
+  def test_rse_rhs_ref_bad
+    s = RseRhsRefBad.new
+    s.t1 <+ [[1, 1], [2, 2]]
+    s.t2 <+ [[2, 2], [3, 3]]
+    s.t4 <+ [[1, 1], [2, 2]]
+    s.t5 <+ [[2, 2], [3, 3]]
+    s.t7 <+ [[1, 1], [2, 2]]
+    s.t8 <+ [[2, 2], [3, 3]]
+    2.times { s.tick }
+
+    assert_equal([[1, 1], [2, 2]], s.t1.to_a.sort)
+    assert_equal([[1, 1], [2, 2]], s.t4.to_a.sort)
+    assert_equal([[1, 1], [2, 2]], s.t7.to_a.sort)
   end
 
   def test_join_rse

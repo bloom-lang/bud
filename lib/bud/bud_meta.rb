@@ -482,12 +482,15 @@ class BudMeta #:nodoc: all
   # they haven't explicitly created.
   #
   # TODO:
+  #   * support persistent scratches (defined via monotone rules)
+  #   * support projection/selection in addition to join
+  #   * allow RHS references to reclaim rel when safe
+  #   * refactor: rewrite joins to materialize as a temp rel
+  #
+  # LOW PRIORITY:
   #   * support code blocks for notin
   #   * support more tlist expressions for join RSE
   #   * support more join types (e.g., lefts/rights/matches, > 2 way joins, outer)
-  #   * support persistent scratches (defined via monotone rules)
-  #   * support projection/selection in addition to join
-  #   * refactor: rewrite joins to materialize as a temp rel
   #   * check that it works with modules
   def rse_rewrite
     bud = @bud_instance
@@ -666,12 +669,41 @@ class BudMeta #:nodoc: all
   end
 
   def check_neg_inner(rel, rule_id, bud_obj)
+    # XXX: generalize this to allow projection/selection/scratches
     return false unless is_persistent_tbl(rel)
 
-    # Check that inner operand does not appear on the RHS of any other rules
+    # Consider all the collections whose contents are derived (directly or
+    # indirectly) from the inner operand to the notin. For each such dependency,
+    # we want to check that reclaiming tuples from the inner operand is
+    # "safe". Given X.notin(Y), a RHS reference to X is safe when:
+    #
+    # Z <= X { ... }
+    #
+    # And Z is either "safe" (recursively) or directly persistent.
     @bud_instance.t_depends.each do |d|
       next if d.rule_id == rule_id and d.bud_obj == bud_obj
-      return false if d.body == rel.to_s
+      if d.body == rel.to_s
+        return false unless is_safe_rhs_ref(rel, d)
+      end
+    end
+
+    return true
+  end
+
+  def is_safe_rhs_ref(rel, ref_depend)
+    return false if ref_depend.nm or ref_depend.in_body
+
+    # XXX: check for joins
+    # XXX: allow rel to be the inner operand to a negation
+
+    dependee = ref_depend.lhs.to_sym
+    return false if is_deleted_tbl(dependee)
+    return true if is_persistent_tbl(dependee)
+
+    @bud_instance.t_depends.each do |d|
+      if d.body == dependee.to_s
+        return false unless is_safe_rhs_ref(dependee, d)
+      end
     end
 
     return true
@@ -685,6 +717,15 @@ class BudMeta #:nodoc: all
     end
 
     return true
+  end
+
+  # Does "t" appear on the LHS of any deletion rules?
+  def is_deleted_tbl(t)
+    @bud_instance.t_depends.each do |d|
+      return true if d.lhs == t.to_s and d.op == "<-"
+    end
+
+    return false
   end
 
   def is_persistent_tbl(t)
