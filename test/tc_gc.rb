@@ -49,6 +49,9 @@ class RseRhsRef
     res <= t1.notin(t2)
     t3 <= t1                                                    # identity
     t4 <= t1 {|t| [t.key + 100, t.val + 100] if t.key < 100}    # sel, proj
+
+    # t1 appears on the RHS of a rule that derives into a scratch, but the
+    # output of the scratch is later persisted.
     s1 <= t1
     t5 <= s1
   end
