@@ -700,13 +700,15 @@ class BudMeta #:nodoc: all
     return false if is_deleted_tbl(dependee)
     return true if is_persistent_tbl(dependee)
 
+    saw_ref = false
     @bud_instance.t_depends.each do |d|
       if d.body == dependee.to_s
+        saw_ref = true
         return false unless is_safe_rhs_ref(dependee, d)
       end
     end
 
-    return true
+    return saw_ref
   end
 
   def check_neg_outer(rel)

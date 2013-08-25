@@ -72,7 +72,7 @@ class RseRhsRefBad
     table :t7
     table :t8
     table :t9
-    scratch :s1
+    scratch :out
     scratch :some_event
     scratch :res
   end
@@ -87,11 +87,12 @@ class RseRhsRefBad
     res <= t4.notin(t5)
     t6 <= t4.group(nil, count)
 
-    # Dataflow reaches both persistent and non-persistent endpoints
-    # XXX: not clear that we actually need to disallow this
+    # Dataflow reaches both a persistent and a transient-output collection. We
+    # don't want to delete from t7 in this circumstance, because we regard the
+    # content of "output" as needing to be preserved.
     res <= t7.notin(t8)
     t9 <= t7
-    s1 <= t7
+    out <= t7
   end
 end
 
