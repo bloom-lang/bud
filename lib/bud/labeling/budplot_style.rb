@@ -16,7 +16,7 @@ module PDG
     bnode <= bodies do |b| 
       shape = case b.tbl_type
         when Bud::BudTable then "rectangle"
-        when Bud::BudImmutable then "rectangle"
+        when Bud::BudSealed then "rectangle"
         when Bud::LatticeWrapper then "triangle"
         else "oval"
       end

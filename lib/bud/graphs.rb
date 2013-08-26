@@ -150,7 +150,7 @@ class GraphGen #:nodoc: all
       node_p.shape = "octagon"
       node_p.penwidth = 3
       node_p.URL = "#{File.basename(@name).gsub(".staging", "").gsub("collapsed", "expanded")}.svg"
-    elsif @tabinf[node] and (@tabinf[node] == "Bud::BudTable" || @tabinf[node] == "Bud::BudImmutable")
+    elsif @tabinf[node] and (@tabinf[node] == "Bud::BudTable" || @tabinf[node] == "Bud::BudSealed")
       node_p.shape = "rect"
     end
   end

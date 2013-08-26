@@ -182,8 +182,8 @@ module GuardedAsync
   end
 
   def guarded(lpath, rpath)
-    if lpath.include? Bud::BudTable or lpath.include? Bud::LatticeWrapper or lpath.include? Bud::BudImmutable
-      if rpath.include? Bud::BudTable or rpath.include? Bud::LatticeWrapper or rpath.include? Bud::BudImmutable
+    if lpath.include? Bud::BudTable or lpath.include? Bud::LatticeWrapper or lpath.include? Bud::BudSealed
+      if rpath.include? Bud::BudTable or rpath.include? Bud::LatticeWrapper or rpath.include? Bud::BudSealed
         return true
       end
     end
