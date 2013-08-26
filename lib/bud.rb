@@ -266,7 +266,8 @@ module Bud
       mod_inst.t_rules.each do |imp_rule|
         qname = "#{local_name}.#{imp_rule.lhs}"
         self.t_rules << [imp_rule.bud_obj, imp_rule.rule_id, qname, imp_rule.op,
-                         imp_rule.src, imp_rule.orig_src, imp_rule.unsafe_funcs_called]
+                         imp_rule.src, imp_rule.orig_src, imp_rule.unsafe_funcs_called,
+                         imp_rule.is_rse]
       end
       mod_inst.t_depends.each do |imp_dep|
         qlname = "#{local_name}.#{imp_dep.lhs}"
@@ -1237,7 +1238,8 @@ module Bud
     table :t_cycle, [:predicate, :via, :neg, :temporal]
     table :t_depends, [:bud_obj, :rule_id, :lhs, :op, :body] => [:nm, :in_body]
     table :t_provides, [:interface] => [:input]
-    table :t_rules, [:bud_obj, :rule_id] => [:lhs, :op, :src, :orig_src, :unsafe_funcs_called]
+    table :t_rules, [:bud_obj, :rule_id] => [:lhs, :op, :src, :orig_src,
+                                             :unsafe_funcs_called, :is_rse]
     table :t_stratum, [:predicate] => [:stratum]
     table :t_table_info, [:tab_name, :tab_type]
     table :t_table_schema, [:tab_name, :col_name, :ord, :loc]

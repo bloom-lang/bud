@@ -389,9 +389,9 @@ class BudMeta #:nodoc: all
     # Install two rules: one to send an ack whenever a channel message is
     # delivered, and another to persist acks in the approx collection.
     install_rule(ack_name, "<~", [chn], [],
-                 "#{ack_name} <~ #{chn} {|c| [c.source_addr] + c}")
+                 "#{ack_name} <~ #{chn} {|c| [c.source_addr] + c}", false)
     install_rule(approx_name, "<=", [ack_name], [],
-                 "#{approx_name} <= (#{ack_name}.payloads)")
+                 "#{approx_name} <= (#{ack_name}.payloads)", false)
 
     # Finally, rewrite (delete + recreate) every rule with channel on LHS to add
     # negation against approx collection.
@@ -447,8 +447,9 @@ class BudMeta #:nodoc: all
   # We assume the rule doesn't invoke unsafe functions and doesn't reference
   # the rhs inside the rule body itself. We also don't bother to do rewriting
   # on the supplied rule text, or check that it is well-formed.
-  def install_rule(lhs, op, rhs_rels, rhs_nm_rels, src)
-    rule_tup = [@bud_instance, @rule_idx, lhs.to_s, op, src, src, false]
+  def install_rule(lhs, op, rhs_rels, rhs_nm_rels, src, is_rse)
+    rule_tup = [@bud_instance, @rule_idx, lhs.to_s, op, src, src,
+                false, is_rse]
     @bud_instance.t_rules << rule_tup
 
     [rhs_rels, rhs_nm_rels].each do |ary|
@@ -519,10 +520,11 @@ class BudMeta #:nodoc: all
       # from X when a tuple appears in Y.
       if neg.quals.empty?
         install_rule(neg.inner, "<-", [], [neg.outer],
-                     "#{neg.inner} <- #{neg.outer}")
+                     "#{neg.inner} <- #{neg.outer}", true)
       else
         install_rule(neg.inner, "<-", [], [neg.inner, neg.outer],
-                     "#{neg.inner} <- (#{neg.inner} * #{neg.outer}).lefts(#{neg.quals})")
+                     "#{neg.inner} <- (#{neg.inner} * #{neg.outer}).lefts(#{neg.quals})",
+                     true)
       end
     end
 
@@ -582,7 +584,7 @@ class BudMeta #:nodoc: all
     qual_text = "(" + qual_list.join(", ") + ")"
     rhs_text = "(#{jneg.outer} * #{lhs} * #{rhs}).combos#{qual_text} {|_,x,y| x + y}"
     rule_text = "#{lhs_name} <= #{rhs_text}"
-    install_rule(lhs_name, "<=", jneg.join_rels + [jneg.outer], [], rule_text)
+    install_rule(lhs_name, "<=", jneg.join_rels + [jneg.outer], [], rule_text, true)
 
     return lhs_name
   end
@@ -609,7 +611,7 @@ class BudMeta #:nodoc: all
 
     rhs_text = "((#{lhs} * #{rhs}).pairs#{qual_text} {|x,y| x + y}).notin(#{join_buf})"
     rule_text = "#{lhs_name} <= #{rhs_text}"
-    install_rule(lhs_name, "<=", jneg.join_rels, [join_buf], rule_text)
+    install_rule(lhs_name, "<=", jneg.join_rels, [join_buf], rule_text, true)
 
     return lhs_name
   end
@@ -644,7 +646,7 @@ class BudMeta #:nodoc: all
 
       rhs_text = "(#{rel} * #{seal_name}).lefts(:#{rel_qual} => :#{orel_qual}).notin(#{missing_buf}, #{qual_str})"
       rule_text = "#{rel} <- #{rhs_text}"
-      install_rule(rel, "<-", [], [rel, seal_name, missing_buf], rule_text)
+      install_rule(rel, "<-", [], [rel, seal_name, missing_buf], rule_text, true)
       puts "RSE: #{rel} <- (#{rel} * #{seal_name})"
     end
 
@@ -655,7 +657,7 @@ class BudMeta #:nodoc: all
 
     rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{qual_str})"
     rule_text = "#{rel} <- #{rhs_text}"
-    install_rule(rel, "<-", [], [rel, seal_name, missing_buf], rule_text)
+    install_rule(rel, "<-", [], [rel, seal_name, missing_buf], rule_text, true)
     puts "RSE: #{rel} <- (#{rel} * #{seal_name})"
   end
 
@@ -721,10 +723,16 @@ class BudMeta #:nodoc: all
     return true
   end
 
-  # Does "t" appear on the LHS of any deletion rules?
+  # Does "t" appear on the LHS of any deletion rules? Note that we distinguish
+  # between deletion rules specified by the user and deletion rules inserted by
+  # RSE; the latter are allowed, because the RSE conditions should ensure that
+  # RSE deletions are not semantically observable.
   def is_deleted_tbl(t)
     @bud_instance.t_depends.each do |d|
-      return true if d.lhs == t.to_s and d.op == "<-"
+      if d.lhs == t.to_s and d.op == "<-"
+        rule_tup = @bud_instance.t_rules[[d.bud_obj, d.rule_id]]
+        return true unless rule_tup.is_rse
+      end
     end
 
     return false

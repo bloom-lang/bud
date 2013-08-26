@@ -41,12 +41,21 @@ class RseRhsRef
     table :t3
     table :t4
     table :t5
+    table :t6
+    table :t7
     scratch :s1
+    scratch :s2
     scratch :res
   end
 
   bloom do
+    # Via RSE (for a different table), we infer a deletion rule for the
+    # downstream persistent table -- but since the rule is created by RSE, we
+    # know it is "safe" and can be ignored.
+    t6 <= t1
+    s2 <= t6.notin(t7)
     res <= t1.notin(t2)
+
     t3 <= t1                                                    # identity
     t4 <= t1 {|t| [t.key + 100, t.val + 100] if t.key < 100}    # sel, proj
 
