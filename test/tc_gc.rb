@@ -1,6 +1,6 @@
 require './test_common'
 
-class SimpleRse
+class RseSimple
   include Bud
 
   state do
@@ -171,8 +171,8 @@ class JoinRseSealed
 end
 
 class TestRse < MiniTest::Unit::TestCase
-  def test_simple_rse
-    s = SimpleRse.new
+  def test_rse_simple
+    s = RseSimple.new
     s.sbuf <+ [[5, 10], [6, 12]]
     s.tick
     s.res_approx <+ [[5, 10]]
