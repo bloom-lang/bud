@@ -30,6 +30,21 @@ class RseQual
   end
 end
 
+class RseDoubleNeg
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    table :t4
+  end
+
+  bloom do
+    t1 <= t2.notin(t3).notin(t4)
+  end
+end
+
 # Situations where a reference to the reclaimed relation on the RHS of a rule
 # SHOULD NOT prohibit RSE.
 class RseRhsRef
@@ -194,6 +209,17 @@ class TestRse < MiniTest::Unit::TestCase
 
     assert_equal([[3, 6]], s.res.to_a.sort)
     assert_equal([[3, 6]], s.sbuf.to_a.sort)
+  end
+
+  def test_rse_double_neg
+    s = RseDoubleNeg.new
+    s.t2 <+ [[1, 1], [2, 2], [3, 3]]
+    s.t3 <+ [[2, 2]]
+    s.t4 <+ [[3, 3]]
+    2.times { s.tick }
+
+    assert_equal([[1, 1]], s.t1.to_a.sort)
+    assert_equal([[1, 1]], s.t2.to_a.sort)
   end
 
   def test_rse_rhs_ref

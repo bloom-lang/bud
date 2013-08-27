@@ -730,8 +730,8 @@ class BudMeta #:nodoc: all
   def is_deleted_tbl(t)
     @bud_instance.t_depends.each do |d|
       if d.lhs == t.to_s and d.op == "<-"
-        rule_tup = @bud_instance.t_rules[[d.bud_obj, d.rule_id]]
-        return true unless rule_tup.is_rse
+        rule = @bud_instance.t_rules[[d.bud_obj, d.rule_id]]
+        return true unless rule.is_rse
       end
     end
 
@@ -786,6 +786,55 @@ class BudMeta #:nodoc: all
       args.each {|a| process(a)}
 
       exp
+    end
+
+    def collect_notin(recv, args)
+      # Skip this notin if it has a code block (i.e., an iter that immediately
+      # surrounds the notin's :call node).
+      return if @context[1] == :iter
+
+      # If the notin receiver is passed a code block, it can't be a simple
+      # notin, but it might still be a join notin
+      if recv.sexp_type == :iter
+        return collect_iter_notin(recv, args)
+      end
+
+      # We support two kinds of "simple" negations: the inner operand can either
+      # be a collection (referenced directly), or another notin expression.
+      return unless recv.sexp_type == :call
+      _, r_recv, r_meth, r_args = recv
+      if r_recv.nil? and r_args.nil?
+        # Inner operand is a direct reference to a collection
+        inner = r_meth
+      elsif r_meth == :notin
+        _, nested_recv, nested_meth, nested_args = r_recv
+        return unless nested_recv.nil?
+        inner = nested_meth
+      else
+        return
+      end
+
+      outer, quals = collect_notin_args(args)
+      @simple_nots << SimpleNot.new(inner, outer, quals,
+                                    @rule.rule_id, @rule.bud_obj)
+    end
+
+    def collect_notin_args(args)
+      # First argument is the outer operand to the notin. If present, second
+      # argument is a hash of notin quals.
+      outer, quals = args
+
+      raise unless outer.sexp_type == :call
+      _, o_recv, o_meth, o_args = outer
+      raise unless o_recv.nil? and o_args.nil?
+
+      qual_h = {}
+      if quals
+        raise unless quals.sexp_type == :hash
+        qual_h = quals_from_hash_ast(quals)
+      end
+
+      return o_meth, qual_h
     end
 
     def collect_iter_notin(recv, args)
@@ -909,45 +958,6 @@ class BudMeta #:nodoc: all
       _, _, rel_name = recv
       raise unless rels.include? rel_name
       return rel_name, col_name
-    end
-
-    def collect_notin(recv, args)
-      # Skip this notin if it has a code block (i.e., an iter that immediately
-      # surrounds the notin's :call node).
-      return if @context[1] == :iter
-
-      # If the notin receiver is passed a code block, it can't be a simple
-      # notin, but it might still be a join notin
-      if recv.sexp_type == :iter
-        return collect_iter_notin(recv, args)
-      end
-
-      # Simple negation: inner operand is a simple collection
-      return unless recv.sexp_type == :call
-      _, r_recv, r_meth, r_args = recv
-      return unless r_recv.nil? and r_args.nil?
-
-      outer, quals = collect_notin_args(args)
-      @simple_nots << SimpleNot.new(r_meth, outer, quals,
-                                    @rule.rule_id, @rule.bud_obj)
-    end
-
-    def collect_notin_args(args)
-      # First argument is the outer operand to the notin. If present, second
-      # argument is a hash of notin quals.
-      outer, quals = args
-
-      raise unless outer.sexp_type == :call
-      _, o_recv, o_meth, o_args = outer
-      raise unless o_recv.nil? and o_args.nil?
-
-      qual_h = {}
-      if quals
-        raise unless quals.sexp_type == :hash
-        qual_h = quals_from_hash_ast(quals)
-      end
-
-      return o_meth, qual_h
     end
   end
 end
