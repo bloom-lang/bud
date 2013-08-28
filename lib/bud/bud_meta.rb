@@ -368,6 +368,11 @@ class BudMeta #:nodoc: all
   # are multiple strategies possible for #2; right now we just use a simple ACK
   # scheme (one ACK per delivered message).
   #
+  # As an optimization, the ACK message only includes the key columns of the
+  # channel; because the keys functionally determine the rest of the message (at
+  # the sender-side), sending just the key values is sufficient to supress
+  # duplicate deliveries.
+  #
   # Note that we've done rewriting but not stratification at this point. Hence
   # we need to install dependencies for newly created rules manually.
   def rce_for_channel(chn)
@@ -378,32 +383,32 @@ class BudMeta #:nodoc: all
     # Create an "approx" collection to hold a conservative estimate of the
     # channel tuples that have been delivered.
     approx_name = "#{chn_prefix}_approx"
-    chn_schema = chn_coll.schema
-    @bud_instance.table(approx_name.to_sym, chn_schema)
+    approx_schema = chn_coll.key_cols
+    @bud_instance.table(approx_name.to_sym, approx_schema)
 
     ack_name = "#{chn_prefix}_ack"
-    ack_keys = [:@sender] + chn_coll.key_cols
-    ack_schema = { ack_keys => chn_coll.val_cols }
+    ack_schema = [:@sender] + chn_coll.key_cols
     @bud_instance.channel(ack_name.to_sym, ack_schema)
 
     # Install two rules: one to send an ack whenever a channel message is
     # delivered, and another to persist acks in the approx collection.
+    key_ary = chn_coll.key_cols.map {|k| "c.#{k}"}
     install_rule(ack_name, "<~", [chn], [],
-                 "#{ack_name} <~ #{chn} {|c| [c.source_addr] + c}", false)
+                 "#{ack_name} <~ #{chn} {|c| [c.source_addr] + [#{key_ary.join(",")}]}", false)
     install_rule(approx_name, "<=", [ack_name], [],
                  "#{approx_name} <= (#{ack_name}.payloads)", false)
 
     # Finally, rewrite (delete + recreate) every rule with channel on LHS to add
     # negation against approx collection.
     @bud_instance.t_rules.each do |r|
-      add_rce_negation(r, approx_name, chn_schema) if r.lhs == chn
+      add_rce_negation(r, approx_name, approx_schema) if r.lhs == chn
     end
   end
 
   def add_rce_negation(rule, approx_name, approx_schema)
     # Modify t_rules tuple in-place to change its definition
-    rule.src = append_notin(rule.src, approx_name)
-    rule.orig_src = append_notin(rule.orig_src, approx_name)
+    rule.src = append_notin(rule.src, approx_name, approx_schema)
+    rule.orig_src = append_notin(rule.orig_src, approx_name, approx_schema)
 
     # Add NM dependency between lhs and approx collection
     depends_tup = [rule.bud_obj, rule.rule_id, rule.lhs, rule.op,
@@ -421,10 +426,13 @@ class BudMeta #:nodoc: all
     end
   end
 
-  # Add a notin(approx_name) clause to the end of the given Bloom rule. Because
-  # of how the <~ operator is parsed (as a superator), we can't easily do this
-  # via text munging, so parse into an AST, munge AST, and then get source back.
-  def append_notin(src, approx_name)
+  # Add a notin(approx_name, ...) clause to the end of the given Bloom rule; the
+  # notin quals check for matches on the collection's key columns.
+  #
+  # Because of how the <~ operator is parsed (as a superator), we can't easily
+  # do this via text munging, so parse into an AST, munge AST, and then get
+  # source back.
+  def append_notin(src, approx_name, approx_schema)
     parser = RubyParser.for_current_ruby rescue RubyParser.new
     ast = parser.parse(src)
 
@@ -438,8 +446,18 @@ class BudMeta #:nodoc: all
     raise Bud::CompileError unless c1 == :call and c2 == :call and
                                    angle_op == :< and tilde_op == :~
 
+    # The approx collection only contains the key columns from the table it is
+    # an approximation of; hence, generate notin quals to only compare the key
+    # columns. Because the notin's left input might not have a well-defined
+    # schema (e.g., because it is a join), we use positional notation.
+    quals = s(:hash)
+    approx_schema.each_with_index do |c,i|
+      quals << s(:lit, i)
+      quals << s(:lit, c)
+    end
+
     rhs[1] = s(:call, rhs_body, :notin,
-               s(:call, nil, approx_name.to_sym))
+               s(:call, nil, approx_name.to_sym), quals)
 
     return Ruby2Ruby.new.process(ast)
   end
