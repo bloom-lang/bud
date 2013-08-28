@@ -384,3 +384,35 @@ class NotInChainTest < MiniTest::Unit::TestCase
     assert_equal([[2, 3]], n.res2.to_a.sort)
   end
 end
+
+class NotInPositionalQual
+  include Bud
+
+  state do
+    table :t1, [:a, :b]
+    table :t2, [:c, :d]
+    table :t3, [:e, :f]
+    scratch :s1, t1.cols + t2.cols
+    scratch :join_s, s1.schema
+    scratch :s2, s1.schema
+  end
+
+  bloom do
+    s1 <= ((t1 * t2).pairs {|x,y| x + y}).notin(t3, 0 => :f).notin(t3, 3 => :e)
+    join_s <= (t1 * t2).pairs {|x,y| x + y}
+    s2 <= join_s.notin(t3, :a => :f).notin(t3, :d => :e)
+  end
+end
+
+class NotInPositionalTest < MiniTest::Unit::TestCase
+  def test_notin_positional
+    n = NotInPositionalQual.new
+    n.t1 <+ [[5, 10], [10, 20]]
+    n.t2 <+ [[30, 45], [50, 60]]
+    n.t3 <+ [[40, 5], [60, 20]]
+    n.tick
+
+    assert_equal([[10, 20, 30, 45]], n.s1.to_a.sort)
+    assert_equal([[10, 20, 30, 45]], n.s2.to_a.sort)
+  end
+end

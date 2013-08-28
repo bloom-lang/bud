@@ -538,6 +538,8 @@ module Bud
           raise Bud::Error, "attribute :#{colspec} not found in #{rel.qualified_tabname}"
         end
         col_desc = rel.send(colspec)
+      when Integer
+        return colspec
       when Array
         col_desc = colspec
       else
