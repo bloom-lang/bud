@@ -532,12 +532,13 @@ module Bud
     end
 
     def find_col(colspec, rel)
-      if colspec.is_a? Symbol
+      case colspec
+      when Symbol
         unless rel.respond_to? colspec
           raise Bud::Error, "attribute :#{colspec} not found in #{rel.qualified_tabname}"
         end
         col_desc = rel.send(colspec)
-      elsif colspec.is_a? Array
+      when Array
         col_desc = colspec
       else
         raise Bud::Error, "symbol or column spec expected. Got #{colspec}"
