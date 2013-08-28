@@ -360,7 +360,7 @@ class TestRse < MiniTest::Unit::TestCase
     2.times { j.tick }
     assert_equal([[1, "a"], [2, "b"], [3, "c"]], j.sbuf.to_a.sort)
 
-    j.res_approx <+ [[1, "a", "bar"], [1, "a", "foo"]]
+    j.res_approx <+ [[1, "a", "bar"], [1, "a", "foo"], [2, "b", "bar"]]
     2.times { j.tick }
     assert_equal([[2, "b"], [3, "c"]], j.sbuf.to_a.sort)
   end
