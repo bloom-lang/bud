@@ -571,14 +571,40 @@ class BudMeta #:nodoc: all
     end
     @bud_instance.scratch(lhs_name.to_sym, lhs_schema)
 
-    # Build the join predicate. We want the original join predicates, plus we need to
-    # invert the targetlist of the original join
+    # Build the join predicate. We want the original join predicates. We also
+    # want to matchup the negation quals against the elements of the join's
+    # targetlist. That is, given
+    #
+    #    ((foo * bar).pairs {|x,y| [x.a, y.b]}).notin(baz, 1 => :k)
+    #
+    # We want to match baz.k with the second element of the join tlist (bar.b).
     qual_list = join_quals_to_str(jneg)
-
     outer_rel = @bud_instance.tables[jneg.outer.to_sym]
-    jneg.tlist.each_with_index do |t,i|
-      i_col = outer_rel.cols[i]
-      qual_list << "#{jneg.outer}.#{i_col} => #{t[0]}.#{t[1]}"
+
+    # If no negation qual is given explicitly, the negation qual is implicitly
+    # the entire tuple (columns matched based on position).
+    if jneg.not_quals.empty?
+      jneg.tlist.each_with_index do |t,i|
+        i_col = outer_rel.cols[i]
+        qual_list << "#{jneg.outer}.#{i_col} => #{t[0]}.#{t[1]}"
+      end
+    else
+      jneg.not_quals.each do |q|
+        # We expect the left part of the qual (which references the output of
+        # the join) to be specified as a column offset.
+        lhs_qual, rhs_qual = q
+        raise unless lhs_qual.kind_of? Integer
+
+        t = jneg.tlist[lhs_qual]
+        raise if t.nil?
+
+        # RHS qual can be either column name or offset.
+        if rhs_qual.kind_of? Integer
+          rhs_qual = outer_rel.cols[rhs_qual]
+        end
+
+        qual_list << "#{jneg.outer}.#{rhs_qual} => #{t[0]}.#{t[1]}"
+      end
     end
 
     qual_text = "(" + qual_list.join(", ") + ")"
