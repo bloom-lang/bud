@@ -400,7 +400,7 @@ class NotInPositionalQual
   bloom do
     s1 <= ((t1 * t2).pairs {|x,y| x + y}).notin(t3, 0 => :f).notin(t3, 3 => :e)
     join_s <= (t1 * t2).pairs {|x,y| x + y}
-    s2 <= join_s.notin(t3, :a => :f).notin(t3, :d => :e)
+    s2 <= join_s.notin(t3, :a => 1).notin(t3, :d => 0)
   end
 end
 
