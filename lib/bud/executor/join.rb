@@ -177,7 +177,16 @@ module Bud
     def disambiguate_preds(preds) # :nodoc: all
       if preds.size == 1 and preds[0].class <= Hash
         predarray = preds[0].map do |k,v|
-          if k.class != v.class
+          # Special-case hack: given a binary join, we allow integer join
+          # predicates in the hash syntax; this identifies columns via their
+          # integer offset
+          if k.class <= Integer and v.class <= Symbol
+            k_col = @all_rels_below[0].cols[k]
+            [@all_rels_below[0].send(k_col), find_attr_match(v, @all_rels_below[1])]
+          elsif k.class <= Symbol and v.class <= Integer
+            v_col = @all_rels_below[1].cols[v]
+            [find_attr_match(k, @all_rels_below[0]), @all_rels_below[1].send(v_col)]
+          elsif k.class != v.class
             raise Bud::CompileError, "inconsistent attribute ref style #{k.inspect} => #{v.inspect}"
           elsif k.class <= Array
             [k,v]

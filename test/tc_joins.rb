@@ -855,3 +855,28 @@ class RescanTests < MiniTest::Unit::TestCase
     assert_equal([[5, 10]], i.s1.to_a)
   end
 end
+
+class JoinWithPositionalPred
+  include Bud
+
+  state do
+    table :t1, [:a, :b, :c]
+    table :t2, [:a, :b, :c]
+    scratch :s1, [:c1, :c2]
+  end
+
+  bloom do
+    s1 <= (t1 * t2).pairs(0 => :a, :b => 1) {|x,y| [x.c, y.c]}
+  end
+end
+
+class TestJoinWithPositionalPred < MiniTest::Unit::TestCase
+  def test_join_pos_pred
+    j = JoinWithPositionalPred.new
+    j.t1 <+ [[5, 10, 15], [5, 11, 20]]
+    j.t2 <+ [[5, 10, 21], [6, 11, 22]]
+    j.tick
+
+    assert_equal([[15, 21]], j.s1.to_a.sort)
+  end
+end
