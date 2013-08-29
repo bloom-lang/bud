@@ -1,6 +1,5 @@
 require 'bud/executor/elements'
 
-$EMPTY = []
 module Bud
   class PushSHJoin < PushStatefulElement
     attr_reader :all_rels_below, :origpreds, :relnames, :keys, :localpreds
@@ -165,7 +164,7 @@ module Bud
       # referenced in entry.
       subtuple = 0
       all_rels_below[0..all_rels_below.length-1].each_with_index do |t,i|
-        if t.qualified_tabname == entry[0]
+        if t.qualified_tabname == name
           subtuple = i
           break
         end
@@ -183,7 +182,7 @@ module Bud
           elsif k.class <= Array
             [k,v]
           elsif k.class <= Symbol
-            if @all_rels_below and @all_rels_below.length == 2
+            if @all_rels_below.length == 2
               [find_attr_match(k, @all_rels_below[0]), find_attr_match(v, @all_rels_below[1])]
             else
               [find_attr_match(k), find_attr_match(v)]
@@ -252,16 +251,15 @@ module Bud
       # again if we didn't rescan now.
       replay_join if @rescan
 
-      if @selfjoins.include? source.qualified_tabname
+      source_tbl = source.qualified_tabname
+      if @selfjoins.include? source_tbl
         offsets = []
-        @relnames.each_with_index{|r,i| offsets << i if r == source.qualified_tabname}
+        @relnames.each_with_index{|r,i| offsets << i if r == source_tbl}
       else
-        offsets = [@relnames.index(source.qualified_tabname)]
+        offsets = [@relnames.index(source_tbl)]
       end
-      raise Bud::Error, "item #{item.inspect} inserted into join from unknown source #{source.elem_name}" if offsets == $EMPTY
-      offsets.each do |offset|
-        insert_item(item, offset)
-      end
+
+      offsets.each {|offset| insert_item(item, offset)}
     end
 
     protected
@@ -548,8 +546,8 @@ module Bud
     end
 
     def get_key(item, offset)
-      keycols = offset == 0 ? @lhs_keycols : @rhs_keycols
-      keycols.nil? ? $EMPTY : item.values_at(*keycols)
+      keycols = (offset == 0 ? @lhs_keycols : @rhs_keycols)
+      keycols.nil? ? [] : item.values_at(*keycols)
     end
 
     public
