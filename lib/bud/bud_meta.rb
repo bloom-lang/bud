@@ -394,7 +394,7 @@ class BudMeta #:nodoc: all
     # delivered, and another to persist acks in the approx collection.
     key_ary = chn_coll.key_cols.map {|k| "c.#{k}"}
     install_rule(ack_name, "<~", [chn], [],
-                 "#{ack_name} <~ #{chn} {|c| [c.source_addr] + [#{key_ary.join(",")}]}", false)
+                 "#{ack_name} <~ #{chn} {|c| [c.source_addr, #{key_ary.join(",")}]}", false)
     install_rule(approx_name, "<=", [ack_name], [],
                  "#{approx_name} <= (#{ack_name}.payloads)", false)
 
