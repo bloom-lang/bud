@@ -221,6 +221,46 @@ class JoinRseNegationQualVariant
   end
 end
 
+class JoinRseSealedUseTwice
+  include Bud
+
+  state do
+    sealed :node, [:addr]
+    channel :ins_chn, [:@addr, :id]
+    channel :del_chn, [:@addr, :id]
+    table :ins_log, [:id]
+    table :del_log, [:id]
+  end
+
+  bloom do
+    ins_chn <~ (node * ins_log).pairs {|n,l| n + l}
+    del_chn <~ (node * del_log).pairs {|n,l| n + l}
+
+    ins_log <= ins_chn.payloads
+    del_log <= del_chn.payloads
+  end
+end
+
+class JoinRseUseTwice
+  include Bud
+
+  state do
+    sealed :node, [:addr, :epoch]
+    channel :ins_chn, [:@addr, :id] => [:epoch]
+    channel :del_chn, [:@addr, :id] => [:epoch]
+    table :ins_log, [:id] => [:epoch]
+    table :del_log, [:id] => [:epoch]
+  end
+
+  bloom do
+    ins_chn <~ (node * ins_log).pairs(:epoch => :epoch) {|n,l| n + l}
+    del_chn <~ (node * del_log).pairs(:epoch => :epoch) {|n,l| n + l}
+
+    ins_log <= ins_chn.payloads
+    del_log <= del_chn.payloads
+  end
+end
+
 class TestRse < MiniTest::Unit::TestCase
   def test_rse_simple
     s = RseSimple.new
@@ -421,6 +461,16 @@ class TestRse < MiniTest::Unit::TestCase
     j.res_approx <+ [["x", "bar", 1], ["y", "foo", 1], ["z", "bar", 2]]
     2.times { j.tick }
     assert_equal([[3, "c"]], j.sbuf.to_a.sort)
+  end
+
+  def test_rse_join_sealed_twice
+    j = JoinRseSealedUseTwice.new
+    j.tick
+  end
+
+  def test_rse_join_twice
+    j = JoinRseUseTwice.new
+    j.tick
   end
 end
 

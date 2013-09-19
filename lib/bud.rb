@@ -1088,8 +1088,8 @@ module Bud
       @lattices.each_value {|l| l.bootstrap}
 
       # Emit seal tuples for all the "sealed" collections, if a seal table
-      # happens to exist. Right now, we only create seal tables when they would
-      # be useful for RSE, but this can easily be changed.
+      # happens to exist. Right now, we create seal tables "lazily" when they
+      # would be useful for RSE, but that could easily be changed.
       @sealed_tables.each_key do |i|
         seal_name = "seal_#{i}".to_sym
         seal_tbl = @tables[seal_name]

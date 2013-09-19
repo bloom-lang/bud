@@ -686,23 +686,27 @@ class BudMeta #:nodoc: all
         rel_qual, orel_qual = q
       end
       seal_name = "seal_#{other_rel}_#{orel_qual}"
-      @bud_instance.table(seal_name.to_sym, [orel_qual.to_sym])
+      puts "RSE: #{rel} <- (#{rel} * #{seal_name})"
+      unless @bud_instance.tables.has_key? seal_name.to_sym
+        @bud_instance.table(seal_name.to_sym, [orel_qual.to_sym])
+      end
 
       rhs_text = "(#{rel} * #{seal_name}).lefts(:#{rel_qual} => :#{orel_qual}).notin(#{missing_buf}, #{qual_str})"
       rule_text = "#{rel} <- #{rhs_text}"
       install_rule(rel, "<-", [], [rel, seal_name, missing_buf], rule_text, true)
-      puts "RSE: #{rel} <- (#{rel} * #{seal_name})"
     end
 
     # Whole-relation seals; the column in the seal relation is ignored, but we
     # add a dummy column to avoid creating a collection with zero columns.
     seal_name = "seal_#{other_rel}"
-    @bud_instance.table(seal_name.to_sym, [:ignored])
+    puts "RSE: #{rel} <- (#{rel} * #{seal_name})"
+    unless @bud_instance.tables.has_key? seal_name.to_sym
+      @bud_instance.table(seal_name.to_sym, [:ignored])
+    end
 
     rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{qual_str})"
     rule_text = "#{rel} <- #{rhs_text}"
     install_rule(rel, "<-", [], [rel, seal_name, missing_buf], rule_text, true)
-    puts "RSE: #{rel} <- (#{rel} * #{seal_name})"
   end
 
   def check_simple_not(n)
