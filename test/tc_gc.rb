@@ -87,6 +87,8 @@ class RseRhsRef
     s2 <= t6.notin(t7)
     res <= t1.notin(t2)
 
+    # Other rules can have t1 on their RHS, provided they (a) are monotone (b)
+    # derive into a persistent table.
     t3 <= t1                                                    # identity
     t4 <= t1 {|t| [t.key + 100, t.val + 100] if t.key < 100}    # sel, proj
 
@@ -112,6 +114,9 @@ class RseRhsRefBad
     table :t7
     table :t8
     table :t9
+    table :t10
+    table :t11
+    table :t12
     scratch :out
     scratch :some_event
     scratch :res
@@ -127,12 +132,16 @@ class RseRhsRefBad
     res <= t4.notin(t5)
     t6 <= t4.group(nil, count)
 
+    # Reference as the outer (NM) operand to a notin
+    res <= t7.notin(t8)
+    t9 <= t10.notin(t7)
+
     # Dataflow reaches both a persistent and a transient-output collection. We
     # don't want to delete from t7 in this circumstance, because we regard the
     # content of "output" as needing to be preserved.
-    res <= t7.notin(t8)
-    t9 <= t7
-    out <= t7
+    res <= t11.notin(t12)
+    t9 <= t11
+    out <= t11
   end
 end
 
@@ -342,11 +351,14 @@ class TestRse < MiniTest::Unit::TestCase
     s.t5 <+ [[2, 2], [3, 3]]
     s.t7 <+ [[1, 1], [2, 2]]
     s.t8 <+ [[2, 2], [3, 3]]
+    s.t11 <+ [[1, 1], [2, 2]]
+    s.t12 <+ [[2, 2], [3, 3]]
     2.times { s.tick }
 
     assert_equal([[1, 1], [2, 2]], s.t1.to_a.sort)
     assert_equal([[1, 1], [2, 2]], s.t4.to_a.sort)
     assert_equal([[1, 1], [2, 2]], s.t7.to_a.sort)
+    assert_equal([[1, 1], [2, 2]], s.t11.to_a.sort)
   end
 
   def test_join_rse
