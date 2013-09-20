@@ -500,6 +500,10 @@ class BudMeta #:nodoc: all
   # tables. This is a bit weird, because the user is inserting into tables that
   # they haven't explicitly created.
   #
+  # NB: we actually don't need to consider the LHS collection of the rule that
+  # we apply RSE to -- i.e., given Z <= X.notin(Y), it doesn't matter whether Z
+  # is persistent/is deleted from/etc.
+  #
   # TODO:
   #   * support persistent scratches (defined via monotone rules)
   #   * support projection/selection in addition to join

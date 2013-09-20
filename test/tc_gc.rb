@@ -43,6 +43,24 @@ class RseDoubleNeg
   end
 end
 
+# We can apply RSE to a rule even if the LHS collection of the rule is deleted
+# from (or isn't persistent in the first place).
+class RseDeleteDownstream
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    scratch :some_event
+  end
+
+  bloom do
+    t1 <= t2.notin(t3)
+    t1 <- some_event
+  end
+end
+
 # Situations where a reference to the reclaimed relation on the RHS of a rule
 # SHOULD NOT prohibit RSE.
 class RseRhsRef
@@ -296,6 +314,15 @@ class TestRse < MiniTest::Unit::TestCase
 
     assert_equal([[1, 1]], s.t1.to_a.sort)
     assert_equal([[1, 1]], s.t2.to_a.sort)
+  end
+
+  def test_rse_delete_downstream
+    s = RseDeleteDownstream.new
+    s.t2 <+ [[5, 10], [6, 11]]
+    s.t3 <+ [[5, 10]]
+    2.times { s.tick }
+
+    assert_equal([[6, 11]], s.t2.to_a.sort)
   end
 
   def test_rse_rhs_ref
