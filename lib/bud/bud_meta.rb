@@ -536,13 +536,14 @@ class BudMeta #:nodoc: all
     parser = RubyParser.for_current_ruby rescue RubyParser.new
     simple_nots = Set.new
     join_nots = Set.new
+    simple_work = Set.new       # simple negations to reclaim from
+    join_work = Set.new         # pairs of [join_neg, rels] to reclaim from
 
-    # RSE dependencies: to reclaim from X, the RSE clauses of n different rules
-    # all need to be satisfied. Hence, we use a separate Bloom collection to
-    # represent each of the rules' RSE conditions, and then an additional rule
-    # that intersects all the conditions. The "deps" map associates each
-    # relation we want to reclaim from with a list of rule IDs whose RSE
-    # condition must be satisfied.
+    # RSE dependencies: to reclaim from X, the RSE clauses of multiple rules may
+    # need to be satisfied. Hence, we use a separate collection to represent
+    # each of the rules' RSE conditions, and then an additional rule that
+    # intersects all the conditions. This map associates each rel we want to
+    # reclaim from with a set of rule IDs whose RSE condition must be satisfied.
     deps = {}
 
     # If there is any rule that means we can't reclaim from a relation, we can't
@@ -559,22 +560,10 @@ class BudMeta #:nodoc: all
     end
 
     simple_nots.each do |neg|
-      unless check_simple_not(neg)
-        unsafe_rels << neg.inner
-        next
-      end
-
-      del_tbl_name = create_del_table(neg.inner, neg.rule_id, deps)
-
-      # Install a rule to compute the RSE condition for this negation. If the
-      # source negation operator has any quals, we install a join on the same
-      # quals; otherwise, we can simply delete from X when a tuple appears in Y.
-      if neg.quals.empty?
-        install_rule(del_tbl_name, "<=", [neg.outer], [],
-                     "#{del_tbl_name} <= #{neg.outer}", true)
+      if check_simple_not(neg)
+        simple_work << neg
       else
-        install_rule(del_tbl_name, "<=", [neg.inner, neg.outer], [],
-                     "#{del_tbl_name} <= (#{neg.inner} * #{neg.outer}).lefts(#{neg.quals})", true)
+        unsafe_rels << neg.inner
       end
     end
 
@@ -595,9 +584,28 @@ class BudMeta #:nodoc: all
     #      in the negation.
     join_nots.each do |neg|
       do_rels, skip_rels = check_join_not(neg)
-      skip_rels.each do |r|
-        unsafe_rels << r
+      unsafe_rels.merge(skip_rels)
+      join_work << [neg, do_rels] unless do_rels.empty?
+    end
+
+    simple_work.each do |neg|
+      next if unsafe_rels.include? neg.inner
+      del_tbl_name = create_del_table(neg.inner, neg.rule_id, deps)
+
+      # Install a rule to compute the RSE condition for this negation. If the
+      # source negation operator has any quals, we install a join on the same
+      # quals; otherwise, we can simply delete from X when a tuple appears in Y.
+      if neg.quals.empty?
+        install_rule(del_tbl_name, "<=", [neg.outer], [],
+                     "#{del_tbl_name} <= #{neg.outer}", true)
+      else
+        install_rule(del_tbl_name, "<=", [neg.inner, neg.outer], [],
+                     "#{del_tbl_name} <= (#{neg.inner} * #{neg.outer}).lefts(#{neg.quals})", true)
       end
+    end
+
+    join_work.each do |neg, work_rels|
+      do_rels = work_rels.reject {|r| unsafe_rels.include? r}
       next if do_rels.empty?
 
       join_buf = create_join_buf(neg)
@@ -614,6 +622,7 @@ class BudMeta #:nodoc: all
     # appear in an unsafe context.
     deps.each_pair do |lhs,v|
       next if unsafe_rels.include? lhs
+
       rule_text = "#{lhs} <- "
       if v.length == 1
         rule_text << "#{v.first}"
