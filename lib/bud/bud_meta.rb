@@ -484,11 +484,22 @@ class BudMeta #:nodoc: all
   # where both X and Y are persistent collections, X does not appear on the RHS
   # of any other rules, and Y does not appear on the LHS of a deletion rule.
   # Hence, when a new tuple appears in Y, the matching tuples in X can be
-  # reclaimed (=> physically deleted). We extend this analysis to handle an
-  # additional case that is important in practice: we allow X = (A*B), where A
-  # and B are both persistent collections. In order to reclaim tuples from A, we
-  # need a seal on B (that matches the join predicate); vice versa for
-  # reclaiming tuples from B.
+  # reclaimed (=> physically deleted). We extend this analysis to handle several
+  # additional cases that are important in practice:
+  #
+  #    (1) We allow X = (A*B), where A and B are both persistent collections. In
+  #        order to reclaim tuples from A, we need a seal on B (that matches the
+  #        join predicate); vice versa for reclaiming tuples from B.
+  #
+  #    (2) We allow X to appear on the RHS of other rules, provided it does so
+  #        in a safe way. For example, Z <= X does not prevent RSE for X tuples,
+  #        provided Z is persistent (i.e., either it is a table that is not the
+  #        LHS of any delete rules, or it is a scratch and all downstream paths
+  #        are persistent). X cannot be referenced in a non-monotonic context
+  #        (e.g., Z <= X.group(...), or Z <= T.notin(X)). When X is referenced
+  #        in _another_ context in which RSE is applicable (e.g., Z <=
+  #        X.notin(T)), we only want to reclaim X when the _intersection_ of the
+  #        two RSE conditions is satisfied.
   #
   # RSE reclaimation is implemented by installing a set of rules (and associated
   # state) that identifies and removes redundant tuples.
@@ -500,14 +511,17 @@ class BudMeta #:nodoc: all
   # tables. This is a bit weird, because the user is inserting into tables that
   # they haven't explicitly created.
   #
+  # To handle dependent RSE conditions (see #2 above), we track the dependencies
+  # between the individual RSE conditions, and then install a rule that does the
+  # deletion when all the conditions are satisfied for a given tuple.
+  #
   # NB: we actually don't need to consider the LHS collection of the rule that
   # we apply RSE to -- i.e., given Z <= X.notin(Y), it doesn't matter whether Z
   # is persistent/is deleted from/etc.
   #
   # TODO:
   #   * support persistent scratches (defined via monotone rules)
-  #   * support projection/selection in addition to join
-  #   * allow RHS references to reclaim rel when safe
+  #   * support projection/selection for X, in addition to join
   #   * refactor: rewrite joins to materialize as a temp rel
   #
   # LOW PRIORITY:
@@ -523,6 +537,18 @@ class BudMeta #:nodoc: all
     simple_nots = Set.new
     join_nots = Set.new
 
+    # RSE dependencies: to reclaim from X, the RSE clauses of n different rules
+    # all need to be satisfied. Hence, we use a separate Bloom collection to
+    # represent each of the rules' RSE conditions, and then an additional rule
+    # that intersects all the conditions. The "deps" map associates each
+    # relation we want to reclaim from with a list of rule IDs whose RSE
+    # condition must be satisfied.
+    deps = {}
+
+    # If there is any rule that means we can't reclaim from a relation, we can't
+    # reclaim from that relation for other rules either.
+    unsafe_rels = Set.new
+
     # XXX: we reparse all the rules here, which is unfortunate
     bud.t_rules.each do |r|
       ast = parser.parse(r.orig_src)
@@ -533,20 +559,22 @@ class BudMeta #:nodoc: all
     end
 
     simple_nots.each do |neg|
-      next unless check_simple_not(neg)
+      unless check_simple_not(neg)
+        unsafe_rels << neg.inner
+        next
+      end
 
-      puts "RSE: #{neg.inner} <- #{neg.outer}"
+      del_tbl_name = create_del_table(neg.inner, neg.rule_id, deps)
 
-      # Install deletion rule. If the source negation operator has any quals,
-      # we install a join on the same quals; otherwise, we can simply delete
-      # from X when a tuple appears in Y.
+      # Install a rule to compute the RSE condition for this negation. If the
+      # source negation operator has any quals, we install a join on the same
+      # quals; otherwise, we can simply delete from X when a tuple appears in Y.
       if neg.quals.empty?
-        install_rule(neg.inner, "<-", [], [neg.outer],
-                     "#{neg.inner} <- #{neg.outer}", true)
+        install_rule(del_tbl_name, "<=", [neg.outer], [],
+                     "#{del_tbl_name} <= #{neg.outer}", true)
       else
-        install_rule(neg.inner, "<-", [], [neg.inner, neg.outer],
-                     "#{neg.inner} <- (#{neg.inner} * #{neg.outer}).lefts(#{neg.quals})",
-                     true)
+        install_rule(del_tbl_name, "<=", [neg.inner, neg.outer], [],
+                     "#{del_tbl_name} <= (#{neg.inner} * #{neg.outer}).lefts(#{neg.quals})", true)
       end
     end
 
@@ -563,19 +591,75 @@ class BudMeta #:nodoc: all
     #
     #    * For each collection c we can reclaim from, install deletion rules
     #      that reclaim tuples when (a) there is a seal on c' that matches the
-    #      join key (b) all the tuples in a given seal group have appeared in
-    #      the negation.
+    #      join key, and (b) all the tuples in a given seal group have appeared
+    #      in the negation.
     join_nots.each do |neg|
-      next unless check_neg_outer(neg.outer)
-
-      do_rels = neg.join_rels.select {|r| check_neg_inner(r, neg.rule_id, neg.bud_obj)}
+      do_rels, skip_rels = check_join_not(neg)
+      skip_rels.each do |r|
+        unsafe_rels << r
+      end
       next if do_rels.empty?
 
       join_buf = create_join_buf(neg)
       missing_buf = create_missing_buf(neg, join_buf)
 
-      do_rels.each {|r| create_del_rules(neg, r, missing_buf)}
+      do_rels.each do |r|
+        del_tbl_name = create_del_table(r, neg.rule_id, deps)
+        create_del_rules(neg, r, missing_buf, del_tbl_name)
+      end
     end
+
+    # Finally, install a rule that deletes a tuple from a table when that tuple
+    # appears in _all_ of the table's dependencies, as long as the table doesn't
+    # appear in an unsafe context.
+    deps.each_pair do |lhs,v|
+      next if unsafe_rels.include? lhs
+      rule_text = "#{lhs} <- "
+      if v.length == 1
+        rule_text << "#{v.first}"
+      else
+        rule_text << "(#{v.to_a.sort.join(' * ')}).matches "
+        block_args = []
+        v.to_a.sort.each_with_index {|a,i| block_args << "t#{i}"}
+        rule_text << "{|#{block_args.join(',')}| t0}"
+      end
+
+      install_rule(lhs, "<-", [], v.to_a.sort, rule_text, true)
+    end
+  end
+
+  def check_join_not(jneg)
+    do_rels = Set.new
+    skip_rels = jneg.join_rels.to_set
+
+    if check_neg_outer(jneg.outer)
+      jneg.join_rels.each do |r|
+        if check_neg_inner(r, jneg.rule_id, jneg.bud_obj)
+          do_rels << r
+          skip_rels.delete(r)
+        end
+      end
+    end
+
+    return do_rels, skip_rels
+  end
+
+  # For each _rule_, we create a scratch to identify when the RSE condition for
+  # that rule has been satisfied. Note that we only create one table per rule;
+  # if there are multiple negations chained together into a single rule
+  # (x.notin(y).notin(z)), we can reclaim from x when EITHER y or z is
+  # satisfied -- so we create a single scratch for the rule.
+  def create_del_table(inner, rule_id, deps)
+    tbl_name = "del_#{inner}_#{rule_id}"
+    deps[inner] ||= Set.new
+    deps[inner] << tbl_name
+
+    inner_tbl = @bud_instance.tables[inner]
+    unless @bud_instance.tables.has_key? tbl_name.to_sym
+      @bud_instance.scratch(tbl_name.to_sym, inner_tbl.schema)
+    end
+
+    return tbl_name
   end
 
   def create_join_buf(jneg)
@@ -669,7 +753,7 @@ class BudMeta #:nodoc: all
   # involves "rel". We can make use of seals on each of the join qualifiers,
   # plus "whole-relation" seals (i.e., seals that guarantee that one of the join
   # input collections cannot grow in the future).
-  def create_del_rules(jneg, rel, missing_buf)
+  def create_del_rules(jneg, rel, missing_buf, del_tbl_name)
     if rel == jneg.join_rels.first
       other_rel = jneg.join_rels.last
     else
@@ -690,27 +774,25 @@ class BudMeta #:nodoc: all
         rel_qual, orel_qual = q
       end
       seal_name = "seal_#{other_rel}_#{orel_qual}"
-      puts "RSE: #{rel} <- (#{rel} * #{seal_name})"
       unless @bud_instance.tables.has_key? seal_name.to_sym
         @bud_instance.table(seal_name.to_sym, [orel_qual.to_sym])
       end
 
       rhs_text = "(#{rel} * #{seal_name}).lefts(:#{rel_qual} => :#{orel_qual}).notin(#{missing_buf}, #{qual_str})"
-      rule_text = "#{rel} <- #{rhs_text}"
-      install_rule(rel, "<-", [], [rel, seal_name, missing_buf], rule_text, true)
+      rule_text = "#{del_tbl_name} <= #{rhs_text}"
+      install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
     end
 
     # Whole-relation seals; the column in the seal relation is ignored, but we
     # add a dummy column to avoid creating a collection with zero columns.
     seal_name = "seal_#{other_rel}"
-    puts "RSE: #{rel} <- (#{rel} * #{seal_name})"
     unless @bud_instance.tables.has_key? seal_name.to_sym
       @bud_instance.table(seal_name.to_sym, [:ignored])
     end
 
     rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{qual_str})"
-    rule_text = "#{rel} <- #{rhs_text}"
-    install_rule(rel, "<-", [], [rel, seal_name, missing_buf], rule_text, true)
+    rule_text = "#{del_tbl_name} <= #{rhs_text}"
+    install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
   end
 
   def check_simple_not(n)
@@ -729,11 +811,20 @@ class BudMeta #:nodoc: all
     # Consider all the collections whose contents are derived (directly or
     # indirectly) from the inner operand to the notin. For each such dependency,
     # we want to check that reclaiming tuples from the inner operand is
-    # "safe". Given X.notin(Y), a RHS reference to X is safe when:
+    # "safe". Given X.notin(Y), consider a RHS reference to X:
     #
-    # Z <= X { ... }
+    # R <= X { ... }
     #
-    # And Z is either "safe" (recursively) or directly persistent.
+    # This is safe when the rule is monotonic and R is either "safe"
+    # (recursively) or directly persisted. As a special-case, we allow X to be
+    # the inner operand to another negation expression:
+    #
+    # R1 <= X.notin(Y)
+    # R2 <= X.notin(Z)
+    #
+    # If R2 is also a candidate for RSE, we can reclaim X tuples when _both_ RSE
+    # conditions are satisfied. If R2 is not a candidate for RSE, we can't
+    # reclaim from X.
     @bud_instance.t_depends.each do |d|
       next if d.rule_id == rule_id and d.bud_obj == bud_obj
       if d.body == rel.to_s
@@ -748,7 +839,6 @@ class BudMeta #:nodoc: all
     return false if ref_depend.nm or ref_depend.in_body
 
     # XXX: check for joins
-    # XXX: allow rel to be the inner operand to a negation
 
     dependee = ref_depend.lhs.to_sym
     return false if is_deleted_tbl(dependee)
@@ -832,15 +922,19 @@ class BudMeta #:nodoc: all
     def process_call(exp)
       _, recv, meth, *args = exp
 
-      collect_notin(recv, args) if meth == :notin
-
-      process(recv) unless recv.nil?
-      args.each {|a| process(a)}
+      if meth == :notin
+        collect_notin(exp)
+      else
+        process(recv) unless recv.nil?
+        args.each {|a| process(a)}
+      end
 
       exp
     end
 
-    def collect_notin(recv, args)
+    def collect_notin(exp)
+      _, recv, meth, *args = exp
+
       # Skip this notin if it has a code block (i.e., an iter that immediately
       # surrounds the notin's :call node).
       return if @context[1] == :iter
@@ -853,22 +947,27 @@ class BudMeta #:nodoc: all
 
       # We support two kinds of "simple" negations: the inner operand can either
       # be a collection (referenced directly), or another notin expression.
-      return unless recv.sexp_type == :call
-      _, r_recv, r_meth, r_args = recv
-      if r_recv.nil? and r_args.nil?
-        # Inner operand is a direct reference to a collection
-        inner = r_meth
-      elsif r_meth == :notin
-        _, nested_recv, nested_meth, nested_args = r_recv
-        return unless nested_recv.nil?
-        inner = nested_meth
-      else
-        return
+      outer_info = []
+      while true
+        if recv.nil? and args.empty?
+          inner = meth
+          break
+        elsif meth == :notin
+          outer, quals = collect_notin_args(args)
+          outer_info << [outer, quals]
+
+          return unless recv.sexp_type == :call
+          _, recv, meth, *args = recv
+        else
+          return
+        end
       end
 
-      outer, quals = collect_notin_args(args)
-      @simple_nots << SimpleNot.new(inner, outer, quals,
-                                    @rule.rule_id, @rule.bud_obj)
+      outer_info.each do |o|
+        outer, quals = o
+        @simple_nots << SimpleNot.new(inner, outer, quals,
+                                      @rule.rule_id, @rule.bud_obj)
+      end
     end
 
     def collect_notin_args(args)

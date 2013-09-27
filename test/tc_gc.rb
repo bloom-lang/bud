@@ -28,18 +28,71 @@ class RseQual
   end
 end
 
-class RseDoubleNeg
+class RseChainedNeg
   include Bud
 
   state do
+    table :t0
     table :t1
     table :t2
     table :t3
     table :t4
+    table :t5
+    table :t6
   end
 
   bloom do
-    t1 <= t2.notin(t3).notin(t4)
+    # We can reclaim a tuple if it appears in t6 AND (t3 OR t4 OR r5)
+    t0 <= t2.notin(t3).notin(t4).notin(t5)
+    t1 <= t2.notin(t6)
+  end
+end
+
+class RseNegateIntersect
+  include Bud
+
+  state do
+    table :res1
+    table :res2
+    table :res3
+    table :res4
+    table :t2
+    table :t3
+    table :t4
+    table :t5
+    table :t6
+  end
+
+  bloom do
+    # We can reclaim t2 tuples when they appear in _all of_ t3, t4, t5, and t6.
+    res1 <= t2.notin(t3)
+    res2 <= t2.notin(t4)
+    res3 <= t2.notin(t5)
+    res4 <= t2.notin(t6)
+  end
+end
+
+# Check that we don't try to apply RSE on relation t if t appears in 1+ legal
+# contexts and at least one illegal context.
+class RseNegateIntersectDelete
+  include Bud
+
+  state do
+    table :res1
+    table :res2
+    table :res3
+    table :t2
+    table :t3
+    table :t4
+    table :t5
+    scratch :some_event
+  end
+
+  bloom do
+    res1 <= t2.notin(t3)        # Okay
+    res2 <= t2.notin(t4)        # Okay
+    res3 <= t2.notin(t5)        # Not okay because t5 is deleted from
+    t5 <- some_event
   end
 end
 
@@ -288,6 +341,33 @@ class JoinRseUseTwice
   end
 end
 
+# Given sealed collection n that appears in two RSE-eligible join rules:
+#
+#   (n * # r).pairs.notin(...)
+#   (n * s).pairs.notin(...)
+#
+# We only want to reclaim from n when we see seals for _both_ r and s.
+# Naturally, the two joins might have different quals (and hence different
+# sealing conditions).
+class JoinRseSealDoubleReclaim
+  include Bud
+
+  state do
+    sealed :node, [:addr, :epoch_x, :epoch_y]
+    table :x_log, [:id, :epoch]
+    table :y_log, [:id, :epoch]
+    table :x_res, [:addr, :epoch_x, :epoch_y, :id, :epoch]
+    table :y_res, x_res.schema
+    table :x_res_approx, x_res.schema
+    table :y_res_approx, x_res.schema
+  end
+
+  bloom do
+    x_res <= ((node * x_log).pairs(:epoch_x => :epoch) {|n,x| n + x}).notin(x_res_approx)
+    y_res <= ((node * y_log).pairs(:epoch_y => :epoch) {|n,y| n + y}).notin(y_res_approx)
+  end
+end
+
 class TestRse < MiniTest::Unit::TestCase
   def test_rse_simple
     s = RseSimple.new
@@ -314,15 +394,67 @@ class TestRse < MiniTest::Unit::TestCase
     assert_equal([[3, 6]], s.sbuf.to_a.sort)
   end
 
-  def test_rse_double_neg
-    s = RseDoubleNeg.new
+  def test_rse_chained_neg
+    s = RseChainedNeg.new
     s.t2 <+ [[1, 1], [2, 2], [3, 3]]
     s.t3 <+ [[2, 2]]
     s.t4 <+ [[3, 3]]
+    s.t6 <+ [[2, 2], [3, 3]]
     2.times { s.tick }
 
-    assert_equal([[1, 1]], s.t1.to_a.sort)
     assert_equal([[1, 1]], s.t2.to_a.sort)
+
+    s.t2 <+ [[4, 4], [5, 5]]
+    s.t5 <+ [[4, 4]]
+    2.times { s.tick }
+
+    assert_equal([[1, 1], [4, 4], [5, 5]], s.t2.to_a.sort)
+
+    s.t2 <+ [[6, 6]]
+    s.t3 <+ [[5, 5], [6, 6]]
+    s.t6 <+ [[4, 4], [5, 5]]
+    2.times { s.tick }
+
+    assert_equal([[1, 1], [6, 6]], s.t2.to_a.sort)
+  end
+
+  def test_rse_negate_intersect
+    s = RseNegateIntersect.new
+    s.t2 <+ [[5, 10], [6, 11], [7, 12]]
+    s.t3 <+ [[5, 10], [7, 12]]
+    s.t4 <+ [[6, 11]]
+    s.t5 <+ [[7, 12], [6, 11]]
+    s.t6 <+ [[7, 12], [5, 10]]
+    2.times { s.tick }
+
+    assert_equal([[5, 10], [6, 11], [7, 12]], s.t2.to_a.sort)
+
+    s.t2 <+ [[8, 13], [9, 14]]
+    s.t3 <+ [[6, 11], [8, 13]]
+    s.t4 <+ [[5, 10], [8, 13]]
+    s.t5 <+ [[5, 10], [8, 13]]
+    s.t6 <+ [[6, 11], [8, 13]]
+    2.times { s.tick }
+
+    assert_equal([[7, 12], [9, 14]], s.t2.to_a.sort)
+  end
+
+  def test_rse_negate_intersect_del
+    s = RseNegateIntersectDelete.new
+    s.t2 <+ [[5, 10], [6, 11], [7, 12]]
+    s.t3 <+ [[5, 10]]
+    s.t4 <+ [[6, 11]]
+    s.t5 <+ [[7, 12]]
+    2.times { s.tick }
+
+    assert_equal([[5, 10], [6, 11], [7, 12]], s.t2.to_a.sort)
+
+    s.t3 <+ [[6, 11], [7, 12]]
+    s.t4 <+ [[5, 10], [7, 12]]
+    s.t4 <+ [[5, 10], [6, 11]]
+    2.times { s.tick }
+
+    assert_equal([[5, 10], [6, 11], [7, 12]], s.t2.to_a.sort)
   end
 
   def test_rse_delete_downstream
@@ -510,6 +642,38 @@ class TestRse < MiniTest::Unit::TestCase
   def test_rse_join_twice
     j = JoinRseUseTwice.new
     j.tick
+  end
+
+  def test_rse_join_twice_reclaim_from_sealed
+    j = JoinRseSealDoubleReclaim.new
+    j.node <+ [["foo", "a", 1], ["bar", "a", 1],
+               ["foo", "b", 1], ["bar", "c", 2]]
+    j.tick
+
+    j.x_log <+ [[100, "a"], [101, "b"]]
+    j.tick
+
+    assert_equal([["foo", "a", 1, 100, "a"],
+                  ["foo", "b", 1, 101, "b"],
+                  ["bar", "a", 1, 100, "a"]].sort,
+                 j.x_res.to_a.sort)
+
+    j.x_res_approx <+ [["foo", "a", 1, 100, "a"],
+                       ["foo", "b", 1, 101, "b"]]
+    2.times { j.tick }
+
+    # x_log message 101 has been delivered to all the nodes in x_epoch "b" (just
+    # "foo"); x_log message 100 hasn't been delivered to "bar" in x_epoch "a".
+    assert_equal([[100, "a"]], j.x_log.to_a.sort)
+
+    # There will be no more x_log messages in x_epoch "b" -- BUT, since there
+    # might still be y_log messages in y_epoch 1, we can't GC the node fact for
+    # x_epoch "b".
+    j.seal_x_log_epoch <+ [["b"]]
+    2.times { j.tick }
+
+    assert_equal([["foo", "a", 1], ["bar", "a", 1],
+                  ["foo", "b", 1], ["bar", "c", 2]].sort, j.node.to_a.sort)
   end
 end
 
