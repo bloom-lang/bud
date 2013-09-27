@@ -114,6 +114,23 @@ class RseDeleteDownstream
   end
 end
 
+class RseNegateScratchLhsBad
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    scratch :r1
+    scratch :r2
+    scratch :r3
+  end
+
+  bloom do
+    r1 <= t1.notin(t2)
+    r2 <= t1.notin(r3)
+  end
+end
+
 # Situations where a reference to the reclaimed relation on the RHS of a rule
 # SHOULD NOT prohibit RSE.
 class RseRhsRef
@@ -464,6 +481,18 @@ class TestRse < MiniTest::Unit::TestCase
     2.times { s.tick }
 
     assert_equal([[6, 11]], s.t2.to_a.sort)
+  end
+
+  def test_rse_negate_scratch_lhs_bad
+    s = RseNegateScratchLhsBad.new
+    s.t1 <+ [[5, 10], [6, 11]]
+    s.t2 <+ [[6, 11]]
+    2.times do
+      s.r3 <+ [[6, 11]]
+      s.tick
+    end
+
+    assert_equal([[5, 10], [6, 11]], s.t1.to_a.sort)
   end
 
   def test_rse_rhs_ref
