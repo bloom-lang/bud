@@ -114,6 +114,26 @@ class RseDeleteDownstream
   end
 end
 
+class RseNegateScratchLhs
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    scratch :r1
+    scratch :r2
+  end
+
+  bloom do
+    # Despite the fact that r2 is not persistent, we can reclaim t1 tuples once
+    # they appear in both t2 and t3 -- because r2 is derived from t1 via
+    # negating t1 against t3.
+    r1 <= t1.notin(t2)
+    r2 <= t1.notin(t3)
+  end
+end
+
 class RseNegateScratchLhsBad
   include Bud
 
@@ -128,6 +148,42 @@ class RseNegateScratchLhsBad
   bloom do
     r1 <= t1.notin(t2)
     r2 <= t1.notin(r3)
+  end
+end
+
+class RseNegateScratchLhsBad2
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    scratch :r1
+    scratch :r2
+    scratch :r3
+  end
+
+  bloom do
+    r1 <= t1.notin(t2)
+    r2 <= t1.notin(t3).notin(r3)
+  end
+end
+
+class RseNegateScratchLhsBad3
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    scratch :r1
+    scratch :r2
+  end
+
+  bloom do
+    # We can't reclaim from t1, because that would cause r2 to shrink -- and we
+    # regard r2 as potentially an "output" collection.
+    r1 <= t1.notin(t2)
+    r2 <= t1
   end
 end
 
@@ -483,14 +539,43 @@ class TestRse < MiniTest::Unit::TestCase
     assert_equal([[6, 11]], s.t2.to_a.sort)
   end
 
+  def test_rse_negate_scratch_lhs
+    s = RseNegateScratchLhs.new
+    s.t1 <+ [[5, 10], [6, 11]]
+    s.t2 <+ [[6, 11]]
+    s.t3 <+ [[6, 11]]
+    2.times { s.tick }
+
+    assert_equal([[5, 10]], s.t1.to_a.sort)
+  end
+
   def test_rse_negate_scratch_lhs_bad
     s = RseNegateScratchLhsBad.new
     s.t1 <+ [[5, 10], [6, 11]]
     s.t2 <+ [[6, 11]]
+    2.times { s.tick }
+
+    assert_equal([[5, 10], [6, 11]], s.t1.to_a.sort)
+  end
+
+  def test_rse_negate_scratch_lhs_bad2
+    s = RseNegateScratchLhsBad2.new
+    s.t1 <+ [[5, 10], [6, 11]]
+    s.t2 <+ [[6, 11]]
+    s.t3 <+ [[6, 11]]
     2.times do
       s.r3 <+ [[6, 11]]
       s.tick
     end
+
+    assert_equal([[5, 10], [6, 11]], s.t1.to_a.sort)
+  end
+
+  def test_rse_negate_scratch_lhs_bad3
+    s = RseNegateScratchLhsBad3.new
+    s.t1 <+ [[5, 10], [6, 11]]
+    s.t2 <+ [[6, 11]]
+    2.times { s.tick }
 
     assert_equal([[5, 10], [6, 11]], s.t1.to_a.sort)
   end

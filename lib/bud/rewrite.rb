@@ -21,6 +21,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     @depends = []
     @iter_stack = []
     @refs_in_body = Set.new
+    @notin_pos_refs = Set.new
     super()
   end
 
@@ -143,6 +144,18 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       end
       notintab = call_to_id(args[0])   # args expected to be of the form (:call nil :y ...)
       @tables[notintab.to_s] = true    # "true" denotes non-monotonic dependency
+
+      # Record that "x" above is positively referenced by a notin. This
+      # information is useful for RSE. We only bother with this when the notin
+      # receiver is a simple collection.
+      if recv.sexp_type == :call
+        _, r_recv, r_meth, *r_args = recv
+
+        if r_recv.nil? and r_args.empty?
+          @notin_pos_refs << r_meth.to_s
+        end
+      end
+
       super
     else
       # Parse a call of the form a.b.c.foo
@@ -230,6 +243,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   def reset_instance_vars
+    @notin_pos_refs = Set.new
     @refs_in_body = Set.new
     @tables = {}
     @nm = false
@@ -249,7 +263,9 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
                rule_txt_orig, unsafe_funcs_called, false]
     @tables.each_pair do |t, nm|
       in_rule_body = @refs_in_body.include? t
-      @depends << [@bud_instance, @rule_idx, lhs, op, t, nm, in_rule_body]
+      notin_pos_ref = @notin_pos_refs.include? t
+      @depends << [@bud_instance, @rule_idx, lhs, op, t, nm,
+                   in_rule_body, notin_pos_ref]
     end
 
     reset_instance_vars

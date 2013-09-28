@@ -411,8 +411,10 @@ class BudMeta #:nodoc: all
     rule.orig_src = append_notin(rule.orig_src, approx_name, approx_schema)
 
     # Add NM dependency between lhs and approx collection
+    # XXX: we should also the dependencies between rule lhs and the left
+    # ("positive") input to the notin, to mark notin_pos_ref=true.
     depends_tup = [rule.bud_obj, rule.rule_id, rule.lhs, rule.op,
-                   approx_name, true, false]
+                   approx_name, true, false, false]
     @bud_instance.t_depends << depends_tup
 
     # This is a bit gross: if the rule is defined inside an imported module (and
@@ -473,7 +475,8 @@ class BudMeta #:nodoc: all
     [rhs_rels, rhs_nm_rels].each do |ary|
       is_nm = (ary == rhs_nm_rels)
       ary.each do |r|
-        depends_tup = [@bud_instance, @rule_idx, lhs.to_s, op, r.to_s, is_nm, false]
+        depends_tup = [@bud_instance, @rule_idx, lhs.to_s, op, r.to_s,
+                       is_nm, false, false]
         @bud_instance.t_depends << depends_tup
       end
     end
@@ -567,21 +570,6 @@ class BudMeta #:nodoc: all
       end
     end
 
-    # When the inner input to the negation is a join, proceed as follows:
-    #    * For each join input, check whether we can reclaim from that input
-    #      (e.g., input is persistent and not referenced on the RHS of another
-    #      rule). Stop if neither input can be reclaimed.
-    #
-    #    * Create a scratch collection to hold join tuples that have appeared in
-    #      the negation.
-    #
-    #    * Create a scratch collection to identify join results that have not
-    #      yet appeared in the negation
-    #
-    #    * For each collection c we can reclaim from, install deletion rules
-    #      that reclaim tuples when (a) there is a seal on c' that matches the
-    #      join key, and (b) all the tuples in a given seal group have appeared
-    #      in the negation.
     join_nots.each do |neg|
       do_rels, skip_rels = check_join_not(neg)
       unsafe_rels.merge(skip_rels)
@@ -608,6 +596,17 @@ class BudMeta #:nodoc: all
       do_rels = work_rels.reject {|r| unsafe_rels.include? r}
       next if do_rels.empty?
 
+      # When the inner input to the negation is a join, proceed as follows:
+      #    * Create a scratch collection to hold join output tuples that have
+      #      appeared in the negation.
+      #
+      #    * Create a scratch collection to identify join outputs that have not
+      #      yet appeared in the negation
+      #
+      #    * For each collection c we can reclaim from, install deletion rules
+      #      that reclaim tuples when (a) there is a seal on c' that matches the
+      #      join key, and (b) all the tuples in a given seal group have
+      #      appeared in the negation.
       join_buf = create_join_buf(neg)
       missing_buf = create_missing_buf(neg, join_buf)
 
@@ -825,15 +824,7 @@ class BudMeta #:nodoc: all
     # R <= X { ... }
     #
     # This is safe when the rule is monotonic and R is either "safe"
-    # (recursively) or directly persisted. As a special-case, we allow X to be
-    # the inner operand to another negation expression:
-    #
-    # R1 <= X.notin(Y)
-    # R2 <= X.notin(Z)
-    #
-    # If R2 is also a candidate for RSE, we can reclaim X tuples when _both_ RSE
-    # conditions are satisfied. If R2 is not a candidate for RSE, we can't
-    # reclaim from X.
+    # (recursively) or directly persisted.
     @bud_instance.t_depends.each do |d|
       next if d.rule_id == rule_id and d.bud_obj == bud_obj
       if d.body == rel.to_s
@@ -852,7 +843,10 @@ class BudMeta #:nodoc: all
     dependee = ref_depend.lhs.to_sym
     return false if is_deleted_tbl(dependee)
     return true if is_persistent_tbl(dependee)
+    return true if ref_depend.notin_pos_ref
 
+    # If the LHS of a rule that references "rel" is not persistent, we need to
+    # determine whether the LHS is "safe".
     saw_ref = false
     @bud_instance.t_depends.each do |d|
       if d.body == dependee.to_s
