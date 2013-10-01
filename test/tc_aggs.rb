@@ -263,8 +263,10 @@ class TestAggs < MiniTest::Unit::TestCase
   def test_tied_paths
     program = TiedPaths.new
     program.tick
-    assert_equal([["a", "c", "c", 2], ["b", "c", "c", 1], ["a", "b", "b", 1]].sort, program.shortest.to_a.sort)
-    assert_equal([["a", "c", "c", 2], ["b", "c", "c", 1], ["a", "b", "b", 1]].sort, program.shortest2.to_a.sort)
+    assert_equal([["a", "c", "c", 2], ["b", "c", "c", 1], ["a", "b", "b", 1]].to_set,
+                 program.shortest.to_set)
+    assert_equal([["a", "c", "c", 2], ["b", "c", "c", 1], ["a", "b", "b", 1]].to_set,
+                 program.shortest2.to_set)
   end
 
   def test_non_exemplary

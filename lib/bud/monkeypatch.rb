@@ -75,6 +75,14 @@ class Bud::TupleStruct < Struct
     self == o
   end
 
+  def hash
+    self.values.hash
+  end
+
+  def eql?(o)
+    self == o
+  end
+
   def +(o)
     self.to_ary + o.to_ary
   end
@@ -94,10 +102,17 @@ end
 # XXX: TEMPORARY/UGLY hack to ensure that arrays and structs compare. This can be
 # removed once tests are rewritten.
 class Array
-  alias :oldeq :==
+  alias :old_eq :==
+  alias :old_eql? :eql?
+
   def ==(o)
     o = o.to_a if o.kind_of? Bud::TupleStruct
-    self.oldeq(o)
+    self.old_eq(o)
+  end
+
+  def eql?(o)
+    o = o.to_a if o.kind_of? Bud::TupleStruct
+    self.old_eql?(o)
   end
 end
 
