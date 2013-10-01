@@ -658,7 +658,7 @@ class BudMeta #:nodoc: all
   # (x.notin(y).notin(z)), we can reclaim from x when EITHER y or z is
   # satisfied -- so we create a single scratch for the rule.
   def create_del_table(inner, rule_id, deps)
-    tbl_name = "del_#{inner}_#{rule_id}"
+    tbl_name = "del_#{inner}_r#{rule_id}"
     deps[inner] ||= Set.new
     deps[inner] << tbl_name
 
@@ -675,7 +675,7 @@ class BudMeta #:nodoc: all
     # the concatenation of the columns from both join inputs; we disambiguate
     # column names by adding a prefix.
     lhs, rhs = jneg.join_rels
-    lhs_name = "#{lhs}_#{rhs}_joinbuf"
+    lhs_name = "r#{jneg.rule_id}_#{lhs}_#{rhs}_joinbuf"
     lhs_schema = []
     jneg.join_rels.each do |r|
       r_coll = @bud_instance.tables[r.to_sym]
@@ -738,7 +738,7 @@ class BudMeta #:nodoc: all
 
   def create_missing_buf(jneg, join_buf)
     lhs, rhs = jneg.join_rels
-    lhs_name = "#{lhs}_#{rhs}_missing"
+    lhs_name = "r#{jneg.rule_id}_#{lhs}_#{rhs}_missing"
     join_buf_rel = @bud_instance.tables[join_buf.to_sym]
     @bud_instance.scratch(lhs_name.to_sym, join_buf_rel.schema)
 
