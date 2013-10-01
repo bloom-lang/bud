@@ -441,6 +441,22 @@ class JoinRseSealDoubleReclaim
   end
 end
 
+class JoinRseTlistConst
+  include Bud
+
+  state do
+    table :a, [:c1, :c2, :c3]
+    table :a_approx, a.schema
+    table :b
+    sealed :c
+  end
+
+  bloom :logic do
+    a <= ((b * c).pairs {|t1,t2| [t1.key, "foo", t2.val]}).notin(a_approx)
+    a <= ((b * c).pairs {|t1,t2| [t1.key, 99, t2.val]}).notin(a_approx)
+  end
+end
+
 class TestRse < MiniTest::Unit::TestCase
   def test_rse_simple
     s = RseSimple.new
@@ -788,6 +804,22 @@ class TestRse < MiniTest::Unit::TestCase
 
     assert_equal([["foo", "a", 1], ["bar", "a", 1],
                   ["foo", "b", 1], ["bar", "c", 2]].sort, j.node.to_a.sort)
+  end
+
+  def test_rse_join_tlist_const
+    j = JoinRseTlistConst.new
+    j.b <+ [[5, 10], [6, 11]]
+    j.c <+ [[7, 12]]
+    j.a_approx <+ [[5, "foo", 12], [6, 99, 12]]
+    2.times { j.tick }
+
+    assert_equal([[5, 99, 12], [6, "foo", 12]].to_set, j.a.to_a.to_set)
+    assert_equal([[5, 10], [6, 11]], j.b.to_a.sort)
+
+    j.a_approx <+ [[5, 99, 12]]
+    2.times { j.tick }
+
+    assert_equal([[6, 11]], j.b.to_a.sort)
   end
 end
 

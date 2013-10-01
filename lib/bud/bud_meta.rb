@@ -526,6 +526,9 @@ class BudMeta #:nodoc: all
   #   * support persistent scratches (defined via monotone rules)
   #   * support projection/selection for X, in addition to join
   #   * refactor: rewrite joins to materialize as a temp rel
+  #   * error checking -- right now, we skip notin clauses that are too
+  #     complicated for us to parse; however, such a notin might result in
+  #     needing to disable/skip RSE. This should be refactored.
   #
   # LOW PRIORITY:
   #   * support code blocks for notin
@@ -699,30 +702,52 @@ class BudMeta #:nodoc: all
     # the entire tuple (columns matched based on position).
     if jneg.not_quals.empty?
       jneg.tlist.each_with_index do |t,i|
+        next if t.kind_of? TListConst
         i_col = outer_rel.cols[i]
-        qual_list << "#{jneg.outer}.#{i_col} => #{t[0]}.#{t[1]}"
+        qual_list << "#{jneg.outer}.#{i_col} => #{t.var_name}.#{t.col_name}"
       end
     else
       jneg.not_quals.each do |q|
         # We expect the left part of the qual (which references the output of
         # the join) to be specified as a column offset.
-        lhs_qual, rhs_qual = q
-        raise unless lhs_qual.kind_of? Integer
+        lhs_qual_idx, rhs_qual = q
+        raise unless lhs_qual_idx.kind_of? Integer
 
-        t = jneg.tlist[lhs_qual]
+        t = jneg.tlist[lhs_qual_idx]
         raise if t.nil?
+        raise unless t.kind_of? TListVarRef
 
         # RHS qual can be either column name or offset.
         if rhs_qual.kind_of? Integer
           rhs_qual = outer_rel.cols[rhs_qual]
         end
 
-        qual_list << "#{jneg.outer}.#{rhs_qual} => #{t[0]}.#{t[1]}"
+        qual_list << "#{jneg.outer}.#{rhs_qual} => #{t.var_name}.#{t.col_name}"
       end
     end
 
+    # Finally, we need to consider constant values that appear in the join's
+    # targetlist. These typically don't influence which join inputs produced a
+    # given value in the negated collection, with one notable exception: if we
+    # have two join rules that are negated against the same collection, we need
+    # to consider constant values in the two join tlists to distinguish between
+    # join outputs produced by the different rules. However, since we can't add
+    # join predicates against constant values, we instead do this check in the
+    # body of the generated rule.
+    body_quals = []
+    jneg.tlist.each_with_index do |t,i|
+      next if t.kind_of? TListVarRef
+      str = Ruby2Ruby.new.process(Marshal.load(Marshal.dump(t.const_expr)))
+      body_quals << [i, str]
+    end
+    body_qual_text = ""
+    unless body_quals.empty?
+      body_qual_text << " if "
+      body_qual_text << body_quals.map {|q| "x[#{q[0]}] == #{q[1]}"}.join(" and ")
+    end
+
     qual_text = "(" + qual_list.join(", ") + ")"
-    rhs_text = "(#{jneg.outer} * #{lhs} * #{rhs}).combos#{qual_text} {|_,x,y| x + y}"
+    rhs_text = "(#{jneg.outer} * #{lhs} * #{rhs}).combos#{qual_text} {|x,y,z| y + z#{body_qual_text}}"
     rule_text = "#{lhs_name} <= #{rhs_text}"
     install_rule(lhs_name, "<=", jneg.join_rels + [jneg.outer], [], rule_text, true)
 
@@ -904,6 +929,9 @@ class BudMeta #:nodoc: all
     return rhs
   end
 
+  TListVarRef = Struct.new(:var_name, :col_name)
+  TListConst = Struct.new(:const_expr)
+
   # Search an AST to look for notin operators that are candidates for RSE. We
   # distinguish between two types of notins: "simple" notins (where the notin
   # receiver is a collection) and notins applied to a join expression.
@@ -1019,10 +1047,10 @@ class BudMeta #:nodoc: all
 
     # Find the targetlist by looking at the body of the iter code block. We only
     # support very simple targetlist expressions: array literals containing
-    # simple column references, addition (array concatenation) operators, and
-    # whole-tuple references. We resolve tuple and column references by looking
-    # up the local variable names introduced by the iter block args; whole tuple
-    # refs are expanded by looking at the catalog.
+    # simple column references or constants, addition (array concatenation)
+    # operators, and whole-tuple references. We resolve column references by
+    # looking up the local variable names introduced by the iter block args;
+    # whole tuple refs are expanded by looking at the catalog.
     def get_tlist(block_args, block_body, join_rels)
       var_tbl = {}
       var_list = block_args.sexp_body
@@ -1036,7 +1064,7 @@ class BudMeta #:nodoc: all
     def get_tlist_from_ast(ast, var_tbl, join_rels)
       case ast.sexp_type
       when :array
-        ast.sexp_body.map {|e| tlist_column_ref(e, var_tbl)}
+        ast.sexp_body.map {|e| tlist_array_lit(e, var_tbl)}
       when :call
         _, recv, op, args = ast
         throw :skip unless op == :+
@@ -1047,20 +1075,31 @@ class BudMeta #:nodoc: all
         ref_tbl_name = var_tbl[ref_var]
         ref_coll = @bud_instance.tables[ref_tbl_name]
         throw :skip if ref_coll.nil?
-        ref_coll.cols.map {|c| [ref_tbl_name, c]}
+        ref_coll.cols.map {|c| TListVarRef.new(ref_tbl_name, c)}
       else
         throw :skip
       end
     end
 
-    def tlist_column_ref(ref, var_tbl)
-      throw :skip unless ref.sexp_type == :call
-      _, lvar, ref_col = ref
-      throw :skip unless lvar.sexp_type == :lvar
-      ref_var = lvar.sexp_body.first
-      throw :skip unless var_tbl.has_key? ref_var
+    # We expect an array literal to contain a combination of column references
+    # (x.y) and constant values; as a special-case, we regard the builtin
+    # functions "port" and "ip_port" as constants.
+    def tlist_array_lit(ref, var_tbl)
+      case ref.sexp_type
+      when :call
+        _, lvar, ref_col = ref
+        throw :skip unless lvar.sexp_type == :lvar
+        ref_var = lvar.sexp_body.first
+        throw :skip unless var_tbl.has_key? ref_var
+      when :str, :lit
+        str = Ruby2Ruby.new.process(Marshal.load(Marshal.dump(ref)))
+        _, val = ref
+        return TListConst.new(ref)
+      else
+        throw :skip
+      end
 
-      [var_tbl[ref_var], ref_col]
+      TListVarRef.new(var_tbl[ref_var], ref_col)
     end
 
     def get_join_rels(join_ast)
