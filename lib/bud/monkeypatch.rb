@@ -75,14 +75,6 @@ class Bud::TupleStruct < Struct
     self == o
   end
 
-  def hash
-    self.values.hash
-  end
-
-  def eql?(o)
-    self == o
-  end
-
   def +(o)
     self.to_ary + o.to_ary
   end
