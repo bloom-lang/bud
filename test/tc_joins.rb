@@ -478,7 +478,7 @@ class TestJoins < MiniTest::Unit::TestCase
   def test_shared_join
     p = SharedJoin.new
     p.tick
-    assert_equal([[1, 1, 1], [2, 1, 1], [3, 2, 2], [3, 3, 2]], p.out1.to_a.sort)
+    assert_equal([[1, 1, 1], [2, 1, 1], [3, 2, 2], [3, 3, 2]].to_set, p.out1.to_set)
     assert_equal([[1, 1], [2, 1], [3, 2]], p.out2.to_a.sort)
   end
 
