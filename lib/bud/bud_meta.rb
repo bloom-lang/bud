@@ -1087,19 +1087,19 @@ class BudMeta #:nodoc: all
     def tlist_array_lit(ref, var_tbl)
       case ref.sexp_type
       when :call
-        _, lvar, ref_col = ref
-        throw :skip unless lvar.sexp_type == :lvar
-        ref_var = lvar.sexp_body.first
+        _, recv, meth, *args = ref
+        if recv.nil? and (meth == :ip_port or meth == :port)
+          return TListConst.new(ref)
+        end
+        throw :skip if recv.nil? or recv.sexp_type != :lvar
+        ref_var = recv.sexp_body.first
         throw :skip unless var_tbl.has_key? ref_var
+        TListVarRef.new(var_tbl[ref_var], meth)
       when :str, :lit
-        str = Ruby2Ruby.new.process(Marshal.load(Marshal.dump(ref)))
-        _, val = ref
-        return TListConst.new(ref)
+        TListConst.new(ref)
       else
         throw :skip
       end
-
-      TListVarRef.new(var_tbl[ref_var], ref_col)
     end
 
     def get_join_rels(join_ast)
