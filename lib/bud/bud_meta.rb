@@ -309,7 +309,7 @@ class BudMeta #:nodoc: all
     rhs_ref_chn = Set.new
     unsafe_chn = Set.new
 
-    # Find all the channels referenced by at least one async rule on the LHS
+    # Find all the channels that appear on the LHS of at least one async rule
     bud.t_depends.each do |d|
       if d.op == "<~" and bud.channels.has_key?(d.lhs.to_sym)
         chn_coll = bud.channels[d.lhs.to_sym]
@@ -323,9 +323,9 @@ class BudMeta #:nodoc: all
     # one deductive rule (2) for every rule where the channel appears on the
     # RHS, the rule is a deductive or @next rule with an LHS collection that is
     # a persistent table or a lattice. The second test is overly conservative
-    # but safe; it should be relaxed shortly. (We should allow chains of rules
-    # that derive into scratch collections as long as ALL such chains terminate
-    # in persistent storage, provided some conditions (e.g., guarded async) are
+    # but safe; it should be relaxed. (We should allow chains of rules that
+    # derive into scratch collections as long as ALL such chains terminate in
+    # persistent storage, provided some conditions (e.g., guarded async) are
     # satisfied).
     bud.t_depends.each do |d|
       next unless lhs_ref_chn.include? d.body
