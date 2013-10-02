@@ -472,6 +472,21 @@ class JoinRseTlistIpPort
   end
 end
 
+class JoinRseTlistConstQual
+  include Bud
+
+  state do
+    table :a, [:c1, :c2, :c3]
+    table :a_approx, a.schema
+    table :b
+    sealed :c
+  end
+
+  bloom :logic do
+    a <= ((b * c).pairs {|t1,t2| [t1.key, port, t2.val]}).notin(a_approx, 0 => :c1, 1 => :c2)
+  end
+end
+
 class TestRse < MiniTest::Unit::TestCase
   def test_rse_simple
     s = RseSimple.new
@@ -845,6 +860,17 @@ class TestRse < MiniTest::Unit::TestCase
     2.times { j.tick }
 
     assert_equal([[6, j.ip_port, j.port, 12]].to_set, j.a.to_set)
+    assert_equal([[6, 11]].to_set, j.b.to_set)
+  end
+
+  def test_rse_join_tlist_const_qual
+    j = JoinRseTlistConstQual.new(:ip => "localhost", :port => 5556)
+    j.b <+ [[5, 10], [6, 11]]
+    j.c <+ [[7, 12]]
+    j.a_approx <+ [[5, j.port, 100], [6, j.port + 1, 12]]
+    2.times { j.tick }
+
+    assert_equal([[6, j.port, 12]].to_set, j.a.to_set)
     assert_equal([[6, 11]].to_set, j.b.to_set)
   end
 end

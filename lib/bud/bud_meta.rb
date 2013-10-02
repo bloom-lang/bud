@@ -698,13 +698,24 @@ class BudMeta #:nodoc: all
     qual_list = join_quals_to_str(jneg)
     outer_rel = @bud_instance.tables[jneg.outer.to_sym]
 
+    # If the join's targetlist contains a constant expression, we need to check
+    # that values found in the negated collection match the constant (you might
+    # think we could ignore such constants, but if multiple rules derive tuples
+    # into the same negated collection, we need to avoid considering tuples
+    # produced by a different rule). Since we can't check constants in the join
+    # predicate clause, instead check them in the body of the generated rule.
+    body_quals = []
+
     # If no negation qual is given explicitly, the negation qual is implicitly
     # the entire tuple (columns matched based on position).
     if jneg.not_quals.empty?
       jneg.tlist.each_with_index do |t,i|
-        next if t.kind_of? TListConst
-        i_col = outer_rel.cols[i]
-        qual_list << "#{jneg.outer}.#{i_col} => #{t.var_name}.#{t.col_name}"
+        if t.kind_of? TListVarRef
+          i_col = outer_rel.cols[i]
+          qual_list << "#{jneg.outer}.#{i_col} => #{t.var_name}.#{t.col_name}"
+        else
+          body_quals << [i, const_to_str(t)]
+        end
       end
     else
       jneg.not_quals.each do |q|
@@ -715,31 +726,20 @@ class BudMeta #:nodoc: all
 
         t = jneg.tlist[lhs_qual_idx]
         raise if t.nil?
-        raise unless t.kind_of? TListVarRef
 
         # RHS qual can be either column name or offset.
         if rhs_qual.kind_of? Integer
           rhs_qual = outer_rel.cols[rhs_qual]
         end
 
-        qual_list << "#{jneg.outer}.#{rhs_qual} => #{t.var_name}.#{t.col_name}"
+        if t.kind_of? TListVarRef
+          qual_list << "#{jneg.outer}.#{rhs_qual} => #{t.var_name}.#{t.col_name}"
+        else
+          body_quals << [lhs_qual_idx, const_to_str(t)]
+        end
       end
     end
 
-    # Finally, we need to consider constant values that appear in the join's
-    # targetlist. These typically don't influence which join inputs produced a
-    # given value in the negated collection, with one notable exception: if we
-    # have two join rules that are negated against the same collection, we need
-    # to consider constant values in the two join tlists to distinguish between
-    # join outputs produced by the different rules. However, since we can't add
-    # join predicates against constant values, we instead do this check in the
-    # body of the generated rule.
-    body_quals = []
-    jneg.tlist.each_with_index do |t,i|
-      next if t.kind_of? TListVarRef
-      str = Ruby2Ruby.new.process(Marshal.load(Marshal.dump(t.const_expr)))
-      body_quals << [i, str]
-    end
     body_qual_text = ""
     unless body_quals.empty?
       body_qual_text << " if "
@@ -752,6 +752,10 @@ class BudMeta #:nodoc: all
     install_rule(lhs_name, "<=", jneg.join_rels + [jneg.outer], [], rule_text, true)
 
     return lhs_name
+  end
+
+  def const_to_str(tl_const)
+    Ruby2Ruby.new.process(Marshal.load(Marshal.dump(tl_const.const_expr)))
   end
 
   def join_quals_to_str(jneg)
