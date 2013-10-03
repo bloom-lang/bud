@@ -47,6 +47,11 @@ class BudMeta #:nodoc: all
       # Cleanup
       stratified_rules = stratified_rules.reject{|r| r.empty?}
       dump_rewrite(stratified_rules) if @bud_instance.options[:dump_rewrite]
+
+      if @bud_instance.options[:print_rules]
+        rule_ary = @bud_instance.t_rules.map{|r| [r.rule_id, r.orig_src]}.sort
+        puts rule_ary.map {|r| "#{r[0]}:\t#{r[1]}"}
+      end
     end
     return stratified_rules
   end
