@@ -546,7 +546,8 @@ class BudMeta #:nodoc: all
     # need to be satisfied. Hence, we use a separate collection to represent
     # each of the rules' RSE conditions, and then an additional rule that
     # intersects all the conditions. This map associates each rel we want to
-    # reclaim from with a set of rule IDs whose RSE condition must be satisfied.
+    # reclaim from with a set of deletion buffers; each deletion buffer contains
+    # a tuple when the corresponding RSE condition has been satisfied.
     deps = {}
 
     # If there is any rule that means we can't reclaim from a relation, we can't
@@ -622,6 +623,7 @@ class BudMeta #:nodoc: all
     deps.each_pair do |lhs,v|
       next if unsafe_rels.include? lhs
 
+      puts "RSE: #{lhs}"
       rule_text = "#{lhs} <- "
       if v.length == 1
         rule_text << "#{v.first}"
