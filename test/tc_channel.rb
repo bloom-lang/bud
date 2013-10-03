@@ -27,7 +27,13 @@ end
 class TestTickle < MiniTest::Unit::TestCase
   def test_tickle_run_bg
     c = TickleCount.new
+
+    # Check that the program is stratified as we'd expect
     assert_equal(2, c.stratified_rules.length)
+    deps = c.t_depends.select {|d| d.lhs == "mcast" and d.body == "loop_chan"}
+    assert_equal(1, deps.size)
+    assert_equal(false, deps.first.nm)
+
     q = Queue.new
     c.register_callback(:loopback_done) do |t|
       assert_equal([[5]], t.to_a)

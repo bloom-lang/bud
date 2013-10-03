@@ -5,7 +5,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
   OP_LIST = [:<<, :<, :<=].to_set
   TEMP_OP_LIST = [:-@, :~, :+@].to_set
-  MONOTONE_WHITELIST = [:==, :+, :<=, :-, :<, :>, :*, :~,
+  MONOTONE_WHITELIST = [:==, :+, :<=, :-, :<, :>, :*, :~, :+@,
                         :pairs, :matches, :combos, :flatten, :new,
                         :lefts, :rights, :map, :flat_map, :pro, :merge,
                         :schema, :cols, :key_cols, :val_cols, :payloads, :lambda,
