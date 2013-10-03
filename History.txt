@@ -1,10 +1,13 @@
 == 0.9.8 / ???
 
+* Fix bug in the stratification algorithm
 * Fix bug with insertions into stdio inside bootstrap blocks
 * Improve error message when <~ applied to a collection type that doesn't
   support it (#316)
 * Fix rescan logic for Zookeeper-backed collections (#317)
 * Support + operator for concatenating tuples
+* More consistent behavior for #==, #eql?, and #hash methods on Bud tuple
+  objects (TupleStruct)
 * Fix intermittent EM::ConnectionNotBound exceptions during the Bud shutdown
   sequence
 

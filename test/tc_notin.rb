@@ -416,3 +416,26 @@ class NotInPositionalTest < MiniTest::Unit::TestCase
     assert_equal([[10, 20, 30, 45]], n.s2.to_a.sort)
   end
 end
+
+class StratError
+  include Bud
+
+  state do
+    table :resp_log, [:addr, :id, :key] => [:val]
+    table :req_log, resp_log.schema
+    table :did_resp, resp_log.schema
+    scratch :need_resp, resp_log.schema
+  end
+
+  bloom do
+    resp_log <= need_resp
+    need_resp <= req_log.notin(did_resp)
+    did_resp <= resp_log
+  end
+end
+
+class TestStratErrors < MiniTest::Unit::TestCase
+  def test_strat_error
+    assert_raises(Bud::CompileError) { StratError.new }
+  end
+end

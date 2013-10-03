@@ -180,8 +180,8 @@ class BudMeta #:nodoc: all
   end
 
 
-  Node = Struct.new :name, :status, :stratum, :edges, :in_lhs, :in_body, :in_cycle, :is_neg_head
   # Node.status is one of :init, :in_progress, :done
+  Node = Struct.new :name, :status, :stratum, :edges, :in_lhs, :in_body
   Edge = Struct.new :to, :op, :neg, :temporal
 
   def stratify_preds
@@ -189,12 +189,12 @@ class BudMeta #:nodoc: all
     nodes = {}
     bud.t_depends.each do |d|
       #t_depends [:bud_instance, :rule_id, :lhs, :op, :body] => [:nm, :in_body]
-      lhs = (nodes[d.lhs] ||= Node.new(d.lhs, :init, 0, [], true, false, false, false))
+      lhs = (nodes[d.lhs] ||= Node.new(d.lhs, :init, 0, [], true, false))
       lhs.in_lhs = true
-      body = (nodes[d.body] ||= Node.new(d.body, :init, 0, [], false, true, false, false))
-      temporal = d.op != "<="
-      lhs.edges << Edge.new(body, d.op, d.nm, temporal)
+      body = (nodes[d.body] ||= Node.new(d.body, :init, 0, [], false, true))
       body.in_body = true
+      temporal = (d.op != "<=")
+      lhs.edges << Edge.new(body, d.op, d.nm, temporal)
     end
 
     nodes.each_value {|n| calc_stratum(n, false, false, [n.name])}
@@ -219,17 +219,14 @@ class BudMeta #:nodoc: all
 
   def calc_stratum(node, neg, temporal, path)
     if node.status == :in_process
-      node.in_cycle = true
-      if neg and !temporal and node.is_neg_head
+      if neg and not temporal
         raise Bud::CompileError, "unstratifiable program: #{path.uniq.join(',')}"
       end
     elsif node.status == :init
       node.status = :in_process
       node.edges.each do |edge|
-        node.is_neg_head = edge.neg
         next unless edge.op == "<="
         body_stratum = calc_stratum(edge.to, (neg or edge.neg), (edge.temporal or temporal), path + [edge.to.name])
-        node.is_neg_head = false # reset for next edge
         node.stratum = max(node.stratum, body_stratum + (edge.neg ? 1 : 0))
       end
       node.status = :done
