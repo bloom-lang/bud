@@ -367,6 +367,13 @@ class PushTests < MiniTest::Unit::TestCase
 
   def test_delete_rescan_pending
     b = DeleteRescanPending.new
+
+    # Check that the <+ rule is not regarded as non-monotonic. We should
+    # probably move this into a separate test.
+    deps = b.t_depends.select {|d| d.lhs == "sink" and d.body == "src"}
+    assert_equal(1, deps.size)
+    assert_equal(false, deps.first.nm)
+
     b.src <+ [["v1"], ["v2"]]
     b.tick
     assert_equal([], b.sink.to_a)
