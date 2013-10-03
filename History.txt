@@ -1,5 +1,6 @@
 == 0.9.8 / ???
 
+* Fix bug in the stratification algorithm
 * Fix bug with insertions into stdio inside bootstrap blocks
 * Improve error message when <~ applied to a collection type that doesn't
   support it (#316)
