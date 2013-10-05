@@ -531,6 +531,14 @@ class BudMeta #:nodoc: all
   #   * error checking -- right now, we skip notin clauses that are too
   #     complicated for us to parse; however, such a notin might result in
   #     needing to disable/skip RSE. This should be refactored.
+  #   * propagate RSE _forward_. That is, given:
+  #
+  #         foo <= bar.notin(baz)
+  #         qux <= (foo * xyz)
+  #
+  #     A tuples appear in baz, we can clearly delete from bar; morever, we can
+  #     also delete from xyz (provided the necessary sealing condition has been
+  #     satisfied).
   #
   # LOW PRIORITY:
   #   * support code blocks for notin
