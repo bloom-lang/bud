@@ -545,6 +545,8 @@ class BudMeta #:nodoc: all
   #   * support more tlist expressions for join RSE
   #   * support more join types (e.g., lefts/rights/matches, > 2 way joins, outer)
   #   * check that it works with modules
+  #   * don't create rules to reclaim from collections that we subsequently
+  #     determine are unsafe
   def rse_rewrite
     bud = @bud_instance
     return if bud.options[:disable_rse]
