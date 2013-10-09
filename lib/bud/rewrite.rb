@@ -146,15 +146,15 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       @tables[notintab.to_s] = true    # "true" denotes non-monotonic dependency
 
       # Record that "x" above is positively referenced by a notin. This
-      # information is useful for RSE. We only bother with this when the notin
-      # receiver is a simple collection.
-      if recv.sexp_type == :call
-        _, r_recv, r_meth, *r_args = recv
-
-        if r_recv.nil? and r_args.empty?
-          @notin_pos_refs << r_meth.to_s
-        end
-      end
+      # information is useful for RSE. We need to support both simple uses of
+      # negation (where the notin receiver is a collection) and more complicated
+      # situations (where notin is applied to an expression). Hence, trawl
+      # through the receiver's expression tree and mark anything that looks like
+      # a collection identifier accordingly.
+      recv_copy = Marshal.load(Marshal.dump(recv))
+      collector = NotinCollectionParser.new(@bud_instance)
+      collector.process(recv_copy)
+      @notin_pos_refs.merge(collector.notin_pos_refs)
 
       super
     else
@@ -198,6 +198,39 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
         @temp_op = op.to_s.gsub("@", "")
       end
       super
+    end
+  end
+
+  # Find all the collection names that appear to be referenced in the given
+  # expression tree.
+  class NotinCollectionParser < SexpProcessor
+    attr_reader :notin_pos_refs
+
+    def initialize(bud_instance)
+      super()
+      self.require_empty = false
+      self.expected = Sexp
+      @notin_pos_refs = Set.new
+      @bud_instance = bud_instance
+    end
+
+    def process_call(exp)
+      _, recv, meth, *args = exp
+
+      if recv.nil? and args.empty? and @bud_instance.tables.has_key? meth
+        @notin_pos_refs << meth.to_s
+      else
+        process(recv) unless recv.nil?
+        args.each {|a| process(a)}
+      end
+
+      exp
+    end
+
+    def process_iter(exp)
+      _, recv, iter_args, body = exp
+      process(recv)
+      exp
     end
   end
 

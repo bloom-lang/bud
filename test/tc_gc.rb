@@ -441,6 +441,24 @@ class JoinRseSealDoubleReclaim
   end
 end
 
+class JoinRseDoubleScratch
+  include Bud
+
+  state do
+    table :obj, [:oid] => [:val]
+    table :ref, [:id] => [:name, :obj_id]
+    table :del_ref, [:id] => [:del_id]
+
+    scratch :view, ref.cols + obj.cols
+    scratch :view2, view.schema
+  end
+
+  bloom do
+    view  <= ((ref * obj).pairs(:obj_id => :oid) {|r,o| r + o}).notin(del_ref, 0 => :del_id)
+    view2 <= ((ref * obj).pairs(:obj_id => :oid) {|r,o| r + o}).notin(del_ref, 0 => :del_id)
+  end
+end
+
 class JoinRseTlistConst
   include Bud
 
@@ -834,6 +852,24 @@ class TestRse < MiniTest::Unit::TestCase
 
     assert_equal([["foo", "a", 1], ["bar", "a", 1],
                   ["foo", "b", 1], ["bar", "c", 2]].sort, j.node.to_a.sort)
+  end
+
+  def test_rse_join_double_scratch
+    j = JoinRseDoubleScratch.new
+    j.obj <+ [[5, "foo"], [10, "bar"]]
+    j.ref <+ [[1, "x", 5], [2, "y", 5], [3, "z", 10]]
+    2.times { j.tick }
+
+    assert_equal([[5, "foo"], [10, "bar"]].to_set, j.obj.to_set)
+    assert_equal([[1, "x", 5], [2, "y", 5], [3, "z", 10]].to_set, j.ref.to_set)
+
+    j.seal_ref <+ [[true]]
+    j.seal_obj <+ [[true]]      # XXX: Shouldn't be necessary
+    j.del_ref <+ [[100, 1], [101, 2]]
+    2.times { j.tick }
+
+    assert_equal([[10, "bar"]].to_set, j.obj.to_set)
+    assert_equal([[3, "z", 10]].to_set, j.ref.to_set)
   end
 
   def test_rse_join_tlist_const
