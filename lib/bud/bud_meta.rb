@@ -507,7 +507,7 @@ class BudMeta #:nodoc: all
   #        two RSE conditions is satisfied.
   #
   # RSE reclaimation is implemented by installing a set of rules (and associated
-  # state) that identifies and removes redundant tuples.
+  # scratch collections) that identify and remove redundant tuples.
   #
   # RSE for joins requires the user to provide seals to identify when partitions
   # of the input are complete. At present, we do this by creating "seal tables"
