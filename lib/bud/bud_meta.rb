@@ -578,6 +578,7 @@ class BudMeta #:nodoc: all
       n.process(rhs)
     end
 
+    # First, check which of the negation clauses are eligible for RSE.
     simple_nots.each do |neg|
       if check_simple_not(neg)
         simple_work << neg
@@ -592,47 +593,57 @@ class BudMeta #:nodoc: all
       join_work << [neg, do_rels] unless do_rels.empty?
     end
 
+    # Second, install rules (and transient state) to compute the RSE conditions.
     simple_work.each do |neg|
       next if unsafe_rels.include? neg.inner
       del_tbl_name = create_del_table(neg.inner, neg.rule_id, deps)
-
-      # Install a rule to compute the RSE condition for this negation. If the
-      # source negation operator has any quals, we install a join on the same
-      # quals; otherwise, we can simply delete from X when a tuple appears in Y.
-      if neg.quals.empty?
-        install_rule(del_tbl_name, "<=", [neg.outer], [],
-                     "#{del_tbl_name} <= #{neg.outer}", true)
-      else
-        install_rule(del_tbl_name, "<=", [neg.inner, neg.outer], [],
-                     "#{del_tbl_name} <= (#{neg.inner} * #{neg.outer}).lefts(#{neg.quals})", true)
-      end
+      create_del_rule(del_tbl_name, neg.quals, [], neg.inner, neg.outer)
     end
 
     join_work.each do |neg, work_rels|
       do_rels = work_rels.reject {|r| unsafe_rels.include? r}
       next if do_rels.empty?
 
-      # When the inner input to the negation is a join, proceed as follows:
+      # Given a negation that is applied to the output of a join, we first check
+      # whether the negation quals only reference fields derived from one or the
+      # other of the join inputs. If so, we can reclaim against that join input
+      # similar to how we reclaim from SimpleNot -- that is, semantically the
+      # notin can be pushed up above the join. However, when the negation quals
+      # include columns derived from both join inputs, we need to:
+      #
       #    * Create a scratch collection to hold join output tuples that have
       #      appeared in the negation.
       #
       #    * Create a scratch collection to identify join outputs that have not
       #      yet appeared in the negation
       #
-      #    * For each collection c we can reclaim from, install deletion rules
-      #      that reclaim tuples when (a) there is a seal on c' that matches the
-      #      join key, and (b) all the tuples in a given seal group have
-      #      appeared in the negation.
-      join_buf = create_join_buf(neg)
-      missing_buf = create_missing_buf(neg, join_buf)
+      #    * For each collection c we can reclaim from, install rules to reclaim
+      #      tuples when (a) there is a seal on c' that matches the join key,
+      #      and (b) all the tuples in a given seal group have appeared in the
+      #      negation.
+      not_qual_rels = find_not_qual_rels(neg)
+      missing_buf = nil
 
       do_rels.each do |r|
         del_tbl_name = create_del_table(r, neg.rule_id, deps)
-        create_del_rules(neg, r, missing_buf, del_tbl_name)
+
+        if not_qual_rels == [r].to_set
+          # Negation qual only references one of the join inputs, so we can
+          # install a simpler deletion condition. Unlike with SimpleNot, we need
+          # to account for the join's targetlist.
+          join_quals, body_quals = quals_tlist_pullup(neg)
+          create_del_rule(del_tbl_name, join_quals, body_quals, r, neg.outer)
+        else
+          if missing_buf.nil?
+            join_buf = create_join_buf(neg)
+            missing_buf = create_missing_buf(neg, join_buf)
+          end
+          create_join_del_rules(neg, r, missing_buf, del_tbl_name)
+        end
       end
     end
 
-    # Finally, install a rule that deletes a tuple from a table when that tuple
+    # Third, install a rule that deletes a tuple from a table when that tuple
     # appears in _all_ of the table's dependencies, as long as the table doesn't
     # appear in an unsafe context.
     deps.each_pair do |lhs,v|
@@ -650,6 +661,109 @@ class BudMeta #:nodoc: all
       end
 
       install_rule(lhs, "<-", [], v.to_a.sort, rule_text, true)
+    end
+  end
+
+  # Returns all the join input relations referenced by the negation's list of
+  # quals. That is, given (x * y).pairs {...}.notin(z, :k1 => :k2, :k3 => :k4),
+  # we want to find whether k1 and k3 are derived from x, y, or both.
+  def find_not_qual_rels(jneg)
+    rel_offset_map = []
+    jneg.tlist.each_with_index do |t,i|
+      # Skip constant TLEs, because they are derived from neither join input
+      if t.kind_of? TListVarRef
+        rel_offset_map[i] = t.var_name
+      end
+    end
+
+    # If no negation qual is given explicitly, the negation qual is implicitly
+    # the entire join output tuple (columns matched based on position). Hence,
+    # all the rels referenced by the tlist are referenced by the qual list.
+    if jneg.not_quals.empty?
+      return rel_offset_map.to_set
+    else
+      rels = Set.new
+
+      jneg.not_quals.each do |q|
+        # The rhs of the negation qual references the notin's negative input, so
+        # we can ignore it
+        lhs, rhs = q
+
+        if lhs.kind_of? Integer
+          # If the qual lhs referencs a constant TLE, skip it
+          next if rel_offset_map[lhs].nil?
+          rels << rel_offset_map[lhs]
+        else
+          # XXX: If the qual lhs is a column name, conservatively assume it
+          # could be derived from either join input (for now)
+          return rel_offset_map.to_set
+        end
+      end
+
+      return rels
+    end
+  end
+
+  # The negation quals are expressed with respect to the *output* of the join's
+  # targetlist. We want to pull the negation quals up, so that they are
+  # expressed with respect to the join input collections. We limit the supported
+  # tlist expressions so that this is always possible. We return two lists of
+  # quals: quals that reference variables (which can be evaluated as join quals
+  # in the deletion rule), and quals that reference constants (which must be
+  # evaluated in the body of the deletion rule, because Bud's join syntax
+  # doesn't join quals to reference literals).
+  def quals_tlist_pullup(jneg)
+    # If no explicit negation qual, there is an implicit qual against every
+    # field in the join tlist. Since we still need to pullup the qual above the
+    # tlist, first transform an implicit qual into an equivalent explicit qual.
+    if jneg.not_quals.empty?
+      outer_rel = @bud_instance.tables[jneg.outer]
+      not_quals = {}
+      jneg.tlist.each_with_index do |tle,i|
+        not_quals[i] = outer_rel.schema[i]
+      end
+    else
+      not_quals = jneg.not_quals
+    end
+
+    join_quals = {}
+    body_quals = []
+    not_quals.each do |q|
+      lhs, rhs = q      # We only need to pullup the lhs
+
+      raise unless lhs.kind_of? Integer
+      tle = jneg.tlist[lhs]
+      if tle.kind_of? TListVarRef
+        join_quals[tle.col_name] = rhs
+      else
+        body_quals << [rhs, const_to_str(tle)]
+      end
+    end
+
+    return join_quals, body_quals
+  end
+
+  # Install a rule that contains tuples that satisfy the RSE condition for a
+  # simple negation. If the negation has any quals, we install a join with the
+  # same quals; otherwise, we can reclaim a tuple from X when an identical tuple
+  # appears in Y.
+  def create_del_rule(del_tbl, join_quals, body_quals, inner, outer)
+    # XXX: currently not needed
+    raise if join_quals.empty? and not body_quals.empty?
+
+    if join_quals.empty?
+      install_rule(del_tbl, "<=", [outer], [],
+                   "#{del_tbl} <= #{outer}", true)
+    else
+      if body_quals.empty?
+        join_clause = "lefts(#{join_quals})"
+      else
+        body_qual_text = body_quals_to_str(body_quals, "r")
+        join_clause = "pairs(#{join_quals}) {|l,r| l#{body_qual_text}}"
+      end
+
+      install_rule(del_tbl, "<=", [inner, outer], [],
+                   "#{del_tbl} <= (#{inner} * #{outer}).#{join_clause}", true)
     end
   end
 
@@ -738,34 +852,47 @@ class BudMeta #:nodoc: all
         lhs_qual_idx, rhs_qual = q
         raise unless lhs_qual_idx.kind_of? Integer
 
-        t = jneg.tlist[lhs_qual_idx]
-        raise if t.nil?
+        tle = jneg.tlist[lhs_qual_idx]
+        raise if tle.nil?
 
         # RHS qual can be either column name or offset.
         if rhs_qual.kind_of? Integer
           rhs_qual = outer_rel.cols[rhs_qual]
         end
 
-        if t.kind_of? TListVarRef
-          qual_list << "#{jneg.outer}.#{rhs_qual} => #{t.var_name}.#{t.col_name}"
+        if tle.kind_of? TListVarRef
+          qual_list << "#{jneg.outer}.#{rhs_qual} => #{tle.var_name}.#{tle.col_name}"
         else
-          body_quals << [lhs_qual_idx, const_to_str(t)]
+          body_quals << [lhs_qual_idx, const_to_str(tle)]
         end
       end
     end
 
-    body_qual_text = ""
-    unless body_quals.empty?
-      body_qual_text << " if "
-      body_qual_text << body_quals.map {|q| "x[#{q[0]}] == #{q[1]}"}.join(" and ")
-    end
-
+    body_qual_text = body_quals_to_str(body_quals, "x")
     qual_text = "(" + qual_list.join(", ") + ")"
     rhs_text = "(#{jneg.outer} * #{lhs} * #{rhs}).combos#{qual_text} {|x,y,z| y + z#{body_qual_text}}"
     rule_text = "#{lhs_name} <= #{rhs_text}"
     install_rule(lhs_name, "<=", jneg.join_rels + [jneg.outer], [], rule_text, true)
 
     return lhs_name
+  end
+
+  def body_quals_to_str(quals, rel_prefix)
+    qual_text = ""
+    unless quals.empty?
+      qual_ary = quals.map do |q|
+        field, const = q
+        if field.kind_of? Integer
+          field_text = "[#{field}]"
+        else
+          field_text = ".#{field}"
+        end
+        "#{rel_prefix}#{field_text} == #{const}"
+      end
+      qual_text << " if "
+      qual_text << qual_ary.join(" and ")
+    end
+    qual_text
   end
 
   def const_to_str(tl_const)
@@ -804,7 +931,7 @@ class BudMeta #:nodoc: all
   # involves "rel". We can make use of seals on each of the join qualifiers,
   # plus "whole-relation" seals (i.e., seals that guarantee that one of the join
   # input collections cannot grow in the future).
-  def create_del_rules(jneg, rel, missing_buf, del_tbl_name)
+  def create_join_del_rules(jneg, rel, missing_buf, del_tbl_name)
     if rel == jneg.join_rels.first
       other_rel = jneg.join_rels.last
     else

@@ -505,6 +505,38 @@ class JoinRseTlistConstQual
   end
 end
 
+class JoinRseNotinPullup
+  include Bud
+
+  state do
+    sealed :ref, [:id] => [:name, :obj_id]
+    table :del_ref, [:id] => [:del_id]
+    table :obj, [:id] => [:val]
+
+    scratch :view, [:name, :ref_id, :val]
+  end
+
+  bloom do
+    view <= ((ref * obj).pairs(:obj_id => :id) {|r,o| [r.name, r.id, o.val]}).notin(del_ref, 1 => :del_id)
+  end
+end
+
+class JoinRseNotinPullupImplicitQual
+  include Bud
+
+  state do
+    sealed :ref, [:id] => [:name, :obj_id]
+    table :obj, [:id] => [:val]
+    table :del_ref, [:del_id]
+
+    scratch :live_ref, [:ref_id]
+  end
+
+  bloom do
+    live_ref <= ((ref * obj).pairs(:obj_id => :id) {|r,o| [r.id]}).notin(del_ref)
+  end
+end
+
 class TestRse < MiniTest::Unit::TestCase
   def test_rse_simple
     s = RseSimple.new
@@ -864,7 +896,6 @@ class TestRse < MiniTest::Unit::TestCase
     assert_equal([[1, "x", 5], [2, "y", 5], [3, "z", 10]].to_set, j.ref.to_set)
 
     j.seal_ref <+ [[true]]
-    j.seal_obj <+ [[true]]      # XXX: Shouldn't be necessary
     j.del_ref <+ [[100, 1], [101, 2]]
     2.times { j.tick }
 
@@ -900,7 +931,7 @@ class TestRse < MiniTest::Unit::TestCase
   end
 
   def test_rse_join_tlist_const_qual
-    j = JoinRseTlistConstQual.new(:ip => "localhost", :port => 5556)
+    j = JoinRseTlistConstQual.new(:ip => "localhost", :port => 5556, :print_rules => true)
     j.b <+ [[5, 10], [6, 11]]
     j.c <+ [[7, 12]]
     j.a_approx <+ [[5, j.port, 100], [6, j.port + 1, 12]]
@@ -908,6 +939,39 @@ class TestRse < MiniTest::Unit::TestCase
 
     assert_equal([[6, j.port, 12]].to_set, j.a.to_set)
     assert_equal([[6, 11]].to_set, j.b.to_set)
+  end
+
+  def test_rse_join_notin_pullup
+    j = JoinRseNotinPullup.new
+    j.ref <+ [[1, "foo", 100], [2, "bar", 100], [3, "baz", 101]]
+    j.obj <+ [[100, "xxx"], [101, "yyy"]]
+    2.times { j.tick }
+
+    assert_equal([["foo", 1, "xxx"], ["bar", 2, "xxx"], ["baz", 3, "yyy"]].to_set,
+                 j.view.to_set)
+
+    j.del_ref <+ [[20, 1], [21, 2]]
+    2.times { j.tick }
+
+    assert_equal([["baz", 3, "yyy"]].to_set, j.view.to_set)
+    assert_equal([[101, "yyy"]].to_set, j.obj.to_set)
+    assert_equal([[3, "baz", 101]].to_set, j.ref.to_set)
+  end
+
+  def test_rse_join_notin_pullup_implicit_qual
+    j = JoinRseNotinPullupImplicitQual.new
+    j.ref <+ [[1, "foo", 100], [2, "bar", 100], [3, "baz", 101]]
+    j.obj <+ [[100, "xxx"], [101, "yyy"]]
+    2.times { j.tick }
+
+    assert_equal([[1], [2], [3]].to_set, j.live_ref.to_set)
+
+    j.del_ref <+ [[1]]
+    2.times { j.tick }
+
+    assert_equal([[2], [3]].to_set, j.live_ref.to_set)
+    assert_equal([[100, "xxx"], [101, "yyy"]].to_set, j.obj.to_set)
+    assert_equal([[2, "bar", 100], [3, "baz", 101]].to_set, j.ref.to_set)
   end
 end
 
