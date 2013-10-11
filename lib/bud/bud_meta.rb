@@ -1016,9 +1016,10 @@ class BudMeta #:nodoc: all
     return true if ref_depend.notin_pos_ref
 
     # If the LHS of a rule that references "rel" is not persistent, we need to
-    # determine whether the LHS is "safe".
+    # determine whether the LHS is safe.
     saw_ref = false
     @bud_instance.t_depends.each do |d|
+      next if d == ref_depend
       if d.body == dependee.to_s
         saw_ref = true
         return false unless is_safe_rhs_ref(dependee, d)

@@ -537,6 +537,23 @@ class JoinRseNotinPullupImplicitQual
   end
 end
 
+class RseJoinRecursion
+  include Bud
+
+  state do
+    table :safe_log, [:id] => [:key, :val, :deps]
+    scratch :dep, [:from, :to]
+    scratch :dep_tc, [:from, :to]
+    scratch :view, safe_log.schema
+  end
+
+  bloom do
+    dep <= safe_log.flat_map {|l| l.deps.map {|d| [d, l.id]}}
+    dep_tc <= (dep * dep_tc).pairs(:to => :from) {|d,t| [d.from, t.to]}
+    view <= safe_log.notin(dep_tc, :id => :from)
+  end
+end
+
 class TestRse < MiniTest::Unit::TestCase
   def test_rse_simple
     s = RseSimple.new
@@ -931,7 +948,7 @@ class TestRse < MiniTest::Unit::TestCase
   end
 
   def test_rse_join_tlist_const_qual
-    j = JoinRseTlistConstQual.new(:ip => "localhost", :port => 5556, :print_rules => true)
+    j = JoinRseTlistConstQual.new(:ip => "localhost", :port => 5556)
     j.b <+ [[5, 10], [6, 11]]
     j.c <+ [[7, 12]]
     j.a_approx <+ [[5, j.port, 100], [6, j.port + 1, 12]]
@@ -972,6 +989,11 @@ class TestRse < MiniTest::Unit::TestCase
     assert_equal([[2], [3]].to_set, j.live_ref.to_set)
     assert_equal([[100, "xxx"], [101, "yyy"]].to_set, j.obj.to_set)
     assert_equal([[2, "bar", 100], [3, "baz", 101]].to_set, j.ref.to_set)
+  end
+
+  def test_rse_join_recursion
+    j = RseJoinRecursion.new
+    j.tick
   end
 end
 
