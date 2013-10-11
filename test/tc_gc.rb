@@ -191,17 +191,26 @@ class RseNegateScratchRhs
   include Bud
 
   state do
-    table :bar
-    scratch :foo
-    scratch :baz
-    table :qux
+    scratch :r1
+    table :t1
+    scratch :t2
+    table :t3
+
+    scratch :r2
+    table :t4
+    scratch :t5
+    table :t6
+    table :t7
   end
 
   bloom do
     # We can reclaim from baz -- even though it is a scratch, it is derived
     # purely from persistent ables via monotone rules.
-    foo <= bar.notin(baz)
-    baz <= qux {|q| [q.val, q.key]}
+    r1 <= t1.notin(t2)
+    t2 <= t3 {|q| [q.val, q.key]}
+
+    r2 <= t4.notin(t5)
+    t5 <= (t6 * t7).pairs(:val => :key) {|x,y| [x.key, y.val]}
   end
 end
 
@@ -743,12 +752,17 @@ class TestRse < MiniTest::Unit::TestCase
 
   def test_rse_negate_scratch_rhs
     j = RseNegateScratchRhs.new
-    j.bar <+ [[5,10], [6, 11]]
-    j.qux <+ [[11, 6], [12, 7]]
+    j.t1 <+ [[5,10], [6, 11]]
+    j.t3 <+ [[11, 6], [12, 7]]
+    j.t4 <+ [[5, 10], [6, 11]]
+    j.t6 <+ [[5, 99]]
+    j.t7 <+ [[99, 10]]
     2.times { j.tick }
 
-    assert_equal([[5, 10]].to_set, j.foo.to_set)
-    assert_equal([[5, 10]].to_set, j.bar.to_set)
+    assert_equal([[5, 10]].to_set, j.r1.to_set)
+    assert_equal([[5, 10]].to_set, j.t1.to_set)
+    assert_equal([[6, 11]].to_set, j.r2.to_set)
+    assert_equal([[6, 11]].to_set, j.t4.to_set)
   end
 
   def test_rse_negate_scratch_rhs_bad
