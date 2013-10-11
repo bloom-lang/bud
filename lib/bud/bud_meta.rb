@@ -748,7 +748,7 @@ class BudMeta #:nodoc: all
   # same quals; otherwise, we can reclaim a tuple from X when an identical tuple
   # appears in Y.
   def create_del_rule(del_tbl, join_quals, body_quals, inner, outer)
-    # XXX: currently not needed
+    # XXX: we currently don't need to support this case
     raise if join_quals.empty? and not body_quals.empty?
 
     if join_quals.empty?
@@ -771,7 +771,7 @@ class BudMeta #:nodoc: all
     do_rels = Set.new
     skip_rels = jneg.join_rels.to_set
 
-    if check_neg_outer(jneg.outer)
+    if check_neg_outer(jneg.outer, jneg.rule_id, jneg.bud_obj)
       jneg.join_rels.each do |r|
         if check_neg_inner(r, jneg.rule_id, jneg.bud_obj)
           do_rels << r
@@ -979,7 +979,7 @@ class BudMeta #:nodoc: all
     return false if n.inner == n.outer
 
     return check_neg_inner(n.inner, n.rule_id, n.bud_obj) &&
-           check_neg_outer(n.outer)
+           check_neg_outer(n.outer, n.rule_id, n.bud_obj)
   end
 
   def check_neg_inner(rel, rule_id, bud_obj)
@@ -1029,14 +1029,28 @@ class BudMeta #:nodoc: all
     return saw_ref
   end
 
-  def check_neg_outer(rel)
-    return false unless is_persistent_tbl(rel)
+  def check_neg_outer(rel, rule_id, bud_obj)
+    return false if is_deleted_tbl(rel)
+    return true if is_persistent_tbl(rel)
 
+    # If the negated input to the notin is a scratch, we need to determine
+    # whether the scratch will only grow over time -- that is, all of its input
+    # collections must grow over time and the rules that are used to derive the
+    # scratch collection must be monotone.
+    #
+    # XXX: probably need to recurse via is_safe_rhs_ref?
+    # XXX: code cleanup / unification with other dependency checks
+    saw_ref = false
     @bud_instance.t_depends.each do |d|
-      return false if d.lhs == rel.to_s and d.op == "<-"
+      if d.lhs == rel.to_s
+        saw_ref = true
+        return false unless is_persistent_tbl(d.body.to_sym)
+        return false if is_deleted_tbl(d.body)
+        return false if d.nm or d.in_body
+      end
     end
 
-    return true
+    return saw_ref
   end
 
   # Does "t" appear on the LHS of any deletion rules? Note that we distinguish

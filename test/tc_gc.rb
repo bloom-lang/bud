@@ -187,6 +187,54 @@ class RseNegateScratchLhsBad3
   end
 end
 
+class RseNegateScratchRhs
+  include Bud
+
+  state do
+    table :bar
+    scratch :foo
+    scratch :baz
+    table :qux
+  end
+
+  bloom do
+    # We can reclaim from baz -- even though it is a scratch, it is derived
+    # purely from persistent ables via monotone rules.
+    foo <= bar.notin(baz)
+    baz <= qux {|q| [q.val, q.key]}
+  end
+end
+
+class RseNegateScratchRhsBad
+  include Bud
+
+  state do
+    scratch :r1
+    table :t1
+    scratch :t2
+    scratch :t3
+    table :t4
+
+    scratch :r2
+    table :t5
+    scratch :t6
+    table :t7
+    scratch :t8
+  end
+
+  bloom do
+    # Scratch t2 derived via non-monotone rule
+    r1 <= t1.notin(t2)
+    t2 <= t3.notin(t4)
+
+    # Scratch t6 derived from a scratch that isn't grounded in a persistent
+    # table
+    r2 <= t5.notin(t6)
+    t6 <= t7
+    t6 <= t8
+  end
+end
+
 # Situations where a reference to the reclaimed relation on the RHS of a rule
 # SHOULD NOT prohibit RSE.
 class RseRhsRef
@@ -691,6 +739,28 @@ class TestRse < MiniTest::Unit::TestCase
     2.times { s.tick }
 
     assert_equal([[5, 10], [6, 11]], s.t1.to_a.sort)
+  end
+
+  def test_rse_negate_scratch_rhs
+    j = RseNegateScratchRhs.new
+    j.bar <+ [[5,10], [6, 11]]
+    j.qux <+ [[11, 6], [12, 7]]
+    2.times { j.tick }
+
+    assert_equal([[5, 10]].to_set, j.foo.to_set)
+    assert_equal([[5, 10]].to_set, j.bar.to_set)
+  end
+
+  def test_rse_negate_scratch_rhs_bad
+    j = RseNegateScratchRhsBad.new
+    j.t1 <+ [[5, 10], [6, 11]]
+    j.t3 <+ [[6, 11], [7, 12]]
+    j.t5 <+ [[5, 10], [6, 11]]
+    j.t7 <+ [[6, 11], [7, 12]]
+    2.times { j.tick }
+
+    assert_equal([[5, 10], [6, 11]].to_set, j.t1.to_set)
+    assert_equal([[5, 10], [6, 11]].to_set, j.t5.to_set)
   end
 
   def test_rse_rhs_ref
