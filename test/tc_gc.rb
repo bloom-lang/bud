@@ -201,16 +201,30 @@ class RseNegateScratchRhs
     scratch :t5
     table :t6
     table :t7
+
+    scratch :r3
+    table :t8
+    scratch :t9
+    scratch :t10
+    scratch :t11
+    table :t12
+    table :t20
   end
 
   bloom do
-    # We can reclaim from baz -- even though it is a scratch, it is derived
-    # purely from persistent ables via monotone rules.
+    # We can reclaim from baz: even though it is a scratch, it is derived purely
+    # from persistent tables via monotone rules.
     r1 <= t1.notin(t2)
     t2 <= t3 {|q| [q.val, q.key]}
 
     r2 <= t4.notin(t5)
     t5 <= (t6 * t7).pairs(:val => :key) {|x,y| [x.key, y.val]}
+#    t5 <= (t5 * t20).lefts
+
+    r3 <= t8.notin(t9)
+    t9 <= t10 {|t| [t.key + 1, t.val]}
+    t10 <= t11 {|t| [t.key, t.val + 1]}
+    t11 <= t12
   end
 end
 
@@ -229,6 +243,12 @@ class RseNegateScratchRhsBad
     scratch :t6
     table :t7
     scratch :t8
+
+    scratch :r3, [:x, :y]
+    table :t9, [:x, :y]
+    scratch :t10, [:x, :y]
+    channel :t11, [:@x, :y]
+    table :t12, [:x, :y]
   end
 
   bloom do
@@ -241,6 +261,12 @@ class RseNegateScratchRhsBad
     r2 <= t5.notin(t6)
     t6 <= t7
     t6 <= t8
+
+    # Scratch t10 derived from a channel; the channel has a sender-side
+    # persistent ground, but that doesn't matter
+    r3 <= t9.notin(t10)
+    t10 <= t11
+    t11 <~ t12
   end
 end
 
@@ -757,24 +783,33 @@ class TestRse < MiniTest::Unit::TestCase
     j.t4 <+ [[5, 10], [6, 11]]
     j.t6 <+ [[5, 99]]
     j.t7 <+ [[99, 10]]
+    j.t8 <+ [[5, 10], [6, 11]]
+    j.t12 <+ [[5, 10], [6, 11]]
     2.times { j.tick }
 
     assert_equal([[5, 10]].to_set, j.r1.to_set)
     assert_equal([[5, 10]].to_set, j.t1.to_set)
     assert_equal([[6, 11]].to_set, j.r2.to_set)
     assert_equal([[6, 11]].to_set, j.t4.to_set)
+    assert_equal([[5, 10]].to_set, j.r3.to_set)
+    assert_equal([[5, 10]].to_set, j.t8.to_set)
   end
 
   def test_rse_negate_scratch_rhs_bad
-    j = RseNegateScratchRhsBad.new
+    j = RseNegateScratchRhsBad.new(:port => 5558)
     j.t1 <+ [[5, 10], [6, 11]]
     j.t3 <+ [[6, 11], [7, 12]]
     j.t5 <+ [[5, 10], [6, 11]]
     j.t7 <+ [[6, 11], [7, 12]]
-    2.times { j.tick }
+    j.t9 <+ [["localhost:#{j.port}", 100],
+             ["localhost:#{j.port}", 101]]
+    j.t12 <+ [["localhost:#{j.port}", 100]]
+    7.times { j.tick; sleep 0.1 }
 
     assert_equal([[5, 10], [6, 11]].to_set, j.t1.to_set)
     assert_equal([[5, 10], [6, 11]].to_set, j.t5.to_set)
+    assert_equal([["localhost:#{j.port}", 100],
+                  ["localhost:#{j.port}", 101]].to_set, j.t9.to_set)
   end
 
   def test_rse_rhs_ref

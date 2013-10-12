@@ -525,7 +525,7 @@ class BudMeta #:nodoc: all
   # is persistent/is deleted from/etc.
   #
   # TODO:
-  #   * support persistent scratches (defined via monotone rules)
+  #   * allow X to be a persistent scratch (defined via monotone rules)
   #   * support projection/selection for X, in addition to join
   #   * refactor: rewrite joins to materialize as a temp rel
   #   * error checking -- right now, we skip notin clauses that are too
@@ -545,8 +545,10 @@ class BudMeta #:nodoc: all
   #   * support more tlist expressions for join RSE
   #   * support more join types (e.g., lefts/rights/matches, > 2 way joins, outer)
   #   * check that it works with modules
-  #   * don't create rules to reclaim from collections that we subsequently
-  #     determine are unsafe
+  #   * efficiency: don't create redundant rules to compute RSE conditions for
+  #     collections that we subsequently determine are unsafe
+  #   * efficiency: if a relation only has a single RSE condition, we can avoid
+  #     creating an extra rule
   def rse_rewrite
     bud = @bud_instance
     return if bud.options[:disable_rse]
@@ -771,7 +773,7 @@ class BudMeta #:nodoc: all
     do_rels = Set.new
     skip_rels = jneg.join_rels.to_set
 
-    if check_neg_outer(jneg.outer, jneg.rule_id, jneg.bud_obj)
+    if check_neg_outer(jneg.outer)
       jneg.join_rels.each do |r|
         if check_neg_inner(r, jneg.rule_id, jneg.bud_obj)
           do_rels << r
@@ -979,7 +981,7 @@ class BudMeta #:nodoc: all
     return false if n.inner == n.outer
 
     return check_neg_inner(n.inner, n.rule_id, n.bud_obj) &&
-           check_neg_outer(n.outer, n.rule_id, n.bud_obj)
+           check_neg_outer(n.outer)
   end
 
   def check_neg_inner(rel, rule_id, bud_obj)
@@ -1029,7 +1031,11 @@ class BudMeta #:nodoc: all
     return saw_ref
   end
 
-  def check_neg_outer(rel, rule_id, bud_obj)
+  def check_neg_outer(rel)
+    return rel_is_inflationary(rel, Set.new)
+  end
+
+  def rel_is_inflationary(rel, done_deps)
     return false if is_deleted_tbl(rel)
     return true if is_persistent_tbl(rel)
 
@@ -1038,15 +1044,14 @@ class BudMeta #:nodoc: all
     # collections must grow over time and the rules that are used to derive the
     # scratch collection must be monotone.
     #
-    # XXX: probably need to recurse via is_safe_rhs_ref?
     # XXX: code cleanup / unification with other dependency checks
     saw_ref = false
     @bud_instance.t_depends.each do |d|
-      if d.lhs == rel.to_s
+      if d.lhs == rel.to_s and not done_deps.include? d
+        done_deps << d
         saw_ref = true
-        return false unless is_persistent_tbl(d.body.to_sym)
-        return false if is_deleted_tbl(d.body)
-        return false if d.nm or d.in_body
+        return false if d.nm or d.in_body or d.op == "<~"
+        return false unless rel_is_inflationary(d.body.to_sym, done_deps)
       end
     end
 
