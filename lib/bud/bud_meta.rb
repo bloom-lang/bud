@@ -186,7 +186,7 @@ class BudMeta #:nodoc: all
 
 
   # Node.status is one of :init, :in_progress, :done
-  Node = Struct.new :name, :status, :stratum, :edges, :in_lhs, :in_body
+  Node = Struct.new :name, :status, :stratum, :edges, :in_lhs, :in_body, :already_neg
   Edge = Struct.new :to, :op, :neg, :temporal
 
   def stratify_preds
@@ -224,13 +224,14 @@ class BudMeta #:nodoc: all
 
   def calc_stratum(node, neg, temporal, path)
     if node.status == :in_process
-      if neg and not temporal
+      if neg and not temporal and not node.already_neg
         raise Bud::CompileError, "unstratifiable program: #{path.uniq.join(',')}"
       end
     elsif node.status == :init
       node.status = :in_process
       node.edges.each do |edge|
         next unless edge.op == "<="
+        node.already_neg = neg
         body_stratum = calc_stratum(edge.to, (neg or edge.neg), (edge.temporal or temporal), path + [edge.to.name])
         node.stratum = max(node.stratum, body_stratum + (edge.neg ? 1 : 0))
       end
