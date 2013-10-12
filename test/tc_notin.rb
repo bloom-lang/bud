@@ -402,8 +402,29 @@ class StratError
   end
 end
 
+class StratShouldWork
+  include Bud
+
+  state do
+    scratch :r2
+    table :t4
+    scratch :t5
+    table :t20
+  end
+
+  bloom do
+    r2 <= t4.notin(t5)
+    t5 <= (t5 * t20).lefts
+  end
+end
+
 class TestStratErrors < MiniTest::Unit::TestCase
   def test_strat_error
     assert_raises(Bud::CompileError) { StratError.new }
+  end
+
+  def test_strat_precycleneg
+    StratShouldWork.new
+    assert(true)
   end
 end
