@@ -219,7 +219,7 @@ class RseNegateScratchRhs
 
     r2 <= t4.notin(t5)
     t5 <= (t6 * t7).pairs(:val => :key) {|x,y| [x.key, y.val]}
-#    t5 <= (t5 * t20).lefts
+    t5 <= (t5 * t20).lefts
 
     r3 <= t8.notin(t9)
     t9 <= t10 {|t| [t.key + 1, t.val]}
