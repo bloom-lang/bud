@@ -637,6 +637,23 @@ class RseJoinRecursion
   end
 end
 
+class RseJoinRhs
+  include Bud
+
+  state do
+    table :safe_log, [:id] => [:key, :val]
+    table :dominated, [:id]
+    scratch :view, safe_log.schema
+  end
+
+  bloom do
+    dominated <= (safe_log * safe_log).pairs(:key => :val) do |w1,w2|
+      [w1.id] if w1 != w2
+    end
+    view <= safe_log.notin(dominated, :id => :id)
+  end
+end
+
 class TestRse < MiniTest::Unit::TestCase
   def test_rse_simple
     s = RseSimple.new
@@ -1113,6 +1130,22 @@ class TestRse < MiniTest::Unit::TestCase
   def test_rse_join_recursion
     j = RseJoinRecursion.new
     j.tick
+  end
+
+  def test_rse_join_rhs
+    skip        # XXX: doesn't work correctly yet
+    j = RseJoinRhs.new
+    j.safe_log <+ [[1, "k1", "k2"], [2, "k3", "k1"]]
+    2.times { j.tick }
+
+    assert_equal([[1]].to_set, j.dominated.to_set)
+    assert_equal([[2, "k3", "k1"]].to_set, j.view.to_set)
+
+    j.safe_log <+ [[3, "k2", "k4"]]
+    2.times { j.tick }
+
+    assert_equal([[1], [3]].to_set, j.dominated.to_set)
+    assert_equal([[2, "k3", "k1"]].to_set, j.view.to_set)
   end
 end
 
