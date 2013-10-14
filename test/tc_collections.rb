@@ -538,6 +538,14 @@ class TestCollections < MiniTest::Unit::TestCase
     assert_equal(1, e.t1.length)
   end
 
+  def test_empty_pk_include
+    e = EmptyPk.new
+    e.t1 <+ [["x", "y"]]
+    e.tick
+    assert(!e.t1.include?(["x", "z"]))
+    assert(e.t1.include?(["x", "y"]))
+  end
+
   def test_periodic_lhs_error
     b = InsertIntoPeriodicError.new
     b.run_bg

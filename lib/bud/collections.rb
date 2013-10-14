@@ -373,7 +373,7 @@ module Bud
     # checks for +item+ in the collection
     public
     def include?(item)
-      return true if key_cols.nil? or (key_cols.empty? and length > 0)
+      return true if key_cols.nil?
       return false if item.nil?
       key = get_key_vals(item)
       return (item == self[key])
