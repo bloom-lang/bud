@@ -1283,7 +1283,7 @@ module Bud
 
     def invalidated=(val)
       # Might be reset to false at end-of-tick, but shouldn't be set to true
-      raise Bud::Error, "cannot not set invalidate on table '#{@tabname}'" if val
+      raise Bud::Error, "cannot set invalidate on table '#{@tabname}'" if val
       super
     end
 
