@@ -314,23 +314,10 @@ module Bud
     def each_from(bufs, &block) # :nodoc: all
       bufs.each do |b|
         b.each_value do |v|
-          tick_metrics if bud_instance and bud_instance.options[:metrics]
+          tick_metrics if bud_instance.options[:metrics]
           yield v
         end
       end
-    end
-
-    public
-    def each_from_sym(buf_syms, &block) # :nodoc: all
-      bufs = buf_syms.map do |s|
-        case s
-        when :storage then @storage
-        when :delta then @delta
-        when :new_delta then @new_delta
-        else raise Bud::Error, "bad symbol passed into each_from_sym"
-        end
-      end
-      each_from(bufs, &block)
     end
 
     private
