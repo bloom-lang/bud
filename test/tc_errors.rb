@@ -126,20 +126,6 @@ class TestErrorHandling < MiniTest::Unit::TestCase
     end
   end
 
-  class EachFromBadSym
-    include Bud
-
-    state do
-      table :joe
-    end
-  end
-
-  def test_each_from_bad_sym
-    p = EachFromBadSym.new
-    p.tick
-    assert_raises(Bud::Error) { p.joe.each_from_sym([:bletch]) {} }
-  end
-
   def test_missing_table_error
     assert_raises(Bud::CompileError) { MissingTable.new }
   end

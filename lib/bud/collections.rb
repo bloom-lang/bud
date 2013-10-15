@@ -318,19 +318,6 @@ module Bud
       end
     end
 
-    public
-    def each_from_sym(buf_syms, &block) # :nodoc: all
-      bufs = buf_syms.map do |s|
-        case s
-        when :storage then @storage
-        when :delta then @delta
-        when :new_delta then @new_delta
-        else raise Bud::Error, "bad symbol passed into each_from_sym"
-        end
-      end
-      each_from(bufs, &block)
-    end
-
     private
     def init_storage
       @storage = {}
