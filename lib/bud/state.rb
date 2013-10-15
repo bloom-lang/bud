@@ -178,6 +178,7 @@ module Bud
   def range(name, schema)
     define_collection(name)
     @tables[name] = Bud::BudRangeCompress.new(name, self, schema)
+    @ranges[name] = @tables[name]
   end
 
   # Define methods to implement the state declarations for every registered kind

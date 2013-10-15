@@ -94,6 +94,7 @@ module Bud
   #   * <tt>:dump_rewrite</tt> if true, dump results of internal rewriting of Bloom code to a file
   #   * <tt>:print_wiring</tt> if true, print the wiring diagram of the program to stdout
   #   * <tt>:channel_stats</tt> if true, print stats about sent & recv channel messages
+  #   * <tt>:range_stats</tt> if true, print stats about range-compressed tables
   #   * <tt>:metrics</tt> if true, dumps a hash of internal performance metrics
   # * controlling execution
   #   * <tt>:tag</tt>  a name for this instance, suitable for display during tracing and visualization
@@ -120,6 +121,7 @@ module Bud
     @sealed_tables = {}
     @dbm_tables = {}
     @zk_tables = {}
+    @ranges = {}
     @stratified_rules = []
     @push_elems = {}
     @callbacks = {}
@@ -1016,6 +1018,13 @@ module Bud
         puts "chn #{name}: sent #{c.num_sent}, recv #{c.num_recv}"
       end
       puts "====="
+    end
+
+    if @options[:range_stats]
+      puts "Stats for #{port}: (budtime = #{@budtime})"
+      @ranges.each do |name, r|
+        puts "range #{name}: logical size #{r.length}, physical size #{r.physical_size}"
+      end
     end
 
     if do_shutdown_cb
