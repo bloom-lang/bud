@@ -1208,7 +1208,7 @@ class TestReliableDelivery < MiniTest::Unit::TestCase
     f = rlist.first
     id_buf = 0.upto(100).to_a.shuffle
     id_buf.each do |i|
-      f.log <+ [[i, "message #{i}"]]
+      f.log <+ [[f.id(i), "message #{i}"]]
       f.tick
       if i % 10 == 0
         rlist.each(&:tick)
@@ -1218,6 +1218,9 @@ class TestReliableDelivery < MiniTest::Unit::TestCase
 
     5.times { rlist.each(&:tick); sleep 0.1 }
 
+    rlist.each do |r|
+      assert_equal(3, r.chn_approx.physical_size)
+    end
     rlist.each(&:stop)
   end
 end

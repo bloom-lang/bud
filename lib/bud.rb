@@ -1071,7 +1071,8 @@ module Bud
   end
 
   def id(i)
-    [port, i]
+    raise if i >= 65536
+    (port << 16) | i
   end
 
   # From client code, manually trigger a timestep of Bloom execution.
