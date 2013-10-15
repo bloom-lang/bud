@@ -1178,3 +1178,46 @@ class TestSealed < MiniTest::Unit::TestCase
     end
   end
 end
+
+class ReliableBroadcast
+  include Bud
+
+  state do
+    sealed :node, [:addr]
+    table :log, [:id] => [:val]
+    channel :chn, [:@addr, :id] => [:val]
+  end
+
+  bloom do
+    chn <~ (node * log).pairs {|n,l| n + l}
+    log <= chn.payloads
+  end
+end
+
+class TestReliableDelivery < MiniTest::Unit::TestCase
+  def test_space_basic
+    opts = { :range_stats => false }
+    ports = (1..3).map {|i| i + 10001}
+    addrs = ports.map {|p| "127.0.0.1:#{p}"}
+    rlist = ports.map {|p| ReliableBroadcast.new(opts.merge(:port => p))}
+    rlist.each do |r|
+      r.node <+ addrs.map {|a| [a]}
+      r.tick
+    end
+
+    f = rlist.first
+    id_buf = 0.upto(100).to_a.shuffle
+    id_buf.each do |i|
+      f.log <+ [[i, "message #{i}"]]
+      f.tick
+      if i % 10 == 0
+        rlist.each(&:tick)
+        sleep 0.1
+      end
+    end
+
+    5.times { rlist.each(&:tick); sleep 0.1 }
+
+    rlist.each(&:stop)
+  end
+end

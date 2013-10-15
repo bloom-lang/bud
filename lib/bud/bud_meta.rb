@@ -387,7 +387,7 @@ class BudMeta #:nodoc: all
     # channel tuples that have been delivered.
     approx_name = "#{chn_prefix}_approx"
     approx_schema = chn_coll.key_cols
-    @bud_instance.table(approx_name.to_sym, approx_schema)
+    @bud_instance.range(approx_name.to_sym, approx_schema)
 
     ack_name = "#{chn_prefix}_ack"
     ack_schema = [:@rce_sender] + chn_coll.key_cols

@@ -658,7 +658,7 @@ module Bud
     def tick_deltas # :nodoc: all
       unless @delta.empty?
         puts "#{qualified_tabname}.tick_deltas delta --> storage (#{@delta.size} elems)" if $BUD_DEBUG
-        @storage.merge!(@delta)
+        merge_to_storage(@delta)
         @tick_delta.concat(@delta.values) if accumulate_tick_deltas
         @delta.clear
       end
@@ -698,15 +698,19 @@ module Bud
         puts "#{qualified_tabname}.flush new_delta --> storage" unless @new_delta.empty?
       end
       unless @delta.empty?
-        @storage.merge!(@delta)
+        merge_to_storage(@delta)
         @tick_delta.concat(@delta.values) if accumulate_tick_deltas
         @delta.clear
       end
       unless @new_delta.empty?
-        @storage.merge!(@new_delta)
+        merge_to_storage(@new_delta)
         @new_delta.clear
       end
       # @tick_delta kept around for higher strata.
+    end
+
+    def merge_to_storage(buf)
+      @storage.merge!(buf)
     end
 
     public
@@ -1385,7 +1389,11 @@ module Bud
   # can store only [1-4,8]. We store a set of such ranges for each distinct
   # value of the non-compressed columns. Hence, we implement the collection as a
   # map from an array of non-range field values to a set of range values.
-  class BudRangeCompress < BudPersistentCollection
+  #
+  # Note that we represent @storage differently from the other buffers (@delta,
+  # @new_delta, @tick_delta, and @pending): the latter are all represented in
+  # the same way as a normal collection, whereas @storage is range-compressed.
+  class BudRangeCompress < BudTable
     def initialize(name, bud_instance, schema=nil)
       schema ||= [:$id]
       if schema.kind_of? Hash
@@ -1417,8 +1425,11 @@ module Bud
 
     def do_insert(t, store)
       return if t.nil?
-      setup_compression(t) unless @done_setup
+      unless store.equal? @storage      # Only range-compress @storage
+        return super
+      end
 
+      setup_compression(t) unless @done_setup
       t = prep_tuple(t)
       lookup_v, range_v = split_tuple(t)
       seq = store[lookup_v]
@@ -1427,6 +1438,10 @@ module Bud
       else
         seq << range_v
       end
+    end
+
+    def merge_to_storage(buf)
+      buf.each_value {|t| do_insert(t, @storage)}
     end
 
     def split_tuple(t)
