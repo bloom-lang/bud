@@ -1424,6 +1424,10 @@ module Bud
       end
     end
 
+    def split_tuple(t)
+      [t.values_at(*@lookup_colnums), t[@range_idx]]
+    end
+
     def each_from(bufs, &block)
       bufs.each do |b|
         b.each_pair do |k,range|
@@ -1435,15 +1439,11 @@ module Bud
     end
 
     def length
-      @storage.values.map {|mr| mr.nvalues}.reduce(:+)
+      @storage.values.map {|mr| mr.nvalues}.reduce(:+) || 0
     end
 
     def physical_size
-      @storage.values.map {|mr| mr.nbuckets}.reduce(:+)
-    end
-
-    def split_tuple(t)
-      [t.values_at(*@lookup_colnums), t[@range_idx]]
+      @storage.values.map {|mr| mr.nbuckets}.reduce(:+) || 0
     end
 
     superator "<-" do |o|

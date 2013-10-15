@@ -51,6 +51,9 @@ end
 class TestRangeCollection < MiniTest::Unit::TestCase
   def test_basic
     r = RangeCollection.new
+    assert_equal(0, r.foo.length)
+    assert_equal(0, r.foo.physical_size)
+
     r.tick
     assert(!r.foo.empty?)
     assert_equal([["xyz", 1], ["xyz", 2], ["xyz", 3]].to_set,
