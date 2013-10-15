@@ -498,7 +498,7 @@ module Bud
       end
 
       # send deltas out in all cases
-      @collection.delta.each_value {|item| push_out(item)}
+      @collection.each_delta {|item| push_out(item)}
     end
   end
 

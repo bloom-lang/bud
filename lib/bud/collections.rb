@@ -16,7 +16,7 @@ module Bud
     attr_accessor :bud_instance  # :nodoc: all
     attr_reader :tabname, :cols, :key_cols # :nodoc: all
     attr_reader :struct
-    attr_reader :storage, :delta, :new_delta, :pending, :tick_delta # :nodoc: all
+    attr_reader :new_delta, :pending # :nodoc: all
     attr_reader :wired_by, :scanner_cnt
     attr_accessor :invalidated, :rescan
     attr_accessor :is_source
@@ -274,7 +274,12 @@ module Bud
 
     public
     def each_raw(&block)
-      @storage.each_value(&block)
+      each_from([@storage], &block)
+    end
+
+    public
+    def each_delta(&block)
+      each_from([@delta], &block)
     end
 
     public
