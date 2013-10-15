@@ -17,16 +17,14 @@ end
 
 class TestMetrics < MiniTest::Unit::TestCase
   def test_metrics
-    sio = StringIO.new
-    begin
-      old_stdout, $stdout = $stdout, sio
-      p = MetricsTest.new(:metrics => true, :port => 56789)
+    out, err = capture_io do
+      p = MetricsTest.new(:metrics => true)
       5.times {
         p.sync_do { p.t1 <+ [[p.budtime, 5]] }
       }
       p.stop
-    ensure
-      $stdout = old_stdout
     end
+
+    assert(out.include? %Q{"","count","5"})
   end
 end
