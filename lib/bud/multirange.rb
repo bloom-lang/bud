@@ -27,6 +27,10 @@ class Bud::MultiRange
     @buckets.size
   end
 
+  def nvalues
+    @buckets.map{|b| 1 + b.hi - b.lo}.reduce(:+)
+  end
+
   def <<(v)
     @buckets.each_with_index do |b,i|
       if v >= b.lo

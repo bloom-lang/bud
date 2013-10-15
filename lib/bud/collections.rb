@@ -1434,6 +1434,14 @@ module Bud
       end
     end
 
+    def length
+      @storage.values.map {|mr| mr.nvalues}.reduce(:+)
+    end
+
+    def physical_size
+      @storage.values.map {|mr| mr.nbuckets}.reduce(:+)
+    end
+
     def split_tuple(t)
       [t.values_at(*@lookup_colnums), t[@range_idx]]
     end

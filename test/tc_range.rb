@@ -30,6 +30,12 @@ class TestRangeCollection < MiniTest::Unit::TestCase
                  r.bar.to_set)
     assert_equal([[11], [16], [21], [12], [17], [22], [13], [18], [23]].to_set,
                  r.baz.to_set)
+    assert_equal(3, r.foo.length)
+    assert_equal(3, r.bar.length)
+    assert_equal(9, r.baz.length)
+    assert_equal(1, r.foo.physical_size)
+    assert_equal(1, r.bar.physical_size)
+    assert_equal(3, r.baz.physical_size)
   end
 end
 
