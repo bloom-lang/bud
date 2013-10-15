@@ -175,6 +175,11 @@ module Bud
     end 
   end
 
+  def range(name, schema)
+    define_collection(name)
+    @tables[name] = Bud::BudRangeCompress.new(name, self, schema)
+  end
+
   # Define methods to implement the state declarations for every registered kind
   # of lattice.
   def load_lattice_defs

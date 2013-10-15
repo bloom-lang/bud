@@ -1,3 +1,5 @@
+require_relative 'multirange'
+
 module Bud
   ########
   #--
@@ -1382,6 +1384,74 @@ module Bud
       end
 
       pending_merge(o)
+    end
+  end
+
+  # A persistent collection in which we apply "range compression" to a
+  # (user-specified) column: we represent values in the column by storing the
+  # lower and upper bounds on dense ranges. e.g., to represent [1,2,3,4,8], we
+  # can store only [1-4,8]. We store a set of such ranges for each distinct
+  # value of the non-compressed columns. Hence, we implement the collection as a
+  # map from an array of non-range field values to a set of range values.
+  class BudRangeCompress < BudPersistentCollection
+    def initialize(name, bud_instance, schema=nil)
+      schema ||= [:$id]
+      # We're going to mutate the schema, so deep copy it to be safe
+      schema = Marshal.load(Marshal.dump(schema))
+
+      if schema.kind_of? Hash
+        raise Bud::CompileError, "cannot specify non-key columns for range '#{name}'"
+      end
+
+      range_cnt = schema.count {|s| s.to_s.start_with? "$"}
+      if range_cnt == 0
+        raise Bud::CompileError, "missing range column for range '#{name}'"
+      end
+      if range_cnt > 1
+        raise Bud::CompileError, "multiple range columns for range '#{name}'"
+      end
+
+      @range_idx = schema.find_index {|s| s.to_s.start_with? "$"}
+      schema[@range_idx] = schema[@range_idx].to_s.delete("$").to_sym
+
+      @lookup_colnums = (0...schema.size).to_a
+      @lookup_colnums.delete_at(@range_idx)
+
+      super(name, bud_instance, schema)
+    end
+
+    def do_insert(t, store)
+      return if t.nil?
+      t = prep_tuple(t)
+      lookup_v, range_v = split_tuple(t)
+      seq = store[lookup_v]
+      if seq.nil?
+        store[lookup_v] = MultiRange.new(range_v)
+      else
+        seq << range_v
+      end
+    end
+
+    def each_from(bufs, &block)
+      bufs.each do |b|
+        b.each_pair do |k,range|
+          range.each do |v|
+            block.call(k + [v])
+          end
+        end
+      end
+    end
+
+    def split_tuple(t)
+      [t.values_at(*@lookup_colnums), t[@range_idx]]
+    end
+
+    def pending_delete(o)
+      raise Bud::CompileError, "illegal use of <- with range '#{@tabname}' on left"
+    end
+
+    def pending_delete_keys(o)
+      raise Bud::CompileError, "illegal use of <+- with range '#{@tabname}' on left"
     end
   end
 
