@@ -1388,32 +1388,37 @@ module Bud
   class BudRangeCompress < BudPersistentCollection
     def initialize(name, bud_instance, schema=nil)
       schema ||= [:$id]
-      # We're going to mutate the schema, so deep copy it to be safe
-      schema = Marshal.load(Marshal.dump(schema))
-
       if schema.kind_of? Hash
         raise Bud::CompileError, "cannot specify non-key columns for range '#{name}'"
       end
 
-      range_cnt = schema.count {|s| s.to_s.start_with? "$"}
-      if range_cnt == 0
-        raise Bud::CompileError, "missing range column for range '#{name}'"
-      end
-      if range_cnt > 1
-        raise Bud::CompileError, "multiple range columns for range '#{name}'"
-      end
-
-      @range_idx = schema.find_index {|s| s.to_s.start_with? "$"}
-      schema[@range_idx] = schema[@range_idx].to_s.delete("$").to_sym
-
-      @lookup_colnums = (0...schema.size).to_a
-      @lookup_colnums.delete_at(@range_idx)
-
       super(name, bud_instance, schema)
+      @done_setup = false
+    end
+
+    # We need to decide which column we want to represent as a MultiRange. Right
+    # now, we use a simple heuristic: we just wait for the first tuple to arrive
+    # in the collection, and then pick the first column (left-to-right) that
+    # contains a numeric value. A slightly smarter scheme would look at a
+    # handful of tuples to look for dense-seeming numeric values.
+    def setup_compression(t)
+      t.each_with_index do |val,i|
+        if val.kind_of? Integer
+          @range_idx = i
+          @lookup_colnums = (0...schema.size).to_a
+          @lookup_colnums.delete_at(@range_idx)
+          @done_setup = true
+          return
+        end
+      end
+
+      raise Bud::Error, "cannot find range column in #{t} for #{tabname}"
     end
 
     def do_insert(t, store)
       return if t.nil?
+      setup_compression(t) unless @done_setup
+
       t = prep_tuple(t)
       lookup_v, range_v = split_tuple(t)
       seq = store[lookup_v]

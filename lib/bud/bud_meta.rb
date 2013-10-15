@@ -365,10 +365,10 @@ class BudMeta #:nodoc: all
   end
 
   # Apply the RCE optimization to the given channel. That requires two separate
-  # things: (1) adding notin clauses to every rule that has the channel on the
-  # lhs, to avoid duplicate derivations (2) adding a channel and a communication
-  # rule to communicate the set of delivered messages at each remote node. There
-  # are multiple strategies possible for #2; right now we just use a simple ACK
+  # things: (1) adding a notin clause to every rule that has the channel on the
+  # lhs, to avoid redundant message sends (2) adding a channel and an async rule
+  # to communicate the set of delivered messages at each remote node. There are
+  # multiple strategies possible for #2; right now we just use a simple ACK
   # scheme (one ACK per delivered message).
   #
   # As an optimization, the ACK message only includes the key columns of the

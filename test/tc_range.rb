@@ -4,9 +4,9 @@ class RangeCollection
   include Bud
 
   state do
-    range :foo, [:addr, :$id]
-    range :bar, [:addr, :$id]
-    range :baz, [:$id]
+    range :foo, [:addr, :id]
+    range :bar, [:addr, :id]
+    range :baz, [:id]
   end
 
   bootstrap do
@@ -23,7 +23,7 @@ class RangeDeleteError
   include Bud
 
   state do
-    range :foo, [:addr, :$id]
+    range :foo, [:addr, :id]
     table :bar
   end
 
@@ -32,19 +32,11 @@ class RangeDeleteError
   end
 end
 
-class MultipleRangeError
+class RangeNonKeyError
   include Bud
 
   state do
-    range :foo, [:addr, :$id1, :$id2]
-  end
-end
-
-class MissingRangeError
-  include Bud
-
-  state do
-    range :foo, [:addr, :id]
+    range :foo, [:addr, :id] => [:val]
   end
 end
 
@@ -53,6 +45,7 @@ class TestRangeCollection < MiniTest::Unit::TestCase
     r = RangeCollection.new
     assert_equal(0, r.foo.length)
     assert_equal(0, r.foo.physical_size)
+    assert(r.foo.empty?)
 
     r.tick
     assert(!r.foo.empty?)
@@ -75,12 +68,8 @@ class TestRangeCollection < MiniTest::Unit::TestCase
     assert_raises(Bud::CompileError) { r.tick }
   end
 
-  def test_multiple_range_error
-    assert_raises(Bud::CompileError) { MultipleRangeError.new }
-  end
-
-  def test_missing_range_error
-    assert_raises(Bud::CompileError) { MissingRangeError.new }
+  def test_range_non_key_error
+    assert_raises(Bud::CompileError) { RangeNonKeyError.new }
   end
 end
 
