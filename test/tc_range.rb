@@ -19,6 +19,35 @@ class RangeCollection
   end
 end
 
+class RangeDeleteError
+  include Bud
+
+  state do
+    range :foo, [:addr, :$id]
+    table :bar
+  end
+
+  bloom do
+    foo <- bar
+  end
+end
+
+class MultipleRangeError
+  include Bud
+
+  state do
+    range :foo, [:addr, :$id1, :$id2]
+  end
+end
+
+class MissingRangeError
+  include Bud
+
+  state do
+    range :foo, [:addr, :id]
+  end
+end
+
 class TestRangeCollection < MiniTest::Unit::TestCase
   def test_basic
     r = RangeCollection.new
@@ -36,6 +65,19 @@ class TestRangeCollection < MiniTest::Unit::TestCase
     assert_equal(1, r.foo.physical_size)
     assert_equal(1, r.bar.physical_size)
     assert_equal(3, r.baz.physical_size)
+  end
+
+  def test_delete_error
+    r = RangeDeleteError.new
+    assert_raises(Bud::CompileError) { r.tick }
+  end
+
+  def test_multiple_range_error
+    assert_raises(Bud::CompileError) { MultipleRangeError.new }
+  end
+
+  def test_missing_range_error
+    assert_raises(Bud::CompileError) { MissingRangeError.new }
   end
 end
 

@@ -1446,11 +1446,11 @@ module Bud
       [t.values_at(*@lookup_colnums), t[@range_idx]]
     end
 
-    def pending_delete(o)
+    superator "<-" do |o|
       raise Bud::CompileError, "illegal use of <- with range '#{@tabname}' on left"
     end
 
-    def pending_delete_keys(o)
+    superator "<+-" do |o|
       raise Bud::CompileError, "illegal use of <+- with range '#{@tabname}' on left"
     end
   end
