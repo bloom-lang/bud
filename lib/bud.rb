@@ -1012,7 +1012,7 @@ module Bud
     @running_async = false
 
     if @options[:channel_stats]
-      puts "Stats for #{port}: (budtime = #{@budtime})"
+      puts "Channel stats for #{port}: (budtime = #{@budtime})"
       @channels.each do |name, c|
         next if c.kind_of? Bud::BudTerminal or name == :localtick
         puts "chn #{name}: sent #{c.num_sent}, recv #{c.num_recv}"
@@ -1021,7 +1021,7 @@ module Bud
     end
 
     if @options[:range_stats]
-      puts "Stats for #{port}: (budtime = #{@budtime})"
+      puts "Range stats for #{port}: (budtime = #{@budtime})"
       @ranges.each do |name, r|
         puts "range #{name}: logical size #{r.length}, physical size #{r.physical_size}"
       end
@@ -1067,6 +1067,10 @@ module Bud
   def int_ip_port
     raise Bud::Error, "int_ip_port called before port defined" if @port.nil? and @options[:port] == 0
     @port.nil? ? "#{@ip}:#{@options[:port]}" : "#{@ip}:#{@port}"
+  end
+
+  def id(i)
+    [port, i]
   end
 
   # From client code, manually trigger a timestep of Bloom execution.
