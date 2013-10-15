@@ -5,10 +5,15 @@ class RangeCollection
 
   state do
     range :foo, [:addr, :$id]
+    range :bar, [:addr, :$id]
   end
 
   bootstrap do
     foo <= [["xyz", 1], ["xyz", 2], ["xyz", 3]]
+  end
+
+  bloom do
+    bar <= foo {|f| [f.addr, f.id + 1]}
   end
 end
 
@@ -16,10 +21,11 @@ class TestRangeCollection < MiniTest::Unit::TestCase
   def test_insert
     r = RangeCollection.new
     r.tick
+    assert(!r.foo.empty?)
     assert_equal([["xyz", 1], ["xyz", 2], ["xyz", 3]].to_set,
                  r.foo.to_set)
-    assert(!r.foo.empty?)
-#    assert(["xyz", 1], r.foo[["xyz", 1]])
+    assert_equal([["xyz", 2], ["xyz", 3], ["xyz", 4]].to_set,
+                 r.bar.to_set)
   end
 end
 
