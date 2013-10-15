@@ -1015,7 +1015,7 @@ module Bud
       puts "Channel stats for #{port}: (budtime = #{@budtime})"
       @channels.each do |name, c|
         next if c.kind_of? Bud::BudTerminal or name == :localtick
-        puts "chn #{name}: sent #{c.num_sent}, recv #{c.num_recv}"
+        puts "#{name}: sent #{c.num_sent}, recv #{c.num_recv}"
       end
       puts "====="
     end
@@ -1023,8 +1023,9 @@ module Bud
     if @options[:range_stats]
       puts "Range stats for #{port}: (budtime = #{@budtime})"
       @ranges.each do |name, r|
-        puts "range #{name}: logical size #{r.length}, physical size #{r.physical_size}"
+        puts "#{name}: logical size #{r.length}, physical size #{r.physical_size}"
       end
+      puts "====="
     end
 
     if do_shutdown_cb
