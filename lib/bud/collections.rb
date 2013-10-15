@@ -312,7 +312,7 @@ module Bud
     def each_from(bufs, &block) # :nodoc: all
       bufs.each do |b|
         b.each_value do |v|
-          tick_metrics if bud_instance and bud_instance.options[:metrics]
+          tick_metrics if bud_instance.options[:metrics]
           yield v
         end
       end
