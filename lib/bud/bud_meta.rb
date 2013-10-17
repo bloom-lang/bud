@@ -507,6 +507,19 @@ class BudMeta #:nodoc: all
   #        X.notin(T)), we only want to reclaim X when the _intersection_ of the
   #        two RSE conditions is satisfied.
   #
+  #    (3) We also want to be able to reclaim from Y, in some situations. When
+  #        possible, we want to represent Y using range compression -- when this
+  #        is effective, we're fine. But what if Y isn't amenable to range
+  #        compression, perhaps because it is sparse or doesn't have a natural
+  #        ordering? Let ":a => :b, :c => :d" be the notin qual. If the key
+  #        columns of X are [:a, :c], then we know that *at most one* X tuple
+  #        will match a given Y tuple. Hence, when we see an X-Y match, we can
+  #        discard both X and Y tuples, as long as we can guarantee that no
+  #        duplicates of the X tuple are delivered in the future. To do this, we
+  #        record all the X key values we've ever seen in a range collection,
+  #        X_all_keys; new values are only derived into X if they don't already
+  #        appear in X_all_keys.
+  #
   # RSE reclaimation is implemented by installing a set of rules (and associated
   # scratch collections) that identify and remove redundant tuples.
   #
@@ -601,6 +614,10 @@ class BudMeta #:nodoc: all
       next if unsafe_rels.include? neg.inner
       del_tbl_name = create_del_table(neg.inner, neg.rule_id, deps)
       create_del_rule(del_tbl_name, neg.quals, [], neg.inner, neg.outer)
+
+      # Consider whether we should try to reclaim from the inner notin
+      # collection.
+      do_inner_reclaim(neg, deps)
     end
 
     join_work.each do |neg, work_rels|
@@ -665,6 +682,67 @@ class BudMeta #:nodoc: all
 
       install_rule(lhs, "<-", [], v.to_a.sort, rule_text, true)
     end
+  end
+
+  def do_inner_reclaim(neg, deps)
+    inner_rel = @bud_instance.tables[neg.inner]
+
+    # Heuristic: we assume that if inner_rel is a range, range compression will
+    # be effective, so we needn't reclaim from it.
+    return if inner_rel.kind_of? Bud::BudRangeCompress
+
+    # For now, don't try to reclaim from inner_rel unless it is directly
+    # persisted (in principle, we could reclaim from scratches that are defined
+    # purely via monotone rules over persistent collections).
+    return unless inner_rel.kind_of? Bud::BudTable
+
+    # Check whether the negation quals are _exactly_ the keys of the outer
+    # relation; otherwise, suppressing duplicates from the outer is not
+    # sufficient to allow us to reclaim from the inner.
+    outer_rel = @bud_instance.tables[neg.outer]
+    outer_keys = outer_rel.key_cols.to_set
+    neg_outer_qual_cols = get_lhs_cols_from_qual(neg.quals, outer_rel)
+    return unless neg_outer_qual_cols == outer_keys
+
+    # Okay, setup reclaimation rules for inner rel and suppress duplicate
+    # insertions into outer rel.
+    #
+    #   (1) Create range collection to store key values from outer_rel
+    #   (2) Create a rule to derive @next into (1) from outer_rel
+    #   (3) Rewrite all rules with outer_rel on LHS to negate against (1)
+    #   (4) Delete inner_rel values that match anything in (1)
+    outer_key_range = create_key_range_rel(outer_rel)
+    install_key_copy_rule(outer_rel, outer_key_range)
+    dup_elim_rewrite(outer_rel, outer_key_range)
+  end
+
+  def get_lhs_cols_from_qual(quals, lhs_rel)
+    quals.map do |l,r|
+      if l.kind_of? Integer
+        lhs_rel.cols[l]
+      else
+        l
+      end
+    end.to_set
+  end
+
+  def create_key_range_rel(src_rel)
+    range_name = "#{src_rel.tabname}_all_keys".to_sym
+    unless @bud_instance.tables.has_key? range_name
+      @bud_instance.range(range_name, src_rel.key_cols)
+    end
+    @bud_instance.tables[range_name]
+  end
+
+  def install_key_copy_rule(src_rel, range_rel)
+    tlist_cols = src_rel.key_cols.map {|c| "r.#{c}"}
+    tlist_txt = tlist_cols.join(", ")
+    lhs_name = range_rel.tabname.to_s
+    rule_txt = "#{lhs_name} <+ #{src_rel.tabname} \{|r| [#{tlist_txt}]\}"
+    install_rule(lhs_name, 
+  end
+
+  def dup_elim_rewrite(rel, key_rel)
   end
 
   # Returns all the join input relations referenced by the negation's list of

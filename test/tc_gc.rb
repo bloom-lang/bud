@@ -1149,6 +1149,110 @@ class TestRse < MiniTest::Unit::TestCase
   end
 end
 
+class ReclaimInner
+  include Bud
+
+  state do
+    table :x
+    table :y
+    scratch :z
+    scratch :input_x
+  end
+
+  bloom do
+    # Whenever there is an x-y match, we can reclaim both tuples.
+    x <= input_x
+    z <= x.notin(y, 0 => :key)
+  end
+end
+
+class ReclaimInnerIntersect
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    scratch :r1
+    scratch :r2
+  end
+
+  bloom do
+    # We can reclaim t1 tuples when a matching y tuple appears; similarly for
+    # t2. We can only reclaim a y tuple when there are matching tuples in both
+    # t1 and t2.
+    r1 <= t1.notin(t3, :key => :key)
+    r2 <= t2.notin(t3, :key => :key)
+  end
+end
+
+class ReclaimInnerIllegal
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    scratch :r1
+    scratch :r2
+  end
+
+  bloom do
+    # Can't reclaim from t2 because it is used to produce an output collection
+    r1 <= t1.notin(t2, :key => :key)
+    r2 <= t2
+  end
+end
+
+class TestRseInner < MiniTest::Unit::TestCase
+  def test_simple_inner_reclaim
+    r = ReclaimInner.new
+    r.input_x <+ [[5, 10], [6, 11]]
+    r.y <+ [[6, 11], [100, 12], [150, 13]]
+    2.times { r.tick }
+
+    assert_equal([[5, 10]].to_set, r.z.to_set)
+    assert_equal([[5, 10]].to_set, r.x.to_set)
+    assert_equal([[100, 12], [150, 13]].to_set, r.y.to_set)
+
+    # Ignore subsequent duplicate insertions into x
+    r.input_x <+ [[6, 11], [7, 12]]
+    2.times { r.tick }
+    assert_equal([[5, 10], [7, 12]].to_set, r.z.to_set)
+    assert_equal([[5, 10], [7, 12]].to_set, r.x.to_set)
+  end
+
+  def test_inner_reclaim_intersect
+    r = ReclaimInnerIntersect.new
+    r.t1 <+ [[5, 10], [6, 11]]
+    r.t2 <+ [[6, 11], [7, 12]]
+    r.t3 <+ [[7, 12]]
+    2.times { r.tick }
+
+    assert_equal([[5, 10], [6, 11]].to_set, r.r1.to_set)
+    assert_equal([[6, 11]].to_set, r.r2.to_set)
+    assert_equal([[5, 10], [6, 11]].to_set, r.t1.to_set)
+    assert_equal([[6, 11]].to_set, r.t2.to_set)
+    assert_equal([[7, 12]].to_set, r.t3.to_set)
+
+    r.t1 <+ [[7, 13], [8, 14]]
+    2.times { r.tick }
+
+    assert_equal([[5, 10], [6, 11], [8, 14]].to_set, r.t1.to_set)
+    assert_equal([], r.t3.to_set)
+  end
+
+  def test_inner_reclaim_illegal
+    r = ReclaimInnerIllegal.new
+    r.t1 <+ [[5, 10], [6, 11]]
+    r.t2 <+ [[6, 11], [7, 12]]
+    2.times { r.tick }
+
+    assert_equal([[5, 10]].to_set, r.r1.to_set)
+    assert_equal([[6, 11], [7, 12]].to_set, r.r2.to_set)
+    assert_equal([[6, 11], [7, 12]].to_set, r.t2.to_set)
+  end
+end
+
 class SealedCollection
   include Bud
 
