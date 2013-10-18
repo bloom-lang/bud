@@ -580,11 +580,11 @@ class BudMeta #:nodoc: all
     join_work = Set.new         # pairs of [join_neg, rels] to reclaim from
 
     # RSE dependencies: to reclaim from X, the RSE clauses of multiple rules may
-    # need to be satisfied. Hence, we use a separate collection to represent
-    # each of the rules' RSE conditions, and then an additional rule that
-    # intersects all the conditions. This map associates each rel we want to
-    # reclaim from with a set of deletion buffers; each deletion buffer contains
-    # a tuple when the corresponding RSE condition has been satisfied.
+    # need to be satisfied. Hence, we use one for each of the rules' RSE
+    # conditions, and then an additional rule that intersects all the
+    # conditions. This map associates each rel we want to reclaim from with a
+    # set of deletion buffers; each deletion buffer contains a tuple when the
+    # corresponding RSE condition has been satisfied.
     deps = {}
 
     # If there is any rule that means we can't reclaim from a relation, we can't

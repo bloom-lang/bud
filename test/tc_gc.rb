@@ -1178,9 +1178,8 @@ class ReclaimOuterIntersect
   end
 
   bloom do
-    # We can reclaim t1 tuples when a matching t3 tuple appears; similarly for
-    # t2. We can only reclaim a t3 tuple when there are matching tuples in BOTH
-    # t1 and t2.
+    # We can reclaim a t1 or t2 tuple when a matching t3 tuple appears. We can
+    # only reclaim a t3 tuple when there are matching tuples in BOTH t1 and t2.
     r1 <= t1.notin(t3, :key => :key)
     r2 <= t2.notin(t3, :key => :key)
   end
@@ -1223,7 +1222,7 @@ class ReclaimOuterIllegal
 end
 
 class TestRseOuter < MiniTest::Unit::TestCase
-  def test_simple_outer_reclaim
+  def test_outer_reclaim_simple
     r = ReclaimOuter.new
     r.input_x <+ [[5, 10], [6, 11]]
     r.y <+ [[6, 11], [100, 12], [150, 13]]
@@ -1238,6 +1237,13 @@ class TestRseOuter < MiniTest::Unit::TestCase
     3.times { r.tick }
     assert_equal([[5, 10], [7, 12]].to_set, r.z.to_set)
     assert_equal([[5, 10], [7, 12]].to_set, r.x.to_set)
+
+    # Subsequent insertions into y (that match previously reclaimed x tuples)
+    # should also be reclaimed (i.e., effectively ignored)
+    r.y <+ [[6, 49]]
+    3.times { r.tick }
+    assert_equal([[5, 10], [7, 12]].to_set, r.z.to_set)
+    assert_equal([[100, 12], [150, 13]].to_set, r.y.to_set)
   end
 
   def test_outer_reclaim_intersect
@@ -1253,7 +1259,16 @@ class TestRseOuter < MiniTest::Unit::TestCase
     assert_equal([[6, 11]].to_set, r.t2.to_set)
     assert_equal([[7, 12]].to_set, r.t3.to_set)
 
+    # Key 7 now appears in both t1 and t2 => reclaim 7 from t3
     r.t1 <+ [[7, 13], [8, 14]]
+    3.times { r.tick }
+
+    assert_equal([[5, 10], [6, 11], [8, 14]].to_set, r.t1.to_set)
+    assert_equal([].to_set, r.t3.to_set)
+
+    # Subsequent insertions into t3 (that have previously been reclaimed) should
+    # still be reclaimed
+    r.t3 <+ [[7, 99]]
     3.times { r.tick }
 
     assert_equal([[5, 10], [6, 11], [8, 14]].to_set, r.t1.to_set)
