@@ -1320,7 +1320,7 @@ class TestReliableDelivery < MiniTest::Unit::TestCase
       end
     end
 
-    5.times { rlist.each(&:tick); sleep 0.1 }
+    10.times { rlist.each(&:tick); sleep 0.1 }
 
     rlist.each do |r|
       assert_equal(3, r.chn_approx.physical_size)
