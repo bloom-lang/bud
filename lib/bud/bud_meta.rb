@@ -719,7 +719,6 @@ class BudMeta #:nodoc: all
     #   (3) Rewrite all rules with inner_rel on LHS to negate against (1)
     #   (4) Delete outer_rel values that match anything in (1)
     inner_key_range = create_key_range_rel(inner_rel)
-    install_key_copy_rule(inner_rel, inner_key_range)
     dup_elim_rewrite(inner_rel, inner_key_range)
 
     del_tbl_name = create_del_table(neg.outer, neg.rule_id, deps)
@@ -740,6 +739,7 @@ class BudMeta #:nodoc: all
     range_name = "#{src_rel.tabname}_all_keys".to_sym
     unless @bud_instance.tables.has_key? range_name
       @bud_instance.range(range_name, src_rel.key_cols)
+      install_key_copy_rule(src_rel, @bud_instance.tables[range_name])
     end
     @bud_instance.tables[range_name]
   end
