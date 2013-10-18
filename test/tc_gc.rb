@@ -1153,8 +1153,8 @@ class ReclaimOuter
   include Bud
 
   state do
-    table :x
-    table :y
+    table :x, [:x_key] => [:x_val]
+    table :y, [:y_key] => [:y_val]
     scratch :z
     scratch :input_x
   end
@@ -1162,7 +1162,7 @@ class ReclaimOuter
   bloom do
     # Whenever there is an x-y match, we can reclaim both tuples.
     x <= input_x
-    z <= x.notin(y, :key => :key)
+    z <= x.notin(y, :x_key => :y_key)
   end
 end
 
@@ -1198,7 +1198,11 @@ class ReclaimOuterIntersectInverse
 
   bloom do
     # We can reclaim t1 tuples when a matching tuple appears in BOTH t2 and
-    # t3. We can reclaim a t2 or t3 tuple when a matching tuple appears in t1.
+    # t3. Now, you might think that we can reclaim a t2 or t3 tuple when a
+    # matching tuple appears in t1, but that is incorrect: if we reclaimed a t2
+    # tuple when its match appears in t1 (but before a match appears in t3), the
+    # result would be to allow the t1 tuple to appear in the output of the
+    # negation, which is incorrect.
     r1 <= t1.notin(t2, :key => :key)
     r2 <= t1.notin(t3, :key => :key)
   end
@@ -1266,8 +1270,8 @@ class TestRseOuter < MiniTest::Unit::TestCase
     assert_equal([[5, 10], [6, 11], [8, 14]].to_set, r.t1.to_set)
     assert_equal([].to_set, r.t3.to_set)
 
-    # Subsequent insertions into t3 (that have previously been reclaimed) should
-    # still be reclaimed
+    # Subsequent duplicate insertions into t3 (that have previously been
+    # reclaimed) should still be reclaimed
     r.t3 <+ [[7, 99]]
     3.times { r.tick }
 
@@ -1276,7 +1280,6 @@ class TestRseOuter < MiniTest::Unit::TestCase
   end
 
   def test_outer_reclaim_intersect_inverse
-    skip
     r = ReclaimOuterIntersectInverse.new
     r.t1 <+ [[5, 10], [6, 11], [7, 12]]
     r.t2 <+ [[6, 99]]
@@ -1285,8 +1288,35 @@ class TestRseOuter < MiniTest::Unit::TestCase
 
     assert_equal([[5, 10], [7, 12]].to_set, r.r1.to_set)
     assert_equal([[5, 10], [6, 11]].to_set, r.r2.to_set)
-    assert_equal([].to_set, r.r1.to_set)
-    assert_equal([].to_set, r.r2.to_set)
+    assert_equal([[5, 10], [6, 11], [7, 12]].to_set, r.t1.to_set)
+    assert_equal([[6, 99]].to_set, r.t2.to_set)
+    assert_equal([[7, 99]].to_set, r.t3.to_set)
+
+    r.t2 <+ [[7, 120]]
+    3.times { r.tick }
+    assert_equal([[5, 10]].to_set, r.r1.to_set)
+    assert_equal([[5, 10], [6, 11]].to_set, r.r2.to_set)
+    assert_equal([[5, 10], [6, 11]].to_set, r.t1.to_set)
+    assert_equal([[6, 99]].to_set, r.t2.to_set)
+    assert_equal([].to_set, r.t3.to_set)
+
+    r.t3 <+ [[6, 101]]
+    3.times { r.tick }
+    assert_equal([[5, 10]].to_set, r.r1.to_set)
+    assert_equal([[5, 10]].to_set, r.r2.to_set)
+    assert_equal([[5, 10]].to_set, r.t1.to_set)
+    assert_equal([].to_set, r.t2.to_set)
+    assert_equal([].to_set, r.t3.to_set)
+
+    # Subsequent duplicate insertions into t2/t3 (that have previously been
+    # reclaimed) should still be reclaimed
+    r.t2 <+ [[7, 121]]
+    3.times { r.tick }
+    assert_equal([[5, 10]].to_set, r.r1.to_set)
+    assert_equal([[5, 10]].to_set, r.r2.to_set)
+    assert_equal([[5, 10]].to_set, r.t1.to_set)
+    assert_equal([].to_set, r.t2.to_set)
+    assert_equal([].to_set, r.t3.to_set)
   end
 
   def test_outer_reclaim_illegal

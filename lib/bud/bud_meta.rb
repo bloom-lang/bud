@@ -703,8 +703,8 @@ class BudMeta #:nodoc: all
     # purely via monotone rules over persistent collections).
     return unless outer_rel.kind_of? Bud::BudTable
 
-    # Check whether the negation quals are _exactly_ the keys of the outer
-    # relation; otherwise, suppressing duplicates from the outer is not
+    # Check whether the negation quals are _exactly_ the keys of the inner
+    # relation; otherwise, suppressing duplicates from the inner is not
     # sufficient to allow us to reclaim from the outer.
     inner_rel = @bud_instance.tables[neg.inner]
     inner_keys = inner_rel.key_cols.to_set
@@ -717,12 +717,21 @@ class BudMeta #:nodoc: all
     #   (1) Create range collection to store key values from inner_rel
     #   (2) Create a rule to derive @next into (1) from inner_rel
     #   (3) Rewrite all rules with inner_rel on LHS to negate against (1)
-    #   (4) Delete outer_rel values that match anything in (1)
+    #   (4) Delete outer_rel values that match anything in (1) but don't appear
+    #       in inner_rel
+    #
+    # Note that #4 is a bit subtle: we only want to reclaim from outer_rel when
+    # ALL the conditions for reclaiming the matching inner_rel tuple have been
+    # met. The easiest way to do that is to wait until the inner_rel tuple has
+    # actually been deleted. Unfortunately that means the inner_rel and
+    # outer_rel deletes happen in different ticks, but that's not too important.
     inner_key_range = create_key_range_rel(inner_rel)
     dup_elim_rewrite(inner_rel, inner_key_range)
 
     del_tbl_name = create_del_table(neg.outer, neg.rule_id, deps)
-    create_del_rule(del_tbl_name, neg.quals, [], outer_rel.tabname, inner_key_range.tabname)
+    inner_neg_quals = neg.quals.invert
+    create_del_rule(del_tbl_name, inner_neg_quals, [], outer_rel.tabname,
+                    inner_key_range.tabname, neg.inner)
   end
 
   def get_lhs_cols_from_qual(quals, lhs_rel)
@@ -839,13 +848,15 @@ class BudMeta #:nodoc: all
     return join_quals, body_quals
   end
 
-  # Install a rule that contains tuples that satisfy the RSE condition for a
-  # simple negation. If the negation has any quals, we install a join with the
-  # same quals; otherwise, we can reclaim a tuple from X when an identical tuple
-  # appears in Y.
-  def create_del_rule(del_tbl, join_quals, body_quals, r1, r2)
-    # XXX: we currently don't need to support this case
+  # Install a rule that contains populates a collection with an RSE
+  # condition. We don't actually do the deletion here -- a subsequent rule does
+  # a physical deletion when the conjunction of the RSE conditions for a given
+  # tuple has been met.
+  def create_del_rule(del_tbl, join_quals, body_quals, r1, r2, not_rel=nil)
+    # XXX: we currently don't need to support any of these cases
     raise if join_quals.empty? and not body_quals.empty?
+    raise if not_rel and not body_quals.empty?
+    raise if not_rel and join_quals.empty?
 
     if join_quals.empty?
       install_rule(del_tbl, "<=", [r2], [],
@@ -858,8 +869,14 @@ class BudMeta #:nodoc: all
         join_clause = "pairs(#{join_quals}) {|l,r| l#{body_qual_text}}"
       end
 
-      install_rule(del_tbl, "<=", [r1, r2], [],
-                   "#{del_tbl} <= (#{r1} * #{r2}).#{join_clause}", true)
+      rhs = "(#{r1} * #{r2}).#{join_clause}"
+      nm_rels = []
+      if not_rel
+        rhs = "(#{rhs}).notin(#{not_rel}, #{join_quals})"
+        nm_rels << not_rel
+      end
+
+      install_rule(del_tbl, "<=", [r1, r2], nm_rels, "#{del_tbl} <= #{rhs}", true)
     end
   end
 
