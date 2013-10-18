@@ -1149,7 +1149,7 @@ class TestRse < MiniTest::Unit::TestCase
   end
 end
 
-class ReclaimInner
+class ReclaimOuter
   include Bud
 
   state do
@@ -1162,11 +1162,11 @@ class ReclaimInner
   bloom do
     # Whenever there is an x-y match, we can reclaim both tuples.
     x <= input_x
-    z <= x.notin(y, 0 => :key)
+    z <= x.notin(y, :key => :key)
   end
 end
 
-class ReclaimInnerIntersect
+class ReclaimOuterIntersect
   include Bud
 
   state do
@@ -1178,15 +1178,34 @@ class ReclaimInnerIntersect
   end
 
   bloom do
-    # We can reclaim t1 tuples when a matching y tuple appears; similarly for
-    # t2. We can only reclaim a y tuple when there are matching tuples in both
+    # We can reclaim t1 tuples when a matching t3 tuple appears; similarly for
+    # t2. We can only reclaim a t3 tuple when there are matching tuples in BOTH
     # t1 and t2.
     r1 <= t1.notin(t3, :key => :key)
     r2 <= t2.notin(t3, :key => :key)
   end
 end
 
-class ReclaimInnerIllegal
+class ReclaimOuterIntersectInverse
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    scratch :r1
+    scratch :r2
+  end
+
+  bloom do
+    # We can reclaim t1 tuples when a matching tuple appears in BOTH t2 and
+    # t3. We can reclaim a t2 or t3 tuple when a matching tuple appears in t1.
+    r1 <= t1.notin(t2, :key => :key)
+    r2 <= t1.notin(t3, :key => :key)
+  end
+end
+
+class ReclaimOuterIllegal
   include Bud
 
   state do
@@ -1203,12 +1222,12 @@ class ReclaimInnerIllegal
   end
 end
 
-class TestRseInner < MiniTest::Unit::TestCase
-  def test_simple_inner_reclaim
-    r = ReclaimInner.new
+class TestRseOuter < MiniTest::Unit::TestCase
+  def test_simple_outer_reclaim
+    r = ReclaimOuter.new
     r.input_x <+ [[5, 10], [6, 11]]
     r.y <+ [[6, 11], [100, 12], [150, 13]]
-    2.times { r.tick }
+    3.times { r.tick }
 
     assert_equal([[5, 10]].to_set, r.z.to_set)
     assert_equal([[5, 10]].to_set, r.x.to_set)
@@ -1216,17 +1235,17 @@ class TestRseInner < MiniTest::Unit::TestCase
 
     # Ignore subsequent duplicate insertions into x
     r.input_x <+ [[6, 11], [7, 12]]
-    2.times { r.tick }
+    3.times { r.tick }
     assert_equal([[5, 10], [7, 12]].to_set, r.z.to_set)
     assert_equal([[5, 10], [7, 12]].to_set, r.x.to_set)
   end
 
-  def test_inner_reclaim_intersect
-    r = ReclaimInnerIntersect.new
+  def test_outer_reclaim_intersect
+    r = ReclaimOuterIntersect.new
     r.t1 <+ [[5, 10], [6, 11]]
     r.t2 <+ [[6, 11], [7, 12]]
     r.t3 <+ [[7, 12]]
-    2.times { r.tick }
+    3.times { r.tick }
 
     assert_equal([[5, 10], [6, 11]].to_set, r.r1.to_set)
     assert_equal([[6, 11]].to_set, r.r2.to_set)
@@ -1235,17 +1254,32 @@ class TestRseInner < MiniTest::Unit::TestCase
     assert_equal([[7, 12]].to_set, r.t3.to_set)
 
     r.t1 <+ [[7, 13], [8, 14]]
-    2.times { r.tick }
+    3.times { r.tick }
 
     assert_equal([[5, 10], [6, 11], [8, 14]].to_set, r.t1.to_set)
-    assert_equal([], r.t3.to_set)
+    assert_equal([].to_set, r.t3.to_set)
   end
 
-  def test_inner_reclaim_illegal
-    r = ReclaimInnerIllegal.new
+  def test_outer_reclaim_intersect_inverse
+    skip
+    r = ReclaimOuterIntersectInverse.new
+    r.t1 <+ [[5, 10], [6, 11], [7, 12]]
+    r.t2 <+ [[6, 99]]
+    r.t3 <+ [[7, 99]]
+    3.times { r.tick }
+
+    assert_equal([[5, 10], [7, 12]].to_set, r.r1.to_set)
+    assert_equal([[5, 10], [6, 11]].to_set, r.r2.to_set)
+    assert_equal([].to_set, r.r1.to_set)
+    assert_equal([].to_set, r.r2.to_set)
+  end
+
+  def test_outer_reclaim_illegal
+    skip
+    r = ReclaimOuterIllegal.new
     r.t1 <+ [[5, 10], [6, 11]]
     r.t2 <+ [[6, 11], [7, 12]]
-    2.times { r.tick }
+    3.times { r.tick }
 
     assert_equal([[5, 10]].to_set, r.r1.to_set)
     assert_equal([[6, 11], [7, 12]].to_set, r.r2.to_set)

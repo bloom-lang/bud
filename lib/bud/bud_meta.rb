@@ -404,20 +404,20 @@ class BudMeta #:nodoc: all
     # Finally, rewrite (delete + recreate) every rule with channel on LHS to add
     # negation against approx collection.
     @bud_instance.t_rules.each do |r|
-      add_rce_negation(r, approx_name, approx_schema) if r.lhs == chn
+      append_rule_negation(r, approx_name, approx_schema) if r.lhs == chn
     end
   end
 
-  def add_rce_negation(rule, approx_name, approx_schema)
+  def append_rule_negation(rule, rel_name, schema)
     # Modify t_rules tuple in-place to change its definition
-    rule.src = append_notin(rule.src, approx_name, approx_schema)
-    rule.orig_src = append_notin(rule.orig_src, approx_name, approx_schema)
+    rule.src = append_notin(rule.src, rule.op, rel_name, schema)
+    rule.orig_src = append_notin(rule.orig_src, rule.op, rel_name, schema)
 
     # Add NM dependency between lhs and approx collection
-    # XXX: we should also the dependencies between rule lhs and the left
+    # XXX: we should also update the dependencies between rule lhs and the left
     # ("positive") input to the notin, to mark notin_pos_ref=true.
     depends_tup = [rule.bud_obj, rule.rule_id, rule.lhs, rule.op,
-                   approx_name, true, false, false]
+                   rel_name, true, false, false]
     @bud_instance.t_depends << depends_tup
 
     # This is a bit gross: if the rule is defined inside an imported module (and
@@ -427,42 +427,48 @@ class BudMeta #:nodoc: all
     # the subordinate instance and then automatically copied up to the toplevel,
     # but that import process has already happened by this point.
     if rule.bud_obj != rule.bud_obj.toplevel
-      rule.bud_obj.table(approx_name, approx_schema)
+      rule.bud_obj.table(rel_name, rel_schema)
     end
   end
 
-  # Add a notin(approx_name, ...) clause to the end of the given Bloom rule; the
+  # Add a notin(rel_name, ...) clause to the end of the given Bloom rule; the
   # notin quals check for matches on the collection's key columns.
   #
-  # Because of how the <~ operator is parsed (as a superator), we can't easily
-  # do this via text munging, so parse into an AST, munge AST, and then get
-  # source back.
-  def append_notin(src, approx_name, approx_schema)
-    parser = RubyParser.for_current_ruby rescue RubyParser.new
-    ast = parser.parse(src)
-
-    # Expected format: a top-level call to the "<" method with lhs collection as
-    # the receiver. The operand to the < is a call to the ~ method, with the
-    # actual rule RHS as the receiver; hence, we want to insert the notin
-    # between the original ~ receiver and the ~.
-    c1, lhs, angle_op, rhs = ast
-    c2, rhs_body, tilde_op = rhs
-
-    raise Bud::CompileError unless c1 == :call and c2 == :call and
-                                   angle_op == :< and tilde_op == :~
-
-    # The approx collection only contains the key columns from the table it is
-    # an approximation of; hence, generate notin quals to only compare the key
-    # columns. Because the notin's left input might not have a well-defined
-    # schema (e.g., because it is a join), we use positional notation.
+  # Note that we need to support two slightly different AST formats depending on
+  # the rule's operator (<~ is parsed as a superator).
+  def append_notin(rule_src, op, rel_name, schema)
+    # Generate notin quals for every schema column. Because the notin's left
+    # input might not have a well-defined schema (e.g., because it is a join),
+    # we use positional notation.
     quals = s(:hash)
-    approx_schema.each_with_index do |c,i|
+    schema.each_with_index do |c,i|
       quals << s(:lit, i)
       quals << s(:lit, c)
     end
 
-    rhs[1] = s(:call, rhs_body, :notin,
-               s(:call, nil, approx_name.to_sym), quals)
+    parser = RubyParser.for_current_ruby rescue RubyParser.new
+    ast = parser.parse(rule_src)
+
+    if op == "<~"
+      # Expected format: a top-level call to the "<" method with lhs collection as
+      # the receiver. The operand to the < is a call to the ~ method, with the
+      # actual rule RHS as the receiver; hence, we want to insert the notin
+      # between the original ~ receiver and the ~.
+      c1, lhs, angle_op, rhs = ast
+      c2, rhs_body, tilde_op = rhs
+
+      raise Bud::CompileError unless c1 == :call and c2 == :call and
+                                     angle_op == :< and tilde_op == :~
+
+      rhs[1] = s(:call, rhs_body, :notin,
+                 s(:call, nil, rel_name.to_sym), quals)
+    else
+      c1, lhs, ast_op, rhs = ast
+      raise Bud::CompileError unless c1 == :call and ast_op.to_s == op
+
+      ast[3] = s(:call, rhs, :notin,
+                 s(:call, nil, rel_name.to_sym), quals)
+    end
 
     return Ruby2Ruby.new.process(ast)
   end
@@ -611,13 +617,14 @@ class BudMeta #:nodoc: all
 
     # Second, install rules (and transient state) to compute the RSE conditions.
     simple_work.each do |neg|
-      next if unsafe_rels.include? neg.inner
-      del_tbl_name = create_del_table(neg.inner, neg.rule_id, deps)
-      create_del_rule(del_tbl_name, neg.quals, [], neg.inner, neg.outer)
+      unless unsafe_rels.include? neg.inner
+        del_tbl_name = create_del_table(neg.inner, neg.rule_id, deps)
+        create_del_rule(del_tbl_name, neg.quals, [], neg.inner, neg.outer)
+      end
 
-      # Consider whether we should try to reclaim from the inner notin
-      # collection.
-      do_inner_reclaim(neg, deps)
+      # Consider whether we should try to reclaim from the outer notin
+      # collection ("Y" above).
+      do_outer_reclaim(neg, deps) unless unsafe_rels.include? neg.outer
     end
 
     join_work.each do |neg, work_rels|
@@ -684,36 +691,39 @@ class BudMeta #:nodoc: all
     end
   end
 
-  def do_inner_reclaim(neg, deps)
-    inner_rel = @bud_instance.tables[neg.inner]
+  def do_outer_reclaim(neg, deps)
+    outer_rel = @bud_instance.tables[neg.outer]
 
-    # Heuristic: we assume that if inner_rel is a range, range compression will
+    # Heuristic: we assume that if outer_rel is a range, range compression will
     # be effective, so we needn't reclaim from it.
-    return if inner_rel.kind_of? Bud::BudRangeCompress
+    return if outer_rel.kind_of? Bud::BudRangeCompress
 
-    # For now, don't try to reclaim from inner_rel unless it is directly
+    # For now, don't try to reclaim from outer_rel unless it is directly
     # persisted (in principle, we could reclaim from scratches that are defined
     # purely via monotone rules over persistent collections).
-    return unless inner_rel.kind_of? Bud::BudTable
+    return unless outer_rel.kind_of? Bud::BudTable
 
     # Check whether the negation quals are _exactly_ the keys of the outer
     # relation; otherwise, suppressing duplicates from the outer is not
-    # sufficient to allow us to reclaim from the inner.
-    outer_rel = @bud_instance.tables[neg.outer]
-    outer_keys = outer_rel.key_cols.to_set
-    neg_outer_qual_cols = get_lhs_cols_from_qual(neg.quals, outer_rel)
-    return unless neg_outer_qual_cols == outer_keys
+    # sufficient to allow us to reclaim from the outer.
+    inner_rel = @bud_instance.tables[neg.inner]
+    inner_keys = inner_rel.key_cols.to_set
+    neg_inner_qual_cols = get_lhs_cols_from_qual(neg.quals, inner_rel)
+    return unless neg_inner_qual_cols == inner_keys
 
-    # Okay, setup reclaimation rules for inner rel and suppress duplicate
-    # insertions into outer rel.
+    # Okay, setup reclaimation rules for outer rel and suppress duplicate
+    # insertions into inner rel.
     #
-    #   (1) Create range collection to store key values from outer_rel
-    #   (2) Create a rule to derive @next into (1) from outer_rel
-    #   (3) Rewrite all rules with outer_rel on LHS to negate against (1)
-    #   (4) Delete inner_rel values that match anything in (1)
-    outer_key_range = create_key_range_rel(outer_rel)
-    install_key_copy_rule(outer_rel, outer_key_range)
-    dup_elim_rewrite(outer_rel, outer_key_range)
+    #   (1) Create range collection to store key values from inner_rel
+    #   (2) Create a rule to derive @next into (1) from inner_rel
+    #   (3) Rewrite all rules with inner_rel on LHS to negate against (1)
+    #   (4) Delete outer_rel values that match anything in (1)
+    inner_key_range = create_key_range_rel(inner_rel)
+    install_key_copy_rule(inner_rel, inner_key_range)
+    dup_elim_rewrite(inner_rel, inner_key_range)
+
+    del_tbl_name = create_del_table(neg.outer, neg.rule_id, deps)
+    create_del_rule(del_tbl_name, neg.quals, [], outer_rel.tabname, inner_key_range.tabname)
   end
 
   def get_lhs_cols_from_qual(quals, lhs_rel)
@@ -739,10 +749,15 @@ class BudMeta #:nodoc: all
     tlist_txt = tlist_cols.join(", ")
     lhs_name = range_rel.tabname.to_s
     rule_txt = "#{lhs_name} <+ #{src_rel.tabname} \{|r| [#{tlist_txt}]\}"
-    install_rule(lhs_name, 
+    install_rule(lhs_name, "<+", [src_rel], [], rule_txt, true)
   end
 
   def dup_elim_rewrite(rel, key_rel)
+    @bud_instance.t_rules.each do |r|
+      if r.lhs == rel.tabname.to_s and (r.op == "<=" or r.op == "<+")
+        append_rule_negation(r, key_rel.tabname.to_s, key_rel.schema)
+      end
+    end
   end
 
   # Returns all the join input relations referenced by the negation's list of
@@ -828,13 +843,13 @@ class BudMeta #:nodoc: all
   # simple negation. If the negation has any quals, we install a join with the
   # same quals; otherwise, we can reclaim a tuple from X when an identical tuple
   # appears in Y.
-  def create_del_rule(del_tbl, join_quals, body_quals, inner, outer)
+  def create_del_rule(del_tbl, join_quals, body_quals, r1, r2)
     # XXX: we currently don't need to support this case
     raise if join_quals.empty? and not body_quals.empty?
 
     if join_quals.empty?
-      install_rule(del_tbl, "<=", [outer], [],
-                   "#{del_tbl} <= #{outer}", true)
+      install_rule(del_tbl, "<=", [r2], [],
+                   "#{del_tbl} <= #{r2}", true)
     else
       if body_quals.empty?
         join_clause = "lefts(#{join_quals})"
@@ -843,8 +858,8 @@ class BudMeta #:nodoc: all
         join_clause = "pairs(#{join_quals}) {|l,r| l#{body_qual_text}}"
       end
 
-      install_rule(del_tbl, "<=", [inner, outer], [],
-                   "#{del_tbl} <= (#{inner} * #{outer}).#{join_clause}", true)
+      install_rule(del_tbl, "<=", [r1, r2], [],
+                   "#{del_tbl} <= (#{r1} * #{r2}).#{join_clause}", true)
     end
   end
 
