@@ -341,7 +341,7 @@ class RseRhsRefBad
     res <= t4.notin(t5)
     t6 <= t4.group(nil, count)
 
-    # Reference as the outer (NM) operand to a notin
+    # Reference as the outer (negative / NM) operand to a notin
     res <= t7.notin(t8)
     t9 <= t10.notin(t7)
 
@@ -1155,6 +1155,7 @@ class ReclaimOuter
   state do
     table :x, [:x_key] => [:x_val]
     table :y, [:y_key] => [:y_val]
+    table :y_copy, [:a, :b]
     scratch :z
     scratch :input_x
   end
@@ -1163,6 +1164,9 @@ class ReclaimOuter
     # Whenever there is an x-y match, we can reclaim both tuples.
     x <= input_x
     z <= x.notin(y, :x_key => :y_key)
+
+    # We can copy y to a persistent table and still reclaim
+    y_copy <= y {|t| [t.y_key + 1, t.y_val]}
   end
 end
 
@@ -1214,14 +1218,32 @@ class ReclaimOuterIllegal
   state do
     table :t1
     table :t2
+    table :t3
+    table :t4
+    table :t5
+    table :t6
+    table :t7
+    table :t8
     scratch :r1
     scratch :r2
+    scratch :r3
+    scratch :r4
+    scratch :s1
   end
 
   bloom do
     # Can't reclaim from t2 because it is used to produce an output collection
     r1 <= t1.notin(t2, :key => :key)
     r2 <= t2
+
+    # Can't reclaim from t4 because it is used in aggregation
+    r3 <= t3.notin(t4, :key => :key)
+    t5 <= t4.group(nil, count)
+
+    # Can't reclaim from t7 because it is used as the negative input to a notin
+    # that is not a candidate for RSE
+    r4 <= t6.notin(t7, :key => :key)
+    t8 <= s1.notin(t7)
   end
 end
 
@@ -1235,6 +1257,7 @@ class TestRseOuter < MiniTest::Unit::TestCase
     assert_equal([[5, 10]].to_set, r.z.to_set)
     assert_equal([[5, 10]].to_set, r.x.to_set)
     assert_equal([[100, 12], [150, 13]].to_set, r.y.to_set)
+    assert_equal([[7, 11], [101, 12], [151, 13]].to_set, r.y_copy.to_set)
 
     # Ignore subsequent duplicate insertions into x
     r.input_x <+ [[6, 11], [7, 12]]
@@ -1248,6 +1271,7 @@ class TestRseOuter < MiniTest::Unit::TestCase
     3.times { r.tick }
     assert_equal([[5, 10], [7, 12]].to_set, r.z.to_set)
     assert_equal([[100, 12], [150, 13]].to_set, r.y.to_set)
+    assert_equal([[7, 11], [7, 49], [101, 12], [151, 13]].to_set, r.y_copy.to_set)
   end
 
   def test_outer_reclaim_intersect
@@ -1320,15 +1344,27 @@ class TestRseOuter < MiniTest::Unit::TestCase
   end
 
   def test_outer_reclaim_illegal
-    skip
     r = ReclaimOuterIllegal.new
     r.t1 <+ [[5, 10], [6, 11]]
     r.t2 <+ [[6, 11], [7, 12]]
+    r.t3 <+ [[5, 10], [6, 11]]
+    r.t4 <+ [[6, 11], [7, 12]]
+    r.t6 <+ [[5, 10], [6, 11]]
+    r.t7 <+ [[6, 11], [7, 12]]
     3.times { r.tick }
 
     assert_equal([[5, 10]].to_set, r.r1.to_set)
+    assert_equal([[5, 10]].to_set, r.t1.to_set)
     assert_equal([[6, 11], [7, 12]].to_set, r.r2.to_set)
     assert_equal([[6, 11], [7, 12]].to_set, r.t2.to_set)
+
+    assert_equal([[5, 10]].to_set, r.r3.to_set)
+    assert_equal([[5, 10]].to_set, r.t3.to_set)
+    assert_equal([[6, 11], [7, 12]].to_set, r.t2.to_set)
+
+    assert_equal([[5, 10]].to_set, r.r4.to_set)
+    assert_equal([[5, 10]].to_set, r.t6.to_set)
+    assert_equal([[6, 11], [7, 12]].to_set, r.t7.to_set)
   end
 end
 
