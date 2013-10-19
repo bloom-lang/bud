@@ -602,10 +602,20 @@ class BudMeta #:nodoc: all
 
     # First, check which of the negation clauses are eligible for RSE.
     simple_nots.each do |neg|
-      if check_simple_not(neg)
+      # Skip notin self joins: RSE would result in inferring a deletion rule for
+      # the collection, which would then make RSE illegal.
+      if neg.inner == neg.outer
+        unsafe_rels.merge([neg.inner, neg.outer])
+        next
+      end
+
+      if check_neg_inner(neg.inner, neg.rule_id, neg.bud_obj) and
+         rel_is_inflationary(neg.outer, Set.new)
         simple_work << neg
+
+        unsafe_rels << neg.outer unless check_neg_outer(neg)
       else
-        unsafe_rels << neg.inner
+        unsafe_rels.merge([neg.inner, neg.outer])
       end
     end
 
@@ -693,23 +703,7 @@ class BudMeta #:nodoc: all
 
   def do_outer_reclaim(neg, deps)
     outer_rel = @bud_instance.tables[neg.outer]
-
-    # Heuristic: we assume that if outer_rel is a range, range compression will
-    # be effective, so we needn't reclaim from it.
-    return if outer_rel.kind_of? Bud::BudRangeCompress
-
-    # For now, don't try to reclaim from outer_rel unless it is directly
-    # persisted (in principle, we could reclaim from scratches that are defined
-    # purely via monotone rules over persistent collections).
-    return unless outer_rel.kind_of? Bud::BudTable
-
-    # Check whether the negation quals are _exactly_ the keys of the inner
-    # relation; otherwise, suppressing duplicates from the inner is not
-    # sufficient to allow us to reclaim from the outer.
     inner_rel = @bud_instance.tables[neg.inner]
-    inner_keys = inner_rel.key_cols.to_set
-    neg_inner_qual_cols = get_lhs_cols_from_qual(neg.quals, inner_rel)
-    return unless neg_inner_qual_cols == inner_keys
 
     # Okay, setup reclaimation rules for outer rel and suppress duplicate
     # insertions into inner rel.
@@ -884,7 +878,7 @@ class BudMeta #:nodoc: all
     do_rels = Set.new
     skip_rels = jneg.join_rels.to_set
 
-    if check_neg_outer(jneg.outer)
+    if rel_is_inflationary(jneg.outer, Set.new)
       jneg.join_rels.each do |r|
         if check_neg_inner(r, jneg.rule_id, jneg.bud_obj)
           do_rels << r
@@ -1086,13 +1080,27 @@ class BudMeta #:nodoc: all
     install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
   end
 
-  def check_simple_not(n)
-    # Skip notin self joins: RSE would result in inferring a deletion rule for
-    # the collection, which would then make RSE illegal.
-    return false if n.inner == n.outer
+  def check_neg_outer(neg)
+    return false unless check_neg_inner(neg.outer, neg.rule_id, neg.bud_obj)
 
-    return check_neg_inner(n.inner, n.rule_id, n.bud_obj) &&
-           check_neg_outer(n.outer)
+    outer_rel = @bud_instance.tables[neg.outer]
+
+    # Heuristic: we assume that if outer_rel is a range, range compression will
+    # be effective, so we needn't reclaim from it.
+    return false if outer_rel.kind_of? Bud::BudRangeCompress
+
+    # For now, don't try to reclaim from outer_rel unless it is directly
+    # persisted (in principle, we could reclaim from scratches that are defined
+    # purely via monotone rules over persistent collections).
+    return false unless outer_rel.kind_of? Bud::BudTable
+
+    # Check whether the negation quals are _exactly_ the keys of the inner
+    # relation; otherwise, suppressing duplicates from the inner is not
+    # sufficient to allow us to reclaim from the outer.
+    inner_rel = @bud_instance.tables[neg.inner]
+    inner_keys = inner_rel.key_cols.to_set
+    neg_inner_qual_cols = get_lhs_cols_from_qual(neg.quals, inner_rel)
+    return neg_inner_qual_cols == inner_keys
   end
 
   def check_neg_inner(rel, rule_id, bud_obj)
@@ -1119,7 +1127,8 @@ class BudMeta #:nodoc: all
   end
 
   def is_safe_rhs_ref(rel, ref_depend)
-    return false if ref_depend.nm or ref_depend.in_body
+    return false if ref_depend.in_body
+    return false if (ref_depend.nm and not ref_depend.notin_neg_ref)
 
     # XXX: check for joins
 
@@ -1127,6 +1136,7 @@ class BudMeta #:nodoc: all
     return false if is_deleted_tbl(dependee)
     return true if is_persistent_tbl(dependee)
     return true if ref_depend.notin_pos_ref
+    return true if ref_depend.notin_neg_ref
 
     # If the LHS of a rule that references "rel" is not persistent, we need to
     # determine whether the LHS is safe.
@@ -1140,10 +1150,6 @@ class BudMeta #:nodoc: all
     end
 
     return saw_ref
-  end
-
-  def check_neg_outer(rel)
-    return rel_is_inflationary(rel, Set.new)
   end
 
   def rel_is_inflationary(rel, done_deps)
