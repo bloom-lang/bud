@@ -275,7 +275,8 @@ module Bud
         qlname = "#{local_name}.#{imp_dep.lhs}"
         qrname = "#{local_name}.#{imp_dep.body}"
         self.t_depends << [imp_dep.bud_obj, imp_dep.rule_id, qlname, imp_dep.op,
-                           qrname, imp_dep.nm, imp_dep.in_body, imp_dep.notin_pos_ref]
+                           qrname, imp_dep.nm, imp_dep.in_body,
+                           imp_dep.notin_pos_ref, imp_dep.notin_neg_ref]
       end
       mod_inst.t_provides.each do |imp_pro|
         qintname = "#{local_name}.#{imp_pro.interface}"
@@ -1251,7 +1252,7 @@ module Bud
 
     # for BUD reflection
     table :t_cycle, [:predicate, :via, :neg, :temporal]
-    table :t_depends, [:bud_obj, :rule_id, :lhs, :op, :body] => [:nm, :in_body, :notin_pos_ref]
+    table :t_depends, [:bud_obj, :rule_id, :lhs, :op, :body] => [:nm, :in_body, :notin_pos_ref, :notin_neg_ref]
     table :t_provides, [:interface] => [:input]
     table :t_rules, [:bud_obj, :rule_id] => [:lhs, :op, :src, :orig_src,
                                              :unsafe_funcs_called, :is_rse]

@@ -22,6 +22,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     @iter_stack = []
     @refs_in_body = Set.new
     @notin_pos_refs = Set.new
+    @notin_neg_refs = Set.new
     super()
   end
 
@@ -144,6 +145,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       end
       notintab = call_to_id(args[0])   # args expected to be of the form (:call nil :y ...)
       @tables[notintab.to_s] = true    # "true" denotes non-monotonic dependency
+      @notin_neg_refs << notintab
 
       # Record that "x" above is positively referenced by a notin. This
       # information is useful for RSE. We need to support both simple uses of
@@ -277,6 +279,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
 
   def reset_instance_vars
     @notin_pos_refs = Set.new
+    @notin_neg_refs = Set.new
     @refs_in_body = Set.new
     @tables = {}
     @nm = false
@@ -297,8 +300,9 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     @tables.each_pair do |t, nm|
       in_rule_body = @refs_in_body.include? t
       notin_pos_ref = @notin_pos_refs.include? t
+      notin_neg_ref = @notin_neg_refs.include? t
       @depends << [@bud_instance, @rule_idx, lhs, op, t, nm,
-                   in_rule_body, notin_pos_ref]
+                   in_rule_body, notin_pos_ref, notin_neg_ref]
     end
 
     reset_instance_vars
