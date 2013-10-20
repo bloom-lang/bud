@@ -1224,10 +1224,15 @@ class ReclaimOuterIllegal
     table :t6
     table :t7
     table :t8
+    table :t9
+    table :t10
+    table :t11
     scratch :r1
     scratch :r2
     scratch :r3
     scratch :r4
+    scratch :r5
+    scratch :r6
     scratch :s1
   end
 
@@ -1244,6 +1249,10 @@ class ReclaimOuterIllegal
     # that is not a candidate for RSE
     r4 <= t6.notin(t7, :key => :key)
     t8 <= s1.notin(t7)
+
+    # Can't reclaim from t11: usage in r5 rule is fine, usage in r6 rule is not
+    r5 <= t9.notin(t11, :key => :key)
+    r6 <= t10.notin(t11)
   end
 end
 
@@ -1351,6 +1360,9 @@ class TestRseOuter < MiniTest::Unit::TestCase
     r.t4 <+ [[6, 11], [7, 12]]
     r.t6 <+ [[5, 10], [6, 11]]
     r.t7 <+ [[6, 11], [7, 12]]
+    r.t9 <+ [[5, 10], [6, 11]]
+    r.t10 <+ [[5, 10], [6, 11]]
+    r.t11 <+ [[6, 12], [7, 12]]
     3.times { r.tick }
 
     assert_equal([[5, 10]].to_set, r.r1.to_set)
@@ -1365,6 +1377,12 @@ class TestRseOuter < MiniTest::Unit::TestCase
     assert_equal([[5, 10]].to_set, r.r4.to_set)
     assert_equal([[5, 10]].to_set, r.t6.to_set)
     assert_equal([[6, 11], [7, 12]].to_set, r.t7.to_set)
+
+    assert_equal([[5, 10]].to_set, r.r5.to_set)
+    assert_equal([[5, 10], [6, 11]].to_set, r.r6.to_set)
+    assert_equal([[5, 10]].to_set, r.t9.to_set)
+    assert_equal([[5, 10], [6, 11]].to_set, r.t10.to_set)
+    assert_equal([[6, 12], [7, 12]].to_set, r.t11.to_set)
   end
 end
 
