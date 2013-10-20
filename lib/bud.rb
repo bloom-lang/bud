@@ -1073,6 +1073,7 @@ module Bud
 
   def id(i)
     raise if i >= 65536
+    start(false)
     (port << 16) | i
   end
 
