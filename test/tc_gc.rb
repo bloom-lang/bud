@@ -1212,6 +1212,25 @@ class ReclaimOuterIntersectInverse
   end
 end
 
+class ReclaimOuterInnerCombine
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    scratch :r1
+    scratch :r2
+  end
+
+  bloom do
+    # t2 appears on outer and can be reclaimed
+    r1 <= t1.notin(t2, :key => :key)
+    # t2 appears on inner and can be reclaimed; t3 cannot be reclaimed
+    r2 <= t2.notin(t3)
+  end
+end
+
 class ReclaimOuterIllegal
   include Bud
 
@@ -1383,6 +1402,29 @@ class TestRseOuter < MiniTest::Unit::TestCase
     assert_equal([[5, 10]].to_set, r.t9.to_set)
     assert_equal([[5, 10], [6, 11]].to_set, r.t10.to_set)
     assert_equal([[6, 12], [7, 12]].to_set, r.t11.to_set)
+  end
+
+  def test_outer_inner_reclaim_combine
+    r = ReclaimOuterInnerCombine.new
+    r.t1 <+ [[5, 10], [6, 11]]
+    r.t2 <+ [[6, 99], [7, 12]]
+    r.t3 <+ [[7, 12], [8, 13]]
+    3.times { r.tick }
+
+    assert_equal([[5, 10]].to_set, r.r1.to_set)
+    assert_equal([[6, 99]].to_set, r.r2.to_set)
+    assert_equal([[5, 10]].to_set, r.t1.to_set)
+    assert_equal([[6, 99], [7, 12]].to_set, r.t2.to_set)
+    assert_equal([[7, 12], [8, 13]].to_set, r.t3.to_set)
+
+    r.t3 <+ [[6, 99]]
+    3.times { r.tick }
+
+    assert_equal([[5, 10]].to_set, r.r1.to_set)
+    assert_equal([].to_set, r.r2.to_set)
+    assert_equal([[5, 10]].to_set, r.t1.to_set)
+    assert_equal([[7, 12]].to_set, r.t2.to_set)
+    assert_equal([[6, 99], [7, 12], [8, 13]].to_set, r.t3.to_set)
   end
 end
 
