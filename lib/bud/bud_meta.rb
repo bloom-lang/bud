@@ -381,7 +381,7 @@ class BudMeta #:nodoc: all
   def rce_for_channel(chn)
     chn_coll = @bud_instance.channels[chn.to_sym]
     chn_prefix = chn.gsub(/\./, "__")
-    puts "RCE channel: #{chn}"
+    puts "RCE channel: #{chn}" unless @bud_instance.options[:quiet]
 
     # Create an "approx" collection to hold a conservative estimate of the
     # channel tuples that have been delivered.
@@ -681,7 +681,7 @@ class BudMeta #:nodoc: all
     deps.each_pair do |lhs,v|
       next if unsafe_rels.include? lhs
 
-      puts "RSE: #{lhs}"
+      puts "RSE: #{lhs}" unless @bud_instance.options[:quiet]
       rule_text = "#{lhs} <- "
       if v.length == 1
         rule_text << "#{v.first}"
