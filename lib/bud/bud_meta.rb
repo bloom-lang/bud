@@ -602,18 +602,13 @@ class BudMeta #:nodoc: all
 
     # First, check which of the negation clauses are eligible for RSE.
     simple_nots.each do |neg|
-      # Skip notin self joins: RSE would result in inferring a deletion rule for
-      # the collection, which would then make RSE illegal.
-      if neg.inner == neg.outer
-        unsafe_rels.merge([neg.inner, neg.outer])
-        next
-      end
-
-      if check_neg_inner(neg.inner, neg.rule_id, neg.bud_obj) and
-         rel_is_inflationary(neg.outer, Set.new)
+      # If the inner operand (X in X.notin(Y)) is unsafe, declare both X and Y
+      # unsafe. Otherwise, X might be safe but Y might not be.
+      if check_neg_inner(neg)
         simple_work << neg
-
-        unsafe_rels << neg.outer unless check_neg_outer(neg)
+        unless check_neg_outer(neg)
+          unsafe_rels << neg.outer
+        end
       else
         unsafe_rels.merge([neg.inner, neg.outer])
       end
@@ -705,8 +700,10 @@ class BudMeta #:nodoc: all
     outer_rel = @bud_instance.tables[neg.outer]
     inner_rel = @bud_instance.tables[neg.inner]
 
-    # Okay, setup reclaimation rules for outer rel and suppress duplicate
-    # insertions into inner rel.
+    # Setup rules to reclaim from outer_rel and suppress duplicate insertions
+    # into inner_rel. Note that we can't prevent client programs from inserting
+    # duplicates directlyinto inner_rel from outside Bud, but we just assume
+    # that won't happen.
     #
     #   (1) Create range collection to store key values from inner_rel
     #   (2) Create a rule to derive @next into (1) from inner_rel
@@ -880,7 +877,7 @@ class BudMeta #:nodoc: all
 
     if rel_is_inflationary(jneg.outer, Set.new)
       jneg.join_rels.each do |r|
-        if check_neg_inner(r, jneg.rule_id, jneg.bud_obj)
+        if can_reclaim_rel(r, jneg.rule_id, jneg.bud_obj)
           do_rels << r
           skip_rels.delete(r)
         end
@@ -1080,8 +1077,17 @@ class BudMeta #:nodoc: all
     install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
   end
 
+  def check_neg_inner(neg)
+    # Skip notin self joins: RSE would result in inferring a deletion rule for
+    # the collection, which would then make RSE illegal.
+    return false if neg.inner == neg.outer
+
+    return can_reclaim_rel(neg.inner, neg.rule_id, neg.bud_obj) &&
+           rel_is_inflationary(neg.outer, Set.new)
+  end
+
   def check_neg_outer(neg)
-    return false unless check_neg_inner(neg.outer, neg.rule_id, neg.bud_obj)
+    return false unless can_reclaim_rel(neg.outer, neg.rule_id, neg.bud_obj)
 
     outer_rel = @bud_instance.tables[neg.outer]
 
@@ -1103,7 +1109,7 @@ class BudMeta #:nodoc: all
     return neg_inner_qual_cols == inner_keys
   end
 
-  def check_neg_inner(rel, rule_id, bud_obj)
+  def can_reclaim_rel(rel, rule_id, bud_obj)
     # XXX: generalize this to allow projection/selection/scratches
     return false unless is_persistent_tbl(rel)
 
