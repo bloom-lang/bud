@@ -449,21 +449,26 @@ class BudMeta #:nodoc: all
     parser = RubyParser.for_current_ruby rescue RubyParser.new
     ast = parser.parse(rule_src)
 
-    if op == "<~"
-      # Expected format: a top-level call to the "<" method with lhs collection as
-      # the receiver. The operand to the < is a call to the ~ method, with the
-      # actual rule RHS as the receiver; hence, we want to insert the notin
-      # between the original ~ receiver and the ~.
+    if op == "<~" or op == "<+"
+      # Expected format: a top-level call to the "<" method with lhs collection
+      # as the receiver. The operand to the < is a call to the ~ or + method,
+      # with the actual rule RHS as the receiver; hence, we want to insert the
+      # notin between the original ~ receiver and the ~/+.
       c1, lhs, angle_op, rhs = ast
-      c2, rhs_body, tilde_op = rhs
+      c2, rhs_body, rest_op = rhs
 
       raise Bud::CompileError unless c1 == :call and c2 == :call and
-                                     angle_op == :< and tilde_op == :~
+                                     angle_op == :<
 
       rhs[1] = s(:call, rhs_body, :notin,
                  s(:call, nil, rel_name.to_sym), quals)
     else
       c1, lhs, ast_op, rhs = ast
+      unless c1 == :call and ast_op.to_s == op
+        require 'pp'
+        pp ast
+        puts "ast_op: #{ast_op}; op = #{op}"
+      end
       raise Bud::CompileError unless c1 == :call and ast_op.to_s == op
 
       ast[3] = s(:call, rhs, :notin,
