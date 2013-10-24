@@ -62,11 +62,14 @@ class Bud::BudServer < EM::Connection #:nodoc: all
       raise Bud::Error, "bad inbound message of class #{obj.class}: #{obj.inspect}"
     end
 
-    tbl_name, tuple = obj
+    tbl_name, tup_buf = obj
     port, ip = Socket.unpack_sockaddr_in(get_peername)
-    obj = [tbl_name, [tuple, "#{ip}:#{port}"]]
-    @bud.rtracer.recv(obj) if @bud.options[:rtrace]
-    @filter_buf[obj[0].to_sym] ||= []
-    @filter_buf[obj[0].to_sym] << obj[1]
+
+    tup_buf.each do |tuple|
+      obj = [tbl_name, [tuple, "#{ip}:#{port}"]]
+      @bud.rtracer.recv(obj) if @bud.options[:rtrace]
+      @filter_buf[obj[0].to_sym] ||= []
+      @filter_buf[obj[0].to_sym] << obj[1]
+    end
   end
 end

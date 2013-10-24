@@ -942,9 +942,9 @@ module Bud
     end
 
     private
-    def split_locspec(t, idx)
+    def split_locspec(str)
       begin
-        lsplit = t[idx].split(':')
+        lsplit = str.split(':')
         lsplit[1] = lsplit[1].to_i
         return lsplit
       rescue Exception => e
@@ -967,24 +967,33 @@ module Bud
 
     public
     def flush # :nodoc: all
+      return if @pending.empty?
       toplevel = @bud_instance.toplevel
-      @pending.each_value do |t|
-        if @is_loopback
-          ip = toplevel.ip
-          port = toplevel.port
-          the_locspec = [ip, port]
-        else
-          the_locspec = split_locspec(t, @locspec_idx)
-          raise Bud::Error, "'#{t[@locspec_idx]}', channel '#{@tabname}'" if the_locspec[0].nil? or the_locspec[1].nil? or the_locspec[0] == '' or the_locspec[1] == ''
-        end
-        puts "channel #{qualified_tabname}.send: #{t}" if $BUD_DEBUG
 
-        wire_str = Marshal.dump([qualified_tabname, t.to_a])
-        toplevel.dsock.send_datagram(wire_str,
-                                     the_locspec[0], the_locspec[1])
+      # Prepare to send the tuples in @pending over-the-wire. For each recipient
+      # address, we need to tell the recipient which channel the messages belong
+      # to. Rather than repeating this information for each recipient, we first
+      # group @pending messages by recipient addr. Then for each recipient, we
+      # send the channel name once, followed by the appropriate set of tuples.
+      if @is_loopback
+        addr_groups = { toplevel.ip_port => @pending.values }
+      else
+        addr_groups = @pending.values.group_by {|t| t[@locspec_idx]}
       end
+
+      addr_groups.each do |addr, tups|
+        send_to_addr(addr, tups)
+      end
+
       @num_sent += @pending.size if toplevel.options[:channel_stats]
       @pending.clear
+    end
+
+    def send_to_addr(addr, vals)
+      ip, port = split_locspec(addr)
+      vals = vals.map {|v| v.to_a}
+      wire_str = Marshal.dump([qualified_tabname, vals])
+      @bud_instance.toplevel.dsock.send_datagram(wire_str, ip, port)
     end
 
     def insert_inbound(t, addr)
@@ -1078,7 +1087,7 @@ module Bud
 
       EventMachine::schedule do
         socket = EventMachine::open_datagram_socket("127.0.0.1", 0)
-        socket.send_datagram(Marshal.dump([tabname, [input_str]]),
+        socket.send_datagram(Marshal.dump([tabname, [[input_str]]]),
                              toplevel.ip, toplevel.port)
       end
 
