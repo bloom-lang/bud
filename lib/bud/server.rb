@@ -10,10 +10,8 @@ class Bud::BudServer < EM::Connection #:nodoc: all
   end
 
   def receive_data(data)
-    # Feed the received data to the deserializer
-    @pac.feed_each(data) do |obj|
-      recv_message(obj)
-    end
+    obj = Marshal.load(data)
+    recv_message(obj)
 
     # apply the channel filter to each channel's pending tuples
     buf_leftover = {}
@@ -59,21 +57,12 @@ class Bud::BudServer < EM::Connection #:nodoc: all
   end
 
   def recv_message(obj)
-    unless (obj.class <= Array and obj.length == 3 and
-            @bud.tables.include?(obj[0].to_sym) and
-            obj[1].class <= Array and obj[2].class <= Array)
+    unless (obj.class <= Array and obj.length == 2 and
+            @bud.tables.include?(obj[0]) and obj[1].class <= Array)
       raise Bud::Error, "bad inbound message of class #{obj.class}: #{obj.inspect}"
     end
 
-    # Deserialize any nested marshalled values
-    tbl_name, tuple, marshall_indexes = obj
-    marshall_indexes.each do |i|
-      if i < 0 || i >= tuple.length
-        raise Bud::Error, "bad inbound message: marshalled value at index #{i}, #{obj.inspect}"
-      end
-      tuple[i] = Marshal.load(tuple[i])
-    end
-
+    tbl_name, tuple = obj
     port, ip = Socket.unpack_sockaddr_in(get_peername)
     obj = [tbl_name, [tuple, "#{ip}:#{port}"]]
     @bud.rtracer.recv(obj) if @bud.options[:rtrace]
