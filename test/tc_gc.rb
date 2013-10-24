@@ -326,6 +326,10 @@ class RseRhsRefBad
     table :t10
     table :t11
     table :t12
+    table :t13
+    table :t14
+    table :t15
+    table :t16
     scratch :out
     scratch :some_event
     scratch :res
@@ -351,6 +355,11 @@ class RseRhsRefBad
     res <= t11.notin(t12)
     t9 <= t11
     out <= t11
+
+    # Reference as the outer (negative / NM) operand to a notin with a code
+    # block
+    res <= t13.notin(t14)
+    t9 <= t15.notin(t13) {|x,y| x != y}
   end
 end
 
@@ -848,12 +857,15 @@ class TestRse < MiniTest::Unit::TestCase
     s.t8 <+ [[2, 2], [3, 3]]
     s.t11 <+ [[1, 1], [2, 2]]
     s.t12 <+ [[2, 2], [3, 3]]
+    s.t13 <+ [[1, 1], [2, 2]]
+    s.t14 <+ [[2, 2], [3, 3]]
     2.times { s.tick }
 
     assert_equal([[1, 1], [2, 2]], s.t1.to_a.sort)
     assert_equal([[1, 1], [2, 2]], s.t4.to_a.sort)
     assert_equal([[1, 1], [2, 2]], s.t7.to_a.sort)
     assert_equal([[1, 1], [2, 2]], s.t11.to_a.sort)
+    assert_equal([[1, 1], [2, 2]], s.t13.to_a.sort)
   end
 
   def test_join_rse

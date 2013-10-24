@@ -880,7 +880,8 @@ class BudMeta #:nodoc: all
     do_rels = Set.new
     skip_rels = jneg.join_rels.to_set
 
-    if rel_is_inflationary(jneg.outer, Set.new)
+    # TODO: Notin code blocks not supported
+    if jneg.not_block.nil? and rel_is_inflationary(jneg.outer, Set.new)
       jneg.join_rels.each do |r|
         if can_reclaim_rel(r, jneg.rule_id, jneg.bud_obj)
           do_rels << r
@@ -1087,6 +1088,9 @@ class BudMeta #:nodoc: all
     # the collection, which would then make RSE illegal.
     return false if neg.inner == neg.outer
 
+    # TODO: Notin code blocks not supported yet
+    return false unless neg.block.nil?
+
     return can_reclaim_rel(neg.inner, neg.rule_id, neg.bud_obj) &&
            rel_is_inflationary(neg.outer, Set.new)
   end
@@ -1229,9 +1233,10 @@ class BudMeta #:nodoc: all
   # distinguish between two types of notins: "simple" notins (where the notin
   # receiver is a collection) and notins applied to a join expression.
   class NotInCollector < SexpProcessor
-    SimpleNot = Struct.new(:inner, :outer, :quals, :rule_id, :bud_obj)
+    SimpleNot = Struct.new(:inner, :outer, :quals, :block, :rule_id, :bud_obj)
     JoinNot = Struct.new(:join_rels, :join_quals, :tlist, :outer,
-                         :not_quals, :rule_id, :bud_obj)
+                         :not_quals, :not_block, :rule_id, :bud_obj)
+    CodeBlock = Struct.new(:args, :body)
 
     def initialize(simple_nots, join_nots, rule, bud)
       super()
@@ -1243,11 +1248,27 @@ class BudMeta #:nodoc: all
       @bud_instance = bud
     end
 
-    def process_call(exp)
+    # If the notin has a code block, we see:
+    #     s(:iter, s(:call, ..., :notin, ...), s(:args, ...), body)
+    # i.e., we'll see the iter first.
+    def process_iter(exp)
+      _, recv, args, *body = exp
+
+      if recv.sexp_type == :call
+        block = CodeBlock.new(args, body)
+        process_call(recv, block)
+      else
+        process(recv)
+      end
+
+      exp
+    end
+
+    def process_call(exp, code_block=nil)
       _, recv, meth, *args = exp
 
       if meth == :notin
-        collect_notin(exp)
+        collect_notin(exp, code_block)
       else
         process(recv) unless recv.nil?
         args.each {|a| process(a)}
@@ -1256,12 +1277,8 @@ class BudMeta #:nodoc: all
       exp
     end
 
-    def collect_notin(exp)
+    def collect_notin(exp, code_block=nil)
       _, recv, meth, *args = exp
-
-      # Skip this notin if it has a code block (i.e., an iter that immediately
-      # surrounds the notin's :call node).
-      return if @context[1] == :iter
 
       # If the notin receiver is passed a code block, it can't be a simple
       # notin, but it might still be a join notin
@@ -1289,7 +1306,7 @@ class BudMeta #:nodoc: all
 
       outer_info.each do |o|
         outer, quals = o
-        @simple_nots << SimpleNot.new(inner, outer, quals,
+        @simple_nots << SimpleNot.new(inner, outer, quals, code_block,
                                       @rule.rule_id, @rule.bud_obj)
       end
     end
@@ -1335,7 +1352,7 @@ class BudMeta #:nodoc: all
       return if tlist.nil?
       outer, not_quals = collect_notin_args(args)
       @join_nots << JoinNot.new(join_rels, join_quals, tlist, outer, not_quals,
-                                @rule.rule_id, @rule.bud_obj)
+                                nil, @rule.rule_id, @rule.bud_obj)
     end
 
     # Find the targetlist by looking at the body of the iter code block. We only
