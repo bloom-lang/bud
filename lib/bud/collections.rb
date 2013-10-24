@@ -1402,6 +1402,7 @@ module Bud
 
       super(name, bud_instance, schema)
       @done_setup = false
+      @skip_compress = false
     end
 
     # We need to decide which column we want to represent as a MultiRange. Right
@@ -1420,7 +1421,8 @@ module Bud
         end
       end
 
-      raise Bud::Error, "cannot find range column in #{t} for #{tabname}"
+      # Couldn't find anything to compress
+      @skip_compress = true
     end
 
     def do_insert(t, store)
@@ -1430,6 +1432,8 @@ module Bud
       end
 
       setup_compression(t) unless @done_setup
+      return super if @skip_compress
+
       t = prep_tuple(t)
       lookup_v, range_v = split_tuple(t)
       seq = store[lookup_v]
@@ -1441,6 +1445,7 @@ module Bud
     end
 
     def merge_to_storage(buf)
+      return super if @skip_compress
       buf.each_value {|t| do_insert(t, @storage)}
     end
 
@@ -1449,6 +1454,7 @@ module Bud
     end
 
     def each_from(bufs, &block)
+      return super if @skip_compress
       bufs.each do |b|
         b.each_pair do |k,range|
           range.each do |v|
@@ -1459,10 +1465,12 @@ module Bud
     end
 
     def length
+      return super if @skip_compress
       @storage.values.map {|mr| mr.nvalues}.reduce(:+) || 0
     end
 
     def physical_size
+      return length if @skip_compress
       @storage.values.map {|mr| mr.nbuckets}.reduce(:+) || 0
     end
 
