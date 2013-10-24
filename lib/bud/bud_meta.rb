@@ -427,7 +427,7 @@ class BudMeta #:nodoc: all
     # the subordinate instance and then automatically copied up to the toplevel,
     # but that import process has already happened by this point.
     if rule.bud_obj != rule.bud_obj.toplevel
-      rule.bud_obj.table(rel_name, rel_schema)
+      rule.bud_obj.table(rel_name, schema)
     end
   end
 
