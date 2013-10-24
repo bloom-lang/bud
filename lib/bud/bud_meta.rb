@@ -821,7 +821,7 @@ class BudMeta #:nodoc: all
       outer_rel = @bud_instance.tables[jneg.outer]
       not_quals = {}
       jneg.tlist.each_with_index do |tle,i|
-        not_quals[i] = outer_rel.schema[i]
+        not_quals[i] = outer_rel.cols[i]
       end
     else
       not_quals = jneg.not_quals
