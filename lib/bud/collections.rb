@@ -886,6 +886,7 @@ module Bud
   # makes use of @storage and @delta, whereas the outgoing side only deals with
   # @pending. XXX Maybe we should be using aliases instead.
   class BudChannel < BudCollection
+    attr_accessor :range_compress
     attr_reader :locspec_idx, :num_sent, :num_recv # :nodoc: all
 
     def initialize(name, bud_instance, given_schema=nil, loopback=false) # :nodoc: all
@@ -894,6 +895,8 @@ module Bud
       @locspec_idx = nil
       @num_sent = 0
       @num_recv = 0
+      @range_compress = false
+      @done_range_setup = false
 
       # We're going to mutate the caller's given_schema (to remove the location
       # specifier), so make a deep copy first. We also save a ref to the
@@ -990,10 +993,44 @@ module Bud
     end
 
     def send_to_addr(addr, vals)
+      setup_range_compression(vals)
+
+      if @range_idx and vals.size > 1
+        groups = {}
+        vals.each do |t|
+          key = t.values_at(*@other_cols)
+          range_v = t[@range_idx]
+          if groups.has_key? key
+            groups[key] << range_v
+          else
+            groups[key] = MultiRange.new(range_v)
+          end
+        end
+
+        vals = [groups, @range_idx]
+      else
+        vals = vals.map {|v| v.to_a}
+      end
+
       ip, port = split_locspec(addr)
-      vals = vals.map {|v| v.to_a}
       wire_str = Marshal.dump([qualified_tabname, vals])
       @bud_instance.toplevel.dsock.send_datagram(wire_str, ip, port)
+    end
+
+    def setup_range_compression(vals)
+      return unless @range_compress and not @done_range_setup
+
+      t = vals.first
+      t.each_with_index do |col, i|
+        if col.kind_of? Integer
+          @range_idx = i
+          @other_cols = (0...t.length).to_a
+          @other_cols.delete_at(@range_idx)
+          break
+        end
+      end
+
+      @done_range_setup = true
     end
 
     def insert_inbound(t, addr)

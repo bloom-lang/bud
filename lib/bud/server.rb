@@ -58,14 +58,26 @@ class Bud::BudServer < EM::Connection #:nodoc: all
 
   def recv_message(obj)
     unless (obj.class <= Array and obj.length == 2 and
-            @bud.tables.include?(obj[0]) and obj[1].class <= Array)
+            @bud.tables.include?(obj[0]) and obj[1].class <= Enumerable)
       raise Bud::Error, "bad inbound message of class #{obj.class}: #{obj.inspect}"
     end
 
-    tbl_name, tup_buf = obj
-    port, ip = Socket.unpack_sockaddr_in(get_peername)
+    tbl_name, vals = obj
 
-    tup_buf.each do |tuple|
+    # Check for range compressed message
+    if vals.kind_of? Array and vals.length == 2 and
+       vals[0].kind_of? Hash and vals[1].kind_of? Integer
+      groups, range_idx = vals
+      vals = groups.flat_map do |k,v|
+        v.map do |i|
+          t = k.dup
+          t.insert(range_idx, i)
+        end
+      end
+    end
+
+    port, ip = Socket.unpack_sockaddr_in(get_peername)
+    vals.each do |tuple|
       obj = [tbl_name, [tuple, "#{ip}:#{port}"]]
       @bud.rtracer.recv(obj) if @bud.options[:rtrace]
       @filter_buf[obj[0].to_sym] ||= []
