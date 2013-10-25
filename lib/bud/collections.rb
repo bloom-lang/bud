@@ -887,17 +887,18 @@ module Bud
   # @pending. XXX Maybe we should be using aliases instead.
   class BudChannel < BudCollection
     attr_accessor :range_compress
-    attr_reader :connected, :locspec_idx, :num_sent, :num_recv # :nodoc: all
+    attr_reader :connected, :locspec_idx, :num_recv, :num_sent, :num_sent_physical
 
     def initialize(name, bud_instance, given_schema=nil, loopback=false) # :nodoc: all
       given_schema ||= [:@address, :val]
       @is_loopback = loopback
       @locspec_idx = nil
-      @num_sent = 0
       @num_recv = 0
+      @num_sent = 0
+      @num_sent_physical = 0
+      @connected = true
       @range_compress = false
       @done_range_setup = false
-      @connected = true
 
       # We're going to mutate the caller's given_schema (to remove the location
       # specifier), so make a deep copy first. We also save a ref to the
@@ -987,15 +988,13 @@ module Bud
         return
       end
 
-      toplevel = @bud_instance.toplevel
-
       # Prepare to send the tuples in @pending over-the-wire. For each recipient
       # address, we need to tell the recipient which channel the messages belong
       # to. Rather than repeating this information for each recipient, we first
       # group @pending messages by recipient addr. Then for each recipient, we
       # send the channel name once, followed by the appropriate set of tuples.
       if @is_loopback
-        addr_groups = { toplevel.ip_port => @pending.values }
+        addr_groups = { @bud_instance.toplevel.ip_port => @pending.values }
       else
         addr_groups = @pending.values.group_by {|t| t[@locspec_idx]}
       end
@@ -1004,11 +1003,11 @@ module Bud
         send_to_addr(addr, tups)
       end
 
-      @num_sent += @pending.size if toplevel.options[:channel_stats]
       @pending.clear
     end
 
     def send_to_addr(addr, vals)
+      toplevel = @bud_instance.toplevel
       setup_range_compression(vals)
 
       if @range_idx and vals.size > 1
@@ -1024,8 +1023,16 @@ module Bud
         end
 
         vals = [groups, @range_idx]
+        if toplevel.options[:channel_stats]
+          @num_sent += groups.values.map {|mr| mr.nvalues}.reduce(:+)
+          @num_sent_physical += groups.values.map {|mr| mr.nbuckets}.reduce(:+)
+        end
       else
         vals = vals.map {|v| v.to_a}
+        if toplevel.options[:channel_stats]
+          @num_sent += vals.size
+          @num_sent_physical += vals.size
+        end
       end
 
       ip, port = split_locspec(addr)
