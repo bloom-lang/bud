@@ -58,15 +58,14 @@ class Bud::BudServer < EM::Connection #:nodoc: all
 
   def recv_message(obj)
     unless (obj.class <= Array and obj.length == 2 and
-            @bud.tables.include?(obj[0]) and obj[1].class <= Enumerable)
+            @bud.tables.include?(obj[0]) and obj[1].class <= Array)
       raise Bud::Error, "bad inbound message of class #{obj.class}: #{obj.inspect}"
     end
 
     tbl_name, vals = obj
 
-    # Check for range compressed message
-    if vals.kind_of? Array and vals.length == 2 and
-       vals[0].kind_of? Hash and vals[1].kind_of? Integer
+    # Check for range-compressed message
+    if vals.length == 2 and vals[0].kind_of? Hash and vals[1].kind_of? Integer
       groups, range_idx = vals
       vals = groups.flat_map do |k,v|
         v.map do |i|
