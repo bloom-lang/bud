@@ -127,6 +127,13 @@ module Bud
     @channels[name] = @tables[name]
   end
 
+  # declare a transient, buffered network collection. default schema <tt>[:address, :val] => []</tt>
+  def buf_channel(name, schema=nil, loopback=false)
+    define_collection(name)
+    @tables[name] = Bud::BudBufferedChannel.new(name, self, schema, loopback)
+    @channels[name] = @tables[name]
+  end
+
   # declare a transient network collection that delivers facts back to the
   # current Bud instance. This is syntax sugar for a channel that always
   # delivers to the IP/port of the current Bud instance. Default schema

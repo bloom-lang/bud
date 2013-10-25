@@ -981,12 +981,8 @@ module Bud
     end
 
     public
-    def flush # :nodoc: all
-      return if @pending.empty?
-      if not @connected
-        @pending.clear
-        return
-      end
+    def write_buf_to_socket(buf)
+      return if buf.empty?
 
       # Prepare to send the tuples in @pending over-the-wire. For each recipient
       # address, we need to tell the recipient which channel the messages belong
@@ -994,15 +990,19 @@ module Bud
       # group @pending messages by recipient addr. Then for each recipient, we
       # send the channel name once, followed by the appropriate set of tuples.
       if @is_loopback
-        addr_groups = { @bud_instance.toplevel.ip_port => @pending.values }
+        addr_groups = { @bud_instance.toplevel.ip_port => buf }
       else
-        addr_groups = @pending.values.group_by {|t| t[@locspec_idx]}
+        addr_groups = buf.group_by {|t| t[@locspec_idx]}
       end
 
       addr_groups.each do |addr, tups|
         send_to_addr(addr, tups)
       end
+    end
 
+    public
+    def flush # :nodoc: all
+      write_buf_to_socket(@pending.values) if @connected
       @pending.clear
     end
 
@@ -1110,6 +1110,24 @@ module Bud
 
     def <=(o)
       raise Bud::CompileError, "illegal use of <= with channel '#{@tabname}' on left"
+    end
+  end
+
+  class BudBufferedChannel < BudChannel
+    def initialize(name, bud_instance, given_schema=nil, loopback=false)
+      super
+      @buffer = []
+    end
+
+    def flush
+      @buffer.concat(@pending.values) if @connected
+      @pending.clear
+    end
+
+    def flush_buffer
+      puts "flushing #{@buffer.size} tuples (#{tabname})" unless @buffer.empty?
+      write_buf_to_socket(@buffer)
+      @buffer.clear
     end
   end
 

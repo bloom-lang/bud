@@ -143,6 +143,7 @@ module Bud
     @push_sorted_elems = nil
     @running_async = false
     @bud_started = false
+    @buf_chan_timer = nil
     # Map from periodic_name => tup
     @periodic_inbound = {}
     # Map from channel_name => [[tup, source-address], ...]
@@ -685,6 +686,8 @@ module Bud
     @periodics.each do |p|
       @timers << make_periodic_timer(p.pername, p.period)
     end
+
+    make_buf_chan_timer if @channels.any? {|name, c| c.kind_of? Bud::BudBufferedChannel}
 
     # Arrange for Bud to read from stdin if enabled. Note that we can't do this
     # earlier because we need to wait for EventMachine startup.
@@ -1333,6 +1336,17 @@ module Bud
       @periodic_inbound[name.to_sym] ||= []
       @periodic_inbound[name.to_sym] << [gen_id, Time.now]
       tick_internal if @running_async
+    end
+  end
+
+  def make_buf_chan_timer
+    return if @buf_chan_timer
+
+    # Right now, buffers are flushed every 100ms
+    @buf_chan_timer = EventMachine::PeriodicTimer.new(0.1) do
+      @channels.each_value do |c|
+        c.flush_buffer if c.kind_of? Bud::BudBufferedChannel
+      end
     end
   end
 
