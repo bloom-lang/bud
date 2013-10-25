@@ -568,3 +568,57 @@ class SourceAddressTest < MiniTest::Unit::TestCase
     u2.stop
   end
 end
+
+class SimpleChannelUsage
+  include Bud
+
+  state do
+    table :node, [:addr]
+    scratch :msg_buf, [:v]
+    channel :chn, [:@addr, :v]
+    table :rbuf, msg_buf.schema
+  end
+
+  bloom do
+    chn <~ (node * msg_buf).pairs {|n,m| n + m}
+    rbuf <= chn.payloads
+  end
+end
+
+class TestDisconnectChannels < MiniTest::Unit::TestCase
+  def test_disconnect
+    agents = Array.new(2) { SimpleChannelUsage.new }
+    agents.each(&:run_bg)
+
+    first, last = agents
+    first.sync_do {
+      first.node <+ [[last.ip_port]]
+    }
+    last.sync_do {
+      last.node <+ [[first.ip_port]]
+    }
+
+    do_insert(first, 0)
+    first.sync_do { first.disconnect_channels }
+    do_insert(first, 10)
+    first.sync_do { first.connect_channels }
+    do_insert(first, 20)
+
+    sleep 1
+
+    last.sync_do {
+      assert_equal([["foo0"], ["foo1"], ["foo2"],
+                    ["foo20"], ["foo21"], ["foo22"]].to_set, last.rbuf.to_set)
+    }
+
+    agents.each(&:stop)
+  end
+
+  def do_insert(agent, offset)
+    3.times do |i|
+      agent.sync_do {
+        agent.msg_buf <+ [["foo#{i + offset}"]]
+      }
+    end
+  end
+end

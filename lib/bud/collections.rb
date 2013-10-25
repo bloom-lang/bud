@@ -887,7 +887,7 @@ module Bud
   # @pending. XXX Maybe we should be using aliases instead.
   class BudChannel < BudCollection
     attr_accessor :range_compress
-    attr_reader :locspec_idx, :num_sent, :num_recv # :nodoc: all
+    attr_reader :connected, :locspec_idx, :num_sent, :num_recv # :nodoc: all
 
     def initialize(name, bud_instance, given_schema=nil, loopback=false) # :nodoc: all
       given_schema ||= [:@address, :val]
@@ -897,6 +897,7 @@ module Bud
       @num_recv = 0
       @range_compress = false
       @done_range_setup = false
+      @connected = true
 
       # We're going to mutate the caller's given_schema (to remove the location
       # specifier), so make a deep copy first. We also save a ref to the
@@ -956,6 +957,16 @@ module Bud
     end
 
     public
+    def connect
+      @connected = true
+    end
+
+    def disconnect
+      @connected = false
+      @pending.clear
+    end
+
+    public
     def tick # :nodoc: all
       @storage.clear
       @invalidated = true
@@ -971,6 +982,11 @@ module Bud
     public
     def flush # :nodoc: all
       return if @pending.empty?
+      if not @connected
+        @pending.clear
+        return
+      end
+
       toplevel = @bud_instance.toplevel
 
       # Prepare to send the tuples in @pending over-the-wire. For each recipient
@@ -1034,6 +1050,7 @@ module Bud
     end
 
     def insert_inbound(t, addr)
+      return unless @connected
       t = prep_tuple(t)
       t.source_addr = addr
       insert(t)
@@ -1135,6 +1152,9 @@ module Bud
     def bootstrap
       # override BudCollection; pending should not be moved into delta.
     end
+
+    def connect; end
+    def disconnect; end
 
     public
     def insert_inbound(t, addr)

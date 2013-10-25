@@ -833,6 +833,14 @@ module Bud
     end
   end
 
+  def disconnect_channels
+    @channels.each_value(&:disconnect)
+  end
+
+  def connect_channels
+    @channels.each_value(&:connect)
+  end
+
   # Register a new callback. Given the name of a Bud collection, this method
   # arranges for the given block to be invoked at the end of any tick in which
   # any tuples have been inserted into the specified collection. The code block
