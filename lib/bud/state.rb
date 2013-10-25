@@ -121,16 +121,17 @@ module Bud
   end
 
   # declare a transient network collection.  default schema <tt>[:address, :val] => []</tt>
-  def channel(name, schema=nil, loopback=false)
+  def channel(name, schema=nil, range_compress=false, loopback=false)
     define_collection(name)
-    @tables[name] = Bud::BudChannel.new(name, self, schema, loopback)
+    @tables[name] = Bud::BudChannel.new(name, self, schema, range_compress, loopback)
     @channels[name] = @tables[name]
   end
 
   # declare a transient, buffered network collection. default schema <tt>[:address, :val] => []</tt>
-  def buf_channel(name, schema=nil, loopback=false)
+  def buf_channel(name, schema=nil, range_compress=false, loopback=false)
     define_collection(name)
-    @tables[name] = Bud::BudBufferedChannel.new(name, self, schema, loopback)
+    @tables[name] = Bud::BudBufferedChannel.new(name, self, schema,
+                                                range_compress, loopback)
     @channels[name] = @tables[name]
   end
 
@@ -140,7 +141,7 @@ module Bud
   # <tt>[:key] => [:val]</tt>
   def loopback(name, schema=nil)
     schema ||= {[:key] => [:val]}
-    channel(name, schema, true)
+    channel(name, schema, false, true)
   end
 
   # declare a collection to be read from +filename+.  rhs of statements only

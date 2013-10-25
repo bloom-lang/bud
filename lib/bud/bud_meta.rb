@@ -391,8 +391,7 @@ class BudMeta #:nodoc: all
 
     ack_name = "#{chn_prefix}_ack"
     ack_schema = [:@rce_sender] + chn_coll.key_cols
-    c = @bud_instance.buf_channel(ack_name.to_sym, ack_schema)
-    c.range_compress = true
+    c = @bud_instance.buf_channel(ack_name.to_sym, ack_schema, true)
 
     # Install two rules: one to send an ack whenever a channel message is
     # delivered, and another to persist acks in the approx collection.

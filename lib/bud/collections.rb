@@ -886,18 +886,18 @@ module Bud
   # makes use of @storage and @delta, whereas the outgoing side only deals with
   # @pending. XXX Maybe we should be using aliases instead.
   class BudChannel < BudCollection
-    attr_accessor :range_compress
     attr_reader :connected, :locspec_idx, :num_recv, :num_sent, :num_sent_physical
 
-    def initialize(name, bud_instance, given_schema=nil, loopback=false) # :nodoc: all
+    def initialize(name, bud_instance, given_schema=nil,
+                   range_compress=false, loopback=false)
       given_schema ||= [:@address, :val]
+      @range_compress = range_compress
       @is_loopback = loopback
       @locspec_idx = nil
       @num_recv = 0
       @num_sent = 0
       @num_sent_physical = 0
       @connected = true
-      @range_compress = false
       @done_range_setup = false
 
       # We're going to mutate the caller's given_schema (to remove the location
@@ -1114,7 +1114,8 @@ module Bud
   end
 
   class BudBufferedChannel < BudChannel
-    def initialize(name, bud_instance, given_schema=nil, loopback=false)
+    def initialize(name, bud_instance, given_schema=nil,
+                   range_compress=false, loopback=false)
       super
       @buffer = []
     end
