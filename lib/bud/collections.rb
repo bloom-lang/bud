@@ -1126,7 +1126,6 @@ module Bud
     end
 
     def flush_buffer
-      puts "flushing #{@buffer.size} tuples (#{tabname})" unless @buffer.empty?
       write_buf_to_socket(@buffer)
       @buffer.clear
     end

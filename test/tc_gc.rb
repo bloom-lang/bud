@@ -374,7 +374,7 @@ class JoinRse
   end
 
   bloom do
-    res <= ((sbuf * node).pairs(:epoch => :epoch) {|s,n| [n.addr] + s}).notin(res_approx)
+    res <= (sbuf * node).pairs(:epoch => :epoch) {|s,n| [n.addr] + s}.notin(res_approx)
   end
 end
 
@@ -389,7 +389,7 @@ class JoinRseVariantQuals
   end
 
   bloom do
-    res <= ((sbuf * node).pairs(node.epoch => sbuf.epoch) {|s,n| [n.addr] + s}).notin(res_approx)
+    res <= (sbuf * node).pairs(node.epoch => sbuf.epoch) {|s,n| [n.addr] + s}.notin(res_approx)
   end
 end
 
