@@ -210,6 +210,11 @@ module Bud
       end
     end
 
+    public
+    def pending_work?
+      not @pending.empty?
+    end
+
     # XXX: Although we support each_with_index over Bud collections, using it is
     # probably not a great idea: the index assigned to a given collection member
     # is not defined by the language semantics.
@@ -1385,6 +1390,11 @@ module Bud
           o.each{|i| @to_delete_by_key << prep_tuple(i)}
         end
       end
+    end
+
+    public
+    def pending_work?
+      super or not @to_delete.empty? or not @to_delete_by_key.empty?
     end
 
     public
