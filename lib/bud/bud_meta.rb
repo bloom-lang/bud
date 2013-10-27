@@ -883,7 +883,7 @@ class BudMeta #:nodoc: all
     # TODO: Notin code blocks not supported
     if jneg.not_block.nil? and rel_is_inflationary(jneg.outer, Set.new)
       jneg.join_rels.each do |r|
-        if can_reclaim_rel(r, jneg.rule_id, jneg.bud_obj)
+        if can_reclaim_rel(r, jneg.rule_id, jneg.bud_obj, Set.new)
           do_rels << r
           skip_rels.delete(r)
         end
@@ -1091,12 +1091,13 @@ class BudMeta #:nodoc: all
     # TODO: Notin code blocks not supported yet
     return false unless neg.block.nil?
 
-    return can_reclaim_rel(neg.inner, neg.rule_id, neg.bud_obj) &&
+    return can_reclaim_rel(neg.inner, neg.rule_id, neg.bud_obj, Set.new) &&
            rel_is_inflationary(neg.outer, Set.new)
   end
 
   def check_neg_outer(neg)
-    return false unless can_reclaim_rel(neg.outer, neg.rule_id, neg.bud_obj)
+    return false unless can_reclaim_rel(neg.outer, neg.rule_id,
+                                        neg.bud_obj, Set.new)
 
     outer_rel = @bud_instance.tables[neg.outer]
 
@@ -1118,7 +1119,7 @@ class BudMeta #:nodoc: all
     return neg_inner_qual_cols == inner_keys
   end
 
-  def can_reclaim_rel(rel, rule_id, bud_obj)
+  def can_reclaim_rel(rel, rule_id, bud_obj, seen_deps)
     # XXX: generalize this to allow projection/selection/scratches
     return false unless is_persistent_tbl(rel)
 
@@ -1133,15 +1134,16 @@ class BudMeta #:nodoc: all
     # (recursively) or directly persisted.
     @bud_instance.t_depends.each do |d|
       next if d.rule_id == rule_id and d.bud_obj == bud_obj
+      next if seen_deps.include? d
       if d.body == rel.to_s
-        return false unless is_safe_rhs_ref(rel, d)
+        return false unless is_safe_rhs_ref(rel, d, seen_deps)
       end
     end
 
     return true
   end
 
-  def is_safe_rhs_ref(rel, ref_depend)
+  def is_safe_rhs_ref(rel, ref_depend, seen_deps)
     return false if ref_depend.in_body
     return false if (ref_depend.nm and not ref_depend.notin_neg_ref)
 
@@ -1150,7 +1152,12 @@ class BudMeta #:nodoc: all
     dependee = ref_depend.lhs.to_sym
     return false if is_deleted_tbl(dependee)
     return true if is_persistent_tbl(dependee)
-    return true if ref_depend.notin_pos_ref
+    if ref_depend.notin_pos_ref
+      new_deps = seen_deps + [ref_depend]
+      return true if can_reclaim_rel(rel, ref_depend.rule_id,
+                                     ref_depend.bud_obj, new_deps)
+    end
+    # XXX: Shouldn't we also check can_reclaim_rel here?
     return true if ref_depend.notin_neg_ref
 
     # If the LHS of a rule that references "rel" is not persistent, we need to
@@ -1160,7 +1167,7 @@ class BudMeta #:nodoc: all
       next if d == ref_depend
       if d.body == dependee.to_s
         saw_ref = true
-        return false unless is_safe_rhs_ref(dependee, d)
+        return false unless is_safe_rhs_ref(dependee, d, Set.new)
       end
     end
 

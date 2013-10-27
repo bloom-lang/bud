@@ -663,6 +663,26 @@ class RseJoinRhs
   end
 end
 
+class PeterBug
+  include Bud
+
+  state do
+    table :in1, [:id]
+    table :in2, [:id]
+    table :in3, [:id]
+
+    scratch :out1, in1.schema
+    scratch :out2, in1.schema
+    scratch :out3, in1.schema
+  end
+
+  bloom do
+    out1 <= in1.notin(in2, :id => :id)
+    out2 <= in1
+    out3 <= out2.notin(in3, :id => :id)
+  end
+end
+
 class TestRse < MiniTest::Unit::TestCase
   def test_rse_simple
     s = RseSimple.new
@@ -1158,6 +1178,18 @@ class TestRse < MiniTest::Unit::TestCase
 
     assert_equal([[1], [3]].to_set, j.dominated.to_set)
     assert_equal([[2, "k3", "k1"]].to_set, j.view.to_set)
+  end
+
+  def test_peter_bug
+    p = PeterBug.new
+    p.in1 <+ [[5]]
+    p.in2 <+ [[5]]
+    p.in3 <+ [[7]]
+    3.times { p.tick }
+
+    assert_equal([].to_set, p.out1.to_set)
+    assert_equal([[5]].to_set, p.out3.to_set)
+    assert_equal([[5]].to_set, p.in1.to_set)
   end
 end
 
