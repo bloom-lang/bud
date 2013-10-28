@@ -1088,6 +1088,23 @@ module Bud
       return retval
     end
 
+    def payload_schema
+      if @is_loopback
+        schema
+      else
+        ls_name = cols[@locspec_idx]
+        if schema.kind_of? Hash
+          { omit_col(ls_name, key_cols) => omit_col(ls_name, val_cols) }
+        else
+          omit_col(ls_name, cols)
+        end
+      end
+    end
+
+    def omit_col(col, col_ary)
+      col_ary.select {|c| c != col}
+    end
+
     superator "<~" do |o|
       if o.class <= Bud::PushElement
         o.wire_to(self, :pending)

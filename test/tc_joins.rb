@@ -673,6 +673,7 @@ end
 class TestOuterJoins < MiniTest::Unit::TestCase
   def test_oj_channel
     o = OjChannel.new
+    assert_equal({[:client, :user] => [:password]}, o.req.payload_schema)
     o.run_bg
     rv = o.sync_callback(:req, [[o.ip_port, o.ip_port, "nrc", "qwerty"]], :resp)
     assert_equal([[o.ip_port, "nrc", true]], rv.to_a.sort)

@@ -27,6 +27,8 @@ end
 class TestTickle < MiniTest::Unit::TestCase
   def test_tickle_run_bg
     c = TickleCount.new
+    assert_equal([:cnt], c.mcast.payload_schema)
+    assert_equal([:cnt], c.loop_chan.payload_schema)
 
     # Check that the program is stratified as we'd expect
     assert_equal(2, c.stratified_rules.length)
