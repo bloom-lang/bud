@@ -858,17 +858,23 @@ class BudMeta #:nodoc: all
       install_rule(del_tbl, "<=", [r2], [],
                    "#{del_tbl} <= #{r2}", true)
     else
+      qual_ary = []
+      join_quals.each do |k,v|
+        qual_ary << "#{k.inspect} => #{v.inspect}"
+      end
+      qual_txt = qual_ary.join(", ")
+
       if body_quals.empty?
-        join_clause = "lefts(#{join_quals})"
+        join_clause = "lefts(#{qual_txt})"
       else
         body_qual_text = body_quals_to_str(body_quals, "r")
-        join_clause = "pairs(#{join_quals}) {|l,r| l#{body_qual_text}}"
+        join_clause = "pairs(#{qual_txt}) {|l,r| l#{body_qual_text}}"
       end
 
       rhs = "(#{r1} * #{r2}).#{join_clause}"
       nm_rels = []
       if not_rel
-        rhs = "(#{rhs}).notin(#{not_rel}, #{join_quals})"
+        rhs = "(#{rhs}).notin(#{not_rel}, #{qual_txt})"
         nm_rels << not_rel
       end
 
