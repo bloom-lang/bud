@@ -47,6 +47,7 @@ class BudMeta #:nodoc: all
       # Cleanup
       stratified_rules = stratified_rules.reject{|r| r.empty?}
       dump_rewrite(stratified_rules) if @bud_instance.options[:dump_rewrite]
+      dump_program if @bud_instance.options[:dump_program]
 
       if @bud_instance.options[:print_rules]
         rule_ary = @bud_instance.t_rules.map{|r| [r.rule_id, r.orig_src]}.sort
@@ -292,6 +293,59 @@ class BudMeta #:nodoc: all
       end
     end
     fout.close
+  end
+
+  def dump_program
+    File.open("#{@bud_instance.class}_rewrite_src.rb", "w") do |f|
+      f.puts "class #{@bud_instance.class}_Rewrite"
+      f.puts "  include Bud"
+      f.puts
+      f.puts "  state do"
+      @bud_instance.tables.keys.sort {|k1,k2| k1.to_s <=> k2.to_s}.each do |k|
+        next if @bud_instance.builtin_tables.has_key? k
+        f.puts "    #{coll_ddl_to_str(@bud_instance.tables[k])}"
+      end
+      f.puts "  end"
+      f.puts
+      f.puts "  bloom do"
+      rule_ary = @bud_instance.t_rules.map{|r| r.orig_src}.sort
+      rule_ary.each do |r|
+        f.puts "    #{r}"
+      end
+      f.puts "  end"
+      f.puts "end"
+    end
+  end
+
+  def coll_ddl_to_str(t)
+    "#{coll_type_str(t)} :#{t.tabname}, #{coll_schema_str(t)}"
+  end
+
+  def coll_type_str(t)
+    case t
+    when Bud::BudRangeCompress
+      "range"
+    when Bud::BudSealed
+      "sealed"
+    when Bud::BudTable
+      "table"
+    when Bud::BudChannel
+      "channel"
+    when Bud::BudScratch
+      "scratch"
+    else
+      raise Bud::Error, "unsupported: #{t.class}"
+    end
+  end
+
+  def coll_schema_str(t)
+    schema = t.schema
+    if schema.kind_of? Array
+      schema
+    else
+      raise unless schema.size == 1
+      "#{schema.keys.first} => #{schema.values.first}"
+    end
   end
 
   # Rewrite the program to apply the Redundant Communication Elimination (RCE)
