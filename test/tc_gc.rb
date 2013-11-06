@@ -629,6 +629,22 @@ class JoinRseNotinPullupImplicitQual
   end
 end
 
+class JoinRseNotinPullupImplicitQualLefts
+  include Bud
+
+  state do
+    sealed :ref, [:id] => [:name, :obj_id]
+    table :obj, [:id] => [:val]
+    table :del_ref, [:del_id]
+
+    scratch :live_ref, [:ref_id]
+  end
+
+  bloom do
+    live_ref <= ((ref * obj).lefts(:obj_id => :id) {|r| [r.id]}).notin(del_ref)
+  end
+end
+
 class RseJoinRecursion
   include Bud
 
@@ -1145,6 +1161,22 @@ class TestRse < MiniTest::Unit::TestCase
 
   def test_rse_join_notin_pullup_implicit_qual
     j = JoinRseNotinPullupImplicitQual.new
+    j.ref <+ [[1, "foo", 100], [2, "bar", 100], [3, "baz", 101]]
+    j.obj <+ [[100, "xxx"], [101, "yyy"]]
+    2.times { j.tick }
+
+    assert_equal([[1], [2], [3]].to_set, j.live_ref.to_set)
+
+    j.del_ref <+ [[1]]
+    2.times { j.tick }
+
+    assert_equal([[2], [3]].to_set, j.live_ref.to_set)
+    assert_equal([[100, "xxx"], [101, "yyy"]].to_set, j.obj.to_set)
+    assert_equal([[2, "bar", 100], [3, "baz", 101]].to_set, j.ref.to_set)
+  end
+
+  def test_rse_join_notin_pullup_implicit_qual_lefts
+    j = JoinRseNotinPullupImplicitQualLefts.new
     j.ref <+ [[1, "foo", 100], [2, "bar", 100], [3, "baz", 101]]
     j.obj <+ [[100, "xxx"], [101, "yyy"]]
     2.times { j.tick }

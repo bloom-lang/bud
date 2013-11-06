@@ -1403,7 +1403,7 @@ class BudMeta #:nodoc: all
       # support binary inner joins.
       return unless i_recv.sexp_type == :call
       _, c_recv, c_meth, c_args = i_recv
-      return unless [:pairs, :combos].include? c_meth
+      return unless [:pairs, :combos, :lefts, :rights].include? c_meth
 
       join_rels = get_join_rels(c_recv)
       return unless join_rels
