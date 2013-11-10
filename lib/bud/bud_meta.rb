@@ -1353,6 +1353,22 @@ class BudMeta #:nodoc: all
         return collect_iter_notin(recv, args)
       end
 
+      # We also need to check for joins that don't have a code block; we assume
+      # this only happens for lefts and rights. We implement this by just
+      # inserting a no-op code block that projects the entire left/right input
+      # tuple, and then process as normal.
+      if recv.sexp_type == :call
+        _, r_recv, r_meth, *r_args = recv
+        if [:lefts, :rights].include? r_meth
+          new_recv = s(:iter,
+                       recv,
+                       s(:args, :x),
+                       s(:lvar, :x))
+
+          return collect_iter_notin(new_recv, args)
+        end
+      end
+
       # We support two kinds of "simple" negations: the inner operand can either
       # be a collection (referenced directly), or another notin expression.
       outer_info = []
@@ -1427,7 +1443,9 @@ class BudMeta #:nodoc: all
     # simple column references or constants, addition (array concatenation)
     # operators, and whole-tuple references. We resolve column references by
     # looking up the local variable names introduced by the iter block args;
-    # whole tuple refs are expanded by looking at the catalog.
+    # whole tuple refs are expanded by looking at the catalog. Note that because
+    # we resolve tlist column refs here, we don't need to distinguish between
+    # left/rights/pairs joins in subsequent analysis.
     def get_tlist(block_args, block_body, join_rels)
       var_tbl = {}
       var_list = block_args.sexp_body

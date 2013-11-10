@@ -699,6 +699,21 @@ class PeterBug
   end
 end
 
+class ReclaimLeftsNoBlock
+  include Bud
+
+  state do
+    table :write, [:wid] => [:batch]
+    table :commit, [:batch]
+    table :write_log, [:wid]
+    scratch :commit_event, write.schema
+  end
+
+  bloom do
+    commit_event <= (write * commit).lefts(:batch => :batch).notin(write_log, 0 => :wid)
+  end
+end
+
 class TestRse < MiniTest::Unit::TestCase
   def test_rse_simple
     s = RseSimple.new
@@ -1222,6 +1237,22 @@ class TestRse < MiniTest::Unit::TestCase
     assert_equal([].to_set, p.out1.to_set)
     assert_equal([[5]].to_set, p.out3.to_set)
     assert_equal([[5]].to_set, p.in1.to_set)
+  end
+
+  def test_reclaim_lefts_no_block
+    p = ReclaimLeftsNoBlock.new
+    p.write <+ [[5, 10], [6, 11]]
+    p.commit <+ [[10]]
+    2.times { p.tick }
+
+    assert_equal([[5, 10]].to_set, p.commit_event.to_set)
+    assert_equal([[5, 10], [6, 11]].to_set, p.write.to_set)
+
+    p.write_log <+ [[5]]
+    2.times { p.tick }
+
+    assert_equal([].to_set, p.commit_event.to_set)
+    assert_equal([[6, 11]].to_set, p.write.to_set)
   end
 end
 
