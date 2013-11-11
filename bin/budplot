@@ -50,7 +50,7 @@ def make_instance(mods)
               ]
   class_def = def_lines.flatten.join("\n")
   eval(class_def)
-  f =FooBar.new
+  f = FooBar.new
   3.times{ f.tick }
   f
 end
