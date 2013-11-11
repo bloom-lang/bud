@@ -561,7 +561,7 @@ class JoinRseTlistConst
     sealed :c
   end
 
-  bloom :logic do
+  bloom do
     a <= ((b * c).pairs {|t1,t2| [t1.key, "foo", t2.val]}).notin(a_approx)
     a <= ((b * c).pairs {|t1,t2| [t1.key, 99, t2.val]}).notin(a_approx)
   end
@@ -577,7 +577,7 @@ class JoinRseTlistIpPort
     sealed :c
   end
 
-  bloom :logic do
+  bloom do
     a <= ((b * c).pairs {|t1,t2| [t1.key, ip_port, port, t2.val]}).notin(a_approx)
   end
 end
