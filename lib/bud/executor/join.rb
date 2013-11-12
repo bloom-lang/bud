@@ -142,14 +142,6 @@ module Bud
         if source_elem.rescan
           puts "#{qualified_tabname} rel:#{i}(#{source_elem.qualified_tabname}) invalidated" if $BUD_DEBUG
           @hash_tables[i] = {}
-          if i == 0
-            # Only if i == 0 because outer joins in Bloom are left outer joins.
-            # If i == 1, missing_keys will be corrected when items are populated
-            # in the rhs fork.
-            # XXX This is not modular. We are doing invalidation work for outer
-            # joins, which is part of a separate module PushSHOuterJoin.
-            @missing_keys.clear
-          end
         end
       end
     end
@@ -482,6 +474,14 @@ module Bud
           push_out([t, null_tuple])
         end
       end
+    end
+
+    public
+    def invalidate_cache
+      super
+      # Only if need to check left join rel because outer joins in Bloom are
+      # left outer joins.
+      @missing_keys.clear if @rels.first.rescan
     end
   end
 
