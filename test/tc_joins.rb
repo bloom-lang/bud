@@ -279,6 +279,24 @@ class Issue313
   end
 end
 
+class OuterCombos
+  include Bud
+
+  state do
+    scratch :t1
+    scratch :t2
+    scratch :t3
+    scratch :t4
+    scratch :r1, [:k, :v1, :v2, :v3, :v4]
+  end
+
+  bloom do
+    r1 <= (t1 * t2 * t3 * t4).outer_combos(t1.key => t2.key, t1.key => t3.key, t3.key => t4.key) do |a,b,c,d|
+      [a.key, a.val, b.val, c.val, d.val]
+    end
+  end
+end
+
 class TestJoins < MiniTest::Unit::TestCase
   def test_combos
     program = CombosBud.new
@@ -384,6 +402,17 @@ class TestJoins < MiniTest::Unit::TestCase
     i.use_tiebreak <+ [[1, 2]]
     i.tick
     assert_equal([], i.result.to_a.sort)
+  end
+
+  def test_outer_combos
+    o = OuterCombos.new
+    o.t1 <+ [[5, 10]]
+    o.t2 <+ [[6, 90]]
+    o.t3 <+ [[5, 12], [6, 91]]
+    o.t4 <+ [[5, 13]]
+    o.tick
+
+    assert_equal([[5, 10, nil, 12, 13]].to_set, o.r1.to_set)
   end
 
   class FlattenJoins

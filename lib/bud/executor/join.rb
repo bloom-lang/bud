@@ -2,7 +2,7 @@ require 'bud/executor/elements'
 
 module Bud
   class PushSHJoin < PushStatefulElement
-    attr_reader :all_rels_below, :origpreds, :relnames, :keys, :localpreds
+    attr_reader :all_rels_below, :origpreds, :relnames, :keys, :localpreds, :rels
 
     def initialize(rellist, bud_instance, preds=nil) # :nodoc: all
       @rels = rellist
@@ -360,6 +360,29 @@ module Bud
       self.extend(Bud::PushSHOuterJoin)
     end
 
+    # given a * expression over n collections, join the first two collections
+    # (as they appear in lexical order) together via left outer join (applying
+    # any predicates we can), then join the rest of the collections via inner
+    # join.
+    public
+    def outer_combos(*preds, &blk)
+      pairs(*preds, &blk)
+
+      # Find first join operator
+      join_op = self
+      while true
+        lhs, rhs = join_op.rels
+        if lhs.kind_of? Bud::PushSHJoin
+          join_op = lhs
+        else
+          raise Bud::Error unless join_op.rels.all? {|r| r.kind_of? Bud::ScannerElement}
+          join_op.extend(Bud::PushSHOuterJoin)
+          break
+        end
+      end
+      self
+    end
+
     public
     def rights(*preds, &blk)
       @cols = blk.nil? ? @bud_instance.toplevel.tables[@rels[1].qualified_tabname].cols : nil
@@ -469,8 +492,8 @@ module Bud
     end
 
     public
-    def stratum_end
-      flush
+    def flush
+      super
       push_missing
     end
 
