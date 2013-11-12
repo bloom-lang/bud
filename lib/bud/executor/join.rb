@@ -340,8 +340,8 @@ module Bud
     ####
     # and now, the Bloom-facing methods
     # given a * expression over n collections, form all combinations of items
-    # subject to an array of predicates, pred
-    # currently supports two options for equijoin predicates:
+    # subject to an array of predicates, +preds+.
+    # currently supports two syntax options for equijoin predicates:
     #    general form: an array of arrays capturing a conjunction of equiv. classes
     #          [[table1.col1, table2.col2, table3.col3], [table1.col2, table2.col3]]
     #    common form: a hash capturing equality of a column on left with one on right.
