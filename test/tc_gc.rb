@@ -592,8 +592,23 @@ class JoinRseTlistConstQual
     sealed :c
   end
 
-  bloom :logic do
+  bloom do
     a <= ((b * c).pairs {|t1,t2| [t1.key, port, t2.val]}).notin(a_approx, 0 => :c1, 1 => :c2)
+  end
+end
+
+class JoinRseOuter
+  include Bud
+
+  state do
+    table :t1, [:a, :b]
+    table :t2, [:c, :d]
+    table :t3, [:e, :f]
+    scratch :r1
+  end
+
+  bloom do
+    r1 <= (t1 * t2).outer(:a => :c) {|x,y| [x.b, y.d]}.notin(t3)
   end
 end
 
@@ -1155,6 +1170,67 @@ class TestRse < MiniTest::Unit::TestCase
 
     assert_equal([[6, j.port, 12]].to_set, j.a.to_set)
     assert_equal([[6, 11]].to_set, j.b.to_set)
+  end
+
+  # The test case uses an outer join, but should behave identically to an inner
+  # join (i.e., we don't ever emit any NULL-padded join results).
+  def test_rse_join_outer_check_sane
+    skip        # XXX: doesn't work yet
+    j = JoinRseOuter.new
+    j.t1 <+ [[5, 10], [6, 11]]
+    j.t2 <+ [[5, 100], [6, 110]]
+    2.times { j.tick }
+
+    assert_equal([[10, 100], [11, 110]].to_set, j.r1.to_set)
+
+    j.t3 <+ [[11, 110]]
+    2.times { j.tick }
+
+    assert_equal([[10, 100]].to_set, j.r1.to_set)
+    assert_equal([[5, 10], [6, 11]].to_set, j.t1.to_set)
+    assert_equal([[5, 100], [6, 110]].to_set, j.t2.to_set)
+
+    j.seal_t2_c <+ [[6]]
+    2.times { j.tick }
+
+    assert_equal([[10, 100]].to_set, j.r1.to_set)
+    assert_equal([[5, 10]].to_set, j.t1.to_set)
+    # XXX: Given that no more tuples with t2.c = 6 will be produced AND we've
+    # already seen a matching t1 tuple (with a = 6), can we also reclaim the t2
+    # tuple here? Given that it's an outer join, probably not (since a duplicate
+    # copy of the t1 tuple would result in emitting a NULL-padded join result),
+    # but perhaps for an inner join we could.
+    assert_equal([[5, 100], [6, 110]].to_set, j.t2.to_set)
+
+    j.t3 <+ [[10, 100]]
+    2.times { j.tick }
+
+    assert_equal([].to_set, j.r1.to_set)
+    assert_equal([[5, 10]].to_set, j.t1.to_set)
+    assert_equal([[5, 100], [6, 110]].to_set, j.t2.to_set)
+
+    j.seal_t1_a <+ [[5]]
+    2.times { j.tick }
+
+    assert_equal([[5, 10]].to_set, j.t1.to_set)
+    assert_equal([[6, 110]].to_set, j.t2.to_set)
+  end
+
+  def test_rse_join_outer
+    skip        # XXX: doesn't work yet
+    j = JoinRseOuter.new
+    j.t1 <+ [[5, 10], [6, 11]]
+    j.t3 <+ [[11, nil]]
+    2.times { j.tick }
+
+    assert_equal([[10, nil]].to_set, j.r1.to_set)
+    assert_equal([[5, 10], [6, 11]].to_set, j.t1.to_set)
+
+    j.seal_t2 <+ [[true]]
+    2.times { j.tick }
+    puts j.r0_t1_t2_joinbuf.to_a.sort.inspect
+    assert_equal([[10, nil]].to_set, j.r1.to_set)
+    assert_equal([[6, 11]].to_set, j.t1.to_set)
   end
 
   def test_rse_join_notin_pullup
