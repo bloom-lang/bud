@@ -1175,7 +1175,6 @@ class TestRse < MiniTest::Unit::TestCase
   # The test case uses an outer join, but should behave identically to an inner
   # join (i.e., we don't ever emit any NULL-padded join results).
   def test_rse_join_outer_check_sane
-    skip        # XXX: doesn't work yet
     j = JoinRseOuter.new
     j.t1 <+ [[5, 10], [6, 11]]
     j.t2 <+ [[5, 100], [6, 110]]
@@ -1217,7 +1216,6 @@ class TestRse < MiniTest::Unit::TestCase
   end
 
   def test_rse_join_outer
-    skip        # XXX: doesn't work yet
     j = JoinRseOuter.new
     j.t1 <+ [[5, 10], [6, 11]]
     j.t3 <+ [[11, nil]]
@@ -1228,9 +1226,8 @@ class TestRse < MiniTest::Unit::TestCase
 
     j.seal_t2 <+ [[true]]
     2.times { j.tick }
-    puts j.r0_t1_t2_joinbuf.to_a.sort.inspect
     assert_equal([[10, nil]].to_set, j.r1.to_set)
-    assert_equal([[6, 11]].to_set, j.t1.to_set)
+    assert_equal([[5, 10]].to_set, j.t1.to_set)
   end
 
   def test_rse_join_notin_pullup

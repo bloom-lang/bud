@@ -972,9 +972,10 @@ class BudMeta #:nodoc: all
   end
 
   def create_join_buf(jneg)
-    # Define the LHS (join buf) collection. The collection's schema is simply
-    # the concatenation of the columns from both join inputs; we disambiguate
-    # column names by adding a prefix.
+    # Define the LHS (join buf) collection -- this collection contains all the
+    # join input tuples that have a match in the negated collection. The
+    # collection's schema is simply the concatenation of the columns from both
+    # join inputs; we disambiguate column names by adding a prefix.
     lhs, rhs = jneg.join_rels
     lhs_name = "r#{jneg.rule_id}_#{lhs}_#{rhs}_joinbuf"
     lhs_schema = []
@@ -1038,9 +1039,14 @@ class BudMeta #:nodoc: all
       end
     end
 
-    body_qual_text = body_quals_to_str(body_quals, "x")
+    if jneg.is_outer_join
+      jtype = "outer_combos"
+    else
+      jtype = "combos"
+    end
+    body_qual_text = body_quals_to_str(body_quals, "z")
     qual_text = "(" + qual_list.join(", ") + ")"
-    rhs_text = "(#{jneg.outer} * #{lhs} * #{rhs}).combos#{qual_text} {|x,y,z| y + z#{body_qual_text}}"
+    rhs_text = "(#{lhs} * #{rhs} * #{jneg.outer}).#{jtype}#{qual_text} {|x,y,z| x + y#{body_qual_text}}"
     rule_text = "#{lhs_name} <= #{rhs_text}"
     install_rule(lhs_name, "<=", jneg.join_rels + [jneg.outer], [], rule_text, true)
 
@@ -1089,7 +1095,12 @@ class BudMeta #:nodoc: all
       qual_text = "(" + qual_list.join(", ") + ")"
     end
 
-    rhs_text = "((#{lhs} * #{rhs}).pairs#{qual_text} {|x,y| x + y}).notin(#{join_buf})"
+    if jneg.is_outer_join
+      jtype = "outer"
+    else
+      jtype = "pairs"
+    end
+    rhs_text = "(#{lhs} * #{rhs}).#{jtype}#{qual_text} {|x,y| x + y}.notin(#{join_buf})"
     rule_text = "#{lhs_name} <= #{rhs_text}"
     install_rule(lhs_name, "<=", jneg.join_rels, [join_buf], rule_text, true)
 
@@ -1301,7 +1312,7 @@ class BudMeta #:nodoc: all
   # receiver is a collection) and notins applied to a join expression.
   class NotInCollector < SexpProcessor
     SimpleNot = Struct.new(:inner, :outer, :quals, :block, :rule_id, :bud_obj)
-    JoinNot = Struct.new(:join_rels, :join_quals, :tlist, :outer,
+    JoinNot = Struct.new(:join_rels, :join_quals, :is_outer_join, :tlist, :outer,
                          :not_quals, :not_block, :rule_id, :bud_obj)
     CodeBlock = Struct.new(:args, :body)
 
@@ -1419,7 +1430,7 @@ class BudMeta #:nodoc: all
       # support binary inner joins.
       return unless i_recv.sexp_type == :call
       _, c_recv, c_meth, c_args = i_recv
-      return unless [:pairs, :combos, :lefts, :rights].include? c_meth
+      return unless [:pairs, :combos, :lefts, :rights, :outer].include? c_meth
 
       join_rels = get_join_rels(c_recv)
       return unless join_rels
@@ -1434,7 +1445,8 @@ class BudMeta #:nodoc: all
       tlist = get_tlist(i_block_args, i_body, join_rels)
       return if tlist.nil?
       outer, not_quals = collect_notin_args(args)
-      @join_nots << JoinNot.new(join_rels, join_quals, tlist, outer, not_quals,
+      @join_nots << JoinNot.new(join_rels, join_quals, c_meth == :outer,
+                                tlist, outer, not_quals,
                                 nil, @rule.rule_id, @rule.bud_obj)
     end
 
