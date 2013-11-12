@@ -993,7 +993,7 @@ class BudMeta #:nodoc: all
     #    ((foo * bar).pairs {|x,y| [x.a, y.b]}).notin(baz, 1 => :k)
     #
     # We want to match baz.k with the second element of the join tlist (bar.b).
-    qual_list = join_quals_to_str(jneg)
+    qual_list = join_quals_to_str_ary(jneg)
     outer_rel = @bud_instance.tables[jneg.outer.to_sym]
 
     # If the join's targetlist contains a constant expression, we need to check
@@ -1069,7 +1069,7 @@ class BudMeta #:nodoc: all
     Ruby2Ruby.new.process(Marshal.load(Marshal.dump(tl_const.const_expr)))
   end
 
-  def join_quals_to_str(jneg)
+  def join_quals_to_str_ary(jneg)
     lhs, rhs = jneg.join_rels
     jneg.join_quals.map do |q|
       "#{lhs}.#{q[0]} => #{rhs}.#{q[1]}"
@@ -1082,7 +1082,7 @@ class BudMeta #:nodoc: all
     join_buf_rel = @bud_instance.tables[join_buf.to_sym]
     @bud_instance.scratch(lhs_name.to_sym, join_buf_rel.schema)
 
-    qual_list = join_quals_to_str(jneg)
+    qual_list = join_quals_to_str_ary(jneg)
     if qual_list.empty?
       qual_text = ""
     else
