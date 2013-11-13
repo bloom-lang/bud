@@ -761,7 +761,7 @@ class BudMeta #:nodoc: all
 
     # Setup rules to reclaim from outer_rel and suppress duplicate insertions
     # into inner_rel. Note that we can't prevent client programs from inserting
-    # duplicates directlyinto inner_rel from outside Bud, but we just assume
+    # duplicates directly into inner_rel from outside Bud, but we just assume
     # that won't happen.
     #
     #   (1) Create range collection to store key values from inner_rel
