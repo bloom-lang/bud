@@ -765,7 +765,7 @@ class BudMeta #:nodoc: all
     # that won't happen.
     #
     #   (1) Create range collection to store key values from inner_rel
-    #   (2) Create a rule to derive @next into (1) from inner_rel
+    #   (2) Create a rule to derive from inner_rel @next into (1)
     #   (3) Rewrite all rules with inner_rel on LHS to negate against (1)
     #   (4) Delete outer_rel values that match anything in (1) but don't appear
     #       in inner_rel
