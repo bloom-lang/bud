@@ -729,6 +729,21 @@ class ReclaimLeftsNoBlock
   end
 end
 
+class RseFromRange
+  include Bud
+
+  state do
+    sealed :node, [:addr]
+    channel :log_commit_chn, [:@addr, :id]
+    range :log_commit, [:id]
+  end
+
+  bloom do
+    log_commit_chn <~ (node * log_commit).pairs {|n,c| n + c}
+    log_commit <= log_commit_chn.payloads
+  end
+end
+
 class TestRse < MiniTest::Unit::TestCase
   def test_rse_simple
     s = RseSimple.new
@@ -1327,6 +1342,11 @@ class TestRse < MiniTest::Unit::TestCase
     assert_equal([].to_set, p.commit_event.to_set)
     assert_equal([[6, 11]].to_set, p.write.to_set)
   end
+
+  def test_rse_from_range
+    r = RseFromRange.new
+    r.tick
+  end
 end
 
 class ReclaimOuter
@@ -1566,7 +1586,6 @@ class TestRseOuter < MiniTest::Unit::TestCase
     assert_equal([].to_set, r.t2.to_set)
     assert_equal([].to_set, r.t3.to_set)
   end
-
 
   def test_outer_inner_reclaim_combine
     r = ReclaimOuterInnerCombine.new

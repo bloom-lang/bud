@@ -681,18 +681,18 @@ class BudMeta #:nodoc: all
 
     # Second, install rules (and transient state) to compute the RSE conditions.
     simple_work.each do |neg|
-      unless unsafe_rels.include? neg.inner
+      unless skip_reclaim(neg.inner, unsafe_rels)
         del_tbl_name = create_del_table(neg.inner, neg.rule_id, deps)
         create_del_rule(del_tbl_name, neg.quals, [], neg.inner, neg.outer)
       end
 
       # Consider whether we should try to reclaim from the outer notin
       # collection ("Y" above).
-      do_outer_reclaim(neg, deps) unless unsafe_rels.include? neg.outer
+      do_outer_reclaim(neg, deps) unless skip_reclaim(neg.outer, unsafe_rels)
     end
 
     join_work.each do |neg, work_rels|
-      do_rels = work_rels.reject {|r| unsafe_rels.include? r}
+      do_rels = work_rels.reject {|r| skip_reclaim(r, unsafe_rels)}
       next if do_rels.empty?
 
       # Given a negation that is applied to the output of a join, we first check
@@ -738,7 +738,7 @@ class BudMeta #:nodoc: all
     # appears in _all_ of the table's dependencies, as long as the table doesn't
     # appear in an unsafe context.
     deps.each_pair do |lhs,v|
-      next if unsafe_rels.include? lhs
+      next if skip_reclaim(lhs, unsafe_rels)
 
       puts "RSE: #{lhs}" unless @bud_instance.options[:quiet]
       rule_text = "#{lhs} <- "
@@ -782,6 +782,15 @@ class BudMeta #:nodoc: all
     inner_neg_quals = neg.quals.invert
     create_del_rule(del_tbl_name, inner_neg_quals, [], outer_rel.tabname,
                     inner_key_range.tabname, neg.inner)
+  end
+
+  def skip_reclaim(name, unsafe_rels)
+    unsafe_rels.include?(name) or is_range_tbl(name)
+  end
+
+  def is_range_tbl(name)
+    tbl = @bud_instance.tables[name]
+    tbl.kind_of? Bud::BudRangeCompress
   end
 
   def get_lhs_cols_from_qual(quals, lhs_rel)
