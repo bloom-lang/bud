@@ -785,6 +785,11 @@ class BudMeta #:nodoc: all
   end
 
   def skip_reclaim(name, unsafe_rels)
+    # Note that we don't try to reclaim from range collections. This is
+    # debatable: if we could reclaim non-contiguous elements of the range, the
+    # rest of the range collection could be represented more efficiently.
+    # Nevertheless, we haven't found any situations like this; plus range tables
+    # don't support <- at the moment, although they could.
     unsafe_rels.include?(name) or is_range_tbl(name)
   end
 
