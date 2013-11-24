@@ -1208,9 +1208,9 @@ class BudMeta #:nodoc: all
     return false unless is_persistent_tbl(rel)
 
     # Consider all the collections whose contents are derived (directly or
-    # indirectly) from the inner operand to the notin. For each such dependency,
-    # we want to check that reclaiming tuples from the inner operand is
-    # "safe". Given X.notin(Y), consider a RHS reference to X:
+    # indirectly) from "rel". For each such dependency, we want to check that
+    # reclaiming tuples from rel is "safe". Given X.notin(Y), consider a RHS
+    # reference to X:
     #
     # R <= X { ... }
     #
