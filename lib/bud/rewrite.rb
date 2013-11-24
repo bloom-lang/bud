@@ -142,7 +142,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
         raise Bud::CompileError, "illegal argument to notin: #{args.first}"
       end
       notintab = call_to_id(args[0])   # args expected to be of the form (:call nil :y ...)
-      @tables[notintab.to_s] = true    # "true" denotes non-monotonic dependency
+      @tables[notintab] = true    # "true" denotes non-monotonic dependency
       super
     else
       # Parse a call of the form a.b.c.foo
