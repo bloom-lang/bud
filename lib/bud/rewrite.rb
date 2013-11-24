@@ -23,6 +23,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     @refs_in_body = Set.new
     @notin_pos_refs = Set.new
     @notin_neg_refs = Set.new
+    @join_refs = Set.new
     super()
   end
 
@@ -159,6 +160,17 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       @notin_pos_refs.merge(collector.notin_pos_refs)
 
       super
+    elsif op == :*
+      rhs_tbl = call_to_id(args.first)
+      @join_refs << rhs_tbl
+      if recv and recv.sexp_type == :call
+        r_recv, r_op, *r_args = recv
+        unless r_op == :*
+          lhs_tbl = call_to_id(recv)
+          @join_refs << lhs_tbl
+        end
+      end
+      super
     else
       # Parse a call of the form a.b.c.foo
       #
@@ -278,6 +290,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   def reset_instance_vars
+    @join_refs = Set.new
     @notin_pos_refs = Set.new
     @notin_neg_refs = Set.new
     @refs_in_body = Set.new
@@ -301,8 +314,9 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       in_rule_body = @refs_in_body.include? t
       notin_pos_ref = @notin_pos_refs.include? t
       notin_neg_ref = @notin_neg_refs.include? t
+      join_ref = @join_refs.include? t
       @depends << [@bud_instance, @rule_idx, lhs, op, t, nm,
-                   in_rule_body, notin_pos_ref, notin_neg_ref]
+                   in_rule_body, notin_pos_ref, notin_neg_ref, join_ref]
     end
 
     reset_instance_vars
