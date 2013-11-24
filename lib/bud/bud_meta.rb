@@ -794,8 +794,7 @@ class BudMeta #:nodoc: all
   end
 
   def is_range_tbl(name)
-    tbl = @bud_instance.tables[name]
-    tbl.kind_of? Bud::BudRangeCompress
+    @bud_instance.tables[name].kind_of? Bud::BudRangeCompress
   end
 
   def get_lhs_cols_from_qual(quals, lhs_rel)
