@@ -858,7 +858,7 @@ class BudMeta #:nodoc: all
         lhs, rhs = q
 
         if lhs.kind_of? Integer
-          # If the qual lhs referencs a constant TLE, skip it
+          # If the qual lhs references a constant TLE, skip it
           next if rel_offset_map[lhs].nil?
           rels << rel_offset_map[lhs]
         else
@@ -971,14 +971,14 @@ class BudMeta #:nodoc: all
   # if there are multiple negations chained together into a single rule
   # (x.notin(y).notin(z)), we can reclaim from x when EITHER y or z is
   # satisfied -- so we create a single scratch for the rule.
-  def create_del_table(inner, rule_id, deps)
-    tbl_name = "del_#{inner}_r#{rule_id}"
-    deps[inner] ||= Set.new
-    deps[inner] << tbl_name
+  def create_del_table(target, rule_id, deps)
+    tbl_name = "del_#{target}_r#{rule_id}"
+    deps[target] ||= Set.new
+    deps[target] << tbl_name
 
-    inner_tbl = @bud_instance.tables[inner]
     unless @bud_instance.tables.has_key? tbl_name.to_sym
-      @bud_instance.scratch(tbl_name.to_sym, inner_tbl.schema)
+      target_tbl = @bud_instance.tables[target]
+      @bud_instance.scratch(tbl_name.to_sym, target_tbl.schema)
     end
 
     return tbl_name
