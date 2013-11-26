@@ -646,6 +646,9 @@ class BudMeta #:nodoc: all
     # corresponding RSE condition has been satisfied.
     deps = {}
 
+    # JoinInfo for joins we need to seal against to reclaim a given collection
+    seal_deps = {}
+
     # If there is any rule that means we can't reclaim from a relation, we can't
     # reclaim from that relation for other rules either.
     unsafe_rels = Set.new
@@ -663,9 +666,9 @@ class BudMeta #:nodoc: all
     simple_nots.each do |neg|
       # If the inner operand (X in X.notin(Y)) is unsafe, declare both X and Y
       # unsafe. Otherwise, X might be safe but Y might not be.
-      if check_neg_inner(neg)
+      if check_neg_inner(neg, seal_deps)
         simple_work << neg
-        unless check_neg_outer(neg)
+        unless check_neg_outer(neg, seal_deps)
           unsafe_rels << neg.outer
         end
       else
@@ -674,12 +677,12 @@ class BudMeta #:nodoc: all
     end
 
     join_nots.each do |neg|
-      do_rels, skip_rels = check_join_not(neg)
+      do_rels, skip_rels = check_join_not(neg, seal_deps)
       unsafe_rels.merge(skip_rels)
       join_work << [neg, do_rels] unless do_rels.empty?
     end
 
-    # Second, install rules (and transient state) to compute the RSE conditions.
+    # Second, install rules (and transient state) to compute the RSE conditions
     simple_work.each do |neg|
       unless skip_reclaim(neg.inner, unsafe_rels)
         del_tbl_name = create_del_table(neg.inner, neg.rule_id, deps)
@@ -734,14 +737,17 @@ class BudMeta #:nodoc: all
       end
     end
 
-    # Third, install a rule that deletes a tuple from a table when that tuple
-    # appears in _all_ of the table's dependencies, as long as the table doesn't
-    # appear in an unsafe context.
+    # Third, install a rule to identify reclamation candidates when a tuple
+    # satisfies _all_ of the appropriate RSE conditions, as long as the table
+    # doesn't appear in an unsafe context.
+    rse_tables = []
     deps.each_pair do |lhs,v|
       next if skip_reclaim(lhs, unsafe_rels)
 
+      rse_table = create_rse_cond_table(lhs)
+      rse_tables << [lhs, rse_table]
       puts "RSE: #{lhs}" unless @bud_instance.options[:quiet]
-      rule_text = "#{lhs} <- "
+      rule_text = "#{rse_table} <= "
       if v.length == 1
         rule_text << "#{v.first}"
       else
@@ -751,7 +757,58 @@ class BudMeta #:nodoc: all
         rule_text << "{|#{block_args.join(',')}| t0}"
       end
 
-      install_rule(lhs, "<-", [], v.to_a.sort, rule_text, true)
+      install_rule(rse_table, "<=", v.to_a.sort, [], rule_text, true)
+    end
+
+    # Fourth, if the tuple we want to reclaim appears in a join, we need to
+    # check for a compatible seal to ensure the tuple can safely be
+    # reclaimed. We can either use a whole-relation seal or a seal that matches
+    # the join predicates. Since this is the last condition we need to check, we
+    # can also actually do the deletion when this rule is satisfied.
+    rse_tables.each do |r|
+      reclaim_rel, input_tbl = r
+
+      if seal_deps[reclaim_rel]
+        seal_deps[reclaim_rel].each do |seal_dep|
+          seal_done_tbl = create_seal_done_table(reclaim_rel,
+                                                 seal_dep.other_input)
+
+          # Check for whole-relation seal
+          seal_tbl = create_seal_table(seal_dep.other_input)
+          rule_text = "#{seal_done_tbl} <= (#{input_tbl} * #{seal_tbl}).lefts"
+          install_rule(seal_done_tbl, "<=", [input_tbl, seal_tbl], [],
+                       rule_text, true)
+
+          # Check for partition-local seal
+          unless seal_dep.preds.empty?
+            raise unless seal_dep.preds.size == 1
+
+            seal_pred = seal_dep.preds.first
+            if seal_dep.other_input == seal_dep.left_rel
+              seal_key = seal_pred.first
+            else
+              seal_key = seal_pred.last
+            end
+            seal_tbl = create_seal_table(seal_dep.other_input, seal_key)
+            if seal_dep.other_input == seal_dep.left_rel
+              join_txt = "(#{seal_tbl} * #{input_tbl}).rights"
+            else
+              join_txt = "(#{input_tbl} * #{seal_tbl}).lefts"
+            end
+            rule_text = "#{seal_done_tbl} <= #{join_txt}(:#{seal_pred.first} => :#{seal_pred.last})"
+            install_rule(seal_done_tbl, "<=", [input_tbl, seal_tbl], [],
+                         rule_text, true)
+          end
+
+          # Only need to check the next seal dependency once this seal
+          # dependency is satisfied
+          input_tbl = seal_done_tbl
+        end
+      end
+
+      # Finally, install the deletion rule
+      rule_text = "#{reclaim_rel} <- #{input_tbl}"
+      install_rule(reclaim_rel, "<-", [], [input_tbl], rule_text, true)
     end
   end
 
@@ -949,14 +1006,15 @@ class BudMeta #:nodoc: all
     end
   end
 
-  def check_join_not(jneg)
+  def check_join_not(jneg, seal_deps)
     do_rels = Set.new
     skip_rels = jneg.join_rels.to_set
+    seal_deps = Hash.new
 
     # TODO: Notin code blocks not supported
     if jneg.not_block.nil? and rel_is_inflationary(jneg.outer, Set.new)
       jneg.join_rels.each do |r|
-        if can_reclaim_rel(r, jneg.rule_id, jneg.bud_obj, Set.new)
+        if can_reclaim_rel(r, jneg.rule_id, jneg.bud_obj, Set.new, seal_deps)
           do_rels << r
           skip_rels.delete(r)
         end
@@ -964,6 +1022,20 @@ class BudMeta #:nodoc: all
     end
 
     return do_rels, skip_rels
+  end
+
+  def create_rse_cond_table(target)
+    tbl_name = "rse_ready_#{target}"
+    target_tbl = @bud_instance.tables[target]
+    @bud_instance.scratch(tbl_name.to_sym, target_tbl.schema)
+    return tbl_name
+  end
+
+  def create_seal_done_table(input, seal_tbl)
+    tbl_name = "seal_done_#{input}_#{seal_tbl}"
+    input_tbl = @bud_instance.tables[input]
+    @bud_instance.scratch(tbl_name.to_sym, input_tbl.schema)
+    return tbl_name
   end
 
   # For each _rule_, we create a scratch to identify when the RSE condition for
@@ -1145,11 +1217,7 @@ class BudMeta #:nodoc: all
       else
         rel_qual, orel_qual = q
       end
-      seal_name = "seal_#{other_rel}_#{orel_qual}"
-      unless @bud_instance.tables.has_key? seal_name.to_sym
-        @bud_instance.table(seal_name.to_sym, [orel_qual.to_sym])
-      end
-
+      seal_name = create_seal_table(other_rel, orel_qual)
       rhs_text = "(#{rel} * #{seal_name}).lefts(:#{rel_qual} => :#{orel_qual}).notin(#{missing_buf}, #{qual_str})"
       rule_text = "#{del_tbl_name} <= #{rhs_text}"
       install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
@@ -1157,17 +1225,29 @@ class BudMeta #:nodoc: all
 
     # Whole-relation seals; the column in the seal relation is ignored, but we
     # add a dummy column to avoid creating a collection with zero columns.
-    seal_name = "seal_#{other_rel}"
-    unless @bud_instance.tables.has_key? seal_name.to_sym
-      @bud_instance.table(seal_name.to_sym, [:ignored])
-    end
-
+    seal_name = create_seal_table(other_rel)
     rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{qual_str})"
     rule_text = "#{del_tbl_name} <= #{rhs_text}"
     install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
   end
 
-  def check_neg_inner(neg)
+  def create_seal_table(rel, seal_key=nil)
+    if seal_key.nil?         # Whole-relation seal
+      seal_name = "seal_#{rel}"
+      schema = [:ignored]
+    else
+      seal_name = "seal_#{rel}_#{seal_key}"
+      schema = [seal_key.to_sym]
+    end
+
+    unless @bud_instance.tables.has_key? seal_name.to_sym
+      @bud_instance.table(seal_name.to_sym, schema)
+    end
+
+    seal_name
+  end
+
+  def check_neg_inner(neg, seal_deps)
     # Skip notin self joins: RSE would result in inferring a deletion rule for
     # the collection, which would then make RSE illegal.
     return false if neg.inner == neg.outer
@@ -1175,13 +1255,13 @@ class BudMeta #:nodoc: all
     # TODO: Notin code blocks not supported yet
     return false unless neg.block.nil?
 
-    return can_reclaim_rel(neg.inner, neg.rule_id, neg.bud_obj, Set.new) &&
+    return can_reclaim_rel(neg.inner, neg.rule_id, neg.bud_obj, Set.new, seal_deps) &&
            rel_is_inflationary(neg.outer, Set.new)
   end
 
-  def check_neg_outer(neg)
+  def check_neg_outer(neg, seal_deps)
     return false unless can_reclaim_rel(neg.outer, neg.rule_id,
-                                        neg.bud_obj, Set.new)
+                                        neg.bud_obj, Set.new, seal_deps)
 
     outer_rel = @bud_instance.tables[neg.outer]
 
@@ -1203,7 +1283,7 @@ class BudMeta #:nodoc: all
     return neg_inner_qual_cols == inner_keys
   end
 
-  def can_reclaim_rel(rel, rule_id, bud_obj, seen_deps)
+  def can_reclaim_rel(rel, rule_id, bud_obj, seen_rels, seal_deps)
     # XXX: generalize this to allow projection/selection/scratches
     return false unless is_persistent_tbl(rel)
 
@@ -1218,28 +1298,42 @@ class BudMeta #:nodoc: all
     # (recursively) or directly persisted.
     @bud_instance.t_depends.each do |d|
       next if d.rule_id == rule_id and d.bud_obj == bud_obj
-      next if seen_deps.include? d
+      next if seen_rels.include? d
       if d.body == rel.to_s
-        return false unless is_safe_rhs_ref(rel, d, seen_deps)
+        return false unless is_safe_rhs_ref(rel, d, seen_rels, seal_deps)
       end
     end
 
     return true
   end
 
-  def is_safe_rhs_ref(rel, ref_depend, seen_deps)
+  def is_safe_rhs_ref(rel, ref_depend, seen_rels, seal_deps)
     return false if ref_depend.in_body
     return false if (ref_depend.nm and not ref_depend.notin_neg_ref)
 
-    # XXX: check for joins
+    # We want to check if it is safe to reclaim from X, which appears in a join
+    # with Y (we assume the join is binary). We can still reclaim from X, but
+    # doing so requires proving that no more join result tuples will be produced
+    # that depend on X. To consider this, we need to analyze the semantics of
+    # the join. Unfortunately, this information is not readily available from
+    # the t_depend record, so we need to look up the rule's source, parse it,
+    # find the join fragment of the AST, and then analyze that.
+    if ref_depend.join_ref
+      join_info = lookup_join_info(rel, ref_depend.bud_obj, ref_depend.rule_id)
+      return false unless join_info
+
+      # Make reclaiming from X dependent on seeing a matching seal against Y.
+      seal_deps[rel] ||= []
+      seal_deps[rel] << join_info
+    end
 
     dependee = ref_depend.lhs.to_sym
     return false if is_deleted_tbl(dependee)
     return true if is_persistent_tbl(dependee)
     if ref_depend.notin_pos_ref
-      new_deps = seen_deps + [ref_depend]
-      return true if can_reclaim_rel(rel, ref_depend.rule_id,
-                                     ref_depend.bud_obj, new_deps)
+      new_seen_rels = seen_rels + [ref_depend]
+      return true if can_reclaim_rel(rel, ref_depend.rule_id, ref_depend.bud_obj,
+                                     new_seen_rels, seal_deps)
     end
     # XXX: Shouldn't we also check can_reclaim_rel here?
     return true if ref_depend.notin_neg_ref
@@ -1251,7 +1345,8 @@ class BudMeta #:nodoc: all
       next if d == ref_depend
       if d.body == dependee.to_s
         saw_ref = true
-        return false unless is_safe_rhs_ref(dependee, d, Set.new)
+        # XXX: test case for seal_deps here
+        return false unless is_safe_rhs_ref(dependee, d, Set.new, seal_deps)
       end
     end
 
@@ -1300,6 +1395,20 @@ class BudMeta #:nodoc: all
     @bud_instance.tables[t].kind_of? Bud::BudTable
   end
 
+  # Given a table involved in a join, return metadata about the join -- the
+  # other join input, the join predicates, and the join's targetlist. Note that
+  # we're given the rule ID; we assume the table appears in exactly one join in
+  # that rule, and that the join is binary.
+  def lookup_join_info(tbl, bud_obj, rule_id)
+    rule = @bud_instance.t_rules[[bud_obj, rule_id]]
+    parser = RubyParser.for_current_ruby rescue RubyParser.new
+    ast = parser.parse(rule.orig_src)
+
+    join_parse = JoinInfoParser.new(tbl)
+    join_parse.process(ast)
+    join_parse.join_info
+  end
+
   def find_rule_rhs(ast)
     raise Bud::Error unless ast.sexp_type == :call
 
@@ -1319,6 +1428,7 @@ class BudMeta #:nodoc: all
 
   TListVarRef = Struct.new(:var_name, :col_name)
   TListConst = Struct.new(:const_expr)
+  CodeBlock = Struct.new(:args, :body)
 
   # Search an AST to look for notin operators that are candidates for RSE. We
   # distinguish between two types of notins: "simple" notins (where the notin
@@ -1327,7 +1437,6 @@ class BudMeta #:nodoc: all
     SimpleNot = Struct.new(:inner, :outer, :quals, :block, :rule_id, :bud_obj)
     JoinNot = Struct.new(:join_rels, :join_quals, :is_outer_join, :tlist, :outer,
                          :not_quals, :not_block, :rule_id, :bud_obj)
-    CodeBlock = Struct.new(:args, :body)
 
     def initialize(simple_nots, join_nots, rule, bud)
       super()
@@ -1571,6 +1680,111 @@ class BudMeta #:nodoc: all
       _, _, rel_name = recv
       raise unless rels.include? rel_name
       return rel_name, col_name
+    end
+  end
+
+  JoinInfo = Struct.new(:rse_input, :other_input, :left_rel, :right_rel,
+                        :join_type, :preds, :tlist)
+
+  class JoinInfoParser < SexpProcessor
+    def initialize(tbl)
+      super()
+      self.require_empty = false
+      self.expected = Sexp
+      @known_input = tbl
+    end
+
+    def process_call(exp, code_block=nil)
+      _, recv, meth, *args = exp
+
+      is_join, @join_type, @left_rel, @right_rel = parse_join_call(recv, meth)
+      if is_join
+        if @left_rel == @known_input
+          @other_input = @right_rel
+        elsif @right_rel = @known_input
+          @other_input = @left_rel
+        else
+          return exp
+        end
+
+        @join_preds = parse_preds(args.first)
+        @tlist = code_block
+      else
+        process(recv) unless recv.nil?
+        args.each {|a| process(a)}
+      end
+
+      exp
+    end
+
+    def parse_join_call(recv, meth)
+      if [:pairs, :lefts, :rights].include? meth and recv and recv.sexp_type == :call
+        _, r_recv, r_meth, *r_args = recv
+        if r_meth == :*
+          left_rel = call_to_rel_name(r_recv)
+          right_rel = call_to_rel_name(r_args.first)
+          return true, meth, left_rel, right_rel if left_rel and right_rel
+        end
+      end
+
+      return false
+    end
+
+    def parse_preds(h)
+      return {} if h.nil?
+
+      # Form {:a => :b} hashes for each ":a => :b" qual (either syntax)
+      qual_ary = h.sexp_body.each_slice(2).map do |q1, q2|
+        types = [q1, q2].map(&:sexp_type)
+        if types == [:lit, :lit]
+          l = q1.sexp_body.first
+          r = q2.sexp_body.first
+          {l => r}
+        elsif types == [:call, :call]
+          l_rel, l_col = parse_call_ref(q1, join_rels)
+          r_rel, r_col = parse_call_ref(q2, join_rels)
+          if l_rel == join_rels.first
+            {l_col => r_col}
+          else
+            {r_col => l_col}
+          end
+        else
+          raise
+        end
+      end
+
+      qual_ary.reduce({}) {|h, pair| h.merge(pair)}
+    end
+
+    def join_info
+      if @other_input
+        JoinInfo.new(@known_input, @other_input, @left_rel, @right_rel,
+                     @join_type, @join_preds, @tlist)
+      else
+        nil
+      end
+    end
+
+    def process_iter(exp)
+      _, recv, args, *body = exp
+
+      if recv.sexp_type == :call
+        block = CodeBlock.new(args, body)
+        process_call(recv, block)
+      else
+        process(recv)
+      end
+
+      exp
+    end
+
+    def call_to_rel_name(exp)
+      _, recv, meth, *args = exp
+      if recv.nil? and args.empty?
+        meth
+      else
+        nil
+      end
     end
   end
 end

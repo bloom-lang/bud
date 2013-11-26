@@ -1708,7 +1708,6 @@ end
 
 class TestJoinReclaimSafety < MiniTest::Unit::TestCase
   def test_join_reclaim_with_seal
-    skip
     j = JoinReclaimWithSeal.new
     j.t2 <+ [["foo", "bar"]]
     j.t3 <+ [["qux", "bar"]]
