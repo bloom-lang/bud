@@ -1300,7 +1300,6 @@ class TestRse < MiniTest::Unit::TestCase
   end
 
   def test_rse_join_rhs
-    skip        # XXX: doesn't work correctly yet
     j = RseJoinRhs.new
     j.safe_log <+ [[1, "k1", "k2"], [2, "k3", "k1"]]
     2.times { j.tick }
