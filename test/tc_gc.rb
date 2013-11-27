@@ -1677,7 +1677,7 @@ class JoinReclaimWithSeal
     # When a tuple appears in t4, we would like to reclaim the matching tuple in
     # t3. To do this safely, we need to know that no future t2 tuple will arrive
     # that joins with the reclaimed t3 tuple. For this program, this guarantee
-    # can be provided by a seal on either t2.val or on the entire t2 collection.
+    # can be provided by a seal on either t2.val2 or on the entire t2 collection.
     t1 <= (t2 * t3).pairs(:val2 => :val) {|x,y| [x.key, y.key]}
     r1 <= t3.notin(t4)
   end
@@ -1695,12 +1695,25 @@ class JoinReclaimWithSealReorder
   end
 
   bloom do
-    # When a tuple appears in t4, we would like to reclaim the matching tuple in
-    # t3. To do this safely, we need to know that no future t2 tuple will arrive
-    # that joins with the reclaimed t3 tuple. For this program, this guarantee
-    # can be provided by a seal on either t2.val or on the entire t2 collection.
     t1 <= (t3 * t2).pairs(:val => :val2) {|y,x| [x.key, y.key]}
     r1 <= t3.notin(t4)
+  end
+end
+
+class JoinReclaimMultiplePreds
+  include Bud
+
+  state do
+    table :t1
+    table :t2, [:a, :b, :c]
+    table :t3, [:d, :e, :f]
+    table :t4
+    scratch :r1, t3.schema
+  end
+
+  bloom do
+    t1 <= (t2 * t3).pairs(:a => :d, :b => :e) {|x,y| [x.c, y.f]}
+    r1 <= t3.notin(t4, :d => :key)
   end
 end
 
@@ -1763,6 +1776,31 @@ class TestJoinReclaimSafety < MiniTest::Unit::TestCase
     assert_equal([["qux", "bar"]].to_set, j.t3.to_set)
 
     j.seal_t2_val2 <+ [["bar"]]
+    2.times { j.tick }
+    assert_equal([].to_set, j.t3.to_set)
+  end
+
+  def test_join_reclaim_multi_preds
+    j = JoinReclaimMultiplePreds.new
+    j.t2 <+ [["foo1", "bar1", "baz1"],
+             ["foo2", "bar2", "baz2"]]
+    j.t3 <+ [["foo1", "bar1", "qux1"],
+             ["foo3", "bar3", "qux3"]]
+    j.t4 <+ [["foo1"]]
+    2.times { j.tick }
+
+    assert_equal([["baz1", "qux1"]].to_set, j.t1.to_set)
+    assert_equal([["foo3", "bar3", "qux3"]].to_set, j.r1.to_set)
+    assert_equal([["foo1", "bar1", "qux1"],
+                  ["foo3", "bar3", "qux3"]].to_set, j.t3.to_set)
+
+    j.seal_t2_a <+ [["foo1"]]
+    j.seal_t2_b <+ [["bar3"]]
+    2.times { j.tick }
+
+    assert_equal([["foo3", "bar3", "qux3"]].to_set, j.t3.to_set)
+
+    j.t4 <+ [["foo3"]]
     2.times { j.tick }
     assert_equal([].to_set, j.t3.to_set)
   end

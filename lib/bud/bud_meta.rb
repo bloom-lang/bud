@@ -779,11 +779,8 @@ class BudMeta #:nodoc: all
           install_rule(seal_done_tbl, "<=", [input_tbl, seal_tbl], [],
                        rule_text, true)
 
-          # Check for partition-local seal
-          unless seal_dep.preds.empty?
-            raise unless seal_dep.preds.size == 1
-
-            seal_pred = seal_dep.preds.first
+          # Check for partition-local seals
+          seal_dep.preds.each do |seal_pred|
             if seal_dep.other_input == seal_dep.left_rel
               seal_key = seal_pred.first
             else
