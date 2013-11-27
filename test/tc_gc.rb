@@ -1668,7 +1668,7 @@ class JoinReclaimWithSeal
 
   state do
     table :t1
-    table :t2
+    table :t2, [:key] => [:val2]
     table :t3
     table :t4
     scratch :r1
@@ -1679,7 +1679,28 @@ class JoinReclaimWithSeal
     # t3. To do this safely, we need to know that no future t2 tuple will arrive
     # that joins with the reclaimed t3 tuple. For this program, this guarantee
     # can be provided by a seal on either t2.val or on the entire t2 collection.
-    t1 <= (t2 * t3).pairs(:val => :val) {|x,y| [x.key, y.key]}
+    t1 <= (t2 * t3).pairs(:val2 => :val) {|x,y| [x.key, y.key]}
+    r1 <= t3.notin(t4)
+  end
+end
+
+class JoinReclaimWithSealReorder
+  include Bud
+
+  state do
+    table :t1
+    table :t2, [:key] => [:val2]
+    table :t3
+    table :t4
+    scratch :r1
+  end
+
+  bloom do
+    # When a tuple appears in t4, we would like to reclaim the matching tuple in
+    # t3. To do this safely, we need to know that no future t2 tuple will arrive
+    # that joins with the reclaimed t3 tuple. For this program, this guarantee
+    # can be provided by a seal on either t2.val or on the entire t2 collection.
+    t1 <= (t3 * t2).pairs(:val => :val2) {|y,x| [x.key, y.key]}
     r1 <= t3.notin(t4)
   end
 end
@@ -1722,7 +1743,27 @@ class TestJoinReclaimSafety < MiniTest::Unit::TestCase
     assert_equal([].to_set, j.r1.to_set)
     assert_equal([["qux", "bar"]].to_set, j.t3.to_set)
 
-    j.seal_t2_val <+ [["bar"]]
+    j.seal_t2_val2 <+ [["bar"]]
+    2.times { j.tick }
+    assert_equal([].to_set, j.t3.to_set)
+  end
+
+  def test_join_reclaim_with_seal_reorder
+    j = JoinReclaimWithSealReorder.new
+    j.t2 <+ [["foo", "bar"]]
+    j.t3 <+ [["qux", "bar"]]
+    2.times { j.tick }
+
+    assert_equal([["foo", "qux"]].to_set, j.t1.to_set)
+    assert_equal([["qux", "bar"]].to_set, j.r1.to_set)
+
+    j.t4 <+ [["qux", "bar"]]
+    2.times { j.tick }
+
+    assert_equal([].to_set, j.r1.to_set)
+    assert_equal([["qux", "bar"]].to_set, j.t3.to_set)
+
+    j.seal_t2_val2 <+ [["bar"]]
     2.times { j.tick }
     assert_equal([].to_set, j.t3.to_set)
   end
