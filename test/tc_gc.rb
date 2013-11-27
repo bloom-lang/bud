@@ -1828,15 +1828,21 @@ class TestJoinReclaimSafety < MiniTest::Unit::TestCase
   def test_join_reclaim_intersect
     j = JoinReclaimIntersectSeal.new
     j.t2 <+ [[5, 10]]
-    j.t3 <+ [[6, 10]]
+    j.t3 <+ [[6, 10], [20, 11]]
     j.t4 <+ [[7, 10]]
-    j.t5 <+ [[6, 10]]
+    j.t5 <+ [[6, 10], [20, 11]]
     j.seal_t2_val2 <+ [[10]]
     2.times { j.tick }
 
-    assert_equal([[6, 10]].to_set, j.t3.to_set)
+    assert_equal([[6, 10], [20, 11]].to_set, j.t3.to_set)
 
     j.seal_t4_val4 <+ [[10]]
+    2.times { j.tick }
+
+    assert_equal([[20, 11]].to_set, j.t3.to_set)
+
+    j.seal_t2 <+ [["ignored"]]
+    j.seal_t4 <+ [["ignored"]]
     2.times { j.tick }
 
     assert_equal([].to_set, j.t3.to_set)
