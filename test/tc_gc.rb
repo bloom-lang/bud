@@ -1717,6 +1717,26 @@ class JoinReclaimMultiplePreds
   end
 end
 
+class JoinReclaimIntersectSeal
+  include Bud
+
+  state do
+    table :t0
+    table :t1
+    table :t2, [:key] => [:val2]
+    table :t3
+    table :t4, [:key] => [:val4]
+    table :t5
+    scratch :r1
+  end
+
+  bloom do
+    t0 <= (t2 * t3).pairs(:val2 => :val) {|x,y| [x.key, y.key]}
+    t1 <= (t3 * t4).pairs(:val => :val4) {|x,y| [x.key, y.key]}
+    r1 <= t3.notin(t5)
+  end
+end
+
 class JoinReclaimSemiJoin
   include Bud
 
@@ -1802,6 +1822,23 @@ class TestJoinReclaimSafety < MiniTest::Unit::TestCase
 
     j.t4 <+ [["foo3"]]
     2.times { j.tick }
+    assert_equal([].to_set, j.t3.to_set)
+  end
+
+  def test_join_reclaim_intersect
+    j = JoinReclaimIntersectSeal.new
+    j.t2 <+ [[5, 10]]
+    j.t3 <+ [[6, 10]]
+    j.t4 <+ [[7, 10]]
+    j.t5 <+ [[6, 10]]
+    j.seal_t2_val2 <+ [[10]]
+    2.times { j.tick }
+
+    assert_equal([[6, 10]].to_set, j.t3.to_set)
+
+    j.seal_t4_val4 <+ [[10]]
+    2.times { j.tick }
+
     assert_equal([].to_set, j.t3.to_set)
   end
 
