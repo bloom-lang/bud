@@ -1759,6 +1759,23 @@ class JoinReclaimSemiJoin
   end
 end
 
+class JoinReclaimSemiJoinLefts
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    table :t4
+    scratch :r1
+  end
+
+  bloom do
+    t1 <= (t3 * t2).lefts(:val => :key)
+    r1 <= t3.notin(t4)
+  end
+end
+
 class TestJoinReclaimSafety < MiniTest::Unit::TestCase
   def test_join_reclaim_with_seal
     j = JoinReclaimWithSeal.new
@@ -1850,6 +1867,22 @@ class TestJoinReclaimSafety < MiniTest::Unit::TestCase
 
   def test_join_reclaim_semi_join
     j = JoinReclaimSemiJoin.new
+    j.t2 <+ [["foo", "bar"]]
+    j.t3 <+ [["qux", "foo2"]]
+    j.t4 <+ [["qux", "foo2"]]
+
+    2.times { j.tick }
+
+    assert_equal([["qux", "foo2"]].to_set, j.t3.to_set)
+
+    j.t2 <+ [["foo2", "baz"]]
+    2.times { j.tick }
+
+    assert_equal([].to_set, j.t3.to_set)
+  end
+
+  def test_join_reclaim_semi_join_lefts
+    j = JoinReclaimSemiJoinLefts.new
     j.t2 <+ [["foo", "bar"]]
     j.t3 <+ [["qux", "foo2"]]
     j.t4 <+ [["qux", "foo2"]]
