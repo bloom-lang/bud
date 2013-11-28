@@ -760,46 +760,35 @@ class BudMeta #:nodoc: all
       install_rule(rse_table, "<=", v.to_a.sort, [], rule_text, true)
     end
 
-    # Fourth, if the tuple we want to reclaim appears in a join, we need to
-    # check for a compatible seal to ensure the tuple can safely be
-    # reclaimed. We can either use a whole-relation seal or a seal that matches
-    # the join predicates. Since this is the last condition we need to check, we
-    # can also actually do the deletion when this rule is satisfied.
+    # Fourth, if the tuple we want to reclaim appears in a join, we need to wait
+    # for a compatible seal to ensure the tuple can safely be reclaimed. We can
+    # either use a whole-relation seal or a seal that matches a join predicate.
+    # Since this is the last condition we need to check, we can also actually do
+    # the deletion when this rule is satisfied.
     rse_tables.each do |r|
       reclaim_rel, input_tbl = r
 
       if seal_deps[reclaim_rel]
         seal_deps[reclaim_rel].each do |seal_dep|
-          seal_done_tbl = create_seal_done_table(reclaim_rel,
-                                                 seal_dep.other_input)
+          raise unless reclaim_rel == seal_dep.rse_input
 
-          # Check for whole-relation seal
-          seal_tbl = create_seal_table(seal_dep.other_input)
-          rule_text = "#{seal_done_tbl} <= (#{input_tbl} * #{seal_tbl}).lefts"
-          install_rule(seal_done_tbl, "<=", [input_tbl, seal_tbl], [],
-                       rule_text, true)
-
-          # Check for partition-local seals
-          seal_dep.preds.each do |seal_pred|
-            if seal_dep.other_input == seal_dep.left_rel
-              seal_key = seal_pred.first
-            else
-              seal_key = seal_pred.last
-            end
-            seal_tbl = create_seal_table(seal_dep.other_input, seal_key)
-            if seal_dep.other_input == seal_dep.left_rel
-              join_txt = "(#{seal_tbl} * #{input_tbl}).rights"
-            else
-              join_txt = "(#{input_tbl} * #{seal_tbl}).lefts"
-            end
-            rule_text = "#{seal_done_tbl} <= #{join_txt}(:#{seal_pred.first} => :#{seal_pred.last})"
-            install_rule(seal_done_tbl, "<=", [input_tbl, seal_tbl], [],
-                         rule_text, true)
+          # First, check whether we need to wait for a seal at all. Given (X*Y)
+          # where we want to reclaim from X, suppose the join's targetlist
+          # doesn't reference Y (i.e., the join is a semijoin). Hence, once
+          # there is a single matching Y tuple, the arrival of subsequent Y
+          # tuples will not produce new distinct results. Hence, in this
+          # situation we don't need to wait for a seal; rather, we can just wait
+          # for a single matching Y tuple, and then allow the corresponding X
+          # tuple to be reclaimed.
+          if join_is_semijoin(seal_dep)
+            output_tbl = install_semijoin_dependency(seal_dep, input_tbl)
+          else
+            output_tbl = install_join_dependency(seal_dep, input_tbl)
           end
 
           # Only need to check the next seal dependency once this seal
           # dependency is satisfied
-          input_tbl = seal_done_tbl
+          input_tbl = output_tbl
         end
       end
 
@@ -807,6 +796,42 @@ class BudMeta #:nodoc: all
       rule_text = "#{reclaim_rel} <- #{input_tbl}"
       install_rule(reclaim_rel, "<-", [], [input_tbl], rule_text, true)
     end
+  end
+
+  def join_is_semijoin(dep)
+    false
+  end
+
+  def install_semijoin_dependency(dep, input_tbl)
+  end
+
+  def install_join_dependency(dep, input_tbl)
+    seal_done_tbl = create_seal_done_table(dep.rse_input, dep.other_input)
+
+    # Check for whole-relation seal
+    seal_tbl = create_seal_table(dep.other_input)
+    rule_text = "#{seal_done_tbl} <= (#{input_tbl} * #{seal_tbl}).lefts"
+    install_rule(seal_done_tbl, "<=", [input_tbl, seal_tbl], [],
+                 rule_text, true)
+
+    # Check for partition-local seals
+    dep.preds.each do |seal_pred|
+      if dep.other_input == dep.left_rel
+        seal_key = seal_pred.first
+      else
+        seal_key = seal_pred.last
+      end
+      seal_tbl = create_seal_table(dep.other_input, seal_key)
+      if dep.other_input == dep.left_rel
+        join_txt = "(#{seal_tbl} * #{input_tbl}).rights"
+      else
+        join_txt = "(#{input_tbl} * #{seal_tbl}).lefts"
+      end
+      rule_text = "#{seal_done_tbl} <= #{join_txt}(:#{seal_pred.first} => :#{seal_pred.last})"
+      install_rule(seal_done_tbl, "<=", [input_tbl, seal_tbl], [], rule_text, true)
+    end
+
+    return seal_done_tbl
   end
 
   def do_outer_reclaim(neg, deps)
