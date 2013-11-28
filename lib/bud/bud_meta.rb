@@ -821,7 +821,6 @@ class BudMeta #:nodoc: all
     end
 
     rule_text = "#{output_tbl} <= #{join_text}"
-    puts "RULE: #{rule_text}"
     install_rule(output_tbl, "<=", [input_tbl, dep.other_input], [],
                  rule_text, true)
   end
