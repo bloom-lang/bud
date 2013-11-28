@@ -772,17 +772,12 @@ class BudMeta #:nodoc: all
         seal_deps[reclaim_rel].each do |seal_dep|
           raise unless reclaim_rel == seal_dep.rse_input
 
-          # First, check whether we need to wait for a seal at all. Given (X*Y)
-          # where we want to reclaim from X, suppose the join's targetlist
-          # doesn't reference Y (i.e., the join is a semijoin). Hence, once
-          # there is a single matching Y tuple, the arrival of subsequent Y
-          # tuples will not produce new distinct results. Hence, in this
-          # situation we don't need to wait for a seal; rather, we can just wait
-          # for a single matching Y tuple, and then allow the corresponding X
-          # tuple to be reclaimed.
+          # First, check whether we need to wait for a seal at all.
           if join_is_semijoin(seal_dep)
             output_tbl = install_semijoin_dependency(seal_dep, input_tbl)
           else
+            # XXX: We can probably do this unconditionally (i.e., also for
+            # semijoin)
             output_tbl = install_join_dependency(seal_dep, input_tbl)
           end
 
@@ -799,10 +794,36 @@ class BudMeta #:nodoc: all
   end
 
   def join_is_semijoin(dep)
-    false
+    if dep.rse_input == dep.left_rel and dep.join_type == :lefts
+      true
+    elsif dep.rse_input == dep.right_rel and dep.join_type == :rights
+      true
+    else
+      false
+    end
   end
 
   def install_semijoin_dependency(dep, input_tbl)
+    # Given (X*Y) where we want to reclaim from X, suppose the join's targetlist
+    # doesn't reference Y (i.e., the join is a semijoin). Hence, once there is a
+    # single matching Y tuple, the arrival of subsequent Y tuples will not
+    # produce new distinct results. Hence, in this situation we don't need to
+    # wait for a seal; rather, we can just wait for a single matching Y tuple,
+    # and then allow the corresponding X tuple to be reclaimed. (This is not
+    # symmetric, and hence the method name is a bit misleading: if the join's
+    # targetlist doesn't reference X, we can't reclaim X any differently.)
+    done_tbl = create_seal_done_table(dep.rse_input, dep.other_input)
+
+    if dep.rse_input == dep.left_rel
+      join_text = "(#{input_tbl} * #{dep.right_rel}).lefts(#{dep.preds})"
+    else
+      join_text = "(#{dep.left_rel} * #{input_tbl}).rights(#{dep.preds})"
+    end
+
+    rule_text = "#{done_tbl} <= #{join_text}"
+    install_rule(done_tbl, "<=", [input_tbl, dep.other_input], [],
+                 rule_text, true)
+    return done_tbl
   end
 
   def install_join_dependency(dep, input_tbl)

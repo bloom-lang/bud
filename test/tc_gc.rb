@@ -1849,8 +1849,7 @@ class TestJoinReclaimSafety < MiniTest::Unit::TestCase
   end
 
   def test_join_reclaim_semi_join
-    skip
-    j = JoinReclaimSemiJoin.new(:disable_rse => true)
+    j = JoinReclaimSemiJoin.new
     j.t2 <+ [["foo", "bar"]]
     j.t3 <+ [["qux", "foo2"]]
     j.t4 <+ [["qux", "foo2"]]
