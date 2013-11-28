@@ -771,14 +771,16 @@ class BudMeta #:nodoc: all
       if seal_deps[reclaim_rel]
         seal_deps[reclaim_rel].each do |seal_dep|
           raise unless reclaim_rel == seal_dep.rse_input
+          output_tbl = create_seal_done_table(seal_dep.rse_input,
+                                              seal_dep.other_input)
 
           # First, check whether we need to wait for a seal at all.
           if join_is_semijoin(seal_dep)
-            output_tbl = install_semijoin_dependency(seal_dep, input_tbl)
+            install_semijoin_dependency(seal_dep, input_tbl, output_tbl)
           else
             # XXX: We can probably do this unconditionally (i.e., also for
             # semijoin)
-            output_tbl = install_join_dependency(seal_dep, input_tbl)
+            install_join_dependency(seal_dep, input_tbl, output_tbl)
           end
 
           # Only need to check the next seal dependency once this seal
@@ -803,7 +805,7 @@ class BudMeta #:nodoc: all
     end
   end
 
-  def install_semijoin_dependency(dep, input_tbl)
+  def install_semijoin_dependency(dep, input_tbl, output_tbl)
     # Given (X*Y) where we want to reclaim from X, suppose the join's targetlist
     # doesn't reference Y (i.e., the join is a semijoin). Hence, once there is a
     # single matching Y tuple, the arrival of subsequent Y tuples will not
@@ -812,28 +814,22 @@ class BudMeta #:nodoc: all
     # and then allow the corresponding X tuple to be reclaimed. (This is not
     # symmetric, and hence the method name is a bit misleading: if the join's
     # targetlist doesn't reference X, we can't reclaim X any differently.)
-    done_tbl = create_seal_done_table(dep.rse_input, dep.other_input)
-
     if dep.rse_input == dep.left_rel
       join_text = "(#{input_tbl} * #{dep.right_rel}).lefts(#{dep.preds})"
     else
       join_text = "(#{dep.left_rel} * #{input_tbl}).rights(#{dep.preds})"
     end
 
-    rule_text = "#{done_tbl} <= #{join_text}"
-    install_rule(done_tbl, "<=", [input_tbl, dep.other_input], [],
+    rule_text = "#{output_tbl} <= #{join_text}"
+    install_rule(output_tbl, "<=", [input_tbl, dep.other_input], [],
                  rule_text, true)
-    return done_tbl
   end
 
-  def install_join_dependency(dep, input_tbl)
-    seal_done_tbl = create_seal_done_table(dep.rse_input, dep.other_input)
-
+  def install_join_dependency(dep, input_tbl, output_tbl)
     # Check for whole-relation seal
     seal_tbl = create_seal_table(dep.other_input)
-    rule_text = "#{seal_done_tbl} <= (#{input_tbl} * #{seal_tbl}).lefts"
-    install_rule(seal_done_tbl, "<=", [input_tbl, seal_tbl], [],
-                 rule_text, true)
+    rule_text = "#{output_tbl} <= (#{input_tbl} * #{seal_tbl}).lefts"
+    install_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], rule_text, true)
 
     # Check for partition-local seals
     dep.preds.each do |seal_pred|
@@ -844,15 +840,13 @@ class BudMeta #:nodoc: all
       end
       seal_tbl = create_seal_table(dep.other_input, seal_key)
       if dep.other_input == dep.left_rel
-        join_txt = "(#{seal_tbl} * #{input_tbl}).rights"
+        join_text = "(#{seal_tbl} * #{input_tbl}).rights"
       else
-        join_txt = "(#{input_tbl} * #{seal_tbl}).lefts"
+        join_text = "(#{input_tbl} * #{seal_tbl}).lefts"
       end
-      rule_text = "#{seal_done_tbl} <= #{join_txt}(:#{seal_pred.first} => :#{seal_pred.last})"
-      install_rule(seal_done_tbl, "<=", [input_tbl, seal_tbl], [], rule_text, true)
+      rule_text = "#{output_tbl} <= #{join_text}(:#{seal_pred.first} => :#{seal_pred.last})"
+      install_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], rule_text, true)
     end
-
-    return seal_done_tbl
   end
 
   def do_outer_reclaim(neg, deps)
