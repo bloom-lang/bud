@@ -774,14 +774,14 @@ class BudMeta #:nodoc: all
           output_tbl = create_seal_done_table(seal_dep.rse_input,
                                               seal_dep.other_input)
 
-          # First, check whether we need to wait for a seal at all.
+          # If this is a semijoin, we don't necessarily need to wait for a
+          # matching seal -- any matching tuple will do.
           if join_is_semijoin(seal_dep)
             install_semijoin_dependency(seal_dep, input_tbl, output_tbl)
-          else
-            # XXX: We can probably do this unconditionally (i.e., also for
-            # semijoin)
-            install_join_dependency(seal_dep, input_tbl, output_tbl)
           end
+
+          # Can proceed given a seal, semijoin or no.
+          install_join_dependency(seal_dep, input_tbl, output_tbl)
 
           # Only need to check the next seal dependency once this seal
           # dependency is satisfied

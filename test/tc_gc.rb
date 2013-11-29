@@ -1879,6 +1879,20 @@ class TestJoinReclaimSafety < MiniTest::Unit::TestCase
     2.times { j.tick }
 
     assert_equal([].to_set, j.t3.to_set)
+
+    # Check that we also consider seals for semijoins
+    j.t3 <+ [["qux2", "foo3"]]
+    j.t4 <+ [["qux2", "foo3"]]
+    j.seal_t2_key <+ [["foo3"]]
+    2.times { j.tick }
+
+    assert_equal([].to_set, j.t3.to_set)
+
+    # If a reclaimed input is redelivered, we can delete it once again.
+    j.t3 <+ [["qux2", "foo3"], ["qux", "foo2"]]
+    2.times { j.tick }
+
+    assert_equal([].to_set, j.t3.to_set)
   end
 
   def test_join_reclaim_semi_join_lefts
