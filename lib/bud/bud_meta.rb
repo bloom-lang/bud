@@ -1441,7 +1441,7 @@ class BudMeta #:nodoc: all
     parser = RubyParser.for_current_ruby rescue RubyParser.new
     ast = parser.parse(rule.orig_src)
 
-    join_parse = JoinInfoParser.new(tbl)
+    join_parse = JoinInfoParser.new(tbl, @bud_instance)
     join_parse.process(ast)
     join_parse.join_info
   end
@@ -1506,6 +1506,72 @@ class BudMeta #:nodoc: all
   TListVarRef = Struct.new(:var_name, :col_name)
   TListConst = Struct.new(:const_expr)
   CodeBlock = Struct.new(:args, :body)
+
+  class TListParser
+    def initialize(bud)
+      @bud_instance = bud
+    end
+
+    # Find the targetlist by looking at the body of the iter code block. We only
+    # support very simple targetlist expressions: array literals containing
+    # simple column references or constants, addition (array concatenation)
+    # operators, and whole-tuple references. Return nil if the tlist contains
+    # syntax we don't support. We resolve column references by looking up the
+    # local variable names introduced by the iter block args; whole tuple refs
+    # are expanded by looking at the catalog. Note that because we resolve tlist
+    # column refs here, we don't need to distinguish between left/rights/pairs
+    # in subsequent analysis.
+    def parse(block_args, block_body, join_rels)
+      var_tbl = {}
+      var_list = block_args.sexp_body
+      var_list.each_with_index {|v,i| var_tbl[v] = join_rels[i]}
+
+      catch (:skip) do
+        return get_tlist_from_ast(block_body, var_tbl, join_rels)
+      end
+    end
+
+    def get_tlist_from_ast(ast, var_tbl, join_rels)
+      case ast.sexp_type
+      when :array
+        ast.sexp_body.map {|e| tlist_array_lit(e, var_tbl)}
+      when :call
+        _, recv, op, args = ast
+        throw :skip unless op == :+
+        get_tlist_from_ast(recv, var_tbl, join_rels) + get_tlist_from_ast(args, var_tbl, join_rels)
+      when :lvar
+        _, ref_var = ast
+        throw :skip unless var_tbl.has_key? ref_var
+        ref_tbl_name = var_tbl[ref_var]
+        ref_coll = @bud_instance.tables[ref_tbl_name]
+        throw :skip if ref_coll.nil?
+        ref_coll.cols.map {|c| TListVarRef.new(ref_tbl_name, c)}
+      else
+        throw :skip
+      end
+    end
+
+    # We expect an array literal to contain a combination of column references
+    # (x.y) and constant values; as a special-case, we regard the builtin
+    # functions "port" and "ip_port" as constants.
+    def tlist_array_lit(ref, var_tbl)
+      case ref.sexp_type
+      when :call
+        _, recv, meth, *args = ref
+        if recv.nil? and (meth == :ip_port or meth == :port)
+          return TListConst.new(ref)
+        end
+        throw :skip if recv.nil? or recv.sexp_type != :lvar
+        ref_var = recv.sexp_body.first
+        throw :skip unless var_tbl.has_key? ref_var
+        TListVarRef.new(var_tbl[ref_var], meth)
+      when :str, :lit
+        TListConst.new(ref)
+      else
+        throw :skip
+      end
+    end
+  end
 
   # Search an AST to look for notin operators that are candidates for RSE. We
   # distinguish between two types of notins: "simple" notins (where the notin
@@ -1641,71 +1707,12 @@ class BudMeta #:nodoc: all
         join_quals = BudMeta.parse_qual_ast(c_args, join_rels)
       end
 
-      tlist = get_tlist(i_block_args, i_body, join_rels)
+      tlist = TListParser.new(@bud_instance).parse(i_block_args, i_body, join_rels)
       return if tlist.nil?
       outer, not_quals = collect_notin_args(args)
       @join_nots << JoinNot.new(join_rels, join_quals, c_meth == :outer,
                                 tlist, outer, not_quals,
                                 nil, @rule.rule_id, @rule.bud_obj)
-    end
-
-    # Find the targetlist by looking at the body of the iter code block. We only
-    # support very simple targetlist expressions: array literals containing
-    # simple column references or constants, addition (array concatenation)
-    # operators, and whole-tuple references. We resolve column references by
-    # looking up the local variable names introduced by the iter block args;
-    # whole tuple refs are expanded by looking at the catalog. Note that because
-    # we resolve tlist column refs here, we don't need to distinguish between
-    # left/rights/pairs joins in subsequent analysis.
-    def get_tlist(block_args, block_body, join_rels)
-      var_tbl = {}
-      var_list = block_args.sexp_body
-      var_list.each_with_index {|v,i| var_tbl[v] = join_rels[i]}
-
-      catch (:skip) do
-        return get_tlist_from_ast(block_body, var_tbl, join_rels)
-      end
-    end
-
-    def get_tlist_from_ast(ast, var_tbl, join_rels)
-      case ast.sexp_type
-      when :array
-        ast.sexp_body.map {|e| tlist_array_lit(e, var_tbl)}
-      when :call
-        _, recv, op, args = ast
-        throw :skip unless op == :+
-        get_tlist_from_ast(recv, var_tbl, join_rels) + get_tlist_from_ast(args, var_tbl, join_rels)
-      when :lvar
-        _, ref_var = ast
-        throw :skip unless var_tbl.has_key? ref_var
-        ref_tbl_name = var_tbl[ref_var]
-        ref_coll = @bud_instance.tables[ref_tbl_name]
-        throw :skip if ref_coll.nil?
-        ref_coll.cols.map {|c| TListVarRef.new(ref_tbl_name, c)}
-      else
-        throw :skip
-      end
-    end
-
-    # We expect an array literal to contain a combination of column references
-    # (x.y) and constant values; as a special-case, we regard the builtin
-    # functions "port" and "ip_port" as constants.
-    def tlist_array_lit(ref, var_tbl)
-      case ref.sexp_type
-      when :call
-        _, recv, meth, *args = ref
-        if recv.nil? and (meth == :ip_port or meth == :port)
-          return TListConst.new(ref)
-        end
-        throw :skip if recv.nil? or recv.sexp_type != :lvar
-        ref_var = recv.sexp_body.first
-        throw :skip unless var_tbl.has_key? ref_var
-        TListVarRef.new(var_tbl[ref_var], meth)
-      when :str, :lit
-        TListConst.new(ref)
-      else
-        throw :skip
-      end
     end
 
     def get_join_rels(join_ast)
@@ -1724,20 +1731,22 @@ class BudMeta #:nodoc: all
   end
 
   JoinInfo = Struct.new(:rse_input, :other_input, :left_rel, :right_rel,
-                        :join_type, :preds, :tlist)
+                        :join_type, :preds)
 
   class JoinInfoParser < SexpProcessor
-    def initialize(tbl)
+    def initialize(tbl, bud)
       super()
       self.require_empty = false
       self.expected = Sexp
       @known_input = tbl
+      @bud_instance = bud
     end
 
     def process_call(exp, code_block=nil)
       _, recv, meth, *args = exp
 
-      is_join, @join_type, @left_rel, @right_rel = parse_join_call(recv, meth)
+      is_join, @join_type, @left_rel, @right_rel = parse_join_call(recv, meth,
+                                                                   code_block)
       if is_join
         if @left_rel == @known_input
           @other_input = @right_rel
@@ -1748,7 +1757,6 @@ class BudMeta #:nodoc: all
         end
 
         @join_preds = BudMeta.parse_qual_ast(args.first)
-        @tlist = code_block
       else
         process(recv) unless recv.nil?
         args.each {|a| process(a)}
@@ -1757,30 +1765,60 @@ class BudMeta #:nodoc: all
       exp
     end
 
-    def parse_join_call(recv, meth)
-      if [:pairs, :lefts, :rights].include? meth and recv and recv.sexp_type == :call
+    def parse_join_call(recv, meth, code_block)
+      if [:pairs, :lefts, :rights, :outer, :combos].include? meth and
+         recv and recv.sexp_type == :call
         _, r_recv, r_meth, *r_args = recv
         if r_meth == :*
           left_rel = call_to_rel_name(r_recv)
           right_rel = call_to_rel_name(r_args.first)
-          return true, meth, left_rel, right_rel if left_rel and right_rel
+          if left_rel and right_rel
+            return true, find_join_type(meth, left_rel, right_rel, code_block),
+                   left_rel, right_rel
+          end
         end
       end
 
       return false
     end
 
+    def find_join_type(join_meth, left_rel, right_rel, code_block)
+      if code_block.nil? or [:lefts, :rights, :outer].include? join_meth
+        return join_meth
+      end
+
+      # Check for the situation in which the user specified pairs, but only
+      # referenced values from one or the other relations in the targetlist. We
+      # can effectively transform the join into a lefts or rights, respectively.
+      tlist = TListParser.new(@bud_instance).parse(code_block.args, code_block.body,
+                                                   [left_rel, right_rel])
+      return join_meth if tlist.nil?
+
+      case find_tlist_rels(tlist)
+      when [left_rel].to_set
+        :lefts
+      when [right_rel].to_set
+        :rights
+      else
+        join_meth
+      end
+    end
+
+    def find_tlist_rels(tlist)
+      tlist.select {|t| t.kind_of? TListVarRef}.map {|v| v.var_name}.to_set
+    end
+
     def join_info
       if @other_input
         JoinInfo.new(@known_input, @other_input, @left_rel, @right_rel,
-                     @join_type, @join_preds, @tlist)
+                     @join_type, @join_preds)
       else
         nil
       end
     end
 
     def process_iter(exp)
-      _, recv, args, *body = exp
+      _, recv, args, body = exp
 
       if recv.sexp_type == :call
         block = CodeBlock.new(args, body)

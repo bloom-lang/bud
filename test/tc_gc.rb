@@ -1776,6 +1776,25 @@ class JoinReclaimSemiJoinLefts
   end
 end
 
+class JoinReclaimHiddenSemiJoin
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    table :t4
+    scratch :r1
+  end
+
+  bloom do
+    # Semantically a semijoin, but specified using pairs rather than
+    # lefts/rights.
+    t1 <= (t2 * t3).pairs(:key => :val) {|x,y| [y.key, y.val]}
+    r1 <= t3.notin(t4)
+  end
+end
+
 class TestJoinReclaimSafety < MiniTest::Unit::TestCase
   def test_join_reclaim_with_seal
     j = JoinReclaimWithSeal.new
@@ -1865,7 +1884,7 @@ class TestJoinReclaimSafety < MiniTest::Unit::TestCase
     assert_equal([].to_set, j.t3.to_set)
   end
 
-  def test_join_reclaim_semi_join
+  def test_join_reclaim_semijoin
     j = JoinReclaimSemiJoin.new
     j.t2 <+ [["foo", "bar"]]
     j.t3 <+ [["qux", "foo2"]]
@@ -1895,7 +1914,7 @@ class TestJoinReclaimSafety < MiniTest::Unit::TestCase
     assert_equal([].to_set, j.t3.to_set)
   end
 
-  def test_join_reclaim_semi_join_lefts
+  def test_join_reclaim_semijoin_lefts
     j = JoinReclaimSemiJoinLefts.new
     j.t2 <+ [["foo", "bar"]]
     j.t3 <+ [["qux", "foo2"]]
@@ -1906,6 +1925,36 @@ class TestJoinReclaimSafety < MiniTest::Unit::TestCase
     assert_equal([["qux", "foo2"]].to_set, j.t3.to_set)
 
     j.t2 <+ [["foo2", "baz"]]
+    2.times { j.tick }
+
+    assert_equal([].to_set, j.t3.to_set)
+  end
+
+  def test_join_reclaim_hidden_semijoin
+    j = JoinReclaimHiddenSemiJoin.new
+    j.t2 <+ [["foo", "bar"]]
+    j.t3 <+ [["qux", "foo2"]]
+    j.t4 <+ [["qux", "foo2"]]
+
+    2.times { j.tick }
+
+    assert_equal([["qux", "foo2"]].to_set, j.t3.to_set)
+
+    j.t2 <+ [["foo2", "baz"]]
+    2.times { j.tick }
+
+    assert_equal([].to_set, j.t3.to_set)
+
+    # Check that we also consider seals for semijoins
+    j.t3 <+ [["qux2", "foo3"]]
+    j.t4 <+ [["qux2", "foo3"]]
+    j.seal_t2_key <+ [["foo3"]]
+    2.times { j.tick }
+
+    assert_equal([].to_set, j.t3.to_set)
+
+    # If a reclaimed input is redelivered, we can delete it once again.
+    j.t3 <+ [["qux2", "foo3"], ["qux", "foo2"]]
     2.times { j.tick }
 
     assert_equal([].to_set, j.t3.to_set)
