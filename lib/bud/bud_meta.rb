@@ -795,6 +795,9 @@ class BudMeta #:nodoc: all
     end
   end
 
+  # TODO: Support the case where the targetlist references some fields from the
+  # other join input, but the join predicates imply that the join is still a
+  # semijoin. e.g., (X*Y).pairs(:f1 => :f2) {|a,b| [a.x, b.f2]}
   def join_is_semijoin(dep)
     if dep.rse_input == dep.left_rel and dep.join_type == :lefts
       true
