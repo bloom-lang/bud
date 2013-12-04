@@ -750,8 +750,7 @@ class TestRse < MiniTest::Unit::TestCase
     s.sbuf <+ [[5, 10], [6, 12]]
     s.tick
     s.res_approx <+ [[5, 10]]
-    s.tick
-    s.tick
+    2.times { s.tick }
 
     assert_equal([[6, 12]], s.sbuf.to_a.sort)
   end
@@ -763,8 +762,7 @@ class TestRse < MiniTest::Unit::TestCase
     assert_equal([[1, 5], [2, 5], [3, 6]].sort, s.res.to_a.sort)
 
     s.sbuf_val_seen <+ [[5]]
-    s.tick
-    s.tick
+    2.times { s.tick }
 
     assert_equal([[3, 6]], s.res.to_a.sort)
     assert_equal([[3, 6]], s.sbuf.to_a.sort)
