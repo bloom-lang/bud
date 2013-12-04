@@ -580,8 +580,9 @@ module Bud
       # growing any more, until the next tick.
       unless @rhs_rcvd
         @rhs_rcvd = true
+        rhs_hash = @hash_tables[1]
         @hash_tables[0].each do |key,values|
-          rhs_values = @hash_tables[1][key]
+          rhs_values = rhs_hash[key]
           values.each {|item| process_match(item, rhs_values)}
         end
       end
