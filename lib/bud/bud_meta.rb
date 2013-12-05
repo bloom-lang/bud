@@ -1052,7 +1052,8 @@ class BudMeta #:nodoc: all
     seal_deps = Hash.new
 
     # TODO: Notin code blocks not supported
-    if jneg.not_block.nil? and rel_is_inflationary(jneg.outer, Set.new)
+    # TODO: Self joins not supported
+    if jneg.not_block.nil? and rel_is_inflationary(jneg.outer, Set.new) and not jneg.is_self_join
       jneg.join_rels.each do |r|
         if can_reclaim_rel(r, jneg.rule_id, jneg.bud_obj, Set.new, seal_deps)
           do_rels << r
@@ -1581,8 +1582,8 @@ class BudMeta #:nodoc: all
   # receiver is a collection) and notins applied to a join expression.
   class NotInCollector < SexpProcessor
     SimpleNot = Struct.new(:inner, :outer, :quals, :block, :rule_id, :bud_obj)
-    JoinNot = Struct.new(:join_rels, :join_quals, :is_outer_join, :tlist, :outer,
-                         :not_quals, :not_block, :rule_id, :bud_obj)
+    JoinNot = Struct.new(:join_rels, :join_quals, :is_outer_join, :is_self_join,
+                         :tlist, :outer, :not_quals, :not_block, :rule_id, :bud_obj)
 
     def initialize(simple_nots, join_nots, rule, bud)
       super()
@@ -1714,6 +1715,7 @@ class BudMeta #:nodoc: all
       return if tlist.nil?
       outer, not_quals = collect_notin_args(args)
       @join_nots << JoinNot.new(join_rels, join_quals, c_meth == :outer,
+                                join_rels.first == join_rels.last,
                                 tlist, outer, not_quals,
                                 nil, @rule.rule_id, @rule.bud_obj)
     end

@@ -744,6 +744,20 @@ class RseFromRange
   end
 end
 
+class RseSelfJoinNotin
+  include Bud
+
+  state do
+    table :t1
+    table :t2, [:x, :y]
+    scratch :r1, [:x, :y]
+  end
+
+  bloom do
+    r1 <= (t1 * t1).pairs(:val => :val) {|x,y| [x.key, y.key]}.notin(t2)
+  end
+end
+
 class TestRse < MiniTest::Unit::TestCase
   def test_rse_simple
     s = RseSimple.new
@@ -1343,6 +1357,20 @@ class TestRse < MiniTest::Unit::TestCase
   def test_rse_from_range
     r = RseFromRange.new
     r.tick
+  end
+
+  def test_rse_self_join_notin
+    s = RseSelfJoinNotin.new
+    s.t1 <+ [[5, 10], [6, 10]]
+    s.tick
+
+    assert_equal([[5, 5], [5, 6], [6, 5], [6, 6]].sort, s.r1.to_a.sort)
+
+    s.t2 <+ [[5, 5], [5, 6]]
+    2.times {
+      s.tick
+      assert_equal([[6, 5], [6, 6]].sort, s.r1.to_a.sort)
+    }
   end
 end
 
