@@ -53,8 +53,35 @@ class BudMeta #:nodoc: all
         rule_ary = @bud_instance.t_rules.map{|r| [r.rule_id, r.orig_src]}.sort
         puts rule_ary.map {|r| "#{r[0]}:\t#{r[1]}"}
       end
+
+      if @bud_instance.options[:print_schema]
+        @bud_instance.tables.keys.sort.each do |tbl_name|
+          t = @bud_instance.tables[tbl_name]
+          tbl_keyword = table_get_keyword(t)
+          puts "#{tbl_keyword} #{tbl_name}, #{t.schema}"
+        end
+      end
     end
     return stratified_rules
+  end
+
+  def table_get_keyword(t)
+    case t
+    when Bud::BudTable
+      "table"
+    when Bud::BudChannel
+      "channel"
+    when Bud::BudSealed
+      "sealed"
+    when Bud::BudScratch
+      "scratch"
+    when Bud::BudPeriodic
+      "periodic"
+    when Bud::BudRangeCompress
+      "range"
+    else
+      "???"
+    end
   end
 
   def shred_rules
