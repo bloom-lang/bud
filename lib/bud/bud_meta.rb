@@ -59,7 +59,7 @@ class BudMeta #:nodoc: all
           next if @bud_instance.builtin_tables.has_key? tbl_name
           t = @bud_instance.tables[tbl_name]
           tbl_keyword = table_get_keyword(t)
-          puts "#{tbl_keyword} #{tbl_name}, #{t.schema}"
+          puts "#{tbl_keyword} :#{tbl_name}, #{t.schema}"
         end
       end
     end
