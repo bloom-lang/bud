@@ -744,7 +744,7 @@ class RseFromRange
   end
 end
 
-class RseSelfJoinNotin
+class RseSelfJoin
   include Bud
 
   state do
@@ -755,6 +755,20 @@ class RseSelfJoinNotin
 
   bloom do
     r1 <= (t1 * t1).pairs(:val => :val) {|x,y| [x.key, y.key]}.notin(t2)
+  end
+end
+
+class RseSelfJoinDiffPreds
+  include Bud
+
+  state do
+    table :t1, [:x, :y]
+    table :t2, [:a, :b, :c, :d]
+    scratch :r1, t2.schema
+  end
+
+  bloom do
+    r1 <= (t1 * t1).pairs(:x => :y) {|a,b| a + b}.notin(t2)
   end
 end
 
@@ -962,7 +976,7 @@ class TestRse < MiniTest::Unit::TestCase
   end
 
   def test_join_rse
-    j = JoinRse.new
+    j = JoinRse.new(:print_rules => true)
     j.node <+ [["foo", 1], ["bar", 1], ["bar", 2]]
     j.sbuf <+ [[100, 1, "x"], [101, 1, "y"]]
     2.times { j.tick }
@@ -1359,8 +1373,8 @@ class TestRse < MiniTest::Unit::TestCase
     r.tick
   end
 
-  def test_rse_self_join_notin
-    s = RseSelfJoinNotin.new
+  def test_rse_self_join
+    s = RseSelfJoin.new
     s.t1 <+ [[5, 10], [6, 10]]
     s.tick
 
@@ -1371,6 +1385,35 @@ class TestRse < MiniTest::Unit::TestCase
       s.tick
       assert_equal([[6, 5], [6, 6]].sort, s.r1.to_a.sort)
     }
+
+    skip
+
+    s.seal_t1_val <+ [[10]]
+    2.times { s.tick }
+
+    assert_equal([[5, 10], [6, 10]].to_set, s.t1.to_set)
+
+    s.t2 <+ [[6, 5]]
+    2.times { s.tick }
+
+    assert_equal([[6, 6]].sort, s.r1.to_a.sort)
+    assert_equal([[6, 10]].to_set, s.t1.to_set)
+  end
+
+  def test_rse_self_join_diff_preds
+    r = RseSelfJoinDiffPreds.new
+    r.t1 <+ [[1, 2], [2, 3], [3, 4]]
+    r.t2 <+ [[1, 2, 3, 4], [2, 3, 1, 2]]
+    2.times { r.tick }
+
+    assert_equal([[3, 4, 2, 3]].to_set, r.r1.to_set)
+    assert_equal([[1, 2], [2, 3], [3, 4]].to_set, r.t1.to_set)
+
+    r.seal_t1 <+ [[true]]
+    2.times { r.tick }
+
+    assert_equal([[3, 4, 2, 3]].to_set, r.r1.to_set)
+    assert_equal([[2, 3], [3, 4]].to_set, r.t1.to_set)
   end
 end
 

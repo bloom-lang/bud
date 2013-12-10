@@ -726,10 +726,16 @@ class BudMeta #:nodoc: all
       do_rels = work_rels.reject {|r| skip_reclaim(r, unsafe_rels)}
       next if do_rels.empty?
 
+      # Handle self joins specially
+      if neg.is_self_join
+        rse_self_join(neg, deps)
+        next
+      end
+
       # Given a negation that is applied to the output of a join, we first check
       # whether the negation quals only reference fields derived from one or the
       # other of the join inputs. If so, we can reclaim against that join input
-      # similar to how we reclaim from SimpleNot -- that is, semantically the
+      # similarly to how we reclaim from SimpleNot -- that is, semantically the
       # notin can be pushed up above the join. However, when the negation quals
       # include columns derived from both join inputs, we need to:
       #
@@ -821,6 +827,132 @@ class BudMeta #:nodoc: all
       rule_text = "#{reclaim_rel} <- #{input_tbl}"
       install_rule(reclaim_rel, "<-", [], [input_tbl], rule_text, true)
     end
+  end
+
+  def rse_self_join(neg, deps)
+    join_input_buf = create_join_input_buf(neg)
+    join_match_buf = create_join_match_buf(neg, join_input_buf)
+    missing_buf = create_missing_buf(neg, join_match_buf)
+    create_self_join_del_rules(neg, missing_buf, deps)
+  end
+
+  # Create a collection to hold all pairs of join inputs
+  def create_join_input_buf(neg)
+    rel = neg.join_rels.first
+    rel_tbl = @bud_instance.tables[rel.to_sym]
+    buf_name = "r#{neg.rule_id}_#{rel}_#{rel}_in_buf"
+    schema = []
+    ["lhs", "rhs"].each do |str|
+      rel_tbl.cols.each do |c|
+        schema << "#{str}_#{c}".to_sym
+      end
+    end
+    @bud_instance.scratch(buf_name.to_sym, schema)
+
+    qual_list = join_quals_to_str_ary(neg)
+    if qual_list.empty?
+      qual_text = ""
+    else
+      qual_text = "(" + qual_list.join(",") + ")"
+    end
+
+    rhs_text = "(#{rel} * #{rel}).pairs#{qual_text} {|x,y| x + y}"
+    rule_text = "#{buf_name} <= #{rhs_text}"
+    install_rule(buf_name, "<=", [rel], [], rule_text, true)
+
+    return buf_name
+  end
+
+  # Create a collection to hold all pairs of join inputs that have matches in
+  # the negated collection (after applying the negation predicate).
+  def create_join_match_buf(neg, input_buf)
+    outer_rel = @bud_instance.tables[neg.outer.to_sym]
+    input_rel = @bud_instance.tables[input_buf.to_sym]
+    reclaim_rel = neg.join_rels.first
+    lhs = "r#{neg.rule_id}_#{reclaim_rel}_#{reclaim_rel}_match_buf"
+    @bud_instance.scratch(lhs.to_sym, input_rel.schema)
+
+    # If no negation qual is given explicitly, the negation qual is implicitly
+    # the entire join output tuple (columns matched based on position).
+    qual_list = []
+    if neg.not_quals.empty?
+      neg.tlist.each_with_index do |t,i|
+        raise unless t.kind_of? TListVarRef
+        neg_colname = outer_rel.cols[i]
+        if t.rel_offset == 0
+          input_colname = "lhs_#{t.col_name}"
+        else
+          input_colname = "rhs_#{t.col_name}"
+        end
+        qual_list << ":#{input_colname} => :#{neg_colname}"
+      end
+    else
+      neg.not_quals.each do |q|
+        # We expect the left part of the qual (which references the output of
+        # the join) to be specified as a column offset.
+        lhs_qual_idx, rhs_qual = q
+        raise unless lhs_qual_idx.kind_of? Integer
+
+        tle = neg.tlist[lhs_qual_idx]
+        raise if tle.nil?
+        raise unless tle.kind_of? TListVarRef
+        if tle.rel_offset == 0
+          input_colname = "lhs_#{tle.col_name}"
+        else
+          input_colname = "rhs_#{tle.col_name}"
+        end
+
+        # RHS qual can be either column name or offset.
+        if rhs_qual.kind_of? Integer
+          rhs_qual = outer_rel.cols[rhs_qual]
+        end
+
+        qual_list << ":#{input_colname} => :#{rhs_qual}"
+      end
+    end
+
+    qual_text = "(" + qual_list.join(", ") + ")"
+    rule_text = "#{lhs} <= (#{input_buf} * #{neg.outer}).lefts#{qual_text}"
+    install_rule(lhs, "<=", [input_buf, neg.outer], [], rule_text, true)
+
+    return lhs
+  end
+
+  def get_missing_buf_quals(rel, prefix)
+    result = []
+    rel_tbl = @bud_instance.tables[rel.to_sym]
+    rel_tbl.cols.each do |c|
+      result << ":#{c} => :#{prefix}_#{c}"
+    end
+    result.join(", ")
+  end
+
+  def create_self_join_del_rules(neg, missing_buf, deps)
+    tmp_name = "tmp_#{neg.join_rels.first}_#{neg.rule_id}"
+    unless @bud_instance.tables.has_key? tmp_name.to_sym
+      @bud_instance.scratch(tmp_name.to_sym, @bud_instance.tables[neg.join_rels.first].schema)
+    end
+    del_tbl_name = create_del_table(neg.join_rels.first, neg.rule_id, deps)
+
+    lhs_quals = get_missing_buf_quals(neg.join_rels.first, "lhs")
+    rhs_quals = get_missing_buf_quals(neg.join_rels.last, "rhs")
+
+    # Whole-relation seals
+    rel = neg.join_rels.first
+    seal_name = create_seal_table(rel)
+    rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{lhs_quals})"
+    rule_text = "#{tmp_name} <= #{rhs_text}"
+    install_rule(tmp_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
+
+    rhs_text = "#{tmp_name}.notin(#{missing_buf}, #{rhs_quals})"
+    rule_text = "#{del_tbl_name} <= #{rhs_text}"
+    install_rule(del_tbl_name, "<=", [tmp_name], [missing_buf], rule_text, true)
+
+    # XXX: need to fix Bud negation bug first
+
+    # rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{lhs_quals}).notin(#{missing_buf}, #{rhs_quals})"
+    # rule_text = "#{del_tbl_name} <= #{rhs_text}"
+    # install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
   end
 
   # TODO: Support the case where the targetlist references some fields from the
@@ -965,7 +1097,7 @@ class BudMeta #:nodoc: all
     jneg.tlist.each_with_index do |t,i|
       # Skip constant TLEs, because they are derived from neither join input
       if t.kind_of? TListVarRef
-        rel_offset_map[i] = t.var_name
+        rel_offset_map[i] = t.rel_name
       end
     end
 
@@ -1080,8 +1212,7 @@ class BudMeta #:nodoc: all
     seal_deps = Hash.new
 
     # TODO: Notin code blocks not supported
-    # TODO: Self joins not supported
-    if jneg.not_block.nil? and rel_is_inflationary(jneg.outer, Set.new) and not jneg.is_self_join
+    if jneg.not_block.nil? and rel_is_inflationary(jneg.outer, Set.new)
       jneg.join_rels.each do |r|
         if can_reclaim_rel(r, jneg.rule_id, jneg.bud_obj, Set.new, seal_deps)
           do_rels << r
@@ -1160,12 +1291,12 @@ class BudMeta #:nodoc: all
     body_quals = []
 
     # If no negation qual is given explicitly, the negation qual is implicitly
-    # the entire tuple (columns matched based on position).
+    # the entire join output tuple (columns matched based on position).
     if jneg.not_quals.empty?
       jneg.tlist.each_with_index do |t,i|
         if t.kind_of? TListVarRef
           i_col = outer_rel.cols[i]
-          qual_list << "#{jneg.outer}.#{i_col} => #{t.var_name}.#{t.col_name}"
+          qual_list << "#{jneg.outer}.#{i_col} => #{t.rel_name}.#{t.col_name}"
         else
           body_quals << [i, const_to_str(t)]
         end
@@ -1186,7 +1317,7 @@ class BudMeta #:nodoc: all
         end
 
         if tle.kind_of? TListVarRef
-          qual_list << "#{jneg.outer}.#{rhs_qual} => #{tle.var_name}.#{tle.col_name}"
+          qual_list << "#{jneg.outer}.#{rhs_qual} => #{tle.rel_name}.#{tle.col_name}"
         else
           body_quals << [lhs_qual_idx, const_to_str(tle)]
         end
@@ -1280,6 +1411,7 @@ class BudMeta #:nodoc: all
     end
     qual_str = notin_quals.join(", ")
 
+    # Exploit seals that match each join predicate
     jneg.join_quals.each do |q|
       if other_rel == jneg.join_rels.first
         orel_qual, rel_qual = q
@@ -1535,7 +1667,7 @@ class BudMeta #:nodoc: all
     return rel_name, col_name
   end
 
-  TListVarRef = Struct.new(:var_name, :col_name)
+  TListVarRef = Struct.new(:rel_name, :rel_offset, :col_name)
   TListConst = Struct.new(:const_expr)
   CodeBlock = Struct.new(:args, :body)
 
@@ -1556,7 +1688,9 @@ class BudMeta #:nodoc: all
     def parse(block_args, block_body, join_rels)
       var_tbl = {}
       var_list = block_args.sexp_body
-      var_list.each_with_index {|v,i| var_tbl[v] = join_rels[i]}
+      var_list.each_with_index do |v,i|
+        var_tbl[v] = [join_rels[i], i]
+      end
 
       catch (:skip) do
         return get_tlist_from_ast(block_body, var_tbl, join_rels)
@@ -1574,10 +1708,10 @@ class BudMeta #:nodoc: all
       when :lvar
         _, ref_var = ast
         throw :skip unless var_tbl.has_key? ref_var
-        ref_tbl_name = var_tbl[ref_var]
+        ref_tbl_name, tbl_offset = var_tbl[ref_var]
         ref_coll = @bud_instance.tables[ref_tbl_name]
         throw :skip if ref_coll.nil?
-        ref_coll.cols.map {|c| TListVarRef.new(ref_tbl_name, c)}
+        ref_coll.cols.map {|c| TListVarRef.new(ref_tbl_name, tbl_offset, c)}
       else
         throw :skip
       end
@@ -1596,7 +1730,8 @@ class BudMeta #:nodoc: all
         throw :skip if recv.nil? or recv.sexp_type != :lvar
         ref_var = recv.sexp_body.first
         throw :skip unless var_tbl.has_key? ref_var
-        TListVarRef.new(var_tbl[ref_var], meth)
+        ref_tbl, tbl_offset = var_tbl[ref_var]
+        TListVarRef.new(ref_tbl, tbl_offset, meth)
       when :str, :lit
         TListConst.new(ref)
       else
@@ -1838,7 +1973,7 @@ class BudMeta #:nodoc: all
     end
 
     def find_tlist_rels(tlist)
-      tlist.select {|t| t.kind_of? TListVarRef}.map {|v| v.var_name}.to_set
+      tlist.select {|t| t.kind_of? TListVarRef}.map {|v| v.rel_name}.to_set
     end
 
     def join_info
