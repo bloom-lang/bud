@@ -1924,7 +1924,8 @@ class BudMeta #:nodoc: all
           return exp
         end
 
-        @join_preds = BudMeta.parse_qual_ast(args.first)
+        @join_preds = BudMeta.parse_qual_ast(args.first,
+                                             [@left_rel, @right_rel])
       else
         process(recv) unless recv.nil?
         args.each {|a| process(a)}
