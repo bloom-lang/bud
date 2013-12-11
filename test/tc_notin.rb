@@ -310,7 +310,7 @@ class NotInSelf
   end
 end
 
-class RseBug
+class NotinSelfChainStackBug
   include Bud
 
   state do
@@ -348,8 +348,8 @@ class NotInSelfTest < MiniTest::Unit::TestCase
     assert_equal([], n.res.to_a.sort)
   end
 
-  def test_rse_bug
-    r = RseBug.new(:disable_rse => true)
+  def test_notin_join_stack
+    r = NotinSelfChainStackBug.new
     r.t1 <+ [[1, 2], [2, 3], [3, 4]]
     r.t2 <+ [[1, 2, 3, 4], [2, 3, 1, 2]]
     2.times { r.tick }
