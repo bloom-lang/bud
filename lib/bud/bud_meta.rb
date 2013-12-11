@@ -49,11 +49,6 @@ class BudMeta #:nodoc: all
       dump_rewrite(stratified_rules) if @bud_instance.options[:dump_rewrite]
       dump_program if @bud_instance.options[:dump_program]
 
-      if @bud_instance.options[:print_rules]
-        rule_ary = @bud_instance.t_rules.map{|r| [r.rule_id, r.orig_src]}.sort
-        puts rule_ary.map {|r| "#{r[0]}:\t#{r[1]}"}
-      end
-
       if @bud_instance.options[:print_state]
         @bud_instance.tables.keys.sort.each do |tbl_name|
           next if @bud_instance.builtin_tables.has_key? tbl_name
@@ -61,6 +56,10 @@ class BudMeta #:nodoc: all
           tbl_keyword = table_get_keyword(t)
           puts "#{tbl_keyword} :#{tbl_name}, #{t.schema}"
         end
+      end
+      if @bud_instance.options[:print_rules]
+        rule_ary = @bud_instance.t_rules.map{|r| [r.rule_id, r.orig_src]}.sort
+        puts rule_ary.map {|r| "#{r[0]}:\t#{r[1]}"}
       end
     end
     return stratified_rules
@@ -918,11 +917,16 @@ class BudMeta #:nodoc: all
     return lhs
   end
 
-  def get_missing_buf_quals(rel, prefix)
+  def get_missing_buf_quals(rel, prefix, use_offset=false)
     result = []
     rel_tbl = @bud_instance.tables[rel.to_sym]
-    rel_tbl.cols.each do |c|
-      result << ":#{c} => :#{prefix}_#{c}"
+    rel_tbl.cols.each_with_index do |c,i|
+      if use_offset
+        lhs_c = i
+      else
+        lhs_c = ":#{c}"
+      end
+      result << "#{lhs_c} => :#{prefix}_#{c}"
     end
     result.join(", ")
   end
@@ -931,6 +935,8 @@ class BudMeta #:nodoc: all
     del_tbl_name = create_del_table(neg.join_rels.first, neg.rule_id, deps)
     lhs_quals = get_missing_buf_quals(neg.join_rels.first, "lhs")
     rhs_quals = get_missing_buf_quals(neg.join_rels.last, "rhs")
+    lhs_offset_quals = get_missing_buf_quals(neg.join_rels.first, "lhs", true)
+    rhs_offset_quals = get_missing_buf_quals(neg.join_rels.last, "rhs", true)
 
     # Whole-relation seals
     rel = neg.join_rels.first
@@ -938,6 +944,34 @@ class BudMeta #:nodoc: all
     rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{lhs_quals}).notin(#{missing_buf}, #{rhs_quals})"
     rule_text = "#{del_tbl_name} <= #{rhs_text}"
     install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
+
+    # Seals for each join predicate. Note that for self-joins, there's only a
+    # single join input collection (which appears twice), so we need more seal
+    # information before we can reclaim something. Specifically, if we have a
+    # join predicate :foo => :foo, we need ...
+    neg.join_quals.each do |q|
+      lhs_qual, rhs_qual = q
+      lhs_seal = create_seal_table(rel, lhs_qual)
+      rhs_seal = create_seal_table(rel, rhs_qual)
+
+      if lhs_seal == rhs_seal
+        rhs_text = "(#{rel} * #{lhs_seal}).lefts(:#{lhs_qual} => :#{lhs_qual})"
+        rhs_text << ".notin(#{missing_buf}, #{lhs_quals}).notin(#{missing_buf}, #{rhs_quals})"
+      else
+        rhs_text = "(#{rel} * #{lhs_seal} * #{rhs_seal}).pairs(#{rel}.#{lhs_qual} => #{lhs_seal}.#{lhs_qual}, #{rel}.#{rhs_qual} => #{rhs_seal}.#{rhs_qual}) {|x,y,z| x}"
+
+        # Annoyingly, we can't apply the negations against missing_buf using the
+        # same query as in the cases above, because we don't correctly propagate
+        # schema information through non-lefts/rights joins. Hence, get a
+        # different version of the qual that uses a column offset to identify
+        # the column in the relation to be reclaimed from, rather than a name.
+        rhs_text << ".notin(#{missing_buf}, #{lhs_offset_quals}).notin(#{missing_buf}, #{rhs_offset_quals})"
+      end
+
+      rule_text = "#{del_tbl_name} <= #{rhs_text}"
+      install_rule(del_tbl_name, "<=", [rel, lhs_seal, rhs_seal],
+                   [missing_buf], rule_text, true)
+    end
   end
 
   # TODO: Support the case where the targetlist references some fields from the
@@ -1396,6 +1430,13 @@ class BudMeta #:nodoc: all
     end
     qual_str = notin_quals.join(", ")
 
+    # Whole-relation seals; the column in the seal relation is ignored, but we
+    # add a dummy column to avoid creating a collection with zero columns.
+    seal_name = create_seal_table(other_rel)
+    rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{qual_str})"
+    rule_text = "#{del_tbl_name} <= #{rhs_text}"
+    install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
+
     # Exploit seals that match each join predicate
     jneg.join_quals.each do |q|
       if other_rel == jneg.join_rels.first
@@ -1408,13 +1449,6 @@ class BudMeta #:nodoc: all
       rule_text = "#{del_tbl_name} <= #{rhs_text}"
       install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
     end
-
-    # Whole-relation seals; the column in the seal relation is ignored, but we
-    # add a dummy column to avoid creating a collection with zero columns.
-    seal_name = create_seal_table(other_rel)
-    rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{qual_str})"
-    rule_text = "#{del_tbl_name} <= #{rhs_text}"
-    install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
   end
 
   def create_seal_table(rel, seal_key=nil)

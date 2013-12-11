@@ -1378,17 +1378,15 @@ class TestRse < MiniTest::Unit::TestCase
     s.t1 <+ [[5, 10], [6, 10]]
     s.tick
 
-    assert_equal([[5, 5], [5, 6], [6, 5], [6, 6]].sort, s.r1.to_a.sort)
+    assert_equal([[5, 5], [5, 6], [6, 5], [6, 6]].to_set, s.r1.to_set)
 
     s.t2 <+ [[5, 5], [5, 6]]
     2.times {
       s.tick
-      assert_equal([[6, 5], [6, 6]].sort, s.r1.to_a.sort)
+      assert_equal([[6, 5], [6, 6]].to_set, s.r1.to_set)
     }
 
-    skip
-
-    s.seal_t1_val <+ [[10]]
+    s.seal_t1_val <+ [[10]]     # Partial seal
     2.times { s.tick }
 
     assert_equal([[5, 10], [6, 10]].to_set, s.t1.to_set)
@@ -1398,6 +1396,12 @@ class TestRse < MiniTest::Unit::TestCase
 
     assert_equal([[6, 6]].sort, s.r1.to_a.sort)
     assert_equal([[6, 10]].to_set, s.t1.to_set)
+
+    s.t2 <+ [[6, 6]]
+    2.times { s.tick }
+
+    assert_equal([].to_set, s.r1.to_set)
+    assert_equal([].to_set, s.t1.to_set)
   end
 
   def test_rse_self_join_diff_preds
@@ -1409,11 +1413,42 @@ class TestRse < MiniTest::Unit::TestCase
     assert_equal([[3, 4, 2, 3]].to_set, r.r1.to_set)
     assert_equal([[1, 2], [2, 3], [3, 4]].to_set, r.t1.to_set)
 
-    r.seal_t1 <+ [[true]]
+    r.seal_t1 <+ [[true]]       # Whole-relation seal
     2.times { r.tick }
 
     assert_equal([[3, 4, 2, 3]].to_set, r.r1.to_set)
     assert_equal([[2, 3], [3, 4]].to_set, r.t1.to_set)
+
+    r.t2 <+ [[3, 4, 2, 3]]
+    2.times { r.tick }
+
+    assert_equal([].to_set, r.r1.to_set)
+    assert_equal([].to_set, r.t1.to_set)
+  end
+
+  def test_rse_self_join_diff_preds_partial_seal
+    r = RseSelfJoinDiffPreds.new
+    r.t1 <+ [[1, 2], [2, 3], [3, 4]]
+    r.t2 <+ [[1, 2, 3, 4], [2, 3, 1, 2]]
+    r.seal_t1_y <+ [[2]]
+    2.times { r.tick }
+
+    assert_equal([[3, 4, 2, 3]].to_set, r.r1.to_set)
+    assert_equal([[1, 2], [2, 3], [3, 4]].to_set, r.t1.to_set)
+
+    r.seal_t1_x <+ [[1]]
+    2.times { r.tick }
+
+    assert_equal([[3, 4, 2, 3]].to_set, r.r1.to_set)
+    assert_equal([[2, 3], [3, 4]].to_set, r.t1.to_set)
+
+    r.seal_t1_x <+ [[2]]
+    r.seal_t1_y <+ [[3]]
+    r.t2 <+ [[3, 4, 2, 3]]
+    2.times { r.tick }
+
+    assert_equal([].to_set, r.r1.to_set)
+    assert_equal([[3, 4]].to_set, r.t1.to_set)
   end
 end
 
