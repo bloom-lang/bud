@@ -40,18 +40,6 @@ module Bud
         @selfjoins << name if cnt == 2
       end
 
-      # derive schema: one column for each table.
-      # duplicated inputs get distinguishing numeral
-      @cols = []
-      retval = @all_rels_below.reduce({}) do |memo, r|
-        r_name = r.qualified_tabname.to_s
-        memo[r_name] ||= 0
-        newstr = r_name + (memo[r_name] > 0 ? "_#{memo[r_name]}" : "")
-        @cols << newstr.to_sym
-        memo[r_name] += 1
-        memo
-      end
-
       setup_preds(preds) unless preds.empty?
       setup_state
 
@@ -340,6 +328,24 @@ module Bud
     #          :col1 => :col2  (same as  lefttable.col1 => righttable.col2)
     public
     def pairs(*preds, &blk)
+      if @cols.nil?
+        # derive schema if needed: one column for each table.  duplicated inputs
+        # get distinguishing numeral.
+        #
+        # XXX: actually, this seems completely bogus. The schema for the output
+        # of the join should depend on the join's *targetlist*.
+        @cols = []
+        retval = @all_rels_below.reduce({}) do |memo, r|
+          r_name = r.qualified_tabname.to_s
+          memo[r_name] ||= 0
+          newstr = r_name + (memo[r_name] > 0 ? "_#{memo[r_name]}" : "")
+          @cols << newstr.to_sym
+          memo[r_name] += 1
+          memo
+        end
+        setup_accessors
+      end
+
       @origpreds = preds
       setup_preds(preds) unless preds.empty?
       # given new preds, the state for the join will be different.  set it up again.
@@ -384,20 +390,24 @@ module Bud
     end
 
     public
-    def rights(*preds, &blk)
-      @cols = blk.nil? ? @bud_instance.toplevel.tables[@rels[1].qualified_tabname].cols : nil
-      setup_accessors if blk.nil?
+    def lefts(*preds, &blk)
+      if blk.nil?
+        @cols = @bud_instance.toplevel.tables[@rels[0].qualified_tabname].cols
+        setup_accessors
+      end
       pairs(*preds) do |x,y|
-        blk.nil? ? y : blk.call(y)
+        blk.nil? ? x : blk.call(x)
       end
     end
 
     public
-    def lefts(*preds, &blk)
-      @cols = blk.nil? ? @bud_instance.toplevel.tables[@rels[0].qualified_tabname].cols : nil
-      setup_accessors if blk.nil?
+    def rights(*preds, &blk)
+      if blk.nil?
+        @cols = @bud_instance.toplevel.tables[@rels[1].qualified_tabname].cols
+        setup_accessors
+      end
       pairs(*preds) do |x,y|
-        blk.nil? ? x : blk.call(x)
+        blk.nil? ? y : blk.call(y)
       end
     end
 
@@ -428,7 +438,7 @@ module Bud
     public
     def flatten(*preds, &blk)
       if blk.nil?
-        @cols = dupfree_schema(@bud_instance.tables[@cols[0]].cols + @bud_instance.tables[@cols[1]].cols)
+        @cols = dupfree_schema(@rels[0].cols + @rels[1].cols)
       else
         @cols = []
       end

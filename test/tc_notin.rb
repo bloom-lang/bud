@@ -310,6 +310,28 @@ class NotInSelf
   end
 end
 
+class NotinSelfChainStackBug
+  include Bud
+
+  state do
+    scratch :r0_t1_t1_in_buf, [:lhs_x, :lhs_y, :rhs_x, :rhs_y]
+    scratch :r0_t1_t1_match_buf, [:lhs_x, :lhs_y, :rhs_x, :rhs_y]
+    scratch :r0_t1_t1_missing, [:lhs_x, :lhs_y, :rhs_x, :rhs_y]
+    scratch :r1, [:a, :b, :c, :d]
+    table :seal_t1, [:ignored]
+    table :t1, [:x, :y]
+    table :t2, r1.schema
+  end
+
+  bloom do
+    r1 <= ((t1 * t1).pairs(:x => :y) { |a, b| (a + b) }.notin(t2))
+    r0_t1_t1_in_buf <= (t1 * t1).pairs(t1.x => t1.y) {|x,y| x + y}
+    r0_t1_t1_match_buf <= (r0_t1_t1_in_buf * t2).lefts(:lhs_x => :a, :lhs_y => :b, :rhs_x => :c, :rhs_y => :d)
+    r0_t1_t1_missing <= (t1 * t1).pairs(t1.x => t1.y) {|x,y| x + y}.notin(r0_t1_t1_match_buf)
+    t1 <- (t1 * seal_t1).lefts.notin(r0_t1_t1_missing, :x => :lhs_x, :y => :lhs_y).notin(r0_t1_t1_missing, :x => :rhs_x, :y => :rhs_y)
+  end
+end
+
 class NotInSelfTest < MiniTest::Unit::TestCase
   def test_self_notin
     n = NotInSelf.new
@@ -324,6 +346,22 @@ class NotInSelfTest < MiniTest::Unit::TestCase
     n.t1 <+ [[13, 10]]
     n.tick
     assert_equal([], n.res.to_a.sort)
+  end
+
+  def test_notin_join_stack
+    r = NotinSelfChainStackBug.new
+    r.t1 <+ [[1, 2], [2, 3], [3, 4]]
+    r.t2 <+ [[1, 2, 3, 4], [2, 3, 1, 2]]
+    2.times { r.tick }
+
+    assert_equal([[3, 4, 2, 3]].to_set, r.r1.to_set)
+    assert_equal([[1, 2], [2, 3], [3, 4]].to_set, r.t1.to_set)
+
+    r.seal_t1 <+ [[true]]
+    2.times { r.tick }
+
+    assert_equal([[3, 4, 2, 3]].to_set, r.r1.to_set)
+    assert_equal([[2, 3], [3, 4]].to_set, r.t1.to_set)
   end
 end
 
