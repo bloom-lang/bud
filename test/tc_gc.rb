@@ -976,7 +976,7 @@ class TestRse < MiniTest::Unit::TestCase
   end
 
   def test_join_rse
-    j = JoinRse.new(:print_rules => true)
+    j = JoinRse.new
     j.node <+ [["foo", 1], ["bar", 1], ["bar", 2]]
     j.sbuf <+ [[100, 1, "x"], [101, 1, "y"]]
     2.times { j.tick }

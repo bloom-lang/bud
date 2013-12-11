@@ -928,31 +928,16 @@ class BudMeta #:nodoc: all
   end
 
   def create_self_join_del_rules(neg, missing_buf, deps)
-    tmp_name = "tmp_#{neg.join_rels.first}_#{neg.rule_id}"
-    unless @bud_instance.tables.has_key? tmp_name.to_sym
-      @bud_instance.scratch(tmp_name.to_sym, @bud_instance.tables[neg.join_rels.first].schema)
-    end
     del_tbl_name = create_del_table(neg.join_rels.first, neg.rule_id, deps)
-
     lhs_quals = get_missing_buf_quals(neg.join_rels.first, "lhs")
     rhs_quals = get_missing_buf_quals(neg.join_rels.last, "rhs")
 
     # Whole-relation seals
     rel = neg.join_rels.first
     seal_name = create_seal_table(rel)
-    rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{lhs_quals})"
-    rule_text = "#{tmp_name} <= #{rhs_text}"
-    install_rule(tmp_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
-
-    rhs_text = "#{tmp_name}.notin(#{missing_buf}, #{rhs_quals})"
+    rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{lhs_quals}).notin(#{missing_buf}, #{rhs_quals})"
     rule_text = "#{del_tbl_name} <= #{rhs_text}"
-    install_rule(del_tbl_name, "<=", [tmp_name], [missing_buf], rule_text, true)
-
-    # XXX: need to fix Bud negation bug first
-
-    # rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{lhs_quals}).notin(#{missing_buf}, #{rhs_quals})"
-    # rule_text = "#{del_tbl_name} <= #{rhs_text}"
-    # install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
+    install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
   end
 
   # TODO: Support the case where the targetlist references some fields from the
