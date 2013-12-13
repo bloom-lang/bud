@@ -2159,9 +2159,25 @@ class CausalGcSimple
   end
 end
 
+class CausalDomRights
+  include Bud
+
+  state do
+    table :sk, [:w1, :w2]
+    table :dep, [:id, :target]
+    table :dom, [:id]
+  end
+
+  bloom do
+    # As dom grows, we can discard values from dep without needing any
+    # additional info. Given seals on dep.id, we can also discard from sk.
+    dom <+ (sk * dep).rights(:w1 => :id, :w2 => :target) {|d| [d.target]}.notin(dom, 0 => :id)
+  end
+end
+
 class TestCausalGc < MiniTest::Unit::TestCase
   def test_simple_causal
-    c = CausalGcSimple.new(:print_rules => true)
+    c = CausalGcSimple.new
     c.safe <+ [[5, "foo"], [6, "bar"]]
     2.times { c.tick }
 
@@ -2176,5 +2192,12 @@ class TestCausalGc < MiniTest::Unit::TestCase
     assert_equal([[5, "foo"], [7, "bar"]].to_set, c.view.to_set)
     assert_equal([[6, 7], [7, 6]].to_set, c.sk.to_set)
     assert_equal([[6]].to_set, c.dom.to_set)
+  end
+
+  def test_dom_rights
+    c = CausalDomRights.new
+    c.sk <+ [[6, 7], [7, 6]]
+    c.dep <+ [[7, 6]]
+    2.times { c.tick }
   end
 end

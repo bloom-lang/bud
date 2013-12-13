@@ -649,7 +649,7 @@ class BudMeta #:nodoc: all
   # LOW PRIORITY:
   #   * support code blocks for notin
   #   * support more tlist expressions for join RSE
-  #   * support more join types (e.g., lefts/rights/matches, > 2 way joins, outer)
+  #   * support > 2 way joins
   #   * check that it works with modules
   #   * efficiency: don't create redundant rules to compute RSE conditions for
   #     collections that we subsequently determine are unsafe
@@ -1700,14 +1700,27 @@ class BudMeta #:nodoc: all
     # simple column references or constants, addition (array concatenation)
     # operators, and whole-tuple references. Return nil if the tlist contains
     # syntax we don't support. We resolve column references by looking up the
-    # local variable names introduced by the iter block args; whole tuple refs
-    # are expanded by looking at the catalog. Note that because we resolve tlist
-    # column refs here, we don't need to distinguish between left/rights/pairs
-    # in subsequent analysis.
-    def parse(block_args, block_body, join_rels)
+    # local variable names introduced by the iter block args -- for example,
+    # given {|x,y| [x.z]}, we find the relation that "x" is bound to; we also
+    # find the offset of the "x" relation in the list of join relations (which
+    # is necessary for self joins). Whole tuple refs are expanded by looking at
+    # the catalog. Note that because we resolve tlist column refs here, we don't
+    # need to distinguish between left/rights/pairs in subsequent analysis.
+    def parse(block_args, block_body, join_rels, join_meth)
       var_tbl = {}
       var_list = block_args.sexp_body
+      if [:lefts, :rights].include? join_meth
+        raise unless join_rels.size == 2
+        raise unless var_list.size == 1
+      end
       var_list.each_with_index do |v,i|
+        # For each block argument, map the associated variable name to a join
+        # input relation and an offset in the list of join relations. Note that
+        # for rights, we'll see only a single block argument but it is
+        # associated with the _second_ (right) join input.
+        if join_meth == :rights
+          i = 1
+        end
         var_tbl[v] = [join_rels[i], i]
       end
 
@@ -1893,7 +1906,8 @@ class BudMeta #:nodoc: all
         join_quals = BudMeta.parse_qual_ast(c_args, join_rels)
       end
 
-      tlist = TListParser.new(@bud_instance).parse(i_block_args, i_body, join_rels)
+      tlist = TListParser.new(@bud_instance).parse(i_block_args, i_body,
+                                                   join_rels, c_meth)
       return if tlist.nil?
       outer, not_quals = collect_notin_args(args)
       @join_nots << JoinNot.new(join_rels, join_quals, c_meth == :outer,
@@ -1979,7 +1993,7 @@ class BudMeta #:nodoc: all
       # referenced values from one or the other relations in the targetlist. We
       # can effectively transform the join into a lefts or rights, respectively.
       tlist = TListParser.new(@bud_instance).parse(code_block.args, code_block.body,
-                                                   [left_rel, right_rel])
+                                                   [left_rel, right_rel], join_meth)
       return join_meth if tlist.nil?
 
       case find_tlist_rels(tlist)
