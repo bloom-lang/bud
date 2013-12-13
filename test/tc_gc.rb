@@ -2198,6 +2198,21 @@ class TestCausalGc < MiniTest::Unit::TestCase
     c = CausalDomRights.new
     c.sk <+ [[6, 7], [7, 6]]
     c.dep <+ [[7, 6]]
+    # Need to tick an extra time because of @next in dom rule
+    3.times { c.tick }
+
+    assert_equal([[6]].to_set, c.dom.to_set)
+    assert_equal([].to_set, c.dep.to_set)
+    assert_equal([[6, 7], [7, 6]].to_set, c.sk.to_set)
+
+    c.seal_dep_id <+ [[7]]
     2.times { c.tick }
+
+    assert_equal([[6, 7]].to_set, c.sk.to_set)
+
+    c.seal_dep_id <+ [[6]]
+    2.times { c.tick }
+
+    assert_equal([].to_set, c.sk.to_set)
   end
 end
