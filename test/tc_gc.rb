@@ -2141,7 +2141,7 @@ class TestReliableDelivery < MiniTest::Unit::TestCase
   end
 end
 
-class CausalGcSimple
+class SimpleCausal
   include Bud
 
   state do
@@ -2155,6 +2155,26 @@ class CausalGcSimple
   bloom do
     sk <= (safe * safe).pairs(:key => :key) {|w1,w2| [w1.id, w2.id] if w1 != w2}
     dom <= (sk * dep).rights(:w1 => :id, :w2 => :target) {|d| [d.target]}
+    view <= safe.notin(dom, :id => :id)
+  end
+end
+
+class SimpleCausalAtNext
+  include Bud
+
+  state do
+    table :safe, [:id] => [:key]
+    scratch :sk, [:w1, :w2]
+    table :dep, [:id, :target]
+    table :dom, [:id]
+    scratch :view, safe.schema
+  end
+
+  bloom do
+    # We should be able to infer the "notin(dom)" clause automatically, but for
+    # now let's specify it by hand.
+    sk <= (safe * safe).pairs(:key => :key) {|w1,w2| [w1.id, w2.id] if w1 != w2}
+    dom <+ (sk * dep).rights(:w1 => :id, :w2 => :target) {|d| [d.target]}.notin(dom, 0 => :id)
     view <= safe.notin(dom, :id => :id)
   end
 end
@@ -2177,7 +2197,7 @@ end
 
 class TestCausalGc < MiniTest::Unit::TestCase
   def test_simple_causal
-    c = CausalGcSimple.new
+    c = SimpleCausal.new
     c.safe <+ [[5, "foo"], [6, "bar"]]
     2.times { c.tick }
 
@@ -2194,7 +2214,33 @@ class TestCausalGc < MiniTest::Unit::TestCase
     assert_equal([[6]].to_set, c.dom.to_set)
   end
 
+  def test_simple_causal_at_next
+    c = SimpleCausalAtNext.new#(:print_rules => true)
+    c.safe <+ [[5, "foo"], [6, "bar"]]
+    3.times { c.tick }
+
+    assert_equal([[5, "foo"], [6, "bar"]].to_set, c.view.to_set)
+    assert_equal([].to_set, c.sk.to_set)
+    assert_equal([].to_set, c.dom.to_set)
+
+    c.safe <+ [[7, "bar"]]
+    c.dep <+ [[7, 6]]
+    3.times { c.tick }
+
+    assert_equal([[5, "foo"], [7, "bar"]].to_set, c.view.to_set)
+    assert_equal([[6, 7], [7, 6]].to_set, c.sk.to_set)
+    assert_equal([[6]].to_set, c.dom.to_set)
+    assert_equal([].to_set, c.dep.to_set)
+
+    skip
+    c.seal_dep_id <+ [[7]]
+    2.times { c.tick }
+
+    assert_equal([[5, "foo"], [7, "bar"]].to_set, c.safe.to_set)
+  end
+
   def test_dom_rights
+    # TODO: test an extra, spurious dep (e.g., 7 -> 5).
     c = CausalDomRights.new
     c.sk <+ [[6, 7], [7, 6]]
     c.dep <+ [[7, 6]]
