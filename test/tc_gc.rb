@@ -2140,3 +2140,41 @@ class TestReliableDelivery < MiniTest::Unit::TestCase
     rlist.each(&:stop)
   end
 end
+
+class CausalGcSimple
+  include Bud
+
+  state do
+    table :safe, [:id] => [:key]
+    scratch :sk, [:w1, :w2]
+    table :dep, [:id, :target]
+    table :dom, [:id]
+    scratch :view, safe.schema
+  end
+
+  bloom do
+    sk <= (safe * safe).pairs(:key => :key) {|w1,w2| [w1.id, w2.id] if w1 != w2}
+    dom <= (sk * dep).rights(:w1 => :id, :w2 => :target) {|d| [d.target]}
+    view <= safe.notin(dom, :id => :id)
+  end
+end
+
+class TestCausalGc < MiniTest::Unit::TestCase
+  def test_simple_causal
+    c = CausalGcSimple.new(:print_rules => true)
+    c.safe <+ [[5, "foo"], [6, "bar"]]
+    2.times { c.tick }
+
+    assert_equal([[5, "foo"], [6, "bar"]].to_set, c.view.to_set)
+    assert_equal([].to_set, c.sk.to_set)
+    assert_equal([].to_set, c.dom.to_set)
+
+    c.safe <+ [[7, "bar"]]
+    c.dep <+ [[7, 6]]
+    2.times { c.tick }
+
+    assert_equal([[5, "foo"], [7, "bar"]].to_set, c.view.to_set)
+    assert_equal([[6, 7], [7, 6]].to_set, c.sk.to_set)
+    assert_equal([[6]].to_set, c.dom.to_set)
+  end
+end
