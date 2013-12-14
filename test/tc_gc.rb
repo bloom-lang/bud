@@ -2195,6 +2195,21 @@ class CausalDomRights
   end
 end
 
+class JoinReclaimRightsOnSeal
+  include Bud
+
+  state do
+    table :t1, [:id, :val]
+    table :t2, [:id, :val]
+    table :t3, [:val]
+    scratch :r1, [:val]
+  end
+
+  bloom do
+    r1 <= (t1 * t2).rights(:id => :id) {|t| [t.val]}.notin(t3)
+  end
+end
+
 class TestCausalGc < MiniTest::Unit::TestCase
   def test_simple_causal
     c = SimpleCausal.new
@@ -2260,5 +2275,25 @@ class TestCausalGc < MiniTest::Unit::TestCase
     2.times { c.tick }
 
     assert_equal([].to_set, c.sk.to_set)
+  end
+
+  def test_join_reclaim_rights_on_seal
+    j = JoinReclaimRightsOnSeal.new
+    j.t1 <+ [[5, 10], [5, 11], [5, 12], [6, 13]]
+    j.t2 <+ [[5, 99]]
+    2.times { j.tick }
+
+    assert_equal([[99]].to_set, j.r1.to_set)
+
+    j.t3 <+ [[99]]
+    2.times { j.tick }
+
+    assert_equal([].to_set, j.r1.to_set)
+    assert_equal([].to_set, j.t2.to_set)
+
+    j.seal_t2_id <+ [[5]]
+    2.times { j.tick }
+
+    assert_equal([[6, 13]].to_set, j.t1.to_set)
   end
 end
