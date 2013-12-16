@@ -1946,9 +1946,10 @@ class BudMeta #:nodoc: all
     def process_call(exp, code_block=nil)
       _, recv, meth, *args = exp
 
-      is_join, @join_type, @left_rel, @right_rel = parse_join_call(recv, meth,
-                                                                   code_block)
+      is_join, join_type, left_rel, right_rel = parse_join_call(recv, meth,
+                                                                code_block)
       if is_join
+        @left_rel, @right_rel, @join_type = left_rel, right_rel, join_type
         if @left_rel == @known_input
           @other_input = @right_rel
         elsif @right_rel = @known_input

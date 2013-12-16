@@ -2210,6 +2210,23 @@ class JoinReclaimRightsOnSeal
   end
 end
 
+class CausalHack
+  include Bud
+
+  state do
+    table :safe, [:id] => [:key]
+    table :dep, [:id, :target] => [:target_key]
+    table :dom, [:id]
+
+    scratch :view, safe.schema
+  end
+
+  bloom do
+    dom <+ (dep * safe).rights(:target_key => :key, :target => :id) {|d| [d.id]}.notin(dom, 0 => :id)
+    view <= safe.notin(dom, :id => :id)
+  end
+end
+
 class TestCausalGc < MiniTest::Unit::TestCase
   def test_simple_causal
     c = SimpleCausal.new
@@ -2295,5 +2312,15 @@ class TestCausalGc < MiniTest::Unit::TestCase
     2.times { j.tick }
 
     assert_equal([[6, 13]].to_set, j.t1.to_set)
+  end
+
+  def test_causal_hack
+    c = CausalHack.new
+    c.safe <+ [[5, "foo"], [6, "bar"], [7, "foo"]]
+    c.dep <+ [[7, 5, "foo"]]
+    3.times { c.tick }
+
+    assert_equal([[6, "bar"], [7, "foo"]].to_set, c.view.to_set)
+    assert_equal([[6, "bar"], [7, "foo"]].to_set, c.safe.to_set)
   end
 end
