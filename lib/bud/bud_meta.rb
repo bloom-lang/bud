@@ -735,8 +735,10 @@ class BudMeta #:nodoc: all
       # whether the negation quals only reference fields derived from one or the
       # other of the join inputs. If so, we can reclaim against that join input
       # similarly to how we reclaim from SimpleNot -- that is, semantically the
-      # notin can be pushed up above the join. However, when the negation quals
-      # include columns derived from both join inputs, we need to:
+      # notin can be pushed up above the join. We also consider the equivalences
+      # between fields that are implied by join predicates. However, when the
+      # negation quals include columns derived from both join inputs, we need
+      # to:
       #
       #    * Create a scratch collection to hold join output tuples that have
       #      appeared in the negation.
@@ -748,13 +750,12 @@ class BudMeta #:nodoc: all
       #      tuples when (a) there is a seal on c' that matches the join key,
       #      and (b) all the tuples in a given seal group have appeared in the
       #      negation.
-      not_qual_rels = find_not_qual_rels(neg)
       missing_buf = nil
 
       do_rels.each do |r|
         del_tbl_name = create_del_table(r, neg.rule_id, deps)
 
-        if not_qual_rels == [r].to_set
+        if is_not_qual_local_to_rel(neg, r)
           # Negation qual only references one of the join inputs, so we can
           # install a simpler deletion condition. Unlike with SimpleNot, we need
           # to account for the join's targetlist.
@@ -1108,15 +1109,24 @@ class BudMeta #:nodoc: all
     end
   end
 
+  # Determine whether the negation qual is defined only over fields that are
+  # derived from "rel". We also consider situations in which the negation qual
+  # references t2.X, but we have a join predicate that guarantees t2.X = t1.Y;
+  # hence, the qual would be local to both t1 and t2 in that case.
+  def is_not_qual_local_to_rel(neg, rel)
+    qual_rels = find_not_qual_rels(neg)
+    qual_rels == [rel].to_set
+  end
+
   # Returns all the join input relations referenced by the negation's list of
   # quals. That is, given (x * y).pairs {...}.notin(z, :k1 => :k2, :k3 => :k4),
   # we want to find whether k1 and k3 are derived from x, y, or both.
   def find_not_qual_rels(jneg)
-    rel_offset_map = []
+    rel_offset_tbl = []
     jneg.tlist.each_with_index do |t,i|
       # Skip constant TLEs, because they are derived from neither join input
       if t.kind_of? TListVarRef
-        rel_offset_map[i] = t.rel_name
+        rel_offset_tbl[i] = t.rel_name
       end
     end
 
@@ -1124,7 +1134,7 @@ class BudMeta #:nodoc: all
     # the entire join output tuple (columns matched based on position). Hence,
     # all the rels referenced by the tlist are referenced by the qual list.
     if jneg.not_quals.empty?
-      return rel_offset_map.to_set
+      return rel_offset_tbl.to_set
     else
       rels = Set.new
 
@@ -1135,12 +1145,12 @@ class BudMeta #:nodoc: all
 
         if lhs.kind_of? Integer
           # If the qual lhs references a constant TLE, skip it
-          next if rel_offset_map[lhs].nil?
-          rels << rel_offset_map[lhs]
+          next if rel_offset_tbl[lhs].nil?
+          rels << rel_offset_tbl[lhs]
         else
           # XXX: If the qual lhs is a column name, conservatively assume it
           # could be derived from either join input (for now)
-          return rel_offset_map.to_set
+          return rel_offset_tbl.to_set
         end
       end
 
