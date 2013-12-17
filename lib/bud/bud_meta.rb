@@ -759,7 +759,7 @@ class BudMeta #:nodoc: all
           # Negation qual only references one of the join inputs, so we can
           # install a simpler deletion condition. Unlike with SimpleNot, we need
           # to account for the join's targetlist.
-          join_quals, body_quals = quals_tlist_pullup(neg)
+          join_quals, body_quals = quals_tlist_pullup(neg, r)
           create_del_rule(del_tbl_name, join_quals, body_quals, r, neg.outer)
         else
           if missing_buf.nil?
@@ -1114,48 +1114,50 @@ class BudMeta #:nodoc: all
   # references t2.X, but we have a join predicate that guarantees t2.X = t1.Y;
   # hence, the qual would be local to both t1 and t2 in that case.
   def is_not_qual_local_to_rel(neg, rel)
-    qual_rels = find_not_qual_rels(neg)
-    qual_rels == [rel].to_set
-  end
-
-  # Returns all the join input relations referenced by the negation's list of
-  # quals. That is, given (x * y).pairs {...}.notin(z, :k1 => :k2, :k3 => :k4),
-  # we want to find whether k1 and k3 are derived from x, y, or both.
-  def find_not_qual_rels(jneg)
-    rel_offset_tbl = []
-    jneg.tlist.each_with_index do |t,i|
-      # Skip constant TLEs, because they are derived from neither join input
-      if t.kind_of? TListVarRef
-        rel_offset_tbl[i] = t.rel_name
-      end
-    end
-
-    # If no negation qual is given explicitly, the negation qual is implicitly
-    # the entire join output tuple (columns matched based on position). Hence,
-    # all the rels referenced by the tlist are referenced by the qual list.
-    if jneg.not_quals.empty?
-      return rel_offset_tbl.to_set
+    if neg.not_quals.empty?
+      # If no negation qual is given explicitly, the negation qual is implicitly
+      # the entire join output tuple (columns matched based on position). Hence,
+      # all the rels referenced by the tlist are referenced by the qual list.
+      tlist_offsets = 0.upto(neg.tlist.length - 1)
     else
-      rels = Set.new
-
-      jneg.not_quals.each do |q|
-        # The rhs of the negation qual references the notin's negative input, so
-        # we can ignore it
-        lhs, rhs = q
+      tlist_offsets = []
+      neg.not_quals.each do |nq|
+        lhs, rhs = nq
 
         if lhs.kind_of? Integer
-          # If the qual lhs references a constant TLE, skip it
-          next if rel_offset_tbl[lhs].nil?
-          rels << rel_offset_tbl[lhs]
+          tlist_offsets << lhs
         else
-          # XXX: If the qual lhs is a column name, conservatively assume it
-          # could be derived from either join input (for now)
-          return rel_offset_tbl.to_set
+          # If the lhs of the negation qual is a column name, for now we just
+          # give up and assume the qual isn't local to any relation. This is a
+          # cop-out, but it requires nailing-down the rules for schema inference
+          # for joins to do better.
+          return false
         end
       end
-
-      return rels
     end
+
+    join_lhs, join_rhs = neg.join_rels
+    tlist_offsets.each do |o|
+      tle = neg.tlist[o]
+      next unless tle.kind_of? TListVarRef    # Skip constant TLEs
+      next if tle.rel_name == rel
+
+      # The column referenced by the TLE is not derived from rel, but check if
+      # there's a join predicate that means that there's an equivalent column in
+      # rel.
+      return false if neg.join_quals.empty?
+      neg.join_quals.each do |lhs_q, rhs_q|
+        if rel == join_lhs and tle.col_name == rhs_q
+          break
+        elsif rel == join_rhs and tle.col_name == lhs_q
+          break
+        else
+          return false
+        end
+      end
+    end
+
+    return true
   end
 
   # The negation quals are expressed with respect to the *output* of the join's
@@ -1165,8 +1167,11 @@ class BudMeta #:nodoc: all
   # quals: quals that reference variables (which can be evaluated as join quals
   # in the deletion rule), and quals that reference constants (which must be
   # evaluated in the body of the deletion rule, because Bud's join syntax
-  # doesn't join quals to reference literals).
-  def quals_tlist_pullup(jneg)
+  # doesn't join quals to reference literals). Furthermore, we take a relation
+  # "target_rel"; if a tlist column references r'.y but there is an equality
+  # constraint between target_rel.x and r'.y, we want to return the join
+  # predicate target_rel.x.
+  def quals_tlist_pullup(jneg, target_rel)
     # If no explicit negation qual, there is an implicit qual against every
     # field in the join tlist. Since we still need to pullup the qual above the
     # tlist, first transform an implicit qual into an equivalent explicit qual.
@@ -1188,7 +1193,23 @@ class BudMeta #:nodoc: all
       raise unless lhs.kind_of? Integer
       tle = jneg.tlist[lhs]
       if tle.kind_of? TListVarRef
-        join_quals[tle.col_name] = rhs
+        if tle.rel_name == target_rel
+          join_quals[tle.col_name] = rhs
+        else
+          # Targetlist column does not reference "rel"; hence, search for an
+          # equality constraint that allows us to translate the qual into
+          # something that does reference rel.
+          join_lhs, join_rhs = jneg.join_rels
+          jneg.join_quals.each do |lhs_jq, rhs_jq|
+            if target_rel == join_lhs and tle.col_name == rhs_jq
+              join_quals[lhs_jq] = rhs
+            elsif target_rel == join_rhs and tle.col_name == lhs_jq
+              join_quals[rhs_jq] = rhs
+            else
+              raise
+            end
+          end
+        end
       else
         body_quals << [rhs, const_to_str(tle)]
       end
