@@ -2231,8 +2231,8 @@ class ImpliedSemiJoin
   include Bud
 
   state do
-    table :t1, [:x, :y]
-    table :t2, [:x, :y]
+    table :t1, [:x, :y, :z]
+    table :t2, [:a, :b, :c]
     table :t3, [:val]
     scratch :s1, t3.schema
   end
@@ -2242,7 +2242,7 @@ class ImpliedSemiJoin
     # can reclaim from t2 without needing seals. However, we also have an
     # equality constraint against t1.x, so we can also reclaim from t1 without
     # seals.
-    s1 <= (t1 * t2).rights(:x => :y) {|t| [t.y]}.notin(t3)
+    s1 <= (t1 * t2).rights(:z => :c, :x => :b) {|t| [t.b]}.notin(t3)
   end
 end
 
@@ -2345,13 +2345,13 @@ class TestCausalGc < MiniTest::Unit::TestCase
 
   def test_implied_semi_join
     i = ImpliedSemiJoin.new
-    i.t1 <+ [[5, 6], [7, 8]]
-    i.t2 <+ [[10, 5], [11, 20], [12, 7]]
+    i.t1 <+ [[5, 6, 10], [7, 8, 10]]
+    i.t2 <+ [[10, 5, 10], [11, 20, 10], [12, 7, 10]]
     i.t3 <+ [[5]]
     2.times { i.tick }
 
     assert_equal([[7]].to_set, i.s1.to_set)
-    assert_equal([[11, 20], [12, 7]].to_set, i.t2.to_set)
-    assert_equal([[7, 8]].to_set, i.t1.to_set)
+    assert_equal([[11, 20, 10], [12, 7, 10]].to_set, i.t2.to_set)
+    assert_equal([[7, 8, 10]].to_set, i.t1.to_set)
   end
 end

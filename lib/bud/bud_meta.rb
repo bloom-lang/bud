@@ -1145,16 +1145,19 @@ class BudMeta #:nodoc: all
       # The column referenced by the TLE is not derived from rel, but check if
       # there's a join predicate that means that there's an equivalent column in
       # rel.
-      return false if neg.join_quals.empty?
+      found_match = false
       neg.join_quals.each do |lhs_q, rhs_q|
+        puts "lhs_q = #{lhs_q}, rhs_q = #{rhs_q}"
         if rel == join_lhs and tle.col_name == rhs_q
+          found_match = true
           break
         elsif rel == join_rhs and tle.col_name == lhs_q
+          found_match = true
           break
-        else
-          return false
         end
       end
+
+      return false unless found_match
     end
 
     return true
@@ -1203,10 +1206,10 @@ class BudMeta #:nodoc: all
           jneg.join_quals.each do |lhs_jq, rhs_jq|
             if target_rel == join_lhs and tle.col_name == rhs_jq
               join_quals[lhs_jq] = rhs
+              break
             elsif target_rel == join_rhs and tle.col_name == lhs_jq
               join_quals[rhs_jq] = rhs
-            else
-              raise
+              break
             end
           end
         end
