@@ -2374,6 +2374,7 @@ class TestCausalGc < MiniTest::Unit::TestCase
 
     assert_equal([[6, "bar"], [7, "foo"]].to_set, c.view.to_set)
     assert_equal([[6, "bar"], [7, "foo"]].to_set, c.safe.to_set)
+    assert_equal([].to_set, c.dep.to_set)
   end
 
   def test_implied_semi_join
