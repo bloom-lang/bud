@@ -1899,6 +1899,24 @@ class JoinReclaimHiddenSemiJoin
   end
 end
 
+class JoinReclaimWithJoin
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    table :t4
+    table :t5
+    scratch :r1
+  end
+
+  bloom do
+    t1 <= (t2 * t3).pairs(:key => :val) {|x,y| [x.val, y.key]}
+    r1 <= (t3 * t4).pairs(:key => :key) {|x,y| [x.val, y.val]}.notin(t5)
+  end
+end
+
 class TestJoinReclaimSafety < MiniTest::Unit::TestCase
   def test_join_reclaim_with_seal
     j = JoinReclaimWithSeal.new
@@ -2059,6 +2077,24 @@ class TestJoinReclaimSafety < MiniTest::Unit::TestCase
 
     # If a reclaimed input is redelivered, we can delete it once again.
     j.t3 <+ [["qux2", "foo3"], ["qux", "foo2"]]
+    2.times { j.tick }
+
+    assert_equal([].to_set, j.t3.to_set)
+  end
+
+  def test_join_reclaim_with_join
+    j = JoinReclaimWithJoin.new
+    j.t2 <+ [[5, 10]]
+    j.t3 <+ [[20, 5]]
+    j.t4 <+ [[20, 25]]
+    j.t5 <+ [[5, 25]]
+    j.seal_t4_key <+ [[20]]
+    2.times { j.tick }
+
+    assert_equal([].to_set, j.r1.to_set)
+    assert_equal([[20, 5]].to_set, j.t3.to_set)
+
+    j.seal_t2_key <+ [[5]]
     2.times { j.tick }
 
     assert_equal([].to_set, j.t3.to_set)
@@ -2268,7 +2304,7 @@ class TestCausalGc < MiniTest::Unit::TestCase
   end
 
   def test_simple_causal_at_next
-    c = SimpleCausalAtNext.new#(:print_rules => true)
+    c = SimpleCausalAtNext.new
     c.safe <+ [[5, "foo"], [6, "bar"]]
     3.times { c.tick }
 

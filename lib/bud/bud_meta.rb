@@ -680,6 +680,9 @@ class BudMeta #:nodoc: all
     # reclaim from that relation for other rules either.
     unsafe_rels = Set.new
 
+    # The set of rule IDs that we're applying RSE to at least a portion of.
+    rse_rules = Set.new
+
     # XXX: we reparse all the rules here, which is unfortunate
     bud.t_rules.each do |r|
       ast = parser.parse(r.orig_src)
@@ -694,6 +697,7 @@ class BudMeta #:nodoc: all
       # If the inner operand (X in X.notin(Y)) is unsafe, declare both X and Y
       # unsafe. Otherwise, X might be safe but Y might not be.
       if check_neg_inner(neg, seal_deps)
+        rse_rules << neg.rule_id
         simple_work << neg
         unless check_neg_outer(neg, seal_deps)
           unsafe_rels << neg.outer
@@ -706,7 +710,10 @@ class BudMeta #:nodoc: all
     join_nots.each do |neg|
       do_rels, skip_rels = check_join_not(neg, seal_deps)
       unsafe_rels.merge(skip_rels)
-      join_work << [neg, do_rels] unless do_rels.empty?
+      unless do_rels.empty?
+        join_work << [neg, do_rels]
+        rse_rules << neg.rule_id
+      end
     end
 
     # Second, install rules (and transient state) to compute the RSE conditions
@@ -796,15 +803,24 @@ class BudMeta #:nodoc: all
 
     # Fourth, if the tuple we want to reclaim appears in a join, we need to wait
     # for a compatible seal to ensure the tuple can safely be reclaimed. We can
-    # either use a whole-relation seal or a seal that matches a join predicate.
-    # Since this is the last condition we need to check, we can also actually do
-    # the deletion when this rule is satisfied.
+    # either use a whole-relation seal or a seal that matches a join predicate;
+    # we can also exploit semijoins. Since this is the last condition we need to
+    # check, we can also actually do the deletion when this rule is satisfied.
     rse_tables.each do |r|
       reclaim_rel, input_tbl = r
 
       if seal_deps[reclaim_rel]
         seal_deps[reclaim_rel].each do |seal_dep|
           raise unless reclaim_rel == seal_dep.rse_input
+
+          # If we're applying RSE to this rule, we can ignore the dependency:
+          # the RSE logic already takes care of only reclaiming tuples when the
+          # conjunction of the two RSE conditions has been met.
+          #
+          # XXX: unclear that matching on rule IDs is the right method here,
+          # since we might apply RSE to some parts of a rule but not others.
+          next if rse_rules.include? seal_dep.rule_id
+
           output_tbl = create_seal_done_table(seal_dep.rse_input,
                                               seal_dep.other_input)
 
@@ -1261,7 +1277,6 @@ class BudMeta #:nodoc: all
   def check_join_not(jneg, seal_deps)
     do_rels = Set.new
     skip_rels = jneg.join_rels.to_set
-    seal_deps = Hash.new
 
     # TODO: Notin code blocks not supported
     if jneg.not_block.nil? and rel_is_inflationary(jneg.outer, Set.new)
@@ -1565,18 +1580,21 @@ class BudMeta #:nodoc: all
     return false if (ref_depend.nm and not ref_depend.notin_neg_ref)
 
     # We want to check if it is safe to reclaim from X, which appears in a join
-    # with Y (we assume the join is binary). We can still reclaim from X, but
-    # doing so requires proving that no more join result tuples will be produced
-    # that depend on X. To consider this, we need to analyze the semantics of
-    # the join. Unfortunately, this information is not readily available from
-    # the t_depend record, so we need to look up the rule's source, parse it,
-    # find the join fragment of the AST, and then analyze that.
+    # with Y (we assume the join is binary). When the X*Y join is also amenable
+    # to RSE, this is fine -- we already arrange to only reclaim when the
+    # conjunction of the two RSE conditions have been met. When the X*Y join is
+    # not suitable for RSE, we can still reclaim from X, but only when we can
+    # prove that no more X*Y join result tuples will be produced that depend on
+    # X. To consider this, we need to analyze the semantics of the
+    # join. Unfortunately, this information is not readily available from the
+    # t_depend record, so we need to look up the rule's source, parse it, find
+    # the join fragment of the AST, and then analyze that.
     if ref_depend.join_ref
       join_info = lookup_join_info(rel, ref_depend.bud_obj, ref_depend.rule_id)
       return false unless join_info
 
       # Make reclaiming from X dependent on seeing a matching seal against Y.
-      seal_deps[rel] ||= []
+      seal_deps[rel] ||= Set.new
       seal_deps[rel] << join_info
     end
 
@@ -1657,7 +1675,7 @@ class BudMeta #:nodoc: all
     parser = RubyParser.for_current_ruby rescue RubyParser.new
     ast = parser.parse(rule.orig_src)
 
-    join_parse = JoinInfoParser.new(tbl, @bud_instance)
+    join_parse = JoinInfoParser.new(tbl, @bud_instance, rule_id)
     join_parse.process(ast)
     join_parse.join_info
   end
@@ -1965,15 +1983,16 @@ class BudMeta #:nodoc: all
   end
 
   JoinInfo = Struct.new(:rse_input, :other_input, :left_rel, :right_rel,
-                        :join_type, :preds)
+                        :join_type, :preds, :rule_id)
 
   class JoinInfoParser < SexpProcessor
-    def initialize(tbl, bud)
+    def initialize(tbl, bud, rule_id)
       super()
       self.require_empty = false
       self.expected = Sexp
       @known_input = tbl
       @bud_instance = bud
+      @rule_id = rule_id
     end
 
     def process_call(exp, code_block=nil)
@@ -2047,7 +2066,7 @@ class BudMeta #:nodoc: all
     def join_info
       if @other_input
         JoinInfo.new(@known_input, @other_input, @left_rel, @right_rel,
-                     @join_type, @join_preds)
+                     @join_type, @join_preds, @rule_id)
       else
         nil
       end
