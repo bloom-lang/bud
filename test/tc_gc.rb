@@ -2370,11 +2370,12 @@ class TestCausalGc < MiniTest::Unit::TestCase
     c = CausalHack.new
     c.safe <+ [[5, "foo"], [6, "bar"], [7, "foo"]]
     c.dep <+ [[7, 5, "foo"]]
-    3.times { c.tick }
+    4.times { c.tick }
 
     assert_equal([[6, "bar"], [7, "foo"]].to_set, c.view.to_set)
     assert_equal([[6, "bar"], [7, "foo"]].to_set, c.safe.to_set)
     assert_equal([].to_set, c.dep.to_set)
+    assert_equal([].to_set, c.dom.to_set)
   end
 
   def test_implied_semi_join
