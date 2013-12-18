@@ -67,18 +67,18 @@ class BudMeta #:nodoc: all
 
   def table_get_keyword(t)
     case t
-    when Bud::BudTable
-      "table"
-    when Bud::BudChannel
-      "channel"
-    when Bud::BudSealed
-      "sealed"
-    when Bud::BudScratch
-      "scratch"
-    when Bud::BudPeriodic
-      "periodic"
     when Bud::BudRangeCompress
       "range"
+    when Bud::BudSealed
+      "sealed"
+    when Bud::BudChannel
+      "channel"
+    when Bud::BudPeriodic
+      "periodic"
+    when Bud::BudScratch
+      "scratch"
+    when Bud::BudTable
+      "table"
     else
       "???"
     end
