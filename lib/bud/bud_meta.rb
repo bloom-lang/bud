@@ -761,13 +761,13 @@ class BudMeta #:nodoc: all
           # to account for the join's targetlist.
           join_quals, body_quals = quals_tlist_pullup(neg, r)
           create_del_rule(del_tbl_name, join_quals, body_quals, r, neg.outer)
-        else
-          if missing_buf.nil?
-            join_buf = create_join_buf(neg)
-            missing_buf = create_missing_buf(neg, join_buf)
-          end
-          create_join_del_rules(neg, r, missing_buf, del_tbl_name)
         end
+
+        if missing_buf.nil?
+          join_buf = create_join_buf(neg)
+          missing_buf = create_missing_buf(neg, join_buf)
+        end
+        create_join_del_rules(neg, r, missing_buf, del_tbl_name)
       end
     end
 
@@ -1147,7 +1147,6 @@ class BudMeta #:nodoc: all
       # rel.
       found_match = false
       neg.join_quals.each do |lhs_q, rhs_q|
-        puts "lhs_q = #{lhs_q}, rhs_q = #{rhs_q}"
         if rel == join_lhs and tle.col_name == rhs_q
           found_match = true
           break

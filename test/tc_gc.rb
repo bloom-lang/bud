@@ -2190,7 +2190,9 @@ class CausalDomRights
 
   bloom do
     # As dom grows, we can discard values from dep without needing any
-    # additional info. Given seals on dep.id, we can also discard from sk.
+    # additional info. We can _also_ discard from sk without seal, because of
+    # the equality constraint between dep.target and sk.w2 implied by the join
+    # predicate.
     dom <+ (sk * dep).rights(:w1 => :id, :w2 => :target) {|d| [d.target]}.notin(dom, 0 => :id)
   end
 end
@@ -2300,11 +2302,6 @@ class TestCausalGc < MiniTest::Unit::TestCase
 
     assert_equal([[6]].to_set, c.dom.to_set)
     assert_equal([].to_set, c.dep.to_set)
-    assert_equal([[6, 7], [7, 6]].to_set, c.sk.to_set)
-
-    c.seal_dep_id <+ [[7]]
-    2.times { c.tick }
-
     assert_equal([[6, 7]].to_set, c.sk.to_set)
 
     c.seal_dep_id <+ [[6]]
