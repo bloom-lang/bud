@@ -873,10 +873,10 @@ class BudMeta #:nodoc: all
   # the negated collection (after applying the negation predicate).
   def create_join_match_buf(neg, input_buf, cm)
     outer_rel = @bud_instance.tables[neg.outer.to_sym]
-    input_rel = @bud_instance.tables[input_buf.to_sym]
+    input_rel_schema = cm.lookup_schema(input_buf.to_sym)
     reclaim_rel = neg.join_rels.first
     lhs = "r#{neg.rule_id}_#{reclaim_rel}_#{reclaim_rel}_match_buf"
-    cm.add_collection(lhs, :scratch, input_rel.schema, false)
+    cm.add_collection(lhs, :scratch, input_rel_schema, false)
 
     # If no negation qual is given explicitly, the negation qual is implicitly
     # the entire join output tuple (columns matched based on position).
@@ -1422,8 +1422,8 @@ class BudMeta #:nodoc: all
   def create_missing_buf(jneg, join_buf, cm)
     lhs, rhs = jneg.join_rels
     lhs_name = "r#{jneg.rule_id}_#{lhs}_#{rhs}_missing"
-    join_buf_rel = @bud_instance.tables[join_buf.to_sym]
-    cm.add_collection(lhs_name, :scratch, join_buf_rel.schema, false)
+    join_buf_schema = cm.lookup_schema(join_buf.to_sym)
+    cm.add_collection(lhs_name, :scratch, join_buf_schema, false)
 
     qual_list = join_quals_to_str_ary(jneg)
     if qual_list.empty?
@@ -1810,6 +1810,7 @@ class BudMeta #:nodoc: all
       @bud = bud_i
       @meta = meta
       @rules = []
+      @collections = {}
     end
 
     def add_rule(*args)
@@ -1818,13 +1819,31 @@ class BudMeta #:nodoc: all
 
     def add_collection(name, kind, schema, ignore_dup=true)
       name_sym = name.to_sym
-      return if ignore_dup and @bud.tables.has_key? name_sym
+      if @bud.tables.has_key?(name_sym) or @collections.has_key?(name_sym)
+        return if ignore_dup
 
-      @bud.send(kind, name_sym, schema)
+        raise Bud::Error, "duplicate collection: #{name}"
+      end
+
+      @collections[name_sym] = [kind, schema]
+    end
+
+    def lookup_schema(tbl_name)
+      if @bud.tables[tbl_name]
+        @bud.tables[tbl_name].schema
+      elsif @collections[tbl_name]
+        @collections[tbl_name][1]
+      else
+        nil
+      end
     end
 
     def install_changes
       @rules.each {|r| @meta.install_rule(*r)}
+      @collections.each_pair do |name,c|
+        kind, schema = c
+        @bud.send(kind, name, schema)
+      end
     end
   end
 
