@@ -80,7 +80,7 @@ class BudMeta #:nodoc: all
     when Bud::BudTable
       "table"
     else
-      "???"
+      raise Bud::Error, "unrecognized collection object: #{t}"
     end
   end
 
@@ -345,24 +345,7 @@ class BudMeta #:nodoc: all
   end
 
   def coll_ddl_to_str(t)
-    "#{coll_type_str(t)} :#{t.tabname}, #{coll_schema_str(t)}"
-  end
-
-  def coll_type_str(t)
-    case t
-    when Bud::BudRangeCompress
-      "range"
-    when Bud::BudSealed
-      "sealed"
-    when Bud::BudTable
-      "table"
-    when Bud::BudChannel
-      "channel"
-    when Bud::BudScratch
-      "scratch"
-    else
-      raise Bud::Error, "unsupported: #{t.class}"
-    end
+    "#{table_get_keyword(t)} :#{t.tabname}, #{coll_schema_str(t)}"
   end
 
   def coll_schema_str(t)
@@ -683,6 +666,9 @@ class BudMeta #:nodoc: all
     # The set of rule IDs that we're applying RSE to at least a portion of.
     rse_rules = Set.new
 
+    # The new rules and state we're planning to install due to RSE
+    cm = RseChangeManager.new(@bud_instance, self)
+
     # XXX: we reparse all the rules here, which is unfortunate
     bud.t_rules.each do |r|
       ast = parser.parse(r.orig_src)
@@ -719,13 +705,13 @@ class BudMeta #:nodoc: all
     # Second, install rules (and transient state) to compute the RSE conditions
     simple_work.each do |neg|
       unless skip_reclaim(neg.inner, unsafe_rels)
-        del_tbl_name = create_del_table(neg.inner, neg.rule_id, deps)
-        create_del_rule(del_tbl_name, neg.quals, [], neg.inner, neg.outer)
+        del_tbl_name = create_del_table(neg.inner, neg.rule_id, cm, deps)
+        create_del_rule(cm, del_tbl_name, neg.quals, [], neg.inner, neg.outer)
       end
 
       # Consider whether we should try to reclaim from the outer notin
       # collection ("Y" above).
-      do_outer_reclaim(neg, deps) unless skip_reclaim(neg.outer, unsafe_rels)
+      do_outer_reclaim(neg, cm, deps) unless skip_reclaim(neg.outer, unsafe_rels)
     end
 
     join_work.each do |neg, work_rels|
@@ -734,7 +720,7 @@ class BudMeta #:nodoc: all
 
       # Handle self joins specially
       if neg.is_self_join
-        rse_self_join(neg, deps)
+        rse_self_join(neg, cm, deps)
         next
       end
 
@@ -760,21 +746,21 @@ class BudMeta #:nodoc: all
       missing_buf = nil
 
       do_rels.each do |r|
-        del_tbl_name = create_del_table(r, neg.rule_id, deps)
+        del_tbl_name = create_del_table(r, neg.rule_id, cm, deps)
 
         if is_not_qual_local_to_rel(neg, r)
           # Negation qual only references one of the join inputs, so we can
           # install a simpler deletion condition. Unlike with SimpleNot, we need
           # to account for the join's targetlist.
           join_quals, body_quals = quals_tlist_pullup(neg, r)
-          create_del_rule(del_tbl_name, join_quals, body_quals, r, neg.outer)
+          create_del_rule(cm, del_tbl_name, join_quals, body_quals, r, neg.outer)
         end
 
         if missing_buf.nil?
-          join_buf = create_join_buf(neg)
-          missing_buf = create_missing_buf(neg, join_buf)
+          join_buf = create_join_buf(neg, cm)
+          missing_buf = create_missing_buf(neg, join_buf, cm)
         end
-        create_join_del_rules(neg, r, missing_buf, del_tbl_name)
+        create_join_del_rules(neg, r, missing_buf, del_tbl_name, cm)
       end
     end
 
@@ -785,7 +771,7 @@ class BudMeta #:nodoc: all
     deps.each_pair do |lhs,v|
       next if skip_reclaim(lhs, unsafe_rels)
 
-      rse_table = create_rse_cond_table(lhs)
+      rse_table = create_rse_cond_table(lhs, cm)
       rse_tables << [lhs, rse_table]
       puts "RSE: #{lhs}" unless @bud_instance.options[:quiet]
       rule_text = "#{rse_table} <= "
@@ -798,7 +784,7 @@ class BudMeta #:nodoc: all
         rule_text << "{|#{block_args.join(',')}| t0}"
       end
 
-      install_rule(rse_table, "<=", v.to_a.sort, [], rule_text, true)
+      cm.add_rule(rse_table, "<=", v.to_a.sort, [], rule_text, true)
     end
 
     # Fourth, if the tuple we want to reclaim appears in a join, we need to wait
@@ -822,16 +808,16 @@ class BudMeta #:nodoc: all
           next if rse_rules.include? seal_dep.rule_id
 
           output_tbl = create_seal_done_table(seal_dep.rse_input,
-                                              seal_dep.other_input)
+                                              seal_dep.other_input, cm)
 
           # If this is a semijoin, we don't necessarily need to wait for a
           # matching seal -- any matching tuple will do.
           if join_is_semijoin(seal_dep)
-            install_semijoin_dependency(seal_dep, input_tbl, output_tbl)
+            install_semijoin_dependency(seal_dep, input_tbl, output_tbl, cm)
           end
 
           # Can proceed given a seal, semijoin or no.
-          install_join_dependency(seal_dep, input_tbl, output_tbl)
+          install_join_dependency(seal_dep, input_tbl, output_tbl, cm)
 
           # Only need to check the next seal dependency once this seal
           # dependency is satisfied
@@ -841,19 +827,24 @@ class BudMeta #:nodoc: all
 
       # Finally, install the deletion rule
       rule_text = "#{reclaim_rel} <- #{input_tbl}"
-      install_rule(reclaim_rel, "<-", [], [input_tbl], rule_text, true)
+      cm.add_rule(reclaim_rel, "<-", [], [input_tbl], rule_text, true)
     end
+
+    # Finally, we actually install the changes (new state and rules). Note that
+    # we rewrite some existing rules as we go; here we're just installing
+    # entirely new rules and collections.
+    cm.install_changes
   end
 
-  def rse_self_join(neg, deps)
-    join_input_buf = create_join_input_buf(neg)
-    join_match_buf = create_join_match_buf(neg, join_input_buf)
-    missing_buf = create_missing_buf(neg, join_match_buf)
-    create_self_join_del_rules(neg, missing_buf, deps)
+  def rse_self_join(neg, cm, deps)
+    join_input_buf = create_join_input_buf(neg, cm)
+    join_match_buf = create_join_match_buf(neg, join_input_buf, cm)
+    missing_buf = create_missing_buf(neg, join_match_buf, cm)
+    create_self_join_del_rules(neg, missing_buf, cm, deps)
   end
 
   # Create a collection to hold all pairs of join inputs
-  def create_join_input_buf(neg)
+  def create_join_input_buf(neg, cm)
     rel = neg.join_rels.first
     rel_tbl = @bud_instance.tables[rel.to_sym]
     buf_name = "r#{neg.rule_id}_#{rel}_#{rel}_in_buf"
@@ -863,7 +854,7 @@ class BudMeta #:nodoc: all
         schema << "#{str}_#{c}".to_sym
       end
     end
-    @bud_instance.scratch(buf_name.to_sym, schema)
+    cm.add_collection(buf_name, :scratch, schema, false)
 
     qual_list = join_quals_to_str_ary(neg)
     if qual_list.empty?
@@ -874,19 +865,19 @@ class BudMeta #:nodoc: all
 
     rhs_text = "(#{rel} * #{rel}).pairs#{qual_text} {|x,y| x + y}"
     rule_text = "#{buf_name} <= #{rhs_text}"
-    install_rule(buf_name, "<=", [rel], [], rule_text, true)
+    cm.add_rule(buf_name, "<=", [rel], [], rule_text, true)
 
     return buf_name
   end
 
   # Create a collection to hold all pairs of join inputs that have matches in
   # the negated collection (after applying the negation predicate).
-  def create_join_match_buf(neg, input_buf)
+  def create_join_match_buf(neg, input_buf, cm)
     outer_rel = @bud_instance.tables[neg.outer.to_sym]
     input_rel = @bud_instance.tables[input_buf.to_sym]
     reclaim_rel = neg.join_rels.first
     lhs = "r#{neg.rule_id}_#{reclaim_rel}_#{reclaim_rel}_match_buf"
-    @bud_instance.scratch(lhs.to_sym, input_rel.schema)
+    cm.add_collection(lhs, :scratch, input_rel.schema, false)
 
     # If no negation qual is given explicitly, the negation qual is implicitly
     # the entire join output tuple (columns matched based on position).
@@ -929,7 +920,7 @@ class BudMeta #:nodoc: all
 
     qual_text = "(" + qual_list.join(", ") + ")"
     rule_text = "#{lhs} <= (#{input_buf} * #{neg.outer}).lefts#{qual_text}"
-    install_rule(lhs, "<=", [input_buf, neg.outer], [], rule_text, true)
+    cm.add_rule(lhs, "<=", [input_buf, neg.outer], [], rule_text, true)
 
     return lhs
   end
@@ -948,8 +939,8 @@ class BudMeta #:nodoc: all
     result.join(", ")
   end
 
-  def create_self_join_del_rules(neg, missing_buf, deps)
-    del_tbl_name = create_del_table(neg.join_rels.first, neg.rule_id, deps)
+  def create_self_join_del_rules(neg, missing_buf, cm, deps)
+    del_tbl_name = create_del_table(neg.join_rels.first, neg.rule_id, cm, deps)
     lhs_quals = get_missing_buf_quals(neg.join_rels.first, "lhs")
     rhs_quals = get_missing_buf_quals(neg.join_rels.last, "rhs")
     lhs_offset_quals = get_missing_buf_quals(neg.join_rels.first, "lhs", true)
@@ -960,7 +951,7 @@ class BudMeta #:nodoc: all
     seal_name = create_seal_table(rel)
     rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{lhs_quals}).notin(#{missing_buf}, #{rhs_quals})"
     rule_text = "#{del_tbl_name} <= #{rhs_text}"
-    install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
+    cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
 
     # Seals for each join predicate. Note that for self-joins, there's only a
     # single join input collection (which appears twice), so we need more seal
@@ -986,8 +977,8 @@ class BudMeta #:nodoc: all
       end
 
       rule_text = "#{del_tbl_name} <= #{rhs_text}"
-      install_rule(del_tbl_name, "<=", [rel, lhs_seal, rhs_seal],
-                   [missing_buf], rule_text, true)
+      cm.add_rule(del_tbl_name, "<=", [rel, lhs_seal, rhs_seal],
+                  [missing_buf], rule_text, true)
     end
   end
 
@@ -1004,7 +995,7 @@ class BudMeta #:nodoc: all
     end
   end
 
-  def install_semijoin_dependency(dep, input_tbl, output_tbl)
+  def install_semijoin_dependency(dep, input_tbl, output_tbl, cm)
     # Given (X*Y) where we want to reclaim from X, suppose the join's targetlist
     # doesn't reference Y (i.e., the join is a semijoin). Hence, once there is a
     # single matching Y tuple, the arrival of subsequent Y tuples will not
@@ -1020,15 +1011,15 @@ class BudMeta #:nodoc: all
     end
 
     rule_text = "#{output_tbl} <= #{join_text}"
-    install_rule(output_tbl, "<=", [input_tbl, dep.other_input], [],
-                 rule_text, true)
+    cm.add_rule(output_tbl, "<=", [input_tbl, dep.other_input], [],
+                rule_text, true)
   end
 
-  def install_join_dependency(dep, input_tbl, output_tbl)
+  def install_join_dependency(dep, input_tbl, output_tbl, cm)
     # Check for whole-relation seal
     seal_tbl = create_seal_table(dep.other_input)
     rule_text = "#{output_tbl} <= (#{input_tbl} * #{seal_tbl}).lefts"
-    install_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], rule_text, true)
+    cm.add_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], rule_text, true)
 
     # Check for partition-local seals
     dep.preds.each do |seal_pred|
@@ -1044,11 +1035,11 @@ class BudMeta #:nodoc: all
         join_text = "(#{input_tbl} * #{seal_tbl}).lefts"
       end
       rule_text = "#{output_tbl} <= #{join_text}(:#{seal_pred.first} => :#{seal_pred.last})"
-      install_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], rule_text, true)
+      cm.add_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], rule_text, true)
     end
   end
 
-  def do_outer_reclaim(neg, deps)
+  def do_outer_reclaim(neg, cm, deps)
     outer_rel = @bud_instance.tables[neg.outer]
     inner_rel = @bud_instance.tables[neg.inner]
 
@@ -1068,12 +1059,12 @@ class BudMeta #:nodoc: all
     # met. The easiest way to do that is to wait until the inner_rel tuple has
     # actually been deleted. Unfortunately that means the inner_rel and
     # outer_rel deletes happen in different ticks, but that's not too important.
-    inner_key_range = create_key_range_rel(inner_rel)
+    inner_key_range = create_key_range_rel(inner_rel, cm)
     dup_elim_rewrite(inner_rel, inner_key_range)
 
-    del_tbl_name = create_del_table(neg.outer, neg.rule_id, deps)
+    del_tbl_name = create_del_table(neg.outer, neg.rule_id, cm, deps)
     inner_neg_quals = neg.quals.invert
-    create_del_rule(del_tbl_name, inner_neg_quals, [], outer_rel.tabname,
+    create_del_rule(cm, del_tbl_name, inner_neg_quals, [], outer_rel.tabname,
                     inner_key_range.tabname, neg.inner)
   end
 
@@ -1100,21 +1091,21 @@ class BudMeta #:nodoc: all
     end.to_set
   end
 
-  def create_key_range_rel(src_rel)
+  def create_key_range_rel(src_rel, cm)
     range_name = "#{src_rel.tabname}_all_keys".to_sym
     unless @bud_instance.tables.has_key? range_name
       @bud_instance.range(range_name, src_rel.key_cols)
-      install_key_copy_rule(src_rel, @bud_instance.tables[range_name])
+      install_key_copy_rule(src_rel, @bud_instance.tables[range_name], cm)
     end
     @bud_instance.tables[range_name]
   end
 
-  def install_key_copy_rule(src_rel, range_rel)
+  def install_key_copy_rule(src_rel, range_rel, cm)
     tlist_cols = src_rel.key_cols.map {|c| "r.#{c}"}
     tlist_txt = tlist_cols.join(", ")
     lhs_name = range_rel.tabname.to_s
     rule_txt = "#{lhs_name} <+ #{src_rel.tabname} \{|r| [#{tlist_txt}]\}"
-    install_rule(lhs_name, "<+", [src_rel], [], rule_txt, true)
+    cm.add_rule(lhs_name, "<+", [src_rel], [], rule_txt, true)
   end
 
   def dup_elim_rewrite(rel, key_rel)
@@ -1240,15 +1231,14 @@ class BudMeta #:nodoc: all
   # condition. We don't actually do the deletion here -- a subsequent rule does
   # a physical deletion when the conjunction of the RSE conditions for a given
   # tuple has been met.
-  def create_del_rule(del_tbl, join_quals, body_quals, r1, r2, not_rel=nil)
+  def create_del_rule(cm, del_tbl, join_quals, body_quals, r1, r2, not_rel=nil)
     # XXX: we currently don't need to support any of these cases
     raise if join_quals.empty? and not body_quals.empty?
     raise if not_rel and not body_quals.empty?
     raise if not_rel and join_quals.empty?
 
     if join_quals.empty?
-      install_rule(del_tbl, "<=", [r2], [],
-                   "#{del_tbl} <= #{r2}", true)
+      cm.add_rule(del_tbl, "<=", [r2], [], "#{del_tbl} <= #{r2}", true)
     else
       qual_ary = []
       join_quals.each do |k,v|
@@ -1270,7 +1260,7 @@ class BudMeta #:nodoc: all
         nm_rels << not_rel
       end
 
-      install_rule(del_tbl, "<=", [r1, r2], nm_rels, "#{del_tbl} <= #{rhs}", true)
+      cm.add_rule(del_tbl, "<=", [r1, r2], nm_rels, "#{del_tbl} <= #{rhs}", true)
     end
   end
 
@@ -1291,17 +1281,17 @@ class BudMeta #:nodoc: all
     return do_rels, skip_rels
   end
 
-  def create_rse_cond_table(target)
+  def create_rse_cond_table(target, cm)
     tbl_name = "rse_ready_#{target}"
     target_tbl = @bud_instance.tables[target]
-    @bud_instance.scratch(tbl_name.to_sym, target_tbl.schema)
+    cm.add_collection(tbl_name, :scratch, target_tbl.schema, false)
     return tbl_name
   end
 
-  def create_seal_done_table(input, seal_tbl)
+  def create_seal_done_table(input, seal_tbl, cm)
     tbl_name = "seal_done_#{input}_#{seal_tbl}"
     input_tbl = @bud_instance.tables[input]
-    @bud_instance.scratch(tbl_name.to_sym, input_tbl.schema)
+    cm.add_collection(tbl_name, :scratch, input_tbl.schema, false)
     return tbl_name
   end
 
@@ -1310,20 +1300,17 @@ class BudMeta #:nodoc: all
   # if there are multiple negations chained together into a single rule
   # (x.notin(y).notin(z)), we can reclaim from x when EITHER y or z is
   # satisfied -- so we create a single scratch for the rule.
-  def create_del_table(target, rule_id, deps)
+  def create_del_table(target, rule_id, cm, deps)
     tbl_name = "del_#{target}_r#{rule_id}"
     deps[target] ||= Set.new
     deps[target] << tbl_name
 
-    unless @bud_instance.tables.has_key? tbl_name.to_sym
-      target_tbl = @bud_instance.tables[target]
-      @bud_instance.scratch(tbl_name.to_sym, target_tbl.schema)
-    end
-
+    target_tbl = @bud_instance.tables[target]
+    cm.add_collection(tbl_name, :scratch, target_tbl.schema)
     return tbl_name
   end
 
-  def create_join_buf(jneg)
+  def create_join_buf(jneg, cm)
     # Define the LHS (join buf) collection -- this collection contains all the
     # join input tuples that have a match in the negated collection. The
     # collection's schema is simply the concatenation of the columns from both
@@ -1337,7 +1324,7 @@ class BudMeta #:nodoc: all
         lhs_schema << "#{r}_#{c}".to_sym
       end
     end
-    @bud_instance.scratch(lhs_name.to_sym, lhs_schema)
+    cm.add_collection(lhs_name, :scratch, lhs_schema, false)
 
     # Build the join predicate. We want the original join predicates. We also
     # want to matchup the negation quals against the elements of the join's
@@ -1400,7 +1387,7 @@ class BudMeta #:nodoc: all
     qual_text = "(" + qual_list.join(", ") + ")"
     rhs_text = "(#{lhs} * #{rhs} * #{jneg.outer}).#{jtype}#{qual_text} {|x,y,z| x + y#{body_qual_text}}"
     rule_text = "#{lhs_name} <= #{rhs_text}"
-    install_rule(lhs_name, "<=", jneg.join_rels + [jneg.outer], [], rule_text, true)
+    cm.add_rule(lhs_name, "<=", jneg.join_rels + [jneg.outer], [], rule_text, true)
 
     return lhs_name
   end
@@ -1434,11 +1421,11 @@ class BudMeta #:nodoc: all
     end
   end
 
-  def create_missing_buf(jneg, join_buf)
+  def create_missing_buf(jneg, join_buf, cm)
     lhs, rhs = jneg.join_rels
     lhs_name = "r#{jneg.rule_id}_#{lhs}_#{rhs}_missing"
     join_buf_rel = @bud_instance.tables[join_buf.to_sym]
-    @bud_instance.scratch(lhs_name.to_sym, join_buf_rel.schema)
+    cm.add_collection(lhs_name, :scratch, join_buf_rel.schema, false)
 
     qual_list = join_quals_to_str_ary(jneg)
     if qual_list.empty?
@@ -1454,7 +1441,7 @@ class BudMeta #:nodoc: all
     end
     rhs_text = "(#{lhs} * #{rhs}).#{jtype}#{qual_text} {|x,y| x + y}.notin(#{join_buf})"
     rule_text = "#{lhs_name} <= #{rhs_text}"
-    install_rule(lhs_name, "<=", jneg.join_rels, [join_buf], rule_text, true)
+    cm.add_rule(lhs_name, "<=", jneg.join_rels, [join_buf], rule_text, true)
 
     return lhs_name
   end
@@ -1464,7 +1451,7 @@ class BudMeta #:nodoc: all
   # involves "rel". We can make use of seals on each of the join qualifiers,
   # plus "whole-relation" seals (i.e., seals that guarantee that one of the join
   # input collections cannot grow in the future).
-  def create_join_del_rules(jneg, rel, missing_buf, del_tbl_name)
+  def create_join_del_rules(jneg, rel, missing_buf, del_tbl_name, cm)
     if rel == jneg.join_rels.first
       other_rel = jneg.join_rels.last
     else
@@ -1483,7 +1470,7 @@ class BudMeta #:nodoc: all
     seal_name = create_seal_table(other_rel)
     rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{qual_str})"
     rule_text = "#{del_tbl_name} <= #{rhs_text}"
-    install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
+    cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
 
     # Exploit seals that match each join predicate
     jneg.join_quals.each do |q|
@@ -1495,7 +1482,7 @@ class BudMeta #:nodoc: all
       seal_name = create_seal_table(other_rel, orel_qual)
       rhs_text = "(#{rel} * #{seal_name}).lefts(:#{rel_qual} => :#{orel_qual}).notin(#{missing_buf}, #{qual_str})"
       rule_text = "#{del_tbl_name} <= #{rhs_text}"
-      install_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
+      cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
     end
   end
 
@@ -1820,6 +1807,27 @@ class BudMeta #:nodoc: all
       else
         throw :skip
       end
+    end
+  end
+
+  class RseChangeManager
+    def initialize(bud_i, meta)
+      @bud = bud_i
+      @meta = meta
+    end
+
+    def add_rule(lhs, op, rels, nm_rels, rule_text, is_rse)
+      @meta.install_rule(lhs, op, rels, nm_rels, rule_text, is_rse)
+    end
+
+    def add_collection(name, kind, schema, ignore_dup=true)
+      name_sym = name.to_sym
+      return if ignore_dup and @bud.tables.has_key? name_sym
+
+      @bud.send(kind, name_sym, schema)
+    end
+
+    def install_changes
     end
   end
 
