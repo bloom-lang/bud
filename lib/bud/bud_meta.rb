@@ -425,7 +425,7 @@ class BudMeta #:nodoc: all
     end
 
     rce_chn = rhs_ref_chn - unsafe_chn
-    rce_chn.each {|c| rce_for_channel(c)}
+    rce_chn.each {|c| rce_for_channel(c.to_sym)}
   end
 
   # Apply the RCE optimization to the given channel. That requires two separate
@@ -443,19 +443,19 @@ class BudMeta #:nodoc: all
   # Note that we've done rewriting but not stratification at this point. Hence
   # we need to install dependencies for newly created rules manually.
   def rce_for_channel(chn)
-    chn_coll = @bud_instance.channels[chn.to_sym]
-    chn_prefix = chn.gsub(/\./, "__")
+    chn_coll = @bud_instance.channels[chn]
+    chn_prefix = chn.to_s.gsub(/\./, "__")
     puts "RCE channel: #{chn}" unless @bud_instance.options[:quiet]
 
     # Create an "approx" collection to hold a conservative estimate of the
     # channel tuples that have been delivered.
-    approx_name = "#{chn_prefix}_approx"
+    approx_name = "#{chn_prefix}_approx".to_sym
     approx_schema = chn_coll.key_cols
-    @bud_instance.range(approx_name.to_sym, approx_schema)
+    @bud_instance.range(approx_name, approx_schema)
 
-    ack_name = "#{chn_prefix}_ack"
+    ack_name = "#{chn_prefix}_ack".to_sym
     ack_schema = [:@rce_sender] + chn_coll.key_cols
-    c = @bud_instance.buf_channel(ack_name.to_sym, ack_schema, true)
+    c = @bud_instance.buf_channel(ack_name, ack_schema, true)
 
     # Install two rules: one to send an ack whenever a channel message is
     # delivered, and another to persist acks in the approx collection.
@@ -468,7 +468,7 @@ class BudMeta #:nodoc: all
     # Finally, rewrite (delete + recreate) every rule with channel on LHS to add
     # negation against approx collection.
     @bud_instance.t_rules.each do |r|
-      append_rule_negation(r, approx_name, approx_schema) if r.lhs == chn
+      append_rule_negation(r, approx_name, approx_schema) if r.lhs == chn.to_s
     end
   end
 
@@ -546,12 +546,14 @@ class BudMeta #:nodoc: all
   # the rhs inside the rule body itself. We also don't bother to do rewriting
   # on the supplied rule text, or check that it is well-formed.
   def install_rule(lhs, op, rhs_rels, rhs_nm_rels, src)
+    raise "Expected Symbol: #{lhs}" unless lhs.kind_of? Symbol
     rule_tup = [@bud_instance, @rule_idx, lhs.to_s, op, src, src, false]
     @bud_instance.t_rules << rule_tup
 
     [rhs_rels, rhs_nm_rels].each do |ary|
       is_nm = (ary == rhs_nm_rels)
       ary.each do |r|
+        raise "Expected Symbol: #{r}" unless r.kind_of? Symbol
         depends_tup = [@bud_instance, @rule_idx, lhs.to_s, op, r.to_s,
                        is_nm, false, false]
         @bud_instance.t_depends << depends_tup
@@ -846,7 +848,7 @@ class BudMeta #:nodoc: all
   def create_join_input_buf(neg, cm)
     rel = neg.join_rels.first
     rel_tbl = @bud_instance.tables[rel.to_sym]
-    buf_name = "r#{neg.rule_id}_#{rel}_#{rel}_in_buf"
+    buf_name = "r#{neg.rule_id}_#{rel}_#{rel}_in_buf".to_sym
     schema = []
     ["lhs", "rhs"].each do |str|
       rel_tbl.cols.each do |c|
@@ -875,7 +877,7 @@ class BudMeta #:nodoc: all
     outer_rel = @bud_instance.tables[neg.outer.to_sym]
     input_rel_schema = cm.lookup_schema(input_buf.to_sym)
     reclaim_rel = neg.join_rels.first
-    lhs = "r#{neg.rule_id}_#{reclaim_rel}_#{reclaim_rel}_match_buf"
+    lhs = "r#{neg.rule_id}_#{reclaim_rel}_#{reclaim_rel}_match_buf".to_sym
     cm.add_collection(lhs, :scratch, input_rel_schema, false)
 
     # If no negation qual is given explicitly, the negation qual is implicitly
@@ -1058,12 +1060,12 @@ class BudMeta #:nodoc: all
     # actually been deleted. Unfortunately that means the inner_rel and
     # outer_rel deletes happen in different ticks, but that's not too important.
     inner_key_range = create_key_range_rel(inner_rel, cm)
-    dup_elim_rewrite(inner_rel, inner_key_range)
+    dup_elim_rewrite(inner_rel, inner_key_range, cm)
 
     del_tbl_name = create_del_table(neg.outer, neg.rule_id, cm, deps)
     inner_neg_quals = neg.quals.invert
     create_del_rule(cm, del_tbl_name, inner_neg_quals, [], outer_rel.tabname,
-                    inner_key_range.tabname, neg.inner)
+                    inner_key_range, neg.inner)
   end
 
   def skip_reclaim(name, unsafe_rels)
@@ -1091,25 +1093,25 @@ class BudMeta #:nodoc: all
 
   def create_key_range_rel(src_rel, cm)
     range_name = "#{src_rel.tabname}_all_keys".to_sym
-    unless @bud_instance.tables.has_key? range_name
-      @bud_instance.range(range_name, src_rel.key_cols)
-      install_key_copy_rule(src_rel, @bud_instance.tables[range_name], cm)
+    unless cm.lookup_schema(range_name)
+      cm.add_collection(range_name, :range, src_rel.key_cols, false)
+      install_key_copy_rule(src_rel, range_name, cm)
     end
-    @bud_instance.tables[range_name]
+    range_name
   end
 
-  def install_key_copy_rule(src_rel, range_rel, cm)
+  def install_key_copy_rule(src_rel, lhs_name, cm)
     tlist_cols = src_rel.key_cols.map {|c| "r.#{c}"}
     tlist_txt = tlist_cols.join(", ")
-    lhs_name = range_rel.tabname.to_s
-    rule_txt = "#{lhs_name} <+ #{src_rel.tabname} \{|r| [#{tlist_txt}]\}"
-    cm.add_rule(lhs_name, "<+", [src_rel], [], rule_txt)
+    src_name = src_rel.tabname
+    rule_txt = "#{lhs_name} <+ #{src_name} \{|r| [#{tlist_txt}]\}"
+    cm.add_rule(lhs_name, "<+", [src_name], [], rule_txt)
   end
 
-  def dup_elim_rewrite(rel, key_rel)
+  def dup_elim_rewrite(rel, key_rel, cm)
     @bud_instance.t_rules.each do |r|
       if r.lhs == rel.tabname.to_s and (r.op == "<=" or r.op == "<+")
-        append_rule_negation(r, key_rel.tabname.to_s, key_rel.schema)
+        append_rule_negation(r, key_rel, cm.lookup_schema(key_rel))
       end
     end
   end
@@ -1280,14 +1282,14 @@ class BudMeta #:nodoc: all
   end
 
   def create_rse_cond_table(target, cm)
-    tbl_name = "rse_ready_#{target}"
+    tbl_name = "rse_ready_#{target}".to_sym
     target_tbl = @bud_instance.tables[target]
     cm.add_collection(tbl_name, :scratch, target_tbl.schema, false)
     return tbl_name
   end
 
   def create_seal_done_table(input, seal_tbl, cm)
-    tbl_name = "seal_done_#{input}_#{seal_tbl}"
+    tbl_name = "seal_done_#{input}_#{seal_tbl}".to_sym
     input_tbl = @bud_instance.tables[input]
     cm.add_collection(tbl_name, :scratch, input_tbl.schema, false)
     return tbl_name
@@ -1299,7 +1301,7 @@ class BudMeta #:nodoc: all
   # (x.notin(y).notin(z)), we can reclaim from x when EITHER y or z is
   # satisfied -- so we create a single scratch for the rule.
   def create_del_table(target, rule_id, cm, deps)
-    tbl_name = "del_#{target}_r#{rule_id}"
+    tbl_name = "del_#{target}_r#{rule_id}".to_sym
     deps[target] ||= Set.new
     deps[target] << tbl_name
 
@@ -1314,7 +1316,7 @@ class BudMeta #:nodoc: all
     # collection's schema is simply the concatenation of the columns from both
     # join inputs; we disambiguate column names by adding a prefix.
     lhs, rhs = jneg.join_rels
-    lhs_name = "r#{jneg.rule_id}_#{lhs}_#{rhs}_joinbuf"
+    lhs_name = "r#{jneg.rule_id}_#{lhs}_#{rhs}_joinbuf".to_sym
     lhs_schema = []
     jneg.join_rels.each do |r|
       r_coll = @bud_instance.tables[r.to_sym]
@@ -1421,7 +1423,7 @@ class BudMeta #:nodoc: all
 
   def create_missing_buf(jneg, join_buf, cm)
     lhs, rhs = jneg.join_rels
-    lhs_name = "r#{jneg.rule_id}_#{lhs}_#{rhs}_missing"
+    lhs_name = "r#{jneg.rule_id}_#{lhs}_#{rhs}_missing".to_sym
     join_buf_schema = cm.lookup_schema(join_buf.to_sym)
     cm.add_collection(lhs_name, :scratch, join_buf_schema, false)
 
@@ -1486,15 +1488,15 @@ class BudMeta #:nodoc: all
 
   def create_seal_table(rel, seal_key=nil)
     if seal_key.nil?         # Whole-relation seal
-      seal_name = "seal_#{rel}"
+      seal_name = "seal_#{rel}".to_sym
       schema = [:ignored]
     else
-      seal_name = "seal_#{rel}_#{seal_key}"
+      seal_name = "seal_#{rel}_#{seal_key}".to_sym
       schema = [seal_key.to_sym]
     end
 
-    unless @bud_instance.tables.has_key? seal_name.to_sym
-      @bud_instance.table(seal_name.to_sym, schema)
+    unless @bud_instance.tables.has_key? seal_name
+      @bud_instance.table(seal_name, schema)
     end
 
     seal_name
@@ -1818,14 +1820,13 @@ class BudMeta #:nodoc: all
     end
 
     def add_collection(name, kind, schema, ignore_dup=true)
-      name_sym = name.to_sym
-      if @bud.tables.has_key?(name_sym) or @collections.has_key?(name_sym)
+      if @bud.tables.has_key?(name) or @collections.has_key?(name)
         return if ignore_dup
 
         raise Bud::Error, "duplicate collection: #{name}"
       end
 
-      @collections[name_sym] = [kind, schema]
+      @collections[name] = [kind, schema]
     end
 
     def lookup_schema(tbl_name)
@@ -1839,11 +1840,17 @@ class BudMeta #:nodoc: all
     end
 
     def install_changes
+      optimize_rules
       @rules.each {|r| @meta.install_rule(*r)}
       @collections.each_pair do |name,c|
         kind, schema = c
         @bud.send(kind, name, schema)
       end
+    end
+
+    # Rewrite rules to eliminate redundancies (and omit unnecessary
+    # collections).
+    def optimize_rules
     end
   end
 
