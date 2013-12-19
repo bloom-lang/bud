@@ -461,9 +461,9 @@ class BudMeta #:nodoc: all
     # delivered, and another to persist acks in the approx collection.
     key_ary = chn_coll.key_cols.map {|k| "c.#{k}"}
     install_rule(ack_name, "<~", [chn], [],
-                 "#{ack_name} <~ #{chn} {|c| [c.source_addr, #{key_ary.join(", ")}]}", false)
+                 "#{ack_name} <~ #{chn} {|c| [c.source_addr, #{key_ary.join(", ")}]}")
     install_rule(approx_name, "<=", [ack_name], [],
-                 "#{approx_name} <= (#{ack_name}.payloads)", false)
+                 "#{approx_name} <= (#{ack_name}.payloads)")
 
     # Finally, rewrite (delete + recreate) every rule with channel on LHS to add
     # negation against approx collection.
@@ -545,9 +545,8 @@ class BudMeta #:nodoc: all
   # We assume the rule doesn't invoke unsafe functions and doesn't reference
   # the rhs inside the rule body itself. We also don't bother to do rewriting
   # on the supplied rule text, or check that it is well-formed.
-  def install_rule(lhs, op, rhs_rels, rhs_nm_rels, src, is_rse)
-    rule_tup = [@bud_instance, @rule_idx, lhs.to_s, op, src, src,
-                false, is_rse]
+  def install_rule(lhs, op, rhs_rels, rhs_nm_rels, src)
+    rule_tup = [@bud_instance, @rule_idx, lhs.to_s, op, src, src, false]
     @bud_instance.t_rules << rule_tup
 
     [rhs_rels, rhs_nm_rels].each do |ary|
@@ -784,7 +783,7 @@ class BudMeta #:nodoc: all
         rule_text << "{|#{block_args.join(',')}| t0}"
       end
 
-      cm.add_rule(rse_table, "<=", v.to_a.sort, [], rule_text, true)
+      cm.add_rule(rse_table, "<=", v.to_a.sort, [], rule_text)
     end
 
     # Fourth, if the tuple we want to reclaim appears in a join, we need to wait
@@ -827,7 +826,7 @@ class BudMeta #:nodoc: all
 
       # Finally, install the deletion rule
       rule_text = "#{reclaim_rel} <- #{input_tbl}"
-      cm.add_rule(reclaim_rel, "<-", [], [input_tbl], rule_text, true)
+      cm.add_rule(reclaim_rel, "<-", [], [input_tbl], rule_text)
     end
 
     # Finally, we actually install the changes (new state and rules). Note that
@@ -865,7 +864,7 @@ class BudMeta #:nodoc: all
 
     rhs_text = "(#{rel} * #{rel}).pairs#{qual_text} {|x,y| x + y}"
     rule_text = "#{buf_name} <= #{rhs_text}"
-    cm.add_rule(buf_name, "<=", [rel], [], rule_text, true)
+    cm.add_rule(buf_name, "<=", [rel], [], rule_text)
 
     return buf_name
   end
@@ -920,7 +919,7 @@ class BudMeta #:nodoc: all
 
     qual_text = "(" + qual_list.join(", ") + ")"
     rule_text = "#{lhs} <= (#{input_buf} * #{neg.outer}).lefts#{qual_text}"
-    cm.add_rule(lhs, "<=", [input_buf, neg.outer], [], rule_text, true)
+    cm.add_rule(lhs, "<=", [input_buf, neg.outer], [], rule_text)
 
     return lhs
   end
@@ -951,7 +950,7 @@ class BudMeta #:nodoc: all
     seal_name = create_seal_table(rel)
     rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{lhs_quals}).notin(#{missing_buf}, #{rhs_quals})"
     rule_text = "#{del_tbl_name} <= #{rhs_text}"
-    cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
+    cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text)
 
     # Seals for each join predicate. Note that for self-joins, there's only a
     # single join input collection (which appears twice), so we need more seal
@@ -978,7 +977,7 @@ class BudMeta #:nodoc: all
 
       rule_text = "#{del_tbl_name} <= #{rhs_text}"
       cm.add_rule(del_tbl_name, "<=", [rel, lhs_seal, rhs_seal],
-                  [missing_buf], rule_text, true)
+                  [missing_buf], rule_text)
     end
   end
 
@@ -1011,15 +1010,14 @@ class BudMeta #:nodoc: all
     end
 
     rule_text = "#{output_tbl} <= #{join_text}"
-    cm.add_rule(output_tbl, "<=", [input_tbl, dep.other_input], [],
-                rule_text, true)
+    cm.add_rule(output_tbl, "<=", [input_tbl, dep.other_input], [], rule_text)
   end
 
   def install_join_dependency(dep, input_tbl, output_tbl, cm)
     # Check for whole-relation seal
     seal_tbl = create_seal_table(dep.other_input)
     rule_text = "#{output_tbl} <= (#{input_tbl} * #{seal_tbl}).lefts"
-    cm.add_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], rule_text, true)
+    cm.add_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], rule_text)
 
     # Check for partition-local seals
     dep.preds.each do |seal_pred|
@@ -1035,7 +1033,7 @@ class BudMeta #:nodoc: all
         join_text = "(#{input_tbl} * #{seal_tbl}).lefts"
       end
       rule_text = "#{output_tbl} <= #{join_text}(:#{seal_pred.first} => :#{seal_pred.last})"
-      cm.add_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], rule_text, true)
+      cm.add_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], rule_text)
     end
   end
 
@@ -1105,7 +1103,7 @@ class BudMeta #:nodoc: all
     tlist_txt = tlist_cols.join(", ")
     lhs_name = range_rel.tabname.to_s
     rule_txt = "#{lhs_name} <+ #{src_rel.tabname} \{|r| [#{tlist_txt}]\}"
-    cm.add_rule(lhs_name, "<+", [src_rel], [], rule_txt, true)
+    cm.add_rule(lhs_name, "<+", [src_rel], [], rule_txt)
   end
 
   def dup_elim_rewrite(rel, key_rel)
@@ -1238,7 +1236,7 @@ class BudMeta #:nodoc: all
     raise if not_rel and join_quals.empty?
 
     if join_quals.empty?
-      cm.add_rule(del_tbl, "<=", [r2], [], "#{del_tbl} <= #{r2}", true)
+      cm.add_rule(del_tbl, "<=", [r2], [], "#{del_tbl} <= #{r2}")
     else
       qual_ary = []
       join_quals.each do |k,v|
@@ -1260,7 +1258,7 @@ class BudMeta #:nodoc: all
         nm_rels << not_rel
       end
 
-      cm.add_rule(del_tbl, "<=", [r1, r2], nm_rels, "#{del_tbl} <= #{rhs}", true)
+      cm.add_rule(del_tbl, "<=", [r1, r2], nm_rels, "#{del_tbl} <= #{rhs}")
     end
   end
 
@@ -1387,7 +1385,7 @@ class BudMeta #:nodoc: all
     qual_text = "(" + qual_list.join(", ") + ")"
     rhs_text = "(#{lhs} * #{rhs} * #{jneg.outer}).#{jtype}#{qual_text} {|x,y,z| x + y#{body_qual_text}}"
     rule_text = "#{lhs_name} <= #{rhs_text}"
-    cm.add_rule(lhs_name, "<=", jneg.join_rels + [jneg.outer], [], rule_text, true)
+    cm.add_rule(lhs_name, "<=", jneg.join_rels + [jneg.outer], [], rule_text)
 
     return lhs_name
   end
@@ -1441,7 +1439,7 @@ class BudMeta #:nodoc: all
     end
     rhs_text = "(#{lhs} * #{rhs}).#{jtype}#{qual_text} {|x,y| x + y}.notin(#{join_buf})"
     rule_text = "#{lhs_name} <= #{rhs_text}"
-    cm.add_rule(lhs_name, "<=", jneg.join_rels, [join_buf], rule_text, true)
+    cm.add_rule(lhs_name, "<=", jneg.join_rels, [join_buf], rule_text)
 
     return lhs_name
   end
@@ -1470,7 +1468,7 @@ class BudMeta #:nodoc: all
     seal_name = create_seal_table(other_rel)
     rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{qual_str})"
     rule_text = "#{del_tbl_name} <= #{rhs_text}"
-    cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
+    cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text)
 
     # Exploit seals that match each join predicate
     jneg.join_quals.each do |q|
@@ -1482,7 +1480,7 @@ class BudMeta #:nodoc: all
       seal_name = create_seal_table(other_rel, orel_qual)
       rhs_text = "(#{rel} * #{seal_name}).lefts(:#{rel_qual} => :#{orel_qual}).notin(#{missing_buf}, #{qual_str})"
       rule_text = "#{del_tbl_name} <= #{rhs_text}"
-      cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text, true)
+      cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text)
     end
   end
 
@@ -1634,16 +1632,13 @@ class BudMeta #:nodoc: all
     return saw_ref
   end
 
-  # Does "t" appear on the LHS of any deletion rules? Note that we distinguish
-  # between deletion rules specified by the user and deletion rules inserted by
-  # RSE; the latter are allowed, because the RSE conditions should ensure that
-  # RSE deletions are not semantically observable.
+  # Does "t" appear on the LHS of any deletion rules? Note that because we
+  # haven't yet installed any of the deletion rules introduced by RSE, we don't
+  # check for them here. In fact, that is the desired behavior, because RSE
+  # analysis should ensure that the RSE deletions do not change semantics.
   def is_deleted_tbl(t)
     @bud_instance.t_depends.each do |d|
-      if d.lhs == t.to_s and d.op == "<-"
-        rule = @bud_instance.t_rules[[d.bud_obj, d.rule_id]]
-        return true unless rule.is_rse
-      end
+      return true if d.lhs == t.to_s and d.op == "<-"
     end
 
     return false
@@ -1814,10 +1809,11 @@ class BudMeta #:nodoc: all
     def initialize(bud_i, meta)
       @bud = bud_i
       @meta = meta
+      @rules = []
     end
 
-    def add_rule(lhs, op, rels, nm_rels, rule_text, is_rse)
-      @meta.install_rule(lhs, op, rels, nm_rels, rule_text, is_rse)
+    def add_rule(*args)
+      @rules << args
     end
 
     def add_collection(name, kind, schema, ignore_dup=true)
@@ -1828,6 +1824,7 @@ class BudMeta #:nodoc: all
     end
 
     def install_changes
+      @rules.each {|r| @meta.install_rule(*r)}
     end
   end
 

@@ -309,7 +309,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     end
 
     @rules << [@bud_instance, @rule_idx, lhs, op, rule_txt,
-               rule_txt_orig, unsafe_funcs_called, false]
+               rule_txt_orig, unsafe_funcs_called]
     @tables.each_pair do |t, nm|
       in_rule_body = @refs_in_body.include? t
       notin_pos_ref = @notin_pos_refs.include? t
