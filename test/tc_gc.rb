@@ -787,13 +787,13 @@ class TestRse < MiniTest::Unit::TestCase
     s = RseQual.new
     s.sbuf <+ [[1, 5], [2, 5], [3, 6]]
     s.tick
-    assert_equal([[1, 5], [2, 5], [3, 6]].sort, s.res.to_a.sort)
+    assert_equal([[1, 5], [2, 5], [3, 6]].to_set, s.res.to_set)
 
     s.sbuf_val_seen <+ [[5]]
     2.times { s.tick }
 
-    assert_equal([[3, 6]], s.res.to_a.sort)
-    assert_equal([[3, 6]], s.sbuf.to_a.sort)
+    assert_equal([[3, 6]].to_set, s.res.to_set)
+    assert_equal([[3, 6]].to_set, s.sbuf.to_set)
   end
 
   def test_rse_chained_neg
@@ -810,14 +810,14 @@ class TestRse < MiniTest::Unit::TestCase
     s.t5 <+ [[4, 4]]
     2.times { s.tick }
 
-    assert_equal([[1, 1], [4, 4], [5, 5]], s.t2.to_a.sort)
+    assert_equal([[1, 1], [4, 4], [5, 5]].to_set, s.t2.to_set)
 
     s.t2 <+ [[6, 6]]
     s.t3 <+ [[5, 5], [6, 6]]
     s.t6 <+ [[4, 4], [5, 5]]
     2.times { s.tick }
 
-    assert_equal([[1, 1], [6, 6]], s.t2.to_a.sort)
+    assert_equal([[1, 1], [6, 6]].to_set, s.t2.to_set)
   end
 
   def test_rse_negate_intersect
@@ -829,7 +829,7 @@ class TestRse < MiniTest::Unit::TestCase
     s.t6 <+ [[7, 12], [5, 10]]
     2.times { s.tick }
 
-    assert_equal([[5, 10], [6, 11], [7, 12]], s.t2.to_a.sort)
+    assert_equal([[5, 10], [6, 11], [7, 12]].to_set, s.t2.to_set)
 
     s.t2 <+ [[8, 13], [9, 14]]
     s.t3 <+ [[6, 11], [8, 13]]
@@ -838,7 +838,7 @@ class TestRse < MiniTest::Unit::TestCase
     s.t6 <+ [[6, 11], [8, 13]]
     2.times { s.tick }
 
-    assert_equal([[7, 12], [9, 14]], s.t2.to_a.sort)
+    assert_equal([[7, 12], [9, 14]].to_set, s.t2.to_set)
   end
 
   def test_rse_negate_intersect_del
