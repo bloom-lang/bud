@@ -778,14 +778,16 @@ class BudMeta #:nodoc: all
       rule_text = "#{rse_table} <= "
       if v.length == 1
         rule_text << "#{v.first}"
+        rhs_is_simple = true
       else
         rule_text << "(#{v.to_a.sort.join(' * ')}).matches "
         block_args = []
         v.to_a.sort.each_with_index {|a,i| block_args << "t#{i}"}
         rule_text << "{|#{block_args.join(',')}| t0}"
+        rhs_is_simple = false
       end
 
-      cm.add_rule(rse_table, "<=", v.to_a.sort, [], rule_text)
+      cm.add_rule(rse_table, "<=", v.to_a.sort, [], rhs_is_simple, rule_text)
     end
 
     # Fourth, if the tuple we want to reclaim appears in a join, we need to wait
@@ -828,7 +830,7 @@ class BudMeta #:nodoc: all
 
       # Finally, install the deletion rule
       rule_text = "#{reclaim_rel} <- #{input_tbl}"
-      cm.add_rule(reclaim_rel, "<-", [], [input_tbl], rule_text)
+      cm.add_rule(reclaim_rel, "<-", [], [input_tbl], true, rule_text)
     end
 
     # Finally, we actually install the changes (new state and rules). Note that
@@ -866,7 +868,7 @@ class BudMeta #:nodoc: all
 
     rhs_text = "(#{rel} * #{rel}).pairs#{qual_text} {|x,y| x + y}"
     rule_text = "#{buf_name} <= #{rhs_text}"
-    cm.add_rule(buf_name, "<=", [rel], [], rule_text)
+    cm.add_rule(buf_name, "<=", [rel], [], false, rule_text)
 
     return buf_name
   end
@@ -921,7 +923,7 @@ class BudMeta #:nodoc: all
 
     qual_text = "(" + qual_list.join(", ") + ")"
     rule_text = "#{lhs} <= (#{input_buf} * #{neg.outer}).lefts#{qual_text}"
-    cm.add_rule(lhs, "<=", [input_buf, neg.outer], [], rule_text)
+    cm.add_rule(lhs, "<=", [input_buf, neg.outer], [], false, rule_text)
 
     return lhs
   end
@@ -952,7 +954,7 @@ class BudMeta #:nodoc: all
     seal_name = create_seal_table(rel)
     rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{lhs_quals}).notin(#{missing_buf}, #{rhs_quals})"
     rule_text = "#{del_tbl_name} <= #{rhs_text}"
-    cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text)
+    cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], false, rule_text)
 
     # Seals for each join predicate. Note that for self-joins, there's only a
     # single join input collection (which appears twice), so we need more seal
@@ -979,7 +981,7 @@ class BudMeta #:nodoc: all
 
       rule_text = "#{del_tbl_name} <= #{rhs_text}"
       cm.add_rule(del_tbl_name, "<=", [rel, lhs_seal, rhs_seal],
-                  [missing_buf], rule_text)
+                  [missing_buf], false, rule_text)
     end
   end
 
@@ -1012,14 +1014,15 @@ class BudMeta #:nodoc: all
     end
 
     rule_text = "#{output_tbl} <= #{join_text}"
-    cm.add_rule(output_tbl, "<=", [input_tbl, dep.other_input], [], rule_text)
+    cm.add_rule(output_tbl, "<=", [input_tbl, dep.other_input], [],
+                false, rule_text)
   end
 
   def install_join_dependency(dep, input_tbl, output_tbl, cm)
     # Check for whole-relation seal
     seal_tbl = create_seal_table(dep.other_input)
     rule_text = "#{output_tbl} <= (#{input_tbl} * #{seal_tbl}).lefts"
-    cm.add_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], rule_text)
+    cm.add_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], false, rule_text)
 
     # Check for partition-local seals
     dep.preds.each do |seal_pred|
@@ -1035,7 +1038,7 @@ class BudMeta #:nodoc: all
         join_text = "(#{input_tbl} * #{seal_tbl}).lefts"
       end
       rule_text = "#{output_tbl} <= #{join_text}(:#{seal_pred.first} => :#{seal_pred.last})"
-      cm.add_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], rule_text)
+      cm.add_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], false, rule_text)
     end
   end
 
@@ -1105,7 +1108,7 @@ class BudMeta #:nodoc: all
     tlist_txt = tlist_cols.join(", ")
     src_name = src_rel.tabname
     rule_txt = "#{lhs_name} <+ #{src_name} \{|r| [#{tlist_txt}]\}"
-    cm.add_rule(lhs_name, "<+", [src_name], [], rule_txt)
+    cm.add_rule(lhs_name, "<+", [src_name], [], false, rule_txt)
   end
 
   def dup_elim_rewrite(rel, key_rel, cm)
@@ -1238,7 +1241,7 @@ class BudMeta #:nodoc: all
     raise if not_rel and join_quals.empty?
 
     if join_quals.empty?
-      cm.add_rule(del_tbl, "<=", [r2], [], "#{del_tbl} <= #{r2}")
+      cm.add_rule(del_tbl, "<=", [r2], [], true, "#{del_tbl} <= #{r2}")
     else
       qual_ary = []
       join_quals.each do |k,v|
@@ -1260,7 +1263,7 @@ class BudMeta #:nodoc: all
         nm_rels << not_rel
       end
 
-      cm.add_rule(del_tbl, "<=", [r1, r2], nm_rels, "#{del_tbl} <= #{rhs}")
+      cm.add_rule(del_tbl, "<=", [r1, r2], nm_rels, false, "#{del_tbl} <= #{rhs}")
     end
   end
 
@@ -1387,7 +1390,7 @@ class BudMeta #:nodoc: all
     qual_text = "(" + qual_list.join(", ") + ")"
     rhs_text = "(#{lhs} * #{rhs} * #{jneg.outer}).#{jtype}#{qual_text} {|x,y,z| x + y#{body_qual_text}}"
     rule_text = "#{lhs_name} <= #{rhs_text}"
-    cm.add_rule(lhs_name, "<=", jneg.join_rels + [jneg.outer], [], rule_text)
+    cm.add_rule(lhs_name, "<=", jneg.join_rels + [jneg.outer], [], false, rule_text)
 
     return lhs_name
   end
@@ -1441,7 +1444,7 @@ class BudMeta #:nodoc: all
     end
     rhs_text = "(#{lhs} * #{rhs}).#{jtype}#{qual_text} {|x,y| x + y}.notin(#{join_buf})"
     rule_text = "#{lhs_name} <= #{rhs_text}"
-    cm.add_rule(lhs_name, "<=", jneg.join_rels, [join_buf], rule_text)
+    cm.add_rule(lhs_name, "<=", jneg.join_rels, [join_buf], false, rule_text)
 
     return lhs_name
   end
@@ -1470,7 +1473,7 @@ class BudMeta #:nodoc: all
     seal_name = create_seal_table(other_rel)
     rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{qual_str})"
     rule_text = "#{del_tbl_name} <= #{rhs_text}"
-    cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text)
+    cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], false, rule_text)
 
     # Exploit seals that match each join predicate
     jneg.join_quals.each do |q|
@@ -1482,7 +1485,7 @@ class BudMeta #:nodoc: all
       seal_name = create_seal_table(other_rel, orel_qual)
       rhs_text = "(#{rel} * #{seal_name}).lefts(:#{rel_qual} => :#{orel_qual}).notin(#{missing_buf}, #{qual_str})"
       rule_text = "#{del_tbl_name} <= #{rhs_text}"
-      cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], rule_text)
+      cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], false, rule_text)
     end
   end
 
@@ -1807,16 +1810,19 @@ class BudMeta #:nodoc: all
     end
   end
 
+  RuleInfo = Struct.new(:lhs, :op, :rels, :nm_rels, :rhs_simple, :rule_src)
+
   class RseChangeManager
     def initialize(bud_i, meta)
       @bud = bud_i
       @meta = meta
       @rules = []
       @collections = {}
+      @parser = RubyParser.for_current_ruby rescue RubyParser.new
     end
 
-    def add_rule(*args)
-      @rules << args
+    def add_rule(lhs, op, rels, nm_rels, rhs_simple, rule_src)
+      @rules << RuleInfo.new(lhs, op, rels, nm_rels, rhs_simple, rule_src)
     end
 
     def add_collection(name, kind, schema, ignore_dup=true)
@@ -1841,7 +1847,10 @@ class BudMeta #:nodoc: all
 
     def install_changes
       optimize_rules
-      @rules.each {|r| @meta.install_rule(*r)}
+
+      @rules.each do |r|
+        @meta.install_rule(r.lhs, r.op, r.rels, r.nm_rels, r.rule_src)
+      end
       @collections.each_pair do |name,c|
         kind, schema = c
         @bud.send(kind, name, schema)
@@ -1851,6 +1860,96 @@ class BudMeta #:nodoc: all
     # Rewrite rules to eliminate redundancies (and omit unnecessary
     # collections).
     def optimize_rules
+      return if @bud.options[:disable_rse_opt]
+
+      # Count the number of times that each relation appears on the lhs of a
+      # rule. If (a) a rel appears one exactly one rule's lhs (b) the rhs of
+      # that rule is simple (e.g., identity), we can delete the rel and the
+      # rule, and replace all occurrences of the rel with the rule's rhs. We
+      # only want to apply this to relations introduced by the RSE rewrite.
+      lhs_cnt = {}
+      @rules.each do |r|
+        next unless @collections.has_key? r.lhs
+        lhs_cnt[r.lhs] ||= 0
+        lhs_cnt[r.lhs] += 1
+      end
+      @rules.each do |r|
+        unless r.rhs_simple and r.op == "<="
+          lhs_cnt.delete(r.lhs)
+        end
+      end
+
+      lhs_cnt.each_pair do |from_rel,cnt|
+        next unless cnt == 1
+
+        # In every rule, we want to replace "rel" with the relation that appears
+        # on the rhs of the (single) rule that has rel on its lhs.
+        to_rel = find_replace_rel(from_rel)
+        do_replace_rel(from_rel, to_rel)
+        delete_defn_rule(from_rel)
+        @collections.delete(from_rel)
+      end
+    end
+
+    def find_replace_rel(lhs_rel)
+      @rules.each do |r|
+        if r.lhs == lhs_rel
+          rhs_ast = @parser.parse(r.rule_src)
+          tag, lhs, op, rhs = rhs_ast
+          raise Bud::Error unless tag == :call
+          raise Bud::Error unless rhs.sexp_type == :call
+          raise Bud::Error unless op == :<=
+          _, recv, meth = rhs
+          raise Bud::Error unless recv.nil?
+          return meth
+        end
+      end
+
+      raise Bud::Error, "failed to find rule defining #{lhs_rel}"
+    end
+
+    def delete_defn_rule(lhs_rel)
+      @rules.each_with_index do |r,i|
+        if r.lhs == lhs_rel
+          @rules.delete_at(i)
+          return
+        end
+      end
+
+      raise Bud::Error, "failed to find rule defining #{lhs_rel}"
+    end
+
+    def do_replace_rel(from, to)
+      @rules.each do |r|
+        next unless r.rels.include?(from) or r.nm_rels.include?(from)
+
+        ast = @parser.parse(r.rule_src)
+        new_ast = RelRefRewriter.new(from, to).process(ast)
+        r.rule_src = Ruby2Ruby.new.process(new_ast)
+
+        r.rels << to if r.rels.delete(from)
+        r.nm_rels << to if r.nm_rels.delete(from)
+      end
+    end
+  end
+
+  class RelRefRewriter < SexpProcessor
+    def initialize(from, to)
+      super()
+      self.require_empty = false
+      self.expected = Sexp
+      @from_rel = from
+      @to_rel = to
+    end
+
+    def process_call(exp)
+      tag, recv, meth, *args = exp
+
+      if recv.nil? and meth == @from_rel
+        meth = @to_rel
+      end
+
+      return s(tag, process(recv), meth, *(args.map{|a| process(a)}))
     end
   end
 
