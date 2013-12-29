@@ -1857,51 +1857,86 @@ class BudMeta #:nodoc: all
       end
     end
 
-    # Rewrite rules to eliminate redundancies (and omit unnecessary
-    # collections).
+    # Rewrite rules to eliminate redundancies and unnecessary collections. There
+    # are two situations we look for:
+    #
+    #   (a) rel "x" is defined by exactly one rule R, and the rhs of that rule is
+    #       simple (=> identity); then, we can replace all occurrences of "x"
+    #       with the rel on the rhs of R.
+    #
+    #   (b) rel "x" is defined by exactly one rule R, and the rhs of all the
+    #       rules in which "x" appears are simple; then, we can replace "x" with
+    #       the rhs of R.
+    #
+    # In some sense, these situations are inverses: (a) applies when the
+    # definition of "x" is simple, whereas (b) applies when the usage of "x" is
+    # simple.
     def optimize_rules
       return if @bud.options[:disable_rse_opt]
 
       # Count the number of times that each relation appears on the lhs of a
-      # rule. If (a) a rel appears on exactly one rule's lhs (b) the rhs of that
-      # rule is simple (e.g., identity), we can delete the rel and the rule, and
-      # replace all occurrences of the rel with the rule's rhs. We only want to
-      # apply this to relations introduced by the RSE rewrite.
+      # rule. If a relation is defined by multiple rules (=> appears on multiple
+      # LHSes), we can't optimize it away. We only want to consider relations
+      # introduced by the RSE rewrite.
       lhs_cnt = {}
       @rules.each do |r|
         next unless @collections.has_key? r.lhs
         lhs_cnt[r.lhs] ||= 0
         lhs_cnt[r.lhs] += 1
       end
+
+      lhs_cnt.keep_if {|_,cnt| cnt == 1}
+      a_candidates = lhs_cnt.dup
+      b_candidates = lhs_cnt.dup
+
+      # For case (a), eliminate relations that are defined by non-simple rules
       @rules.each do |r|
         unless r.rhs_simple and r.op == "<="
-          lhs_cnt.delete(r.lhs)
+          a_candidates.delete(r.lhs)
         end
       end
 
-      lhs_cnt.each_pair do |from_rel,cnt|
-        next unless cnt == 1
-
+      a_candidates.each_pair do |from_rel,cnt|
         # In every rule, we want to replace "rel" with the relation that appears
-        # on the rhs of the (single) rule that has rel on its lhs.
-        to_rel = find_replace_rel(from_rel)
-        do_replace_rel(from_rel, to_rel)
+        # on the rhs of the (sole) rule that has "rel" on its lhs.
+        to_expr, to_rels, to_nm_rels = find_defn_expr(from_rel)
+        puts "REPLACING: #{from_rel} => #{to_expr.inspect}"
+        do_replace_rel(from_rel, to_expr, to_rels, to_nm_rels)
+        delete_defn_rule(from_rel)
+        @collections.delete(from_rel)
+        b_candidates.delete(from_rel)
+      end
+
+      # For case (b), skip rels that appear on the rhs of non-simple rules
+      @rules.each do |r|
+        next if r.rhs_simple
+
+        r.rels.each {|rel| b_candidates.delete(rel)}
+        r.nm_rels.each {|rel| b_candidates.delete(rel)}
+      end
+
+      b_candidates.each_pair do |from_rel,cnt|
+        # In all the rules that reference "from_rel" (which must be simple
+        # rules), we want to replace "from_rel" with the RHS of the rule
+        # that defines "from_rel".
+        to_expr, to_rels, to_nm_rels = find_defn_expr(from_rel)
+        puts "REPLACING: #{from_rel} => #{to_expr.inspect}"
+        do_replace_rel(from_rel, to_expr, to_rels, to_nm_rels)
         delete_defn_rule(from_rel)
         @collections.delete(from_rel)
       end
     end
 
-    def find_replace_rel(lhs_rel)
+    # Returns the AST of the RHS of the (sole) rule that defines lhs_rel. We
+    # also return the rule's dependencies, for convenience.
+    def find_defn_expr(lhs_rel)
       @rules.each do |r|
         if r.lhs == lhs_rel
           rhs_ast = @parser.parse(r.rule_src)
           tag, lhs, op, rhs = rhs_ast
           raise Bud::Error unless tag == :call
-          raise Bud::Error unless rhs.sexp_type == :call
           raise Bud::Error unless op == :<=
-          _, recv, meth = rhs
-          raise Bud::Error unless recv.nil?
-          return meth
+          return rhs, r.rels, r.nm_rels
         end
       end
 
@@ -1919,37 +1954,52 @@ class BudMeta #:nodoc: all
       raise Bud::Error, "failed to find rule defining #{lhs_rel}"
     end
 
-    def do_replace_rel(from, to)
+    def do_replace_rel(from, to_expr, to_rels, to_nm_rels)
       @rules.each do |r|
         next unless r.rels.include?(from) or r.nm_rels.include?(from)
 
         ast = @parser.parse(r.rule_src)
-        new_ast = RelRefRewriter.new(from, to).process(ast)
+        new_ast = RelRefRewriter.new(from, to_expr).process(ast)
         r.rule_src = Ruby2Ruby.new.process(new_ast)
 
-        r.rels << to if r.rels.delete(from)
-        r.nm_rels << to if r.nm_rels.delete(from)
+        # Update the dependencies for the modified rule.
+        if r.rhs_simple         # Must be case (a)
+          r.rels.delete(from)
+          r.nm_rels.delete(from)
+          if r.op == "<-"
+            r.nm_rels.concat(to_rels)
+          else
+            r.rels.concat(to_rels)
+          end
+          r.nm_rels.concat(to_nm_rels)
+        else                    # Must be case (b)
+          raise unless to_rels.length == 1
+          raise unless to_nm_rels.empty?
+          to_rel = to_rels.first
+          r.rels << to_rel if r.rels.delete(from)
+          r.nm_rels << to_rel if r.nm_rels.delete(from)
+        end
       end
     end
   end
 
   class RelRefRewriter < SexpProcessor
-    def initialize(from, to)
+    def initialize(from_rel, to_expr)
       super()
       self.require_empty = false
       self.expected = Sexp
-      @from_rel = from
-      @to_rel = to
+      @from_rel = from_rel
+      @to_expr = to_expr
     end
 
     def process_call(exp)
       tag, recv, meth, *args = exp
 
-      if recv.nil? and meth == @from_rel
-        meth = @to_rel
+      if recv.nil? and meth == @from_rel and args.empty?
+        return @to_expr.dup
+      else
+        return s(tag, process(recv), meth, *(args.map{|a| process(a)}))
       end
-
-      return s(tag, process(recv), meth, *(args.map{|a| process(a)}))
     end
   end
 
