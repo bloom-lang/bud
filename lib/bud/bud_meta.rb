@@ -1863,10 +1863,10 @@ class BudMeta #:nodoc: all
       return if @bud.options[:disable_rse_opt]
 
       # Count the number of times that each relation appears on the lhs of a
-      # rule. If (a) a rel appears one exactly one rule's lhs (b) the rhs of
-      # that rule is simple (e.g., identity), we can delete the rel and the
-      # rule, and replace all occurrences of the rel with the rule's rhs. We
-      # only want to apply this to relations introduced by the RSE rewrite.
+      # rule. If (a) a rel appears on exactly one rule's lhs (b) the rhs of that
+      # rule is simple (e.g., identity), we can delete the rel and the rule, and
+      # replace all occurrences of the rel with the rule's rhs. We only want to
+      # apply this to relations introduced by the RSE rewrite.
       lhs_cnt = {}
       @rules.each do |r|
         next unless @collections.has_key? r.lhs
