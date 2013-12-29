@@ -160,7 +160,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
       @notin_pos_refs.merge(collector.notin_pos_refs)
 
       super
-    elsif op == :*
+    elsif op == :* and args.first and args.first.sexp_type == :call
       rhs_tbl = call_to_id(args.first)
       @join_refs << rhs_tbl
       if recv and recv.sexp_type == :call
