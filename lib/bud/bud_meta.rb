@@ -593,8 +593,8 @@ class BudMeta #:nodoc: all
   #        discard both X and Y tuples, as long as we can guarantee that no
   #        duplicates of the X tuple are delivered in the future. To do this, we
   #        record all the X key values we've ever seen in a range collection,
-  #        X_all_keys; new values are only derived into X if they don't already
-  #        appear in X_all_keys.
+  #        X_keys; new values are only derived into X if they don't already
+  #        appear in X_keys.
   #
   # RSE reclaimation is implemented by installing a set of rules (and associated
   # scratch collections) that identify and remove redundant tuples.
@@ -682,7 +682,7 @@ class BudMeta #:nodoc: all
     # First, check which of the negation clauses are eligible for RSE.
     simple_nots.each do |neg|
       # If the inner operand (X in X.notin(Y)) is unsafe, declare both X and Y
-      # unsafe. Otherwise, X might be safe but Y might not be.
+      # unsafe. Otherwise, X might be safe to reclaim from but Y might not be.
       if check_neg_inner(neg, seal_deps)
         rse_rules << neg.rule_id
         simple_work << neg
@@ -1095,7 +1095,7 @@ class BudMeta #:nodoc: all
   end
 
   def create_key_range_rel(src_rel, cm)
-    range_name = "#{src_rel.tabname}_all_keys".to_sym
+    range_name = "#{src_rel.tabname}_keys".to_sym
     unless cm.lookup_schema(range_name)
       cm.add_collection(range_name, :range, src_rel.key_cols, false)
       install_key_copy_rule(src_rel, range_name, cm)
@@ -1900,7 +1900,6 @@ class BudMeta #:nodoc: all
         # In every rule, we want to replace "rel" with the relation that appears
         # on the rhs of the (sole) rule that has "rel" on its lhs.
         to_expr, to_rels, to_nm_rels = find_defn_expr(from_rel)
-        puts "REPLACING: #{from_rel} => #{to_expr.inspect}"
         do_replace_rel(from_rel, to_expr, to_rels, to_nm_rels)
         delete_defn_rule(from_rel)
         @collections.delete(from_rel)
@@ -1920,7 +1919,6 @@ class BudMeta #:nodoc: all
         # rules), we want to replace "from_rel" with the RHS of the rule
         # that defines "from_rel".
         to_expr, to_rels, to_nm_rels = find_defn_expr(from_rel)
-        puts "REPLACING: #{from_rel} => #{to_expr.inspect}"
         do_replace_rel(from_rel, to_expr, to_rels, to_nm_rels)
         delete_defn_rule(from_rel)
         @collections.delete(from_rel)
