@@ -1230,7 +1230,7 @@ class BudMeta #:nodoc: all
     return join_quals, body_quals
   end
 
-  # Install a rule that contains populates a collection with an RSE
+  # Install a rule that populates a collection with tuples that satisfy an RSE
   # condition. We don't actually do the deletion here -- a subsequent rule does
   # a physical deletion when the conjunction of the RSE conditions for a given
   # tuple has been met.
