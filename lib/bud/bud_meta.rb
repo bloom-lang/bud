@@ -525,7 +525,7 @@ class BudMeta #:nodoc: all
                                      angle_op == :<
 
       rhs[1] = s(:call, rhs_body, :notin,
-                 s(:call, nil, rel_name.to_sym), quals)
+                 s(:call, nil, rel_name), quals)
     else
       c1, lhs, ast_op, rhs = ast
       unless c1 == :call and ast_op.to_s == op
@@ -536,7 +536,7 @@ class BudMeta #:nodoc: all
       raise Bud::CompileError unless c1 == :call and ast_op.to_s == op
 
       ast[3] = s(:call, rhs, :notin,
-                 s(:call, nil, rel_name.to_sym), quals)
+                 s(:call, nil, rel_name), quals)
     end
 
     return Ruby2Ruby.new.process(ast)
@@ -849,7 +849,7 @@ class BudMeta #:nodoc: all
   # Create a collection to hold all pairs of join inputs
   def create_join_input_buf(neg, cm)
     rel = neg.join_rels.first
-    rel_tbl = @bud_instance.tables[rel.to_sym]
+    rel_tbl = @bud_instance.tables[rel]
     buf_name = "r#{neg.rule_id}_#{rel}_#{rel}_in_buf".to_sym
     schema = []
     ["lhs", "rhs"].each do |str|
@@ -876,8 +876,8 @@ class BudMeta #:nodoc: all
   # Create a collection to hold all pairs of join inputs that have matches in
   # the negated collection (after applying the negation predicate).
   def create_join_match_buf(neg, input_buf, cm)
-    outer_rel = @bud_instance.tables[neg.outer.to_sym]
-    input_rel_schema = cm.lookup_schema(input_buf.to_sym)
+    outer_rel = @bud_instance.tables[neg.outer]
+    input_rel_schema = cm.lookup_schema(input_buf)
     reclaim_rel = neg.join_rels.first
     lhs = "r#{neg.rule_id}_#{reclaim_rel}_#{reclaim_rel}_match_buf".to_sym
     cm.add_collection(lhs, :scratch, input_rel_schema, false)
@@ -930,7 +930,7 @@ class BudMeta #:nodoc: all
 
   def get_missing_buf_quals(rel, prefix, use_offset=false)
     result = []
-    rel_tbl = @bud_instance.tables[rel.to_sym]
+    rel_tbl = @bud_instance.tables[rel]
     rel_tbl.cols.each_with_index do |c,i|
       if use_offset
         lhs_c = i
@@ -1322,7 +1322,7 @@ class BudMeta #:nodoc: all
     lhs_name = "r#{jneg.rule_id}_#{lhs}_#{rhs}_joinbuf".to_sym
     lhs_schema = []
     jneg.join_rels.each do |r|
-      r_coll = @bud_instance.tables[r.to_sym]
+      r_coll = @bud_instance.tables[r]
       r_coll.cols.each do |c|
         lhs_schema << "#{r}_#{c}".to_sym
       end
@@ -1337,7 +1337,7 @@ class BudMeta #:nodoc: all
     #
     # We want to match baz.k with the second element of the join tlist (bar.b).
     qual_list = join_quals_to_str_ary(jneg)
-    outer_rel = @bud_instance.tables[jneg.outer.to_sym]
+    outer_rel = @bud_instance.tables[jneg.outer]
 
     # If the join's targetlist contains a constant expression, we need to check
     # that values found in the negated collection match the constant (you might
@@ -1427,7 +1427,7 @@ class BudMeta #:nodoc: all
   def create_missing_buf(jneg, join_buf, cm)
     lhs, rhs = jneg.join_rels
     lhs_name = "r#{jneg.rule_id}_#{lhs}_#{rhs}_missing".to_sym
-    join_buf_schema = cm.lookup_schema(join_buf.to_sym)
+    join_buf_schema = cm.lookup_schema(join_buf)
     cm.add_collection(lhs_name, :scratch, join_buf_schema, false)
 
     qual_list = join_quals_to_str_ary(jneg)
@@ -1462,7 +1462,7 @@ class BudMeta #:nodoc: all
     end
 
     notin_quals = []
-    rel_tbl = @bud_instance.tables[rel.to_sym]
+    rel_tbl = @bud_instance.tables[rel]
     rel_tbl.cols.each do |c|
       notin_quals << ":#{c} => :#{rel}_#{c}"
     end
@@ -1495,7 +1495,7 @@ class BudMeta #:nodoc: all
       schema = [:ignored]
     else
       seal_name = "seal_#{rel}_#{seal_key}".to_sym
-      schema = [seal_key.to_sym]
+      schema = [seal_key]
     end
 
     unless @bud_instance.tables.has_key? seal_name
