@@ -1166,6 +1166,8 @@ class TestRse < MiniTest::Unit::TestCase
 
     assert_equal([[5, "foo"], [10, "bar"]].to_set, j.obj.to_set)
     assert_equal([[1, "x", 5], [2, "y", 5], [3, "z", 10]].to_set, j.ref.to_set)
+    assert_equal([[1, "x", 5, 5, "foo"], [2, "y", 5, 5, "foo"], [3, "z", 10, 10, "bar"]].to_set,
+                 j.view.to_set)
 
     j.seal_ref <+ [[true]]
     j.del_ref <+ [[100, 1], [101, 2]]
@@ -1173,6 +1175,7 @@ class TestRse < MiniTest::Unit::TestCase
 
     assert_equal([[10, "bar"]].to_set, j.obj.to_set)
     assert_equal([[3, "z", 10]].to_set, j.ref.to_set)
+    assert_equal([[3, "z", 10, 10, "bar"]].to_set, j.view.to_set)
   end
 
   def test_rse_join_tlist_const
