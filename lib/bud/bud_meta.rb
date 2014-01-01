@@ -863,7 +863,7 @@ class BudMeta #:nodoc: all
     if qual_list.empty?
       qual_text = ""
     else
-      qual_text = "(" + qual_list.join(",") + ")"
+      qual_text = "(" + qual_list.join(", ") + ")"
     end
 
     rhs_text = "(#{rel} * #{rel}).pairs#{qual_text} {|x,y| x + y}"
@@ -1454,6 +1454,11 @@ class BudMeta #:nodoc: all
   # involves "rel". We can make use of seals on each of the join qualifiers,
   # plus "whole-relation" seals (i.e., seals that guarantee that one of the join
   # input collections cannot grow in the future).
+  #
+  # We can also leverage the keys of the other join operand: if all the keys of
+  # the join operand are included in the join predicate, we know that once we
+  # have a match against the join operand, no other tuple in the join operand
+  # will ever match.
   def create_join_del_rules(jneg, rel, missing_buf, del_tbl_name, cm)
     if rel == jneg.join_rels.first
       other_rel = jneg.join_rels.last
@@ -1487,6 +1492,54 @@ class BudMeta #:nodoc: all
       rule_text = "#{del_tbl_name} <= #{rhs_text}"
       cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], false, rule_text)
     end
+
+    # Check for whether the join predicate references ALL the keys of the join
+    # operand ("other_rel"). If so, we know that once a rel tuple appears that
+    # matches a tuple in other_rel, we can discard the rel tuple: no additional
+    # tuple can appear in other_rel that would match the tuple we're about to
+    # discard.
+    orel_keys = @bud_instance.tables[other_rel].key_cols.to_set
+    orel_preds = jneg.join_quals.map do |q|
+      if other_rel == jneg.join_rels.first
+        q.first
+      else
+        q.last
+      end
+    end.to_set
+
+    if orel_preds.superset? orel_keys
+      # Build the tlist. We want to join the two relations by looking for rel
+      # tuples that match other_rel on other_rel's key columns. We can
+      # effectively ignore the other join predicates (that don't reference a key
+      # column of other_rel).
+      jqual_list = []
+      jneg.join_quals.each do |q|
+        if other_rel == jneg.join_rels.first
+          orel_qual, rel_qual = q
+        else
+          rel_qual, orel_qual = q
+        end
+
+        if orel_keys.include? orel_qual
+          jqual_list << ":#{rel_qual} => :#{orel_qual}"
+        end
+      end
+
+      jqual_str = jqual_list.join(", ")
+      rhs_text = "(#{rel} * #{other_rel}).lefts(#{jqual_str}).notin(#{missing_buf}, #{qual_str})"
+      rule_text = "#{del_tbl_name} <= #{rhs_text}"
+      cm.add_rule(del_tbl_name, "<=", [rel, other_rel], [], false, rule_text)
+    end
+  end
+
+  def find_lhs_rel_for_rule(rule_id)
+    @bud_instance.t_rules.each do |r|
+      if r.rule_id == rule_id
+        return r.lhs.to_sym
+      end
+    end
+
+    raise Bud::Error, "no such rule: #{rule_id}"
   end
 
   def create_seal_table(rel, seal_key=nil)

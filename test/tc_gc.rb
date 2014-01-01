@@ -2287,6 +2287,42 @@ class ImpliedSemiJoin
   end
 end
 
+class JoinOnKeys
+  include Bud
+
+  state do
+    table :t1, [:key1] => [:val1]
+    table :t2, [:key2] => [:val2]
+    table :t3
+    table :t3_prev
+  end
+
+  bloom do
+    # Once we have t1(X, _) and t2(X, _), we can discard t1(X, _) and t2(X, _)
+    # because we know that the join result has been persisted in t3; hence no
+    # future t1 or t2 tuples can depend on t2(X, _) or t1(X, _) respectively,
+    # due to the join's semantics and the keys of the two relations.
+    t3 <= (t1 * t2).lefts(:key1 => :key2).notin(t3_prev)
+    t3_prev <+ t3
+  end
+end
+
+class JoinOnKeysExtraPreds
+  include Bud
+
+  state do
+    table :t1, [:key1] => [:val1]
+    table :t2, [:key2] => [:val2]
+    table :t3
+    table :t3_prev
+  end
+
+  bloom do
+    t3 <= (t1 * t2).lefts(:key1 => :key2, :val1 => :val2).notin(t3_prev)
+    t3_prev <+ t3
+  end
+end
+
 class TestCausalGc < MiniTest::Unit::TestCase
   def test_simple_causal
     c = SimpleCausal.new
@@ -2391,5 +2427,27 @@ class TestCausalGc < MiniTest::Unit::TestCase
     assert_equal([[7]].to_set, i.s1.to_set)
     assert_equal([[11, 20, 10], [12, 7, 10]].to_set, i.t2.to_set)
     assert_equal([[7, 8, 10]].to_set, i.t1.to_set)
+  end
+
+  def test_join_on_keys
+    s = JoinOnKeys.new
+    s.t1 <+ [[5, 10], [6, 11]]
+    s.t2 <+ [[5, 20], [7, 21]]
+    3.times { s.tick }
+
+    assert_equal([[5, 10]].to_set, s.t3.to_set)
+    assert_equal([[6, 11]].to_set, s.t1.to_set)
+    assert_equal([[7, 21]].to_set, s.t2.to_set)
+  end
+
+  def test_join_on_keys_extra_preds
+    s = JoinOnKeysExtraPreds.new
+    s.t1 <+ [[5, 10], [6, 11]]
+    s.t2 <+ [[5, 20], [7, 21]]
+    3.times { s.tick }
+
+    assert_equal([].to_set, s.t3.to_set)
+    assert_equal([[6, 11]].to_set, s.t1.to_set)
+    assert_equal([[7, 21]].to_set, s.t2.to_set)
   end
 end
