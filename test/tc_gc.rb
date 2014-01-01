@@ -1907,7 +1907,7 @@ class JoinReclaimWithJoin
 
   state do
     table :t1
-    table :t2
+    table :t2, [:key, :val]     # Inhibit key-based reclamation (see below)
     table :t3
     table :t4
     table :t5
@@ -1917,6 +1917,44 @@ class JoinReclaimWithJoin
   bloom do
     t1 <= (t2 * t3).pairs(:key => :val) {|x,y| [x.val, y.key]}
     r1 <= (t3 * t4).pairs(:key => :key) {|x,y| [x.val, y.val]}.notin(t5)
+  end
+end
+
+class JoinReclaimOnKeys
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    table :t4
+    scratch :r1
+  end
+
+  bloom do
+    # t2's join predicate covers the keys of t3 (and t3 is inflationary); hence,
+    # once a matching t3 tuple has been observed, we don't need to wait for a
+    # seal before reclaiming the corresponding t2 tuple.
+    t1 <= (t2 * t3).pairs(:key => :key) {|x,y| [x.val, y.val]}
+    r1 <= t2.notin(t4)
+  end
+end
+
+class JoinReclaimOnMultipleKeys
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3, [:k1, :k2, :k3] => [:val]
+    table :t4
+    scratch :r1
+  end
+
+  bloom do
+    # Join predicate doesn't entirely cover t3's keys.
+    t1 <= (t3 * t2).pairs(:k1 => :key, :k2 => :key) {|x,y| [y.val, x.val]}
+    r1 <= t2.notin(t4)
   end
 end
 
@@ -2101,6 +2139,35 @@ class TestJoinReclaimSafety < MiniTest::Unit::TestCase
     2.times { j.tick }
 
     assert_equal([].to_set, j.t3.to_set)
+  end
+
+  def test_join_reclaim_on_keys
+    j = JoinReclaimOnKeys.new
+    j.t2 <+ [[5, 10], [6, 11]]
+    j.t3 <+ [[6, 20], [7, 21]]
+    j.t4 <+ [[6, 11]]
+    2.times { j.tick }
+
+    assert_equal([[11, 20]].to_set, j.t1.to_set)
+    assert_equal([[5, 10]].to_set, j.r1.to_set)
+    assert_equal([[5, 10]].to_set, j.t2.to_set)
+  end
+
+  def test_join_reclaim_on_multiple_keys
+    j = JoinReclaimOnMultipleKeys.new
+    j.t2 <+ [[5, 10], [6, 11]]
+    j.t3 <+ [[5, 6, 7, 8], [6, 6, 6, 20]]
+    j.t4 <+ [[6, 11]]
+    2.times { j.tick }
+
+    assert_equal([[11, 20]].to_set, j.t1.to_set)
+    assert_equal([[5, 10]].to_set, j.r1.to_set)
+    assert_equal([[5, 10], [6, 11]].to_set, j.t2.to_set)
+
+    # A seal on (any of) t3's key columns allows reclamation.
+    j.seal_t3_k2 <+ [[6]]
+    2.times { j.tick }
+    assert_equal([[5, 10]].to_set, j.t2.to_set)
   end
 end
 

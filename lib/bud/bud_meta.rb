@@ -793,8 +793,9 @@ class BudMeta #:nodoc: all
     # Fourth, if the tuple we want to reclaim appears in a join, we need to wait
     # for a compatible seal to ensure the tuple can safely be reclaimed. We can
     # either use a whole-relation seal or a seal that matches a join predicate;
-    # we can also exploit semijoins. Since this is the last condition we need to
-    # check, we can also actually do the deletion when this rule is satisfied.
+    # we can also exploit semijoins and joins whose predicates cover the keys of
+    # the joined relation. Since this is the last condition we need to check, we
+    # can also actually do the deletion when this rule is satisfied.
     rse_tables.each do |r|
       reclaim_rel, input_tbl = r
 
@@ -814,12 +815,14 @@ class BudMeta #:nodoc: all
                                               seal_dep.other_input, cm)
 
           # If this is a semijoin, we don't necessarily need to wait for a
-          # matching seal -- any matching tuple will do.
-          if join_is_semijoin(seal_dep)
+          # matching seal -- any matching tuple will do. Similarly, if the join
+          # predicate only references the keys of the non-RSE relation, we only
+          # need to wait for a matching tuple.
+          if join_is_semijoin(seal_dep) or join_covers_keys(seal_dep)
             install_semijoin_dependency(seal_dep, input_tbl, output_tbl, cm)
           end
 
-          # Can proceed given a seal, semijoin or no.
+          # Can also proceed given a seal, semijoin or no.
           install_join_dependency(seal_dep, input_tbl, output_tbl, cm)
 
           # Only need to check the next seal dependency once this seal
@@ -998,15 +1001,15 @@ class BudMeta #:nodoc: all
     end
   end
 
+  # Given (X*Y) where we want to reclaim from X, suppose the join's targetlist
+  # doesn't reference Y (i.e., the join is a semijoin). Hence, once there is a
+  # single matching Y tuple, the arrival of subsequent Y tuples will not produce
+  # new distinct results. Hence, in this situation we don't need to wait for a
+  # seal; rather, we can just wait for a single matching Y tuple, and then allow
+  # the corresponding X tuple to be reclaimed. (This is not symmetric, and hence
+  # the method name is a bit misleading: if the join's targetlist doesn't
+  # reference X, we can't reclaim X any differently.)
   def install_semijoin_dependency(dep, input_tbl, output_tbl, cm)
-    # Given (X*Y) where we want to reclaim from X, suppose the join's targetlist
-    # doesn't reference Y (i.e., the join is a semijoin). Hence, once there is a
-    # single matching Y tuple, the arrival of subsequent Y tuples will not
-    # produce new distinct results. Hence, in this situation we don't need to
-    # wait for a seal; rather, we can just wait for a single matching Y tuple,
-    # and then allow the corresponding X tuple to be reclaimed. (This is not
-    # symmetric, and hence the method name is a bit misleading: if the join's
-    # targetlist doesn't reference X, we can't reclaim X any differently.)
     if dep.rse_input == dep.left_rel
       join_text = "(#{input_tbl} * #{dep.right_rel}).lefts(#{dep.preds})"
     else
@@ -1016,6 +1019,40 @@ class BudMeta #:nodoc: all
     rule_text = "#{output_tbl} <= #{join_text}"
     cm.add_rule(output_tbl, "<=", [input_tbl, dep.other_input], [],
                 false, rule_text)
+  end
+
+  # If the join predicate only references the keys of the non-RSE relation, the
+  # key constraint on that relation basically acts like a seal: we know that
+  # once we've seen a tuple with a given key value, no other matching tuple will
+  # be seen. Hence, we just need to wait for a matching tuple, not a seal.
+  def join_covers_keys(dep)
+    other_tbl = @bud_instance.tables[dep.other_input]
+    other_preds = dep.preds.map do |pred|
+      if dep.other_input == dep.left_rel
+        pred.first
+      else
+        pred.last
+      end
+    end
+
+    other_preds.to_set.superset? other_tbl.key_cols.to_set
+  end
+
+  def install_key_join_dependency(dep, input_tbl, output_tbl, cm)
+    # Check whether all the keys of the non-RSE input are part of the join
+    # predicate.
+    other_tbl = @bud_instance.tables[dep.other_input]
+    other_preds = dep.preds.map do |pred|
+      if dep.other_input == dep.left_rel
+        pred.first
+      else
+        pred.last
+      end
+    end
+
+    if other_preds.to_set.superset? other_tbl.key_cols.to_set
+      install_semijoin_dependency(dep, input_tbl, output_tbl, cm)
+    end
   end
 
   def install_join_dependency(dep, input_tbl, output_tbl, cm)
