@@ -958,7 +958,7 @@ module Bud
         lsplit[1] = lsplit[1].to_i
         return lsplit
       rescue Exception => e
-        raise Bud::Error, "illegal location specifier in tuple #{t.inspect} for channel \"#{qualified_tabname}\": #{e.to_s}"
+        raise Bud::Error, "illegal location specifier '#{str}' for channel \"#{qualified_tabname}\": #{e.to_s}"
       end
     end
 
