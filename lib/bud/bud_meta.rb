@@ -1011,9 +1011,17 @@ class BudMeta #:nodoc: all
   # reference X, we can't reclaim X any differently.)
   def install_semijoin_dependency(dep, input_tbl, output_tbl, cm)
     if dep.rse_input == dep.left_rel
-      join_text = "(#{input_tbl} * #{dep.right_rel}).lefts(#{dep.preds})"
+      other = dep.right_rel
+      if join_covers_keys(dep) and cm.lookup_schema("#{dep.right_rel}_keys".to_sym)
+        other = "#{dep.right_rel}_keys"
+      end
+      join_text = "(#{input_tbl} * #{other}).lefts(#{dep.preds})"
     else
-      join_text = "(#{dep.left_rel} * #{input_tbl}).rights(#{dep.preds})"
+      other = dep.left_rel
+      if join_covers_keys(dep) and cm.lookup_schema("#{dep.left_rel}_keys".to_sym)
+        other = "#{dep.left_rel}_keys"
+      end
+      join_text = "(#{other} * #{input_tbl}).rights(#{dep.preds})"
     end
 
     rule_text = "#{output_tbl} <= #{join_text}"
