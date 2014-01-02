@@ -1038,23 +1038,6 @@ class BudMeta #:nodoc: all
     other_preds.to_set.superset? other_tbl.key_cols.to_set
   end
 
-  def install_key_join_dependency(dep, input_tbl, output_tbl, cm)
-    # Check whether all the keys of the non-RSE input are part of the join
-    # predicate.
-    other_tbl = @bud_instance.tables[dep.other_input]
-    other_preds = dep.preds.map do |pred|
-      if dep.other_input == dep.left_rel
-        pred.first
-      else
-        pred.last
-      end
-    end
-
-    if other_preds.to_set.superset? other_tbl.key_cols.to_set
-      install_semijoin_dependency(dep, input_tbl, output_tbl, cm)
-    end
-  end
-
   def install_join_dependency(dep, input_tbl, output_tbl, cm)
     # Check for whole-relation seal
     seal_tbl = create_seal_table(dep.other_input)
