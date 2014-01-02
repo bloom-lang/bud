@@ -1554,6 +1554,9 @@ class BudMeta #:nodoc: all
       end
 
       jqual_str = jqual_list.join(", ")
+      if cm.lookup_schema("#{other_rel}_keys".to_sym)
+        other_rel = "#{other_rel}_keys".to_sym
+      end
       rhs_text = "(#{rel} * #{other_rel}).lefts(#{jqual_str}).notin(#{missing_buf}, #{qual_str})"
       rule_text = "#{del_tbl_name} <= #{rhs_text}"
       cm.add_rule(del_tbl_name, "<=", [rel, other_rel], [], false, rule_text)
