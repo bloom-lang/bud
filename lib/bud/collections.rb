@@ -1536,9 +1536,13 @@ module Bud
     def each_from(bufs, &block)
       return super if @skip_compress
       bufs.each do |b|
-        b.each_pair do |k,range|
-          range.each do |v|
-            block.call(k + [v])
+        if b != @storage
+          super([b], &block)
+        else
+          b.each_pair do |k,range|
+            range.each do |v|
+              block.call(k + [v])
+            end
           end
         end
       end
