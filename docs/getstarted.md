@@ -158,7 +158,7 @@ Given this protocol (and the Ruby constant at the bottom), we're now ready to ex
 
     require 'rubygems'
     require 'bud'
-    require 'chat_protocol'
+    require_relative 'chat_protocol'
 
     class ChatServer
       include Bud
@@ -181,7 +181,7 @@ Given this protocol (and the Ruby constant at the bottom), we're now ready to ex
     ip, port = addr.split(":")
     puts "Server address: #{ip}:#{port}"
     program = ChatServer.new(:ip => ip, :port => port.to_i)
-    program.run
+    program.run_fg
 
     
 The first few lines get the appropriate Ruby classes and modules loaded via `require`.  We then define the ChatServer class which mixes in the `Bud` module and the ChatProtocol module we looked at above.  Then we have another `state` block that declares one additional collection, the `nodelist` table.  
@@ -220,7 +220,7 @@ And here's the code:
 
     require 'rubygems'
     require 'bud'
-    require 'chat_protocol'
+    require_relative 'chat_protocol'
 
     class ChatClient
       include Bud
@@ -259,7 +259,7 @@ And here's the code:
     end
 
     puts "Server address: #{server}"
-    program = ChatClient.new(ARGV[0], server, :read_stdin => true)
+    program = ChatClient.new(ARGV[0], server, :stdin => $stdin)
     program.run_fg
 
 The ChatClient class has a typical Ruby `initialize` method that sets up two local instance variables: one for this client's nickname, and another for the 'IP:port' address string for the server.  It then calls the initializer of the Bud superclass passing along a hash of options.
