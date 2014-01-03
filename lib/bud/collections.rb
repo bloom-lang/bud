@@ -1541,7 +1541,8 @@ module Bud
         else
           b.each_pair do |k,range|
             range.each do |v|
-              block.call(k + [v])
+              t = k.dup.insert(@range_idx, v)
+              block.call(t)
             end
           end
         end

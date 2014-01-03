@@ -1,6 +1,6 @@
 require './test_common'
 
-class RangeCollection
+class RangeBasic
   include Bud
 
   state do
@@ -40,9 +40,26 @@ class RangeNonKeyError
   end
 end
 
+class RangeWithTrailingColumns
+  include Bud
+
+  state do
+    range :foo, [:addr, :id, :other]
+    range :bar, [:id, :addr, :other]
+  end
+
+  bootstrap do
+    foo <= [["xyz", 1, "x"], ["xyz", 2, "x"], ["xyz", 3, "x"]]
+  end
+
+  bloom do
+    bar <= foo {|f| [f.id + 1, f.addr, f.other]}
+  end
+end
+
 class TestRangeCollection < MiniTest::Unit::TestCase
   def test_basic
-    r = RangeCollection.new
+    r = RangeBasic.new
     assert_equal(0, r.foo.length)
     assert_equal(0, r.foo.physical_size)
     assert(r.foo.empty?)
@@ -70,6 +87,24 @@ class TestRangeCollection < MiniTest::Unit::TestCase
 
   def test_range_non_key_error
     assert_raises(Bud::CompileError) { RangeNonKeyError.new }
+  end
+
+  def test_trailing_fields
+    r = RangeWithTrailingColumns.new
+    assert_equal(0, r.foo.length)
+    assert_equal(0, r.foo.physical_size)
+    assert(r.foo.empty?)
+
+    r.tick
+    assert(!r.foo.empty?)
+    assert_equal([["xyz", 1, "x"], ["xyz", 2, "x"], ["xyz", 3, "x"]].to_set,
+                 r.foo.to_set)
+    assert_equal([[2, "xyz", "x"], [3, "xyz", "x"], [4, "xyz", "x"]].to_set,
+                 r.bar.to_set)
+    assert_equal(3, r.foo.length)
+    assert_equal(3, r.bar.length)
+    assert_equal(1, r.foo.physical_size)
+    assert_equal(1, r.bar.physical_size)
   end
 end
 
