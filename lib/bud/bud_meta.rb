@@ -954,7 +954,7 @@ class BudMeta #:nodoc: all
 
     # Whole-relation seals
     rel = neg.join_rels.first
-    seal_name = create_seal_table(rel)
+    seal_name = create_seal_table(cm, rel)
     rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{lhs_quals}).notin(#{missing_buf}, #{rhs_quals})"
     rule_text = "#{del_tbl_name} <= #{rhs_text}"
     cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], false, rule_text)
@@ -965,8 +965,8 @@ class BudMeta #:nodoc: all
     # join predicate :foo => :foo, we need ...
     neg.join_quals.each do |q|
       lhs_qual, rhs_qual = q
-      lhs_seal = create_seal_table(rel, lhs_qual)
-      rhs_seal = create_seal_table(rel, rhs_qual)
+      lhs_seal = create_seal_table(cm, rel, lhs_qual)
+      rhs_seal = create_seal_table(cm, rel, rhs_qual)
 
       if lhs_seal == rhs_seal
         rhs_text = "(#{rel} * #{lhs_seal}).lefts(:#{lhs_qual} => :#{lhs_qual})"
@@ -1048,7 +1048,7 @@ class BudMeta #:nodoc: all
 
   def install_join_dependency(dep, input_tbl, output_tbl, cm)
     # Check for whole-relation seal
-    seal_tbl = create_seal_table(dep.other_input)
+    seal_tbl = create_seal_table(cm, dep.other_input)
     rule_text = "#{output_tbl} <= (#{input_tbl} * #{seal_tbl}).lefts"
     cm.add_rule(output_tbl, "<=", [input_tbl, seal_tbl], [], false, rule_text)
 
@@ -1059,7 +1059,7 @@ class BudMeta #:nodoc: all
       else
         seal_key = seal_pred.last
       end
-      seal_tbl = create_seal_table(dep.other_input, seal_key)
+      seal_tbl = create_seal_table(cm, dep.other_input, seal_key)
       if dep.other_input == dep.left_rel
         join_text = "(#{seal_tbl} * #{input_tbl}).rights"
       else
@@ -1503,7 +1503,7 @@ class BudMeta #:nodoc: all
 
     # Whole-relation seals; the column in the seal relation is ignored, but we
     # add a dummy column to avoid creating a collection with zero columns.
-    seal_name = create_seal_table(other_rel)
+    seal_name = create_seal_table(cm, other_rel)
     rhs_text = "(#{rel} * #{seal_name}).lefts.notin(#{missing_buf}, #{qual_str})"
     rule_text = "#{del_tbl_name} <= #{rhs_text}"
     cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], false, rule_text)
@@ -1515,7 +1515,7 @@ class BudMeta #:nodoc: all
       else
         rel_qual, orel_qual = q
       end
-      seal_name = create_seal_table(other_rel, orel_qual)
+      seal_name = create_seal_table(cm, other_rel, orel_qual)
       rhs_text = "(#{rel} * #{seal_name}).lefts(:#{rel_qual} => :#{orel_qual}).notin(#{missing_buf}, #{qual_str})"
       rule_text = "#{del_tbl_name} <= #{rhs_text}"
       cm.add_rule(del_tbl_name, "<=", [rel, seal_name], [missing_buf], false, rule_text)
@@ -1573,7 +1573,7 @@ class BudMeta #:nodoc: all
     raise Bud::Error, "no such rule: #{rule_id}"
   end
 
-  def create_seal_table(rel, seal_key=nil)
+  def create_seal_table(cm, rel, seal_key=nil)
     if seal_key.nil?         # Whole-relation seal
       seal_name = "seal_#{rel}".to_sym
       schema = [:ignored]
@@ -1582,10 +1582,7 @@ class BudMeta #:nodoc: all
       schema = [seal_key]
     end
 
-    unless @bud_instance.tables.has_key? seal_name
-      @bud_instance.table(seal_name, schema)
-    end
-
+    cm.add_collection(seal_name, :table, schema, true)
     seal_name
   end
 
