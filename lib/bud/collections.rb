@@ -1001,7 +1001,13 @@ module Bud
       end
 
       addr_groups.each do |addr, tups|
-        send_to_addr(addr, tups)
+        # XXX: Send at most 20 tuples per group, to (hopefully) avoid exceeding
+        # the MTU. This is a hack.
+        i = 0
+        while i < tups.size
+          send_to_addr(addr, tups.slice(i, 20))
+          i += 20
+        end
       end
     end
 
