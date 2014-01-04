@@ -2011,8 +2011,8 @@ class BudMeta #:nodoc: all
     def find_defn_expr(lhs_rel)
       @rules.each do |r|
         if r.lhs == lhs_rel
-          rhs_ast = @parser.parse(r.rule_src)
-          tag, lhs, op, rhs = rhs_ast
+          ast = @parser.parse(r.rule_src)
+          tag, lhs, op, rhs = ast
           raise Bud::Error unless tag == :call
           raise Bud::Error unless op == :<=
           return rhs, r.rels, r.nm_rels
