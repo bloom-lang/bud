@@ -1582,7 +1582,7 @@ class BudMeta #:nodoc: all
       schema = [seal_key]
     end
 
-    cm.add_collection(seal_name, :table, schema, true)
+    cm.add_collection(seal_name, :range, schema, true)
     seal_name
   end
 
