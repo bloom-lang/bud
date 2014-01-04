@@ -2390,6 +2390,44 @@ class JoinOnKeysExtraPreds
   end
 end
 
+class FlatMapImpliedSeal
+  include Bud
+
+  state do
+    table :t1, [:key] => [:vals]
+    table :t2, [:v, :key]
+    table :t3
+    table :t4, [:x, :y]
+    table :t5
+    scratch :r1
+  end
+
+  bloom do
+    t2 <= t1.flat_map {|t| t.vals.map {|v| [v, t.key]}}
+    t4 <= (t2 * t3).pairs(:key => :key) {|x,y| [y.val, x.v]}
+    r1 <= t3.notin(t5)
+  end
+end
+
+class FlatMapImpliedSealNonKeys
+  include Bud
+
+  state do
+    table :t1, [:key] => [:other_val, :vals]
+    table :t2, [:key, :v]
+    table :t3
+    table :t4, [:x, :y]
+    table :t5
+    scratch :r1
+  end
+
+  bloom do
+    t2 <= t1.flat_map {|t| t.vals.map {|v| [t.other_val, v]}}
+    t4 <= (t2 * t3).pairs(:key => :key) {|x,y| [y.val, x.v]}
+    r1 <= t3.notin(t5)
+  end
+end
+
 class TestCausalGc < MiniTest::Unit::TestCase
   def test_simple_causal
     c = SimpleCausal.new
@@ -2516,5 +2554,35 @@ class TestCausalGc < MiniTest::Unit::TestCase
     assert_equal([].to_set, s.t3.to_set)
     assert_equal([[6, 11]].to_set, s.t1.to_set)
     assert_equal([[7, 21]].to_set, s.t2.to_set)
+  end
+
+  def test_flat_map_implied_seal
+    f = FlatMapImpliedSeal.new
+    f.t1 <+ [[5, [1, 2, 3]], [6, [4, 5, 6]]]
+    f.t3 <+ [[6, 10]]
+    2.times { f.tick }
+
+    assert_equal([[10, 4], [10, 5], [10, 6]].to_set, f.t4.to_set)
+    assert_equal([[6, 10]].to_set, f.t3.to_set)
+
+    f.t5 <+ [[6, 10]]
+    2.times { f.tick }
+
+    assert_equal([].to_set, f.t3.to_set)
+  end
+
+  def test_flat_map_implied_seal_non_keys
+    f = FlatMapImpliedSealNonKeys.new
+    f.t1 <+ [[5, 5, [1, 2, 3]], [6, 6, [4, 5, 6]]]
+    f.t3 <+ [[6, 10]]
+    2.times { f.tick }
+
+    assert_equal([[10, 4], [10, 5], [10, 6]].to_set, f.t4.to_set)
+    assert_equal([[6, 10]].to_set, f.t3.to_set)
+
+    f.t5 <+ [[6, 10]]
+    2.times { f.tick }
+
+    assert_equal([[6, 10]].to_set, f.t3.to_set)
   end
 end

@@ -836,6 +836,8 @@ class BudMeta #:nodoc: all
       cm.add_rule(reclaim_rel, "<-", [], [input_tbl], true, rule_text)
     end
 
+    infer_flat_map_seals(cm)
+
     # Finally, we actually install the changes (new state and rules). Note that
     # we rewrite some existing rules as we go; here we're just installing
     # entirely new rules and collections.
@@ -1763,6 +1765,122 @@ class BudMeta #:nodoc: all
     end
 
     return rhs
+  end
+
+  # Seal inference for flat_map: as something of a special-case, we look for
+  # rules that (a) call flat_map at the top-level (b) the flat_map body
+  # references all the key fields of the collection we're flat_map'ing over. In
+  # this situation, we can infer seal tuples that match the collection's key,
+  # whenever we see a tuple in the collection. Typical example:
+  #
+  #     xyz <= t1.flat_map {|t| t.vals.map {|x| [t.key, x]}}
+  #
+  # Assume the first column of xyz is 'foo'; we can infer seal_xyz_foo(X)
+  # whenever we see t1(X, _).
+  #
+  # XXX: We only bother generating seals that are likely to be useful, so we
+  # skip (lhs) collections for which no seal tables have been defined and (rhs)
+  # collections that have multiple keys. We also only support very limited
+  # flat_map bodies.
+  def infer_flat_map_seals(cm)
+    parser = RubyParser.for_current_ruby rescue RubyParser.new
+
+    @bud_instance.t_rules.each do |r|
+      ast = parser.parse(r.orig_src)
+
+      # Expect <=/etc. :call at the top-level
+      next unless ast.sexp_type == :call
+      _, lhs, op, rhs = ast
+      next unless op == :<=
+      next unless lhs.sexp_type == :call
+      next unless rhs.sexp_type == :iter
+
+      _, i_recv, i_args, i_body = rhs
+      lhs_rel = parse_rel_ref(lhs)
+      rhs_rel = parse_flat_map(i_recv)
+      next if lhs_rel.nil? or rhs_rel.nil?
+      next unless i_args.sexp_type == :args and i_args.length == 2
+      block_var = i_args[1]
+
+      # If the rhs_rel has multiple keys, skip it
+      rhs_tbl = @bud_instance.tables[rhs_rel]
+      next unless rhs_tbl.key_cols.size == 1
+      rhs_key_col = rhs_tbl.key_cols.first
+
+      lhs_idx = parse_flat_map_body(i_body, block_var, rhs_key_col)
+      next if lhs_idx.nil?
+
+      # Okay, whenever we see a tuple in rhs_rel, we can emit a seal for the
+      # lhs_idx'th column of the lhs_rel. Only bother doing that if such a seal
+      # table already exists.
+      lhs_tbl = @bud_instance.tables[lhs_rel]
+      lhs_col = lhs_tbl.cols[lhs_idx]
+
+      seal_tbl = "seal_#{lhs_rel}_#{lhs_col}".to_sym
+      if cm.lookup_schema(seal_tbl)
+        rule_text = "#{seal_tbl} <= #{rhs_rel} {|x| [x.#{rhs_key_col}]}"
+        cm.add_rule(seal_tbl, "<=", [rhs_rel], [], false, rule_text)
+      end
+    end
+  end
+
+  # Parse the body of the flat_map block. At the moment, we only support a
+  # very limited class of expressions: projection (map) over a nested
+  # collection in one of the fields of the rhs_rel.
+  def parse_flat_map_body(ast, fm_block_var, rhs_key_col)
+    return unless ast.sexp_type == :iter
+    _, i_recv, i_args, i_body = ast
+
+    return unless i_args.sexp_type == :args and i_args.length == 2
+    map_block_var = i_args[1]
+
+    # Check that the flat_map body invokes pro on a field derived from the
+    # collection we're applying flat_map to.
+    return unless i_recv.sexp_type == :call
+    _, r_recv, r_meth, *r_args = i_recv
+    return unless r_args.empty? and [:pro, :map].include? r_meth
+    return unless r_recv.sexp_type == :call
+    _, r_r_recv, r_r_meth, *r_r_args = r_recv
+    return unless r_r_recv == s(:lvar, fm_block_var) and r_r_args.empty?
+
+    # Examine the body of the pro iterator. We expect to see a single array
+    # literal that contains references to either the inner (map) or outer
+    # (flat_map) block variables.
+    return unless i_body.sexp_type == :array
+    _, *body_elems = i_body
+
+    body_elems.each_with_index do |e,i|
+      next if e == s(:lvar, map_block_var)
+      return unless e.sexp_type == :call
+      _, e_recv, e_meth, *e_args = e
+      return unless e_args.empty? and e_recv == s(:lvar, fm_block_var)
+
+      if e_meth == rhs_key_col
+        return i        # XXX: Stop at the first match
+      end
+    end
+
+    nil
+  end
+
+  def parse_rel_ref(ast)
+    if ast.sexp_type == :call
+      _, recv, meth, *args = ast
+
+      if args.empty? and recv.nil?
+        return meth
+      end
+    end
+  end
+
+  def parse_flat_map(ast)
+    if ast.sexp_type == :call
+      _, recv, meth, *args = ast
+
+      if args.empty? and meth == :flat_map
+        return parse_rel_ref(recv)
+      end
+    end
   end
 
   # We support two syntax variants for the join quals: ":foo => :bar" or "x.foo
