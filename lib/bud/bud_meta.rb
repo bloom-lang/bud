@@ -668,7 +668,7 @@ class BudMeta #:nodoc: all
     rse_rules = Set.new
 
     # The new rules and state we're planning to install due to RSE
-    cm = RseChangeManager.new(@bud_instance, self)
+    cm = RseChangeManager.new(bud, self)
 
     # XXX: we reparse all the rules here, which is unfortunate
     bud.t_rules.each do |r|
@@ -774,7 +774,7 @@ class BudMeta #:nodoc: all
 
       rse_table = create_rse_cond_table(lhs, cm)
       rse_tables << [lhs, rse_table]
-      puts "RSE: #{lhs}" unless @bud_instance.options[:quiet]
+      puts "RSE: #{lhs}" unless bud.options[:quiet]
       rule_text = "#{rse_table} <= "
       if v.length == 1
         rule_text << "#{v.first}"
