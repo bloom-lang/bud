@@ -16,8 +16,14 @@ class BudMeta #:nodoc: all
 
     stratified_rules = []
     if @bud_instance.toplevel == @bud_instance
+      if @bud_instance.options[:print_num_rules]
+        puts "# of rules (input): #{@bud_instance.t_rules.to_a.size}"
+      end
       rce_rewrite
       rse_rewrite
+      if @bud_instance.options[:print_num_rules]
+        puts "# of rules (post rewrite): #{@bud_instance.t_rules.to_a.size}"
+      end
 
       nodes, stratum_map, top_stratum = stratify_preds
 
