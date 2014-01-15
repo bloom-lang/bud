@@ -16,7 +16,9 @@ class BudMeta #:nodoc: all
 
     stratified_rules = []
     if @bud_instance.toplevel == @bud_instance
-      nodes, stratum_map, top_stratum = stratify_preds
+      nodes, stratum_map = stratify_preds
+      top_stratum = stratum_map.values.max
+      top_stratum ||= -1
 
       # stratum_map = {fully qualified pred => stratum}. Copy stratum_map data
       # into t_stratum format.
@@ -39,10 +41,11 @@ class BudMeta #:nodoc: all
           stratified_rules[top_stratum + 1] << rule
         end
       end
-      # stratified_rules[0] may be empty if none of the nodes at stratum 0 are on the lhs
-      # stratified_rules[top_stratum+1] will be empty if there are no temporal rules.
-      # Cleanup
-      stratified_rules = stratified_rules.reject{|r| r.empty?}
+
+      # stratified_rules[0] may be empty if none of the nodes at stratum 0 are
+      # on the lhs stratified_rules[top_stratum+1] will be empty if there are no
+      # temporal rules.
+      stratified_rules.reject! {|r| r.empty?}
       dump_rewrite(stratified_rules) if @bud_instance.options[:dump_rewrite]
     end
     return stratified_rules
@@ -202,17 +205,13 @@ class BudMeta #:nodoc: all
       remap[num] = i
     end
     stratum_map = {}
-    top_stratum = -1
     nodes.each_pair do |name, n|
       n.stratum = remap[n.stratum]
       stratum_map[n.name] = n.stratum
-      top_stratum = max(top_stratum, n.stratum)
     end
     analyze_dependencies(nodes)
-    return nodes, stratum_map, top_stratum
+    return nodes, stratum_map
   end
-
-  def max(a, b) ; a > b ? a : b ; end
 
   def calc_stratum(node, neg, temporal, path)
     if node.status == :in_process
@@ -225,13 +224,12 @@ class BudMeta #:nodoc: all
         next unless edge.op == "<="
         node.already_neg = neg
         body_stratum = calc_stratum(edge.to, (neg or edge.neg), (edge.temporal or temporal), path + [edge.to.name])
-        node.stratum = max(node.stratum, body_stratum + (edge.neg ? 1 : 0))
+        node.stratum = [node.stratum, body_stratum + (edge.neg ? 1 : 0)].max
       end
       node.status = :done
     end
     node.stratum
   end
-
 
   def analyze_dependencies(nodes)  # nodes = {node name => node}
     preds_in_lhs = nodes.select {|_, node| node.in_lhs}.map {|name, _| name}.to_set
