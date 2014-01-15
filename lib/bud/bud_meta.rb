@@ -16,6 +16,11 @@ class BudMeta #:nodoc: all
 
     stratified_rules = []
     if @bud_instance.toplevel == @bud_instance
+      if @bud_instance.options[:stratum_map]
+        smap = @bud_instance.options[:stratum_map]
+        puts "MANUAL STRATUM MAP: #{smap.inspect}"
+      end
+
       nodes, stratum_map, top_stratum = stratify_preds
 
       # stratum_map = {fully qualified pred => stratum}. Copy stratum_map data
