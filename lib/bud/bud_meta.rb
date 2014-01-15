@@ -21,7 +21,7 @@ class BudMeta #:nodoc: all
         puts "MANUAL STRATUM MAP: #{smap.inspect}"
       end
 
-      nodes, stratum_map = stratify_preds
+      stratum_map = stratify_preds
       top_stratum = stratum_map.values.max
       top_stratum ||= -1
 
@@ -215,7 +215,7 @@ class BudMeta #:nodoc: all
       stratum_map[n.name] = n.stratum
     end
     analyze_dependencies(nodes)
-    return nodes, stratum_map
+    return stratum_map
   end
 
   def calc_stratum(node, neg, temporal, path)
