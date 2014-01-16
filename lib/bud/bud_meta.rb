@@ -16,9 +16,11 @@ class BudMeta #:nodoc: all
 
     stratified_rules = []
     if @bud_instance.toplevel == @bud_instance
-      stratum_map = stratify_preds
+      stratum_map, nodes = stratify_preds
       top_stratum = stratum_map.values.max
       top_stratum ||= -1
+
+      analyze_dependencies(nodes)
 
       # stratum_map = {fully qualified pred => stratum}. Copy stratum_map data
       # into t_stratum format.
@@ -227,8 +229,7 @@ class BudMeta #:nodoc: all
       n.stratum = remap[n.stratum]
       stratum_map[n.name] = n.stratum
     end
-    analyze_dependencies(nodes)
-    return stratum_map
+    return stratum_map, nodes
   end
 
   def calc_stratum(node, neg, temporal, path)
