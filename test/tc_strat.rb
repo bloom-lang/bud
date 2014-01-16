@@ -29,4 +29,7 @@ class TestStrat < MiniTest::Unit::TestCase
   def test_simple_strat
     s = SimpleStrat.new
   end
+
+  def test_part_hierarchy_manual_strat
+  end
 end
