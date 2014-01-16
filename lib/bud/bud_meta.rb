@@ -16,11 +16,11 @@ class BudMeta #:nodoc: all
 
     stratified_rules = []
     if @bud_instance.toplevel == @bud_instance
-      stratum_map, nodes = stratify_preds
+      nodes = compute_node_graph
+      stratum_map = stratify_preds(nodes)
+      analyze_dependencies(nodes)
       top_stratum = stratum_map.values.max
       top_stratum ||= -1
-
-      analyze_dependencies(nodes)
 
       # stratum_map = {fully qualified pred => stratum}. Copy stratum_map data
       # into t_stratum format.
@@ -204,11 +204,10 @@ class BudMeta #:nodoc: all
   Node = Struct.new :name, :status, :stratum, :edges, :in_lhs, :in_body, :already_neg
   Edge = Struct.new :to, :op, :neg, :temporal
 
-  def stratify_preds
-    bud = @bud_instance.toplevel
+  def compute_node_graph
     nodes = {}
-    bud.t_depends.each do |d|
-      #t_depends [:bud_instance, :rule_id, :lhs, :op, :body] => [:nm, :in_body]
+    @bud_instance.toplevel.t_depends.each do |d|
+      # t_depends [:bud_instance, :rule_id, :lhs, :op, :body] => [:nm, :in_body]
       lhs = (nodes[d.lhs] ||= Node.new(d.lhs, :init, 0, [], true, false))
       lhs.in_lhs = true
       body = (nodes[d.body] ||= Node.new(d.body, :init, 0, [], false, true))
@@ -217,19 +216,25 @@ class BudMeta #:nodoc: all
       lhs.edges << Edge.new(body, d.op, d.nm, temporal)
     end
 
+    return nodes
+  end
+
+  def stratify_preds(nodes)
     nodes.each_value {|n| calc_stratum(n, false, false, [n.name])}
+
     # Normalize stratum numbers because they may not be 0-based or consecutive
     remap = {}
     # if the nodes stratum numbers are [2, 3, 2, 4], remap = {2 => 0, 3 => 1, 4 => 2}
     nodes.values.map {|n| n.stratum}.uniq.sort.each_with_index do |num, i|
       remap[num] = i
     end
+
     stratum_map = {}
     nodes.each_pair do |name, n|
       n.stratum = remap[n.stratum]
       stratum_map[n.name] = n.stratum
     end
-    return stratum_map, nodes
+    return stratum_map
   end
 
   def calc_stratum(node, neg, temporal, path)
