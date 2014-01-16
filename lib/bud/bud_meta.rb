@@ -17,7 +17,11 @@ class BudMeta #:nodoc: all
     stratified_rules = []
     if @bud_instance.toplevel == @bud_instance
       nodes = compute_node_graph
-      stratum_map = stratify_preds(nodes)
+
+      # Use the user-supplied stratum_map, if any
+      stratum_map = @bud_instance.options[:stratum_map]
+      stratum_map ||= stratify_preds(nodes)
+
       analyze_dependencies(nodes)
       top_stratum = stratum_map.values.max
       top_stratum ||= -1
