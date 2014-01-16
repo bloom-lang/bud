@@ -10,6 +10,9 @@
   objects (TupleStruct)
 * Fix intermittent EM::ConnectionNotBound exceptions during the Bud shutdown
   sequence
+* Improve stratification algorithm to be slightly more aggressive; that is, we
+  can place certain rules in an earlier strata than we were previously
+  (partially fixes #277)
 
 == 0.9.7 / 2013-04-22
 

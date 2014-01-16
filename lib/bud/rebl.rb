@@ -207,8 +207,8 @@ class LibRebl
   attr_accessor :rules, :state
   attr_reader :ip, :port, :rebl_class_inst
   @@builtin_tables = [:stdio, :periodics_tbl, :halt, :localtick,
-                      :t_depends, :t_cycle, :t_provides, :t_rules,
-                      :t_stratum, :t_underspecified,
+                      :t_depends, :t_cycle, :t_provides, :t_rule_stratum,
+                      :t_rules, :t_stratum, :t_underspecified,
                       :t_table_info, :t_table_schema, :rebl_breakpoint]
   @@classid = 0
 

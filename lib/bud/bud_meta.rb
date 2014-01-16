@@ -25,13 +25,18 @@ class BudMeta #:nodoc: all
       raise unless @bud_instance.t_stratum.to_a.empty?
       @bud_instance.t_stratum.merge(stratum_map.to_a)
 
-      # slot each rule into the stratum corresponding to its lhs pred (from stratum_map)
       stratified_rules = Array.new(top_stratum + 2) { [] }  # stratum -> [ rules ]
       @bud_instance.t_rules.each do |rule|
         if rule.op == '<='
           # Deductive rules are assigned to strata based on the basic Datalog
-          # stratification algorithm
-          belongs_in = stratum_map[rule.lhs]
+          # stratification algorithm. Note that we don't place all the rules
+          # with a given lhs relation in the same strata; rather, we place a
+          # rule in the lowest strata we can, as determined by the rule's rhs
+          # relations (and whether the rel is used in a non-monotonic context).
+          body_rels = find_body_rels(rule)
+          body_strata = body_rels.map {|r,is_nm| stratum_map[r] + (is_nm ? 1 : 0) || 0}
+          belongs_in = body_strata.max
+
           # If the rule body doesn't reference any collections, it won't be
           # assigned a stratum, so just place it in stratum zero
           belongs_in ||= 0
@@ -46,9 +51,22 @@ class BudMeta #:nodoc: all
       # on the lhs stratified_rules[top_stratum+1] will be empty if there are no
       # temporal rules.
       stratified_rules.reject! {|r| r.empty?}
+
+      stratified_rules.each_with_index do |strat,strat_num|
+        strat.each do |rule|
+          @bud_instance.t_rule_stratum << [rule.bud_obj, rule.rule_id, strat_num]
+        end
+      end
+
       dump_rewrite(stratified_rules) if @bud_instance.options[:dump_rewrite]
     end
     return stratified_rules
+  end
+
+  def find_body_rels(rule)
+    @bud_instance.t_depends.map do |d|
+      [d.body, d.nm] if d.rule_id == rule.rule_id and d.bud_obj == rule.bud_obj
+    end.compact
   end
 
   def shred_rules
