@@ -16,11 +16,6 @@ class BudMeta #:nodoc: all
 
     stratified_rules = []
     if @bud_instance.toplevel == @bud_instance
-      if @bud_instance.options[:stratum_map]
-        smap = @bud_instance.options[:stratum_map]
-        puts "MANUAL STRATUM MAP: #{smap.inspect}"
-      end
-
       stratum_map = stratify_preds
       top_stratum = stratum_map.values.max
       top_stratum ||= -1
