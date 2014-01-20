@@ -1567,7 +1567,7 @@ class BudMeta #:nodoc: all
       end
       rhs_text = "(#{rel} * #{other_rel}).lefts(#{jqual_str}).notin(#{missing_buf}, #{qual_str})"
       rule_text = "#{del_tbl_name} <= #{rhs_text}"
-      cm.add_rule(del_tbl_name, "<=", [rel, other_rel], [], false, rule_text)
+      cm.add_rule(del_tbl_name, "<=", [rel, other_rel], [missing_buf], false, rule_text)
     end
   end
 
