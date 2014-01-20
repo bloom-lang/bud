@@ -1218,6 +1218,28 @@ module Bud
     end
   end
 
+  Vertex = Struct.new(:id, :parents)
+
+  class BudPartialOrder < BudPersistentCollection
+    def initialize(name, bud_instance, given_schema)
+      if given_schema.kind_of? Array
+        keys = given_schema
+      else
+        keys = given_schema.keys.first
+        vals = given_schema.values.first
+        raise Bud::Error, "poset #{name} cannot have non-key columns"
+      end
+
+      unless keys.length == 2
+        raise Bud::Error, "poset #{name} must have two columns"
+      end
+      super(name, bud_instance, given_schema)
+    end
+
+    def do_insert(t, store)
+    end
+  end
+
   class BudTable < BudPersistentCollection # :nodoc: all
     def initialize(name, bud_instance, given_schema) # :nodoc: all
       super(name, bud_instance, given_schema)

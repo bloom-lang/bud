@@ -19,7 +19,7 @@ class PartHierarchy
   include Bud
 
   state do
-    table :part, [:id, :child]
+    poset :part, [:id, :child]
     table :tested, [:id]
     scratch :working, [:id]
     scratch :has_suspect_part, [:id]

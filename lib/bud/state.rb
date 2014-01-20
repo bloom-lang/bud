@@ -142,6 +142,15 @@ module Bud
     @tables[name] = Bud::BudPeriodic.new(name, self)
   end
 
+  # declare a collection that stores a partial order. Specifically, each tuple
+  # (a,b) in the collection indicates that a < b; the transitive closure of the
+  # partial order must be acyclic.
+  def poset(name, schema=nil)
+    schema ||= {[:x, :y]}
+    define_collection(name)
+    @tables[name] = Bud::BudPartialOrder.new(name, self, schema)
+  end
+
   def terminal(name) # :nodoc: all
     if defined?(@terminal) && @terminal != name
       raise Bud::Error, "can't register IO collection #{name} in addition to #{@terminal}"
