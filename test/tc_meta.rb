@@ -376,3 +376,28 @@ class TestThetaMeta < MiniTest::Unit::TestCase
     end
   end
 end
+
+class StratBody
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    table :t4
+  end
+
+  bloom do
+    t1 <= t2 {|t| [t.key + 1, t.val + 1]}
+    t1 <= t3.group([:key], max(:val))
+    t2 <= t4 {|t| [t.key + 2, t.val + 2]}
+  end
+end
+
+class TestStratProperties < MiniTest::Unit::TestCase
+  def test_strat_body
+    s = StratBody.new
+    rule_strata = s.t_rule_stratum.map {|rs| [rs.rule_id, rs.stratum]}
+    assert_equal([[0, 0], [1, 1], [2, 0]].to_set, rule_strata.to_set)
+  end
+end

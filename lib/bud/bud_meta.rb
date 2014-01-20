@@ -25,20 +25,29 @@ class BudMeta #:nodoc: all
         puts "# of rules (post rewrite): #{@bud_instance.t_rules.to_a.size}"
       end
 
-      nodes, stratum_map, top_stratum = stratify_preds
+      nodes = compute_node_graph
+      stratum_map = stratify_preds(nodes)
+      analyze_dependencies(nodes)
+      top_stratum = stratum_map.values.max
+      top_stratum ||= -1
 
       # stratum_map = {fully qualified pred => stratum}. Copy stratum_map data
       # into t_stratum format.
       raise unless @bud_instance.t_stratum.to_a.empty?
       @bud_instance.t_stratum.merge(stratum_map.to_a)
 
-      # slot each rule into the stratum corresponding to its lhs pred (from stratum_map)
       stratified_rules = Array.new(top_stratum + 2) { [] }  # stratum -> [ rules ]
       @bud_instance.t_rules.each do |rule|
         if rule.op == '<='
           # Deductive rules are assigned to strata based on the basic Datalog
-          # stratification algorithm
-          belongs_in = stratum_map[rule.lhs]
+          # stratification algorithm. Note that we don't place all the rules
+          # with a given lhs relation in the same strata; rather, we place a
+          # rule in the lowest strata we can, as determined by the rule's rhs
+          # relations (and whether the rel is used in a non-monotonic context).
+          body_rels = find_body_rels(rule)
+          body_strata = body_rels.map {|r,is_nm| stratum_map[r] + (is_nm ? 1 : 0) || 0}
+          belongs_in = body_strata.max
+
           # If the rule body doesn't reference any collections, it won't be
           # assigned a stratum, so just place it in stratum zero
           belongs_in ||= 0
@@ -48,10 +57,18 @@ class BudMeta #:nodoc: all
           stratified_rules[top_stratum + 1] << rule
         end
       end
-      # stratified_rules[0] may be empty if none of the nodes at stratum 0 are on the lhs
-      # stratified_rules[top_stratum+1] will be empty if there are no temporal rules.
-      # Cleanup
-      stratified_rules = stratified_rules.reject{|r| r.empty?}
+
+      # stratified_rules[0] may be empty if none of the nodes at stratum 0 are
+      # on the lhs stratified_rules[top_stratum+1] will be empty if there are no
+      # temporal rules.
+      stratified_rules.reject! {|r| r.empty?}
+
+      stratified_rules.each_with_index do |strat,strat_num|
+        strat.each do |rule|
+          @bud_instance.t_rule_stratum << [rule.bud_obj, rule.rule_id, strat_num]
+        end
+      end
+
       dump_rewrite(stratified_rules) if @bud_instance.options[:dump_rewrite]
       dump_program if @bud_instance.options[:dump_program]
 
@@ -88,6 +105,12 @@ class BudMeta #:nodoc: all
     else
       raise Bud::Error, "unrecognized collection object: #{t}"
     end
+  end
+
+  def find_body_rels(rule)
+    @bud_instance.t_depends.map do |d|
+      [d.body, d.nm] if d.rule_id == rule.rule_id and d.bud_obj == rule.bud_obj
+    end.compact
   end
 
   def shred_rules
@@ -223,11 +246,10 @@ class BudMeta #:nodoc: all
   Node = Struct.new :name, :status, :stratum, :edges, :in_lhs, :in_body, :already_neg
   Edge = Struct.new :to, :op, :neg, :temporal
 
-  def stratify_preds
-    bud = @bud_instance.toplevel
+  def compute_node_graph
     nodes = {}
-    bud.t_depends.each do |d|
-      #t_depends [:bud, :rule_id, :lhs, :op, :body] => [:nm, :in_body, :notin_pos_ref, :notin_neg_ref]
+    @bud_instance.toplevel.t_depends.each do |d|
+      # t_depends [:bud, :rule_id, :lhs, :op, :body] => [:nm, :in_body, :notin_pos_ref, :notin_neg_ref]
       lhs = (nodes[d.lhs] ||= Node.new(d.lhs, :init, 0, [], true, false))
       lhs.in_lhs = true
       body = (nodes[d.body] ||= Node.new(d.body, :init, 0, [], false, true))
@@ -236,25 +258,26 @@ class BudMeta #:nodoc: all
       lhs.edges << Edge.new(body, d.op, d.nm, temporal)
     end
 
+    return nodes
+  end
+
+  def stratify_preds(nodes)
     nodes.each_value {|n| calc_stratum(n, false, false, [n.name])}
+
     # Normalize stratum numbers because they may not be 0-based or consecutive
     remap = {}
     # if the nodes stratum numbers are [2, 3, 2, 4], remap = {2 => 0, 3 => 1, 4 => 2}
     nodes.values.map {|n| n.stratum}.uniq.sort.each_with_index do |num, i|
       remap[num] = i
     end
+
     stratum_map = {}
-    top_stratum = -1
     nodes.each_pair do |name, n|
       n.stratum = remap[n.stratum]
       stratum_map[n.name] = n.stratum
-      top_stratum = max(top_stratum, n.stratum)
     end
-    analyze_dependencies(nodes)
-    return nodes, stratum_map, top_stratum
+    return stratum_map
   end
-
-  def max(a, b) ; a > b ? a : b ; end
 
   def calc_stratum(node, neg, temporal, path)
     if node.status == :in_process
@@ -267,13 +290,12 @@ class BudMeta #:nodoc: all
         next unless edge.op == "<="
         node.already_neg = neg
         body_stratum = calc_stratum(edge.to, (neg or edge.neg), (edge.temporal or temporal), path + [edge.to.name])
-        node.stratum = max(node.stratum, body_stratum + (edge.neg ? 1 : 0))
+        node.stratum = [node.stratum, body_stratum + (edge.neg ? 1 : 0)].max
       end
       node.status = :done
     end
     node.stratum
   end
-
 
   def analyze_dependencies(nodes)  # nodes = {node name => node}
     preds_in_lhs = nodes.select {|_, node| node.in_lhs}.map {|name, _| name}.to_set

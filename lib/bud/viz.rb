@@ -3,7 +3,7 @@ require 'bud/state'
 class VizOnline #:nodoc: all
   attr_reader :logtab
 
-  META_TABLES = %w[t_cycle t_depends t_provides t_rules t_stratum
+  META_TABLES = %w[t_cycle t_depends t_provides t_rule_stratum t_rules t_stratum
                    t_table_info t_table_schema t_underspecified].to_set
 
   def initialize(bud_instance)
@@ -56,8 +56,8 @@ class VizOnline #:nodoc: all
         row = row[0]
       end
 
-      # bud.t_depends and t_rules have bud object in field[0]. Replace them with
-      # a string, since bud instances cannot/must not be serialized.
+      # t_depends, t_rule_stratum, and t_rules have Bud object as their first
+      # field. Replace with a string, since Bud instances cannot be serialized.
       if row[0].class <= Bud
         row = row.to_a
         row = [row[0].class.to_s] + row[1..-1]

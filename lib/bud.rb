@@ -1265,6 +1265,7 @@ module Bud
     table :t_cycle, [:predicate, :via, :neg, :temporal]
     table :t_depends, [:bud_obj, :rule_id, :lhs, :op, :body] => [:nm, :in_body, :notin_pos_ref, :notin_neg_ref, :join_ref]
     table :t_provides, [:interface] => [:input]
+    table :t_rule_stratum, [:bud_obj, :rule_id] => [:stratum]
     table :t_rules, [:bud_obj, :rule_id] => [:lhs, :op, :src, :orig_src, :unsafe_funcs_called]
     table :t_stratum, [:predicate] => [:stratum]
     table :t_table_info, [:tab_name, :tab_type]
