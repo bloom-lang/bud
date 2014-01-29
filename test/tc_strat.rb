@@ -85,6 +85,6 @@ class TestPoset < MiniTest::Unit::TestCase
     t.t1 <+ [[5, 1], [5, 2], [10, 5]]
     t.tick
 
-    assert_equal([[6, 3], [6, 4], [11, 7]].to_set, t.t1.to_set)
+    assert_equal([[6, 3], [6, 4], [11, 7]].to_set, t.t2.to_set)
   end
 end

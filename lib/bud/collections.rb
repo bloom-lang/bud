@@ -1356,7 +1356,13 @@ module Bud
   # if they are in the CURRENT (poset) strata; otherwise, they must be in a
   # greater strata, in which case we just insert them into the graph and process
   # them later. Note that constraint stratification implies we won't see
-  # @new_delta tuples for a lower poset stratum.
+  # @new_delta tuples for a lower poset stratum. (In order to easily compute the
+  # correct strata for @new_delta tuples, we actually always insert them into
+  # the graph, even if they're in the current strata. This should be safe.)
+  #
+  # TODO:
+  #  * check for key conflicts
+  #  * accumulate_tick_deltas
   class BudPartialOrder < BudTable
     attr_reader :graph
 
@@ -1382,21 +1388,16 @@ module Bud
     end
 
     def bootstrap
-      puts "hello, world! pending type = #{@pending.class}"
       install_new_deltas(@pending)
-      puts "done!"
     end
 
     def install_new_deltas(buf)
       buf.each_pair do |key,t|
-        t_strat = hypothetical_stratum(*t)
-        puts "t = #{t}; t_strat = #{t_strat}, #{@current_stratum}"
+        t_strat = graph_insert(*t)
         if t_strat == @current_stratum + 1
           # XXX: check for key conflicts
           @delta[key] = t
-        elsif t_strat > @current_stratum
-          graph_insert(*t)
-        else
+        elsif t_strat <= @current_stratum
           raise Bud::Error, "XXXXX"
         end
       end
@@ -1406,10 +1407,8 @@ module Bud
     # Move delta -> graph, and move new_delta to either delta or graph, as
     # appropriate (see discussion above).
     def tick_deltas
-      puts "tick_deltas for #{@tabname}! # delta = #{@delta.size}, # pending = #{@pending.size}; current_stratum = #{@current_stratum}"
       merge_to_graph(@delta)
       install_new_deltas(@new_delta)
-
       return (not @delta.empty?)
     end
 
@@ -1429,13 +1428,24 @@ module Bud
       reset if @frontier.nil?   # XXX
       @frontier.each do |n|
         n.parents.each do |p|
-          blk.call(n, p) if p.path_len == @current_stratum + 1
+          blk.call([p.id, n.id]) if p.path_len == @current_stratum + 1
+        end
+      end
+    end
+
+    # Produce the entire graph, regardless of what the current stratum is. This
+    # is mostly intended for debugging/testing purposes.
+    def each(&blk)
+      each_delta(&blk)
+      @graph.each_value do |n|
+        n.parents.each do |p|
+          blk.call([p.id, n.id])
         end
       end
     end
 
     def advance_stratum
-      puts "advance_stratum: #{@current_stratum}; frontier = #{@frontier.inspect}"
+      puts "advance_stratum: #{@current_stratum}"
       @current_stratum += 1
       new_frontier = Set.new
       @frontier.each do |n|
@@ -1458,28 +1468,9 @@ module Bud
     def reset
       @frontier = @graph.values.select {|n| n.path_len == 0}.to_set
       @current_stratum = 0
-      puts "GRAPH: #{@graph.inspect}"
     end
 
-    # If we were to add x > y to the graph, what stratum number would it be
-    # assigned?
-    def hypothetical_stratum(x, y)
-      x_node = @graph[x]
-      y_node = @graph[y]
-
-      if y_node.nil?
-        y_path_len = 0
-      else
-        y_path_len = y_node.path_len
-      end
-
-      if x_node.nil?
-        return y_path_len + 1
-      else
-        return [y_path_len + 1, x_node.path_len].max
-      end
-    end
-
+    # Record the fact that x > y in the poset graph.
     def graph_insert(x, y)
       @graph[x] ||= PoNode.new(x, Set.new, 0)
       @graph[y] ||= PoNode.new(y, Set.new, 0)
@@ -1488,6 +1479,10 @@ module Bud
       # Update the path_len values for all the transitively reachable parent
       # nodes, as needed.
       update_path_len(@graph[x], @graph[y].path_len + 1)
+
+      # Return the (possibly updated) path_len of the parent node. This (minus
+      # one) indicates the stratum in which this edge will be returned.
+      return @graph[x].path_len
     end
 
     def update_path_len(node, new_len)
