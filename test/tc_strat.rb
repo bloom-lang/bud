@@ -98,6 +98,38 @@ class TestStrat < MiniTest::Unit::TestCase
 
     assert_equal([["B"], ["Y"]].to_set, w.win.to_set)
   end
+
+  # Positions reachable from multiple squares (B -> A, C -> A, D -> A).
+  def test_win_move_3
+    w = WinMove.new(:stratum_map => {
+                      "move" => 0,
+                      "win" => 0
+                      })
+    w.move <+ [["B", "A"],
+               ["C", "A"],
+               ["D", "A"],
+               ["E", "B"],
+               ["F", "E"],
+               ["G", "F"],
+               ["H", "G"]]
+    w.tick
+
+    assert_equal([["B"], ["F"], ["H"], ["C"], ["D"]].to_set, w.win.to_set)
+  end
+
+  # Moves that are transitively redundant (B -> A, C -> B, C -> A)
+  def test_win_move_4
+    w = WinMove.new(:stratum_map => {
+                      "move" => 0,
+                      "win" => 0
+                      })
+    w.move <+ [["B", "A"],
+               ["C", "B"],
+               ["C", "A"]]
+    w.tick
+
+    assert_equal([["B"], ["C"]].to_set, w.win.to_set)
+  end
 end
 
 class TestPosetSimple
