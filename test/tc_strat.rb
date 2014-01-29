@@ -72,7 +72,7 @@ class TestStrat < MiniTest::Unit::TestCase
     assert_raises(Bud::CompileError) { WinMove.new }
   end
 
-  def test_win_move_manual_strat
+  def test_win_move_1
     w = WinMove.new(:stratum_map => {
                       "move" => 0,
                       "win" => 0
@@ -82,6 +82,21 @@ class TestStrat < MiniTest::Unit::TestCase
     w.tick
 
     assert_equal([["B"]].to_set, w.win.to_set)
+  end
+
+  # Two disconnected graphs
+  def test_win_move_2
+    w = WinMove.new(:stratum_map => {
+                      "move" => 0,
+                      "win" => 0
+                      })
+    w.move <+ [["A", "B"],
+               ["B", "C"],
+               ["X", "Y"],
+               ["Y", "Z"]]
+    w.tick
+
+    assert_equal([["B"], ["Y"]].to_set, w.win.to_set)
   end
 end
 
