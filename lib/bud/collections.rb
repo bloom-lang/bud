@@ -1381,30 +1381,36 @@ module Bud
       super(name, bud_instance, given_schema)
     end
 
-    # Move delta -> graph, and move new_delta to either delta or graph, as
-    # appropriate (see discussion above).
-    def tick_deltas
-      merge_to_graph(@delta)
+    def bootstrap
+      puts "hello, world! pending type = #{@pending.class}"
+      install_new_deltas(@pending)
+      puts "done!"
+    end
 
-      @new_delta.each do |t|
+    def install_new_deltas(buf)
+      buf.each_pair do |key,t|
         t_strat = hypothetical_stratum(*t)
-        if t_strat == @current_stratum
-          @delta << t
+        puts "t = #{t}; t_strat = #{t_strat}, #{@current_stratum}"
+        if t_strat == @current_stratum + 1
+          # XXX: check for key conflicts
+          @delta[key] = t
         elsif t_strat > @current_stratum
           graph_insert(*t)
         else
           raise Bud::Error, "XXXXX"
         end
       end
-      @new_delta.clear
+      buf.clear
+    end
 
-      unless @new_delta.empty?
-        @delta = @new_delta
-        @new_delta = {}
-        return true     # Iterate fixpoint again
-      end
+    # Move delta -> graph, and move new_delta to either delta or graph, as
+    # appropriate (see discussion above).
+    def tick_deltas
+      puts "tick_deltas for #{@tabname}! # delta = #{@delta.size}, # pending = #{@pending.size}; current_stratum = #{@current_stratum}"
+      merge_to_graph(@delta)
+      install_new_deltas(@new_delta)
 
-      return false
+      return (not @delta.empty?)
     end
 
     def flush_deltas
@@ -1429,6 +1435,7 @@ module Bud
     end
 
     def advance_stratum
+      puts "advance_stratum: #{@current_stratum}; frontier = #{@frontier.inspect}"
       @current_stratum += 1
       new_frontier = Set.new
       @frontier.each do |n|
@@ -1441,7 +1448,7 @@ module Bud
         end
       end
       @frontier = new_frontier
-      at_end?
+      return (not at_end?)
     end
 
     def at_end?
