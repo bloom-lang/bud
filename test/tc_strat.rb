@@ -17,6 +17,15 @@ end
 
 class WinMove
   include Bud
+
+  state do
+    poset :move, [:from, :to]
+    table :win, [:pos]
+  end
+
+  bloom do
+    win <= move.notin(win, :to => :pos).pro {|m| [m.from]}
+  end
 end
 
 class PartHierarchy
@@ -60,9 +69,19 @@ class TestStrat < MiniTest::Unit::TestCase
   end
 
   def test_win_move_unstrat
+    assert_raises(Bud::CompileError) { WinMove.new }
   end
 
   def test_win_move_manual_strat
+    w = WinMove.new(:stratum_map => {
+                      "move" => 0,
+                      "win" => 0
+                      })
+    w.move <+ [["A", "B"],
+               ["B", "C"]]
+    w.tick
+
+    assert_equal([["B"]].to_set, w.win.to_set)
   end
 end
 

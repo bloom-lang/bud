@@ -1392,8 +1392,9 @@ module Bud
     end
 
     def install_new_deltas(buf)
+      buf.each_value {|t| graph_insert(*t)}
       buf.each_pair do |key,t|
-        t_strat = graph_insert(*t)
+        t_strat = edge_get_stratum(*t)
         if t_strat == @current_stratum + 1
           # XXX: check for key conflicts
           @delta[key] = t
@@ -1479,10 +1480,6 @@ module Bud
       # Update the path_len values for all the transitively reachable parent
       # nodes, as needed.
       update_path_len(@graph[x], @graph[y].path_len + 1)
-
-      # Return the (possibly updated) path_len of the parent node. This (minus
-      # one) indicates the stratum in which this edge will be returned.
-      return @graph[x].path_len
     end
 
     def update_path_len(node, new_len)
@@ -1492,6 +1489,10 @@ module Bud
       node.parents.each do |p|
         update_path_len(p, new_len + 1)
       end
+    end
+
+    def edge_get_stratum(x, y)
+      return @graph[x].path_len
     end
   end
 
