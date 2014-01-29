@@ -68,8 +68,8 @@ $bud_instances = {}        # Map from instance id => Bud instance
 # :main: Bud
 module Bud
   attr_reader :budtime, :inbound, :options, :meta_parser, :viz, :rtracer, :dsock
-  attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :app_tables, :lattices
-  attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets
+  attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :app_tables, :lattices, :posets
+  attr_reader :push_sources, :push_elems, :push_joins, :scanners, :poset_scanners, :merge_targets
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap
   attr_reader :inside_tick
   attr_accessor :stratified_rules
@@ -118,6 +118,7 @@ module Bud
     @channels = {}
     @dbm_tables = {}
     @zk_tables = {}
+    @posets = {}
     @stratified_rules = []
     @push_elems = {}
     @callbacks = {}
@@ -163,6 +164,7 @@ module Bud
       # initialize per-stratum state
       @num_strata = @stratified_rules.length
       @scanners = @num_strata.times.map{{}}
+      @poset_scanners = @num_strata.times.map{{}}
       @push_sources = @num_strata.times.map{{}}
       @push_joins = @num_strata.times.map{[]}
       @merge_targets = @num_strata.times.map{Set.new}
@@ -257,6 +259,11 @@ module Bud
         qname = "#{local_name}.#{name}".to_sym
         raise Bud::Error if lattices.has_key? qname
         lattices[qname] = t
+      end
+      mod_inst.posets.each_pair do |name, t|
+        qname = "#{local_name}.#{name}".to_sym
+        raise Bud::Error if posets.has_key? qname
+        posets[qname] = t
       end
       mod_inst.t_rules.each do |imp_rule|
         qname = "#{local_name}.#{imp_rule.lhs}"
@@ -1124,33 +1131,22 @@ module Bud
       receive_inbound
       # compute fixpoint for each stratum in order
       @stratified_rules.each_with_index do |rules,stratum|
-        fixpoint = false
+        poset_fixpoint = false
         first_iter = true
-        until fixpoint
-          @scanners[stratum].each_value {|s| s.scan(first_iter)}
-          fixpoint = true
-          first_iter = false
-          # flush any tuples in the pipes
-          @push_sorted_elems[stratum].each {|p| p.flush}
-          # tick deltas on any merge targets and look for more deltas
-          # check to see if any joins saw a delta
-          @push_joins[stratum].each do |p|
-            if p.found_delta
-              fixpoint = false
-              p.tick_deltas
+        until poset_fixpoint
+          simple_fixpoint(stratum, first_iter)
+
+          poset_fixpoint = true
+          @poset_scanners[stratum].each_value do |s|
+            if s.advance_stratum
+              poset_fixpoint = false
             end
           end
-          @merge_targets[stratum].each do |t|
-            fixpoint = false if t.tick_deltas
-          end
         end
+
         # push end-of-fixpoint
-        @push_sorted_elems[stratum].each do |p|
-          p.stratum_end
-        end
-        @merge_targets[stratum].each do |t|
-          t.flush_deltas
-        end
+        @push_sorted_elems[stratum].each {|p| p.stratum_end}
+        @merge_targets[stratum].each {|t| t.flush_deltas}
       end
       @viz.do_cards if @options[:trace]
       do_flush
@@ -1169,6 +1165,29 @@ module Bud
       @endtime = Time.now
       @metrics[:tickstats] ||= initialize_stats
       @metrics[:tickstats] = running_stats(@metrics[:tickstats], @endtime - starttime)
+    end
+  end
+
+  def simple_fixpoint(stratum, first_iter)
+    fixpoint = false
+    until fixpoint
+      @scanners[stratum].each_value {|s| s.scan(first_iter)}
+
+      fixpoint = true
+      first_iter = false
+      # flush any tuples in the pipes
+      @push_sorted_elems[stratum].each {|p| p.flush}
+      # tick deltas on any merge targets and look for more deltas
+      # check to see if any joins saw a delta
+      @push_joins[stratum].each do |p|
+        if p.found_delta
+          fixpoint = false
+          p.tick_deltas
+        end
+      end
+      @merge_targets[stratum].each do |t|
+        fixpoint = false if t.tick_deltas
+      end
     end
   end
 

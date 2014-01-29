@@ -146,9 +146,10 @@ module Bud
   # (a,b) in the collection indicates that a < b; the transitive closure of the
   # partial order must be acyclic.
   def poset(name, schema=nil)
-    schema ||= {[:x, :y]}
+    schema ||= [:x, :y]
     define_collection(name)
     @tables[name] = Bud::BudPartialOrder.new(name, self, schema)
+    @posets[name] = @tables[name]
   end
 
   def terminal(name) # :nodoc: all

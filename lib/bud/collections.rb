@@ -714,10 +714,17 @@ module Bud
       this_stratum = toplevel.this_stratum
       oid = self.object_id
       unless toplevel.scanners[this_stratum][[oid, the_name]]
-        scanner = Bud::ScannerElement.new(the_name, @bud_instance,
-                                          self, the_schema)
+        if self.kind_of? Bud::BudPartialOrder
+          klass = Bud::PosetScannerElement
+        else
+          klass = Bud::ScannerElement
+        end
+        scanner = klass.new(the_name, @bud_instance, self, the_schema)
         toplevel.scanners[this_stratum][[oid, the_name]] = scanner
         toplevel.push_sources[this_stratum][[oid, the_name]] = scanner
+        if self.kind_of? Bud::BudPartialOrder
+          toplevel.poset_scanners[this_stratum][[oid, the_name]] = scanner
+        end
         @scanner_cnt += 1
       end
       return toplevel.scanners[this_stratum][[oid, the_name]]
@@ -1218,28 +1225,6 @@ module Bud
     end
   end
 
-  Vertex = Struct.new(:id, :parents)
-
-  class BudPartialOrder < BudPersistentCollection
-    def initialize(name, bud_instance, given_schema)
-      if given_schema.kind_of? Array
-        keys = given_schema
-      else
-        keys = given_schema.keys.first
-        vals = given_schema.values.first
-        raise Bud::Error, "poset #{name} cannot have non-key columns"
-      end
-
-      unless keys.length == 2
-        raise Bud::Error, "poset #{name} must have two columns"
-      end
-      super(name, bud_instance, given_schema)
-    end
-
-    def do_insert(t, store)
-    end
-  end
-
   class BudTable < BudPersistentCollection # :nodoc: all
     def initialize(name, bud_instance, given_schema) # :nodoc: all
       super(name, bud_instance, given_schema)
@@ -1349,6 +1334,162 @@ module Bud
     public
     superator "<-+" do |o|
       self <+- o
+    end
+  end
+
+  PoNode = Struct.new(:id, :parents, :path_len)
+
+  # A collection that stores a partial order, and produces tuples according to
+  # that partial order. The partial order is essentially used to define a series
+  # of strata: the first strata are all the leaf tuples (=> no tuple is smaller
+  # than the leaves according to the partial order), the second strata are all
+  # the tuples in the next level up (=> no tuple is smaller than level 1 in the
+  # partial order, except for the leaves), and so on. The Bud fixpoint loop
+  # advances through each of the poset collections in stratum order.
+  #
+  # The partial order is stored as a graph, where each vertex is annotated with
+  # the longest path from that vertex to a leaf node. This enables us to iterate
+  # in stratum order.
+  #
+  # This interacts with the delta / new_delta concept as follows. We accumulate
+  # @new_delta as usual. In tick_delta, we only want to copy tuples into @delta
+  # if they are in the CURRENT (poset) strata; otherwise, they must be in a
+  # greater strata, in which case we just insert them into the graph and process
+  # them later. Note that constraint stratification implies we won't see
+  # @new_delta tuples for a lower poset stratum.
+  class BudPartialOrder < BudTable
+    attr_reader :graph
+
+    def initialize(name, bud_instance, given_schema)
+      @graph = {}
+      @frontier = nil
+      @current_stratum = 0
+
+      # Right now, we only support two columns: "x, y" means that y is smaller
+      # than x according to the partial order.
+      if given_schema.kind_of? Array
+        keys = given_schema
+      else
+        keys = given_schema.keys.first
+        vals = given_schema.values.first
+        raise Bud::Error, "poset #{name} cannot have non-key columns"
+      end
+
+      unless keys.length == 2
+        raise Bud::Error, "poset #{name} must have two columns"
+      end
+      super(name, bud_instance, given_schema)
+    end
+
+    # Move delta -> graph, and move new_delta to either delta or graph, as
+    # appropriate (see discussion above).
+    def tick_deltas
+      merge_to_graph(@delta)
+
+      @new_delta.each do |t|
+        t_strat = hypothetical_stratum(*t)
+        if t_strat == @current_stratum
+          @delta << t
+        elsif t_strat > @current_stratum
+          graph_insert(*t)
+        else
+          raise Bud::Error, "XXXXX"
+        end
+      end
+      @new_delta.clear
+
+      unless @new_delta.empty?
+        @delta = @new_delta
+        @new_delta = {}
+        return true     # Iterate fixpoint again
+      end
+
+      return false
+    end
+
+    def flush_deltas
+      merge_to_graph(@delta)
+      merge_to_graph(@new_delta)
+    end
+
+    def merge_to_graph(buf)
+      buf.each_value do |t|
+        graph_insert(*t)
+      end
+      buf.clear
+    end
+
+    def each_raw(&blk)
+      reset if @frontier.nil?   # XXX
+      @frontier.each do |n|
+        n.parents.each do |p|
+          blk.call(n, p) if p.path_len == @current_stratum + 1
+        end
+      end
+    end
+
+    def advance_stratum
+      @current_stratum += 1
+      new_frontier = Set.new
+      @frontier.each do |n|
+        n.parents.each do |p|
+          if p.path_len == @current_stratum
+            new_frontier << p
+          elsif p.path_len > @current_stratum
+            new_frontier << n
+          end
+        end
+      end
+      @frontier = new_frontier
+      at_end?
+    end
+
+    def at_end?
+      @frontier.all? {|n| n.parents.empty?}
+    end
+
+    def reset
+      @frontier = @graph.values.select {|n| n.path_len == 0}.to_set
+      @current_stratum = 0
+      puts "GRAPH: #{@graph.inspect}"
+    end
+
+    # If we were to add x > y to the graph, what stratum number would it be
+    # assigned?
+    def hypothetical_stratum(x, y)
+      x_node = @graph[x]
+      y_node = @graph[y]
+
+      if y_node.nil?
+        y_path_len = 0
+      else
+        y_path_len = y_node.path_len
+      end
+
+      if x_node.nil?
+        return y_path_len + 1
+      else
+        return [y_path_len + 1, x_node.path_len].max
+      end
+    end
+
+    def graph_insert(x, y)
+      @graph[x] ||= PoNode.new(x, Set.new, 0)
+      @graph[y] ||= PoNode.new(y, Set.new, 0)
+      @graph[y].parents << @graph[x]
+
+      # Update the path_len values for all the transitively reachable parent
+      # nodes, as needed.
+      update_path_len(@graph[x], @graph[y].path_len + 1)
+    end
+
+    def update_path_len(node, new_len)
+      return if node.path_len >= new_len
+
+      node.path_len = new_len
+      node.parents.each do |p|
+        update_path_len(p, new_len + 1)
+      end
     end
   end
 

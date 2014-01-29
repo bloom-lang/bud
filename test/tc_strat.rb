@@ -15,6 +15,10 @@ class SimpleStrat
   end
 end
 
+class WinMove
+  include Bud
+end
+
 class PartHierarchy
   include Bud
 
@@ -53,5 +57,34 @@ class TestStrat < MiniTest::Unit::TestCase
 
     puts "WORKING: #{p.working.to_a.sort.inspect}"
     puts "SUSPECT_PART: #{p.has_suspect_part.to_a.sort.inspect}"
+  end
+
+  def test_win_move_unstrat
+  end
+
+  def test_win_move_manual_strat
+  end
+end
+
+class TestPosetSimple
+  include Bud
+
+  state do
+    poset :t1, [:x, :y]
+    table :t2, t1.schema
+  end
+
+  bloom do
+    t2 <= t1 {|t| [t.x + 1, t.y + 2]}
+  end
+end
+
+class TestPoset < MiniTest::Unit::TestCase
+  def test_poset_simple
+    t = TestPosetSimple.new
+    t.t1 <+ [[5, 1], [5, 2], [10, 5]]
+    t.tick
+
+    assert_equal([[6, 3], [6, 4], [11, 7]].to_set, t.t1.to_set)
   end
 end
