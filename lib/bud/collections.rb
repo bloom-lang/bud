@@ -1375,15 +1375,19 @@ module Bud
       # than x according to the partial order.
       if given_schema.kind_of? Array
         keys = given_schema
+        vals = []
       else
         keys = given_schema.keys.first
         vals = given_schema.values.first
-        raise Bud::Error, "poset #{name} cannot have non-key columns"
       end
 
-      unless keys.length == 2
+      unless keys.length + vals.length == 2
         raise Bud::Error, "poset #{name} must have two columns"
       end
+      if keys.empty?
+        raise Bud::Error, "poset #{name} must have at least one key column"
+      end
+      @check_key_constraint = (vals.length > 0)
       super(name, bud_instance, given_schema)
     end
 
@@ -1396,7 +1400,6 @@ module Bud
       buf.each_pair do |key,t|
         t_strat = edge_get_stratum(*t)
         if t_strat == @current_stratum + 1
-          # XXX: check for key conflicts
           @delta[key] = t
         elsif t_strat <= @current_stratum
           raise Bud::Error, "XXXXX"
@@ -1428,8 +1431,8 @@ module Bud
     def each_raw(&blk)
       reset if @frontier.nil?   # XXX
       @frontier.each do |n|
-        n.parents.each do |p|
-          blk.call([p.id, n.id]) if p.path_len == @current_stratum + 1
+        @graph[n].parents.each do |p|
+          blk.call([p, n]) if @graph[p].path_len == @current_stratum + 1
         end
       end
     end
@@ -1440,7 +1443,7 @@ module Bud
       each_delta(&blk)
       @graph.each_value do |n|
         n.parents.each do |p|
-          blk.call([p.id, n.id])
+          blk.call([p, n.id])
         end
       end
     end
@@ -1450,10 +1453,10 @@ module Bud
       @current_stratum += 1
       new_frontier = Set.new
       @frontier.each do |n|
-        n.parents.each do |p|
-          if p.path_len == @current_stratum
+        @graph[n].parents.each do |p|
+          if @graph[p].path_len == @current_stratum
             new_frontier << p
-          elsif p.path_len > @current_stratum
+          elsif @graph[p].path_len > @current_stratum
             new_frontier << n
           end
         end
@@ -1463,23 +1466,44 @@ module Bud
     end
 
     def at_end?
-      @frontier.all? {|n| n.parents.empty?}
+      @frontier.all? {|n| @graph[n].parents.empty?}
     end
 
     def reset
-      @frontier = @graph.values.select {|n| n.path_len == 0}.to_set
+      @frontier = @graph.values.select {|n| n.path_len == 0}.map {|n| n.id}.to_set
       @current_stratum = 0
     end
 
     # Record the fact that x > y in the poset graph.
     def graph_insert(x, y)
+      if is_key_conflict(x, y)
+        raise Bud::KeyConstraintError, "key conflict inserting #{[x,y]} into \"#{qualified_tabname}\""
+      end
       @graph[x] ||= PoNode.new(x, Set.new, 0)
       @graph[y] ||= PoNode.new(y, Set.new, 0)
-      @graph[y].parents << @graph[x]
+      @graph[y].parents << x
 
       # Update the path_len values for all the transitively reachable parent
       # nodes, as needed.
       update_path_len(@graph[x], @graph[y].path_len + 1)
+    end
+
+    def is_key_conflict(x, y)
+      return false unless @check_key_constraint
+
+      # Check for key conflicts by exploiting the graph structure: if (a) there
+      # is already a node for x (b) x has at least one child node (c) that child
+      # node is not identical to y, then there must be another edge x -> y'
+      # where y' != y, and hence there's a key conflict.
+      x_node = @graph[x]
+      return false if x_node.nil? or x_node.path_len == 0
+
+      y_node = @graph[y]
+      if y_node and y_node.parents.any? {|p| p == x}
+        return false
+      else
+        return true
+      end
     end
 
     def update_path_len(node, new_len)
@@ -1487,7 +1511,7 @@ module Bud
 
       node.path_len = new_len
       node.parents.each do |p|
-        update_path_len(p, new_len + 1)
+        update_path_len(@graph[p], new_len + 1)
       end
     end
 

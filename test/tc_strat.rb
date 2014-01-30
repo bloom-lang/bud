@@ -14,7 +14,6 @@ class WinMove
 end
 
 class TestWinMove < MiniTest::Unit::TestCase
-
   def test_win_move_unstrat
     assert_raises(Bud::CompileError) { WinMove.new }
   end
@@ -116,7 +115,7 @@ class TestPartHierarchy < MiniTest::Unit::TestCase
   end
 end
 
-class TestPosetSimple
+class PosetSimple
   include Bud
 
   state do
@@ -129,12 +128,44 @@ class TestPosetSimple
   end
 end
 
+class PosetKeys
+  include Bud
+
+  state do
+    poset :t1, [:x] => [:y]
+    table :t2, [:x, :y]
+  end
+
+  bloom do
+    t1 <= t2 {|t| [t.x + 10, t.y + 12]}
+  end
+end
+
 class TestPoset < MiniTest::Unit::TestCase
   def test_poset_simple
-    t = TestPosetSimple.new
+    t = PosetSimple.new
     t.t1 <+ [[5, 1], [5, 2], [10, 5]]
     t.tick
 
     assert_equal([[6, 3], [6, 4], [11, 7]].to_set, t.t2.to_set)
+  end
+
+  def test_poset_keys1
+    t = PosetKeys.new
+    assert_raises(Bud::KeyConstraintError) { t.t1 <+ [[5, 10], [5, 11]] }
+  end
+
+  def test_poset_keys2
+    t = PosetKeys.new
+    t.t1 <+ [[15, 14]]
+    t.tick
+
+    # Allow duplicates
+    t.t2 <+ [[5, 2]]
+    t.tick
+    assert_equal([[15, 14]], t.t1.to_a.sort)
+
+    t.t2 <+ [[5, 11]]
+    assert_raises(Bud::KeyConstraintError) { t.tick }
   end
 end
