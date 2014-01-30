@@ -102,16 +102,16 @@ class TestPartHierarchy < MiniTest::Unit::TestCase
 
   def test_part_hierarchy_manual_strat
     p = PartHierarchy.new(:stratum_map => {
-                            "tested" => 0, "working" => 1,
-                            "has_suspect_part" => 1, "part" => 0
+                            "tested" => 0, "working" => 0,
+                            "has_suspect_part" => 2, "part" => 1
                           })
     p.part <+ [["house", "kitchen"],
                ["house", "garage"],
                ["house", "bedroom"]]
     p.tick
 
-    puts "WORKING: #{p.working.to_a.sort.inspect}"
-    puts "SUSPECT_PART: #{p.has_suspect_part.to_a.sort.inspect}"
+    assert_equal([].to_set, p.working.to_set)
+    assert_equal([["house"]].to_set, p.has_suspect_part.to_set)
   end
 end
 

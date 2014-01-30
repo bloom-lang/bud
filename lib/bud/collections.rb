@@ -1428,7 +1428,6 @@ module Bud
     end
 
     def each_raw(&blk)
-      reset if @frontier.nil?   # XXX
       @frontier.each do |n|
         @graph[n].parents.each do |p|
           blk.call([p, n]) if @graph[p].path_len == @current_stratum + 1

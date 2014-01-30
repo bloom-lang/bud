@@ -1129,24 +1129,25 @@ module Bud
       end
 
       receive_inbound
-      # compute fixpoint for each stratum in order
-      @stratified_rules.each_with_index do |rules,stratum|
-        poset_fixpoint = false
-        first_iter = true
-        until poset_fixpoint
-          simple_fixpoint(stratum, first_iter)
 
-          poset_fixpoint = true
-          @poset_scanners[stratum].each_value do |s|
-            if s.advance_stratum
-              poset_fixpoint = false
-            end
-          end
+      # Compute a fixpoint; that is, determine all the additional facts that are
+      # implied by the current database state. For each poset stratum (=> that
+      # is, each "fragment" of every poset collection), we iterate through all
+      # the syntactic strata in the program, running each subset of rules to
+      # fixpoint before we continue.
+      poset_fixpoint = false
+      @posets.each_value {|p| p.reset}
+      until poset_fixpoint
+        @stratified_rules.each_with_index do |rules,stratum|
+          simple_fixpoint(stratum)
         end
 
-        # push end-of-fixpoint
-        @push_sorted_elems[stratum].each {|p| p.stratum_end}
-        @merge_targets[stratum].each {|t| t.flush_deltas}
+        poset_fixpoint = true
+        @posets.each_value do |p|
+          if p.advance_stratum
+            poset_fixpoint = false
+          end
+        end
       end
       @viz.do_cards if @options[:trace]
       do_flush
@@ -1155,7 +1156,6 @@ module Bud
       @budtime += 1
       @inbound.clear
       @reset_list.each {|e| e.invalidated = false; e.rescan = false}
-
     ensure
       @inside_tick = false
       @tick_clock_time = nil
@@ -1168,8 +1168,9 @@ module Bud
     end
   end
 
-  def simple_fixpoint(stratum, first_iter)
+  def simple_fixpoint(stratum)
     fixpoint = false
+    first_iter = true
     until fixpoint
       @scanners[stratum].each_value {|s| s.scan(first_iter)}
 
@@ -1189,6 +1190,10 @@ module Bud
         fixpoint = false if t.tick_deltas
       end
     end
+
+    # push end-of-fixpoint
+    @push_sorted_elems[stratum].each {|p| p.stratum_end}
+    @merge_targets[stratum].each {|t| t.flush_deltas}
   end
 
   # Returns the wallclock time associated with the current Bud tick. That is,
