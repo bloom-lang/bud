@@ -1361,7 +1361,6 @@ module Bud
   # the graph, even if they're in the current strata. This should be safe.)
   #
   # TODO:
-  #  * check for key conflicts
   #  * accumulate_tick_deltas
   class BudPartialOrder < BudTable
     attr_reader :graph
@@ -1382,10 +1381,10 @@ module Bud
       end
 
       unless keys.length + vals.length == 2
-        raise Bud::Error, "poset #{name} must have two columns"
+        raise Bud::Error, "poset \"#{name}\" must have two columns"
       end
       if keys.empty?
-        raise Bud::Error, "poset #{name} must have at least one key column"
+        raise Bud::Error, "poset \"#{name}\" must have at least one key column"
       end
       @check_key_constraint = (vals.length > 0)
       super(name, bud_instance, given_schema)
@@ -1449,7 +1448,6 @@ module Bud
     end
 
     def advance_stratum
-      puts "advance_stratum: #{@current_stratum}"
       @current_stratum += 1
       new_frontier = Set.new
       @frontier.each do |n|
