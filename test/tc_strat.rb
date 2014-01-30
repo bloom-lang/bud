@@ -100,7 +100,7 @@ class TestPartHierarchy < MiniTest::Unit::TestCase
     assert_raises(Bud::CompileError) { PartHierarchy.new }
   end
 
-  def test_part_hierarchy_manual_strat
+  def test_part_hierarchy1
     p = PartHierarchy.new(:stratum_map => {
                             "tested" => 0, "working" => 0,
                             "has_suspect_part" => 2, "part" => 1
@@ -112,6 +112,39 @@ class TestPartHierarchy < MiniTest::Unit::TestCase
 
     assert_equal([].to_set, p.working.to_set)
     assert_equal([["house"]].to_set, p.has_suspect_part.to_set)
+  end
+
+  def test_part_hierarchy2
+    p = PartHierarchy.new(:stratum_map => {
+                            "tested" => 0, "working" => 0,
+                            "has_suspect_part" => 2, "part" => 1
+                          })
+    p.part <+ [["house", "kitchen"],
+               ["house", "garage"],
+               ["house", "bedroom"]]
+    p.tested <+ [["kitchen"], ["garage"], ["bedroom"]]
+    p.tick
+
+    assert_equal([["house"], ["kitchen"],
+                  ["garage"], ["bedroom"]].to_set, p.working.to_set)
+    assert_equal([].to_set, p.has_suspect_part.to_set)
+  end
+
+  def test_part_hierarchy3
+    p = PartHierarchy.new(:stratum_map => {
+                            "tested" => 0, "working" => 0,
+                            "has_suspect_part" => 2, "part" => 1
+                          })
+    p.part <+ [["A", "B"],
+               ["B", "C"],
+               ["C", "D"],
+               ["A", "E"],
+               ["X", "E"]]
+    p.tested <+ [["D"]]
+    p.tick
+
+    assert_equal([["D"], ["C"], ["B"]].to_set, p.working.to_set)
+    assert_equal([["A"], ["X"]].to_set, p.has_suspect_part.to_set)
   end
 end
 
