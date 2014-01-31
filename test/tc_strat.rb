@@ -8,21 +8,14 @@ class WinMove
     table :win, [:pos]
   end
 
-  bloom do
+  stratum 0 do
     win <= move.notin(win, :to => :pos).pro {|m| [m.from]}
   end
 end
 
 class TestWinMove < MiniTest::Unit::TestCase
-  def test_win_move_unstrat
-    assert_raises(Bud::CompileError) { WinMove.new }
-  end
-
   def test_win_move_1
-    w = WinMove.new(:stratum_map => {
-                      "move" => 0,
-                      "win" => 0
-                      })
+    w = WinMove.new
     w.move <+ [["A", "B"],
                ["B", "C"]]
     w.tick
@@ -32,10 +25,7 @@ class TestWinMove < MiniTest::Unit::TestCase
 
   # Two disconnected graphs
   def test_win_move_2
-    w = WinMove.new(:stratum_map => {
-                      "move" => 0,
-                      "win" => 0
-                      })
+    w = WinMove.new
     w.move <+ [["A", "B"],
                ["B", "C"],
                ["X", "Y"],
@@ -47,10 +37,7 @@ class TestWinMove < MiniTest::Unit::TestCase
 
   # Positions reachable from multiple squares (B -> A, C -> A, D -> A).
   def test_win_move_3
-    w = WinMove.new(:stratum_map => {
-                      "move" => 0,
-                      "win" => 0
-                      })
+    w = WinMove.new
     w.move <+ [["B", "A"],
                ["C", "A"],
                ["D", "A"],
@@ -65,10 +52,7 @@ class TestWinMove < MiniTest::Unit::TestCase
 
   # Moves that are transitively redundant (B -> A, C -> B, C -> A)
   def test_win_move_4
-    w = WinMove.new(:stratum_map => {
-                      "move" => 0,
-                      "win" => 0
-                      })
+    w = WinMove.new
     w.move <+ [["B", "A"],
                ["C", "B"],
                ["C", "A"]]
@@ -88,23 +72,22 @@ class PartHierarchy
     scratch :has_suspect_part, [:id]
   end
 
-  bloom do
+  stratum 0 do
     working <= tested
-    working <= part {|p| [p.id]}.notin(has_suspect_part)
+  end
+
+  stratum 1 do
     has_suspect_part <= part.notin(working, :child => :id).pro {|p| [p.id]}
+  end
+
+  stratum 2 do
+    working <= part {|p| [p.id]}.notin(has_suspect_part)
   end
 end
 
 class TestPartHierarchy < MiniTest::Unit::TestCase
-  def test_part_hierarchy_unstrat
-    assert_raises(Bud::CompileError) { PartHierarchy.new }
-  end
-
   def test_part_hierarchy1
-    p = PartHierarchy.new(:stratum_map => {
-                            "tested" => 0, "working" => 0,
-                            "has_suspect_part" => 2, "part" => 1
-                          })
+    p = PartHierarchy.new
     p.part <+ [["house", "kitchen"],
                ["house", "garage"],
                ["house", "bedroom"]]
@@ -115,10 +98,7 @@ class TestPartHierarchy < MiniTest::Unit::TestCase
   end
 
   def test_part_hierarchy2
-    p = PartHierarchy.new(:stratum_map => {
-                            "tested" => 0, "working" => 0,
-                            "has_suspect_part" => 2, "part" => 1
-                          })
+    p = PartHierarchy.new
     p.part <+ [["house", "kitchen"],
                ["house", "garage"],
                ["house", "bedroom"]]
@@ -131,10 +111,7 @@ class TestPartHierarchy < MiniTest::Unit::TestCase
   end
 
   def test_part_hierarchy3
-    p = PartHierarchy.new(:stratum_map => {
-                            "tested" => 0, "working" => 0,
-                            "has_suspect_part" => 2, "part" => 1
-                          })
+    p = PartHierarchy.new
     p.part <+ [["A", "B"],
                ["B", "C"],
                ["C", "D"],

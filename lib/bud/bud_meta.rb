@@ -19,36 +19,53 @@ class BudMeta #:nodoc: all
       nodes = compute_node_graph
       analyze_dependencies(nodes)
 
-      # Use the user-supplied stratum_map, if any
-      stratum_map = @bud_instance.options[:stratum_map]
-      stratum_map ||= stratify_preds(nodes)
-      top_stratum = stratum_map.values.max
-      top_stratum ||= -1
+      # If the program contained any "stratum" blocks, assume that they contain
+      # all the information we need to stratify the program. Note that this
+      # disallows mixing "stratum" and "bloom" blocks.
+      if @bud_instance.class.respond_to? :__bloom_stratum_map__
+        smap = @bud_instance.class.__bloom_stratum_map__
+        top_stratum = smap.values.max
 
-      # stratum_map = {fully qualified pred => stratum}. Copy stratum_map data
-      # into t_stratum format.
-      raise unless @bud_instance.t_stratum.to_a.empty?
-      @bud_instance.t_stratum.merge(stratum_map.to_a)
+        stratified_rules = Array.new(top_stratum + 2) { [] }
+        @bud_instance.t_rules.each do |rule|
+          rule_stratum = smap[rule.block_name]
+          if rule_stratum.nil?
+            raise Bud::CompileError, "no stratum found for rule: #{rule.orig_src}"
+          end
+          stratified_rules[rule_stratum] << rule
+        end
+      else
+        # Use the user-supplied stratum_map, if any
+        stratum_map = @bud_instance.options[:stratum_map]
+        stratum_map ||= stratify_preds(nodes)
+        top_stratum = stratum_map.values.max
+        top_stratum ||= -1
 
-      stratified_rules = Array.new(top_stratum + 2) { [] }  # stratum -> [ rules ]
-      @bud_instance.t_rules.each do |rule|
-        if rule.op == '<='
-          # Deductive rules are assigned to strata based on the basic Datalog
-          # stratification algorithm. Note that we don't place all the rules
-          # with a given lhs relation in the same strata; rather, we place a
-          # rule in the lowest strata we can, as determined by the rule's rhs
-          # relations (and whether the rel is used in a non-monotonic context).
-          body_rels = find_body_rels(rule)
-          body_strata = body_rels.map {|r,is_nm| stratum_map[r] + (is_nm ? 1 : 0) || 0}
-          belongs_in = body_strata.max
+        # stratum_map = {fully qualified pred => stratum}. Copy stratum_map data
+        # into t_stratum format.
+        raise unless @bud_instance.t_stratum.to_a.empty?
+        @bud_instance.t_stratum.merge(stratum_map.to_a)
 
-          # If the rule body doesn't reference any collections, it won't be
-          # assigned a stratum, so just place it in stratum zero
-          belongs_in ||= 0
-          stratified_rules[belongs_in] << rule
-        else
-          # All temporal rules are placed in the last stratum
-          stratified_rules[top_stratum + 1] << rule
+        stratified_rules = Array.new(top_stratum + 2) { [] }  # stratum -> [ rules ]
+        @bud_instance.t_rules.each do |rule|
+          if rule.op == '<='
+            # Deductive rules are assigned to strata based on the basic Datalog
+            # stratification algorithm. Note that we don't place all the rules
+            # with a given lhs relation in the same strata; rather, we place a
+            # rule in the lowest strata we can, as determined by the rule's rhs
+            # relations (and whether the rel is used in a non-monotonic context).
+            body_rels = find_body_rels(rule)
+            body_strata = body_rels.map {|r,is_nm| stratum_map[r] + (is_nm ? 1 : 0) || 0}
+            belongs_in = body_strata.max
+
+            # If the rule body doesn't reference any collections, it won't be
+            # assigned a stratum, so just place it in stratum zero
+            belongs_in ||= 0
+            stratified_rules[belongs_in] << rule
+          else
+            # All temporal rules are placed in the last stratum
+            stratified_rules[top_stratum + 1] << rule
+          end
         end
       end
 

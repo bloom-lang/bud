@@ -168,6 +168,10 @@ class Module
   # assigns a name for the block; this is useful documentation, and also allows
   # the block to be overridden in a child class.
   def bloom(block_name=nil, &block)
+    do_bloom_block(block_name, &block)
+  end
+
+  def do_bloom_block(block_name, &block)
     # If no block name was specified, generate a unique name
     if block_name.nil?
       @block_id ||= 0
@@ -190,7 +194,7 @@ class Module
        instance_methods(false).include?(meth_name.to_sym)
       raise Bud::CompileError, "duplicate block name: '#{block_name}' in #{self}"
     end
-    ast = Source.read_block(caller[0]) # pass in caller's location via backtrace
+    ast = Source.read_block(caller[1]) # pass in caller's location via backtrace
 
     # ast corresponds only to the statements of the block. Wrap it in a method
     # definition for backward compatibility for now.
@@ -214,6 +218,19 @@ class Module
     end
     __bloom_asts__[meth_name] = ast
     define_method(meth_name.to_sym, &block)
+    meth_name
+  end
+
+  def stratum(number, &block)
+    meth_name = do_bloom_block(nil, &block)
+
+    unless self.respond_to? :__bloom_stratum_map__
+      def self.__bloom_stratum_map__
+        @__bloom_stratum_map__ ||= {}
+        @__bloom_stratum_map__
+      end
+    end
+    __bloom_stratum_map__[meth_name] = number
   end
 
   # Return a string with a version of the class name appropriate for embedding
