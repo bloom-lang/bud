@@ -174,6 +174,21 @@ class PosetKeys
   end
 end
 
+class PosetDelta
+  include Bud
+
+  state do
+    table :t1
+    poset :t2, [:x, :y]
+    table :t3
+  end
+
+  bloom do
+    t2 <= t1
+    t3 <= t2
+  end
+end
+
 class TestPoset < MiniTest::Unit::TestCase
   def test_poset_simple
     t = PosetSimple.new
@@ -200,5 +215,13 @@ class TestPoset < MiniTest::Unit::TestCase
 
     t.t2 <+ [[5, 11]]
     assert_raises(Bud::KeyConstraintError) { t.tick }
+  end
+
+  def test_poset_delta
+    t = PosetDelta.new
+    t.t1 <+ [[5, 10], [10, 12]]
+    t.tick
+
+    assert_equal([[5, 10], [10, 12]].to_set, t.t3.to_set)
   end
 end

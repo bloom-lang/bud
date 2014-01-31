@@ -1367,8 +1367,7 @@ module Bud
 
     def initialize(name, bud_instance, given_schema)
       @graph = {}
-      @frontier = nil
-      @current_stratum = 0
+      reset
 
       # Right now, we only support two columns: "x, y" means that y is smaller
       # than x according to the partial order.
@@ -1395,13 +1394,23 @@ module Bud
     end
 
     def install_new_deltas(buf)
-      buf.each_value {|t| graph_insert(*t)}
+      non_dups = {}
       buf.each_pair do |key,t|
+        if graph_insert(*t)
+          non_dups[key] = t
+        end
+      end
+      non_dups.each_pair do |key,t|
         t_strat = edge_get_stratum(*t)
         if t_strat == @current_stratum + 1
           @delta[key] = t
+          @frontier << t[1]
         elsif t_strat <= @current_stratum
-          raise Bud::Error, "XXXXX"
+          # We shouldn't see newly inserted tuples that belong in previous poset
+          # strata. Note that we're ignoring duplicate tuples here -- due to
+          # query evaluation quirks, an operator might always reproduce its
+          # previous outputs.
+          raise Bud::Error, "constraint strat error in #{tabname}: t = #{t}, t_strat = #{t_strat}, current strat = #{@current_stratum}"
         end
       end
       buf.clear
@@ -1421,9 +1430,7 @@ module Bud
     end
 
     def merge_to_graph(buf)
-      buf.each_value do |t|
-        graph_insert(*t)
-      end
+      buf.each_value {|t| graph_insert(*t)}
       buf.clear
     end
 
@@ -1471,18 +1478,23 @@ module Bud
       @current_stratum = 0
     end
 
-    # Record the fact that x > y in the poset graph.
+    # Record the fact that x > y in the poset graph. Returns true if the edge y
+    # -> x is new (i.e., it wasn't already in the graph).
     def graph_insert(x, y)
       if is_key_conflict(x, y)
         raise Bud::KeyConstraintError, "key conflict inserting #{[x,y]} into \"#{qualified_tabname}\""
       end
       @graph[x] ||= PoNode.new(x, Set.new, 0)
       @graph[y] ||= PoNode.new(y, Set.new, 0)
-      @graph[y].parents << x
 
-      # Update the path_len values for all the transitively reachable parent
-      # nodes, as needed.
-      update_path_len(@graph[x], @graph[y].path_len + 1)
+      if @graph[y].parents.add?(x)
+        # Update the path_len values for all the transitively reachable parent
+        # nodes, as needed.
+        update_path_len(@graph[x], @graph[y].path_len + 1)
+        return true
+      end
+
+      return false
     end
 
     def is_key_conflict(x, y)
