@@ -130,7 +130,7 @@ class BudMeta #:nodoc: all
       end
       raise Bud::CompileError, "#{error_msg} in rule block \"#{block_name}\"#{src_msg}"
     end
-    rewriter = RuleRewriter.new(@bud_instance, @rule_idx)
+    rewriter = RuleRewriter.new(@bud_instance, @rule_idx, block_name)
     rewriter.process(pt)
     return rewriter
   end

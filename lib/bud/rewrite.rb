@@ -11,11 +11,12 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
                         :schema, :cols, :key_cols, :val_cols, :payloads, :lambda,
                         :tabname, :current_value].to_set
 
-  def initialize(bud_instance, rule_idx)
+  def initialize(bud_instance, rule_idx, block_name)
     @bud_instance = bud_instance
     @tables = {}
     @nm = false
     @rule_idx = rule_idx
+    @block_name = block_name
     @collect = false
     @rules = []
     @depends = []
@@ -246,7 +247,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
     end
 
     @rules << [@bud_instance, @rule_idx, lhs, op, rule_txt,
-               rule_txt_orig, unsafe_funcs_called]
+               rule_txt_orig, unsafe_funcs_called, @block_name]
     @tables.each_pair do |t, nm|
       in_rule_body = @refs_in_body.include? t
       @depends << [@bud_instance, @rule_idx, lhs, op, t, nm, in_rule_body]

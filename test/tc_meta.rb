@@ -202,6 +202,12 @@ class TestMeta < MiniTest::Unit::TestCase
     assert(prov.include? ["outc", false])
   end
 
+  def test_block_name_in_catalog
+    k = KTest.new
+    assert_equal(2, k.t_rules.count {|r| r.block_name.to_s == "__bloom__update"})
+    assert_equal(1, k.t_rules.count {|r| r.block_name.to_s == "__bloom__respond"})
+  end
+
   def test_visualization
     out_buf = StringIO.new("", "w")
     # XXX: we need an explicit port number so that we can use dbm tables, but
