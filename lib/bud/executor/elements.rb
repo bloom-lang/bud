@@ -502,12 +502,6 @@ module Bud
     end
   end
 
-  class PosetScannerElement < ScannerElement
-    def advance_stratum
-      @collection.advance_stratum
-    end
-  end
-
   class PushReduce < PushStatefulElement
     def initialize(elem_name, bud_instance, collection_name,
                    schema_in, initial, &blk)

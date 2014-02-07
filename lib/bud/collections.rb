@@ -714,17 +714,9 @@ module Bud
       this_stratum = toplevel.this_stratum
       oid = self.object_id
       unless toplevel.scanners[this_stratum][[oid, the_name]]
-        if self.kind_of? Bud::BudPartialOrder
-          klass = Bud::PosetScannerElement
-        else
-          klass = Bud::ScannerElement
-        end
-        scanner = klass.new(the_name, @bud_instance, self, the_schema)
+        scanner = Bud::ScannerElement.new(the_name, @bud_instance, self, the_schema)
         toplevel.scanners[this_stratum][[oid, the_name]] = scanner
         toplevel.push_sources[this_stratum][[oid, the_name]] = scanner
-        if self.kind_of? Bud::BudPartialOrder
-          toplevel.poset_scanners[this_stratum][[oid, the_name]] = scanner
-        end
         @scanner_cnt += 1
       end
       return toplevel.scanners[this_stratum][[oid, the_name]]

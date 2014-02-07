@@ -69,7 +69,7 @@ $bud_instances = {}        # Map from instance id => Bud instance
 module Bud
   attr_reader :budtime, :inbound, :options, :meta_parser, :viz, :rtracer, :dsock
   attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :app_tables, :lattices, :posets
-  attr_reader :push_sources, :push_elems, :push_joins, :scanners, :poset_scanners, :merge_targets
+  attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets
   attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap
   attr_reader :inside_tick
   attr_accessor :stratified_rules
@@ -164,7 +164,6 @@ module Bud
       # initialize per-stratum state
       @num_strata = @stratified_rules.length
       @scanners = @num_strata.times.map{{}}
-      @poset_scanners = @num_strata.times.map{{}}
       @push_sources = @num_strata.times.map{{}}
       @push_joins = @num_strata.times.map{[]}
       @merge_targets = @num_strata.times.map{Set.new}
