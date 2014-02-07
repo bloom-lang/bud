@@ -1134,24 +1134,15 @@ module Bud
       # implied by the current database state. For each poset stratum (=> that
       # is, each "fragment" of every poset collection), we iterate through all
       # the syntactic strata in the program, running each subset of rules to
-      # fixpoint before we continue.
-      poset_fixpoint = false
-      @posets.each_value {|p| p.reset}
-      until poset_fixpoint
-        @stratified_rules.each_with_index do |rules,stratum|
-          simple_fixpoint(stratum)
-        end
-
-        poset_fixpoint = true
-        @posets.each_value do |p|
-          if p.advance_stratum
-            poset_fixpoint = false
-          end
-        end
+      # fixpoint before we continue
+      if @posets.empty?
+        syntactic_fixpoint
+      else
+        poset_fixpoint(0, @posets.values)
       end
+
       @viz.do_cards if @options[:trace]
       do_flush
-
       invoke_callbacks
       @budtime += 1
       @inbound.clear
@@ -1165,6 +1156,28 @@ module Bud
       @endtime = Time.now
       @metrics[:tickstats] ||= initialize_stats
       @metrics[:tickstats] = running_stats(@metrics[:tickstats], @endtime - starttime)
+    end
+  end
+
+  def poset_fixpoint(idx, poset_ary)
+    curr = poset_ary[idx]
+    curr.reset
+
+    while true
+      if curr == poset_ary.last
+        syntactic_fixpoint
+      else
+        poset_fixpoint(idx + 1, poset_ary)
+      end
+
+      puts "ADVANCING STRATUM FOR #{curr.tabname}"
+      break unless curr.advance_stratum
+    end
+  end
+
+  def syntactic_fixpoint
+    @stratified_rules.each_with_index do |rules,stratum|
+      simple_fixpoint(stratum)
     end
   end
 
