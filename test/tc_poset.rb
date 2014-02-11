@@ -60,6 +60,27 @@ class TestWinMove < MiniTest::Unit::TestCase
 
     assert_equal([["B"], ["C"]].to_set, w.win.to_set)
   end
+
+  def test_win_move_5
+    w = WinMove.new
+    w.move <+ [["X", "Y"],
+               ["Y", "Z1"],
+               ["Z1", "Z2"]]
+    w.tick
+
+    assert_equal([["X"], ["Z1"]].to_set, w.win.to_set)
+  end
+
+  # A single long chain of 50 moves
+  def test_win_move_6
+    w = WinMove.new
+    squares = (1..50).to_a
+    w.move <+ squares.map {|i| [i, i + 1]}
+    w.tick
+
+    winning_squares = squares.select {|n| n % 2 == 0}.map {|n| [n]}
+    assert_equal(winning_squares.to_set, w.win.to_set)
+  end
 end
 
 class PartHierarchy
