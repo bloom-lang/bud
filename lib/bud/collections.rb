@@ -1421,13 +1421,6 @@ module Bud
     def flush_deltas
       merge_to_graph(@delta)
       merge_to_graph(@new_delta)
-
-      @future_delta.each_pair do |key,t|
-        if edge_get_stratum(*t) == @current_stratum + 2
-          @delta[key] = t
-          @tick_delta << t if accumulate_tick_deltas
-        end
-      end
     end
 
     def merge_to_graph(buf)
@@ -1467,6 +1460,15 @@ module Bud
         end
       end
       @frontier = new_frontier
+
+      @future_delta.each_pair do |key,t|
+        if edge_get_stratum(*t) == @current_stratum + 1
+          @frontier << t[1]
+          @tick_delta << t if accumulate_tick_deltas
+          @future_delta.delete(key)
+        end
+      end
+
       return (not at_end?)
     end
 

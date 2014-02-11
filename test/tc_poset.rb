@@ -120,8 +120,8 @@ class TestPartHierarchy < MiniTest::Unit::TestCase
     p.tested <+ [["D"]]
     p.tick
 
-    assert_equal([["D"], ["C"], ["B"]].to_set, p.working.to_set)
     assert_equal([["A"], ["X"]].to_set, p.has_suspect_part.to_set)
+    assert_equal([["D"], ["C"], ["B"]].to_set, p.working.to_set)
   end
 end
 
