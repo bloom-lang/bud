@@ -1164,13 +1164,13 @@ module Bud
     curr.reset
 
     while true
+      puts "#{'  ' * idx}STRATUM #{curr.current_stratum} FOR #{curr.tabname}"
       if curr == poset_ary.last
         syntactic_fixpoint
       else
         poset_fixpoint(idx + 1, poset_ary)
       end
 
-      puts "#{'  ' * idx}ADVANCING STRATUM FOR #{curr.tabname} => #{curr.current_stratum}"
       break unless curr.advance_stratum
     end
   end
