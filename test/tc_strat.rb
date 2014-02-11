@@ -166,6 +166,25 @@ class PosetDelta
   end
 end
 
+class PosetAccumTickDelta
+  include Bud
+
+  state do
+    table :t1
+    poset :t2, [:a, :b]
+    table :t3
+    table :t4
+    table :t5
+    table :t6
+  end
+
+  bloom do
+    t2 <= t1
+    t5 <= t3.notin(t4)
+    t6 <= (t2 * t5).pairs(:a => :key) {|x,y| [x.b, y.val]}
+  end
+end
+
 class TestPoset < MiniTest::Unit::TestCase
   def test_poset_simple
     t = PosetSimple.new
@@ -200,5 +219,21 @@ class TestPoset < MiniTest::Unit::TestCase
     t.tick
 
     assert_equal([[5, 10], [10, 12]].to_set, t.t3.to_set)
+  end
+
+  def test_poset_accum_tick_delta
+    t = PosetAccumTickDelta.new
+    t.t1 <+ [[5, 10], [10, 20], [20, 30]]
+    t.t3 <+ [[5, 5], [10, 10]]
+    t.tick
+    stratum_ary = [["t1", "t2", "t3", "t4"], ["t5", "t6"]]
+    stratum_ary.each_with_index do |s,i|
+      s.each do |v|
+        assert_equal(i, t.collection_stratum(v))
+      end
+    end
+
+    assert_equal([[5, 10], [10, 20], [20, 30]].to_set, t.t2.to_set)
+    assert_equal([[10, 5], [20, 10]].to_set, t.t6.to_set)
   end
 end
