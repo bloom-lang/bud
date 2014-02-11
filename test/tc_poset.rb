@@ -223,7 +223,7 @@ class TestPoset < MiniTest::Unit::TestCase
 
   def test_poset_accum_tick_delta
     t = PosetAccumTickDelta.new
-    t.t1 <+ [[5, 11]]
+    t.t1 <+ [[5, 11], [11, 12], [12, 13], [13, 14]]
     t.t3 <+ [[5, 5], [10, 10]]
     t.tick
     stratum_ary = [["t1", "t2", "t3", "t4"], ["t5", "t6"]]
@@ -233,12 +233,18 @@ class TestPoset < MiniTest::Unit::TestCase
       end
     end
 
-    assert_equal([[5, 11]].to_set, t.t2.to_set)
+    assert_equal([[5, 11], [11, 12], [12, 13], [13, 14]].to_set, t.t2.to_set)
     assert_equal([[11, 5]].to_set, t.t6.to_set)
 
     t.t1 <+ [[10, 21]]
     t.tick
 
     assert_equal([[11, 5], [21, 10]].to_set, t.t6.to_set)
+
+    t.t1 <+ [[4, 5]]
+    t.t3 <+ [[4, 4]]
+    t.tick
+
+    assert_equal([[5, 4], [11, 5], [21, 10]].to_set, t.t6.to_set)
   end
 end

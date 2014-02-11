@@ -1356,6 +1356,7 @@ module Bud
 
     def initialize(name, bud_instance, given_schema)
       @graph = {}
+      @future_delta = {}
       reset
 
       # Right now, we only support two columns: "x, y" means that y is smaller
@@ -1389,6 +1390,7 @@ module Bud
           non_dups[key] = t
         end
       end
+
       non_dups.each_pair do |key,t|
         t_strat = edge_get_stratum(*t)
         if t_strat == @current_stratum + 1
@@ -1401,6 +1403,8 @@ module Bud
           # query evaluation quirks, an operator might always reproduce its
           # previous outputs.
           raise Bud::Error, "constraint strat error in #{tabname}: t = #{t}, t_strat = #{t_strat}, current strat = #{@current_stratum}"
+        else
+          @future_delta[key] = t
         end
       end
       buf.clear
@@ -1417,6 +1421,13 @@ module Bud
     def flush_deltas
       merge_to_graph(@delta)
       merge_to_graph(@new_delta)
+
+      @future_delta.each_pair do |key,t|
+        if edge_get_stratum(*t) == @current_stratum + 2
+          @delta[key] = t
+          @tick_delta << t if accumulate_tick_deltas
+        end
+      end
     end
 
     def merge_to_graph(buf)
