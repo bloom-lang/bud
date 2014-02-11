@@ -1170,7 +1170,7 @@ module Bud
         poset_fixpoint(idx + 1, poset_ary)
       end
 
-      puts "ADVANCING STRATUM FOR #{curr.tabname}"
+      puts "#{'  ' * idx}ADVANCING STRATUM FOR #{curr.tabname} => #{curr.current_stratum}"
       break unless curr.advance_stratum
     end
   end
