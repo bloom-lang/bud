@@ -185,6 +185,22 @@ class PosetAccumTickDelta
   end
 end
 
+class PosetJoinDelta
+  include Bud
+
+  state do
+    poset :t1
+    poset :t2
+    table :t3
+    table :t4
+  end
+
+  bloom do
+    t2 <= t1 {|t| t if t.x == 1}
+    t4 <= (t2 * t3).pairs(:x => :key) {|a,b| [a.y, b.val]}
+  end
+end
+
 class TestPoset < MiniTest::Unit::TestCase
   def test_poset_simple
     t = PosetSimple.new
@@ -246,5 +262,15 @@ class TestPoset < MiniTest::Unit::TestCase
     t.tick
 
     assert_equal([[5, 4], [11, 5], [21, 10]].to_set, t.t6.to_set)
+  end
+
+  def test_poset_join_delta
+    t = PosetJoinDelta.new
+    t.t1 <+ [[1, 2], [2, 3], [3, 4]]
+    t.t2 <+ [[5, 6], [2, 11], [11, 22], [22, 23]]
+    t.t3 <+ [[5, 10], [1, 20]]
+    t.tick
+
+    assert_equal([[2, 20], [6, 10]].to_set, t.t4.to_set)
   end
 end
