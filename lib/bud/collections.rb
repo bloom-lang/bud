@@ -1351,9 +1351,6 @@ module Bud
   # @new_delta tuples for a lower poset stratum. (In order to easily compute the
   # correct strata for @new_delta tuples, we actually always insert them into
   # the graph, even if they're in the current strata. This should be safe.)
-  #
-  # TODO:
-  #  * accumulate_tick_deltas
   class BudPartialOrder < BudTable
     attr_reader :graph, :current_stratum
 
@@ -1397,6 +1394,7 @@ module Bud
         if t_strat == @current_stratum + 1
           @delta[key] = t
           @frontier << t[1]
+          @tick_delta << t if accumulate_tick_deltas
         elsif t_strat <= @current_stratum
           # We shouldn't see newly inserted tuples that belong in previous poset
           # strata. Note that we're ignoring duplicate tuples here -- due to
