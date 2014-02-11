@@ -1355,7 +1355,7 @@ module Bud
   # TODO:
   #  * accumulate_tick_deltas
   class BudPartialOrder < BudTable
-    attr_reader :graph
+    attr_reader :graph, :current_stratum
 
     def initialize(name, bud_instance, given_schema)
       @graph = {}
@@ -1518,6 +1518,23 @@ module Bud
 
     def edge_get_stratum(x, y)
       return @graph[x].path_len
+    end
+
+    def dump_graph
+      # Note that we convert node IDs to strings, because apparently GraphViz
+      # doesn't like numeric-valued node IDs.
+      require 'graphviz'
+      g = GraphViz.new(:G, :type => :digraph)
+      @graph.each_value do |n|
+        g.add_node(n.id.to_s, :label => "#{n.id} (#{n.path_len})")
+      end
+      @graph.each_value do |n|
+        n.parents.each do |p|
+          g.add_edges(g.find_node(n.id.to_s), g.find_node(p.to_s))
+        end
+      end
+
+      g.output(:pdf => "#{tabname}_graph.pdf")
     end
   end
 
