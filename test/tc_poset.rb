@@ -235,6 +235,22 @@ class WinMoveScratch
   end
 end
 
+class PosetScratchJoin
+  include Bud
+
+  state do
+    poset :p0
+    po_scratch :p1
+    table :t1
+    scratch :r1
+  end
+
+  bloom do
+    p1 <= p0
+    r1 <= (t1 * p1).pairs(:key => :x) {|a,b| [a.val, b.y]}
+  end
+end
+
 class TestPoset < MiniTest::Unit::TestCase
   def test_poset_simple
     t = PosetSimple.new
@@ -326,5 +342,21 @@ class TestPoset < MiniTest::Unit::TestCase
 
     w.tick
     assert_equal([].to_set, w.win.to_set)
+  end
+
+  def test_poset_scratch_join
+    t = PosetScratchJoin.new
+    t.p0 <+ [[0, 5]]
+    t.p1 <+ [[5, 10], [10, 12]]
+    t.t1 <+ [[5, 50], [0, 100]]
+    t.tick
+
+    assert_equal([[50, 10], [100, 5]].to_set, t.r1.to_set)
+
+    t.p1 <+ [[5, 11]]
+    t.t1 <+ [[10, 55]]
+    t.tick
+
+    assert_equal([[50, 11], [100, 5]].to_set, t.r1.to_set)
   end
 end
