@@ -500,6 +500,13 @@ module Bud
       # send deltas out in all cases
       @collection.each_delta {|item| push_out(item)}
     end
+
+    def push_out(i)
+      if @collection.kind_of? Bud::PartialOrderSupport and false
+        puts "#{@collection.tabname} ===> #{i}"
+      end
+      super
+    end
   end
 
   class PushReduce < PushStatefulElement
