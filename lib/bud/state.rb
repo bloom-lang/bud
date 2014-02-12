@@ -152,6 +152,13 @@ module Bud
     @posets[name] = @tables[name]
   end
 
+  def po_scratch(name, schema=nil)
+    schema ||= [:x, :y]
+    define_collection(name)
+    @tables[name] = Bud::BudPartialOrderScratch.new(name, self, schema)
+    @posets[name] = @tables[name]
+  end
+
   def terminal(name) # :nodoc: all
     if defined?(@terminal) && @terminal != name
       raise Bud::Error, "can't register IO collection #{name} in addition to #{@terminal}"

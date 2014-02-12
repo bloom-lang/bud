@@ -1331,42 +1331,22 @@ module Bud
 
   PoNode = Struct.new(:id, :parents, :path_len)
 
-  # A collection that stores a partial order, and produces tuples according to
-  # that partial order. The partial order is essentially used to define a series
-  # of strata: the first strata are all the leaf tuples (=> no tuple is smaller
-  # than the leaves according to the partial order), the second strata are all
-  # the tuples in the next level up (=> no tuple is smaller than level 1 in the
-  # partial order, except for the leaves), and so on. The Bud fixpoint loop
-  # advances through each of the poset collections in stratum order.
-  #
-  # The partial order is stored as a graph, where each vertex is annotated with
-  # the longest path from that vertex to a leaf node. This enables us to iterate
-  # in stratum order.
-  #
-  # This interacts with the delta / new_delta concept as follows. We accumulate
-  # @new_delta as usual. In tick_delta, we only want to copy tuples into @delta
-  # if they are in the CURRENT (poset) strata; otherwise, they must be in a
-  # greater strata, in which case we just insert them into the graph and process
-  # them later. Note that constraint stratification implies we won't see
-  # @new_delta tuples for a lower poset stratum. (In order to easily compute the
-  # correct strata for @new_delta tuples, we actually always insert them into
-  # the graph, even if they're in the current strata. This should be safe.)
-  class BudPartialOrder < BudTable
+  module PartialOrderSupport
     attr_reader :graph, :current_stratum
 
-    def initialize(name, bud_instance, given_schema)
+    def init_poset(schema)
       @graph = {}
       @future_delta = {}
       reset
 
       # Right now, we only support two columns: "x, y" means that y is smaller
       # than x according to the partial order.
-      if given_schema.kind_of? Array
-        keys = given_schema
+      if schema.kind_of? Array
+        keys = schema
         vals = []
       else
-        keys = given_schema.keys.first
-        vals = given_schema.values.first
+        keys = schema.keys.first
+        vals = schema.values.first
       end
 
       unless keys.length + vals.length == 2
@@ -1376,11 +1356,6 @@ module Bud
         raise Bud::Error, "poset \"#{name}\" must have at least one key column"
       end
       @check_key_constraint = (vals.length > 0)
-      super(name, bud_instance, given_schema)
-    end
-
-    def bootstrap
-      install_new_deltas(@pending)
     end
 
     def install_new_deltas(buf)
@@ -1408,19 +1383,6 @@ module Bud
         end
       end
       buf.clear
-    end
-
-    # Move delta -> graph, and move new_delta to either delta or graph, as
-    # appropriate (see discussion above).
-    def tick_deltas
-      merge_to_graph(@delta)
-      install_new_deltas(@new_delta)
-      return (not @delta.empty?)
-    end
-
-    def flush_deltas
-      merge_to_graph(@delta)
-      merge_to_graph(@new_delta)
     end
 
     def merge_to_graph(buf)
@@ -1546,6 +1508,92 @@ module Bud
       end
 
       g.output(:pdf => "#{tabname}_graph.pdf")
+    end
+  end
+
+  # A collection that stores a partial order, and produces tuples according to
+  # that partial order. The partial order is essentially used to define a series
+  # of strata: the first strata are all the leaf tuples (=> no tuple is smaller
+  # than the leaves according to the partial order), the second strata are all
+  # the tuples in the next level up (=> no tuple is smaller than level 1 in the
+  # partial order, except for the leaves), and so on. The Bud fixpoint loop
+  # advances through each of the poset collections in stratum order.
+  #
+  # The partial order is stored as a graph, where each vertex is annotated with
+  # the longest path from that vertex to a leaf node. This enables us to iterate
+  # in stratum order.
+  #
+  # This interacts with the delta / new_delta concept as follows. We accumulate
+  # @new_delta as usual. In tick_delta, we only want to copy tuples into @delta
+  # if they are in the CURRENT (poset) strata; otherwise, they must be in a
+  # greater strata, in which case we just insert them into the graph and process
+  # them later. Note that constraint stratification implies we won't see
+  # @new_delta tuples for a lower poset stratum. (In order to easily compute the
+  # correct strata for @new_delta tuples, we actually always insert them into
+  # the graph, even if they're in the current strata. This should be safe.)
+  class BudPartialOrder < BudTable
+    include PartialOrderSupport
+
+    def initialize(name, bud_instance, given_schema)
+      init_poset(given_schema)
+      super(name, bud_instance, given_schema)
+    end
+
+    def bootstrap
+      install_new_deltas(@pending)
+    end
+
+    # Move delta -> graph, and move new_delta to either delta or graph, as
+    # appropriate (see discussion above).
+    def tick_deltas
+      merge_to_graph(@delta)
+      install_new_deltas(@new_delta)
+      return (not @delta.empty?)
+    end
+
+    def flush_deltas
+      merge_to_graph(@delta)
+      merge_to_graph(@new_delta)
+    end
+  end
+
+  class BudPartialOrderScratch < BudScratch
+    include PartialOrderSupport
+
+    def initialize(name, bud_instance, given_schema)
+      init_poset(given_schema)
+      super(name, bud_instance, given_schema)
+    end
+
+    def bootstrap
+      install_new_deltas(@pending)
+    end
+
+    # Move delta -> graph, and move new_delta to either delta or graph, as
+    # appropriate (see discussion above).
+    def tick_deltas
+      merge_to_graph(@delta)
+      install_new_deltas(@new_delta)
+      return (not @delta.empty?)
+    end
+
+    def flush_deltas
+      merge_to_graph(@delta)
+      merge_to_graph(@new_delta)
+    end
+
+    def each_tick_delta(&blk)
+      each_raw(&blk)
+    end
+
+    def tick
+      @graph = {}
+      reset
+      install_new_deltas(@pending)
+    end
+
+    def invalidate_at_tick
+      true
     end
   end
 

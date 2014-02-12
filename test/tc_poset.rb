@@ -222,6 +222,19 @@ class PosetJoinDelta
   end
 end
 
+class WinMoveScratch
+  include Bud
+
+  state do
+    po_scratch :move, [:from, :to]
+    scratch :win, [:pos]
+  end
+
+  stratum 0 do
+    win <= move.notin(win, :to => :pos).pro {|m| [m.from]}
+  end
+end
+
 class TestPoset < MiniTest::Unit::TestCase
   def test_poset_simple
     t = PosetSimple.new
@@ -293,5 +306,25 @@ class TestPoset < MiniTest::Unit::TestCase
     t.tick
 
     assert_equal([[2, 20], [6, 10]].to_set, t.t4.to_set)
+  end
+
+  def test_win_move_scratch
+    w = WinMoveScratch.new
+    w.move <+ [["A", "B"],
+               ["B", "C"]]
+    w.tick
+    assert_equal([["B"]].to_set, w.win.to_set)
+
+    w.tick
+    assert_equal([].to_set, w.win.to_set)
+
+    w.move <+ [["X", "Y"],
+               ["Y", "Z1"],
+               ["Z1", "Z2"]]
+    w.tick
+    assert_equal([["X"], ["Z1"]].to_set, w.win.to_set)
+
+    w.tick
+    assert_equal([].to_set, w.win.to_set)
   end
 end
