@@ -222,6 +222,28 @@ class PosetJoinDelta
   end
 end
 
+class PosetJoinInvalidate
+  include Bud
+
+  state do
+    poset :t1
+    po_scratch :t2
+    scratch :x, [:val]
+    scratch :y, [:val]
+    table :z, x.schema
+  end
+
+  stratum 0 do
+    t2 <= t1
+    x <= (t1 * t2).pairs {|a,b| puts "!!!!!! a = #{a}, b = #{b}" if a == [1,2] and b == [3,4]; ["stop!"] if a == [1,2] and b == [3,4]}
+    y <= (t1 * t2).pairs {|a,b| puts "###### a = #{a}, b = #{b}" if a == [1,2] and b == [2,3]; ["stop!"] if a == [1,2] and b == [2,3]}
+  end
+
+  stratum 1 do
+    z <= x.notin(y)
+  end
+end
+
 class WinMoveScratch
   include Bud
 
@@ -322,6 +344,14 @@ class TestPoset < MiniTest::Unit::TestCase
     t.tick
 
     assert_equal([[2, 20], [6, 10]].to_set, t.t4.to_set)
+  end
+
+  def test_poset_join_inval
+    t = PosetJoinInvalidate.new
+    t.t1 <+ [[1, 2], [2, 3], [3, 4]]
+    t.tick
+
+    assert_equal([["stop!"]].to_set, t.z.to_set)
   end
 
   def test_win_move_scratch

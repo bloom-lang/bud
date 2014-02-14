@@ -451,6 +451,8 @@ module Bud
   #
   # scanner[stratum].rescan_set = Similar to above.
   def prepare_invalidation_scheme
+    @poset_joins = find_poset_joins
+
     if $BUD_SAFE
       @app_tables = @tables.values + @lattices.values # No collections excluded
 
@@ -1163,12 +1165,29 @@ module Bud
     end
   end
 
+  def find_poset_joins
+    rv = []
+    @num_strata.times do |stratum|
+      @push_sorted_elems[stratum].each do |elem|
+        rv << elem if elem.kind_of?(Bud::PushSHJoin) and elem.is_poset_join
+      end
+    end
+    return rv
+  end
+
+  def invalidate_poset_join_state
+    @poset_joins.each do |j|
+      j.invalidate_cache
+    end
+  end
+
   def poset_fixpoint(idx, poset_ary)
     curr = poset_ary[idx]
     curr.reset
 
     while true
       puts "#{'  ' * idx}STRATUM #{curr.current_stratum} FOR #{curr.tabname}"
+      invalidate_poset_join_state
       if curr == poset_ary.last
         syntactic_fixpoint
       else

@@ -55,6 +55,10 @@ module Bud
       replay_join if @rescan
     end
 
+    def is_poset_join
+      @all_rels_below.any? {|r| r.collection.kind_of? Bud::PartialOrderSupport}
+    end
+
     # initialize the state for this join to be carried across iterations within a fixpoint
     private
     def setup_state
