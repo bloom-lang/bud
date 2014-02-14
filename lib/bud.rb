@@ -1081,6 +1081,35 @@ module Bud
     @done_bootstrap = true
   end
 
+  def do_invalidate_rescan
+    @default_rescan.each {|elem| elem.rescan = true}
+    @default_invalidate.each {|elem|
+      elem.invalidated = true
+      # Call tick on tables here itself. The rest below
+      elem.invalidate_cache unless elem.class <= PushElement
+    }
+
+    # The following loop invalidates additional (non-default) elements and
+    # tables that depend on the run-time invalidation state of a table.  Loop
+    # once to set the flags.
+    each_scanner do |scanner, stratum|
+      if scanner.rescan
+        scanner.rescan_set.each {|e| e.rescan = true}
+        scanner.invalidate_set.each {|e|
+          e.invalidated = true
+          e.invalidate_cache unless e.class <= PushElement
+        }
+      end
+    end
+
+    # Loop a second time to actually call invalidate_cache.  We can't merge this
+    # with the loops above because some versions of invalidate_cache (e.g.,
+    # join) depend on the rescan state of other elements.
+    @num_strata.times do |stratum|
+      @push_sorted_elems[stratum].each {|e| e.invalidate_cache if e.invalidated}
+    end
+  end
+
   # One timestep of Bloom execution. This MUST be invoked from the EventMachine
   # thread; it is not intended to be called directly by client code.
   def tick_internal
@@ -1100,32 +1129,7 @@ module Bud
       else
         # inform tables and elements about beginning of tick.
         @app_tables.each {|t| t.tick}
-        @default_rescan.each {|elem| elem.rescan = true}
-        @default_invalidate.each {|elem|
-          elem.invalidated = true
-          # Call tick on tables here itself. The rest below
-          elem.invalidate_cache unless elem.class <= PushElement
-        }
-
-        # The following loop invalidates additional (non-default) elements and
-        # tables that depend on the run-time invalidation state of a table.
-        # Loop once to set the flags.
-        each_scanner do |scanner, stratum|
-          if scanner.rescan
-            scanner.rescan_set.each {|e| e.rescan = true}
-            scanner.invalidate_set.each {|e|
-              e.invalidated = true
-              e.invalidate_cache unless e.class <= PushElement
-            }
-          end
-        end
-
-        # Loop a second time to actually call invalidate_cache.  We can't merge
-        # this with the loops above because some versions of invalidate_cache
-        # (e.g., join) depend on the rescan state of other elements.
-        @num_strata.times do |stratum|
-          @push_sorted_elems[stratum].each {|e| e.invalidate_cache if e.invalidated}
-        end
+        do_invalidate_rescan
       end
 
       receive_inbound
