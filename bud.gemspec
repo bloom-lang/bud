@@ -1,6 +1,9 @@
+$LOAD_PATH.unshift 'lib'
+require 'bud/version'
+
 Gem::Specification.new do |s|
   s.name = "bud"
-  s.version = "0.9.8"
+  s.version = Bud::VERSION
   s.authors = ["Peter Alvaro", "Neil Conway", "Joseph M. Hellerstein", "William R. Marczak", "Sriram Srinivasan"]
   s.email = ["bloomdevs@gmail.com"]
   s.summary = "A prototype Bloom DSL for distributed programming."
@@ -11,7 +14,7 @@ Gem::Specification.new do |s|
   s.required_ruby_version = '>= 1.8.7'
   s.rubyforge_project = 'bloom-lang'
 
-  s.files = Dir['lib/**/*'] + Dir['bin/*'] + Dir['docs/**/*'] + Dir['examples/**/*'] + %w[README.md LICENSE History.txt]
+  s.files = Dir['lib/**/*'] + Dir['bin/*'] + Dir['docs/**/*'] + Dir['examples/**/*'] + %w[README.md LICENSE History.txt Rakefile]
   s.executables = %w[rebl budplot budvis budtimelines budlabel]
   s.default_executable = 'rebl'
 
