@@ -13,6 +13,7 @@
 * Improve stratification algorithm to be slightly more aggressive; that is, we
   can place certain rules in an earlier strata than we were previously
   (partially fixes #277)
+* Add Rakefile to simplify common development operations (Joel VanderWerf, #324)
 
 == 0.9.7 / 2013-04-22
 
