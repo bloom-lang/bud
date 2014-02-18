@@ -1531,7 +1531,7 @@ module Bud
   # @new_delta tuples for a lower poset stratum. (In order to easily compute the
   # correct strata for @new_delta tuples, we actually always insert them into
   # the graph, even if they're in the current strata. This should be safe.)
-  class BudPartialOrder < BudTable
+  class BudPartialOrderTable < BudTable
     include PartialOrderSupport
 
     def initialize(name, bud_instance, given_schema)

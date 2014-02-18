@@ -142,13 +142,13 @@ module Bud
     @tables[name] = Bud::BudPeriodic.new(name, self)
   end
 
-  # declare a collection that stores a partial order. Specifically, each tuple
-  # (a,b) in the collection indicates that a < b; the transitive closure of the
-  # partial order must be acyclic.
-  def poset(name, schema=nil)
+  # declare a scratch collection that stores a partial order. Specifically, each
+  # tuple (a,b) in the collection indicates that a < b; the transitive closure
+  # of the partial order must be acyclic.
+  def po_table(name, schema=nil)
     schema ||= [:x, :y]
     define_collection(name)
-    @tables[name] = Bud::BudPartialOrder.new(name, self, schema)
+    @tables[name] = Bud::BudPartialOrderTable.new(name, self, schema)
     @posets[name] = @tables[name]
   end
 

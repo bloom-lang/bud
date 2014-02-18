@@ -4,7 +4,7 @@ class WinMove
   include Bud
 
   state do
-    poset :move, [:from, :to]
+    po_table :move, [:from, :to]
     table :win, [:pos]
   end
 
@@ -87,7 +87,7 @@ class PartHierarchy
   include Bud
 
   state do
-    poset :part, [:id, :child]
+    po_table :part, [:id, :child]
     table :tested, [:id]
     scratch :working, [:id]
     scratch :has_suspect_part, [:id]
@@ -150,7 +150,7 @@ class PosetSimple
   include Bud
 
   state do
-    poset :t1, [:x, :y]
+    po_table :t1, [:x, :y]
     table :t2, t1.schema
   end
 
@@ -163,7 +163,7 @@ class PosetKeys
   include Bud
 
   state do
-    poset :t1, [:x] => [:y]
+    po_table :t1, [:x] => [:y]
     table :t2, [:x, :y]
   end
 
@@ -177,7 +177,7 @@ class PosetDelta
 
   state do
     table :t1
-    poset :t2, [:x, :y]
+    po_table :t2, [:x, :y]
     table :t3
   end
 
@@ -192,7 +192,7 @@ class PosetAccumTickDelta
 
   state do
     table :t1
-    poset :t2, [:a, :b]
+    po_table :t2, [:a, :b]
     table :t3
     table :t4
     table :t5
@@ -210,8 +210,8 @@ class PosetJoinDelta
   include Bud
 
   state do
-    poset :t1
-    poset :t2
+    po_table :t1
+    po_table :t2
     table :t3
     table :t4
   end
@@ -226,7 +226,7 @@ class PosetJoinInvalidate
   include Bud
 
   state do
-    poset :t1
+    po_table :t1
     po_scratch :t2
     scratch :x, [:val]
     scratch :y, [:val]
@@ -261,7 +261,7 @@ class PosetScratchJoin
   include Bud
 
   state do
-    poset :p0
+    po_table :p0
     po_scratch :p1
     table :t1
     scratch :r1
