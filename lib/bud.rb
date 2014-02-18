@@ -1176,9 +1176,7 @@ module Bud
   end
 
   def invalidate_poset_join_state
-    @poset_joins.each do |j|
-      j.invalidate_cache
-    end
+    @poset_joins.each {|j| j.invalidate_cache}
   end
 
   def poset_fixpoint(idx, poset_ary)
