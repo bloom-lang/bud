@@ -504,8 +504,6 @@ module Bud
       rescan_invalidate_tc(stratum, rescan, invalidate)
     end
 
-    prune_rescan_invalidate(rescan, invalidate)
-    # transitive closure
     @default_rescan = rescan.to_a
     @default_invalidate = invalidate.to_a
 
@@ -530,7 +528,7 @@ module Bud
       rescan = dflt_rescan.clone
       invalidate = dflt_invalidate + [scanner.collection]
       rescan_invalidate_tc(stratum, rescan, invalidate)
-      prune_rescan_invalidate(rescan, invalidate)
+      prune_rescan_set(rescan)
 
       # Make sure we reset the rescan/invalidate flag for this scanner at
       # end-of-tick, but we can remove the scanner from its own
@@ -603,7 +601,7 @@ module Bud
     end
   end
 
-  def prune_rescan_invalidate(rescan, invalidate)
+  def prune_rescan_set(rescan)
     rescan.delete_if {|e| e.rescan_at_tick}
   end
 
