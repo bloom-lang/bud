@@ -26,8 +26,9 @@ class BudMeta #:nodoc: all
       end
 
       nodes = compute_node_graph
-      stratum_map = stratify_preds(nodes)
       analyze_dependencies(nodes)
+
+      stratum_map = stratify_preds(nodes)
       top_stratum = stratum_map.values.max
       top_stratum ||= -1
 

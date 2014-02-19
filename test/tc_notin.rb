@@ -369,12 +369,12 @@ class NotInChain
   include Bud
 
   state do
-    table :t1
-    table :t2_implicit
+    scratch :t1
+    scratch :t2_implicit
     table :t2, [:foo2, :bar2]
     table :t3, [:foo3, :bar3]
     table :t4, [:foo4, :bar4]
-    table :t5
+    scratch :t5
   end
 
   bloom do
@@ -410,6 +410,11 @@ class NotInChainTest < MiniTest::Unit::TestCase
     n.tick
     assert_equal([[4, 9], [12, 9]], n.t1.to_a.sort)
     assert_equal([[4, 9], [12, 9]], n.t5.to_a.sort)
+
+    n.t3 <+ [[5, 12]]
+    n.tick
+    assert_equal([[4, 9]], n.t1.to_a.sort)
+    assert_equal([[4, 9]], n.t5.to_a.sort)
   end
 
   def test_chain_join

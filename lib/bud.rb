@@ -504,8 +504,6 @@ module Bud
       rescan_invalidate_tc(stratum, rescan, invalidate)
     end
 
-    prune_rescan_invalidate(rescan, invalidate)
-    # transitive closure
     @default_rescan = rescan.to_a
     @default_invalidate = invalidate.to_a
 
@@ -530,7 +528,7 @@ module Bud
       rescan = dflt_rescan.clone
       invalidate = dflt_invalidate + [scanner.collection]
       rescan_invalidate_tc(stratum, rescan, invalidate)
-      prune_rescan_invalidate(rescan, invalidate)
+      prune_rescan_set(rescan)
 
       # Make sure we reset the rescan/invalidate flag for this scanner at
       # end-of-tick, but we can remove the scanner from its own
@@ -603,7 +601,7 @@ module Bud
     end
   end
 
-  def prune_rescan_invalidate(rescan, invalidate)
+  def prune_rescan_set(rescan)
     rescan.delete_if {|e| e.rescan_at_tick}
   end
 
@@ -1128,6 +1126,35 @@ module Bud
     @done_bootstrap = true
   end
 
+  def do_invalidate_rescan
+    @default_rescan.each {|elem| elem.rescan = true}
+    @default_invalidate.each {|elem|
+      elem.invalidated = true
+      # Call tick on tables here itself. The rest below
+      elem.invalidate_cache unless elem.class <= PushElement
+    }
+
+    # The following loop invalidates additional (non-default) elements and
+    # tables that depend on the run-time invalidation state of a table.  Loop
+    # once to set the flags.
+    each_scanner do |scanner, stratum|
+      if scanner.rescan
+        scanner.rescan_set.each {|e| e.rescan = true}
+        scanner.invalidate_set.each {|e|
+          e.invalidated = true
+          e.invalidate_cache unless e.class <= PushElement
+        }
+      end
+    end
+
+    # Loop a second time to actually call invalidate_cache.  We can't merge this
+    # with the loops above because some versions of invalidate_cache (e.g.,
+    # join) depend on the rescan state of other elements.
+    @num_strata.times do |stratum|
+      @push_sorted_elems[stratum].each {|e| e.invalidate_cache if e.invalidated}
+    end
+  end
+
   # One timestep of Bloom execution. This MUST be invoked from the EventMachine
   # thread; it is not intended to be called directly by client code.
   def tick_internal
@@ -1147,32 +1174,7 @@ module Bud
       else
         # inform tables and elements about beginning of tick.
         @app_tables.each {|t| t.tick}
-        @default_rescan.each {|elem| elem.rescan = true}
-        @default_invalidate.each {|elem|
-          elem.invalidated = true
-          # Call tick on tables here itself. The rest below
-          elem.invalidate_cache unless elem.class <= PushElement
-        }
-
-        # The following loop invalidates additional (non-default) elements and
-        # tables that depend on the run-time invalidation state of a table.
-        # Loop once to set the flags.
-        each_scanner do |scanner, stratum|
-          if scanner.rescan
-            scanner.rescan_set.each {|e| e.rescan = true}
-            scanner.invalidate_set.each {|e|
-              e.invalidated = true
-              e.invalidate_cache unless e.class <= PushElement
-            }
-          end
-        end
-
-        # Loop a second time to actually call invalidate_cache.  We can't merge
-        # this with the loops above because some versions of invalidate_cache
-        # (e.g., join) depend on the rescan state of other elements.
-        @num_strata.times do |stratum|
-          @push_sorted_elems[stratum].each {|e| e.invalidate_cache if e.invalidated}
-        end
+        do_invalidate_rescan
       end
 
       receive_inbound

@@ -5,6 +5,7 @@
 * Improve error message when <~ applied to a collection type that doesn't
   support it (#316)
 * Fix rescan logic for Zookeeper-backed collections (#317)
+* Fix rescan logic for chained negation operators in a single rule
 * Support + operator for concatenating tuples
 * More consistent behavior for #==, #eql?, and #hash methods on Bud tuple
   objects (TupleStruct)
@@ -13,6 +14,7 @@
 * Improve stratification algorithm to be slightly more aggressive; that is, we
   can place certain rules in an earlier strata than we were previously
   (partially fixes #277)
+* Add Rakefile to simplify common development operations (Joel VanderWerf, #324)
 
 == 0.9.7 / 2013-04-22
 
