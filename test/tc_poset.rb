@@ -273,6 +273,30 @@ class PosetScratchJoin
   end
 end
 
+# With poset collections, we have a situation in which a collection can grow in
+# (syntactic) stratum k, and then be accessed in (syntactic) stratum < k (but in
+# a later data/poset stratum). Hence, we need to accumulate_tick_delta for the
+# collection, despite the fact that the access to the collection occurs in a
+# (syntactically) *lower* stratum.
+class AccumDeltaInLowerStrata
+  include Bud
+
+  state do
+    po_table :p0
+    table :t1
+    table :t2
+    table :r1
+  end
+
+  stratum 0 do
+    r1 <= t1
+  end
+
+  stratum 1 do
+    t1 <= t2
+  end
+end
+
 class TestPoset < MiniTest::Unit::TestCase
   def test_poset_simple
     t = PosetSimple.new
@@ -388,5 +412,17 @@ class TestPoset < MiniTest::Unit::TestCase
     t.tick
 
     assert_equal([[50, 11], [100, 5]].to_set, t.r1.to_set)
+  end
+
+  def test_accum_delta_in_lower_strata
+    t = AccumDeltaInLowerStrata.new
+    t.p0 <+ [[0, 5], [5, 10]]
+    t.t2 <+ [[100, 100]]
+    t.tick
+    assert_equal([[100, 100]].to_set, t.r1.to_set)
+
+    t.t2 <+ [[110, 110]]
+    t.tick
+    assert_equal([[100, 100], [110, 110]].to_set, t.r1.to_set)
   end
 end

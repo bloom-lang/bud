@@ -406,7 +406,13 @@ module Bud
     end
     @merge_targets.each_with_index do |stratum_targets, stratum|
       stratum_targets.each {|tab|
-        tab.accumulate_tick_deltas = true if stratum_accessed[tab] and stratum_accessed[tab] > stratum
+
+        # We enable accum_tick_deltas if the collection is accessed in a higher
+        # *or* lower stratum. This is to produce the correct results for
+        # manually stratified programs where a relation is computed in stratum k
+        # and accessed in some stratum < k. See the AccumDeltaInLowerStrata test
+        # for an example.
+        tab.accumulate_tick_deltas = true if stratum_accessed[tab] and stratum_accessed[tab] != stratum
       }
     end
 
