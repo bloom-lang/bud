@@ -297,6 +297,27 @@ class AccumDeltaInLowerStrata
   end
 end
 
+class AccumDeltaInLowerStrataCrossTick
+  include Bud
+
+  state do
+    po_table :p0
+    table :t1
+    table :t2
+    table :r1
+  end
+
+  stratum 0 do
+    r1 <= t1
+  end
+
+  stratum 1 do
+    # In the test case, we setup the EDB such that [25,50] is in the last
+    # (highest) poset strata of p0.
+    t1 <= (p0 * t2).pairs {|x,y| y if x == [25, 50]}
+  end
+end
+
 class TestPoset < MiniTest::Unit::TestCase
   def test_poset_simple
     t = PosetSimple.new
@@ -424,5 +445,14 @@ class TestPoset < MiniTest::Unit::TestCase
     t.t2 <+ [[110, 110]]
     t.tick
     assert_equal([[100, 100], [110, 110]].to_set, t.r1.to_set)
+  end
+
+  def test_accum_delta_in_lower_strata_cross_tick
+    t = AccumDeltaInLowerStrataCrossTick.new
+    t.p0 <+ [[25, 50], [50, 100]]
+    t.t2 <+ [[66, 66]]
+    t.tick
+
+    assert_equal([[66, 66]].to_set, t.r1.to_set)
   end
 end

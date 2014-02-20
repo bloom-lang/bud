@@ -1191,7 +1191,7 @@ module Bud
       puts "#{'  ' * idx}STRATUM #{curr.current_stratum} FOR #{curr.tabname}"
       invalidate_poset_join_state
       if curr == poset_ary.last
-        syntactic_fixpoint
+        2.times { syntactic_fixpoint }
       else
         poset_fixpoint(idx + 1, poset_ary)
       end
