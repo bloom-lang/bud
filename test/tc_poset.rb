@@ -235,8 +235,8 @@ class PosetJoinInvalidate
 
   stratum 0 do
     t2 <= t1
-    x <= (t1 * t2).pairs {|a,b| puts "!!!!!! a = #{a}, b = #{b}" if a == [1,2] and b == [3,4]; ["stop!"] if a == [1,2] and b == [3,4]}
-    y <= (t1 * t2).pairs {|a,b| puts "###### a = #{a}, b = #{b}" if a == [1,2] and b == [2,3]; ["stop!"] if a == [1,2] and b == [2,3]}
+    x <= (t1 * t2).pairs {|a,b| ["stop!"] if a == [1,2] and b == [3,4]}
+    y <= (t1 * t2).pairs {|a,b| ["stop!"] if a == [1,2] and b == [2,3]}
   end
 
   stratum 1 do
