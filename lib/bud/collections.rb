@@ -1411,17 +1411,15 @@ module Bud
 
     def advance_stratum
       @current_stratum += 1
-      new_frontier = Set.new
-      @frontier.each do |n|
-        @graph[n].parents.each do |p|
+      @frontier = @frontier.flat_map do |n|
+        @graph[n].parents.map do |p|
           if @graph[p].path_len == @current_stratum
-            new_frontier << p
+            p
           elsif @graph[p].path_len > @current_stratum
-            new_frontier << n
+            n
           end
-        end
-      end
-      @frontier = new_frontier
+        end.compact
+      end.to_set
 
       @future_delta.each_pair do |key,t|
         if edge_get_stratum(*t) == @current_stratum + 1
