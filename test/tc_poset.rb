@@ -318,6 +318,28 @@ class AccumDeltaInLowerStrataCrossTick
   end
 end
 
+class AccumDeltaInLowerStrataMultipleTimes
+  include Bud
+
+  state do
+    table :t1
+    table :t2
+    table :t3
+    table :t4
+    table :t5
+  end
+
+  stratum 0 do
+    t3 <= t2
+    t5 <= t4
+  end
+
+  stratum 1 do
+    t2 <= t1
+    t4 <= t3
+  end
+end
+
 class TestPoset < MiniTest::Unit::TestCase
   def test_poset_simple
     t = PosetSimple.new
@@ -454,5 +476,16 @@ class TestPoset < MiniTest::Unit::TestCase
     t.tick
 
     assert_equal([[66, 66]].to_set, t.r1.to_set)
+  end
+
+  def test_accum_delta_in_lower_strata_multiple_times
+    t = AccumDeltaInLowerStrataMultipleTimes.new
+    t.t1 <+ [[5, 10], [10, 20]]
+    t.tick
+
+    assert_equal([[5, 10], [10, 20]].to_set, t.t2.to_set)
+    assert_equal([[5, 10], [10, 20]].to_set, t.t3.to_set)
+    assert_equal([[5, 10], [10, 20]].to_set, t.t4.to_set)
+    assert_equal([[5, 10], [10, 20]].to_set, t.t5.to_set)
   end
 end

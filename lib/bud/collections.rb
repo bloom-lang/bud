@@ -20,7 +20,7 @@ module Bud
     attr_reader :wired_by, :scanner_cnt
     attr_accessor :invalidated, :rescan
     attr_accessor :is_source
-    attr_accessor :accumulate_tick_deltas # updated in bud.do_wiring
+    attr_accessor :accumulate_tick_deltas, :saw_tick_delta
 
     def initialize(name, bud_instance, given_schema=nil, defer_schema=false) # :nodoc: all
       @tabname = name
@@ -30,6 +30,7 @@ module Bud
       @scanner_cnt = 0
       @wired_by = []
       @accumulate_tick_deltas = false
+      @saw_tick_delta = false
       init_schema(given_schema) unless given_schema.nil? and defer_schema
       init_buffers
     end
@@ -658,6 +659,7 @@ module Bud
     def tick_deltas # :nodoc: all
       unless @delta.empty?
         puts "#{qualified_tabname}.tick_deltas delta --> storage (#{@delta.size} elems)" if $BUD_DEBUG
+        @saw_tick_delta = true
         @storage.merge!(@delta)
         @tick_delta.concat(@delta.values) if accumulate_tick_deltas
         @delta.clear
@@ -698,6 +700,7 @@ module Bud
         puts "#{qualified_tabname}.flush new_delta --> storage" unless @new_delta.empty?
       end
       unless @delta.empty?
+        @saw_tick_delta = true
         @storage.merge!(@delta)
         @tick_delta.concat(@delta.values) if accumulate_tick_deltas
         @delta.clear
@@ -829,6 +832,7 @@ module Bud
     public
     def tick  # :nodoc: all
       @delta.clear
+      @saw_tick_delta = false
       if not @pending.empty?
         invalidate_cache
         @delta = @pending
@@ -949,6 +953,7 @@ module Bud
 
     public
     def tick # :nodoc: all
+      @saw_tick_delta = false
       @storage.clear
       @invalidated = true
       # Note that we do not clear @pending here: if the user inserted into the
@@ -1138,6 +1143,7 @@ module Bud
         @tick_delta.clear
       end
       @invalidated = true       # channels and terminals are always invalidated
+      @saw_tick_delta = false
     end
 
     public
@@ -1200,6 +1206,7 @@ module Bud
       @tick_delta.clear
       @delta.clear
       @invalidated = true
+      @saw_tick_delta = false
       unless pending.empty?
         @delta = @pending
         @pending = {}
@@ -1255,6 +1262,7 @@ module Bud
       @to_delete = []
       @to_delete_by_key = []
       @pending = {}
+      @saw_tick_delta = false
     end
 
     def invalidated=(val)
@@ -1546,6 +1554,7 @@ module Bud
     # Move delta -> graph, and move new_delta to either delta or graph, as
     # appropriate (see discussion above).
     def tick_deltas
+      @saw_tick_delta = true unless @delta.empty?
       merge_to_graph(@delta)
       install_new_deltas(@new_delta)
       return (not @delta.empty?)
@@ -1572,6 +1581,7 @@ module Bud
     # Move delta -> graph, and move new_delta to either delta or graph, as
     # appropriate (see discussion above).
     def tick_deltas
+      @saw_tick_delta = true unless @delta.empty?
       merge_to_graph(@delta)
       install_new_deltas(@new_delta)
       return (not @delta.empty?)
@@ -1587,6 +1597,7 @@ module Bud
     end
 
     def tick
+      @saw_tick_delta = false
       @graph = {}
       reset
       install_new_deltas(@pending)

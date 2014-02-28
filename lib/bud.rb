@@ -70,7 +70,7 @@ module Bud
   attr_reader :budtime, :inbound, :options, :meta_parser, :viz, :rtracer, :dsock
   attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :app_tables, :lattices, :posets
   attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets
-  attr_reader :this_stratum, :this_rule_context, :done_bootstrap
+  attr_reader :this_stratum, :this_rule_context, :this_rule_id, :done_bootstrap
   attr_reader :inside_tick
   attr_accessor :stratified_rules
   attr_accessor :metrics, :periodics
@@ -416,6 +416,30 @@ module Bud
           tab.accumulate_tick_deltas = true
         end
       }
+    end
+
+    # We also want to find circumstances in which a rule inserts into a
+    # collection, and the rule appears in a *higher* stratum than a rule that
+    # reads from the collection. Hence, whenever a tuple is derived into the
+    # collection via this rule, we need to make sure we reevaluate the strata to
+    # account for it.
+    stratum_accessed = {}
+    @num_strata.times do |stratum|
+      @scanners[stratum].each_value do |s|
+        stratum_accessed[s.collection] ||= Set.new
+        stratum_accessed[s.collection] << stratum
+      end
+    end
+
+    @backward_merge_targets = Set.new
+    @merge_targets.each_with_index do |stratum_targets, stratum|
+      stratum_targets.each do |tab|
+        read_strata = stratum_accessed[tab]
+        next if read_strata.nil?
+        if read_strata.any? {|s| s < stratum}
+          @backward_merge_targets << tab
+        end
+      end
     end
 
     @done_wiring = true
@@ -1193,7 +1217,7 @@ module Bud
       puts "#{'  ' * idx}STRATUM #{curr.current_stratum} FOR #{curr.tabname}"
       invalidate_poset_join_state
       if curr == poset_ary.last
-        2.times { syntactic_fixpoint }
+        syntactic_fixpoint
       else
         poset_fixpoint(idx + 1, poset_ary)
       end
@@ -1203,8 +1227,20 @@ module Bud
   end
 
   def syntactic_fixpoint
-    @stratified_rules.each_with_index do |rules,stratum|
-      simple_fixpoint(stratum)
+    while true
+      @stratified_rules.each_with_index do |rules,stratum|
+        simple_fixpoint(stratum)
+      end
+
+      rescan = false
+      @backward_merge_targets.each do |bmt|
+        if bmt.saw_tick_delta
+          bmt.saw_tick_delta = false
+          rescan = true
+        end
+      end
+
+      break unless rescan
     end
   end
 
@@ -1317,6 +1353,7 @@ module Bud
     rules.each_with_index do |rule, i|
       # user-supplied code blocks will be evaluated in this context at run-time
       @this_rule_context = rule.bud_obj
+      @this_rule_id = rule.rule_id
       begin
         eval_rule(rule.bud_obj, rule.src)
       rescue Exception => e
@@ -1328,6 +1365,7 @@ module Bud
       end
     end
     @this_rule_context = nil
+    @this_rule_id = -1
     @this_stratum = -1
   end
 
