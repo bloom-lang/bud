@@ -70,11 +70,11 @@ module Bud
   attr_reader :budtime, :inbound, :options, :meta_parser, :viz, :rtracer, :dsock
   attr_reader :tables, :builtin_tables, :channels, :zk_tables, :dbm_tables, :app_tables, :lattices, :posets
   attr_reader :push_sources, :push_elems, :push_joins, :scanners, :merge_targets
-  attr_reader :this_stratum, :this_rule, :rule_orig_src, :done_bootstrap
+  attr_reader :this_stratum, :this_rule_context, :done_bootstrap
   attr_reader :inside_tick
   attr_accessor :stratified_rules
   attr_accessor :metrics, :periodics
-  attr_accessor :this_rule_context, :qualified_name
+  attr_accessor :qualified_name
   attr_reader :running_async
 
   # options to the Bud runtime are passed in a hash, with the following keys
@@ -137,7 +137,8 @@ module Bud
     @instance_id = ILLEGAL_INSTANCE_ID # Assigned when we start running
     @metrics = {}
     @endtime = nil
-    @this_stratum = 0
+    @this_stratum = -1
+    @this_rule_id = -1
     @push_sorted_elems = nil
     @running_async = false
     @bud_started = false
@@ -1314,7 +1315,8 @@ module Bud
     # of PushElements
     @this_stratum = strat_num
     rules.each_with_index do |rule, i|
-      @this_rule_context = rule.bud_obj # user-supplied code blocks will be evaluated in this context at run-time
+      # user-supplied code blocks will be evaluated in this context at run-time
+      @this_rule_context = rule.bud_obj
       begin
         eval_rule(rule.bud_obj, rule.src)
       rescue Exception => e
@@ -1325,6 +1327,8 @@ module Bud
         raise new_e
       end
     end
+    @this_rule_context = nil
+    @this_stratum = -1
   end
 
   ######## ids and timers

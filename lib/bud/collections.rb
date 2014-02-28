@@ -305,19 +305,21 @@ module Bud
     public
     def tick_metrics
       strat_num = bud_instance.this_stratum
-      rule_num = bud_instance.this_rule
-      addr = nil
       addr = bud_instance.ip_port unless bud_instance.port.nil?
+      key = { :addr=>addr, :tabname=>qualified_tabname,
+              :strat_num=>strat_num}
+
       bud_instance.metrics[:collections] ||= {}
-      bud_instance.metrics[:collections][{:addr=>addr, :tabname=>qualified_tabname, :strat_num=>strat_num, :rule_num=>rule_num}] ||= 0
-      bud_instance.metrics[:collections][{:addr=>addr, :tabname=>qualified_tabname, :strat_num=>strat_num, :rule_num=>rule_num}] += 1
+      bud_instance.metrics[:collections][key] ||= 0
+      bud_instance.metrics[:collections][key] += 1
     end
 
     private
     def each_from(bufs, &block) # :nodoc: all
+      do_metrics = bud_instance.options[:metrics]
       bufs.each do |b|
         b.each_value do |v|
-          tick_metrics if bud_instance.options[:metrics]
+          tick_metrics if do_metrics
           yield v
         end
       end
