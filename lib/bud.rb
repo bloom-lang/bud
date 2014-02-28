@@ -395,7 +395,7 @@ module Bud
     # beginning of each tick
     prepare_invalidation_scheme
 
-    # For all tables that are accessed (scanned) in a stratum higher than the
+    # For all tables that are accessed (scanned) in a stratum different than the
     # one they are updated in, set a flag to track deltas accumulated in that
     # tick (see: collection.tick_delta)
     stratum_accessed = {}
@@ -406,13 +406,14 @@ module Bud
     end
     @merge_targets.each_with_index do |stratum_targets, stratum|
       stratum_targets.each {|tab|
-
         # We enable accum_tick_deltas if the collection is accessed in a higher
         # *or* lower stratum. This is to produce the correct results for
         # manually stratified programs where a relation is computed in stratum k
         # and accessed in some stratum < k. See the AccumDeltaInLowerStrata test
         # for an example.
-        tab.accumulate_tick_deltas = true if stratum_accessed[tab] and stratum_accessed[tab] != stratum
+        if stratum_accessed[tab] and stratum_accessed[tab] != stratum
+          tab.accumulate_tick_deltas = true
+        end
       }
     end
 
