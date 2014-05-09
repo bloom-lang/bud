@@ -891,7 +891,7 @@ module Bud
   # makes use of @storage and @delta, whereas the outgoing side only deals with
   # @pending. XXX Maybe we should be using aliases instead.
   class BudChannel < BudCollection
-    attr_reader :connected, :locspec_idx, :num_recv, :num_sent, :num_sent_physical
+    attr_reader :connected, :locspec_idx, :num_recv, :num_sent, :num_sent_physical, :raw_schema
 
     def initialize(name, bud_instance, given_schema=nil,
                    range_compress=false, loopback=false)

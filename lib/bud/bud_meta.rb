@@ -378,7 +378,11 @@ class BudMeta #:nodoc: all
   end
 
   def coll_schema_str(t)
-    schema = t.schema
+    if t.is_a? Bud::BudChannel
+      schema = t.raw_schema # Get the schema before "@" signs have been removed
+    else
+      schema = t.schema
+    end
     if schema.kind_of? Array
       schema
     else
