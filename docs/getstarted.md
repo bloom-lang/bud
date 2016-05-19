@@ -66,9 +66,11 @@ Second, note that our Bud program's one statement merges the values on its right
 ### Tables and Scratches ###
 Before we dive into writing server code, let's try a slightly more involved single-timestep example.  Start up rebl again, and paste in the following:
 
-    table :clouds
-    clouds <= [[1, "Cirrus"], [2, "Cumulus"]]
-    stdio <~ clouds.inspected
+``` ruby
+table :clouds
+clouds <= [[1, "Cirrus"], [2, "Cumulus"]]
+stdio <~ clouds.inspected
+```
     
 Now tick your rebl, but don't quit yet.  
 
@@ -128,8 +130,10 @@ Now that we've seen a bit of Bloom, we're ready to write our first interesting s
 
 Even though we're getting ahead of ourselves, let's have a peek at the Bloom statements that implement the server in `examples/chat/chat_server.rb`:
 
-    nodelist <= connect { |c| [c.client, c.nick] }
-    mcast <~ (mcast * nodelist).pairs { |m,n| [n.key, m.val] }
+``` ruby
+nodelist <= connect { |c| [c.client, c.nick] }
+mcast <~ (mcast * nodelist).pairs { |m,n| [n.key, m.val] }
+```
 
 That's it!  There is one statement for each of the two sentences describing the behavior of the "basic idea" above.  We'll go through these two statements in more detail shortly.  But it's nice to see right away how concisely and naturally a Bloom program can fit our intuitive description of a distributed service.
 
@@ -137,14 +141,16 @@ That's it!  There is one statement for each of the two sentences describing the 
 
 Now that we've satisfied our need to peek, let's take this a bit more methodically.  First we need declarations for the various Bloom collections we'll be using.  We put the declarations that are common to both client and server into file `examples/chat/chat_protocol.rb`:
 
-    module ChatProtocol
-      state do
-        channel :connect, [:@addr, :client] => [:nick]
-        channel :mcast
-      end
-      
-      DEFAULT_ADDR = "localhost:12345"
-    end
+``` ruby
+module ChatProtocol
+  state do
+    channel :connect, [:@addr, :client] => [:nick]
+    channel :mcast
+  end
+  
+  DEFAULT_ADDR = "localhost:12345"
+end
+```
 
 This defines a [Ruby mixin module](http://www.ruby-doc.org/docs/ProgrammingRuby/html/tut_modules.html) called `ChatProtocol` that has a couple special Bloom features:
 
@@ -156,33 +162,34 @@ This defines a [Ruby mixin module](http://www.ruby-doc.org/docs/ProgrammingRuby/
 
 Given this protocol (and the Ruby constant at the bottom), we're now ready to examine `examples/chat/chat_server.rb` in more detail:
 
-    require 'rubygems'
-    require 'bud'
-    require_relative 'chat_protocol'
+``` ruby
+require 'rubygems'
+require 'bud'
+require_relative 'chat_protocol'
 
-    class ChatServer
-      include Bud
-      include ChatProtocol
+class ChatServer
+  include Bud
+  include ChatProtocol
 
-      state { table :nodelist }
+  state { table :nodelist }
 
-      bloom do
-        nodelist <= connect { |c| [c.client, c.nick] }
-        mcast <~ (mcast * nodelist).pairs { |m,n| [n.key, m.val] }
-      end
-    end
+  bloom do
+    nodelist <= connect { |c| [c.client, c.nick] }
+    mcast <~ (mcast * nodelist).pairs { |m,n| [n.key, m.val] }
+  end
+end
 
-    if ARGV.first
-      addr = ARGV.first
-    else
-      addr = ChatProtocol::DEFAULT_ADDR
-    end
+if ARGV.first
+  addr = ARGV.first
+else
+  addr = ChatProtocol::DEFAULT_ADDR
+end
 
-    ip, port = addr.split(":")
-    puts "Server address: #{ip}:#{port}"
-    program = ChatServer.new(:ip => ip, :port => port.to_i)
-    program.run_fg
-
+ip, port = addr.split(":")
+puts "Server address: #{ip}:#{port}"
+program = ChatServer.new(:ip => ip, :port => port.to_i)
+program.run_fg
+```
     
 The first few lines get the appropriate Ruby classes and modules loaded via `require`.  We then define the ChatServer class which mixes in the `Bud` module and the ChatProtocol module we looked at above.  Then we have another `state` block that declares one additional collection, the `nodelist` table.  
 
@@ -190,14 +197,18 @@ With those preliminaries aside, we have our first `bloom` block, which is how Bl
 
 The first is pretty simple: 
 
-     nodelist <= connect { |c| [c.client, c.nick] }
+``` ruby
+nodelist <= connect { |c| [c.client, c.nick] }
+```
 
 This says that whenever messages arrive on the channel named "connect", the client address and user-provided nickname should be instantaneously merged into the table "nodelist", which will store them persistently.  Note that nodelist has a \[key/val\] pair structure, so it is suitable for storing pairs of (IP address, nickname).
 
 The next Bloom statement is more complex.  Remember the description in the "basic idea" at the beginning of this section: the server needs to accept inbound chat messages from clients and forward them to other clients.  
 
-    mcast <~ (mcast * nodelist).pairs { |m,n| [n.key, m.val] }
-    
+``` ruby
+mcast <~ (mcast * nodelist).pairs { |m,n| [n.key, m.val] }
+```
+
 The first thing to note is the lhs and operator in this statement.  We are merging items (asynchronously, of course!) into the mcast channel, where they will be sent to their eventual destination.  
 
 The rhs is our first introduction to the `*` operator of Bloom collections, and the `pairs` method after it.  You can think of the `*` operator as "all-pairs": it produces a Bloom collection containing all pairs of mcast and nodelist items.  The `pairs` method iterates through these pairs, passing them through a code block via the block arguments `m` and `n`. Finally, for each such pair the block produces an item containing the `key` attribute of the nodelist item, and the `val` attribute of the mcast item.  This is structured as a proper \[address, val\] entry to be merged back into the mcast channel.  Putting this together, this statement *multicasts inbound payloads on the mcast channel to all nodes in the chat*.
@@ -218,49 +229,51 @@ Given our understanding of the server, the client should be pretty simple.  It n
 
 And here's the code:
 
-    require 'rubygems'
-    require 'bud'
-    require_relative 'chat_protocol'
+``` ruby
+require 'rubygems'
+require 'bud'
+require_relative 'chat_protocol'
 
-    class ChatClient
-      include Bud
-      include ChatProtocol
+class ChatClient
+  include Bud
+  include ChatProtocol
 
-      def initialize(nick, server, opts={})
-        @nick = nick
-        @server = server
-        super opts
-      end
+  def initialize(nick, server, opts={})
+    @nick = nick
+    @server = server
+    super opts
+  end
 
-      bootstrap do
-        connect <~ [[@server, ip_port, @nick]]
-      end
+  bootstrap do
+    connect <~ [[@server, ip_port, @nick]]
+  end
 
-      bloom do
-        mcast <~ stdio do |s|
-          [@server, [ip_port, @nick, Time.new.strftime("%I:%M.%S"), s.line]]
-        end
-
-        stdio <~ mcast { |m| [pretty_print(m.val)] }
-      end
-
-      # format chat messages with timestamp on the right of the screen
-      def pretty_print(val)
-        str = val[1].to_s + ": " + (val[3].to_s || '')
-        pad = "(" + val[2].to_s + ")"
-        return str + " "*[66 - str.length,2].max + pad
-      end
+  bloom do
+    mcast <~ stdio do |s|
+      [@server, [ip_port, @nick, Time.new.strftime("%I:%M.%S"), s.line]]
     end
 
-    if ARGV.length == 2
-      server = ARGV[1]
-    else
-      server = ChatProtocol::DEFAULT_ADDR
-    end
+    stdio <~ mcast { |m| [pretty_print(m.val)] }
+  end
 
-    puts "Server address: #{server}"
-    program = ChatClient.new(ARGV[0], server, :stdin => $stdin)
-    program.run_fg
+  # format chat messages with timestamp on the right of the screen
+  def pretty_print(val)
+    str = val[1].to_s + ": " + (val[3].to_s || '')
+    pad = "(" + val[2].to_s + ")"
+    return str + " "*[66 - str.length,2].max + pad
+  end
+end
+
+if ARGV.length == 2
+  server = ARGV[1]
+else
+  server = ChatProtocol::DEFAULT_ADDR
+end
+
+puts "Server address: #{server}"
+program = ChatClient.new(ARGV[0], server, :stdin => $stdin)
+program.run_fg
+```
 
 The ChatClient class has a typical Ruby `initialize` method that sets up two local instance variables: one for this client's nickname, and another for the 'IP:port' address string for the server.  It then calls the initializer of the Bud superclass passing along a hash of options.
 
