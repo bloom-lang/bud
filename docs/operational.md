@@ -57,17 +57,17 @@ Because Bloom is data-driven rather than call-stack-driven, recursion may feel a
 Have a look at the following classic "transitive closure" example, which computes multi-hop paths in a graph based on a collection of one-hop links:
 
     state do
-      table :link, [:from, :to, :cost]
-      table :path, [:from, :to, :cost]
+      table :link, [:from, :to]
+      table :path, [:from, :to]
     end
 
     bloom :make_paths do
       # base case: every link is a path
-      path <= link {|e| [e.from, e.to, e.cost]}
+      path <= link {|e| [e.from, e.to]}
 
       # recurse: path of length n+1 made by a link to a path of length n
       path <= (link*path).pairs(:to => :from) do |l,p|
-        [l.from, p.to, l.cost+p.cost]
+        [l.from, p.to]
       end
     end
     
