@@ -12,7 +12,7 @@ try the following:
   code in Ruby via the `Bud` module.
 * [operational](operational.md): An operational view of Bloom, to provide
   a more detailed model of how Bloom code is evaluated by Bud.
-* [cheat](cheat.md): A concise "cheat sheet" to remind you about Bloom syntax.
+* [cheat](cheat.md): Full documentation of the language constructs in a concise "cheat sheet" style.
 * [modules](modules.md): An overview of Bloom's modularity features.
 * [ruby_hooks](ruby\_hooks.md): Bud module methods that allow you to
   interact with the Bud evaluator from other Ruby threads.
