@@ -379,6 +379,9 @@ class UnsafeFuncRewriter < SexpProcessor
 
   def process_iter(exp)
     tag, recv, iter_args, body = exp
+    if (iter_args == 0)
+      iter_args = [:args]
+    end
     new_body = push_and_process(body)
     return s(tag, process(recv), process(iter_args), new_body)
   end
@@ -418,6 +421,9 @@ class LatticeRefRewriter < SexpProcessor
   def process_iter(exp)
     tag, recv, iter_args, body = exp
     new_body = push_and_process(body)
+    if (iter_args == 0)
+      iter_args = [:args]
+    end
     return s(tag, process(recv), process(iter_args), new_body)
   end
 

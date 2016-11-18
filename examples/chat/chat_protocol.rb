@@ -4,5 +4,5 @@ module ChatProtocol
     channel :mcast
   end
 
-  DEFAULT_ADDR = "localhost:12345"
+  DEFAULT_ADDR = "127.0.0.1:12345"
 end

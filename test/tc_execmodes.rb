@@ -92,7 +92,7 @@ class ExecModeTest < MiniTest::Unit::TestCase
     _, status = Process.waitpid2(pid)
     assert(!status.signaled?)           # Should have caught the signal
     assert(status.exited?)
-    assert_equal(1, status.exitstatus)  # XXX: probably should be 0
+    assert_equal(0, status.exitstatus)
     parent.stop
     read.close ; write.close
   end
