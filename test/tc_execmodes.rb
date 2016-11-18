@@ -92,7 +92,12 @@ class ExecModeTest < MiniTest::Unit::TestCase
     _, status = Process.waitpid2(pid)
     assert(!status.signaled?)           # Should have caught the signal
     assert(status.exited?)
-    assert_equal(0, status.exitstatus)
+    rubyMajorVersion = RUBY_VERSION.split('.')[0].to_i
+    if (rubyMajorVersion < 2)
+      assert_equal(0, status.exitstatus)
+    else
+      assert_equal(1, status.exitstatus)
+    end
     parent.stop
     read.close ; write.close
   end
