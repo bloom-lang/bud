@@ -21,6 +21,10 @@ def make_instance(mods)
   # If we're given a single identifier that names a class, just return an
   # instance of that class. Otherwise, define a bogus class that includes all
   # the module names specified by the user and return an instance.
+  tmpserver = TCPServer.new('127.0.0.1', 0) # get a free port
+  default_params = {:dbm_dir => "/tmp/budplot_dbm_" + SecureRandom.uuid.to_s, :port => tmpserver.addr[1]}
+
+
   mods.each do |m|
     unless is_constant? m
       puts "Error: unable to find definition for module or class \"#{m}\""
@@ -30,7 +34,7 @@ def make_instance(mods)
     mod_klass = eval m
     if mod_klass.class == Class
       if mods.length == 1
-        return mod_klass.new
+        return mod_klass.new(default_params)
       else
         puts "Error: cannot intermix class \"#{mod_klass}\" with modules"
         exit
@@ -50,7 +54,7 @@ def make_instance(mods)
               ]
   class_def = def_lines.flatten.join("\n")
   eval(class_def)
-  f = FooBar.new
+  f = FooBar.new(default_params)
   3.times{ f.tick }
   f
 end
@@ -220,6 +224,7 @@ end
 modules = []
 ARGV.each do |arg|
   if File.exists? arg
+    arg = File.expand_path arg
     require arg
   else
     modules << arg
