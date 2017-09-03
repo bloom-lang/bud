@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/bloom-lang/bud.svg?branch=constraint-strat)](https://travis-ci.org/bloom-lang/bud)
 # Bud
 
 This is Bud, a.k.a. "Bloom Under Development".  It is an initial cut at a Bloom
