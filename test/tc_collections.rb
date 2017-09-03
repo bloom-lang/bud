@@ -408,7 +408,7 @@ class TestCollections < MiniTest::Unit::TestCase
     end
 
     bootstrap do
-      t1 << [5, nil]
+      t1 << [[5, nil]]
       t1 << [5, 10]
     end
 
@@ -422,7 +422,7 @@ class TestCollections < MiniTest::Unit::TestCase
     p.run_bg
     p.sync_do {
       assert_equal(2, p.t1.length)
-      p.t2 <+ [[5, 100]]
+      p.t2 <+ [[[5, nil], nil]]
     }
     p.sync_do
     p.sync_do {

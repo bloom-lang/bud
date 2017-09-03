@@ -75,6 +75,8 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   # converting ASTs to strings with doing analysis on ASTs. Those should be
   # split into two separate passes.
   def process_iter(exp)
+    # first field of exp is tag; shift it
+    exp.shift
     iter = process exp.shift
     args = exp.shift
 
@@ -129,7 +131,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   def process_call(exp)
-    recv, op, *args = exp
+    tag, recv, op, *args = exp
     if OP_LIST.include?(op) and @context[1] == :defn and @context.length == 2
       # NB: context.length is 2 when see a method call at the top-level of a
       # :defn block -- this is where we expect Bloom statements to appear
@@ -257,7 +259,7 @@ class RuleRewriter < Ruby2Ruby # :nodoc: all
   end
 
   def do_rule(exp)
-    lhs, op, rhs_ast = exp
+    tag, lhs, op, rhs_ast = exp
     lhs = process(lhs)
 
     rhs_ast = MapRewriter.new.process(rhs_ast)
@@ -380,7 +382,7 @@ class UnsafeFuncRewriter < SexpProcessor
   def process_iter(exp)
     tag, recv, iter_args, body = exp
     if (iter_args == 0)
-      iter_args = [:args]
+      iter_args = s(:args)
     end
     new_body = push_and_process(body)
     return s(tag, process(recv), process(iter_args), new_body)
@@ -422,7 +424,7 @@ class LatticeRefRewriter < SexpProcessor
     tag, recv, iter_args, body = exp
     new_body = push_and_process(body)
     if (iter_args == 0)
-      iter_args = [:args]
+      iter_args = s(:args)
     end
     return s(tag, process(recv), process(iter_args), new_body)
   end
