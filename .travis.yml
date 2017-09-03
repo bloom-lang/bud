@@ -3,6 +3,7 @@ rvm:
   - "1.9.3"
   - "2.2.0"
   - "2.3.4"
+  - "2.4.1"
 
 before_install:
   - sudo apt-get update -qq

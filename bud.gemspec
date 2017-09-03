@@ -11,7 +11,7 @@ Gem::Specification.new do |s|
   s.description = "A prototype of the Bloom distributed programming language as a Ruby DSL."
   s.license = "BSD"
   s.has_rdoc = true
-  s.required_ruby_version = '>= 1.8.7'
+  s.required_ruby_version = '>= 1.9.3'
   s.rubyforge_project = 'bloom-lang'
 
   s.files = Dir['lib/**/*'] + Dir['bin/*'] + Dir['docs/**/*'] + Dir['examples/**/*'] + %w[README.md LICENSE History.txt Rakefile]
