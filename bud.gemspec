@@ -18,19 +18,19 @@ Gem::Specification.new do |s|
   s.executables = %w[rebl budplot budvis budtimelines budlabel]
   s.default_executable = 'rebl'
 
-  s.add_dependency 'backports'
-  s.add_dependency 'eventmachine'
-  s.add_dependency 'fastercsv'
-  s.add_dependency 'getopt'
-  s.add_dependency 'msgpack'
-  s.add_dependency 'ruby-graphviz'
-  s.add_dependency 'ruby2ruby', '>= 2.0.1'
-  s.add_dependency 'ruby_parser', '>= 3.1.0'
-  s.add_dependency 'superators19'
-  s.add_dependency 'syntax'
-  s.add_dependency 'uuid'
+  s.add_dependency 'backports', '= 3.8.0'
+  s.add_dependency 'eventmachine', '= 1.2.5'
+  s.add_dependency 'fastercsv', '= 1.5.5'
+  s.add_dependency 'getopt', '= 1.4.3'
+  s.add_dependency 'msgpack', '= 1.1.0'
+  s.add_dependency 'ruby-graphviz', '= 1.2.3'
+  s.add_dependency 'ruby2ruby', '= 2.4.0'
+  s.add_dependency 'ruby_parser', '= 3.10.1'
+  s.add_dependency 'superators19', '= 0.9.3'
+  s.add_dependency 'syntax', '= 1.2.2'
+  s.add_dependency 'uuid', '= 2.3.8'
 
-  s.add_development_dependency 'minitest'
+  s.add_development_dependency 'minitest', '= 2.5.1'
 
   # Optional dependencies -- if we can't find these libraries, certain features
   # will be disabled.
