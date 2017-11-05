@@ -942,6 +942,34 @@ class SetProduct
   end
 end
 
+class SetSimpleGroupCnt
+  # Groups by first column
+  include Bud
+
+  state do
+    lset :s1
+    lmap :res
+  end
+
+  bloom do
+    res <= s1.group_count([0])
+  end
+end
+
+class SetMultipleGroupCnt
+  # Groups by first column and third column
+  include Bud
+
+  state do
+    lset :s1
+    lmap :res
+  end
+
+  bloom do
+    res <= s1.group_count([0, 2])
+  end
+end
+
 class SetEqjoin
   include Bud
 
@@ -1139,6 +1167,50 @@ class TestSet < MiniTest::Unit::TestCase
     assert_equal([4].to_set, i.s7.current_value.reveal)
     assert_equal(13, i.m1.current_value.reveal)
     assert_equal(true, i.done.current_value.reveal)
+  end
+
+  def test_set_simple_groupcnt
+    i = SetSimpleGroupCnt.new
+    i.tick
+    expected = Hash.new(Bud::MaxLattice.new(0))
+    assert_equal(expected, i.res.current_value.reveal)
+
+    i.s1 <+ [['a1', 1]]
+    expected[['a1']] = Bud::MaxLattice.new(1)
+    i.tick
+    assert_equal(expected, i.res.current_value.reveal)
+
+    i.s1 <+ [['a2', 2]]
+    expected[['a2']] = Bud::MaxLattice.new(1)
+    i.tick
+    assert_equal(expected, i.res.current_value.reveal)
+
+    i.s1 <+ [['a1', 3], ['a1', 4]]
+    expected[['a1']] = Bud::MaxLattice.new(3)
+    i.tick
+    assert_equal(expected, i.res.current_value.reveal)
+  end
+
+  def test_set_multiple_groupcnt
+    i = SetMultipleGroupCnt.new
+    i.tick
+    expected = Hash.new(Bud::MaxLattice.new(0))
+    assert_equal(expected, i.res.current_value.reveal)
+
+    i.s1 <+ [['a1', 'b1', 'c1', 1]]
+    expected[['a1', 'c1']] = Bud::MaxLattice.new(1)
+    i.tick
+    assert_equal(expected, i.res.current_value.reveal)
+
+    i.s1 <+ [['a2', 'b2', 'c2', 2]]
+    expected[['a2', 'c2']] = Bud::MaxLattice.new(1)
+    i.tick
+    assert_equal(expected, i.res.current_value.reveal)
+
+    i.s1 <+ [['a1', 'b3', 'c1', 3], ['a1', 'b4', 'c1', 4]]
+    expected[['a1', 'c1']] = Bud::MaxLattice.new(3)
+    i.tick
+    assert_equal(expected, i.res.current_value.reveal)
   end
 
   def test_set_product

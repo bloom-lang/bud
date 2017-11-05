@@ -248,6 +248,19 @@ class Bud::SetLattice < Bud::Lattice
     Bud::BoolLattice.new(@v.member? i)
   end
 
+  monotone :group_count do |key_cols|
+    # Assume key_cols for now gives indices
+    rv = Hash.new(Bud::MaxLattice.new(0))
+    @v.each do |t|
+      key = []
+      key_cols.each do |ind|
+        key << t[ind]
+      end
+      rv[key] += 1
+    end
+    Bud::MapLattice.new(rv)
+  end
+
   morph :pro do |&blk|
     # We don't use Set#map, since it returns an Array (ugh).
     rv = Set.new
