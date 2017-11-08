@@ -252,8 +252,15 @@ class Bud::SetLattice < Bud::Lattice
     # Assume key_cols for now gives indices
     rv = Hash.new(Bud::MaxLattice.new(0))
     @v.each do |t|
+      unless t.class == Array
+        raise Bud::TypeError, "group_count only works if lset elements are type Array"
+      end
+
       key = []
       key_cols.each do |ind|
+        if ind >= t.length
+          raise Bud::Error, "lset element in group_count does not have column index #{ind}"
+        end
         key << t[ind]
       end
       rv[key] += 1

@@ -1213,6 +1213,23 @@ class TestSet < MiniTest::Unit::TestCase
     assert_equal(expected, i.res.current_value.reveal)
   end
 
+  def test_set_error_groupcnt
+    i = SetSimpleGroupCnt.new
+    i.tick
+
+    i.s1 <+ ['a1']
+    assert_raises(Bud::TypeError) do
+      i.tick
+    end
+
+    i = SetSimpleGroupCnt.new
+    i.tick
+    i.s1 <+ [['a1', 1], []]
+    assert_raises(Bud::Error) do
+      i.tick
+    end
+  end
+
   def test_set_product
     i = SetProduct.new
     i.tick
