@@ -24,7 +24,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'getopt', '= 1.4.3'
   s.add_dependency 'msgpack', '= 1.1.0'
   s.add_dependency 'ruby-graphviz', '= 1.2.3'
-  s.add_dependency 'ruby2ruby', '= 2.4.0'
+  s.add_dependency 'ruby2ruby', '= 2.4.4'
   s.add_dependency 'ruby_parser', '= 3.10.1'
   s.add_dependency 'superators19', '= 0.9.3'
   s.add_dependency 'syntax', '= 1.2.2'
