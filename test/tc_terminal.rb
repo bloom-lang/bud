@@ -29,7 +29,7 @@ class StdioBootstrap
   end
 end
 
-class TestTerminal < MiniTest::Unit::TestCase
+class TestTerminal < Minitest::Test
   def test_stdin
     input_lines = ["line1", "line2", "line3"]
     input_str = input_lines.join("\n") + "\n"

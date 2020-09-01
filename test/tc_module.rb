@@ -284,7 +284,7 @@ class UseModDefMethod
   end
 end
 
-class TestModules < MiniTest::Unit::TestCase
+class TestModules < Minitest::Test
   def test_simple
     c = ChildClass.new
     c.tick
@@ -626,7 +626,7 @@ class DupImportNameDiffModule
   end
 end
 
-class TestIncludeImport < MiniTest::Unit::TestCase
+class TestIncludeImport < Minitest::Test
   def test_include_import
     b = IncludeImportUser.new
     b.tick
@@ -671,7 +671,7 @@ class ChildBlockC < ParentBlockC
   end
 end
 
-class TestIncludeOverride < MiniTest::Unit::TestCase
+class TestIncludeOverride < Minitest::Test
   def test_override_empty
     b = ChildBlockC.new
     b.tick
@@ -680,7 +680,7 @@ class TestIncludeOverride < MiniTest::Unit::TestCase
 end
 
 # Check that joins defined inside modules work correctly
-class TestJoinInModule < MiniTest::Unit::TestCase
+class TestJoinInModule < Minitest::Test
   module NestedMultiJoinDef
     state do
       scratch :t1
@@ -788,7 +788,7 @@ class JoinModQualifier
   end
 end
 
-class TestJoinWithModuleQualifier < MiniTest::Unit::TestCase
+class TestJoinWithModuleQualifier < Minitest::Test
   def test_mod_join
     b = JoinModQualifier.new
     b.t <+ [[5, 10], [6, 11]]

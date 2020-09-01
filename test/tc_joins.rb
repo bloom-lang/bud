@@ -279,7 +279,7 @@ class Issue313
   end
 end
 
-class TestJoins < MiniTest::Unit::TestCase
+class TestJoins < Minitest::Test
   def test_combos
     program = CombosBud.new
     program.tick
@@ -570,7 +570,7 @@ class TestJoinLocalPreds
   end
 end
 
-class TestLocalPredJoins < MiniTest::Unit::TestCase
+class TestLocalPredJoins < Minitest::Test
   def test_explicit
     assert_raises(Bud::CompileError) {p = TestJoinLocalPreds.new; p.tick}
     # assert_equal([ [[1,1], [3,3]], [[2,3], [3,3]] ], p.t3.to_a.sort)
@@ -594,7 +594,7 @@ class Issue192
  end
 end
 
-class TestIssue192 < MiniTest::Unit::TestCase
+class TestIssue192 < Minitest::Test
   def test_192
     p = Issue192.new
     p.intab1 << [-1]
@@ -605,7 +605,7 @@ class TestIssue192 < MiniTest::Unit::TestCase
   end
 end
 
-class TestIssue220 < MiniTest::Unit::TestCase
+class TestIssue220 < Minitest::Test
   class TripleJoin
     include Bud
     state do
@@ -670,7 +670,7 @@ class OjMultipleRelsError
   end
 end
 
-class TestOuterJoins < MiniTest::Unit::TestCase
+class TestOuterJoins < Minitest::Test
   def test_oj_channel
     o = OjChannel.new
     o.run_bg
@@ -794,7 +794,7 @@ class TestOuterJoinReplay
 end
 
 # Issue #276 and related bugs
-class RescanTests < MiniTest::Unit::TestCase
+class RescanTests < Minitest::Test
   def test_scan_replay
     i = TestScanReplay.new
     i.t1 <+ [[4, 8]]

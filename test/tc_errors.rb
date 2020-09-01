@@ -1,7 +1,7 @@
 require './test_common'
 require 'tempfile'
 
-class TestErrorHandling < MiniTest::Unit::TestCase
+class TestErrorHandling < Minitest::Test
   class EmptyBud
     include Bud
   end

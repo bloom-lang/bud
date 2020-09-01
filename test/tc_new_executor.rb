@@ -1,6 +1,6 @@
 require './test_common'
 
-class PushTests < MiniTest::Unit::TestCase
+class PushTests < Minitest::Test
   class SimplePush
     include Bud
     state do

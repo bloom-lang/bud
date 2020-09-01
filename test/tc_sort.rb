@@ -1,6 +1,6 @@
 require './test_common'
 
-class TestSort < MiniTest::Unit::TestCase
+class TestSort < Minitest::Test
   class SortDelay
     include Bud
 

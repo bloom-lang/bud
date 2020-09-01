@@ -38,7 +38,7 @@ class ChildBud < ParentBud
   end
 end
 
-class TestSubclass < MiniTest::Unit::TestCase
+class TestSubclass < Minitest::Test
   def test_override
     p1 = ParentBud.new
     p2 = ChildBud.new

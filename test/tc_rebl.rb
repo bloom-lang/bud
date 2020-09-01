@@ -31,7 +31,7 @@ end
 # TODO: add the following testcases:
 #    * test persistent store functionality
 
-class TestRebl < MiniTest::Unit::TestCase
+class TestRebl < Minitest::Test
   def test_rebl_pingpong
     the_line = nil
     rt1 = nil

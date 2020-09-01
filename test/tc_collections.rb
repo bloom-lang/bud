@@ -272,7 +272,7 @@ class StructArrayConcat
   end
 end
 
-class TestCollections < MiniTest::Unit::TestCase
+class TestCollections < Minitest::Test
   def test_simple_deduction
     program = BabyBud.new
     program.tick
@@ -649,7 +649,7 @@ class TestCollections < MiniTest::Unit::TestCase
   end
 end
 
-class TestUpsert < MiniTest::Unit::TestCase
+class TestUpsert < Minitest::Test
   class UpsertTest
     include Bud
     state do
@@ -681,7 +681,7 @@ class TestUpsert < MiniTest::Unit::TestCase
   end
 end
 
-class TestTransitivity < MiniTest::Unit::TestCase
+class TestTransitivity < Minitest::Test
   class TransitivityTest
     include Bud
     state do
@@ -715,7 +715,7 @@ class TestTransitivity < MiniTest::Unit::TestCase
   end
 end
 
-class TestCollExpr < MiniTest::Unit::TestCase
+class TestCollExpr < Minitest::Test
   class CollExprTest
     include Bud
     state do
@@ -734,7 +734,7 @@ class TestCollExpr < MiniTest::Unit::TestCase
   end
 end
 
-class TestConstants < MiniTest::Unit::TestCase
+class TestConstants < Minitest::Test
   class StrOut
     include Bud
     state { table :his}
@@ -750,7 +750,7 @@ class TestConstants < MiniTest::Unit::TestCase
   end
 end
 
-class ScratchTickDeltas < MiniTest::Unit::TestCase
+class ScratchTickDeltas < Minitest::Test
   # issue 281
   class AccumDeltasInScratch
     include Bud
@@ -788,7 +788,7 @@ class ScratchTickDeltas < MiniTest::Unit::TestCase
   end
 end
 
-class TestEachWithIndex < MiniTest::Unit::TestCase
+class TestEachWithIndex < Minitest::Test
   class UseEachWithIndex
     include Bud
 
@@ -846,7 +846,7 @@ class TestEachWithIndex < MiniTest::Unit::TestCase
   end
 end
 
-class TestBudStruct < MiniTest::Unit::TestCase
+class TestBudStruct < Minitest::Test
   MyStruct = Bud::TupleStruct.new(:x, :y)
 
   def test_struct_hashing

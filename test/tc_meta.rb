@@ -148,7 +148,7 @@ class InterfaceAlternate
   end
 end
 
-class TestMeta < MiniTest::Unit::TestCase
+class TestMeta < Minitest::Test
   def test_paths
     program = LocalShortestPaths.new
     assert_equal(4, program.stratified_rules.length)
@@ -353,7 +353,7 @@ class TestMeta < MiniTest::Unit::TestCase
   end
 end
 
-class TestThetaMeta < MiniTest::Unit::TestCase
+class TestThetaMeta < Minitest::Test
   class ThetaMonotoneJoin
     include Bud
 
@@ -394,7 +394,7 @@ class StratBody
   end
 end
 
-class TestStratProperties < MiniTest::Unit::TestCase
+class TestStratProperties < Minitest::Test
   def test_strat_body
     s = StratBody.new
     rule_strata = s.t_rule_stratum.map {|rs| [rs.rule_id, rs.stratum]}

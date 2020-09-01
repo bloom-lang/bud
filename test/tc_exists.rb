@@ -18,7 +18,7 @@ class ExistTest
   end
 end
 
-class TestExists < MiniTest::Unit::TestCase
+class TestExists < Minitest::Test
   def test_conv
     p = ExistTest.new
     p.run_bg

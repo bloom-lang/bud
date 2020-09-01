@@ -55,7 +55,7 @@ class LessAnnoying < StillAnnoying
   end
 end
 
-class TestMapVariants < MiniTest::Unit::TestCase
+class TestMapVariants < Minitest::Test
   def test_leave_map_alone
     program = LeaveMapAlone.new
     program.tick
@@ -71,7 +71,7 @@ class TestMapVariants < MiniTest::Unit::TestCase
   end
 end
 
-class TestProEnumerable < MiniTest::Unit::TestCase
+class TestProEnumerable < Minitest::Test
   class SortIdAssign
     include Bud
 

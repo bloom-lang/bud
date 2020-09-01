@@ -24,7 +24,7 @@ class TickleCount
   end
 end
 
-class TestTickle < MiniTest::Unit::TestCase
+class TestTickle < Minitest::Test
   def test_tickle_run_bg
     c = TickleCount.new
 
@@ -100,7 +100,7 @@ class RingMember
   end
 end
 
-class TestRing < MiniTest::Unit::TestCase
+class TestRing < Minitest::Test
   RING_SIZE = 10
 
   def test_basic_ring
@@ -178,7 +178,7 @@ class PayloadForDefaultChannel
   end
 end
 
-class TestPayloads < MiniTest::Unit::TestCase
+class TestPayloads < Minitest::Test
   def test_channel_with_key
     p1 = ChannelWithKey.new
     p2 = ChannelWithKey.new
@@ -255,7 +255,7 @@ class ChannelAddrInVal
   end
 end
 
-class TestChannelAddrInVal < MiniTest::Unit::TestCase
+class TestChannelAddrInVal < Minitest::Test
   def test_addr_in_val
     p1 = ChannelAddrInVal.new
     p2 = ChannelAddrInVal.new
@@ -306,7 +306,7 @@ class ChannelBootstrap
   end
 end
 
-class TestChannelBootstrap < MiniTest::Unit::TestCase
+class TestChannelBootstrap < Minitest::Test
   def test_bootstrap
     c = ChannelBootstrap.new
     q = Queue.new
@@ -346,7 +346,7 @@ class ChannelWithMultiLocSpecs
   end
 end
 
-class LocSpecTests < MiniTest::Unit::TestCase
+class LocSpecTests < Minitest::Test
   def test_missing_ls
     assert_raises(Bud::Error) { ChannelWithoutLocSpec.new }
   end
@@ -391,7 +391,7 @@ class SimpleLoopback
   end
 end
 
-class LoopbackTests < MiniTest::Unit::TestCase
+class LoopbackTests < Minitest::Test
   def test_loopback_payload
     b = LoopbackPayload.new
     q = Queue.new
@@ -450,7 +450,7 @@ class SimpleAgent
   end
 end
 
-class TestChannelFilter < MiniTest::Unit::TestCase
+class TestChannelFilter < Minitest::Test
   def test_filter_drop
     f = lambda do |tbl_name, tups|
       return [tups, []] unless tbl_name == :chn

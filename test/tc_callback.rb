@@ -53,7 +53,7 @@ class CallbackWithChannel
   end
 end
 
-class CallbackTest < MiniTest::Unit::TestCase
+class CallbackTest < Minitest::Test
   class Counter
     attr_reader :cnt
 

@@ -22,7 +22,7 @@ class WordCount1
   end
 end
 
-class TestWC1 < MiniTest::Unit::TestCase
+class TestWC1 < Minitest::Test
   def test_wc1
     program = WordCount1.new(/[Bb]loom/)
     program.tick
@@ -59,7 +59,7 @@ class WordCount2
   end
 end
 
-class TestWC2 < MiniTest::Unit::TestCase
+class TestWC2 < Minitest::Test
   def test_wc2
     program = WordCount2.new(/[Bb]loom/)
     program.tick

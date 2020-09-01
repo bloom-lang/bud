@@ -236,7 +236,7 @@ class BooleanAggs
   end
 end
 
-class TestAggs < MiniTest::Unit::TestCase
+class TestAggs < Minitest::Test
   def test_paths
     program = ShortestPaths.new
     program.tick
@@ -485,7 +485,7 @@ class TestAggs < MiniTest::Unit::TestCase
   end
 end
 
-class TestReduce < MiniTest::Unit::TestCase
+class TestReduce < Minitest::Test
   class ReduceTypeError
     include Bud
 
@@ -584,7 +584,7 @@ class AggDupInputs
   end
 end
 
-class AggDupElimTests < MiniTest::Unit::TestCase
+class AggDupElimTests < Minitest::Test
   # Issue #278
   def test_join_rescan
     i = AggJoinRescan.new
@@ -653,7 +653,7 @@ class TestArgaggRescan
   end
 end
 
-class ArgaggRescanTest < MiniTest::Unit::TestCase
+class ArgaggRescanTest < Minitest::Test
   def test_argagg_rescan
     i = TestArgaggRescan.new
     i.heartbeat <+ [["a", "b"]]
@@ -685,7 +685,7 @@ class TestAccumPair
   end
 end
 
-class AccumPairTest < MiniTest::Unit::TestCase
+class AccumPairTest < Minitest::Test
   def test_accum_pair
     i = TestAccumPair.new
     i.in_t <+ [[9, 3, 4], [9, 4, 3]]

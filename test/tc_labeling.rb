@@ -175,7 +175,7 @@ class RollHG
   include HalfGuard
 end
 
-class TestBlazes < MiniTest::Unit::TestCase
+class TestBlazes < Minitest::Test
   def test_label1
     r = RolledUp.new
     r.tick
@@ -268,7 +268,7 @@ class FullGuardC
   include FullGuard
 end
 
-class TestBlazes < MiniTest::Unit::TestCase
+class TestBlazes < Minitest::Test
   def test_bug
     c = BugC.new
     c.tick

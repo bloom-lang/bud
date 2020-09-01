@@ -59,7 +59,7 @@ def rm_bud_dir
   FileUtils.rm_r(DBM_BUD_DIR)
 end
 
-class TestDbm < MiniTest::Unit::TestCase
+class TestDbm < Minitest::Test
   def setup
     setup_bud
     @t = make_bud(true)
@@ -250,7 +250,7 @@ class DbmNest
   end
 end
 
-class TestNestedDbm < MiniTest::Unit::TestCase
+class TestNestedDbm < Minitest::Test
   def setup
     setup_bud
     @t = make_bud
@@ -294,7 +294,7 @@ class DbmBootstrap
   end
 end
 
-class TestDbmBootstrap < MiniTest::Unit::TestCase
+class TestDbmBootstrap < Minitest::Test
   def setup
     setup_bud
     @t = make_bud
@@ -336,7 +336,7 @@ class DbmCycleDelta
   end
 end
 
-class TestDbmDelta < MiniTest::Unit::TestCase
+class TestDbmDelta < Minitest::Test
   def setup
     setup_bud
     @t = make_bud

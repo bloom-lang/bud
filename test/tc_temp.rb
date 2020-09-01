@@ -240,7 +240,7 @@ class TempAtNext
   end
 end
 
-class TestTemps < MiniTest::Unit::TestCase
+class TestTemps < Minitest::Test
   def test_basic_temp
     p = BasicTemp.new
     p.run_bg
@@ -351,7 +351,7 @@ class TestTemps < MiniTest::Unit::TestCase
   end
 end
 
-class TestTempNoMaps < MiniTest::Unit::TestCase
+class TestTempNoMaps < Minitest::Test
   def test_simple_test_nomap
     p = SimpleTempNoMapTest.new
     p.tick
@@ -397,7 +397,7 @@ class TestModuleUser
   include TestDefModule
 end
 
-class TestModuleTemp < MiniTest::Unit::TestCase
+class TestModuleTemp < Minitest::Test
   def test_simple
     c = TestModuleUser.new
     c.tick

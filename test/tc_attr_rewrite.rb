@@ -1,6 +1,6 @@
 require './test_common'
 
-class TestCols < MiniTest::Unit::TestCase
+class TestCols < Minitest::Test
   class SimpleCols
     include Bud
     state do

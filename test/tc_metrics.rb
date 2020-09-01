@@ -15,7 +15,7 @@ class MetricsTest
 end
 
 
-class TestMetrics < MiniTest::Unit::TestCase
+class TestMetrics < Minitest::Test
   def test_metrics
     out, err = capture_io do
       p = MetricsTest.new(:metrics => true)

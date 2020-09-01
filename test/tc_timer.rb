@@ -13,7 +13,7 @@ class TemporalBudTest
   end
 end
 
-class TestTimer < MiniTest::Unit::TestCase
+class TestTimer < Minitest::Test
   def test_timer
     b = TemporalBudTest.new
     q = Queue.new
@@ -62,7 +62,7 @@ class BudClockExample
   end
 end
 
-class TestBudClock < MiniTest::Unit::TestCase
+class TestBudClock < Minitest::Test
   def test_bud_clock
     b = BudClockExample.new
     b.run_bg

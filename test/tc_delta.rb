@@ -68,7 +68,7 @@ class Delta3JoinTest
   end
 end
 
-class TestDelta < MiniTest::Unit::TestCase
+class TestDelta < Minitest::Test
   def test_transitivity
     program = DeltaTest.new
     program.tick

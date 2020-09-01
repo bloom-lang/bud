@@ -6,7 +6,7 @@ class Vacuous
   include Bud
 end
 
-class ExecModeTest < MiniTest::Unit::TestCase
+class ExecModeTest < Minitest::Test
   def test_shutdown_em
     c = Vacuous.new
     c.run_bg
@@ -227,7 +227,7 @@ class ThreePhase
   end
 end
 
-class TestPause < MiniTest::Unit::TestCase
+class TestPause < Minitest::Test
   def test_pause_threephase
     b = ThreePhase.new
     q = Queue.new

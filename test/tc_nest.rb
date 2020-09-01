@@ -36,7 +36,7 @@ class Nesting
   end
 end
 
-class TestNest < MiniTest::Unit::TestCase
+class TestNest < Minitest::Test
   def test_nest
     u = Nesting.new
     u.tick

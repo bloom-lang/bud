@@ -1,6 +1,6 @@
 require './test_common'
 
-class NotInTest < MiniTest::Unit::TestCase
+class NotInTest < Minitest::Test
   class SillyAnti
     include Bud
 
@@ -39,7 +39,7 @@ class NotInTest < MiniTest::Unit::TestCase
   end
 end
 
-class NotInTest2 < MiniTest::Unit::TestCase
+class NotInTest2 < Minitest::Test
   class SimpleNotIn
     include Bud
     state do
@@ -67,7 +67,7 @@ class NotInTest2 < MiniTest::Unit::TestCase
   end
 end
 
-class BlocklessNotInTest < MiniTest::Unit::TestCase
+class BlocklessNotInTest < Minitest::Test
   class BlocklessNotIn
     include Bud
     state do
@@ -97,7 +97,7 @@ class BlocklessNotInTest < MiniTest::Unit::TestCase
   end
 end
 
-class RecursiveNotInTest < MiniTest::Unit::TestCase # issue 255
+class RecursiveNotInTest < Minitest::Test # issue 255
   class RecNotIn
     include Bud
     state do
@@ -124,7 +124,7 @@ class RecursiveNotInTest < MiniTest::Unit::TestCase # issue 255
 end
 
 
-class StratifiedTest < MiniTest::Unit::TestCase # issue 271
+class StratifiedTest < Minitest::Test # issue 271
   class StratNotIn
     include Bud
     state do
@@ -202,7 +202,7 @@ class RescanNotInMix
   end
 end
 
-class RescanNotInTest < MiniTest::Unit::TestCase
+class RescanNotInTest < Minitest::Test
   def test_notin_rescan
     i = RescanNotIn.new
     i.in_t <+ [[5, 10]]
@@ -278,7 +278,7 @@ class TwoQualsChain
   end
 end
 
-class TwoQualsTest < MiniTest::Unit::TestCase
+class TwoQualsTest < Minitest::Test
   # issue 282
   def test_two_quals
     f = TwoQuals.new
@@ -332,7 +332,7 @@ class NotinSelfChainStackBug
   end
 end
 
-class NotInSelfTest < MiniTest::Unit::TestCase
+class NotInSelfTest < Minitest::Test
   def test_self_notin
     n = NotInSelf.new
     n.t1 <+ [[5, 10], [10, 10], [12, 11]]
@@ -401,7 +401,7 @@ class NotInChainJoin
   end
 end
 
-class NotInChainTest < MiniTest::Unit::TestCase
+class NotInChainTest < Minitest::Test
   def test_chain_notin
     n = NotInChain.new
     n.t2 <+ [[4, 9], [5, 10], [6, 11], [8, 10], [12, 9]]
@@ -461,7 +461,7 @@ class StratShouldWork
   end
 end
 
-class TestStratErrors < MiniTest::Unit::TestCase
+class TestStratErrors < Minitest::Test
   def test_strat_error
     assert_raises(Bud::CompileError) { StratError.new }
   end

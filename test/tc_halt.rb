@@ -18,7 +18,7 @@ class Halts
   end
 end
 
-class TestHalt < MiniTest::Unit::TestCase
+class TestHalt < Minitest::Test
   def test_halt
     program = Halts.new
     program.run_bg
