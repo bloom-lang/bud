@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
   s.summary = "A prototype Bloom DSL for distributed programming."
   s.homepage = "http://www.bloom-lang.org"
   s.description = "A prototype of the Bloom distributed programming language as a Ruby DSL."
-  s.license = "BSD"
+  s.license = "BSD-3-CLAUSE"
   s.has_rdoc = true
   s.required_ruby_version = '>= 1.9.3'
   s.rubyforge_project = 'bloom-lang'
